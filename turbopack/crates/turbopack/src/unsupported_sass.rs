@@ -32,7 +32,7 @@ impl UnsupportedSassResolvePlugin {
 impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**/*.{sass,scss}".into()))
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new(rcstr!("**/*.{sass,scss}")))
     }
 
     #[turbo_tasks::function]

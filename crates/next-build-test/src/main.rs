@@ -7,6 +7,7 @@ use next_core::tracing_presets::{
     TRACING_NEXT_TURBOPACK_TARGETS,
 };
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
+use turbo_rcstr::rcstr;
 use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_malloc::TurboMalloc;
@@ -143,24 +144,24 @@ fn main() {
             let canonical_path = std::fs::canonicalize(absolute_dir).unwrap();
 
             let options = ProjectOptions {
-                build_id: "test".into(),
+                build_id: rcstr!("test"),
                 define_env: DefineEnv {
                     client: vec![],
                     edge: vec![],
                     nodejs: vec![],
                 },
                 dev: true,
-                encryption_key: "deadbeef".into(),
+                encryption_key: rcstr!("deadbeef"),
                 env: vec![],
                 js_config: include_str!("../jsConfig.json").into(),
                 next_config: include_str!("../nextConfig.json").into(),
                 preview_props: next_api::project::DraftModeOptions {
-                    preview_mode_encryption_key: "deadbeef".into(),
-                    preview_mode_id: "test".into(),
-                    preview_mode_signing_key: "deadbeef".into(),
+                    preview_mode_encryption_key: rcstr!("deadbeef"),
+                    preview_mode_id: rcstr!("test"),
+                    preview_mode_signing_key: rcstr!("deadbeef"),
                 },
                 project_path: canonical_path.to_string_lossy().into(),
-                root_path: "/".into(),
+                root_path: rcstr!("/"),
                 watch: Default::default(),
                 browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 \
                                      Safari versions, last 1 Edge versions"

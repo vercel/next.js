@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use super::{
@@ -151,7 +152,7 @@ pub async fn make_chunk_group(
         chunking_context,
         chunk_items,
         chunk_item_batch_groups,
-        "".into(),
+        rcstr!(""),
         ResolvedVc::cell(referenced_output_assets),
     )
     .await?;

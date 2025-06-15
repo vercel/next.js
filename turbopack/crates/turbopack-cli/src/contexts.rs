@@ -44,7 +44,7 @@ impl fmt::Display for NodeEnv {
 }
 
 async fn foreign_code_context_condition() -> Result<ContextCondition> {
-    Ok(ContextCondition::InDirectory("node_modules".to_string()))
+    Ok(ContextCondition::InDirectory(rcstr!("node_modules")))
 }
 
 #[turbo_tasks::function]
@@ -61,7 +61,7 @@ pub async fn get_client_import_map(
     import_map.insert_wildcard_alias(
         "@vercel/turbopack-ecmascript-runtime/",
         ImportMapping::PrimaryAlternative(
-            "./*".into(),
+            rcstr!("./*"),
             Some(
                 turbopack_ecmascript_runtime::embed_fs()
                     .root()
@@ -83,7 +83,7 @@ pub async fn get_client_resolve_options_context(
     let next_client_import_map = get_client_import_map(project_path).to_resolved().await?;
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().to_resolved().await?),
-        custom_conditions: vec![node_env.await?.to_string().into(), "browser".into()],
+        custom_conditions: vec![node_env.await?.to_string().into(), rcstr!("browser")],
         import_map: Some(next_client_import_map),
         browser: true,
         module: true,
@@ -134,10 +134,10 @@ async fn get_client_module_options_context(
     );
 
     let conditions = RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".js".to_string()),
-        RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-        RuleCondition::ResourcePathEndsWith(".ts".to_string()),
-        RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".js")),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".jsx")),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".ts")),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".tsx")),
     ]);
 
     let module_rules = ModuleRule::new(

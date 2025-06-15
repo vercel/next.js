@@ -5,6 +5,7 @@
 use anyhow::{Ok, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::{formatdoc, indoc};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack::ModuleAssetContext;
@@ -83,12 +84,12 @@ pub async fn get_app_metadata_route_entry(
         page.0.pop();
 
         let _ = if is_multi_dynamic {
-            page.push(PageSegment::Dynamic("__metadata_id__".into()))
+            page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))
         } else {
             // if page last segment is sitemap, change to sitemap.xml
-            if page.last() == Some(&PageSegment::Static("sitemap".into())) {
+            if page.last() == Some(&PageSegment::Static(rcstr!("sitemap"))) {
                 page.0.pop();
-                page.push(PageSegment::Static("sitemap.xml".into()))
+                page.push(PageSegment::Static(rcstr!("sitemap.xml")))
             } else {
                 Ok(())
             }

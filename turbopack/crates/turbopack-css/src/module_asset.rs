@@ -442,8 +442,10 @@ impl Issue for CssModuleComposesIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("An issue occurred while resolving a CSS module `composes:` rule".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "An issue occurred while resolving a CSS module `composes:` rule"
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]

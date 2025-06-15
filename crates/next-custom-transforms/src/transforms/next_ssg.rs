@@ -1,17 +1,17 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
-use easy_error::{bail, Error};
+use easy_error::{Error, bail};
 use rustc_hash::FxHashSet;
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, atom},
     common::{
+        DUMMY_SP,
         errors::HANDLER,
         pass::{Repeat, Repeated},
-        DUMMY_SP,
     },
     ecma::{
         ast::*,
-        visit::{fold_pass, noop_fold_type, Fold, FoldWith},
+        visit::{Fold, FoldWith, fold_pass, noop_fold_type},
     },
 };
 
@@ -443,7 +443,7 @@ impl Fold for NextSsg {
 
         match &i {
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if e.specifiers.is_empty() => {
-                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }))
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
             _ => {}
         }
@@ -469,9 +469,9 @@ impl Fold for NextSsg {
                     name: Pat::Ident(
                         IdentName::new(
                             if self.state.is_prerenderer {
-                                "__N_SSG".into()
+                                atom!("__N_SSG")
                             } else {
-                                "__N_SSP".into()
+                                atom!("__N_SSP")
                             },
                             DUMMY_SP,
                         )

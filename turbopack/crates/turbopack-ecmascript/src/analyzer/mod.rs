@@ -3952,8 +3952,8 @@ pub mod test_utils {
                 }
             }
             JsValue::FreeVar(ref var) => match &**var {
-                "__dirname" => "__dirname".into(),
-                "__filename" => "__filename".into(),
+                "__dirname" => rcstr!("__dirname").into(),
+                "__filename" => rcstr!("__filename").into(),
 
                 "require" => JsValue::unknown_if(
                     ignore,

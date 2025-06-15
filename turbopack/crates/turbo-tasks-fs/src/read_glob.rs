@@ -125,7 +125,7 @@ pub mod tests {
         io::prelude::*,
     };
 
-    use turbo_rcstr::RcStr;
+    use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{Completion, ReadRef, ResolvedVc, Vc, apply_effects};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
@@ -147,7 +147,7 @@ pub mod tests {
 
     #[turbo_tasks::function(operation)]
     pub async fn track_star_star_glob(path: ResolvedVc<FileSystemPath>) -> Vc<Completion> {
-        path.track_glob(Glob::new("**".into()), false)
+        path.track_glob(Glob::new(rcstr!("**")), false)
     }
 
     #[cfg(unix)]
@@ -192,17 +192,17 @@ pub mod tests {
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
-                "temp".into(),
+                rcstr!("temp"),
                 path,
                 Vec::new(),
             ));
-            let dir = fs.root().join("dir".into()).to_resolved().await?;
+            let dir = fs.root().join(rcstr!("dir")).to_resolved().await?;
             let read_dir = track_star_star_glob(dir).read_strongly_consistent().await?;
 
             // Delete a file that we shouldn't be tracking
             let delete_result = delete(
                 fs.root()
-                    .join("dir/sub/.vim/.gitignore".into())
+                    .join(rcstr!("dir/sub/.vim/.gitignore"))
                     .to_resolved()
                     .await?,
             );
@@ -213,7 +213,7 @@ pub mod tests {
             assert!(ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Delete a file that we should be tracking
-            let delete_result = delete(fs.root().join("dir/foo".into()).to_resolved().await?);
+            let delete_result = delete(fs.root().join(rcstr!("dir/foo")).to_resolved().await?);
             delete_result.read_strongly_consistent().await?;
             apply_effects(delete_result).await?;
 
@@ -224,10 +224,10 @@ pub mod tests {
             // Modify a symlink target file
             let write_result = write(
                 fs.root()
-                    .join("link_target.js".into())
+                    .join(rcstr!("link_target.js"))
                     .to_resolved()
                     .await?,
-                "new_contents".into(),
+                rcstr!("new_contents"),
             );
             write_result.read_strongly_consistent().await?;
             apply_effects(write_result).await?;
@@ -266,13 +266,13 @@ pub mod tests {
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
-                "temp".into(),
+                rcstr!("temp"),
                 path,
                 Vec::new(),
             ));
             let err = fs
                 .root()
-                .track_glob(Glob::new("**".into()), false)
+                .track_glob(Glob::new(rcstr!("**")), false)
                 .await
                 .expect_err("Should have detected an infinite loop");
 
@@ -284,7 +284,7 @@ pub mod tests {
             // Same when calling track glob
             let err = fs
                 .root()
-                .track_glob(Glob::new("**".into()), false)
+                .track_glob(Glob::new(rcstr!("**")), false)
                 .await
                 .expect_err("Should have detected an infinite loop");
 

@@ -5,17 +5,17 @@ use std::{
 
 use pathdiff::diff_paths;
 use swc_core::{
-    atoms::Atom,
-    common::{errors::HANDLER, FileName, Span, DUMMY_SP},
+    atoms::{Atom, atom},
+    common::{DUMMY_SP, FileName, Span, errors::HANDLER},
     ecma::{
         ast::{
-            op, ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee,
-            Expr, ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
+            ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+            ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
             ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem, ObjectLit, Pass, Prop,
-            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
+            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp, op,
         },
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{fold_pass, Fold, FoldWith, VisitMut, VisitMutWith},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{Fold, FoldWith, VisitMut, VisitMutWith, fold_pass},
     },
     quote,
 };
@@ -264,7 +264,7 @@ impl Fold for NextDynamicPatcher {
                     let mut props =
                         vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                             key: PropName::Ident(IdentName::new(
-                                "loadableGenerated".into(),
+                                atom!("loadableGenerated"),
                                 DUMMY_SP,
                             )),
                             value: generated,
@@ -432,7 +432,7 @@ impl VisitMut for DynamicImportTransitionAdder<'_> {
                     ObjectLit {
                         span: DUMMY_SP,
                         props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                            key: PropName::Ident(IdentName::new("with".into(), DUMMY_SP)),
+                            key: PropName::Ident(IdentName::new(atom!("with"), DUMMY_SP)),
                             value: with_transition(self.transition_name).into(),
                         })))],
                     }
@@ -453,7 +453,7 @@ impl VisitMut for DynamicImportTransitionAdder<'_> {
 
 fn module_id_options(module_id: Expr) -> Vec<PropOrSpread> {
     vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-        key: PropName::Ident(IdentName::new("modules".into(), DUMMY_SP)),
+        key: PropName::Ident(IdentName::new(atom!("modules"), DUMMY_SP)),
         value: Box::new(Expr::Array(ArrayLit {
             elems: vec![Some(ExprOrSpread {
                 expr: Box::new(module_id),
@@ -466,7 +466,7 @@ fn module_id_options(module_id: Expr) -> Vec<PropOrSpread> {
 
 fn webpack_options(module_id: Expr) -> Vec<PropOrSpread> {
     vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-        key: PropName::Ident(IdentName::new("webpack".into(), DUMMY_SP)),
+        key: PropName::Ident(IdentName::new(atom!("webpack"), DUMMY_SP)),
         value: Box::new(Expr::Arrow(ArrowExpr {
             params: vec![],
             body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Array(ArrayLit {
@@ -512,7 +512,7 @@ impl NextDynamicPatcher {
                             local: id_ident,
                             imported: Some(
                                 Ident::new(
-                                    "__turbopack_module_id__".into(),
+                                    atom!("__turbopack_module_id__"),
                                     DUMMY_SP,
                                     Default::default(),
                                 )
@@ -541,7 +541,7 @@ impl NextDynamicPatcher {
 fn exec_expr_when_resolve_weak_available(expr: &Expr) -> Expr {
     let undefined_str_literal = Expr::Lit(Lit::Str(Str {
         span: DUMMY_SP,
-        value: "undefined".into(),
+        value: atom!("undefined"),
         raw: None,
     }));
 

@@ -7,7 +7,7 @@ use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
@@ -541,7 +541,7 @@ impl SourceMap {
 
 #[turbo_tasks::function]
 fn sourcemap_content_fs_root() -> Vc<FileSystemPath> {
-    VirtualFileSystem::new_with_name("sourcemap-content".into()).root()
+    VirtualFileSystem::new_with_name(rcstr!("sourcemap-content")).root()
 }
 
 #[turbo_tasks::function]

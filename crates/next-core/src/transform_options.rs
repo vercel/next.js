@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath};
 use turbopack::{
@@ -161,11 +162,11 @@ pub async fn get_jsx_transform_options(
         // https://github.com/vercel/next.js/blob/3dc2c1c7f8441cdee31da9f7e0986d654c7fd2e7/packages/next/src/build/swc/options.ts#L112
         // This'll be ignored if ts|jsconfig explicitly specifies importSource
         import_source: if is_emotion_enabled && !is_rsc_context {
-            Some("@emotion/react".into())
+            Some(rcstr!("@emotion/react"))
         } else {
             None
         },
-        runtime: Some("automatic".into()),
+        runtime: Some(rcstr!("automatic")),
         react_refresh: enable_react_refresh,
     };
 

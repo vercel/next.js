@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystem;
@@ -42,9 +42,9 @@ pub async fn node_evaluate_asset_context(
         ImportMap::empty()
     };
     import_map.insert_wildcard_alias(
-        "@vercel/turbopack-node/",
+        rcstr!("@vercel/turbopack-node/"),
         ImportMapping::PrimaryAlternative(
-            "./*".into(),
+            rcstr!("./*"),
             Some(
                 turbopack_node::embed_js::embed_fs()
                     .root()
@@ -55,11 +55,11 @@ pub async fn node_evaluate_asset_context(
         .resolved_cell(),
     );
     let import_map = import_map.resolved_cell();
-    let node_env: RcStr =
-        if let Some(node_env) = &*execution_context.env().read("NODE_ENV".into()).await? {
-            node_env.as_str().into()
+    let node_env =
+        if let Some(node_env) = &*execution_context.env().read(rcstr!("NODE_ENV")).await? {
+            node_env.clone()
         } else {
-            "development".into()
+            rcstr!("development")
         };
 
     // base context used for node_modules (and context for app code will be derived
@@ -74,7 +74,7 @@ pub async fn node_evaluate_asset_context(
         ),
         enable_node_externals: true,
         enable_node_native_modules: true,
-        custom_conditions: vec![node_env.clone(), "node".into()],
+        custom_conditions: vec![node_env.clone(), rcstr!("node")],
         ..Default::default()
     };
     // app code context, includes a rule to switch to the node_modules context
@@ -82,7 +82,7 @@ pub async fn node_evaluate_asset_context(
         enable_typescript: true,
         import_map: Some(import_map),
         rules: vec![(
-            ContextCondition::InDirectory("node_modules".to_string()),
+            ContextCondition::InDirectory(rcstr!("node_modules")),
             resolve_options_context.clone().resolved_cell(),
         )],
         ..resolve_options_context

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::WebpackLoadersOptions;
@@ -44,7 +44,7 @@ pub async fn webpack_loader_options(
 async fn loader_runner_package_mapping() -> Result<Vc<ImportMapping>> {
     Ok(ImportMapping::Alternatives(vec![
         ImportMapping::External(
-            Some("next/dist/compiled/loader-runner".into()),
+            Some(rcstr!("next/dist/compiled/loader-runner")),
             ExternalType::CommonJs,
             ExternalTraced::Untraced,
         )

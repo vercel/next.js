@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
@@ -64,7 +64,7 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: Vc<FileSystemPath>) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new(root, Glob::new("**/node_modules/**".into()))
+    AfterResolvePluginCondition::new(root, Glob::new(rcstr!("**/node_modules/**")))
 }
 
 #[turbo_tasks::value_impl]
@@ -238,7 +238,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // have an extension in the request we try to append ".js"
                     // automatically
                     request_str.push_str(".js");
-                    request = request.append_path(".js".into()).resolve().await?;
+                    request = request.append_path(rcstr!(".js")).resolve().await?;
                     continue;
                 }
                 // this can't resolve with node.js from the original location, so bundle it
@@ -271,7 +271,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                         .into(),
                 ),
                 StyledString::Code(format!("npm install {package}").into()),
-                StyledString::Text(" from the project directory.".into()),
+                StyledString::Text(rcstr!(" from the project directory.")),
             ]);
         };
 
@@ -300,9 +300,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             let FindContextFileResult::Found(package_json_from_original_location, _) =
                 *package_json_from_original_location.await?
             else {
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json of the package can't be found.".into(),
-                )]);
+                return unable_to_externalize(vec![StyledString::Text(rcstr!(
+                    "The package.json of the package can't be found."
+                ))]);
             };
             let FileJsonContent::Content(package_json_file) =
                 &*package_json_file.read_json().await?
@@ -316,17 +316,17 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             let FileJsonContent::Content(package_json_from_original_location) =
                 &*package_json_from_original_location.read_json().await?
             else {
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json of the package can't be parsed.".into(),
-                )]);
+                return unable_to_externalize(vec![StyledString::Text(rcstr!(
+                    "The package.json of the package can't be parsed."
+                ))]);
             };
             let (Some(name), Some(version)) = (
                 package_json_file.get("name").and_then(|v| v.as_str()),
                 package_json_file.get("version").and_then(|v| v.as_str()),
             ) else {
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json of the package has no name or version.".into(),
-                )]);
+                return unable_to_externalize(vec![StyledString::Text(rcstr!(
+                    "The package.json of the package has no name or version."
+                ))]);
             };
             let (Some(name2), Some(version2)) = (
                 package_json_from_original_location
@@ -361,15 +361,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let external_type = match (file_type, is_esm) {
             (FileType::UnsupportedExtension, _) => {
                 // unsupported file type, bundle it
-                return unable_to_externalize(vec![StyledString::Text(
-                    "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js.".into(),
-                )]);
+                return unable_to_externalize(vec![StyledString::Text(rcstr!(
+                    "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js."
+                ))]);
             }
             (FileType::InvalidPackageJson, _) => {
                 // invalid package.json, bundle it
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json can't be found or parsed.".into(),
-                )]);
+                return unable_to_externalize(vec![StyledString::Text(rcstr!(
+                    "The package.json can't be found or parsed."
+                ))]);
             }
             // commonjs without esm is always external
             (FileType::CommonJs, false) => ExternalType::CommonJs,
@@ -466,9 +466,9 @@ impl Issue for ExternalizeIssue {
     #[turbo_tasks::function]
     async fn title(&self) -> Vc<StyledString> {
         StyledString::Line(vec![
-            StyledString::Text("Package ".into()),
+            StyledString::Text(rcstr!("Package ")),
             StyledString::Code(self.package.clone()),
-            StyledString::Text(" can't be external".into()),
+            StyledString::Text(rcstr!(" can't be external")),
         ])
         .cell()
     }
@@ -488,11 +488,11 @@ impl Issue for ExternalizeIssue {
         Ok(Vc::cell(Some(
             StyledString::Stack(vec![
                 StyledString::Line(vec![
-                    StyledString::Text("The request ".into()),
+                    StyledString::Text(rcstr!("The request ")),
                     StyledString::Code(self.request_str.clone()),
-                    StyledString::Text(" matches ".into()),
-                    StyledString::Code("serverExternalPackages".into()),
-                    StyledString::Text(" (or the default list).".into()),
+                    StyledString::Text(rcstr!(" matches ")),
+                    StyledString::Code(rcstr!("serverExternalPackages")),
+                    StyledString::Text(rcstr!(" (or the default list).")),
                 ]),
                 StyledString::Line(self.reason.clone()),
             ])

@@ -102,31 +102,31 @@ impl AppProject {}
 fn styles_rule_condition() -> RuleCondition {
     RuleCondition::any(vec![
         RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".css".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+            RuleCondition::ResourcePathEndsWith(rcstr!(".css")),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(rcstr!(".module.css"))),
         ]),
         RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".scss".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.scss".into())),
+            RuleCondition::ResourcePathEndsWith(rcstr!(".scss")),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(rcstr!(".module.scss"))),
         ]),
         RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".sass".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
+            RuleCondition::ResourcePathEndsWith(rcstr!(".sass")),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(rcstr!(".module.sass"))),
         ]),
         RuleCondition::all(vec![
-            RuleCondition::ContentTypeStartsWith("text/css".into()),
-            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
-                "text/css+module".into(),
-            )),
+            RuleCondition::ContentTypeStartsWith(rcstr!("text/css")),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(rcstr!(
+                "text/css+module"
+            ))),
         ]),
     ])
 }
 fn module_styles_rule_condition() -> RuleCondition {
     RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".module.css".into()),
-        RuleCondition::ResourcePathEndsWith(".module.scss".into()),
-        RuleCondition::ResourcePathEndsWith(".module.sass".into()),
-        RuleCondition::ContentTypeStartsWith("text/css+module".into()),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".module.css")),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".module.scss")),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".module.sass")),
+        RuleCondition::ContentTypeStartsWith(rcstr!("text/css+module")),
     ])
 }
 impl AppProject {

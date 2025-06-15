@@ -2,6 +2,7 @@ use std::mem::take;
 
 use anyhow::{Result, bail};
 use serde_json::Value as JsonValue;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules};
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
@@ -41,7 +42,7 @@ pub async fn maybe_add_sass_loader(
             .or(sass_options.get("additionalData"));
         let rule = rules.get_mut(pattern);
         let sass_loader = WebpackLoaderItem {
-            loader: "next/dist/compiled/sass-loader".into(),
+            loader: rcstr!("next/dist/compiled/sass-loader"),
             options: take(
                 serde_json::json!({
                     "implementation": sass_options.get("implementation"),
@@ -54,7 +55,7 @@ pub async fn maybe_add_sass_loader(
             ),
         };
         let resolve_url_loader = WebpackLoaderItem {
-            loader: "next/dist/build/webpack/loaders/resolve-url-loader/index".into(),
+            loader: rcstr!("next/dist/build/webpack/loaders/resolve-url-loader/index"),
             options: take(
                 serde_json::json!({
                     //https://github.com/vercel/turbo/blob/d527eb54be384a4658243304cecd547d09c05c6b/crates/turbopack-node/src/transforms/webpack.rs#L191

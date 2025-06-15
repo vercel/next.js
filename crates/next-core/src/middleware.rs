@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
@@ -27,15 +27,15 @@ pub async fn get_middleware_module(
     project_root: Vc<FileSystemPath>,
     userland_module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    const INNER: &str = "INNER_MIDDLEWARE_MODULE";
+    let inner = rcstr!("INNER_MIDDLEWARE_MODULE");
 
     // Load the file from the next.js codebase.
     let source = load_next_js_template(
         "middleware.js",
         project_root,
         fxindexmap! {
-            "VAR_USERLAND" => INNER.into(),
-            "VAR_DEFINITION_PAGE" => "/middleware".into(),
+            "VAR_USERLAND" => inner.clone(),
+            "VAR_DEFINITION_PAGE" => rcstr!("/middleware"),
         },
         FxIndexMap::default(),
         FxIndexMap::default(),
@@ -43,7 +43,7 @@ pub async fn get_middleware_module(
     .await?;
 
     let inner_assets = fxindexmap! {
-        INNER.into() => userland_module
+        inner => userland_module
     };
 
     let module = asset_context

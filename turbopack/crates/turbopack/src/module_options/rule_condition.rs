@@ -2,6 +2,7 @@ use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, primitives::Regex, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
@@ -17,10 +18,10 @@ pub enum RuleCondition {
     ResourceIsVirtualSource,
     ResourcePathEquals(ReadRef<FileSystemPath>),
     ResourcePathHasNoExtension,
-    ResourcePathEndsWith(String),
-    ResourcePathInDirectory(String),
+    ResourcePathEndsWith(RcStr),
+    ResourcePathInDirectory(RcStr),
     ResourcePathInExactDirectory(ReadRef<FileSystemPath>),
-    ContentTypeStartsWith(String),
+    ContentTypeStartsWith(RcStr),
     ContentTypeEmpty,
     ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
     ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
@@ -117,7 +118,7 @@ impl RuleCondition {
                         return Ok(path == &**other);
                     }
                     RuleCondition::ResourcePathEndsWith(end) => {
-                        return Ok(path.path.ends_with(end));
+                        return Ok(path.path.ends_with(end.as_str()));
                     }
                     RuleCondition::ResourcePathHasNoExtension => {
                         return Ok(if let Some(i) = path.path.rfind('.') {
@@ -141,7 +142,7 @@ impl RuleCondition {
                         let content_type = &source.ident().await?.content_type;
                         return Ok(content_type
                             .as_ref()
-                            .is_some_and(|ct| ct.starts_with(start)));
+                            .is_some_and(|ct| ct.starts_with(start.as_str())));
                     }
                     RuleCondition::ContentTypeEmpty => {
                         return Ok(source.ident().await?.content_type.is_none());
@@ -355,7 +356,7 @@ pub mod tests {
             );
         }
         {
-            let condition = RuleCondition::ResourcePathEndsWith("foo.js".to_string());
+            let condition = RuleCondition::ResourcePathEndsWith(rcstr!("foo.js"));
             assert!(
                 condition
                     .matches(
@@ -436,7 +437,7 @@ pub mod tests {
             // any
             // Only one of the conditions matches our virtual source
             let condition = RuleCondition::any(vec![
-                RuleCondition::ResourcePathInDirectory("doesnt/exist".to_string()),
+                RuleCondition::ResourcePathInDirectory(rcstr!("doesnt/exist")),
                 RuleCondition::ResourceIsVirtualSource,
                 RuleCondition::ResourcePathHasNoExtension,
             ]);
@@ -465,7 +466,7 @@ pub mod tests {
             // all
             // Only one of the conditions matches our virtual source
             let condition = RuleCondition::all(vec![
-                RuleCondition::ResourcePathEndsWith("foo.js".to_string()),
+                RuleCondition::ResourcePathEndsWith(rcstr!("foo.js")),
                 RuleCondition::ResourceIsVirtualSource,
                 RuleCondition::ResourcePathEquals(virtual_path.await?),
             ]);
@@ -499,7 +500,7 @@ pub mod tests {
                 RuleCondition::ResourcePathEquals(virtual_path.await?),
                 RuleCondition::Not(Box::new(RuleCondition::ResourcePathHasNoExtension)),
                 RuleCondition::Any(vec![
-                    RuleCondition::ResourcePathEndsWith("foo.js".to_string()),
+                    RuleCondition::ResourcePathEndsWith(rcstr!("foo.js")),
                     RuleCondition::ContentTypeEmpty,
                 ]),
             ]);

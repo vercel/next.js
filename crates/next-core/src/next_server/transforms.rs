@@ -1,6 +1,6 @@
 use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
@@ -55,8 +55,8 @@ pub async fn get_next_server_transforms_rules(
             // The CSS Module module itself is still needed for class names
             ModuleRule::new_internal(
                 RuleCondition::any(vec![
-                    RuleCondition::ResourcePathEndsWith(".module.css".into()),
-                    RuleCondition::ContentTypeStartsWith("text/css+module".into()),
+                    RuleCondition::ResourcePathEndsWith(rcstr!(".module.css")),
+                    RuleCondition::ContentTypeStartsWith(rcstr!("text/css+module")),
                 ]),
                 vec![ModuleRuleEffect::Ignore],
             ),
@@ -66,16 +66,16 @@ pub async fn get_next_server_transforms_rules(
             ModuleRule::new(
                 RuleCondition::any(vec![
                     RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".css".into()),
-                        RuleCondition::not(RuleCondition::ResourcePathEndsWith(
-                            ".module.css".into(),
-                        )),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".css")),
+                        RuleCondition::not(RuleCondition::ResourcePathEndsWith(rcstr!(
+                            ".module.css"
+                        ))),
                     ]),
                     RuleCondition::all(vec![
-                        RuleCondition::ContentTypeStartsWith("text/css".into()),
-                        RuleCondition::not(RuleCondition::ContentTypeStartsWith(
-                            "text/css+module".into(),
-                        )),
+                        RuleCondition::ContentTypeStartsWith(rcstr!("text/css")),
+                        RuleCondition::not(RuleCondition::ContentTypeStartsWith(rcstr!(
+                            "text/css+module"
+                        ))),
                     ]),
                 ]),
                 vec![ModuleRuleEffect::Ignore],
@@ -226,16 +226,16 @@ pub async fn get_next_server_transforms_rules(
                         UrlReferenceSubType::Undefined,
                     ))),
                     RuleCondition::any(vec![
-                        RuleCondition::ResourcePathEndsWith(".apng".to_string()),
-                        RuleCondition::ResourcePathEndsWith(".avif".to_string()),
-                        RuleCondition::ResourcePathEndsWith(".gif".to_string()),
-                        RuleCondition::ResourcePathEndsWith(".ico".to_string()),
-                        RuleCondition::ResourcePathEndsWith(".jpg".to_string()),
-                        RuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
-                        RuleCondition::ResourcePathEndsWith(".png".to_string()),
-                        RuleCondition::ResourcePathEndsWith(".svg".to_string()),
-                        RuleCondition::ResourcePathEndsWith(".webp".to_string()),
-                        RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".apng")),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".avif")),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".gif")),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".ico")),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".jpg")),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".jpeg")),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".png")),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".svg")),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".webp")),
+                        RuleCondition::ResourcePathEndsWith(rcstr!(".woff2")),
                     ]),
                 ]),
                 vec![ModuleRuleEffect::Ignore],

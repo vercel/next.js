@@ -375,7 +375,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             preset_env_versions: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InDirectory(rcstr!("node_modules")),
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
                     remove_unused_exports: options.remove_unused_exports,
@@ -392,7 +392,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             enable_node_modules: Some(project_root),
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InDirectory(rcstr!("node_modules")),
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root),
                     custom_conditions: vec![rcstr!("development")],

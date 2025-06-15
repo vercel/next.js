@@ -6,7 +6,7 @@ use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, ValueToString, Vc,
     trace::TraceRawVcs, util::WrapFuture,
@@ -68,7 +68,7 @@ pub async fn pathname_for_path(
     };
     let path = match (path_ty, path) {
         // "/" is special-cased to "/index" for data routes.
-        (PathType::Data, "") => "/index".into(),
+        (PathType::Data, "") => rcstr!("/index"),
         // `get_path_to` always strips the leading `/` from the path, so we need to add
         // it back here.
         (_, path) => format!("/{path}").into(),
@@ -104,7 +104,7 @@ pub async fn get_transpiled_packages(
 
     let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
-        "dist/lib/default-transpiled-packages.json".into(),
+        rcstr!("dist/lib/default-transpiled-packages.json"),
     )
     .await?;
 
@@ -131,12 +131,14 @@ pub async fn foreign_code_context_condition(
     ));
 
     let result = ContextCondition::all(vec![
-        ContextCondition::InDirectory("node_modules".to_string()),
+        ContextCondition::InDirectory(rcstr!("node_modules")),
         not_next_template_dir,
         ContextCondition::not(ContextCondition::any(
             transpiled_packages
                 .iter()
-                .map(|package| ContextCondition::InDirectory(format!("node_modules/{package}")))
+                .map(|package| {
+                    ContextCondition::InDirectory(format!("node_modules/{package}").into())
+                })
                 .collect(),
         )),
     ]);
@@ -249,8 +251,10 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "Next.js can't recognize the exported `config` field in route"
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -470,11 +474,10 @@ pub async fn parse_config_from_source(
                         } else {
                             NextSourceConfigParsingIssue::new(
                                 module.ident(),
-                                StyledString::Text(
+                                StyledString::Text(rcstr!(
                                     "The exported config object must contain an variable \
                                      initializer."
-                                        .into(),
-                                )
+                                ))
                                 .cell(),
                             )
                             .to_resolved()
@@ -490,10 +493,9 @@ pub async fn parse_config_from_source(
                     {
                         let runtime_value_issue = NextSourceConfigParsingIssue::new(
                             module.ident(),
-                            StyledString::Text(
+                            StyledString::Text(rcstr!(
                                 "The runtime property must be either \"nodejs\" or \"edge\"."
-                                    .into(),
-                            )
+                            ))
                             .cell(),
                         )
                         .to_resolved()
@@ -504,7 +506,7 @@ pub async fn parse_config_from_source(
                             if let Expr::Lit(Lit::Str(str_value)) = &**init {
                                 let mut config = NextSourceConfig::default();
 
-                                let runtime = str_value.value.to_string();
+                                let runtime = &str_value.value;
                                 match runtime.as_str() {
                                     "edge" | "experimental-edge" => {
                                         config.runtime = NextRuntime::Edge;
@@ -524,11 +526,10 @@ pub async fn parse_config_from_source(
                         } else {
                             NextSourceConfigParsingIssue::new(
                                 module.ident(),
-                                StyledString::Text(
+                                StyledString::Text(rcstr!(
                                     "The exported segment runtime option must contain an variable \
                                      initializer."
-                                        .into(),
-                                )
+                                ))
                                 .cell(),
                             )
                             .to_resolved()

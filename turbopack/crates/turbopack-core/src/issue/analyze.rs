@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
@@ -50,15 +50,15 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let title = &**self.title.await?;
+        let title = &*self.title.await?;
         Ok(if let Some(code) = self.code.as_ref() {
             StyledString::Line(vec![
                 StyledString::Strong(code.clone()),
-                StyledString::Text(" ".into()),
-                StyledString::Text(title.into()),
+                StyledString::Text(rcstr!(" ")),
+                StyledString::Text(title.clone()),
             ])
         } else {
-            StyledString::Text(title.into())
+            StyledString::Text(title.clone())
         }
         .cell())
     }

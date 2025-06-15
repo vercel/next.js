@@ -42,7 +42,7 @@ pub enum EcmascriptInputTransform {
         runtime: ResolvedVc<Option<RcStr>>,
     },
     GlobalTypeofs {
-        window_value: String,
+        window_value: RcStr,
     },
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here

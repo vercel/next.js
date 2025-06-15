@@ -40,7 +40,7 @@ static ANNOTATION_CHUNKING_TYPE: Lazy<Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
-static ATTRIBUTE_MODULE_TYPE: Lazy<Atom> = Lazy::new(|| "type".into());
+static ATTRIBUTE_MODULE_TYPE: Lazy<Atom> = Lazy::new(|| atom!("type"));
 
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
@@ -494,7 +494,7 @@ impl Visit for Analyzer<'_> {
                     Some(imported) => (local.to_id(), orig_name(imported)),
                     _ => (local.to_id(), local.sym.clone()),
                 },
-                ImportSpecifier::Default(s) => (s.local.to_id(), "default".into()),
+                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
                 ImportSpecifier::Namespace(s) => {
                     self.data.namespace_imports.insert(s.local.to_id(), i);
                     continue;

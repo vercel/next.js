@@ -8,7 +8,7 @@ use next_core::{
     util::NextRuntime,
 };
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, atom},
     common::comments::Comments,
     ecma::{
         ast::{
@@ -314,7 +314,7 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                     ModuleItem::ModuleDecl(
                         ModuleDecl::ExportDefaultExpr(..) | ModuleDecl::ExportDefaultDecl(..),
                     ) => {
-                        exports.push("default".into());
+                        exports.push(atom!("default"));
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
                         Decl::Class(c) => {
@@ -347,7 +347,7 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                                     );
                                 }
                                 ExportSpecifier::Default(_) => {
-                                    exports.push("default".into());
+                                    exports.push(atom!("default"));
                                 }
                                 ExportSpecifier::Namespace(e) => {
                                     exports.push(e.name.atom().clone());

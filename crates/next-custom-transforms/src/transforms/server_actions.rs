@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{hash_map, BTreeMap},
+    collections::{BTreeMap, hash_map},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     path::{Path, PathBuf},
@@ -16,23 +16,23 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::{SourceMapGenConfig, PURE_SP},
+        source_map::{PURE_SP, SourceMapGenConfig},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        codegen::{self, text_writer::JsWriter, Emitter},
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        codegen::{self, Emitter, text_writer::JsWriter},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
-use turbo_rcstr::{rcstr, RcStr};
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::FxIndexMap;
 
@@ -451,7 +451,7 @@ impl<C: Comments> ServerActions<C> {
             new_params.push(Param {
                 span: DUMMY_SP,
                 decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                pat: Pat::Ident(IdentName::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP).into()),
             });
         }
 
@@ -591,7 +591,7 @@ impl<C: Comments> ServerActions<C> {
             new_params.push(Param {
                 span: DUMMY_SP,
                 decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                pat: Pat::Ident(IdentName::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP).into()),
             });
         }
 
@@ -1634,7 +1634,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     // export default function foo() {}
                                     self.exported_idents.push((
                                         ident.clone(),
-                                        "default".into(),
+                                        atom!("default"),
                                         ref_id,
                                     ));
                                 } else {
@@ -1652,7 +1652,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                     self.exported_idents.push((
                                         new_ident.clone(),
-                                        "default".into(),
+                                        atom!("default"),
                                         ref_id,
                                     ));
 
@@ -1708,7 +1708,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                     self.exported_idents.push((
                                         new_ident.clone(),
-                                        "default".into(),
+                                        atom!("default"),
                                         self.generate_server_reference_id(
                                             "default",
                                             is_cache,
@@ -1737,7 +1737,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 // export default foo
                                 self.exported_idents.push((
                                     ident.clone(),
-                                    "default".into(),
+                                    atom!("default"),
                                     self.generate_server_reference_id(
                                         "default",
                                         in_cache_file,
@@ -1755,7 +1755,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                 self.exported_idents.push((
                                     new_ident.clone(),
-                                    "default".into(),
+                                    atom!("default"),
                                     self.generate_server_reference_id(
                                         "default",
                                         in_cache_file,
@@ -1872,7 +1872,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: "private-next-rsc-action-client-wrapper".into(),
+                        value: atom!("private-next-rsc-action-client-wrapper"),
                         raw: None,
                     }),
                     type_only: false,
@@ -2004,7 +2004,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         })],
                         src: Box::new(Str {
                             span: DUMMY_SP,
-                            value: "private-next-rsc-action-validate".into(),
+                            value: atom!("private-next-rsc-action-validate"),
                             raw: None,
                         }),
                         type_only: false,
@@ -2054,7 +2054,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: "private-next-rsc-cache-wrapper".into(),
+                    value: atom!("private-next-rsc-cache-wrapper"),
                     raw: None,
                 }),
                 type_only: false,
@@ -2079,7 +2079,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: "private-next-rsc-server-reference".into(),
+                    value: atom!("private-next-rsc-server-reference"),
                     raw: None,
                 }),
                 type_only: false,
@@ -2108,7 +2108,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 ],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: "private-next-rsc-action-encryption".into(),
+                    value: atom!("private-next-rsc-action-encryption"),
                     raw: None,
                 }),
                 type_only: false,
@@ -2156,7 +2156,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ServerActionsMode::Turbopack => {
                         new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                             expr: Box::new(Expr::Lit(Lit::Str(
-                                "use turbopack no side effects".into(),
+                                atom!("use turbopack no side effects").into(),
                             ))),
                             span: DUMMY_SP,
                         })));
@@ -2179,7 +2179,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             vec![
                                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                                                     expr: Box::new(Expr::Lit(Lit::Str(
-                                                        "use turbopack no side effects".into(),
+                                                        atom!("use turbopack no side effects")
+                                                            .into(),
                                                     ))),
                                                     span: DUMMY_SP,
                                                 })),

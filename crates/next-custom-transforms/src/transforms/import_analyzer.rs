@@ -1,12 +1,12 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, atom},
     ecma::{
         ast::{
             Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, MemberProp,
             Module, ModuleExportName,
         },
-        visit::{noop_visit_type, Visit, VisitWith},
+        visit::{Visit, VisitWith, noop_visit_type},
     },
 };
 
@@ -80,7 +80,7 @@ impl Visit for Analyzer<'_> {
                     Some(imported) => (local.to_id(), orig_name(imported)),
                     _ => (local.to_id(), local.sym.clone()),
                 },
-                ImportSpecifier::Default(s) => (s.local.to_id(), "default".into()),
+                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
                 ImportSpecifier::Namespace(s) => {
                     self.data
                         .namespace_imports

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use next_core::{next_manifests::LoadableManifest, util::NextRuntime};
 use rustc_hash::FxHashMap;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -55,7 +56,7 @@ pub async fn create_react_loadable_manifest(
     Ok(Vc::cell(match runtime {
         NextRuntime::NodeJs => vec![ResolvedVc::upcast(
             VirtualOutputAsset::new(
-                output_path.with_extension("json".into()),
+                output_path.with_extension(rcstr!("json")),
                 AssetContent::file(FileContent::Content(File::from(manifest_json)).cell()),
             )
             .to_resolved()
@@ -64,7 +65,7 @@ pub async fn create_react_loadable_manifest(
         NextRuntime::Edge => vec![
             ResolvedVc::upcast(
                 VirtualOutputAsset::new(
-                    output_path.with_extension("js".into()),
+                    output_path.with_extension(rcstr!("js")),
                     AssetContent::file(
                         FileContent::Content(File::from(format!(
                             "self.__REACT_LOADABLE_MANIFEST={};",
@@ -78,7 +79,7 @@ pub async fn create_react_loadable_manifest(
             ),
             ResolvedVc::upcast(
                 VirtualOutputAsset::new(
-                    output_path.with_extension("json".into()),
+                    output_path.with_extension(rcstr!("json")),
                     AssetContent::file(FileContent::Content(File::from(manifest_json)).cell()),
                 )
                 .to_resolved()

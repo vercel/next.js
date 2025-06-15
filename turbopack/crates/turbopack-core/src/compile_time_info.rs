@@ -235,6 +235,11 @@ impl From<String> for FreeVarReference {
         Self::Value(value.into())
     }
 }
+impl From<RcStr> for FreeVarReference {
+    fn from(value: RcStr) -> Self {
+        Self::Value(value.into())
+    }
+}
 
 impl From<&str> for FreeVarReference {
     fn from(value: &str) -> Self {
@@ -365,6 +370,7 @@ impl CompileTimeInfoBuilder {
 
 #[cfg(test)]
 mod test {
+    use turbo_rcstr::rcstr;
     use turbo_tasks::FxIndexMap;
 
     use crate::compile_time_info::{DefineableNameSegment, FreeVarReference, FreeVarReferences};
@@ -376,20 +382,26 @@ mod test {
                 FOO = "bar",
                 FOO = false,
                 Buffer = FreeVarReference::EcmaScriptModule {
-                    request: "node:buffer".into(),
+                    request: rcstr!("node:buffer"),
                     lookup_path: None,
-                    export: Some("Buffer".into()),
+                    export: Some(rcstr!("Buffer")),
                 },
             ),
             FreeVarReferences(FxIndexMap::from_iter(vec![
-                (vec!["FOO".into()], FreeVarReference::Value("bar".into())),
-                (vec!["FOO".into()], FreeVarReference::Value(false.into())),
                 (
-                    vec!["Buffer".into()],
+                    vec![rcstr!("FOO").into()],
+                    FreeVarReference::Value(rcstr!("bar").into())
+                ),
+                (
+                    vec![rcstr!("FOO").into()],
+                    FreeVarReference::Value(false.into())
+                ),
+                (
+                    vec![rcstr!("Buffer").into()],
                     FreeVarReference::EcmaScriptModule {
-                        request: "node:buffer".into(),
+                        request: rcstr!("node:buffer"),
                         lookup_path: None,
-                        export: Some("Buffer".into()),
+                        export: Some(rcstr!("Buffer")),
                     }
                 ),
             ]))
@@ -406,21 +418,25 @@ mod test {
             ),
             FreeVarReferences(FxIndexMap::from_iter(vec![
                 (
-                    vec!["x".into(), DefineableNameSegment::TypeOf],
-                    FreeVarReference::Value("a".into())
-                ),
-                (
-                    vec!["x".into(), "y".into(), DefineableNameSegment::TypeOf],
-                    FreeVarReference::Value("b".into())
+                    vec![rcstr!("x").into(), DefineableNameSegment::TypeOf],
+                    FreeVarReference::Value(rcstr!("a").into())
                 ),
                 (
                     vec![
-                        "x".into(),
-                        "y".into(),
-                        "z".into(),
+                        rcstr!("x").into(),
+                        rcstr!("y").into(),
                         DefineableNameSegment::TypeOf
                     ],
-                    FreeVarReference::Value("c".into())
+                    FreeVarReference::Value(rcstr!("b").into())
+                ),
+                (
+                    vec![
+                        rcstr!("x").into(),
+                        rcstr!("y").into(),
+                        rcstr!("z").into(),
+                        DefineableNameSegment::TypeOf
+                    ],
+                    FreeVarReference::Value(rcstr!("c").into())
                 )
             ]))
         );

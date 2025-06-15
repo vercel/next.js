@@ -10,7 +10,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -342,9 +342,9 @@ async fn to_single_pattern_mapping(
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug,
-                title: StyledString::Text(
-                    "pattern mapping is not implemented for this result".into(),
-                )
+                title: StyledString::Text(rcstr!(
+                    "pattern mapping is not implemented for this result"
+                ))
                 .resolved_cell(),
                 message: StyledString::Text(
                     format!(
@@ -375,10 +375,10 @@ async fn to_single_pattern_mapping(
     }
     CodeGenerationIssue {
         severity: IssueSeverity::Bug,
-        title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
-        message: StyledString::Text(
-            "asset is not placeable in ESM chunks, so it doesn't have a module id".into(),
-        )
+        title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
+        message: StyledString::Text(rcstr!(
+            "asset is not placeable in ESM chunks, so it doesn't have a module id"
+        ))
         .resolved_cell(),
         path: origin.origin_path().to_resolved().await?,
     }
