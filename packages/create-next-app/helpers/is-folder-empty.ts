@@ -25,6 +25,7 @@ export function isFolderEmpty(root: string, name: string): boolean {
     'yarn-error.log',
     'yarnrc.yml',
     '.yarn',
+    '.github',
   ]
 
   const conflicts = readdirSync(root).filter(
