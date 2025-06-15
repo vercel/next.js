@@ -50,3 +50,11 @@ Try to add the below section to your `package.json`, then run again.
   }
 }
 ```
+
+- If you encounter issues after switching between versions or pulling down new changes, there might be a need to run:
+
+```sh
+pnpm clean
+```
+
+To clear any outdated files before running `pnpm dev`.
