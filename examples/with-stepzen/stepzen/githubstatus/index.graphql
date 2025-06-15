@@ -1,0 +1,20 @@
+type Page {
+  id: String
+  name: String
+  time_zone: String
+  updated_at: DateTime
+  url: String
+}
+type GitHubStatusResponse {
+  page: Page
+  status: Status
+}
+type Status {
+  description: String
+  indicator: String
+}
+
+type Query {
+  gitHubStatus: GitHubStatusResponse
+    @rest(endpoint: "https://www.githubstatus.com/api/v2/status.json")
+}
