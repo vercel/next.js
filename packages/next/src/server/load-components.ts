@@ -116,7 +116,7 @@ export async function tryLoadManifestWithRetries<T extends object>(
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
-export async function evalManifestWithRetries<T extends object>(
+async function evalManifestWithRetries<T extends object>(
   manifestPath: string,
   attempts = 3
 ) {
@@ -135,7 +135,7 @@ export async function evalManifestWithRetries<T extends object>(
 async function tryLoadClientReferenceManifest(
   manifestPath: string,
   entryName: string,
-  attempts?: number
+  attempts: number
 ) {
   try {
     const context = await evalManifestWithRetries<{

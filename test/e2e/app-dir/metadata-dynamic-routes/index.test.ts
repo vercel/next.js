@@ -1,6 +1,8 @@
+import path from 'path'
+import fs from 'fs'
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 const CACHE_HEADERS = {
   NONE: 'no-cache, no-store',
@@ -223,10 +225,11 @@ describe('app dir - metadata dynamic routes', () => {
       )
 
       if (isNextDev) {
-        await check(async () => {
-          next.hasFile('.next/server/app-paths-manifest.json')
-          return 'success'
-        }, /success/)
+        await retry(async () => {
+          expect(
+            await next.hasFile('.next/server/app-paths-manifest.json')
+          ).toBe(true)
+        })
 
         const appPathsManifest = JSON.parse(
           await next.readFile('.next/server/app-paths-manifest.json')
@@ -377,6 +380,52 @@ describe('app dir - metadata dynamic routes', () => {
         expect(await next.hasFile(`.next/server/app${dynamicRoute}.meta`)).toBe(
           false
         )
+      })
+    })
+
+    describe('api routes static files', () => {
+      it('metadata routes should not generate browser entry files', async () => {
+        const dynamicMetadataRoutes = [
+          // Dynamic metadata routes does not include static files
+          '/opengraph-image',
+          '/twitter-image',
+          '/twitter-image2',
+          '/apple-icon',
+          '/icon',
+          '/sitemap.xml',
+          '/manifest.webmanifest',
+          // App Router pages
+          '/(group)/blog',
+          '/(group)/dynamic/[size]',
+          '/(group)/static',
+        ]
+        const staticFilePathDirs = dynamicMetadataRoutes.reduce(
+          (res: Record<string, boolean>, route: string) => {
+            const staticDir = path.join(
+              next.testDir,
+              `.next/static/chunks/app${route}`
+            )
+            const existed = fs.existsSync(staticDir)
+            res[route] = existed
+            return res
+          },
+          {}
+        )
+        expect(staticFilePathDirs).toEqual({
+          // static files should not be generated for metadata routes
+          '/apple-icon': false,
+          '/icon': false,
+          '/manifest.webmanifest': false,
+          '/opengraph-image': false,
+          '/sitemap.xml': false,
+          '/twitter-image': false,
+          // For edge runtime we still need to keep it.
+          '/twitter-image2': true,
+          // static files should be generated for app router pages
+          '/(group)/dynamic/[size]': true,
+          '/(group)/blog': true,
+          '/(group)/static': true,
+        })
       })
     })
   }
