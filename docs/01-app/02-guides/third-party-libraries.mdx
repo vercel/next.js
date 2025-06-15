@@ -462,3 +462,163 @@ export default function Page() {
 | `playlabel` | Optional | A visually hidden label for the play button for accessibility.                                                                                                                                               |
 | `params`    | Optional | The video player params defined [here](https://developers.google.com/youtube/player_parameters#Parameters). <br/> Params are passed as a query param string. <br/> Eg: `params="controls=0&start=10&end=30"` |
 | `style`     | Optional | Used to apply styles to the video container.                                                                                                                                                                 |
+
+## Meta Third-Parties
+
+All supported third-party libraries from Meta can be imported from `@next/third-parties/meta`.
+
+### Meta Pixel
+
+The `MetaPixel` component can be used to easily integrate the [Meta (Facebook) Pixel](https://developers.facebook.com/docs/meta-pixel/) into your Next.js application. By default, it tracks a `PageView` event when the page loads.
+
+<AppOnly>
+
+To load Meta Pixel for all routes, include the component directly in your root layout and pass in your Pixel ID:
+
+```jsx filename="app/layout.js"
+import { MetaPixel } from '@next/third-parties/meta'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <MetaPixel pixelId="YOUR_PIXEL_ID" />
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+To load Meta Pixel for all routes, include the component directly in your custom `_app`:
+
+```jsx filename="pages/_app.js"
+import { MetaPixel } from '@next/third-parties/meta'
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <>
+      <MetaPixel pixelId="YOUR_PIXEL_ID" />
+      <Component {...pageProps} />
+    </>
+  )
+}
+```
+
+</PagesOnly>
+
+To load Meta Pixel for a single route, include the component in your page file:
+
+<AppOnly>
+
+```jsx filename="app/page.js"
+import { MetaPixel } from '@next/third-parties/meta'
+
+export default function Page() {
+  return <MetaPixel pixelId="YOUR_PIXEL_ID" />
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```jsx filename="pages/index.js"
+import { MetaPixel } from '@next/third-parties/meta'
+
+export default function Page() {
+  return <MetaPixel pixelId="YOUR_PIXEL_ID" />
+}
+```
+
+</PagesOnly>
+
+### Sending Events
+
+The `sendMetaPixelEvent` helper function can be used to track both standard and custom events dynamically. For this function to work, ensure the `<MetaPixel />` component has been included in the app.
+
+<AppOnly>
+
+```jsx filename="app/page.js"
+'use client'
+
+import { sendMetaPixelEvent } from '@next/third-parties/meta'
+
+export function EventButton() {
+  return (
+    <button
+      onClick={() =>
+        sendMetaPixelEvent('AddToCart', {
+          content_name: 'Cool T-shirt',
+          value: 29.99,
+          currency: 'USD',
+        })
+      }
+    >
+      Track AddToCart
+    </button>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```jsx filename="pages/index.js"
+import { sendMetaPixelEvent } from '@next/third-parties/meta'
+
+export function EventButton() {
+  return (
+    <button
+      onClick={() =>
+        sendMetaPixelEvent('AddToCart', {
+          content_name: 'Cool T-shirt',
+          value: 29.99,
+          currency: 'USD',
+        })
+      }
+    >
+      Track AddToCart
+    </button>
+  )
+}
+```
+
+</PagesOnly>
+
+### Supported Standard Events
+
+Here are the standard events supported by Meta Pixel:
+
+- `PageView`
+- `ViewContent`
+- `Search`
+- `AddToCart`
+- `AddToWishlist`
+- `InitiateCheckout`
+- `AddPaymentInfo`
+- `Purchase`
+- `Lead`
+- `CompleteRegistration`
+- `Contact`
+- `CustomizeProduct`
+- `Donate`
+- `FindLocation`
+- `Schedule`
+- `StartTrial`
+- `SubmitApplication`
+- `Subscribe`
+
+For more details, see the [Meta Pixel documentation](https://developers.facebook.com/docs/meta-pixel/reference#standard-events).
+
+### Options
+
+Options to pass to the `<MetaPixel>` component:
+
+| Name         | Type     | Description                                                                    |
+| ------------ | -------- | ------------------------------------------------------------------------------ |
+| `pixelId`    | Required | Your Meta Pixel ID. Usually a string of numbers.                               |
+| `trackEvent` | Optional | The standard event to track when the component mounts. Defaults to `PageView`. |
