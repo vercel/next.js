@@ -404,6 +404,7 @@ function resolveBundlingOptOutPackages({
  */
 function resolveNextExternal(localRes: string) {
   const isExternal = externalPattern.test(localRes)
+  const isNodeBinary = localRes.endsWith('.node')
 
   // if the file ends with .external, we need to make it a commonjs require in all cases
   // this is used mainly to share the async local storage across the routing, rendering and user layers.
@@ -413,5 +414,10 @@ function resolveNextExternal(localRes: string) {
     return `commonjs ${normalizePathSep(
       localRes.replace(/.*?next[/\\]dist/, 'next/dist')
     )}`
+  }
+
+  // When we resolved a node binary path, treat it as a external commonjs module
+  if (isNodeBinary) {
+    return `commonjs ${localRes}`
   }
 }
