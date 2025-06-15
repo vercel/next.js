@@ -26,6 +26,7 @@ Used by some of the world's largest companies, Next.js enables you to create ful
 Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full documentation.
 
 ## Community
+Next.js is a React framework for developing Single Page Applications (SPAs) and full-stack applications.
 
 The Next.js community can be found on [GitHub Discussions](https://github.com/vercel/next.js/discussions) where you can ask questions, voice ideas, and share your projects with other people.
 
