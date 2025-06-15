@@ -11,6 +11,7 @@ import { ACTION_DEVTOOLS_PANEL_TOGGLE } from '../../shared'
 import { css } from '../../utils/css'
 import { FullScreenIcon } from '../../icons/fullscreen'
 import { Cross } from '../../icons/cross'
+import { DevToolsPanelFooter } from './devtools-panel-footer'
 
 export function DevToolsPanel({
   state,
@@ -101,6 +102,7 @@ export function DevToolsPanel({
               <DialogBody></DialogBody>
             </DialogContent>
           </Dialog>
+          <DevToolsPanelFooter versionInfo={state.versionInfo} />
         </div>
       </Draggable>
     </Overlay>

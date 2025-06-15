@@ -25,6 +25,8 @@ import { DEV_TOOLS_INFO_RENDER_FILES_STYLES } from '../components/overview/segme
 import { FADER_STYLES } from '../components/fader'
 import { RESTART_SERVER_BUTTON_STYLES } from '../components/errors/error-overlay-toolbar/restart-server-button'
 import { DEVTOOLS_PANEL_STYLES } from '../components/devtools-panel/devtools-panel'
+import { DEVTOOLS_PANEL_FOOTER_STYLES } from '../components/devtools-panel/devtools-panel-footer'
+import { DEVTOOLS_PANEL_VERSION_INFO_STYLES } from '../components/devtools-panel/devtools-panel-version-info'
 
 export function ComponentStyles() {
   return (
@@ -56,6 +58,8 @@ export function ComponentStyles() {
         ${DEV_TOOLS_INFO_RENDER_FILES_STYLES}
         ${FADER_STYLES}
         ${DEVTOOLS_PANEL_STYLES}
+        ${DEVTOOLS_PANEL_FOOTER_STYLES}
+        ${DEVTOOLS_PANEL_VERSION_INFO_STYLES}
       `}
     </style>
   )

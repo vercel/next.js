@@ -22,6 +22,11 @@ const state: OverlayState = {
   routerType: 'app',
   isErrorOverlayOpen: false,
   isDevToolsPanelOpen: true,
+  versionInfo: {
+    installed: '15.0.0',
+    expected: '15.0.0',
+    staleness: 'fresh',
+  },
 }
 
 export const Default: Story = {
@@ -37,5 +42,21 @@ export const WithIssues: Story = {
     state,
     dispatch: () => {},
     issueCount: 3,
+  },
+}
+
+export const Turbopack: Story = {
+  beforeEach: () => {
+    process.env.TURBOPACK = 'true'
+
+    // clean up callback function
+    return () => {
+      delete process.env.TURBOPACK
+    }
+  },
+  args: {
+    state,
+    dispatch: () => {},
+    issueCount: 0,
   },
 }
