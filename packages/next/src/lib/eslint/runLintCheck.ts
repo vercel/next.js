@@ -137,8 +137,7 @@ async function lint(
 
     const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
 
-    // If V9 config was found, use flat config, or else use legacy.
-    const useFlatConfig = eslintrcFile
+    const hasFlatConfigFile = eslintrcFile
       ? // eslintrcFile is absolute path
         path.basename(eslintrcFile).startsWith('eslint.config.')
       : false
@@ -148,10 +147,10 @@ async function lint(
     // PR https://github.com/eslint/eslint/pull/18098
     // Release https://github.com/eslint/eslint/releases/tag/v8.57.0
     if ('loadESLint' in mod) {
-      // By default, configType is `flat`. If `useFlatConfig` is false, the return value is `LegacyESLint`.
+      // By default, configType is `flat`. If `hasFlatConfigFile` is false, the return value is `LegacyESLint`.
       // https://github.com/eslint/eslint/blob/1def4cdfab1f067c5089df8b36242cdf912b0eb6/lib/types/index.d.ts#L1609-L1613
       ESLint = await mod.loadESLint({
-        useFlatConfig,
+        useFlatConfig: hasFlatConfigFile,
       })
     } else {
       // eslint < 8.57.0, use legacy ESLint
@@ -168,6 +167,55 @@ async function lint(
       }. Please upgrade to ESLint version 7 or above`
     }
 
+    let useFlatConfig = false
+
+    if (semver.lt(eslintVersion, '8.21.0') && hasFlatConfigFile) {
+      // Flat config not supported in ESLint < 8.21.0
+      Log.warn(
+        `ESLint flat config is not supported in ESLint < 8.21.0 ${red('Ignoring eslint.config.*')}`
+      )
+      useFlatConfig = false
+    } else if (
+      semver.gte(eslintVersion, '8.21.0') &&
+      semver.lt(eslintVersion, '8.23.0') &&
+      hasFlatConfigFile
+    ) {
+      // Technically available but ESLint won't load it in CLI, only warn because advanced users might be using it in other ways
+      Log.warn(
+        `Flat config not fully supported in ESLint ${eslintVersion}. Please upgrade to >=8.23.0.\n` +
+          `Note: In ESLint 8.21-8.22, flat config may only work via programmatic usage or with custom Node flags.`
+      )
+      useFlatConfig = true
+    } else if (
+      semver.gte(eslintVersion, '8.23.0') &&
+      semver.lt(eslintVersion, '8.56.0') &&
+      hasFlatConfigFile
+    ) {
+      // Flat config is experimental
+      useFlatConfig = true
+      // ESLINT_USE_FLAT_CONFIG guarantees ESLint runs in flat config mode even if there's any ambiguity
+      if (!('ESLINT_USE_FLAT_CONFIG' in process.env)) {
+        process.env.ESLINT_USE_FLAT_CONFIG = 'true'
+      }
+      Log.info(
+        `Using experimental flat config (ESLint ${eslintVersion}).\n Flat config became stable in ESLint ^8.56.0, and the default in ESLint ^9.0.0`
+      )
+    } else if (
+      // Flat config no longer experimental
+      semver.gte(eslintVersion, '8.56.0') &&
+      semver.lt(eslintVersion, '9.0.0') &&
+      hasFlatConfigFile
+    ) {
+      // ESLint 8.56.x - 8.99.x => stable flat config, but NOT the default
+      useFlatConfig = true
+      if (!('ESLINT_USE_FLAT_CONFIG' in process.env)) {
+        process.env.ESLINT_USE_FLAT_CONFIG = 'true'
+      }
+    } else if (semver.gte(eslintVersion, '9.0.0') && hasFlatConfigFile) {
+      // ESLint 9 => flat config is the default
+      useFlatConfig = true
+    }
+
     let options: any = {
       useEslintrc: true,
       baseConfig: {},
@@ -177,7 +225,7 @@ async function lint(
       ...eslintOptions,
     }
 
-    if (semver.gte(eslintVersion, '9.0.0') && useFlatConfig) {
+    if (useFlatConfig) {
       for (const option of [
         'useEslintrc',
         'extensions',
