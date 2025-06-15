@@ -13,6 +13,12 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
+import type {
+  ManifestRewriteRoute,
+  ManifestHeaderRoute,
+  ManifestRedirectRoute,
+  RouteType,
+} from '../build'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -26,11 +32,40 @@ export type NextConfigComplete = Required<NextConfig> & {
   experimental: Omit<ExperimentalConfig, 'turbo'>
 }
 
+export type AdapterOutputs = Array<{
+  id: string
+  fallbackID?: string
+  runtime?: 'nodejs' | 'edge'
+  pathname: string
+  allowQuery?: string[]
+  config?: {
+    maxDuration?: number
+    expiration?: number
+    revalidate?: number
+  }
+  assets?: Record<string, string>
+  filePath: string
+  type: RouteType
+}>
+
 export interface NextAdapter {
   name: string
   modifyConfig(
     config: NextConfigComplete
   ): Promise<NextConfigComplete> | NextConfigComplete
+  onBuildComplete(ctx: {
+    routes: {
+      headers: Array<ManifestHeaderRoute>
+      redirects: Array<ManifestRedirectRoute>
+      rewrites: {
+        beforeFiles: Array<ManifestRewriteRoute>
+        afterFiles: Array<ManifestRewriteRoute>
+        fallback: Array<ManifestRewriteRoute>
+      }
+      dynamicRoutes: Array<{}>
+    }
+    outputs: AdapterOutputs
+  }): Promise<void> | void
 }
 
 export type I18NDomains = readonly DomainLocale[]
