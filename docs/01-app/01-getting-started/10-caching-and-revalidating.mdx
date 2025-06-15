@@ -11,7 +11,7 @@ related:
     - app/api-reference/functions/revalidateTag
 ---
 
-Caching is a technique for storing the result of data fetching and other computations so that future requests for the same data can be served faster, without doing the work again. While revalidation allows you to update cache entries without having to rebuild your entire application.
+Caching is a technique for storing the result of data fetching and other computations so that future requests for the same data can be served faster, without doing the work again. Revalidation allows you to update cache entries without having to rebuild your entire application.
 
 Next.js provides a few APIs to handle caching and revalidation. This guide will walk you through when and how to use them.
 
@@ -154,7 +154,7 @@ See the [`unstable_cache` API reference](/docs/app/api-reference/functions/unsta
 
 ## `revalidateTag`
 
-`revalidateTag` is used to revalidate a cache entries based on a tag and following an event. To use it with `fetch`, start by tagging the function with the `next.tags` option:
+`revalidateTag` is used to revalidate cache entries based on a tag and following an event. To use it with `fetch`, start by tagging the function with the `next.tags` option:
 
 ```tsx filename="app/lib/data.ts" highlight={3-5} switcher
 export async function getUserById(id: string) {
