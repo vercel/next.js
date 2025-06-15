@@ -18,6 +18,12 @@ import type { OverlayState } from '../../../../shared'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { css } from '../../../../utils/css'
 import { getFrameSource } from '../../../../../shared/stack-frame'
+import { Terminal } from '../../../terminal'
+import { HotlinkedText } from '../../../hot-linked-text'
+import { NEXTJS_HYDRATION_ERROR_LINK } from '../../../../../shared/react-19-hydration-error'
+import { PseudoHtmlDiff } from '../../../../container/runtime-error/component-stack-pseudo-html'
+import { CodeFrame } from '../../../code-frame/code-frame'
+import { CallStack } from '../../../call-stack/call-stack'
 
 export function IssuesTab({
   state,
@@ -38,14 +44,24 @@ export function IssuesTab({
       },
     [activeIdx, runtimeErrors]
   )
-  const error = activeError?.error
 
-  const errorCode = extractNextErrorCode(error)
-  const errorType = getErrorTypeLabel(error, activeError.type)
+  if (!activeError) {
+    return null
+  }
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const errorDetails = useErrorDetails(
     activeError?.error,
     getSquashedHydrationErrorDetails
   )
+
+  const error = activeError?.error
+
+  const errorCode = extractNextErrorCode(error)
+  const errorType = getErrorTypeLabel(error, activeError.type)
+  // TOOD: May be better to always treat everything past the first blank line as notes
+  // We're currently only special casing hydration error messages.
+  const notes = errorDetails.notes
   const hydrationWarning = errorDetails.hydrationWarning
   const errorMessage = hydrationWarning ? (
     <HydrationErrorDescription message={hydrationWarning} />
@@ -71,23 +87,126 @@ export function IssuesTab({
           })}
         </Suspense>
       </aside>
-      <div className="nextjs-container-errors-header">
-        <div
-          className="nextjs__container_errors__error_title"
-          // allow assertion in tests before error rating is implemented
-          data-nextjs-error-code={errorCode}
-        >
-          <span data-nextjs-error-label-group>
-            <ErrorTypeLabel errorType={errorType} />
-            {error.environmentName && (
-              <EnvironmentNameLabel environmentName={error.environmentName} />
-            )}
-          </span>
-          <ErrorOverlayToolbar error={error} debugInfo={state.debugInfo} />
+      <div data-nextjs-devtools-panel-tab-issues-content>
+        <div className="nextjs-container-errors-header">
+          <div
+            className="nextjs__container_errors__error_title"
+            // allow assertion in tests before error rating is implemented
+            data-nextjs-error-code={errorCode}
+          >
+            <span data-nextjs-error-label-group>
+              <ErrorTypeLabel errorType={errorType} />
+              {error.environmentName && (
+                <EnvironmentNameLabel environmentName={error.environmentName} />
+              )}
+            </span>
+            <ErrorOverlayToolbar error={error} debugInfo={state.debugInfo} />
+          </div>
+          <ErrorMessage errorMessage={errorMessage} />
         </div>
-        <ErrorMessage errorMessage={errorMessage} />
+
+        <ErrorContent
+          buildError={state.buildError}
+          notes={notes}
+          hydrationWarning={hydrationWarning}
+          errorDetails={errorDetails}
+          activeError={activeError}
+        />
       </div>
     </div>
+  )
+}
+
+function ErrorContent({
+  notes,
+  buildError,
+  hydrationWarning,
+  errorDetails,
+  activeError,
+}: {
+  notes: string | null
+  buildError: OverlayState['buildError']
+  hydrationWarning: string | null
+  errorDetails: {
+    hydrationWarning: string | null
+    notes: string | null
+    reactOutputComponentDiff: string | null
+  }
+  activeError: ReadyRuntimeError
+}) {
+  if (buildError) {
+    return <Terminal content={buildError} />
+  }
+
+  return (
+    <>
+      <div className="error-overlay-notes-container">
+        {notes ? (
+          <>
+            <p
+              id="nextjs__container_errors__notes"
+              className="nextjs__container_errors__notes"
+            >
+              {notes}
+            </p>
+          </>
+        ) : null}
+        {hydrationWarning ? (
+          <p
+            id="nextjs__container_errors__link"
+            className="nextjs__container_errors__link"
+          >
+            <HotlinkedText
+              text={`See more info here: ${NEXTJS_HYDRATION_ERROR_LINK}`}
+            />
+          </p>
+        ) : null}
+      </div>
+      {errorDetails.reactOutputComponentDiff ? (
+        <PseudoHtmlDiff
+          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff || ''}
+        />
+      ) : null}
+      <Suspense fallback={<div data-nextjs-error-suspended />}>
+        <RuntimeError key={activeError.id.toString()} error={activeError} />
+      </Suspense>
+    </>
+  )
+}
+
+function RuntimeError({ error }: { error: ReadyRuntimeError }) {
+  const frames = useFrames(error)
+
+  const firstFrame = useMemo(() => {
+    const firstFirstPartyFrameIndex = frames.findIndex(
+      (entry) =>
+        !entry.ignored &&
+        Boolean(entry.originalCodeFrame) &&
+        Boolean(entry.originalStackFrame)
+    )
+
+    return frames[firstFirstPartyFrameIndex] ?? null
+  }, [frames])
+
+  if (!firstFrame.originalStackFrame) {
+    return null
+  }
+
+  if (!firstFrame.originalCodeFrame) {
+    return null
+  }
+
+  return (
+    <>
+      {firstFrame && (
+        <CodeFrame
+          stackFrame={firstFrame.originalStackFrame}
+          codeFrame={firstFrame.originalCodeFrame}
+        />
+      )}
+
+      {frames.length > 0 && <CallStack frames={frames} />}
+    </>
   )
 }
 
@@ -119,20 +238,20 @@ function Foo({
 
   const frameSource = getFrameSource(firstFrame.originalStackFrame!)
   return (
-    <div
+    <button
       data-nextjs-devtools-panel-tab-issues-sidebar-frame
       data-nextjs-devtools-panel-tab-issues-sidebar-frame-active={
         idx === activeIdx
       }
       onClick={() => setActiveIndex(idx)}
     >
-      <div data-nextjs-devtools-panel-tab-issues-sidebar-frame-error-type>
+      <span data-nextjs-devtools-panel-tab-issues-sidebar-frame-error-type>
         {errorType}
-      </div>
-      <div data-nextjs-devtools-panel-tab-issues-sidebar-frame-source>
+      </span>
+      <span data-nextjs-devtools-panel-tab-issues-sidebar-frame-source>
         {frameSource}
-      </div>
-    </div>
+      </span>
+    </button>
   )
 }
 
@@ -167,9 +286,10 @@ export const DEVTOOLS_PANEL_TAB_ISSUES_STYLES = css`
   }
 
   [data-nextjs-devtools-panel-tab-issues-sidebar-frame] {
+    display: flex;
+    flex-direction: column;
     padding: 10px 8px;
     border-radius: var(--rounded-lg);
-    cursor: pointer;
     transition: background-color 0.2s ease-in-out;
 
     &:hover {
@@ -186,6 +306,8 @@ export const DEVTOOLS_PANEL_TAB_ISSUES_STYLES = css`
   }
 
   [data-nextjs-devtools-panel-tab-issues-sidebar-frame-error-type] {
+    display: inline-block;
+    align-self: flex-start;
     color: var(--color-gray-1000);
     font-size: var(--size-14);
     font-weight: 500;
@@ -193,11 +315,19 @@ export const DEVTOOLS_PANEL_TAB_ISSUES_STYLES = css`
   }
 
   [data-nextjs-devtools-panel-tab-issues-sidebar-frame-source] {
+    display: inline-block;
+    align-self: flex-start;
     color: var(--color-gray-900);
     font-size: var(--size-13);
     line-height: var(--size-18);
   }
 
+  [data-nextjs-devtools-panel-tab-issues-content] {
+    width: 100%;
+    padding: 14px;
+  }
+
+  /* errors/dialog/header.tsx */
   .nextjs-container-errors-header {
     position: relative;
   }
@@ -229,5 +359,65 @@ export const DEVTOOLS_PANEL_TAB_ISSUES_STYLES = css`
     position: absolute;
     top: 16px;
     right: 16px;
+  }
+
+  /* errors.tsx */
+  .nextjs-error-with-static {
+    bottom: calc(16px * 4.5);
+  }
+  p.nextjs__container_errors__link {
+    font-size: var(--size-14);
+  }
+  p.nextjs__container_errors__notes {
+    color: var(--color-stack-notes);
+    font-size: var(--size-14);
+    line-height: 1.5;
+  }
+  .nextjs-container-errors-body > h2:not(:first-child) {
+    margin-top: calc(16px + 8px);
+  }
+  .nextjs-container-errors-body > h2 {
+    color: var(--color-title-color);
+    margin-bottom: 8px;
+    font-size: var(--size-20);
+  }
+  .nextjs-toast-errors-parent {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+  .nextjs-toast-errors-parent:hover {
+    transform: scale(1.1);
+  }
+  .nextjs-toast-errors {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .nextjs-toast-errors > svg {
+    margin-right: 8px;
+  }
+  .nextjs-toast-hide-button {
+    margin-left: 24px;
+    border: none;
+    background: none;
+    color: var(--color-ansi-bright-white);
+    padding: 0;
+    transition: opacity 0.25s ease;
+    opacity: 0.7;
+  }
+  .nextjs-toast-hide-button:hover {
+    opacity: 1;
+  }
+  .nextjs__container_errors__error_title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .error-overlay-notes-container {
+    margin: 8px 2px;
+  }
+  .error-overlay-notes-container p {
+    white-space: pre-wrap;
   }
 `
