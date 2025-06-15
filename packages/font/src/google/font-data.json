@@ -1,17 +1,4 @@
 {
-  "42dot Sans": {
-    "weights": ["300", "400", "500", "600", "700", "800", "variable"],
-    "styles": ["normal"],
-    "axes": [
-      {
-        "tag": "wght",
-        "min": 300,
-        "max": 800,
-        "defaultValue": 400
-      }
-    ],
-    "subsets": ["latin"]
-  },
   "ABeeZee": {
     "weights": ["400"],
     "styles": ["normal", "italic"],
@@ -2729,6 +2716,37 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "malayalam"]
   },
+  "Chiron Sung HK": {
+    "weights": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "latin",
+      "latin-ext",
+      "symbols2",
+      "vietnamese"
+    ]
+  },
   "Chivo": {
     "weights": [
       "100",
@@ -5248,8 +5266,27 @@
     "subsets": ["cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Hanuman": {
-    "weights": ["100", "300", "400", "700", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["khmer", "latin"]
   },
   "Happy Monkey": {
@@ -5464,6 +5501,11 @@
       }
     ],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Huninn": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["cyrillic", "latin", "latin-ext", "vietnamese"]
   },
   "Hurricane": {
     "weights": ["400"],
@@ -6569,6 +6611,19 @@
     "styles": ["normal"],
     "subsets": ["cyrillic", "cyrillic-ext", "devanagari", "latin", "latin-ext"]
   },
+  "LXGW Marker Gothic": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "latin",
+      "latin-ext",
+      "symbols2",
+      "vietnamese"
+    ]
+  },
   "LXGW WenKai Mono TC": {
     "weights": ["300", "400", "700"],
     "styles": ["normal"],
@@ -7606,6 +7661,19 @@
     "weights": ["400", "700"],
     "styles": ["normal", "italic"],
     "subsets": ["latin"]
+  },
+  "Matangi": {
+    "weights": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["devanagari", "latin", "latin-ext"]
   },
   "Mate": {
     "weights": ["400"],
@@ -16457,6 +16525,16 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "WDXL Lubrifont JP N": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["cyrillic", "latin", "latin-ext", "symbols2"]
+  },
+  "WDXL Lubrifont SC": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["cyrillic", "latin", "latin-ext", "symbols2"]
   },
   "WDXL Lubrifont TC": {
     "weights": ["400"],
