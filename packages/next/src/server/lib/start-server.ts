@@ -183,6 +183,9 @@ export async function startServer(
         {
           key: fs.readFileSync(selfSignedCertificate.key),
           cert: fs.readFileSync(selfSignedCertificate.cert),
+          ...(selfSignedCertificate.passphrase
+            ? { passphrase: selfSignedCertificate.passphrase }
+            : {}),
         },
         requestListener
       )

@@ -52,6 +52,7 @@ The following commands are available:
 | `--experimental-https-key <path>`        | Path to a HTTPS key file.                                                                                                                            |
 | `--experimental-https-cert <path>`       | Path to a HTTPS certificate file.                                                                                                                    |
 | `--experimental-https-ca <path>`         | Path to a HTTPS certificate authority file.                                                                                                          |
+| `--experimental-https-passphrase <path>` | Passphrase for HTTPS certificate file.                                                                                                               |
 | `--experimental-upload-trace <traceUrl>` | Reports a subset of the debugging trace to a remote HTTP URL.                                                                                        |
 
 ### `next build` options
@@ -209,7 +210,7 @@ next dev --experimental-https
 
 With the generated certificate, the Next.js development server will exist at `https://localhost:3000`. The default port `3000` is used unless a port is specified with `-p`, `--port`, or `PORT`.
 
-You can also provide a custom certificate and key with `--experimental-https-key` and `--experimental-https-cert`. Optionally, you can provide a custom CA certificate with `--experimental-https-ca` as well.
+You can also provide a custom certificate and key with `--experimental-https-key` and `--experimental-https-cert`. Optionally, you can provide a custom CA certificate with `--experimental-https-ca` as well, and a --experimental-https-passphrase for the certificate.
 
 ```bash filename="Terminal"
 next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
