@@ -123,6 +123,18 @@ function HistoryUpdater({
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
       window.history.pushState(historyState, '', canonicalUrl)
+      // navigate back and immidiatly navigate forward again to trigger css :target selector evaluation in the browser
+      window.history.back()
+      window.addEventListener(
+        'popstate',
+        () => {
+          window.history.forward()
+        },
+        {
+          once: true,
+          passive: true,
+        }
+      )
     } else {
       window.history.replaceState(historyState, '', canonicalUrl)
     }
