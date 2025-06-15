@@ -60,7 +60,7 @@ type TwitterImageDescriptor = {
 }
 type TwitterPlayerDescriptor = {
   playerUrl: string | URL
-  streamUrl: string | URL
+  streamUrl?: string | URL | undefined
   width: number
   height: number
 }
