@@ -87,7 +87,7 @@ export function sortByPageExts(pageExtensions: PageExtensions) {
     const bExt = extname(b)
 
     const aNoExt = a.substring(0, a.length - aExt.length)
-    const bNoExt = a.substring(0, b.length - bExt.length)
+    const bNoExt = b.substring(0, b.length - bExt.length)
 
     if (aNoExt !== bNoExt) return 0
 
