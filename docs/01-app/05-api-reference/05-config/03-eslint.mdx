@@ -180,7 +180,16 @@ See [typescript-eslint > Configs](https://typescript-eslint.io/linting/configs) 
 
 ### With Prettier
 
-ESLint also contains code formatting rules, which can conflict with your existing [Prettier](https://prettier.io/) setup. We recommend including [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) in your ESLint config to make ESLint and Prettier work together.
+`eslint-config-prettier` is often unnecessary because modern ESLint best practices
+discourage enabling stylistic rules in shared configs, and recommended configs like
+`eslint:recommended` and `@typescript-eslint/recommended` now focus solely on
+logic-related checks.
+
+Unless you're using a legacy config that enables formatting rules,
+`eslint-config-prettier` provides no benefit and can cause confusion.
+If you _are_ using such a config, include
+[eslint-config-prettier](https://github.com/prettier/eslint-config-prettier)
+to prevent conflicts and ensure ESLint and Prettier work correctly together.
 
 First, install the dependency:
 
