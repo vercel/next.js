@@ -72,7 +72,7 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
     )
   })
 
-  it('triggers revalidate from a server action', async () => {
+  it('triggers revalidate from a server action via after(callback)', async () => {
     const path = pathPrefix + '/server-action'
     const dataBefore = await getInitialTimestampPageData(path)
 
@@ -86,6 +86,24 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
       },
       retryDuration,
       1000,
+      'check if timestamp page updated'
+    )
+  })
+
+  it('triggers revalidate from a server action via after(promise)', async () => {
+    const path = pathPrefix + '/server-action-promise'
+    const dataBefore = await getInitialTimestampPageData(path)
+
+    const session = await next.browser(path)
+    await session.elementByCss('button[type="submit"]').click() // trigger revalidate
+
+    await retry(
+      async () => {
+        const dataAfter = await getTimestampPageData(path)
+        expect(dataAfter.timestamp).toBeGreaterThan(dataBefore.timestamp)
+      },
+      retryDuration + 500, // the test has an artificial delay to wait for the response to close
+      500,
       'check if timestamp page updated'
     )
   })
