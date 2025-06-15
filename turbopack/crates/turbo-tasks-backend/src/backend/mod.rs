@@ -1671,6 +1671,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let has_children = !new_children.is_empty();
 
+        // If the task is not stateful and has no children, it does not have a way to be invalidated
+        // and we can mark it as immutable.
+        if !stateful && !has_children {
+            task.mark_as_immutable();
+        }
+
         // Prepare all new children
         if has_children {
             prepare_new_children(task_id, &mut task, &new_children, &mut queue);
@@ -1787,7 +1793,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut queue = AggregationUpdateQueue::new();
 
         if has_children {
-            let has_active_count = ctx.should_track_activeness()
+            let is_immutable = task.is_immutable();
+            let has_active_count = !is_immutable
+                && ctx.should_track_activeness()
                 && get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
             connect_children(
                 task_id,
@@ -1795,7 +1803,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 new_children,
                 &mut queue,
                 has_active_count,
-                ctx.should_track_activeness(),
+                !is_immutable && ctx.should_track_activeness(),
             );
         }
 
@@ -2281,7 +2289,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     effective: u32::MAX,
                 },
             });
-            if self.should_track_activeness() {
+            if !task.state().is_immutable() && self.should_track_activeness() {
                 task.add(CachedDataItem::Activeness {
                     value: ActivenessState::new_root(root_type, task_id),
                 });
