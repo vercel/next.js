@@ -43,7 +43,7 @@ After you've updated, see the following sections for next steps:
 
 ## Upgrading New Features
 
-Next.js 13 introduced the new [App Router](/docs/app/building-your-application/routing) with new features and conventions. The new Router is available in the `app` directory and co-exists with the `pages` directory.
+Next.js 13 introduced the new [App Router](/docs/app) with new features and conventions. The new Router is available in the `app` directory and co-exists with the `pages` directory.
 
 Upgrading to Next.js 13 does **not** require using the App Router. You can continue using `pages` with new features that work in both directories, such as the updated [Image component](#image-component), [Link component](#link-component), [Script component](#script-component), and [Font optimization](#font-optimization).
 
@@ -104,13 +104,13 @@ Moving to the App Router may be the first time using React features that Next.js
 
 We recommend reducing the combined complexity of these updates by breaking down your migration into smaller steps. The `app` directory is intentionally designed to work simultaneously with the `pages` directory to allow for incremental page-by-page migration.
 
-- The `app` directory supports nested routes _and_ layouts. [Learn more](/docs/app/building-your-application/routing).
+- The `app` directory supports nested routes _and_ layouts. [Learn more](/docs/app/getting-started/layouts-and-pages).
 - Use nested folders to define routes and a special `page.js` file to make a route segment publicly accessible. [Learn more](#step-4-migrating-pages).
 - [Special file conventions](/docs/app/api-reference/file-conventions) are used to create UI for each route segment. The most common special files are `page.js` and `layout.js`.
   - Use `page.js` to define UI unique to a route.
   - Use `layout.js` to define UI that is shared across multiple routes.
   - `.js`, `.jsx`, or `.tsx` file extensions can be used for special files.
-- You can colocate other files inside the `app` directory such as components, styles, tests, and more. [Learn more](/docs/app/building-your-application/routing).
+- You can colocate other files inside the `app` directory such as components, styles, tests, and more. [Learn more](/docs/app).
 - Data fetching functions like `getServerSideProps` and `getStaticProps` have been replaced with [a new API](/docs/app/getting-started/fetching-data) inside `app`. `getStaticPaths` has been replaced with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 - `pages/_app.js` and `pages/_document.js` have been replaced with a single `app/layout.js` root layout. [Learn more](/docs/app/api-reference/file-conventions/layout#root-layout).
 - `pages/_error.js` has been replaced with more granular `error.js` special files. [Learn more](/docs/app/getting-started/error-handling).
@@ -325,7 +325,7 @@ export default function Page() {
 
 ### Step 4: Migrating Pages
 
-- Pages in the [`app` directory](/docs/app/building-your-application/routing) are [Server Components](/docs/app/getting-started/server-and-client-components) by default. This is different from the `pages` directory where pages are [Client Components](/docs/app/getting-started/server-and-client-components).
+- Pages in the [`app` directory](/docs/app) are [Server Components](/docs/app/getting-started/server-and-client-components) by default. This is different from the `pages` directory where pages are [Client Components](/docs/app/getting-started/server-and-client-components).
 - [Data fetching](/docs/app/getting-started/fetching-data) has changed in `app`. `getServerSideProps`, `getStaticProps` and `getInitialProps` have been replaced with a simpler API.
 - The `app` directory uses nested folders to define routes and a special `page.js` file to make a route segment publicly accessible.
 - | `pages` Directory | `app` Directory       | Route          |
@@ -864,7 +864,7 @@ export default async function PostList() {
 
 #### API Routes
 
-API Routes continue to work in the `pages/api` directory without any changes. However, they have been replaced by [Route Handlers](/docs/app/building-your-application/routing/route-handlers) in the `app` directory.
+API Routes continue to work in the `pages/api` directory without any changes. However, they have been replaced by [Route Handlers](/docs/app/api-reference/file-conventions/route) in the `app` directory.
 
 Route Handlers allow you to create custom request handlers for a given route using the Web [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response) APIs.
 

@@ -1,5 +1,5 @@
 ---
-title: Fetching Data and Streaming
+title: Fetching Data
 description: Learn how to fetch data and stream content that depends on data.
 related:
   title: API Reference
@@ -396,7 +396,7 @@ In development, you can preview and inspect the loading state of your components
 
 ### Sequential data fetching
 
-Sequential data fetching happens when nested components in a tree each fetch their own data and the requests are not [deduplicated](/docs/app/deep-dive/caching#request-memoization), leading to longer response times.
+Sequential data fetching happens when nested components in a tree each fetch their own data and the requests are not [deduplicated](/docs/app/guides/caching#request-memoization), leading to longer response times.
 
 <Image
   alt="Sequential and Parallel Data Fetching"
