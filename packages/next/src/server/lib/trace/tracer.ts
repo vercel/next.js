@@ -12,6 +12,7 @@ import type {
   TextMapGetter,
 } from 'next/dist/compiled/@opentelemetry/api'
 import { isThenable } from '../../../shared/lib/is-thenable'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
@@ -301,83 +302,102 @@ class NextTracerImpl implements NextTracer {
       ...options.attributes,
     }
 
-    return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
-      this.getTracerInstance().startActiveSpan(
-        spanName,
-        options,
-        (span: Span) => {
-          const startTime =
-            'performance' in globalThis && 'measure' in performance
-              ? globalThis.performance.now()
-              : undefined
+    return context.with(spanContext.setValue(rootSpanIdKey, spanId), () => {
+      const workUnitStore = workUnitAsyncStorage.getStore()
 
-          const onCleanup = () => {
-            rootSpanAttributesStore.delete(spanId)
-            if (
-              startTime &&
-              process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
-              LogSpanAllowList.includes(type || ('' as any))
-            ) {
-              performance.measure(
-                `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
-                  type.split('.').pop() || ''
-                ).replace(
-                  /[A-Z]/g,
-                  (match: string) => '-' + match.toLowerCase()
-                )}`,
-                {
-                  start: startTime,
-                  end: performance.now(),
-                }
-              )
-            }
-          }
+      const withSpan = (span: Span) => {
+        const startTime =
+          'performance' in globalThis && 'measure' in performance
+            ? globalThis.performance.now()
+            : undefined
 
-          if (isRootSpan) {
-            rootSpanAttributesStore.set(
-              spanId,
-              new Map(
-                Object.entries(options.attributes ?? {}) as [
-                  AttributeNames,
-                  AttributeValue | undefined,
-                ][]
-              )
+        const onCleanup = () => {
+          rootSpanAttributesStore.delete(spanId)
+          if (
+            startTime &&
+            process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
+            LogSpanAllowList.includes(type || ('' as any))
+          ) {
+            performance.measure(
+              `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                type.split('.').pop() || ''
+              ).replace(
+                /[A-Z]/g,
+                (match: string) => '-' + match.toLowerCase()
+              )}`,
+              {
+                start: startTime,
+                end: performance.now(),
+              }
             )
           }
-          try {
-            if (fn.length > 1) {
-              return fn(span, (err) => closeSpanWithError(span, err))
-            }
-
-            const result = fn(span)
-            if (isThenable(result)) {
-              // If there's error make sure it throws
-              return result
-                .then((res) => {
-                  span.end()
-                  // Need to pass down the promise result,
-                  // it could be react stream response with error { error, stream }
-                  return res
-                })
-                .catch((err) => {
-                  closeSpanWithError(span, err)
-                  throw err
-                })
-                .finally(onCleanup)
-            } else {
-              span.end()
-              onCleanup()
-            }
-
-            return result
-          } catch (err: any) {
-            closeSpanWithError(span, err)
-            onCleanup()
-            throw err
-          }
         }
+
+        if (isRootSpan) {
+          rootSpanAttributesStore.set(
+            spanId,
+            new Map(
+              Object.entries(options.attributes ?? {}) as [
+                AttributeNames,
+                AttributeValue | undefined,
+              ][]
+            )
+          )
+        }
+        try {
+          if (fn.length > 1) {
+            return fn(span, (err) => closeSpanWithError(span, err))
+          }
+
+          const result = fn(span)
+          if (isThenable(result)) {
+            // If there's error make sure it throws
+            return result
+              .then((res) => {
+                span.end()
+                // Need to pass down the promise result,
+                // it could be react stream response with error { error, stream }
+                return res
+              })
+              .catch((err) => {
+                closeSpanWithError(span, err)
+                throw err
+              })
+              .finally(onCleanup)
+          } else {
+            span.end()
+            onCleanup()
+          }
+
+          return result
+        } catch (err: any) {
+          closeSpanWithError(span, err)
+          onCleanup()
+          throw err
+        }
+      }
+
+      if (workUnitStore) {
+        // Tracing libraries might use `Math.random()` to generate a span ID. To
+        // ensure that this doesn't trigger our dynamic IO access error
+        // handling, we're exiting the work unit storage when the span is
+        // started, and re-entering it before executing the traced function.
+        return workUnitAsyncStorage.exit(() =>
+          this.getTracerInstance().startActiveSpan(
+            spanName,
+            options,
+            (span: Span) =>
+              workUnitAsyncStorage.run(workUnitStore, withSpan, span)
+          )
+        )
+      }
+
+      return this.getTracerInstance().startActiveSpan(
+        spanName,
+        options,
+        withSpan
       )
-    )
+    })
   }
 
   public wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T
