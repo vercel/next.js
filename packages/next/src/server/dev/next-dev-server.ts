@@ -711,9 +711,8 @@ export default class DevServer extends Server {
           this.dir,
           this.nextConfig.distDir
         )
-      } catch (err: any) {
-        err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-        throw err
+      } catch (err: unknown) {
+        throw new Error(`An error occurred while loading instrumentation hook`, {cause: err});
       }
     }
     return instrumentationModule
