@@ -3097,7 +3097,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                     It is not allowed to define inline "use server" annotated Server Actions in Client Components.
                     To use Server Actions in a Client Component, you can either export them from a separate file with "use server" at the top, or pass them down through props from a Server Component.
 
-                    Read more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components
+                    Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations#client-components
                 "#
             },
         ),
