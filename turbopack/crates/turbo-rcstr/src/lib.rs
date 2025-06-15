@@ -71,6 +71,11 @@ pub struct RcStr {
     unsafe_data: TaggedValue,
 }
 
+const _: () = {
+    // Enforce that RcStr triggers the non-zero size optimization.
+    assert!(std::mem::size_of::<RcStr>() == std::mem::size_of::<Option<RcStr>>());
+};
+
 unsafe impl Send for RcStr {}
 unsafe impl Sync for RcStr {}
 
@@ -90,14 +95,28 @@ impl RcStr {
     #[inline(never)]
     pub fn as_str(&self) -> &str {
         match self.tag() {
-            DYNAMIC_TAG => unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() },
-            INLINE_TAG => {
-                let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
-                let src = self.unsafe_data.data();
-                unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
-            }
+            DYNAMIC_TAG => self.dynamic_rcstr_as_str(),
+            INLINE_TAG => self.inline_rcstr_as_str(),
             _ => unsafe { debug_unreachable!() },
         }
+    }
+
+    /// [Self::as_str] for the dynamic case, useful if you have already checked the tag
+    #[inline(always)]
+    fn dynamic_rcstr_as_str(&self) -> &str {
+        debug_assert!(self.tag() == DYNAMIC_TAG);
+        unsafe { dynamic::deref_from(self.unsafe_data) }
+            .value
+            .as_str()
+    }
+
+    /// [Self::as_str] for the inline case, useful if you have already checked the tag
+    #[inline(always)]
+    fn inline_rcstr_as_str(&self) -> &str {
+        debug_assert!(self.tag() == INLINE_TAG);
+        let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
+        let src = self.unsafe_data.data();
+        unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
     }
 
     /// Returns an owned mutable [`String`].
@@ -117,7 +136,7 @@ impl RcStr {
                     Err(arc) => arc.value.to_string(),
                 }
             }
-            INLINE_TAG => self.as_str().to_string(),
+            INLINE_TAG => self.inline_rcstr_as_str().to_string(),
             _ => unsafe { debug_unreachable!() },
         }
     }
@@ -276,15 +295,23 @@ impl Default for RcStr {
 
 impl PartialEq for RcStr {
     fn eq(&self, other: &Self) -> bool {
-        match (self.tag(), other.tag()) {
-            (DYNAMIC_TAG, DYNAMIC_TAG) => {
-                let l = unsafe { deref_from(self.unsafe_data) };
-                let r = unsafe { deref_from(other.unsafe_data) };
-                l.hash == r.hash && l.value == r.value
-            }
-            (INLINE_TAG, INLINE_TAG) => self.unsafe_data == other.unsafe_data,
-            _ => false,
+        // There are 3 cases
+        // 1. different tags?  false
+        // 2. both inline? compare unsafe_data
+        // 3. both dynamic? compare contents
+        // However, it isn't unusual to compare identical RcStr instances so compare the raw data
+        // first.
+        if self.unsafe_data == other.unsafe_data {
+            return true;
         }
+        // Now we can only possibly still be true if the tags are both dynamic
+        if (self.tag() | other.tag()) != DYNAMIC_TAG {
+            return false;
+        }
+        // They are both dynamic so we need to query memory, compare hashes and then values
+        let l = unsafe { deref_from(self.unsafe_data) };
+        let r = unsafe { deref_from(other.unsafe_data) };
+        l.hash == r.hash && l.value == r.value
     }
 }
 
@@ -311,7 +338,7 @@ impl Hash for RcStr {
                 state.write_u8(0xff);
             }
             INLINE_TAG => {
-                self.as_str().hash(state);
+                self.inline_rcstr_as_str().hash(state);
             }
             _ => unsafe { debug_unreachable!() },
         }
@@ -349,15 +376,15 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
 #[macro_export]
 macro_rules! rcstr {
     ($s:expr) => {{
-        const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
-        // this condition should be able to be compile time evaluated and inlined.
+        const INLINE: ::core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
+        // This condition can be evaluated at compile time to enable inlining as a simple constant
         if INLINE.is_some() {
             INLINE.unwrap()
         } else {
             #[inline(never)]
             fn get_rcstr() -> $crate::RcStr {
-                static CACHE: std::sync::LazyLock<$crate::RcStr> =
-                    std::sync::LazyLock::new(|| $crate::RcStr::from($s));
+                static CACHE: ::std::sync::LazyLock<$crate::RcStr> =
+                    ::std::sync::LazyLock::new(|| $crate::RcStr::from($s));
 
                 (*CACHE).clone()
             }

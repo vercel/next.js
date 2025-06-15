@@ -63,7 +63,6 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
 
 /// Attempts to construct an RcStr but only if it can be constructed inline.
 /// This is primarily useful in constant contexts.
-#[doc(hidden)]
 pub(crate) const fn inline_atom(text: &str) -> Option<RcStr> {
     let len = text.len();
     if len < MAX_INLINE_LEN {
