@@ -2,12 +2,12 @@ use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
-    dynamic::{NextDynamicMode, next_dynamic},
-    fonts::{Config as FontLoaderConfig, next_font_loaders},
+    dynamic::{next_dynamic, NextDynamicMode},
+    fonts::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, ServerActionsMode, server_actions},
-    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
+    server_actions::{self, server_actions, ServerActionsMode},
+    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
@@ -17,7 +17,7 @@ use swc_core::{
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
-            testing::{FixtureTestConfig, test_fixture},
+            testing::{test_fixture, FixtureTestConfig},
         },
     },
 };

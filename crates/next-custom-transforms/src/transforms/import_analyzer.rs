@@ -1,12 +1,12 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::{Atom, atom},
+    atoms::{atom, Atom},
     ecma::{
         ast::{
             Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, MemberProp,
             Module, ModuleExportName,
         },
-        visit::{Visit, VisitWith, noop_visit_type},
+        visit::{noop_visit_type, Visit, VisitWith},
     },
 };
 

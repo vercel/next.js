@@ -5,17 +5,17 @@ use std::{
 
 use pathdiff::diff_paths;
 use swc_core::{
-    atoms::{Atom, atom},
-    common::{DUMMY_SP, FileName, Span, errors::HANDLER},
+    atoms::{atom, Atom},
+    common::{errors::HANDLER, FileName, Span, DUMMY_SP},
     ecma::{
         ast::{
-            ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
-            ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
+            op, ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee,
+            Expr, ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
             ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem, ObjectLit, Pass, Prop,
-            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp, op,
+            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
         },
-        utils::{ExprFactory, private_ident, quote_ident},
-        visit::{Fold, FoldWith, VisitMut, VisitMutWith, fold_pass},
+        utils::{private_ident, quote_ident, ExprFactory},
+        visit::{fold_pass, Fold, FoldWith, VisitMut, VisitMutWith},
     },
     quote,
 };
