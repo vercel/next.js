@@ -150,6 +150,7 @@ export default async function Page() {
 You can call the [`notFound`](/docs/app/api-reference/functions/not-found) function within a route segment and use the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file to show a 404 UI.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
+import { notFound } from 'next/navigation'
 import { getPostBySlug } from '@/lib/posts'
 
 export default async function Page({ params }: { params: { slug: string } }) {
@@ -165,6 +166,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
+import { notFound } from 'next/navigation'
 import { getPostBySlug } from '@/lib/posts'
 
 export default async function Page({ params }) {
