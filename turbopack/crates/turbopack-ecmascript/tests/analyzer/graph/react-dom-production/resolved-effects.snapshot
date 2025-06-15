@@ -6695,8 +6695,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 0 -> 1004 member call = ???*0*["hasOwnProperty"]((???*1* | "cssFloat"))
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* c
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 
 0 -> 1005 conditional = ???*0*
 - *0* ???*1*["hasOwnProperty"](c)
@@ -6705,28 +6704,24 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  function calls are not analysed yet
 
 1005 -> 1007 member call = (???*0* | "cssFloat")["indexOf"]("--")
-- *0* c
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 1005 -> 1009 call = (...) => (((null == b) || ("boolean" === typeof(b)) || ("" === b)) ? "" : ((c || ("number" !== typeof(b)) || (0 === b) || (pb["hasOwnProperty"](a) && pb[a])) ? `${b}`["trim"]() : `${b}px`))((???*0* | "cssFloat"), ???*1*, ((0 === (???*3* | ???*5*)) | undefined))
-- *0* c
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 - *1* ???*2*[c]
   ⚠️  unknown object
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
 - *3* ???*4*["indexOf"]("--")
   ⚠️  unknown callee object
-- *4* c
-  ⚠️  pattern without value
+- *4* for-in variable currently not analyzed
 - *5* "cssFloat"["indexOf"]("--")
   ⚠️  nested operation
 
 1005 -> 1010 conditional = ((0 === (???*0* | ???*2*)) | undefined)
 - *0* ???*1*["indexOf"]("--")
   ⚠️  unknown callee object
-- *1* c
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 - *2* "cssFloat"["indexOf"]("--")
   ⚠️  nested operation
 
@@ -6737,8 +6732,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *2* a
   ⚠️  circular variable reference
-- *3* c
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* (null == ???*5*)
   ⚠️  nested operation
 - *5* ???*6*[c]
@@ -6751,8 +6745,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  nested operation
 - *9* ???*10*["indexOf"]("--")
   ⚠️  unknown callee object
-- *10* c
-  ⚠️  pattern without value
+- *10* for-in variable currently not analyzed
 - *11* "cssFloat"["indexOf"]("--")
   ⚠️  nested operation
 - *12* (???*13* | ???*14*)((???*15* | "cssFloat"))
@@ -6762,8 +6755,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *14* unknown mutation
   ⚠️  This value might have side effects
-- *15* c
-  ⚠️  pattern without value
+- *15* for-in variable currently not analyzed
 - *16* node limit reached
   ⚠️  This value might have side effects
 - *17* ???*18*()
@@ -11159,7 +11151,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-1540 -> 1551 member call = (???*0* ? (null["value"] | ???*1*) : (null["textContent"] | ???*16*))["slice"]((???*31* | 0 | ???*32*), (???*33* ? ???*34* : ???*35*))
+0 -> 1551 member call = (???*0* ? (null["value"] | ???*1*) : (null["textContent"] | ???*16*))["slice"]((???*31* | 0 | ???*32*), (???*33* ? ???*34* : ???*35*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* ???*2*["value"]
@@ -11243,7 +11235,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *35* unsupported expression
   ⚠️  This value might have side effects
 
-1540 -> 1552 unreachable = ???*0*
+0 -> 1552 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -11343,8 +11335,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 0 -> 1588 member call = ???*0*["hasOwnProperty"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* c
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 
 0 -> 1591 conditional = (???*0* | ???*1*)
 - *0* arguments[0]
@@ -14198,7 +14189,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-2068 -> 2072 member call = ({} | ???*0*)["hasOwnProperty"](???*2*)
+2068 -> 2072 member call = ({} | ???*0*)["hasOwnProperty"]((???*2* | ???*3*))
 - *0* {}[???*1*]
   ⚠️  unknown object prototype methods or values
   ⚠️  This value might have side effects
@@ -14206,9 +14197,10 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  function calls are not analysed yet
 - *2* c
   ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 
-2068 -> 2073 conditional = (???*0* | ???*4* | ???*8*)
-- *0* (???*1* | ???*2*)(???*3*)
+2068 -> 2073 conditional = (???*0* | ???*5* | ???*10*)
+- *0* (???*1* | ???*2*)((???*3* | ???*4*))
   ⚠️  non-function callee
 - *1* FreeVar(undefined)
   ⚠️  unknown global
@@ -14217,24 +14209,26 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *3* c
   ⚠️  pattern without value
-- *4* ???*5*["hasOwnProperty"](???*7*)
+- *4* for-in variable currently not analyzed
+- *5* ???*6*["hasOwnProperty"]((???*8* | ???*9*))
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *5* {}[???*6*]
+- *6* {}[???*7*]
   ⚠️  unknown object prototype methods or values
   ⚠️  This value might have side effects
-- *6* arguments[0]
+- *7* arguments[0]
   ⚠️  function calls are not analysed yet
-- *7* c
+- *8* c
   ⚠️  pattern without value
-- *8* unsupported expression
+- *9* for-in variable currently not analyzed
+- *10* unsupported expression
   ⚠️  This value might have side effects
 
 2073 -> 2076 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-2073 -> 2077 unreachable = ???*0*
+0 -> 2077 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -17099,7 +17093,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-2372 -> 2376 conditional = (???*0* | ???*1*)
+0 -> 2376 conditional = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["return"]
@@ -17107,7 +17101,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* a
   ⚠️  circular variable reference
 
-2372 -> 2377 unreachable = ???*0*
+0 -> 2377 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -18233,7 +18227,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-2530 -> 2538 unreachable = ???*0*
+0 -> 2538 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -18346,8 +18340,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 2558 -> 2561 call = (...) => `Minified React error #${a}; visit ${b} for the full message or use the non-minified dev environment for full errors and additional helpful warnings.`(108, ???*0*, ???*1*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
-- *1* e
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 
 2558 -> 2562 call = ???*0*(???*1*)
 - *0* FreeVar(Error)
@@ -18356,7 +18349,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2554 -> 2563 call = Object.assign*0*({}, ???*1*, (???*2* | ???*4*()))
+0 -> 2563 call = Object.assign*0*({}, ???*1*, (???*2* | ???*4*()))
 - *0* Object.assign: Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
@@ -18369,7 +18362,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *5* d
   ⚠️  circular variable reference
 
-2554 -> 2564 unreachable = ???*0*
+0 -> 2564 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -22945,7 +22938,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *3* d
   ⚠️  circular variable reference
 
-3173 -> 3177 unreachable = ???*0*
+0 -> 3177 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -25469,7 +25462,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-3392 -> 3415 member call = ???*0*["forEach"]((...) => b(e, a))
+0 -> 3415 member call = ???*0*["forEach"]((...) => b(e, a))
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -25483,7 +25476,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-3392 -> 3418 call = (...) => undefined(???*0*, (???*1* | ???*2*))
+0 -> 3418 call = (...) => undefined(???*0*, (???*1* | ???*2*))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
@@ -25491,7 +25484,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* updated with update expression
   ⚠️  This value might have side effects
 
-3392 -> 3419 unreachable = ???*0*
+0 -> 3419 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -25749,7 +25742,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-3451 -> 3478 member call = ???*0*["forEach"]((...) => b(e, a))
+0 -> 3478 member call = ???*0*["forEach"]((...) => b(e, a))
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -25763,7 +25756,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-3451 -> 3481 call = (...) => undefined(???*0*, (???*1* | ???*2*))
+0 -> 3481 call = (...) => undefined(???*0*, (???*1* | ???*2*))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
@@ -25771,7 +25764,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* updated with update expression
   ⚠️  This value might have side effects
 
-3451 -> 3482 unreachable = ???*0*
+0 -> 3482 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -27087,7 +27080,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-3680 -> 3682 unreachable = ???*0*
+0 -> 3682 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -37772,8 +37765,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *2* arguments[3]
   ⚠️  function calls are not analysed yet
-- *3* l
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* f
   ⚠️  circular variable reference
 - *5* ???*6*[(???*20* | null | undefined | [] | ???*21*)]
@@ -37816,8 +37808,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *19* arguments[0]
   ⚠️  function calls are not analysed yet
-- *20* l
-  ⚠️  pattern without value
+- *20* for-in variable currently not analyzed
 - *21* f
   ⚠️  circular variable reference
 - *22* k
@@ -37908,8 +37899,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *14* arguments[0]
   ⚠️  function calls are not analysed yet
-- *15* l
-  ⚠️  pattern without value
+- *15* for-in variable currently not analyzed
 - *16* f
   ⚠️  circular variable reference
 
@@ -37955,8 +37945,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *15* arguments[0]
   ⚠️  function calls are not analysed yet
-- *16* l
-  ⚠️  pattern without value
+- *16* for-in variable currently not analyzed
 - *17* f
   ⚠️  circular variable reference
 
@@ -37965,8 +37954,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown callee object
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
-- *2* l
-  ⚠️  pattern without value
+- *2* for-in variable currently not analyzed
 - *3* f
   ⚠️  circular variable reference
 - *4* ???*5*["hasOwnProperty"]((???*19* | null | undefined | [] | ???*20*))
@@ -38009,8 +37997,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *18* arguments[0]
   ⚠️  function calls are not analysed yet
-- *19* l
-  ⚠️  pattern without value
+- *19* for-in variable currently not analyzed
 - *20* f
   ⚠️  circular variable reference
 - *21* ???*22*["hasOwnProperty"]((???*24* | null | undefined | [] | ???*25*))
@@ -38019,8 +38006,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *23* arguments[0]
   ⚠️  function calls are not analysed yet
-- *24* l
-  ⚠️  pattern without value
+- *24* for-in variable currently not analyzed
 - *25* f
   ⚠️  circular variable reference
 - *26* ???*27*["hasOwnProperty"]((???*41* | null | undefined | [] | ???*42*))
@@ -38063,8 +38049,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *40* arguments[0]
   ⚠️  function calls are not analysed yet
-- *41* l
-  ⚠️  pattern without value
+- *41* for-in variable currently not analyzed
 - *42* f
   ⚠️  circular variable reference
 - *43* ???*44*[(???*46* | null | undefined | [] | ???*47*)]
@@ -38073,8 +38058,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *45* arguments[0]
   ⚠️  function calls are not analysed yet
-- *46* l
-  ⚠️  pattern without value
+- *46* for-in variable currently not analyzed
 - *47* f
   ⚠️  circular variable reference
 - *48* ???*49*[(???*63* | null | undefined | [] | ???*64*)]
@@ -38117,14 +38101,12 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *62* arguments[0]
   ⚠️  function calls are not analysed yet
-- *63* l
-  ⚠️  pattern without value
+- *63* for-in variable currently not analyzed
 - *64* f
   ⚠️  circular variable reference
 
 4968 -> 4969 conditional = ("style" === (???*0* | null | undefined | [] | ???*1*))
-- *0* l
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 - *1* f
   ⚠️  circular variable reference
 
@@ -38134,15 +38116,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   | undefined
   | (???*22* ? (???*39* | ???*44*) : ???*61*)
   | (???*62* ? ???*63* : ???*65*)
-)["hasOwnProperty"](???*66*)
+)["hasOwnProperty"]((???*66* | ???*67*))
 - *0* ???*1*[(???*3* | null | undefined | [] | ???*4*)]
   ⚠️  unknown object
 - *1* ???*2*["memoizedProps"]
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* l
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* f
   ⚠️  circular variable reference
 - *5* ???*6*[(???*20* | null | undefined | [] | ???*21*)]
@@ -38185,8 +38166,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *19* arguments[0]
   ⚠️  function calls are not analysed yet
-- *20* l
-  ⚠️  pattern without value
+- *20* for-in variable currently not analyzed
 - *21* f
   ⚠️  circular variable reference
 - *22* (null != (???*23* | ???*25*))
@@ -38238,8 +38218,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *41* arguments[0]
   ⚠️  function calls are not analysed yet
-- *42* l
-  ⚠️  pattern without value
+- *42* for-in variable currently not analyzed
 - *43* f
   ⚠️  circular variable reference
 - *44* ???*45*[(???*59* | null | undefined | [] | ???*60*)]
@@ -38282,8 +38261,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *58* arguments[0]
   ⚠️  function calls are not analysed yet
-- *59* l
-  ⚠️  pattern without value
+- *59* for-in variable currently not analyzed
 - *60* f
   ⚠️  circular variable reference
 - *61* unsupported expression
@@ -38298,10 +38276,10 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *66* g
   ⚠️  pattern without value
+- *67* for-in variable currently not analyzed
 
 4969 -> 4975 member call = {}["hasOwnProperty"]((???*0* | null | undefined | [] | ???*1*))
-- *0* l
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 - *1* f
   ⚠️  circular variable reference
 
@@ -38313,16 +38291,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *2* unknown mutation
   ⚠️  This value might have side effects
-- *3* l
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* f
   ⚠️  circular variable reference
 
 4976 -> 4978 member call = ???*0*["push"]((???*1* | null | undefined | [] | ???*2*), null)
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* l
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 - *2* f
   ⚠️  circular variable reference
 
@@ -38409,8 +38385,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *14* arguments[0]
   ⚠️  function calls are not analysed yet
-- *15* l
-  ⚠️  pattern without value
+- *15* for-in variable currently not analyzed
 - *16* f
   ⚠️  circular variable reference
 
@@ -38424,8 +38399,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown callee object
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
-- *2* l
-  ⚠️  pattern without value
+- *2* for-in variable currently not analyzed
 - *3* f
   ⚠️  circular variable reference
 - *4* ???*5*["hasOwnProperty"]((???*19* | null | undefined | [] | ???*20*))
@@ -38468,16 +38442,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *18* arguments[0]
   ⚠️  function calls are not analysed yet
-- *19* l
-  ⚠️  pattern without value
+- *19* for-in variable currently not analyzed
 - *20* f
   ⚠️  circular variable reference
 - *21* ???*22*[(???*23* | null | undefined | [] | ???*24*)]
   ⚠️  unknown object
 - *22* arguments[3]
   ⚠️  function calls are not analysed yet
-- *23* l
-  ⚠️  pattern without value
+- *23* for-in variable currently not analyzed
 - *24* f
   ⚠️  circular variable reference
 - *25* ???*26*[(???*40* | null | undefined | [] | ???*41*)]
@@ -38520,8 +38492,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *39* arguments[0]
   ⚠️  function calls are not analysed yet
-- *40* l
-  ⚠️  pattern without value
+- *40* for-in variable currently not analyzed
 - *41* f
   ⚠️  circular variable reference
 - *42* (???*43* ? ???*44* : ???*46*)
@@ -38540,8 +38511,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *49* arguments[0]
   ⚠️  function calls are not analysed yet
-- *50* l
-  ⚠️  pattern without value
+- *50* for-in variable currently not analyzed
 - *51* f
   ⚠️  circular variable reference
 - *52* ???*53*[(???*67* | null | undefined | [] | ???*68*)]
@@ -38584,8 +38554,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *66* arguments[0]
   ⚠️  function calls are not analysed yet
-- *67* l
-  ⚠️  pattern without value
+- *67* for-in variable currently not analyzed
 - *68* f
   ⚠️  circular variable reference
 - *69* (???*70* ? (???*85* | ???*90*) : ???*105*)
@@ -38635,8 +38604,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *87* arguments[0]
   ⚠️  function calls are not analysed yet
-- *88* l
-  ⚠️  pattern without value
+- *88* for-in variable currently not analyzed
 - *89* f
   ⚠️  circular variable reference
 - *90* ???*91*[(???*103* | null | undefined | [] | ???*104*)]
@@ -38675,8 +38643,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *102* ...[...]
   ⚠️  unknown object
-- *103* l
-  ⚠️  pattern without value
+- *103* for-in variable currently not analyzed
 - *104* f
   ⚠️  circular variable reference
 - *105* unsupported expression
@@ -38685,8 +38652,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *107* arguments[3]
   ⚠️  function calls are not analysed yet
-- *108* l
-  ⚠️  pattern without value
+- *108* for-in variable currently not analyzed
 - *109* f
   ⚠️  circular variable reference
 - *110* ???*111*[(???*125* | null | undefined | [] | ???*126*)]
@@ -38729,8 +38695,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *124* arguments[0]
   ⚠️  function calls are not analysed yet
-- *125* l
-  ⚠️  pattern without value
+- *125* for-in variable currently not analyzed
 - *126* f
   ⚠️  circular variable reference
 - *127* (???*128* ? ???*129* : ???*131*)
@@ -38745,8 +38710,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 
 4984 -> 4985 conditional = ("style" === (???*0* | null | undefined | [] | ???*1*))
-- *0* l
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 - *1* f
   ⚠️  circular variable reference
 
@@ -38763,8 +38727,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* l
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* f
   ⚠️  circular variable reference
 - *5* ???*6*[(???*20* | null | undefined | [] | ???*21*)]
@@ -38807,8 +38770,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *19* arguments[0]
   ⚠️  function calls are not analysed yet
-- *20* l
-  ⚠️  pattern without value
+- *20* for-in variable currently not analyzed
 - *21* f
   ⚠️  circular variable reference
 - *22* (null != (???*23* | ???*25*))
@@ -38860,8 +38822,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *41* arguments[0]
   ⚠️  function calls are not analysed yet
-- *42* l
-  ⚠️  pattern without value
+- *42* for-in variable currently not analyzed
 - *43* f
   ⚠️  circular variable reference
 - *44* ???*45*[(???*59* | null | undefined | [] | ???*60*)]
@@ -38904,8 +38865,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *58* arguments[0]
   ⚠️  function calls are not analysed yet
-- *59* l
-  ⚠️  pattern without value
+- *59* for-in variable currently not analyzed
 - *60* f
   ⚠️  circular variable reference
 - *61* unsupported expression
@@ -38925,15 +38885,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   | undefined
   | (???*22* ? (???*39* | ???*44*) : ???*61*)
   | (???*62* ? ???*63* : ???*65*)
-)["hasOwnProperty"](???*66*)
+)["hasOwnProperty"]((???*66* | ???*67*))
 - *0* ???*1*[(???*3* | null | undefined | [] | ???*4*)]
   ⚠️  unknown object
 - *1* ???*2*["memoizedProps"]
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* l
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* f
   ⚠️  circular variable reference
 - *5* ???*6*[(???*20* | null | undefined | [] | ???*21*)]
@@ -38976,8 +38935,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *19* arguments[0]
   ⚠️  function calls are not analysed yet
-- *20* l
-  ⚠️  pattern without value
+- *20* for-in variable currently not analyzed
 - *21* f
   ⚠️  circular variable reference
 - *22* (null != (???*23* | ???*25*))
@@ -39029,8 +38987,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *41* arguments[0]
   ⚠️  function calls are not analysed yet
-- *42* l
-  ⚠️  pattern without value
+- *42* for-in variable currently not analyzed
 - *43* f
   ⚠️  circular variable reference
 - *44* ???*45*[(???*59* | null | undefined | [] | ???*60*)]
@@ -39073,8 +39030,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *58* arguments[0]
   ⚠️  function calls are not analysed yet
-- *59* l
-  ⚠️  pattern without value
+- *59* for-in variable currently not analyzed
 - *60* f
   ⚠️  circular variable reference
 - *61* unsupported expression
@@ -39089,14 +39045,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *66* g
   ⚠️  pattern without value
+- *67* for-in variable currently not analyzed
 
-4986 -> 4990 member call = (???*0* | ???*4* | undefined | (???*21* ? ???*22* : ???*24*))["hasOwnProperty"](???*25*)
+4986 -> 4990 member call = (???*0* | ???*4* | undefined | (???*21* ? ???*22* : ???*24*))["hasOwnProperty"]((???*25* | ???*26*))
 - *0* ???*1*[(???*2* | null | undefined | [] | ???*3*)]
   ⚠️  unknown object
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
-- *2* l
-  ⚠️  pattern without value
+- *2* for-in variable currently not analyzed
 - *3* f
   ⚠️  circular variable reference
 - *4* ???*5*[(???*19* | null | undefined | [] | ???*20*)]
@@ -39139,8 +39095,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *18* arguments[0]
   ⚠️  function calls are not analysed yet
-- *19* l
-  ⚠️  pattern without value
+- *19* for-in variable currently not analyzed
 - *20* f
   ⚠️  circular variable reference
 - *21* k
@@ -39153,14 +39108,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *25* g
   ⚠️  pattern without value
+- *26* for-in variable currently not analyzed
 
-4986 -> 4993 member call = (???*0* | ???*4* | undefined | (???*21* ? ???*22* : ???*24*))["hasOwnProperty"](???*25*)
+4986 -> 4993 member call = (???*0* | ???*4* | undefined | (???*21* ? ???*22* : ???*24*))["hasOwnProperty"]((???*25* | ???*26*))
 - *0* ???*1*[(???*2* | null | undefined | [] | ???*3*)]
   ⚠️  unknown object
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
-- *2* l
-  ⚠️  pattern without value
+- *2* for-in variable currently not analyzed
 - *3* f
   ⚠️  circular variable reference
 - *4* ???*5*[(???*19* | null | undefined | [] | ???*20*)]
@@ -39203,8 +39158,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *18* arguments[0]
   ⚠️  function calls are not analysed yet
-- *19* l
-  ⚠️  pattern without value
+- *19* for-in variable currently not analyzed
 - *20* f
   ⚠️  circular variable reference
 - *21* k
@@ -39217,6 +39171,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *25* g
   ⚠️  pattern without value
+- *26* for-in variable currently not analyzed
 
 4986 -> 4999 member call = (null | undefined | [] | ???*0*)["push"](
     (???*1* | null | undefined | [] | ???*2*),
@@ -39224,8 +39179,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 )
 - *0* f
   ⚠️  circular variable reference
-- *1* l
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 - *2* f
   ⚠️  circular variable reference
 - *3* arguments[2]
@@ -39234,8 +39188,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *5* arguments[3]
   ⚠️  function calls are not analysed yet
-- *6* l
-  ⚠️  pattern without value
+- *6* for-in variable currently not analyzed
 - *7* f
   ⚠️  circular variable reference
 - *8* ???*9*[(???*23* | null | undefined | [] | ???*24*)]
@@ -39278,8 +39231,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *22* arguments[0]
   ⚠️  function calls are not analysed yet
-- *23* l
-  ⚠️  pattern without value
+- *23* for-in variable currently not analyzed
 - *24* f
   ⚠️  circular variable reference
 - *25* k
@@ -39292,8 +39244,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 
 4985 -> 5000 conditional = ("dangerouslySetInnerHTML" === (???*0* | null | undefined | [] | ???*1*))
-- *0* l
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 - *1* f
   ⚠️  circular variable reference
 
@@ -39302,8 +39253,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
-- *2* l
-  ⚠️  pattern without value
+- *2* for-in variable currently not analyzed
 - *3* f
   ⚠️  circular variable reference
 - *4* ???*5*[(???*19* | null | undefined | [] | ???*20*)]
@@ -39346,8 +39296,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *18* arguments[0]
   ⚠️  function calls are not analysed yet
-- *19* l
-  ⚠️  pattern without value
+- *19* for-in variable currently not analyzed
 - *20* f
   ⚠️  circular variable reference
 - *21* k
@@ -39372,8 +39321,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* l
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* f
   ⚠️  circular variable reference
 - *5* ???*6*[(???*20* | null | undefined | [] | ???*21*)]
@@ -39416,8 +39364,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *19* arguments[0]
   ⚠️  function calls are not analysed yet
-- *20* l
-  ⚠️  pattern without value
+- *20* for-in variable currently not analyzed
 - *21* f
   ⚠️  circular variable reference
 - *22* (null != (???*23* | ???*25*))
@@ -39469,8 +39416,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *41* arguments[0]
   ⚠️  function calls are not analysed yet
-- *42* l
-  ⚠️  pattern without value
+- *42* for-in variable currently not analyzed
 - *43* f
   ⚠️  circular variable reference
 - *44* ???*45*[(???*59* | null | undefined | [] | ???*60*)]
@@ -39513,8 +39459,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *58* arguments[0]
   ⚠️  function calls are not analysed yet
-- *59* l
-  ⚠️  pattern without value
+- *59* for-in variable currently not analyzed
 - *60* f
   ⚠️  circular variable reference
 - *61* unsupported expression
@@ -39534,16 +39479,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 )
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* l
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 - *2* f
   ⚠️  circular variable reference
 - *3* ???*4*[(???*5* | null | undefined | [] | ???*6*)]
   ⚠️  unknown object
 - *4* arguments[3]
   ⚠️  function calls are not analysed yet
-- *5* l
-  ⚠️  pattern without value
+- *5* for-in variable currently not analyzed
 - *6* f
   ⚠️  circular variable reference
 - *7* ???*8*[(???*22* | null | undefined | [] | ???*23*)]
@@ -39586,8 +39529,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *21* arguments[0]
   ⚠️  function calls are not analysed yet
-- *22* l
-  ⚠️  pattern without value
+- *22* for-in variable currently not analyzed
 - *23* f
   ⚠️  circular variable reference
 - *24* k
@@ -39600,8 +39542,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 
 5000 -> 5007 conditional = ("children" === (???*0* | null | undefined | [] | ???*1*))
-- *0* l
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 - *1* f
   ⚠️  circular variable reference
 
@@ -39610,8 +39551,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
-- *2* l
-  ⚠️  pattern without value
+- *2* for-in variable currently not analyzed
 - *3* f
   ⚠️  circular variable reference
 - *4* ???*5*[(???*19* | null | undefined | [] | ???*20*)]
@@ -39654,8 +39594,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *18* arguments[0]
   ⚠️  function calls are not analysed yet
-- *19* l
-  ⚠️  pattern without value
+- *19* for-in variable currently not analyzed
 - *20* f
   ⚠️  circular variable reference
 - *21* k
@@ -39672,8 +39611,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
-- *2* l
-  ⚠️  pattern without value
+- *2* for-in variable currently not analyzed
 - *3* f
   ⚠️  circular variable reference
 - *4* ???*5*[(???*19* | null | undefined | [] | ???*20*)]
@@ -39716,8 +39654,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *18* arguments[0]
   ⚠️  function calls are not analysed yet
-- *19* l
-  ⚠️  pattern without value
+- *19* for-in variable currently not analyzed
 - *20* f
   ⚠️  circular variable reference
 - *21* k
@@ -39735,16 +39672,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 )
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* l
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 - *2* f
   ⚠️  circular variable reference
 - *3* ???*4*[(???*5* | null | undefined | [] | ???*6*)]
   ⚠️  unknown object
 - *4* arguments[3]
   ⚠️  function calls are not analysed yet
-- *5* l
-  ⚠️  pattern without value
+- *5* for-in variable currently not analyzed
 - *6* f
   ⚠️  circular variable reference
 - *7* ???*8*[(???*22* | null | undefined | [] | ???*23*)]
@@ -39787,8 +39722,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *21* arguments[0]
   ⚠️  function calls are not analysed yet
-- *22* l
-  ⚠️  pattern without value
+- *22* for-in variable currently not analyzed
 - *23* f
   ⚠️  circular variable reference
 - *24* k
@@ -39801,8 +39735,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 
 5007 -> 5013 member call = {}["hasOwnProperty"]((???*0* | null | undefined | [] | ???*1*))
-- *0* l
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 - *1* f
   ⚠️  circular variable reference
 
@@ -39814,8 +39747,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *2* unknown mutation
   ⚠️  This value might have side effects
-- *3* l
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* f
   ⚠️  circular variable reference
 
@@ -39833,16 +39765,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 )
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* l
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 - *2* f
   ⚠️  circular variable reference
 - *3* ???*4*[(???*5* | null | undefined | [] | ???*6*)]
   ⚠️  unknown object
 - *4* arguments[3]
   ⚠️  function calls are not analysed yet
-- *5* l
-  ⚠️  pattern without value
+- *5* for-in variable currently not analyzed
 - *6* f
   ⚠️  circular variable reference
 - *7* ???*8*[(???*22* | null | undefined | [] | ???*23*)]
@@ -39885,8 +39815,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *21* arguments[0]
   ⚠️  function calls are not analysed yet
-- *22* l
-  ⚠️  pattern without value
+- *22* for-in variable currently not analyzed
 - *23* f
   ⚠️  circular variable reference
 - *24* k
@@ -39910,8 +39839,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *3* arguments[3]
   ⚠️  function calls are not analysed yet
-- *4* l
-  ⚠️  pattern without value
+- *4* for-in variable currently not analyzed
 - *5* f
   ⚠️  circular variable reference
 - *6* ???*7*[(???*21* | null | undefined | [] | ???*22*)]
@@ -39954,8 +39882,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown object
 - *20* arguments[0]
   ⚠️  function calls are not analysed yet
-- *21* l
-  ⚠️  pattern without value
+- *21* for-in variable currently not analyzed
 - *22* f
   ⚠️  circular variable reference
 - *23* k
@@ -51403,11 +51330,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
 
-7458 -> 7477 typeof = typeof((???*0* | (...) => undefined))
+0 -> 7477 typeof = typeof((???*0* | (...) => undefined))
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-7458 -> 7478 conditional = ("function" === ???*0*)
+0 -> 7478 conditional = ("function" === ???*0*)
 - *0* typeof((???*1* | (...) => undefined))
   ⚠️  nested operation
 - *1* arguments[3]
@@ -51447,17 +51374,17 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *5* unsupported assign operation
   ⚠️  This value might have side effects
 
-7458 -> 7482 call = (...) => a(???*0*, 0, false, null, null, false, false, "", (...) => undefined)
+0 -> 7482 call = (...) => a(???*0*, 0, false, null, null, false, false, "", (...) => undefined)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-7458 -> 7487 conditional = (8 === ???*0*)
+0 -> 7487 conditional = (8 === ???*0*)
 - *0* ???*1*["nodeType"]
   ⚠️  unknown object
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-7458 -> 7489 call = (...) => undefined((???*0* ? ???*3* : ???*5*))
+0 -> 7489 call = (...) => undefined((???*0* ? ???*3* : ???*5*))
 - *0* (8 === ???*1*)
   ⚠️  nested operation
 - *1* ???*2*["nodeType"]
@@ -51471,7 +51398,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 
-7458 -> 7490 call = (...) => (undefined | a())((...) => undefined)
+0 -> 7490 call = (...) => (undefined | a())((...) => undefined)
 
 7490 -> 7491 call = (...) => g(
     ???*0*,
@@ -51495,7 +51422,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *5* arguments[3]
   ⚠️  function calls are not analysed yet
 
-7458 -> 7492 unreachable = ???*0*
+0 -> 7492 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
