@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, useOptimistic, useRef } from 'react'
 import type { UrlObject } from 'url'
+import { useRouter } from '../components/navigation'
 import { formatUrl } from '../../shared/lib/router/utils/format-url'
-import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
 import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
@@ -353,7 +353,7 @@ export default function LinkComponent(
     children = <a>{children}</a>
   }
 
-  const router = React.useContext(AppRouterContext)
+  const router = useRouter()
 
   const prefetchEnabled = prefetchProp !== false
   /**
