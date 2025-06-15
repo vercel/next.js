@@ -135,7 +135,7 @@ export default function Loading() {
 }
 ```
 
-Behind the scenes, Next.js will automatically wrap the `page.tsx` contents and in a `<Suspense>` boundary. The prefetched fallback UI will be shown while the route is loading, and swapped for the actual content once ready.
+Behind the scenes, Next.js will automatically wrap the `page.tsx` contents in a `<Suspense>` boundary. The prefetched fallback UI will be shown while the route is loading, and swapped for the actual content once ready.
 
 > **Good to know**: You can also use [`<Suspense>`](https://react.dev/reference/react/Suspense) to create loading UI for nested components.
 
