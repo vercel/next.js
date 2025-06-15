@@ -765,7 +765,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     !!treeCodeResult.globalNotFound &&
     isGlobalNotFoundEnabled
 
-  if (!treeCodeResult.rootLayout && !isGlobalNotFoundPath) {
+  const isAppErrorRoute = page === '/_error/page'
+
+  // Doing the layout assertion to ensure layout is defined.
+  // Skip assertion for app global-error and global-not-found route since it is page.js already contains html/body.
+  if (
+    !treeCodeResult.rootLayout &&
+    (!isGlobalNotFoundPath || isAppErrorRoute)
+  ) {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
       Log.error(

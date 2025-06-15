@@ -300,9 +300,9 @@ export async function createPagesMapping({
       const hasAppPages = Object.keys(pages).some((page) =>
         page.endsWith('/page')
       )
-      return {
-        // If there's any app pages existed, add a default /_not-found route as 404.
-        // If there's any custom /_not-found page, it will override the default one.
+      const appPages: Record<string, string> = {
+        // If there's any app pages existed, add a default not-found page.
+        // If there's any custom not-found page existed, it will override the default one.
         ...(hasAppPages && {
           [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]: require.resolve(
             'next/dist/client/components/global-not-found'
@@ -310,6 +310,12 @@ export async function createPagesMapping({
         }),
         ...pages,
       }
+      // So far we only render this in development to avoid conflicts in build.
+      // TODO: remove this once /_error/page is available for next build.
+      if (isDev) {
+        appPages['/_error/page'] = 'next/dist/client/components/empty-error'
+      }
+      return appPages
     }
     case PAGE_TYPES.PAGES: {
       if (isDev) {

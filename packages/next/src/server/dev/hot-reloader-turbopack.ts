@@ -800,7 +800,9 @@ export async function createHotReloaderTurbopack(
             case 'client-added-page':
               // TODO
               break
-
+            case 'ping':
+              // Ping doesn't need additional handling in Turbopack.
+              break
             default:
               // Might be a Turbopack message...
               if (!parsedData.type) {

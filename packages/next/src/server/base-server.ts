@@ -34,6 +34,7 @@ import {
   DecodeError,
   normalizeRepeatedSlashes,
   MissingStaticPage,
+  PageNotFoundError,
 } from '../shared/lib/utils'
 import type { PreviewData } from '../types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -1774,7 +1775,7 @@ export default abstract class Server<
       'renderOpts'
     >
   ): Promise<void> {
-    return getTracer().trace(BaseServerSpan.pipe, async () =>
+    return getTracer().trace(BaseServerSpan.pipe, () =>
       this.pipeImpl(fn, partialContext)
     )
   }
@@ -3912,7 +3913,7 @@ export default abstract class Server<
     query: NextParsedUrlQuery = {},
     setHeaders = true
   ): Promise<void> {
-    return getTracer().trace(BaseServerSpan.renderError, async () => {
+    return getTracer().trace(BaseServerSpan.renderError, () => {
       return this.renderErrorImpl(err, req, res, pathname, query, setHeaders)
     })
   }
@@ -3954,7 +3955,7 @@ export default abstract class Server<
     ctx: RequestContext<ServerRequest, ServerResponse>,
     err: Error | null
   ): Promise<ResponsePayload | null> {
-    return getTracer().trace(BaseServerSpan.renderErrorToResponse, async () => {
+    return getTracer().trace(BaseServerSpan.renderErrorToResponse, () => {
       return this.renderErrorToResponseImpl(ctx, err)
     })
   }
@@ -4009,7 +4010,6 @@ export default abstract class Server<
         }
       }
       let statusPage = `/${res.statusCode}`
-
       if (
         !getRequestMeta(ctx.req, 'customErrorRender') &&
         !result &&
@@ -4032,6 +4032,28 @@ export default abstract class Server<
         }
       }
 
+      // Look for App Router /_error in dev
+      // TODO: remove this once /_error/page is available for next build.
+      if (!result && ctx.renderOpts.dev && statusPage !== '/500') {
+        try {
+          result = await this.findPageComponents({
+            locale: getRequestMeta(ctx.req, 'locale'),
+            page: '/_error/page',
+            query,
+            params: {},
+            isAppPath: true,
+            // Ensuring can't be done here because you never "match" an error
+            // route.
+            shouldEnsure: true,
+            url: ctx.req.url,
+          })
+        } catch (e: unknown) {
+          // If it doesn't exist, skip the error, otherwise throw it.
+          if (!(e instanceof PageNotFoundError)) {
+            throw e
+          }
+        }
+      }
       if (!result) {
         result = await this.findPageComponents({
           locale: getRequestMeta(ctx.req, 'locale'),
@@ -4123,6 +4145,47 @@ export default abstract class Server<
         this.logError(renderToHtmlError)
       }
       res.statusCode = 500
+
+      let appRouterErrorComponents: null | FindComponentsResult = null
+      try {
+        // Search for App Router /_error page first
+        appRouterErrorComponents = await this.findPageComponents({
+          locale: getRequestMeta(ctx.req, 'locale'),
+          page: '/_error/page',
+          query,
+          params: {},
+          isAppPath: true,
+          // Ensuring can't be done here because you never "match" an error
+          // route.
+          shouldEnsure: true,
+          url: ctx.req.url,
+        })
+      } catch (e) {
+        if (!(e instanceof PageNotFoundError)) {
+          // If it doesn't exist, skip the error, otherwise throw it.
+          throw e
+        }
+      }
+
+      // If there's an App Router /_error page, render it.
+      if (appRouterErrorComponents) {
+        return this.renderToResponseWithComponents(
+          {
+            ...ctx,
+            pathname: '/_error',
+            renderOpts: {
+              ...ctx.renderOpts,
+              // We render `renderToHtmlError` here because `err` is
+              // already captured in the stacktrace.
+              err: isWrappedError
+                ? renderToHtmlError.innerError
+                : renderToHtmlError,
+            },
+          },
+          appRouterErrorComponents
+        )
+      }
+      // Otherwise fallback to Pages Router fallback /_error
       const fallbackComponents = await this.getFallbackErrorComponents(
         ctx.req.url
       )
@@ -4154,6 +4217,7 @@ export default abstract class Server<
           }
         )
       }
+
       return {
         type: 'html',
         body: RenderResult.fromStatic('Internal Server Error'),
