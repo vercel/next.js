@@ -65,6 +65,7 @@ const zRewrite: zod.ZodType<Rewrite> = z.object({
   locale: z.literal(false).optional(),
   has: z.array(zRouteHas).optional(),
   missing: z.array(zRouteHas).optional(),
+  secure: z.boolean().optional(),
   internal: z.boolean().optional(),
 })
 

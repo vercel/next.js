@@ -395,6 +395,8 @@ pub struct Rewrite {
     pub has: Option<Vec<RouteHas>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub missing: Option<Vec<RouteHas>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secure: Option<bool>,
 }
 
 #[turbo_tasks::value(eq = "manual")]
