@@ -62,7 +62,7 @@ impl Default for CacheKinds {
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, OperationValue)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct NextConfig {
     // TODO all fields should be private and access should be wrapped within a turbo-tasks function
     // Otherwise changing NextConfig will lead to invalidating all tasks accessing it.
@@ -797,6 +797,8 @@ pub struct ExperimentalConfig {
     turbopack_tree_shaking: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
+    /// Defaults to false in development mode, true in production mode.
+    turbopack_remove_unused_exports: Option<bool>,
 }
 
 #[derive(
@@ -1559,6 +1561,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn turbopack_remove_unused_exports(&self, is_development: bool) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_remove_unused_exports
+                .unwrap_or(!is_development),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub async fn module_ids(&self, mode: Vc<NextMode>) -> Result<Vc<ModuleIds>> {
         Ok(match *mode.await? {
             // Ignore configuration in development mode, HMR only works with `named`
@@ -1642,9 +1653,8 @@ struct OutdatedConfigIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for OutdatedConfigIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]

@@ -76,7 +76,7 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, invalidator)]
 async fn inner_compute(
     input: ResolvedVc<ChangingInput>,
     input2: ResolvedVc<ChangingInput>,
@@ -85,7 +85,7 @@ async fn inner_compute(
     Ok(inner_compute2(*input, *input2.await?.state.get()))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(invalidator)]
 async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u32>> {
     println!("inner_compute2({innerness})");
     if innerness > 0 {

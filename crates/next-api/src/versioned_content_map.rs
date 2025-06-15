@@ -219,7 +219,7 @@ impl VersionedContentMap {
         Ok(Vc::cell(None))
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(invalidator)]
     pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
             let map = &self.map_path_to_op.get().0;
@@ -234,7 +234,7 @@ impl VersionedContentMap {
         Ok(Vc::cell(keys))
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(invalidator)]
     fn raw_get(&self, path: ResolvedVc<FileSystemPath>) -> Vc<OptionMapEntry> {
         let assets = {
             let map = &self.map_path_to_op.get().0;

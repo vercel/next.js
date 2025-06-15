@@ -44,6 +44,7 @@ use crate::{
     },
     output::OutputAssets,
     reference::ModuleReference,
+    resolve::ExportUsage,
 };
 
 /// A module id, which can be a number or string
@@ -88,6 +89,7 @@ pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 /// A [Module] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
 pub trait ChunkableModule: Module + Asset {
+    #[turbo_tasks::function]
     fn as_chunk_item(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
@@ -123,17 +125,21 @@ impl Chunks {
 // TODO This could be simplified to and merged with [OutputChunk]
 #[turbo_tasks::value_trait]
 pub trait Chunk {
+    #[turbo_tasks::function]
     fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
+    #[turbo_tasks::function]
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
     // fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
     //     self.ident().path()
     // }
 
     /// Other [OutputAsset]s referenced from this [Chunk].
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }
 
+    #[turbo_tasks::function]
     fn chunk_items(self: Vc<Self>) -> Vc<ChunkItems> {
         ChunkItems(vec![]).cell()
     }
@@ -155,6 +161,7 @@ pub struct OutputChunkRuntimeInfo {
 
 #[turbo_tasks::value_trait]
 pub trait OutputChunk: Asset {
+    #[turbo_tasks::function]
     fn runtime_info(self: Vc<Self>) -> Vc<OutputChunkRuntimeInfo>;
 }
 
@@ -268,11 +275,17 @@ pub struct ChunkingTypeOption(Option<ChunkingType>);
 /// specific interface is implemented.
 #[turbo_tasks::value_trait]
 pub trait ChunkableModuleReference: ModuleReference + ValueToString {
+    #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
         }))
+    }
+
+    #[turbo_tasks::function]
+    fn export_usage(self: Vc<Self>) -> Vc<ExportUsage> {
+        ExportUsage::all()
     }
 }
 
@@ -289,35 +302,43 @@ pub trait ChunkItem {
     /// The [AssetIdent] of the [Module] that this [ChunkItem] was created from.
     /// For most chunk types this must uniquely identify the chunk item at
     /// runtime as it's the source of the module id used at runtime.
+    #[turbo_tasks::function]
     fn asset_ident(self: Vc<Self>) -> Vc<AssetIdent>;
     /// A [AssetIdent] that uniquely identifies the content of this [ChunkItem].
     /// It is unusally identical to [ChunkItem::asset_ident] but can be
     /// different when the chunk item content depends on available modules e. g.
     /// for chunk loaders.
+    #[turbo_tasks::function]
     fn content_ident(self: Vc<Self>) -> Vc<AssetIdent> {
         self.asset_ident()
     }
     /// A [ChunkItem] can reference OutputAssets, unlike [Module]s referencing other [Module]s.
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }
 
     /// The type of chunk this item should be assembled into.
+    #[turbo_tasks::function]
     fn ty(self: Vc<Self>) -> Vc<Box<dyn ChunkType>>;
 
     /// A temporary method to retrieve the module associated with this
     /// ChunkItem. TODO: Remove this as part of the chunk refactoring.
+    #[turbo_tasks::function]
     fn module(self: Vc<Self>) -> Vc<Box<dyn Module>>;
 
+    #[turbo_tasks::function]
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
 }
 
 #[turbo_tasks::value_trait]
 pub trait ChunkType: ValueToString {
     /// Whether the source (reference) order of items needs to be retained during chunking.
+    #[turbo_tasks::function]
     fn is_style(self: Vc<Self>) -> Vc<bool>;
 
     /// Create a new chunk for the given chunk items
+    #[turbo_tasks::function]
     fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -326,6 +347,7 @@ pub trait ChunkType: ValueToString {
         referenced_output_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn Chunk>>;
 
+    #[turbo_tasks::function]
     fn chunk_item_size(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,

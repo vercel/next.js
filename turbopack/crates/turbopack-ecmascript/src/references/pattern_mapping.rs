@@ -341,7 +341,7 @@ async fn to_single_pattern_mapping(
         | ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {
-                severity: IssueSeverity::Bug.resolved_cell(),
+                severity: IssueSeverity::Bug,
                 title: StyledString::Text(
                     "pattern mapping is not implemented for this result".into(),
                 )
@@ -374,7 +374,7 @@ async fn to_single_pattern_mapping(
         }
     }
     CodeGenerationIssue {
-        severity: IssueSeverity::Bug.resolved_cell(),
+        severity: IssueSeverity::Bug,
         title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
         message: StyledString::Text(
             "asset is not placeable in ESM chunks, so it doesn't have a module id".into(),

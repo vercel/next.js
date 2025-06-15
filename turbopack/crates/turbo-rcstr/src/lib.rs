@@ -9,6 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
@@ -157,6 +158,16 @@ impl Deref for RcStr {
 impl Borrow<str> for RcStr {
     fn borrow(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl From<BytesStr> for RcStr {
+    fn from(s: BytesStr) -> Self {
+        let bytes: Vec<u8> = s.into_bytes().into();
+        RcStr::from(unsafe {
+            // Safety: BytesStr are valid utf-8
+            String::from_utf8_unchecked(bytes)
+        })
     }
 }
 
@@ -361,7 +372,10 @@ impl ShrinkToFit for RcStr {
     fn shrink_to_fit(&mut self) {}
 }
 
-#[cfg(feature = "napi")]
+#[cfg(all(feature = "napi", target_family = "wasm"))]
+compile_error!("The napi feature cannot be enabled for wasm targets");
+
+#[cfg(all(feature = "napi", not(target_family = "wasm")))]
 mod napi_impl {
     use napi::{
         bindgen_prelude::{FromNapiValue, ToNapiValue, TypeName, ValidateNapiValue},

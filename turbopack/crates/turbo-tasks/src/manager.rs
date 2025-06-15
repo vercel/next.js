@@ -603,18 +603,24 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 self.schedule_local_task(task_type, persistence)
             }
             TaskPersistence::Transient => {
+                let immutable = registry::get_function(fn_type).function_meta.immutable;
                 let task_type = CachedTaskType { fn_type, this, arg };
+
                 RawVc::TaskOutput(self.backend.get_or_create_transient_task(
                     task_type,
                     current_task("turbo_function calls"),
+                    immutable,
                     self,
                 ))
             }
             TaskPersistence::Persistent => {
+                let immutable = registry::get_function(fn_type).function_meta.immutable;
                 let task_type = CachedTaskType { fn_type, this, arg };
+
                 RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
                     task_type,
                     current_task("turbo_function calls"),
+                    immutable,
                     self,
                 ))
             }

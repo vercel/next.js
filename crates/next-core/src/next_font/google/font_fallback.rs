@@ -87,7 +87,7 @@ pub(super) async fn get_font_fallback(
                             "Skipping generating a fallback font."
                         ))
                         .resolved_cell(),
-                        severity: IssueSeverity::Warning.resolved_cell(),
+                        severity: IssueSeverity::Warning,
                     }
                     .resolved_cell()
                     .emit();

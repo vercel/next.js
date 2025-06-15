@@ -7,7 +7,7 @@ pub(crate) struct NextFontIssue {
     pub(crate) path: ResolvedVc<FileSystemPath>,
     pub(crate) title: ResolvedVc<StyledString>,
     pub(crate) description: ResolvedVc<StyledString>,
-    pub(crate) severity: ResolvedVc<IssueSeverity>,
+    pub(crate) severity: IssueSeverity,
 }
 
 #[turbo_tasks::value_impl]
@@ -17,9 +17,8 @@ impl Issue for NextFontIssue {
         IssueStage::CodeGen.into()
     }
 
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]

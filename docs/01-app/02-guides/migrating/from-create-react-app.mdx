@@ -12,7 +12,7 @@ There are several reasons why you might want to switch from Create React App to 
 
 ### Slow initial page loading time
 
-Create React App uses purely client-side React. Client-side only applications, also known as [single-page applications (SPAs)](/docs/app/guides/single-page-applications), often experience slow initial page loading time. This happens due to a couple of reasons:
+Create React App uses purely client-side rendering. Client-side only applications, also known as [single-page applications (SPAs)](/docs/app/guides/single-page-applications), often experience slow initial page loading time. This happens due to a couple of reasons:
 
 1. The browser needs to wait for the React code and your entire application bundle to download and run before your code is able to send requests to load data.
 2. Your application code grows with every new feature and dependency you add.
@@ -39,7 +39,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Middleware
 
-[Next.js Middleware](/docs/app/building-your-application/routing/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
+[Next.js Middleware](/docs/app/api-reference/file-conventions/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
 
 ### Built-in Optimizations
 

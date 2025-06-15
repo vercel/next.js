@@ -22,7 +22,7 @@ export async function buildPagesStaticPaths({
   locales?: readonly string[]
   defaultLocale?: string
 }): Promise<StaticPathsResult> {
-  const prerenderedRoutes: PrerenderedRoute[] = []
+  const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>()
   const _routeRegex = getRouteRegex(page)
   const _routeMatcher = getRouteMatcher(_routeRegex)
 
@@ -108,20 +108,24 @@ export async function buildPagesStaticPaths({
       // If leveraging the string paths variant the entry should already be
       // encoded so we decode the segments ensuring we only escape path
       // delimiters
-      prerenderedRoutes.push({
-        params,
-        pathname: entry
-          .split('/')
-          .map((segment) =>
-            escapePathDelimiters(decodeURIComponent(segment), true)
-          )
-          .join('/'),
-        encodedPathname: entry,
-        fallbackRouteParams: undefined,
-        fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
-        fallbackRootParams: undefined,
-        throwOnEmptyStaticShell: undefined,
-      })
+      const pathname = entry
+        .split('/')
+        .map((segment) =>
+          escapePathDelimiters(decodeURIComponent(segment), true)
+        )
+        .join('/')
+
+      if (!prerenderedRoutesByPathname.has(pathname)) {
+        prerenderedRoutesByPathname.set(pathname, {
+          params,
+          pathname,
+          encodedPathname: entry,
+          fallbackRouteParams: undefined,
+          fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
+          fallbackRootParams: undefined,
+          throwOnEmptyStaticShell: undefined,
+        })
+      }
     }
     // For the object-provided path, we must make sure it specifies all
     // required keys.
@@ -197,36 +201,30 @@ export async function buildPagesStaticPaths({
       }
       const curLocale = entry.locale || defaultLocale || ''
 
-      prerenderedRoutes.push({
-        params,
-        pathname: normalizePathname(
-          `${curLocale ? `/${curLocale}` : ''}${
-            curLocale && builtPage === '/' ? '' : builtPage
-          }`
-        ),
-        encodedPathname: normalizePathname(
-          `${curLocale ? `/${curLocale}` : ''}${
-            curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
-          }`
-        ),
-        fallbackRouteParams: undefined,
-        fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
-        fallbackRootParams: undefined,
-        throwOnEmptyStaticShell: undefined,
-      })
+      const pathname = normalizePathname(
+        `${curLocale ? `/${curLocale}` : ''}${curLocale && builtPage === '/' ? '' : builtPage}`
+      )
+
+      if (!prerenderedRoutesByPathname.has(pathname)) {
+        prerenderedRoutesByPathname.set(pathname, {
+          params,
+          pathname,
+          encodedPathname: normalizePathname(
+            `${curLocale ? `/${curLocale}` : ''}${
+              curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
+            }`
+          ),
+          fallbackRouteParams: undefined,
+          fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
+          fallbackRootParams: undefined,
+          throwOnEmptyStaticShell: undefined,
+        })
+      }
     }
   })
 
-  const seen = new Set<string>()
-
   return {
     fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
-    prerenderedRoutes: prerenderedRoutes.filter((route) => {
-      if (seen.has(route.pathname)) return false
-
-      // Filter out duplicate paths.
-      seen.add(route.pathname)
-      return true
-    }),
+    prerenderedRoutes: [...prerenderedRoutesByPathname.values()],
   }
 }

@@ -2,9 +2,9 @@ use std::{
     env::current_dir,
     iter::FromIterator,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
+use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
@@ -366,8 +366,8 @@ fn next_ssg_fixture(input: PathBuf) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some(Arc::new("__jsx".into())),
-                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
+                    pragma: Some(BytesStr::from_str_slice("__jsx")),
+                    pragma_frag: Some(BytesStr::from_str_slice("__jsxFrag")),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     refresh: Default::default(),
@@ -802,8 +802,8 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some(Arc::new("__jsx".into())),
-                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
+                    pragma: Some(BytesStr::from_str_slice("__jsx")),
+                    pragma_frag: Some(BytesStr::from_str_slice("__jsxFrag")),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     ..Default::default()

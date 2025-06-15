@@ -7,7 +7,7 @@ import { appBootstrap } from './app-bootstrap'
 import {
   getComponentStack,
   getOwnerStack,
-} from './components/errors/stitched-error'
+} from '../next-devtools/userspace/app/errors/stitched-error'
 import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
 
 // eslint-disable-next-line @next/internal/typechecked-require

@@ -92,6 +92,12 @@ By default, the [HMR cache](/docs/app/api-reference/config/next-config-js/server
 
 See the [`serverComponentsHmrCache`](/docs/app/api-reference/config/next-config-js/serverComponentsHmrCache) docs for more information.
 
+### Hard refresh and caching in development
+
+In development mode, if the request includes the `cache-control: no-cache` header, `options.cache`, `options.next.revalidate`, and `options.next.tags` are ignored, and the `fetch` request is served from the source.
+
+Browsers typically include `cache-control: no-cache` when the cache is disabled in developer tools or during a hard refresh.
+
 ## Version History
 
 | Version   | Changes             |

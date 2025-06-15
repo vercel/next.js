@@ -202,6 +202,8 @@ export interface RenderOptsPartial {
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
   }
+  isOnDemandRevalidate?: boolean
+  isPossibleServerAction?: boolean
   setIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
@@ -248,10 +250,11 @@ export interface RenderOptsPartial {
   shouldWaitOnAllReady?: boolean
 
   /**
-   * The resume data cache that was generated for this partially prerendered
-   * page during dev warmup.
+   * A prefilled resume data cache. This was either generated for this page
+   * during dev warmup, or when a page with defined params was previously
+   * prerendered, and now its matching optional fallback shell is prerendered.
    */
-  devRenderResumeDataCache?: RenderResumeDataCache
+  renderResumeDataCache?: RenderResumeDataCache
 
   /**
    * When true, the page will be rendered using the static rendering to detect

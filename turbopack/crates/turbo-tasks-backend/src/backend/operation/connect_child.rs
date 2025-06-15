@@ -23,7 +23,12 @@ pub enum ConnectChildOperation {
 }
 
 impl ConnectChildOperation {
-    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
+    pub fn run(
+        parent_task_id: TaskId,
+        child_task_id: TaskId,
+        is_immutable: bool,
+        mut ctx: impl ExecuteContext,
+    ) {
         if !ctx.should_track_children() {
             let mut task = ctx.task(child_task_id, TaskDataCategory::All);
             if !task.has_key(&CachedDataItemKey::Output {}) {
@@ -66,7 +71,8 @@ impl ConnectChildOperation {
             });
         }
 
-        if ctx.should_track_activeness() {
+        // Immutable tasks cannot be invalidated, meaning that we never reschedule them.
+        if !is_immutable && ctx.should_track_activeness() {
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
             });

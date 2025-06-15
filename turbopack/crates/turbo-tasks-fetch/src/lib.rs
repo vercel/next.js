@@ -87,7 +87,7 @@ pub async fn fetch(
 
             Ok(Vc::cell(Ok(HttpResponse {
                 status,
-                body: HttpResponseBody::resolved_cell(HttpResponseBody(body)),
+                body: HttpResponseBody(body).resolved_cell(),
             }
             .resolved_cell())))
         }
@@ -141,7 +141,7 @@ impl FetchError {
     #[turbo_tasks::function]
     pub async fn to_issue(
         self: Vc<Self>,
-        severity: ResolvedVc<IssueSeverity>,
+        severity: IssueSeverity,
         issue_context: ResolvedVc<FileSystemPath>,
     ) -> Result<Vc<FetchIssue>> {
         let this = &*self.await?;
@@ -152,14 +152,14 @@ impl FetchError {
             kind: this.kind,
             detail: this.detail,
         }
-        .into())
+        .cell())
     }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct FetchIssue {
     pub issue_context: ResolvedVc<FileSystemPath>,
-    pub severity: ResolvedVc<IssueSeverity>,
+    pub severity: IssueSeverity,
     pub url: ResolvedVc<RcStr>,
     pub kind: ResolvedVc<FetchErrorKind>,
     pub detail: ResolvedVc<StyledString>,
@@ -172,9 +172,8 @@ impl Issue for FetchIssue {
         *self.issue_context
     }
 
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]

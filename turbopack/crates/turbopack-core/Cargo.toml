@@ -22,19 +22,18 @@ data-encoding = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
-lazy_static = { workspace = true }
 once_cell = { workspace = true }
 patricia_tree = "0.5.5"
 petgraph = { workspace = true, features = ["serde-1"] }
 roaring = { version = "0.10.10", features = ["serde"] }
 ref-cast = "1.0.20"
-rustc-hash ={ workspace = true }
+rustc-hash = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_bytes = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 smallvec = { workspace = true }
-sourcemap = { workspace = true }
+swc_sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tracing = { workspace = true }
 turbo-prehash = { workspace = true }
@@ -44,6 +43,7 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 urlencoding = { workspace = true }
+bytes-str = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

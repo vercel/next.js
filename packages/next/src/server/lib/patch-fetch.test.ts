@@ -87,6 +87,7 @@ describe('createPatchedFetcher', () => {
           fetchIdx: 1,
           fetchUrl: 'https://example.com/',
           tags: [],
+          isImplicitBuildTimeCache: false,
         }
       )
     })

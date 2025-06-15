@@ -328,9 +328,8 @@ struct FontResolvingIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for FontResolvingIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.cell()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]

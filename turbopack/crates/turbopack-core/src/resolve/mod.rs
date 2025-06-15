@@ -103,6 +103,35 @@ impl ModuleResolveResultItem {
     }
 }
 
+#[turbo_tasks::value]
+#[derive(Debug, Clone, Default, Hash)]
+pub enum ExportUsage {
+    Named(RcStr),
+    /// This means the whole content of the module is used.
+    #[default]
+    All,
+    /// Only side effects are used.
+    Evaluation,
+}
+
+#[turbo_tasks::value_impl]
+impl ExportUsage {
+    #[turbo_tasks::function]
+    pub fn all() -> Vc<Self> {
+        Self::All.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn evaluation() -> Vc<Self> {
+        Self::Evaluation.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn named(name: RcStr) -> Vc<Self> {
+        Self::Named(name).cell()
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct ModuleResolveResult {
@@ -1773,6 +1802,7 @@ async fn resolve_internal_inline(
     };
     async move {
         let options_value: &ResolveOptions = &*options.await?;
+
         let request_value = request.await?;
 
         // Apply import mappings if provided
@@ -3075,9 +3105,9 @@ async fn emit_resolve_error_issue(
     source: Option<IssueSource>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.resolved_cell()
+        IssueSeverity::Warning
     } else {
-        IssueSeverity::Error.resolved_cell()
+        IssueSeverity::Error
     };
     ResolvingIssue {
         severity,
@@ -3102,9 +3132,9 @@ async fn emit_unresolvable_issue(
     source: Option<IssueSource>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.resolved_cell()
+        IssueSeverity::Warning
     } else {
-        IssueSeverity::Error.resolved_cell()
+        IssueSeverity::Error
     };
     ResolvingIssue {
         severity,
@@ -3120,11 +3150,11 @@ async fn emit_unresolvable_issue(
     Ok(())
 }
 
-async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<ResolvedVc<IssueSeverity>> {
+async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<IssueSeverity> {
     Ok(if resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.resolved_cell()
+        IssueSeverity::Warning
     } else {
-        IssueSeverity::Error.resolved_cell()
+        IssueSeverity::Error
     })
 }
 

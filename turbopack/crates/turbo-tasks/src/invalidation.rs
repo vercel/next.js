@@ -9,7 +9,7 @@ use std::{
 use anyhow::Result;
 use indexmap::map::Entry;
 use serde::{Deserialize, Serialize, de::Visitor};
-use tokio::runtime::Handle;
+use tokio::{runtime::Handle, task_local};
 
 use crate::{
     FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
@@ -19,9 +19,24 @@ use crate::{
     util::StaticOrArc,
 };
 
+task_local! {
+    static DISALLOW_INVALIDATOR: ();
+}
+
+pub fn disallow_invalidator<R>(f: impl Future<Output = R>) -> impl Future<Output = R> {
+    DISALLOW_INVALIDATOR.scope((), f)
+}
+
 /// Get an [`Invalidator`] that can be used to invalidate the current task
 /// based on external events.
 pub fn get_invalidator() -> Invalidator {
+    if DISALLOW_INVALIDATOR.try_with(|_| {}).is_ok() {
+        panic!(
+            "Invalidator can only be used in the turbo-tasks function that has \
+             #[turbo_tasks::function(invalidator)] attribute"
+        );
+    }
+
     let handle = Handle::current();
     Invalidator {
         task: current_task("turbo_tasks::get_invalidator()"),
@@ -231,7 +246,7 @@ enum MapEntry {
 #[derive(Default)]
 pub struct InvalidationReasonSet {
     next_unique_tag: usize,
-    // We track typed and untyped entries in the same map to keep the occurence order of entries.
+    // We track typed and untyped entries in the same map to keep the occurrence order of entries.
     map: FxIndexMap<MapKey, MapEntry>,
 }
 

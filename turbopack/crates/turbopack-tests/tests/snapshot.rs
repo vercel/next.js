@@ -96,6 +96,8 @@ struct SnapshotOptions {
     environment: SnapshotEnvironment,
     #[serde(default)]
     tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default)]
+    remove_unused_exports: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -122,6 +124,7 @@ impl Default for SnapshotOptions {
             runtime_type: default_runtime_type(),
             environment: Default::default(),
             tree_shaking_mode: Default::default(),
+            remove_unused_exports: false,
         }
     }
 }
@@ -305,6 +308,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
+                    remove_unused_exports: options.remove_unused_exports,
                     css: CssOptionsContext {
                         ..Default::default()
                     },
@@ -314,6 +318,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )],
             module_rules: vec![module_rules],
             tree_shaking_mode: options.tree_shaking_mode,
+            remove_unused_exports: options.remove_unused_exports,
             ..Default::default()
         }
         .into(),

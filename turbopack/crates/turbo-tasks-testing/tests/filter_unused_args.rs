@@ -37,6 +37,7 @@ async fn filtered_trait_method_args() -> Result<()> {
 
 #[turbo_tasks::value_trait]
 trait ExampleTrait {
+    #[turbo_tasks::function]
     fn method_with_arg(&self, number: i32) -> Vc<()>;
 }
 
