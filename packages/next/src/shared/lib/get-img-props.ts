@@ -273,7 +273,7 @@ export function getImgProps(
     onLoadingComplete,
     placeholder = 'empty',
     blurDataURL,
-    fetchPriority,
+    fetchPriority = 'low',
     decoding = 'async',
     layout,
     objectFit,
@@ -715,7 +715,7 @@ export function getImgProps(
   const props: ImgProps = {
     ...rest,
     loading: isLazy ? 'lazy' : loading,
-    fetchPriority,
+    fetchPriority: priority ? 'high' : fetchPriority,
     width: widthInt,
     height: heightInt,
     decoding,
