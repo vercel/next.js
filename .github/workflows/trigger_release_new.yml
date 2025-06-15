@@ -66,6 +66,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
+      - name: Check for existing Freeze Scheduled Release PR and skip if exists
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          # Check if there is an open pull request labeled "Freeze: Scheduled Release"
+          freeze_pr_number=$(gh pr list \
+            --label "Freeze: Scheduled Release" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          # If there is an open PR with the "Freeze: Scheduled Release" label, skip scheduled release.
+          if [ -n "$freeze_pr_number" ]; then
+            echo "Found existing PR with 'Freeze: Scheduled Release' label. Skipping scheduled release..."
+            echo "PR: https://github.com/${{ github.repository }}/pull/$freeze_pr_number"
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
       - name: Get commit of the latest tag
         run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
 
@@ -115,9 +134,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
 
-      # Add label to verify the PR is created from this workflow.
+      # Add "created-by: CI" label to verify the PR is created from this workflow.
+      # If this workflow is manually triggered, add "Freeze: Scheduled Release" label
+      # to freeze the next scheduled release to prevent race condition from cron jobs.
       - name: Add label to PR
         if: steps.changesets.outputs.pullRequestNumber
-        run: 'gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"'
+        run: |
+          gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "Freeze: Scheduled Release"
+          fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
