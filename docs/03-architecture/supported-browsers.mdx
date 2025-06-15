@@ -43,7 +43,93 @@ In addition, to reduce bundle size, Next.js will only load these polyfills for b
 
 If your own code or any external npm dependencies require features not supported by your target browsers (such as IE 11), you need to add polyfills yourself.
 
+<PagesOnly>
 In this case, you should add a top-level import for the **specific polyfill** you need in your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app) or the individual component.
+</PagesOnly>
+
+<AppOnly>
+For polyfills that must load early, use `next/script` with the `beforeInteractive` strategy.
+
+This can negatively impact users with modern browsers, so avoid it when possible.
+
+```tsx filename="app/layout.tsx"
+
+export default function Layout(/* layout props */) {
+  return (
+    {/* other UI elements */}
+    <Script strategy="beforeInteractive" src="https://source-to-the-polyfill/" />
+    {/* A vendor script, that needs the polyfill, and also needs to run immediately */}
+    <Script strategy="beforeInteractive" src="https://critical-vendor-script/" />
+    {/* rest of UI */}
+  )
+}
+```
+
+For other cases, you can create a client module that loads the polyfills you need.
+
+```tsx filename="app/polyfill.ts"
+'use client'
+import languageFeature from 'polyfill-for-feature'
+
+if (typeof window !== 'undefined') {
+   // check if the polyfill needs to be applied
+}
+
+
+export Polyfill = null
+```
+
+And use it in your root layout.
+
+```tsx filename="app/layout.tsx"
+import { Polyfill } from './polyfill'
+
+export default function Layout(/* layout props */) {
+  return (
+    {/* other UI elements */}
+    {Polyfill}
+    {/* rest of UI */}
+  )
+}
+```
+
+Using this strategy prevents dead-code elimination from removing the polyfill and marks its usage explicitly.
+
+The best approach is to isolate unsupported features to specific UI sections and conditionally load the polyfill before using them.
+
+```ts filename="hooks/analytics.ts" switcher
+import { useCallback } from 'react'
+
+export const useAnalytics = () => {
+  const tracker = useCallback(async (data: unknown) => {
+    if (!('structuredClone' in globalThis)) {
+      globalThis.structuredClone = await import('polyfills/structured-clone')
+    }
+
+    /* Do some work that uses structured clone */
+  }, [])
+
+  return tracker
+}
+```
+
+```js filename="hooks/analytics.js" switcher
+import { useCallback } from 'react'
+
+export const useAnalytics = () => {
+  const tracker = useCallback(async (data) => {
+    if (!('structuredClone' in globalThis)) {
+      globalThis.structuredClone = await import('polyfills/structured-clone')
+    }
+
+    /* Do some work that uses structured clone */
+  }, [])
+
+  return tracker
+}
+```
+
+</AppOnly>
 
 ## JavaScript Language Features
 
