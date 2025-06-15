@@ -17,6 +17,7 @@ export interface ResponseCacheBase {
        * provided it will test the filesystem to check.
        */
       routeKind: RouteKind
+      isRscRequest: boolean
 
       /**
        * True if this is a fallback request.

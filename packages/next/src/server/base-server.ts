@@ -3030,7 +3030,9 @@ export default abstract class Server<
               // the previous fallback cache entry. This preserves the previous
               // behavior.
               if (isProduction) {
-                return toResponseCacheEntry(previousFallbackCacheEntry)
+                return toResponseCacheEntry(previousFallbackCacheEntry, {
+                  isRscRequest: isRSCRequest,
+                })
               }
 
               // We pass `undefined` and `null` as it doesn't apply to the pages
@@ -3046,6 +3048,7 @@ export default abstract class Server<
             },
             {
               routeKind: RouteKind.PAGES,
+              isRscRequest: isRSCRequest,
               incrementalCache,
               isRoutePPREnabled,
               isFallback: true,
@@ -3080,6 +3083,7 @@ export default abstract class Server<
               }),
             {
               routeKind: RouteKind.APP_PAGE,
+              isRscRequest: isRSCRequest,
               incrementalCache,
               isRoutePPREnabled,
               isFallback: true,
@@ -3180,6 +3184,7 @@ export default abstract class Server<
           // rendered and thus check isAppPath.
           routeModule?.definition.kind ??
           (isAppPath ? RouteKind.APP_PAGE : RouteKind.PAGES),
+        isRscRequest: isRSCRequest,
         incrementalCache,
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',

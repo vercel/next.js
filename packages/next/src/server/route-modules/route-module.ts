@@ -55,6 +55,7 @@ import {
   routerServerGlobal,
   type RouterServerContext,
 } from '../lib/router-utils/router-server-context'
+import { RSC_HEADER } from '../../client/components/app-router-headers'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -722,7 +723,10 @@ export abstract class RouteModule<
     waitUntil?: (prom: Promise<any>) => void
   }) {
     const responseCache = this.getResponseCache(req)
+    const isRSCRequest =
+      getRequestMeta(req, 'isRSCRequest') ?? Boolean(req.headers[RSC_HEADER])
     const cacheEntry = await responseCache.get(cacheKey, responseGenerator, {
+      isRscRequest: isRSCRequest,
       routeKind,
       isFallback,
       isRoutePPREnabled,

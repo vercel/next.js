@@ -1049,6 +1049,7 @@ export default class NextNodeServer extends BaseServer<
           },
           {
             routeKind: RouteKind.IMAGE,
+            isRscRequest: false,
             incrementalCache: imageOptimizerCache,
             isFallback: false,
           }
