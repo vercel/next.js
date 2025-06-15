@@ -1,44 +1,64 @@
 {
   "private": true,
   "scripts": {
-    "predev": "npm run typegen",
-    "dev": "next --turbo",
-    "prebuild": "npm run typegen",
     "build": "next build",
-    "start": "next start",
+    "predev": "npm run typegen",
+    "dev": "next --turbopack",
+    "format": "prettier --cache --write .",
     "lint": "next lint",
     "presetup": "echo 'about to setup env variables, follow the guide here: https://github.com/vercel/next.js/tree/canary/examples/cms-sanity#using-the-sanity-cli'",
     "setup": "npx sanity@latest init --env .env.local",
     "postsetup": "echo 'create the read token by following the rest of the guide: https://github.com/vercel/next.js/tree/canary/examples/cms-sanity#creating-a-read-token'",
+    "start": "next start",
     "typegen": "sanity schema extract && sanity typegen generate"
   },
+  "prettier": {
+    "plugins": [
+      "@ianvs/prettier-plugin-sort-imports",
+      "prettier-plugin-packagejson",
+      "prettier-plugin-tailwindcss"
+    ]
+  },
   "dependencies": {
-    "@sanity/assist": "^3.0.8",
-    "@sanity/icons": "^3.4.0",
-    "@sanity/image-url": "^1.0.2",
-    "@sanity/preview-url-secret": "^2.0.0",
-    "@sanity/vision": "^3.62.0",
+    "@sanity/assist": "^3.0.9",
+    "@sanity/client": "^6.24.1",
+    "@sanity/icons": "^3.5.5",
+    "@sanity/image-url": "^1.1.0",
+    "@sanity/types": "^3.68.2",
+    "@sanity/util": "^3.68.2",
+    "@sanity/vision": "^3.68.2",
+    "@sanity/visual-editing": "^2.11.1-canary.0",
     "@tailwindcss/typography": "^0.5.15",
-    "@types/node": "^22.7.8",
-    "@types/react": "^18.3.11",
-    "@types/react-dom": "^18.3.1",
-    "@vercel/speed-insights": "^1.0.13",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vercel/analytics": "^1.4.1",
+    "@vercel/speed-insights": "^1.1.0",
     "autoprefixer": "^10.4.20",
     "date-fns": "^4.1.0",
-    "next": "^15.0.0",
-    "next-sanity": "^9.7.0",
-    "postcss": "^8.4.47",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "sanity": "^3.62.0",
-    "sanity-plugin-asset-source-unsplash": "^3.0.1",
-    "server-only": "^0.0.1",
+    "framer-motion": "^11.15.0",
+    "next": "^15.1.2",
+    "next-sanity": "^9.8.29",
+    "postcss": "^8.4.49",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-fast-compare": "^3.2.2",
+    "sanity": "^3.68.2",
+    "sanity-plugin-asset-source-unsplash": "^3.0.2",
+    "sonner": "^1.7.1",
     "styled-components": "^6.1.13",
-    "tailwindcss": "^3.4.14",
-    "typescript": "5.6.3"
+    "tailwindcss": "^3.4.17",
+    "typescript": "5.7.2"
   },
   "devDependencies": {
-    "eslint": "^9.13.0",
-    "eslint-config-next": "^15.0.0"
+    "@ianvs/prettier-plugin-sort-imports": "^4.4.0",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^15.1.2",
+    "prettier": "^3.4.2",
+    "prettier-plugin-packagejson": "^2.5.6",
+    "prettier-plugin-tailwindcss": "^0.6.9"
+  },
+  "overrides": {
+    "@types/react": "$@types/react"
   }
 }

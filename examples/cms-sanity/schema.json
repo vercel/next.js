@@ -619,6 +619,13 @@
               },
               "optional": true
             },
+            "imagePrompt": {
+              "type": "objectAttribute",
+              "value": {
+                "type": "string"
+              },
+              "optional": true
+            },
             "_type": {
               "type": "objectAttribute",
               "value": {
@@ -763,6 +770,13 @@
               "optional": true
             },
             "alt": {
+              "type": "objectAttribute",
+              "value": {
+                "type": "string"
+              },
+              "optional": true
+            },
+            "imagePrompt": {
               "type": "objectAttribute",
               "value": {
                 "type": "string"

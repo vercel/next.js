@@ -1,7 +1,6 @@
 import { DocumentTextIcon } from "@sanity/icons";
 import { format, parseISO } from "date-fns";
 import { defineField, defineType } from "sanity";
-
 import authorType from "./author";
 
 /**
@@ -59,6 +58,7 @@ export default defineType({
         hotspot: true,
         aiAssist: {
           imageDescriptionField: "alt",
+          imageInstructionField: "imagePrompt",
         },
       },
       fields: [
@@ -75,6 +75,12 @@ export default defineType({
               return true;
             });
           },
+        },
+        {
+          type: "text",
+          name: "imagePrompt",
+          title: "Image prompt",
+          rows: 2,
         },
       ],
       validation: (rule) => rule.required(),

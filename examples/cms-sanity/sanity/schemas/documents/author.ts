@@ -32,11 +32,18 @@ export default defineType({
             });
           },
         },
+        {
+          type: "text",
+          name: "imagePrompt",
+          title: "Image prompt",
+          rows: 2,
+        },
       ],
       options: {
         hotspot: true,
         aiAssist: {
           imageDescriptionField: "alt",
+          imageInstructionField: "imagePrompt",
         },
       },
       validation: (rule) => rule.required(),
