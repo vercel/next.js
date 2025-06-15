@@ -1,7 +1,7 @@
 export default function Page() {
   return (
     <fieldset>
-      <legend>app/page</legend>
+      <legend>app/default</legend>
     </fieldset>
   )
 }
