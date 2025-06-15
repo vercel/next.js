@@ -394,6 +394,14 @@ function createRouteDefinitions() {
     dynamicRouteTypes += pluginState.routeTypes[type].dynamic
   }
 
+  // route collection is not deterministic, this makes the output of the file deterministic
+  if (staticRouteTypes) {
+    staticRouteTypes = staticRouteTypes.split("\n").sort().join("\n")
+  }
+  if (dynamicRouteTypes) {
+    dynamicRouteTypes = dynamicRouteTypes.split("\n").sort().join("\n")
+  }
+
   // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string & {}'.
   const routeTypesFallback =
     !staticRouteTypes && !dynamicRouteTypes ? 'string & {}' : ''
