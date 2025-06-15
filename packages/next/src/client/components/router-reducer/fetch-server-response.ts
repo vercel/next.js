@@ -204,6 +204,15 @@ export async function fetchServerResponse(
       }
     }
 
+    // If the wrong content type is returned, print a warning
+    // and fall back to mpa navigation
+    if (contentType.startsWith('text/html') && res.ok) {
+      console.warn(
+        `Failed to load nextjs component data: The server must return text/x-component as a Content-Type header. Falling back to full page navigation`
+      )
+      return doMpaNavigation(responseUrl.toString())
+    }
+
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok || !res.body) {
