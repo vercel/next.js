@@ -1,7 +1,7 @@
 export default function Page() {
-  return <div>Bar Slot</div>
+  return <div>Foo Slot</div>
 }
 
 export const metadata = {
-  title: 'nested - page',
+  title: '@foo - page',
 }
