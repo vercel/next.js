@@ -67,7 +67,16 @@ export type ImageProps = Omit<
    * @deprecated This prop does not do anything.
    */
   lazyRoot?: string
-}
+} 
+/**
+ * This logic ensures:
+ * - When `fill` is `true`, `width` and `height` are optional and can be either numbers or numeric strings.
+ * - When `fill` is `false` (or omitted), `width` and `height` are required and follow the same type rules.
+ */
+& (
+  | { fill: true; width?: number | `${number}`; height?: number | `${number}` }
+  | { fill?: false; width: number | `${number}`; height: number | `${number}` }
+);
 
 export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
   loading: LoadingValue
