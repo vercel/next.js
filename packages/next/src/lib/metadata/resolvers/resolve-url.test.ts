@@ -160,6 +160,24 @@ describe('getSocialImageFallbackMetadataBase', () => {
       )
     })
 
+    it('should return localhost url in local dev mode with experimental https', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'development'
+      process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://localhost:3000/'
+      )
+    })
+
+    it('should return localhost url in local build mode with experimental https', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://localhost:3000/'
+      )
+    })
+
     it('should prefer branch url in preview deployment if presents', () => {
       // @ts-expect-error override process env
       process.env.NODE_ENV = 'production'
