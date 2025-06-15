@@ -22,7 +22,7 @@ function resolveAlternateUrl(
   pathname: string,
   metadataContext: MetadataContext
 ) {
-  // If alter native url is an URL instance,
+  // If alternative url is an URL instance,
   // we treat it as a URL base and resolve with current pathname
   if (url instanceof URL) {
     const newUrl = new URL(pathname, url)
