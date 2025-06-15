@@ -1,6 +1,6 @@
 import type { Key } from 'next/dist/compiled/path-to-regexp'
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { regexpToFunction } from 'next/dist/compiled/path-to-regexp'
+import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 
 interface Options {
   /**
