@@ -312,7 +312,10 @@ export class IncrementalCache implements IncrementalCacheType {
           console.error('Problem reading body', err)
         }
       } // handle FormData or URLSearchParams bodies
-      else if (typeof (init.body as any).keys === 'function') {
+      else if (
+        typeof (init.body as any).keys === 'function' &&
+        typeof (init.body as any).getAll === 'function'
+      ) {
         const formData = init.body as FormData
         ;(init as any)._ogBody = init.body
         for (const key of new Set([...formData.keys()])) {
