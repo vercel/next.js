@@ -383,8 +383,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-basepath/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
       "app dir - basepath should only make a single RSC call to the current page (/base/refresh)",
       "app dir - basepath should only make a single RSC call to the current page (/base/refresh?foo=bar)",
@@ -399,6 +398,7 @@
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -584,21 +584,21 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-esm-js/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - esm js extension should be able to render nextjs api in app router",
       "app-dir - esm js extension should be able to use nextjs api in pages router",
       "app-dir - esm js extension should support next/og image"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/app-esm-js/standalone.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "output: standalone with ESM app dir should work correctly with output standalone"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -650,7 +650,8 @@
   },
   "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {
     "passed": [
-      "app-fetch-deduping during static generation dedupes requests amongst static workers"
+      "app-fetch-deduping during static generation dedupes requests amongst static workers",
+      "app-fetch-deduping during static generation does not print a fetch cache size limit warning"
     ],
     "failed": [],
     "pending": [],
@@ -2062,12 +2063,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-in-generate-params/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - dynamic in generate params should be able to call fetch while generating multiple dynamic pages",
       "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps",
       "app-dir - dynamic in generate params should render sitemap with generateSitemaps in force-dynamic config dynamically"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2541,23 +2542,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/empty-fallback-shells/empty-fallback-shells.test.ts": {
-    "passed": [
-      "empty-fallback-shells should not log a HANGING_PROMISE_REJECTION error",
-      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
-      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page resumes a postponed fallback shell",
-      "empty-fallback-shells without IO should start and not postpone the response"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/error-boundary-navigation/index.test.ts": {
     "passed": [
       "app dir - not found navigation should allow navigating to a non-existent page",
@@ -2646,6 +2630,27 @@
     "passed": ["fallback-prefetch should prefetch the page without errors"],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/fallback-shells/fallback-shells.test.ts": {
+    "passed": [
+      "fallback-shells should not log a HANGING_PROMISE_REJECTION error",
+      "fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
+      "fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
+      "fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
+      "fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page resumes a postponed fallback shell",
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page shares a cached parent layout between a prerendered route shell and the fallback shell",
+      "fallback-shells without IO should start and not postpone the response"
+    ],
+    "failed": [],
+    "pending": [
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page does not produce hydration errors when resuming a fallback shell containing a layout with unused params",
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page shares a cached layout with unused params between a prerendered route shell and the fallback shell"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -3032,23 +3037,23 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/logging/fetch-logging.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - fetch logging placeholder to satisfy at least one test when isNextDev is false",
       "app-dir - logging with default logging should not log fetch requests at all",
       "app-dir - logging with fetches default logging should only log requests in development mode",
       "app-dir - logging with fetches verbose logging should only log requests in development mode",
       "app-dir - logging with verbose logging for edge runtime should only log requests in development mode"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/logging/fetch-warning.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - fetch warnings should not log fetch warnings in production"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3087,8 +3092,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/metadata-dynamic-routes/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
       "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
       "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
@@ -3117,16 +3121,17 @@
       "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
       "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/metadata-edge/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - Metadata API on the Edge runtime OG image route should not bundle `ImageResponse` into the page worker",
       "app dir - Metadata API on the Edge runtime should render OpenGraph image meta tag correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3391,19 +3396,19 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/middleware-sitemap/matcher-exclude-sitemap/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "middleware-sitemap should not be affected by middleware if sitemap.xml is excluded from the matcher"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/middleware-sitemap/no-matcher/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "middleware-sitemap should be affected by middleware for sitemap.xml if there is no matcher"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5829,10 +5834,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/sitemap-group/sitemap-group.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "sitemap-group should not add suffix to sitemap under group routes"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6030,8 +6035,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-metadata-route-handler/use-cache-metadata-route-handler.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "use-cache-metadata-route-handler should generate an icon image with a metadata route handler that uses \"use cache\"",
       "use-cache-metadata-route-handler should generate an opengraph image with a metadata route handler that uses \"use cache\"",
       "use-cache-metadata-route-handler should generate manifest.json with a metadata route handler that uses \"use cache\"",
@@ -6041,6 +6045,7 @@
       "use-cache-metadata-route-handler should include the client reference manifest in the route.js.nft.json files of dynamic metadata routes",
       "use-cache-metadata-route-handler should not include the client reference manifest in the route.js.nft.json files of static metadata routes"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17793,6 +17798,7 @@
   "test/integration/server-side-dev-errors/test/index.test.js": {
     "passed": [
       "server-side dev errors should show server-side error for api route correctly",
+      "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
       "server-side dev errors should show server-side error for gssp page correctly",
@@ -17801,9 +17807,7 @@
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [
-      "server-side dev errors should show server-side error for dynamic api route correctly"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18702,10 +18706,10 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-revalidate/metadata-revalidate.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - metadata-revalidate should contain the routes in prerender manifest"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18720,10 +18724,10 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-static/metadata-static.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - metadata should have statically optimized metadata routes by default"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19037,13 +19041,6 @@
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in prefetch request",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should have deployment id env available"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/production/deterministic-build/index.test.ts": {
-    "passed": ["deterministic build should have same md5 file across build"],
     "failed": [],
     "pending": [],
     "flakey": [],
