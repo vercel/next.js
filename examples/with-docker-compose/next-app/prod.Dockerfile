@@ -49,10 +49,12 @@ FROM base AS runner
 
 WORKDIR /app
 
+ENV APP_USER=1001
+
 # Don't run production as root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-USER nextjs
+RUN addgroup --system --gid ${APP_USER} nodejs
+RUN adduser --system --uid ${APP_USER} nextjs
+USER ${APP_USER}
 
 COPY --from=builder /app/public ./public
 

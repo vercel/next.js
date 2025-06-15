@@ -33,9 +33,10 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV APP_USER=1001
 
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
+RUN addgroup -g ${APP_USER} -S nodejs
+RUN adduser -S nextjs -u ${APP_USER}
 
 COPY --from=builder /app/public ./public
 
@@ -44,8 +45,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-
-USER nextjs
+USER ${APP_USER}
 
 EXPOSE 3000
 
