@@ -27,7 +27,7 @@ Next.js will evaluate the file and automatically add the appropriate tags to you
 
 > **Good to know**:
 >
-> The `twitter-image` file size must not exceed [5MB](https://developer.x.com/en/docs/x-for-websites/cards/overview/summary), and the `opengraph-image` file size must not exceed [8MB](https://developers.facebook.com/docs/sharing/webmasters/images). If the image file size exceeds these limits, the build will fail.
+> The `twitter-image` file size must not exceed [5MB](https://developer.x.com/en/docs/x-for-websites/cards/overview/summary), and the `opengraph-image` file size must not exceed [8MB](https://developers.facebook.com/docs/sharing/webmasters/images). If the image file size exceeds these limits, the build will fail. For WhatsApp the maximum size must not exceed [600KB](https://developers.facebook.com/docs/whatsapp/link-previews#get-started)
 
 ### `opengraph-image`
 
@@ -91,6 +91,7 @@ Generate a route segment's shared image by creating an `opengraph-image` or `twi
 > - By default, generated images are [**statically optimized**](/docs/app/getting-started/partial-prerendering#static-rendering) (generated at build time and cached) unless they use [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering#dynamic-apis) or uncached data.
 > - You can generate multiple Images in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
 > - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that is cached by default unless it uses a [Dynamic API](/docs/app/deep-dive/caching#dynamic-apis) or [dynamic config](/docs/app/deep-dive/caching#segment-config-options) option.
+> - By Default the generated PNGs are very large in size. Therefore WhatsApp Previews could not work as these need to be under [600KB](https://developers.facebook.com/docs/whatsapp/link-previews#get-started). You can use this workaround to return compressed jpeg images: [Github](https://github.com/vercel/next.js/discussions/60366)
 
 The easiest way to generate an image is to use the [ImageResponse](/docs/app/api-reference/functions/image-response) API from `next/og`.
 
