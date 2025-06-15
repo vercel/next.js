@@ -1481,8 +1481,8 @@ importers:
         specifier: 1.7.3
         version: 1.7.3
       source-map:
-        specifier: 0.6.1
-        version: 0.6.1
+        specifier: 0.7.4
+        version: 0.7.4
       source-map-loader:
         specifier: 5.0.0
         version: 5.0.0(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2))
@@ -1656,8 +1656,8 @@ importers:
         specifier: '>=0.15.0'
         version: 2.2.1(react@19.2.0-canary-c44e4a25-20250409)
       source-map:
-        specifier: ^0.7.0
-        version: 0.7.3
+        specifier: 0.7.4
+        version: 0.7.4
 
   packages/next-plugin-storybook: {}
 
@@ -14922,10 +14922,6 @@ packages:
   source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
-
-  source-map@0.7.3:
-    resolution: {integrity: sha512-CkCj6giN3S+n9qrYiBTX5gystlENnRW5jZeNLHpe6aue+SrHcG5VYwujhW9s4dY31mEGsxBDrHR6oI69fTXsaQ==}
-    engines: {node: '>= 8'}
 
   source-map@0.7.4:
     resolution: {integrity: sha512-l3BikUxvPOcn5E74dZiq5BGsTb5yEwhaTSzccU6t4sDOH8NWJCstKO5QT2CvtFoK6F0saL7p9xHAqHOlCPJygA==}
@@ -33308,8 +33304,6 @@ snapshots:
   source-map@0.5.7: {}
 
   source-map@0.6.1: {}
-
-  source-map@0.7.3: {}
 
   source-map@0.7.4: {}
 
