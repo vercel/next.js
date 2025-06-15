@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { BrowserInterface } from 'next-webdriver'
 
 describe('app dir - not-found - basic', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
@@ -9,6 +10,21 @@ describe('app dir - not-found - basic', () => {
 
   if (skipped) {
     return
+  }
+
+  async function assertNoConsoleErrors(browser: BrowserInterface) {
+    const logs = await browser.log()
+    const warningsAndErrors = logs.filter((log) => {
+      return (
+        log.source === 'warning' ||
+        (log.source === 'error' &&
+          // These are expected when we visit 404 pages.
+          log.message !==
+            'Failed to load resource: the server responded with a status of 404 (Not Found)')
+      )
+    })
+
+    expect(warningsAndErrors).toEqual([])
   }
 
   it("should propagate notFound errors past a segment's error boundary", async () => {
@@ -26,6 +42,8 @@ describe('app dir - not-found - basic', () => {
     expect(await browser.elementByCss('h1').text()).toBe(
       'Not Found (error-boundary/nested)'
     )
+
+    await assertNoConsoleErrors(browser)
   })
 
   it('should return 404 status code for custom not-found page', async () => {
@@ -66,23 +84,28 @@ describe('app dir - not-found - basic', () => {
       )
       // should contain root layout content
       expect(await browser.elementByCss('#layout-nav').text()).toBe('Navbar')
+
+      await assertNoConsoleErrors(browser)
     })
 
     it('should match dynamic route not-found boundary correctly', async () => {
       // `/dynamic` display works
       const browserDynamic = await next.browser('/dynamic')
       expect(await browserDynamic.elementByCss('main').text()).toBe('dynamic')
+      await assertNoConsoleErrors(browserDynamic)
 
       // `/dynamic/404` calling notFound() will match the same level not-found boundary
       const browserDynamic404 = await next.browser('/dynamic/404')
       expect(await browserDynamic404.elementByCss('#not-found').text()).toBe(
         'dynamic/[id] not found'
       )
+      await assertNoConsoleErrors(browserDynamic404)
 
       const browserDynamicId = await next.browser('/dynamic/123')
       expect(await browserDynamicId.elementByCss('#page').text()).toBe(
         'dynamic [id]'
       )
+      await assertNoConsoleErrors(browserDynamicId)
     })
 
     it('should escalate notFound to parent layout if no not-found boundary present in current layer', async () => {
@@ -92,6 +115,7 @@ describe('app dir - not-found - basic', () => {
       expect(await browserDynamic.elementByCss('h1').text()).toBe(
         'Dynamic with Layout'
       )
+      await assertNoConsoleErrors(browserDynamic)
 
       // no not-found boundary in /dynamic-layout-without-not-found, escalate to parent layout to render root not-found
       const browserDynamicId = await next.browser(
@@ -100,6 +124,7 @@ describe('app dir - not-found - basic', () => {
       expect(await browserDynamicId.elementByCss('h1').text()).toBe(
         'Root Not Found'
       )
+      await assertNoConsoleErrors(browserDynamicId)
 
       const browserDynamic404 = await next.browser(
         '/dynamic-layout-without-not-found/123'
@@ -107,6 +132,7 @@ describe('app dir - not-found - basic', () => {
       expect(await browserDynamic404.elementByCss('#page').text()).toBe(
         'dynamic-layout-without-not-found [id]'
       )
+      await assertNoConsoleErrors(browserDynamic404)
     })
 
     if (isNextDev) {
@@ -122,6 +148,7 @@ describe('app dir - not-found - basic', () => {
           const newTimestamp = await browser.elementByCss('#timestamp').text()
           return newTimestamp !== timestamp ? 'failure' : 'success'
         }, 'success')
+        await assertNoConsoleErrors(browser)
       })
 
       // Disabling for Edge because it is too flakey.
@@ -134,6 +161,7 @@ describe('app dir - not-found - basic', () => {
           await check(() => browser.elementByCss('h1').text(), 'Root Not Found')
           await next.renameFile('./app/foo.js', './app/page.js')
           await check(() => browser.elementByCss('h1').text(), 'My page')
+          await assertNoConsoleErrors(browser)
         })
       }
     }
