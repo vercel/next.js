@@ -87,6 +87,19 @@ jobs:
       stepName: 'build-next'
     secrets: inherit
 
+  test-rspack:
+    name: test-rspack
+    needs: ['build-native', 'build-next']
+    # Only runs from this workflow on canary. If we're in a PR, this workflow
+    # will run itself, responding to label changes.
+    if: >-
+      ${{
+        needs.changes.outputs.docs-only == 'false' &&
+        github.ref == 'refs/heads/canary'
+      }}
+    uses: ./.github/workflows/build_and_test_rspack.yml
+    secrets: inherit
+
   lint:
     name: lint
     needs: ['build-next']
@@ -342,124 +355,6 @@ jobs:
           -g ${{ matrix.group }} \
           --type integration
       stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
-    secrets: inherit
-
-  test-rspack-dev:
-    name: test rspack dev
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
-        export NEXT_TEST_MODE=dev
-
-        # rspack flags
-        export NEXT_RSPACK=1
-        export NEXT_TEST_USE_RSPACK=1
-
-        # HACK: Despite the name, this environment variable is only used to gate
-        # tests, so it's applicable to rspack
-        export TURBOPACK_DEV=1
-
-        node run-tests.js \
-          --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
-          --timings \
-          -g ${{ matrix.group }}
-      stepName: 'test-rspack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
-
-  test-rspack-integration:
-    name: test rspack development integration
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 18.18.2
-      afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
-
-        # rspack flags
-        export NEXT_RSPACK=1
-        export NEXT_TEST_USE_RSPACK=1
-
-        # HACK: Despite the name, this environment variable is only used to gate
-        # tests, so it's applicable to rspack
-        export TURBOPACK_DEV=1
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type integration
-      stepName: 'test-rspack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
-
-  test-rspack-production:
-    name: test rspack production
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        exclude:
-          # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-        # Empty value uses default
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 18.18.2
-      afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
-        export NEXT_TEST_MODE=start
-
-        # rspack flags
-        export NEXT_RSPACK=1
-        export NEXT_TEST_USE_RSPACK=1
-
-        # HACK: Despite the name, this environment variable is only used to gate
-        # tests, so it's applicable to rspack
-        export TURBOPACK_BUILD=1
-
-        node run-tests.js --timings -g ${{ matrix.group }} --type production
-      stepName: 'test-rspack-production-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
-
-  test-rspack-production-integration:
-    name: test rspack production integration
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 18.18.2
-      afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
-
-        # rspack flags
-        export NEXT_RSPACK=1
-        export NEXT_TEST_USE_RSPACK=1
-
-        # HACK: Despite the name, this environment variable is only used to gate
-        # tests, so it's applicable to rspack
-        export TURBOPACK_BUILD=1
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type integration
-      stepName: 'test-rspack-production-integration-${{ matrix.group }}'
     secrets: inherit
 
   test-next-swc-wasm:
