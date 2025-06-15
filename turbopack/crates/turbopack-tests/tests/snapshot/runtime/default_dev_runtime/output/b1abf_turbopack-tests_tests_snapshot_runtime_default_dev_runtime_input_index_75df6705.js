@@ -355,6 +355,18 @@ relativeURL.prototype = URL.prototype;
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk base path
+function normalizeChunkPath(path) {
+    if (path.startsWith('/')) {
+        path = path.substring(1);
+    } else if (path.startsWith('./')) {
+        path = path.substring(2);
+    }
+    if (path.endsWith('/')) {
+        path = path.slice(0, -1);
+    }
+    return path;
+}
+const NORMALIZED_CHUNK_BASE_PATH = normalizeChunkPath(CHUNK_BASE_PATH);
 var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
@@ -553,15 +565,20 @@ importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_L
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
-    return `${CHUNK_BASE_PATH}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${CHUNK_SUFFIX_PATH}`;
+    return `${NORMALIZED_CHUNK_BASE_PATH}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${CHUNK_SUFFIX_PATH}`;
 }
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    const chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
+    let chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
+    if (chunkUrl.startsWith('/')) {
+        chunkUrl = chunkUrl.substring(1);
+    } else if (chunkUrl.startsWith('./')) {
+        chunkUrl = chunkUrl.substring(2);
+    }
     const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
-    const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+    const path = src.startsWith(NORMALIZED_CHUNK_BASE_PATH) ? src.slice(NORMALIZED_CHUNK_BASE_PATH.length) : src;
     return path;
 }
 /**
@@ -1678,7 +1695,7 @@ let DEV_BACKEND;
     }
 })();
 function _eval({ code, url, map }) {
-    code += `\n\n//# sourceURL=${encodeURI(location.origin + CHUNK_BASE_PATH + url + CHUNK_SUFFIX_PATH)}`;
+    code += `\n\n//# sourceURL=${encodeURI(location.origin + NORMALIZED_CHUNK_BASE_PATH + normalizeChunkPath(url) + CHUNK_SUFFIX_PATH)}`;
     if (map) {
         code += `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${btoa(// btoa doesn't handle nonlatin characters, so escape them as \x sequences
         // See https://stackoverflow.com/a/26603875
