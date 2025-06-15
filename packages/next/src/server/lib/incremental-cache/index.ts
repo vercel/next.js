@@ -405,6 +405,12 @@ export class IncrementalCache implements IncrementalCacheType {
       if (resumeDataCache) {
         const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
+          // If a tag was revalidated we don't return stale data.
+          if (this.checkTags(ctx)) {
+            console.log('tag was revalidated', ctx.tags, ctx.softTags)
+            return null
+          }
+
           return { isStale: false, value: memoryCacheData }
         }
       }
@@ -439,17 +445,18 @@ export class IncrementalCache implements IncrementalCacheType {
         )
       }
 
-      const workStore = workAsyncStorage.getStore()
-      const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
-      // if a tag was revalidated we don't return stale data
-      if (
-        combinedTags.some(
-          (tag) =>
-            this.revalidatedTags?.includes(tag) ||
-            workStore?.pendingRevalidatedTags?.includes(tag)
-        )
-      ) {
+      // If a tag was revalidated we don't return stale data.
+      if (this.checkTags(ctx)) {
         return null
+      }
+
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      if (workUnitStore) {
+        const prerenderResumeDataCache =
+          getPrerenderResumeDataCache(workUnitStore)
+        if (prerenderResumeDataCache) {
+          prerenderResumeDataCache.fetch.set(cacheKey, cacheData.value)
+        }
       }
 
       const revalidate = ctx.revalidate || cacheData.value.revalidate
@@ -588,5 +595,34 @@ export class IncrementalCache implements IncrementalCacheType {
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }
+  }
+
+  checkTags({ softTags, tags }: GetIncrementalFetchCacheContext) {
+    const revalidatedTags = this.revalidatedTags
+    const workStore = workAsyncStorage.getStore()
+    const pendingRevalidatedTags = workStore?.pendingRevalidatedTags
+
+    let checker: ((tag: string) => boolean) | null = null
+    if (
+      revalidatedTags &&
+      revalidatedTags.length > 0 &&
+      pendingRevalidatedTags &&
+      pendingRevalidatedTags.length > 0
+    ) {
+      checker = (tag: string) =>
+        revalidatedTags.includes(tag) || pendingRevalidatedTags.includes(tag)
+    } else if (revalidatedTags && revalidatedTags.length > 0) {
+      checker = (tag: string) => revalidatedTags.includes(tag)
+    } else if (pendingRevalidatedTags && pendingRevalidatedTags.length > 0) {
+      checker = (tag: string) => pendingRevalidatedTags.includes(tag)
+    } else {
+      return false
+    }
+
+    if (softTags?.some(checker) || tags?.some(checker)) {
+      return true
+    }
+
+    return false
   }
 }

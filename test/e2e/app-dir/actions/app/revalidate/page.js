@@ -22,7 +22,7 @@ export default async function Page() {
 
   return (
     <>
-      <p>/revalidate</p>
+      <h1 id="title">revalidate</h1>
       <p>
         {' '}
         revalidate (tags: thankyounext): <span id="thankyounext">
