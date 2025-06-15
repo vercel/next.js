@@ -33,7 +33,11 @@ export = defineRule({
             isClientComponent = true
           }
 
-          if (block.type === 'ExportDefaultDeclaration' && isClientComponent) {
+          const isExported =
+            block.type === 'ExportNamedDeclaration' ||
+            block.type === 'ExportDefaultDeclaration'
+
+          if (isExported && isClientComponent) {
             // export default async function MyComponent() {...}
             if (
               block.declaration?.type === 'FunctionDeclaration' &&
