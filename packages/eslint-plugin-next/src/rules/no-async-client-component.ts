@@ -33,7 +33,9 @@ export = defineRule({
             isClientComponent = true
           }
 
-          if (block.type === 'ExportDefaultDeclaration' && isClientComponent) {
+          if (!isClientComponent) return
+
+          if (block.type === 'ExportDefaultDeclaration') {
             // export default async function MyComponent() {...}
             if (
               block.declaration?.type === 'FunctionDeclaration' &&
@@ -99,6 +101,26 @@ export = defineRule({
                     message,
                   })
                 }
+              }
+            }
+          }
+
+          // export const MyComponent = async () => {...}
+          if (
+            block.type === 'ExportNamedDeclaration' &&
+            block.declaration?.type === 'VariableDeclaration'
+          ) {
+            for (const declaration of block.declaration.declarations) {
+              if (
+                declaration.init?.type === 'ArrowFunctionExpression' &&
+                declaration.init.async &&
+                declaration.id?.type === 'Identifier' &&
+                isCapitalized(declaration.id.name)
+              ) {
+                context.report({
+                  node: declaration.init,
+                  message,
+                })
               }
             }
           }
