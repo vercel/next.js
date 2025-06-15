@@ -106,7 +106,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               /* CSS minified from
                 body { margin: 0; color: #000; background: #fff; }
                 .next-error-h1 {
-                  border-right: 1px solid rgba(0, 0, 0, .3);
+                  border-right: 1px solid rgb(0 0 0 / .3);
                 }
 
                 ${
@@ -114,15 +114,15 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                     ? `@media (prefers-color-scheme: dark) {
                   body { color: #fff; background: #000; }
                   .next-error-h1 {
-                    border-right: 1px solid rgba(255, 255, 255, .3);
+                    border-right: 1px solid rgb(255 255 255 / .3);
                   }
                 }`
                     : ''
                 }
                */
-              __html: `body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}${
+              __html: `body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgb(0 0 0 / .3)}${
                 withDarkMode
-                  ? '@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}'
+                  ? '@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgb(255 255 255 / .3)}}'
                   : ''
               }`,
             }}
