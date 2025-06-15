@@ -99,6 +99,43 @@ describe('resolveRouteData', () => {
        "
       `)
     })
+
+    it('should escape special XML characters in <loc>', () => {
+      expect(
+        resolveSitemap([
+          {
+            url: 'https://example.com?a=b&c=d',
+          },
+        ])
+      ).toMatchInlineSnapshot(`
+       "<?xml version="1.0" encoding="UTF-8"?>
+       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+       <url>
+       <loc>https://example.com?a=b&amp;c=d</loc>
+       </url>
+       </urlset>
+       "
+      `)
+    })
+
+    it('should not double-escape already-escaped entities in <loc>', () => {
+      expect(
+        resolveSitemap([
+          {
+            url: 'https://example.com?a=b&amp;c=d',
+          },
+        ])
+      ).toMatchInlineSnapshot(`
+       "<?xml version="1.0" encoding="UTF-8"?>
+       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+       <url>
+       <loc>https://example.com?a=b&amp;c=d</loc>
+       </url>
+       </urlset>
+       "
+      `)
+    })
+
     it('should resolve sitemap.xml with alternates', () => {
       expect(
         resolveSitemap([
