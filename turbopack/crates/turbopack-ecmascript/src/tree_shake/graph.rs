@@ -10,6 +10,7 @@ use petgraph::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::atom,
     common::{BytePos, DUMMY_SP, Spanned, SyntaxContext, comments::Comments, util::take::Take},
     ecma::{
         ast::{
@@ -929,7 +930,7 @@ impl DepGraph {
                                 ),
                                 ExportSpecifier::Default(s) => (
                                     Some(ModuleExportName::Ident(Ident::new(
-                                        "default".into(),
+                                        atom!("default"),
                                         DUMMY_SP,
                                         Default::default(),
                                     ))),
@@ -1076,7 +1077,7 @@ impl DepGraph {
                             items.insert(id, data);
                         }
 
-                        exports.push((default_var.to_id(), "default".into()));
+                        exports.push((default_var.to_id(), atom!("default")));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
                         // Mirror what `EsmModuleItem::code_generation` does, these are live
@@ -1140,7 +1141,7 @@ impl DepGraph {
                         {
                             // For export default __TURBOPACK__default__export__
 
-                            exports.push((default_var.to_id(), "default".into()));
+                            exports.push((default_var.to_id(), atom!("default")));
                         }
                     }
 

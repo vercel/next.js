@@ -33,6 +33,7 @@ pub use next_lint::get_next_lint_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
 pub use next_track_dynamic_imports::get_next_track_dynamic_imports_transform_rule;
 pub use server_actions::get_server_actions_transform_rule;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ReadRef, ResolvedVc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
@@ -50,19 +51,19 @@ pub async fn get_next_image_rule() -> Result<ModuleRule> {
                 UrlReferenceSubType::Undefined,
             ))),
             RuleCondition::any(vec![
-                RuleCondition::ResourcePathEndsWith(".jpg".to_string()),
-                RuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
-                RuleCondition::ResourcePathEndsWith(".png".to_string()),
-                RuleCondition::ResourcePathEndsWith(".apng".to_string()),
-                RuleCondition::ResourcePathEndsWith(".gif".to_string()),
-                RuleCondition::ResourcePathEndsWith(".svg".to_string()),
-                RuleCondition::ResourcePathEndsWith(".bmp".to_string()),
-                RuleCondition::ResourcePathEndsWith(".ico".to_string()),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".jpg")),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".jpeg")),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".png")),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".apng")),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".gif")),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".svg")),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".bmp")),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".ico")),
                 // These images may not be encoded by turbopack depends on the feature availability
                 // As turbopack-image returns raw bytes if compile time codec support is not
                 // enabled: ref:https://github.com/vercel/turbo/pull/5967
-                RuleCondition::ResourcePathEndsWith(".webp".to_string()),
-                RuleCondition::ResourcePathEndsWith(".avif".to_string()),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".webp")),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".avif")),
             ]),
         ]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
@@ -77,27 +78,27 @@ pub async fn get_next_image_rule() -> Result<ModuleRule> {
 
 fn match_js_extension(enable_mdx_rs: bool) -> Vec<RuleCondition> {
     let mut conditions = vec![
-        RuleCondition::ResourcePathEndsWith(".js".to_string()),
-        RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".js")),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".jsx")),
         RuleCondition::All(vec![
-            RuleCondition::ResourcePathEndsWith(".ts".to_string()),
-            RuleCondition::Not(Box::new(RuleCondition::ResourcePathEndsWith(
-                ".d.ts".to_string(),
-            ))),
+            RuleCondition::ResourcePathEndsWith(rcstr!(".ts")),
+            RuleCondition::Not(Box::new(RuleCondition::ResourcePathEndsWith(rcstr!(
+                ".d.ts"
+            )))),
         ]),
-        RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-        RuleCondition::ResourcePathEndsWith(".mjs".to_string()),
-        RuleCondition::ResourcePathEndsWith(".cjs".to_string()),
-        RuleCondition::ContentTypeStartsWith("application/javascript".to_string()),
-        RuleCondition::ContentTypeStartsWith("text/javascript".to_string()),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".tsx")),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".mjs")),
+        RuleCondition::ResourcePathEndsWith(rcstr!(".cjs")),
+        RuleCondition::ContentTypeStartsWith(rcstr!("application/javascript")),
+        RuleCondition::ContentTypeStartsWith(rcstr!("text/javascript")),
     ];
 
     if enable_mdx_rs {
         conditions.append(
             vec![
-                RuleCondition::ResourcePathEndsWith(".md".to_string()),
-                RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
-                RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".md")),
+                RuleCondition::ResourcePathEndsWith(rcstr!(".mdx")),
+                RuleCondition::ContentTypeStartsWith(rcstr!("text/markdown")),
             ]
             .as_mut(),
         );

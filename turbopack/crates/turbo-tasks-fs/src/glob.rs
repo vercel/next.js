@@ -1,7 +1,7 @@
 use anyhow::Result;
 use regex::bytes::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 
 use crate::globset::parse;
@@ -100,7 +100,7 @@ impl Glob {
     #[turbo_tasks::function]
     pub async fn alternatives(globs: Vec<Vc<Glob>>) -> Result<Vc<Self>> {
         match globs.len() {
-            0 => Ok(Glob::new("".into())),
+            0 => Ok(Glob::new(rcstr!(""))),
             1 => Ok(globs.into_iter().next().unwrap()),
             _ => {
                 let mut new_glob = String::new();

@@ -4,6 +4,7 @@ use next_custom_transforms::transforms::strip_page_exports::{
     ExportFilter, next_transform_strip_page_exports,
 };
 use swc_core::ecma::ast::Program;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
@@ -27,17 +28,21 @@ pub async fn get_next_pages_transforms_rule(
             RuleCondition::all(vec![
                 RuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
                 RuleCondition::not(RuleCondition::ResourcePathInExactDirectory(
-                    pages_dir.join("api".into()).await?,
+                    pages_dir.join(rcstr!("api")).await?,
                 )),
                 RuleCondition::not(RuleCondition::any(vec![
                     // TODO(alexkirsz): Possibly ignore _app as well?
-                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.js".into()).await?),
                     RuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.jsx".into()).await?,
+                        pages_dir.join(rcstr!("_document.js")).await?,
                     ),
-                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.ts".into()).await?),
                     RuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.tsx".into()).await?,
+                        pages_dir.join(rcstr!("_document.jsx")).await?,
+                    ),
+                    RuleCondition::ResourcePathEquals(
+                        pages_dir.join(rcstr!("_document.ts")).await?,
+                    ),
+                    RuleCondition::ResourcePathEquals(
+                        pages_dir.join(rcstr!("_document.tsx")).await?,
                     ),
                 ])),
             ]),

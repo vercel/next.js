@@ -490,6 +490,8 @@ pub struct ClientBuildManifest<'a> {
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::rcstr;
+
     use super::*;
 
     #[test]
@@ -500,20 +502,20 @@ mod tests {
                 locale: false,
                 has: None,
                 missing: None,
-                original_source: "".into(),
+                original_source: rcstr!(""),
             },
             MiddlewareMatcher {
-                regexp: Some(".*".into()),
+                regexp: Some(rcstr!(".*")),
                 locale: true,
                 has: Some(vec![RouteHas::Query {
-                    key: "foo".into(),
+                    key: rcstr!("foo"),
                     value: None,
                 }]),
                 missing: Some(vec![RouteHas::Query {
-                    key: "bar".into(),
-                    value: Some("value".into()),
+                    key: rcstr!("bar"),
+                    value: Some(rcstr!("value")),
                 }]),
-                original_source: "source".into(),
+                original_source: rcstr!("source"),
             },
         ];
 

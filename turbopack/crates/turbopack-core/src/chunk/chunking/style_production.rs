@@ -1,6 +1,7 @@
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
@@ -49,7 +50,7 @@ pub async fn make_style_production_chunks(
                     vec![&ChunkItemOrBatchWithInfo::ChunkItem {
                         chunk_item: chunk_item.clone(),
                         size: 0,
-                        asset_ident: "".into(),
+                        asset_ident: rcstr!(""),
                     }],
                     vec![],
                     &mut String::new(),

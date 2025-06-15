@@ -2,7 +2,7 @@ use std::{fmt::Write, ops::Deref};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
@@ -68,7 +68,7 @@ pub struct PackageJsonIssue {
 impl Issue for PackageJsonIssue {
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error parsing package.json file".into()).cell()
+        StyledString::Text(rcstr!("Error parsing package.json file")).cell()
     }
 
     #[turbo_tasks::function]

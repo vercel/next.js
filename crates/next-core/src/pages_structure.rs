@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
@@ -104,7 +104,7 @@ pub async fn find_pages_structure(
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesStructure>> {
     let pages_root = project_root
-        .join("pages".into())
+        .join(rcstr!("pages"))
         .realpath()
         .to_resolved()
         .await?;
@@ -112,7 +112,7 @@ pub async fn find_pages_structure(
         Some(pages_root)
     } else {
         let src_pages_root = project_root
-            .join("src/pages".into())
+            .join(rcstr!("src/pages"))
             .realpath()
             .to_resolved()
             .await?;
@@ -260,37 +260,37 @@ async fn get_pages_structure_for_root_directory(
     let pages_path = if let Some(project_path) = *project_path {
         *project_path
     } else {
-        project_root.join("pages".into())
+        project_root.join(rcstr!("pages"))
     };
 
     let app_item = {
-        let app_router_path = next_router_path.join("_app".into());
+        let app_router_path = next_router_path.join(rcstr!("_app"));
         PagesStructureItem::new(
-            pages_path.join("_app".into()),
+            pages_path.join(rcstr!("_app")),
             page_extensions,
-            Some(get_next_package(project_root).join("app.js".into())),
+            Some(get_next_package(project_root).join(rcstr!("app.js"))),
             app_router_path,
             app_router_path,
         )
     };
 
     let document_item = {
-        let document_router_path = next_router_path.join("_document".into());
+        let document_router_path = next_router_path.join(rcstr!("_document"));
         PagesStructureItem::new(
-            pages_path.join("_document".into()),
+            pages_path.join(rcstr!("_document")),
             page_extensions,
-            Some(get_next_package(project_root).join("document.js".into())),
+            Some(get_next_package(project_root).join(rcstr!("document.js"))),
             document_router_path,
             document_router_path,
         )
     };
 
     let error_item = {
-        let error_router_path = next_router_path.join("_error".into());
+        let error_router_path = next_router_path.join(rcstr!("_error"));
         PagesStructureItem::new(
-            pages_path.join("_error".into()),
+            pages_path.join(rcstr!("_error")),
             page_extensions,
-            Some(get_next_package(project_root).join("error.js".into())),
+            Some(get_next_package(project_root).join(rcstr!("error.js"))),
             error_router_path,
             error_router_path,
         )

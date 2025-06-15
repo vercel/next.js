@@ -12,31 +12,31 @@ use crate::TryDotenvProcessEnv;
 pub async fn load_env(project_path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn ProcessEnv>>> {
     let env: Vc<Box<dyn ProcessEnv>> = Vc::upcast(CommandLineProcessEnv::new());
 
-    let node_env = env.read(rcstr!("NODE_ENV")).await?;
-    let node_env = node_env.as_deref().unwrap_or("development");
+    let node_env = env.read(rcstr!("NODE_ENV")).owned().await?;
+    let node_env = node_env.unwrap_or(rcstr!("development"));
 
     let env = Vc::upcast(CustomProcessEnv::new(
         env,
         Vc::cell(fxindexmap! {
-            rcstr!("NODE_ENV") => node_env.into(),
+            rcstr!("NODE_ENV") => node_env.clone(),
         }),
     ));
 
     let files = [
-        Some(format!(".env.{node_env}.local")),
+        Some(format!(".env.{node_env}.local").into()),
         if node_env == "test" {
             None
         } else {
-            Some(".env.local".into())
+            Some(rcstr!(".env.local"))
         },
-        Some(format!(".env.{node_env}")),
-        Some(".env".into()),
+        Some(format!(".env.{node_env}").into()),
+        Some(rcstr!(".env")),
     ]
     .into_iter()
     .flatten();
 
     let env = files.fold(env, |prior, f| {
-        let path = project_path.join(f.into());
+        let path = project_path.join(f);
         Vc::upcast(TryDotenvProcessEnv::new(prior, path))
     });
 

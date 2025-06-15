@@ -1,5 +1,5 @@
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -45,12 +45,12 @@ pub async fn wrap_edge_entry(
 
     // TODO(alexkirsz) Figure out how to name this virtual asset.
     let virtual_source = VirtualSource::new(
-        project_root.join("edge-wrapper.js".into()),
+        project_root.join(rcstr!("edge-wrapper.js")),
         AssetContent::file(file.into()),
     );
 
     let inner_assets = fxindexmap! {
-        "MODULE".into() => entry
+        rcstr!("MODULE") => entry
     };
 
     asset_context

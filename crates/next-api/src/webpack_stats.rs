@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::Serialize;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 use turbopack_browser::ecmascript::EcmascriptBrowserChunk;
 use turbopack_core::{
@@ -31,8 +31,8 @@ where
             let chunk_ident = normalize_client_path(&chunk.path().await?.path);
             chunks.push(WebpackStatsChunk {
                 size: asset_len,
-                files: vec![chunk_ident.clone().into()],
-                id: chunk_ident.clone().into(),
+                files: vec![chunk_ident.clone()],
+                id: chunk_ident.clone(),
                 ..Default::default()
             });
 
@@ -41,14 +41,14 @@ where
                 chunk_items
                     .entry(**item)
                     .or_default()
-                    .insert(chunk_ident.clone().into());
+                    .insert(chunk_ident.clone());
             }
         }
 
         assets.push(WebpackStatsAsset {
-            ty: "asset".into(),
-            name: path.clone().into(),
-            chunks: vec![path.into()],
+            ty: rcstr!("asset"),
+            name: path.clone(),
+            chunks: vec![path],
             size: asset_len,
             ..Default::default()
         });
@@ -59,7 +59,7 @@ where
         let path = chunk_item.asset_ident().path().await?.path.clone();
         modules.push(WebpackStatsModule {
             name: path.clone(),
-            id: path.clone(),
+            id: path,
             chunks: chunks.into_iter().collect(),
             size,
         });
@@ -88,7 +88,7 @@ where
     })
 }
 
-fn normalize_client_path(path: &str) -> String {
+fn normalize_client_path(path: &str) -> RcStr {
     let next_re = regex::Regex::new(r"^_next/").unwrap();
     next_re.replace(path, ".next/").into()
 }

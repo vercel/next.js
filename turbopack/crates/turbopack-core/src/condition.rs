@@ -1,6 +1,7 @@
 use anyhow::Result;
 use futures::{StreamExt, stream};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
@@ -9,7 +10,7 @@ pub enum ContextCondition {
     All(Vec<ContextCondition>),
     Any(Vec<ContextCondition>),
     Not(Box<ContextCondition>),
-    InDirectory(String),
+    InDirectory(RcStr),
     InPath(ResolvedVc<FileSystemPath>),
 }
 

@@ -5,7 +5,7 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
     Vc, trace::TraceRawVcs,
@@ -71,17 +71,13 @@ impl ClientReferenceManifest {
         async move {
             let mut entry_manifest: ClientReferenceManifest = Default::default();
             let mut references = FxIndexSet::default();
-            let chunk_suffix_path = next_config.chunk_suffix_path().await?;
+            let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
             let prefix_path = next_config
                 .computed_asset_prefix()
+                .owned()
                 .await?
-                .as_ref()
-                .map(|p| p.clone())
                 .unwrap_or_default();
-            let suffix_path = chunk_suffix_path
-                .as_ref()
-                .map(|p| p.to_string())
-                .unwrap_or("".into());
+            let suffix_path = chunk_suffix_path.unwrap_or_default();
 
             // TODO: Add `suffix` to the manifest for React to use.
             // entry_manifest.module_loading.prefix = prefix_path;
@@ -268,7 +264,7 @@ impl ClientReferenceManifest {
                     entry_manifest.client_modules.module_exports.insert(
                         get_client_reference_module_key(&server_path, "*"),
                         ManifestNodeEntry {
-                            name: "*".into(),
+                            name: rcstr!("*"),
                             id: (&*client_chunk_item_id).into(),
                             chunks: client_chunks_paths,
                             // This should of course be client_is_async, but SSR can become
@@ -281,9 +277,9 @@ impl ClientReferenceManifest {
 
                     let mut ssr_manifest_node = ManifestNode::default();
                     ssr_manifest_node.module_exports.insert(
-                        "*".into(),
+                        rcstr!("*"),
                         ManifestNodeEntry {
-                            name: "*".into(),
+                            name: rcstr!("*"),
                             id: (&*ssr_chunk_item_id).into(),
                             chunks: ssr_chunks_paths,
                             // See above
@@ -293,9 +289,9 @@ impl ClientReferenceManifest {
 
                     let mut rsc_manifest_node = ManifestNode::default();
                     rsc_manifest_node.module_exports.insert(
-                        "*".into(),
+                        rcstr!("*"),
                         ManifestNodeEntry {
-                            name: "*".into(),
+                            name: rcstr!("*"),
                             id: (&*rsc_chunk_item_id).into(),
                             chunks: vec![],
                             r#async: rsc_is_async,
@@ -327,7 +323,7 @@ impl ClientReferenceManifest {
             for (server_component, client_chunks) in layout_segment_client_chunks.iter() {
                 let server_component_name = server_component
                     .server_path()
-                    .with_extension("".into())
+                    .with_extension(rcstr!(""))
                     .to_string()
                     .owned()
                     .await?;
@@ -366,7 +362,7 @@ impl ClientReferenceManifest {
                             {
                                 Some(content_file.content().to_str()?.into())
                             } else {
-                                Some("".into())
+                                Some(rcstr!(""))
                             }
                         } else {
                             None

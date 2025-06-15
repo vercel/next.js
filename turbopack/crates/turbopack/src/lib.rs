@@ -597,7 +597,7 @@ async fn process_default_internal(
                             Some(module_type) => {
                                 ModuleIssue {
                                     ident: ident.to_resolved().await?,
-                                    title: StyledString::Text("Invalid module type".into())
+                                    title: StyledString::Text(rcstr!("Invalid module type"))
                                         .resolved_cell(),
                                     description: StyledString::Text(
                                         "The module type must be Ecmascript or Typescript to add \
@@ -613,7 +613,7 @@ async fn process_default_internal(
                             None => {
                                 ModuleIssue {
                                     ident: ident.to_resolved().await?,
-                                    title: StyledString::Text("Missing module type".into())
+                                    title: StyledString::Text(rcstr!("Missing module type"))
                                         .resolved_cell(),
                                     description: StyledString::Text(
                                         "The module type effect must be applied before adding \
@@ -664,8 +664,8 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
         emulate_environment: Some(env),
         loose_errors: true,
         custom_conditions: match ty {
-            ExternalType::CommonJs => vec!["require".into()],
-            ExternalType::EcmaScriptModule => vec!["import".into()],
+            ExternalType::CommonJs => vec![rcstr!("require")],
+            ExternalType::EcmaScriptModule => vec![rcstr!("import")],
             ExternalType::Url => vec![],
         },
         ..Default::default()
@@ -803,7 +803,7 @@ impl AssetContext for ModuleAssetContext {
                                         .enable_externals_tracing,
                                 ) {
                                     let externals_context = externals_tracing_module_context(ty);
-                                    let root_origin = tracing_root.join("_".into());
+                                    let root_origin = tracing_root.join(rcstr!("_"));
 
                                     // Normalize reference type, there is no such thing as a
                                     // `ReferenceType::EcmaScriptModules(ImportPart(Evaluation))`

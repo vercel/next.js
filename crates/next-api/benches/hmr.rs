@@ -18,7 +18,7 @@ use next_api::{
 use serde_json::json;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     TransientInstance, TurboTasks, TurboTasksApi, Vc, backend::Backend, trace::TraceRawVcs,
 };
@@ -171,7 +171,7 @@ impl HmrBenchmark {
         let test_app = create_test_app(module_count)?;
 
         let project_container = {
-            let container = ProjectContainer::new(RcStr::from("hmr-benchmark"), true)
+            let container = ProjectContainer::new(rcstr!("hmr-benchmark"), true)
                 .to_resolved()
                 .await?;
 
@@ -182,7 +182,7 @@ impl HmrBenchmark {
                 root_path: RcStr::from(root_path),
                 project_path: RcStr::from(project_path.clone()),
                 next_config: load_next_config(),
-                js_config: RcStr::from("{}"),
+                js_config: rcstr!("{}"),
                 env: vec![],
                 define_env: DefineEnv {
                     client: vec![],
@@ -194,14 +194,14 @@ impl HmrBenchmark {
                     poll_interval: None,
                 },
                 dev: true,
-                encryption_key: RcStr::from("test-key"),
-                build_id: RcStr::from("development"),
+                encryption_key: rcstr!("test-key"),
+                build_id: rcstr!("development"),
                 preview_props: DraftModeOptions {
-                    preview_mode_id: RcStr::from("development"),
-                    preview_mode_encryption_key: RcStr::from("test-key"),
-                    preview_mode_signing_key: RcStr::from("test-key"),
+                    preview_mode_id: rcstr!("development"),
+                    preview_mode_encryption_key: rcstr!("test-key"),
+                    preview_mode_signing_key: rcstr!("test-key"),
                 },
-                browserslist_query: RcStr::from("last 2 versions"),
+                browserslist_query: rcstr!("last 2 versions"),
                 no_mangling: false,
             };
 

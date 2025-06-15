@@ -1,6 +1,10 @@
 use std::fmt::{Display, Formatter};
 
-use swc_core::ecma::ast::{Expr, MemberExpr, MemberProp};
+use swc_core::{
+    atoms::atom,
+    ecma::ast::{Expr, MemberExpr, MemberProp},
+};
+use turbo_rcstr::rcstr;
 use turbopack_core::compile_time_info::FreeVarReference;
 
 pub struct TurbopackRuntimeFunctionShortcut {
@@ -22,14 +26,14 @@ impl Display for TurbopackRuntimeFunctionShortcut {
 
 impl From<&TurbopackRuntimeFunctionShortcut> for FreeVarReference {
     fn from(val: &TurbopackRuntimeFunctionShortcut) -> Self {
-        FreeVarReference::Member("__turbopack_context__".into(), val.shortcut.into())
+        FreeVarReference::Member(rcstr!("__turbopack_context__"), val.shortcut.into())
     }
 }
 
 impl From<&TurbopackRuntimeFunctionShortcut> for Expr {
     fn from(val: &TurbopackRuntimeFunctionShortcut) -> Self {
         Expr::Member(MemberExpr {
-            obj: Box::new(Expr::Ident("__turbopack_context__".into())),
+            obj: Box::new(Expr::Ident(atom!("__turbopack_context__").into())),
             prop: MemberProp::Ident(val.shortcut.into()),
             ..Default::default()
         })
