@@ -19,11 +19,6 @@ env:
   #
   # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
   MACOSX_DEPLOYMENT_TARGET: 11.0
-  # This will become "true" if the latest commit (merged release PR) is either:
-  # - "Version Packages (#<number>)"
-  # - "Version Pacakges (canary/rc) (#<number>)"
-  # set from scripts/check-is-release.js
-  __NEW_RELEASE: 'false'
 
 jobs:
   deploy-target:
@@ -52,12 +47,10 @@ jobs:
         # 'staging' for canary branch since that will eventually be published i.e. become the production build.
         id: deploy-target
         run: |
-          # TODO: Remove the new release check once the new release workflow is fully replaced.
           RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
           if [[ $RELEASE_CHECK == 'new-release' ]];
           then
-            echo "__NEW_RELEASE=true" >> $GITHUB_ENV
-            echo "value=production" >> $GITHUB_OUTPUT
+            echo "value=production-new" >> $GITHUB_OUTPUT
           elif [[ $RELEASE_CHECK == v* ]];
           then
             echo "value=production" >> $GITHUB_OUTPUT
@@ -487,7 +480,7 @@ jobs:
           path: crates/wasm/pkg-*
 
   deploy-tarball:
-    if: ${{ needs.deploy-target.outputs.value != 'production' }}
+    if: ${{ needs.deploy-target.outputs.value != 'production' && needs.deploy-target.outputs.value != 'production-new' }}
     name: Deploy preview tarball
     runs-on: ubuntu-latest
     needs:
@@ -600,27 +593,87 @@ jobs:
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
-      # Legacy release process
       - run: ./scripts/publish-release.js
-        if: ${{ env.__NEW_RELEASE == 'false' }}
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
-      # New release process
+      - name: Upload npm log artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-publish-logs
+          path: /home/runner/.npm/_logs/*
+
+  publishReleaseNew:
+    if: ${{ needs.deploy-target.outputs.value == 'production-new' && github.event_name == 'push' && (github.ref == 'refs/heads/canary' || github.ref == 'refs/heads/release/dry-run') }}
+    name: Potentially publish release
+    runs-on: ubuntu-latest
+    needs:
+      - deploy-target
+      - build
+      - build-wasm
+      - build-native
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v4
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          # Cache includes repo checkout which is required for later scripts
+          fail-on-cache-miss: true
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ github.sha }}-${{ github.run_number }}
+            ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: next-swc-binaries-*
+          merge-multiple: true
+          path: packages/next-swc/native
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wasm-binaries-*
+          merge-multiple: true
+          path: crates/wasm
+
+      - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
+      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run: ./scripts/publish-native.js
+
       - name: Publish to NPM
         id: changesets
-        # TODO: Change to IS_RELEASE condition when new release becomes stable.
-        if: ${{ env.__NEW_RELEASE == 'true' }}
         uses: changesets/action@v1
         with:
           publish: pnpm ci:publish
+          # TODO: Remove once we're certain of this workflow.
+          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
 
       - name: Send a Slack notification of the publish status
-        # TODO: Change to IS_RELEASE condition when new release becomes stable.
-        if: ${{ env.__NEW_RELEASE == 'true' && (steps.changesets.outputs.published == 'true' || steps.changesets.outputs.published == 'false') }}
+        if: ${{ steps.changesets.outputs.published == 'true' || steps.changesets.outputs.published == 'false' }}
         run: pnpm tsx scripts/release/slack.ts
         env:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
@@ -629,8 +682,8 @@ jobs:
           WORKFLOW_ACTOR: ${{ github.actor }}
 
       - name: Upload npm log artifact
-        if: steps.changesets.outputs.published == 'true'
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*
@@ -682,13 +735,13 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
       - name: Deploy preview examples
-        if: ${{ needs.deploy-target.outputs.value != 'production' }}
+        if: ${{ needs.deploy-target.outputs.value != 'production' && needs.deploy-target.outputs.value != 'production-new' }}
         run: ./scripts/deploy-examples.sh
         env:
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
           DEPLOY_ENVIRONMENT: preview
       - name: Deploy production examples
-        if: ${{ needs.deploy-target.outputs.value == 'production' }}
+        if: ${{ needs.deploy-target.outputs.value == 'production' || needs.deploy-target.outputs.value == 'production-new' }}
         run: ./scripts/deploy-examples.sh
         env:
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
@@ -711,7 +764,7 @@ jobs:
       - 'x64'
       - 'metal'
     timeout-minutes: 25
-    needs: [publishRelease]
+    needs: [publishRelease, publishReleaseNew]
     steps:
       - uses: actions/checkout@v4
         with:
