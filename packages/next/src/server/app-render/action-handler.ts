@@ -396,22 +396,35 @@ function limitUntrustedHeaderValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
+function extractFirstHeaderValue(header: string | string[] | undefined) {
+  return header && Array.isArray(header)
+    ? header[0]
+    : header?.split(',')?.[0]?.trim()
+}
+
 export function parseHostHeader(
   headers: IncomingHttpHeaders,
   originDomain?: string
 ) {
-  const forwardedHostHeader = headers['x-forwarded-host']
-  const forwardedHostHeaderValue =
-    forwardedHostHeader && Array.isArray(forwardedHostHeader)
-      ? forwardedHostHeader[0]
-      : forwardedHostHeader?.split(',')?.[0]?.trim()
+  let forwardedValue: string | undefined
+  const forwardedHost = extractFirstHeaderValue(headers['x-forwarded-host'])
+  if (forwardedHost) {
+    const forwardedProto = extractFirstHeaderValue(headers['x-forwarded-proto'])
+    const proto = forwardedProto === 'http' ? 'http' : 'https'
+    const forwardedUrl = new URL(`${proto}://${forwardedHost}`)
+    const forwardedPort = extractFirstHeaderValue(headers['x-forwarded-port'])
+    if (forwardedPort) {
+      forwardedUrl.port = forwardedPort
+    }
+    forwardedValue = forwardedUrl.host
+  }
   const hostHeader = headers['host']
 
   if (originDomain) {
-    return forwardedHostHeaderValue === originDomain
+    return forwardedValue === originDomain
       ? {
           type: HostType.XForwardedHost,
-          value: forwardedHostHeaderValue,
+          value: forwardedValue,
         }
       : hostHeader === originDomain
         ? {
@@ -421,10 +434,10 @@ export function parseHostHeader(
         : undefined
   }
 
-  return forwardedHostHeaderValue
+  return forwardedValue
     ? {
         type: HostType.XForwardedHost,
-        value: forwardedHostHeaderValue,
+        value: forwardedValue,
       }
     : hostHeader
       ? {
