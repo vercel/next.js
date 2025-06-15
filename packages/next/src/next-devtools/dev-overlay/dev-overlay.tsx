@@ -49,7 +49,11 @@ export function DevOverlay({
                     />
 
                     {state.isDevToolsPanelOpen && (
-                      <DevToolsPanel state={state} dispatch={dispatch} />
+                      <DevToolsPanel
+                        state={state}
+                        dispatch={dispatch}
+                        issueCount={totalErrorCount}
+                      />
                     )}
                   </>
                 ) : (
