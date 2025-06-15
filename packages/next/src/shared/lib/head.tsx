@@ -161,8 +161,21 @@ function reduceComponents<T extends {} & WithInAmpMode>(
         }
       }
       if (process.env.NODE_ENV === 'development') {
+        // Warn about invalid HTML elements in head
+        if (c.type === 'html') {
+          warnOnce(
+            `Do not use <html> tags in next/head. You cannot use <Head> to set attributes on <html> or <body> tags. This will result in a "next-head-count is missing" error. \nSee more info here: https://nextjs.org/docs/messages/next-head-count-missing`
+          )
+        } else if (c.type === 'body') {
+          warnOnce(
+            `Do not use <body> tags in next/head. You cannot use <Head> to set attributes on <html> or <body> tags. This will result in a "next-head-count is missing" error. \nSee more info here: https://nextjs.org/docs/messages/next-head-count-missing`
+          )
+        }
         // omit JSON-LD structured data snippets from the warning
-        if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
+        else if (
+          c.type === 'script' &&
+          c.props['type'] !== 'application/ld+json'
+        ) {
           const srcMessage = c.props['src']
             ? `<script> tag with src="${c.props['src']}"`
             : `inline <script>`
