@@ -88,6 +88,21 @@ module.exports = ({ dev, ...rest }) => {
     module: {
       rules: [
         { test: /\.m?js$/, loader: `source-map-loader`, enforce: `pre` },
+        // TODO: minify
+        {
+          test: /tailwind\.css$/,
+          use: [
+            {
+              loader: 'style-loader',
+              options: {
+                injectType: 'lazyStyleTag',
+                insert: require.resolve('./next-devtools-inject-tailwind.js'),
+              },
+            },
+            'css-loader',
+            'postcss-loader',
+          ],
+        },
         {
           test: /\.(ts|tsx)$/,
           exclude: [/node_modules/],

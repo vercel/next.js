@@ -2,6 +2,9 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { STORAGE_KEY_THEME } from '../shared'
 
+// @ts-expect-error - CSS file missing type declaration
+import tailwindCss from '../tailwind.css'
+
 export function ShadowPortal({ children }: { children: React.ReactNode }) {
   let portalNode = React.useRef<HTMLElement | null>(null)
   let shadowNode = React.useRef<ShadowRoot | null>(null)
@@ -33,6 +36,13 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
     // createa React Root in getInitialProps but don't clean it up like test/integration/app-tree/pages/_app.tsx
     if (portalNode.current.shadowRoot === null) {
       shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })
+
+      // Injecting Tailwind to the Shadow DOM with Webpack style-loader.
+      // The target is passed to the next-devtools-inject-tailwind.js file which runs on the browser.
+      // x-ref: https://webpack.js.org/loaders/style-loader/#lazystyletag
+      tailwindCss.use({
+        target: shadowNode.current,
+      })
     }
     forceUpdate({})
   }, [])
