@@ -89,7 +89,7 @@ impl AssetContent {
 
     #[turbo_tasks::function]
     pub async fn write(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<()> {
-        let this = self.await?;
+        let this = self.final_read_hint().await?;
         match &*this {
             AssetContent::File(file) => {
                 let _ = path.write(**file);
