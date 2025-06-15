@@ -46,6 +46,7 @@ export type NextDevOptions = {
   port: number
   hostname?: string
   experimentalHttps?: boolean
+  experimentalHttpsHostname?: string
   experimentalHttpsKey?: string
   experimentalHttpsCert?: string
   experimentalHttpsCa?: string
@@ -367,7 +368,7 @@ const nextDev = async (
             rootCA: rootCA ? path.resolve(rootCA) : undefined,
           }
         } else {
-          certificate = await createSelfSignedCertificate(host)
+          certificate = await createSelfSignedCertificate(options.experimentalHttpsHostname ?? host)
         }
 
         await startServer({
