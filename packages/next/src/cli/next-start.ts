@@ -13,6 +13,7 @@ export type NextStartOptions = {
   port: number
   hostname?: string
   keepAliveTimeout?: number
+  accessLog?: string
 }
 
 /**
@@ -25,6 +26,7 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
   const dir = getProjectDir(directory)
   const hostname = options.hostname
   const port = options.port
+  const accessLog = options.accessLog
   const keepAliveTimeout = options.keepAliveTimeout
 
   if (isPortIsReserved(port)) {
@@ -37,6 +39,7 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     hostname,
     port,
     keepAliveTimeout,
+    accessLog,
   })
 }
 

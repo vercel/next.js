@@ -345,6 +345,10 @@ program
     '-H, --hostname <hostname>',
     'Specify a hostname on which to start the application (default: 0.0.0.0).'
   )
+  .option(
+    '--access-log <path>',
+    'Specify the path to where to write the access log.'
+  )
   .addOption(
     new Option(
       '--keepAliveTimeout <keepAliveTimeout>',
