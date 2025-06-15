@@ -28,6 +28,7 @@ import { DEVTOOLS_PANEL_STYLES } from '../components/devtools-panel/devtools-pan
 import { DEVTOOLS_PANEL_FOOTER_STYLES } from '../components/devtools-panel/devtools-panel-footer'
 import { DEVTOOLS_PANEL_VERSION_INFO_STYLES } from '../components/devtools-panel/devtools-panel-version-info'
 import { DEVTOOLS_PANEL_TAB_SETTINGS_STYLES } from '../components/devtools-panel/devtools-panel-tab/settings-tab'
+import { CALL_STACK_STYLES } from '../components/call-stack/call-stack'
 
 export function ComponentStyles() {
   return (
@@ -35,6 +36,7 @@ export function ComponentStyles() {
       {css`
         ${COPY_BUTTON_STYLES}
         ${CALL_STACK_FRAME_STYLES}
+        ${CALL_STACK_STYLES}
         ${ENVIRONMENT_NAME_LABEL_STYLES}
         ${overlay}
         ${toast}
