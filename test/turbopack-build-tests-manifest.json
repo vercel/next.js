@@ -648,7 +648,8 @@
   },
   "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {
     "passed": [
-      "app-fetch-deduping during static generation dedupes requests amongst static workers"
+      "app-fetch-deduping during static generation dedupes requests amongst static workers",
+      "app-fetch-deduping during static generation does not print a fetch cache size limit warning"
     ],
     "failed": [],
     "pending": [],
@@ -2424,23 +2425,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/empty-fallback-shells/empty-fallback-shells.test.ts": {
-    "passed": [
-      "empty-fallback-shells should not log a HANGING_PROMISE_REJECTION error",
-      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
-      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
-      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page resumes a postponed fallback shell",
-      "empty-fallback-shells without IO should start and not postpone the response"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/error-boundary-navigation/index.test.ts": {
     "passed": [
       "app dir - not found navigation should allow navigating to a non-existent page",
@@ -2529,6 +2513,27 @@
     "passed": ["fallback-prefetch should prefetch the page without errors"],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/fallback-shells/fallback-shells.test.ts": {
+    "passed": [
+      "fallback-shells should not log a HANGING_PROMISE_REJECTION error",
+      "fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
+      "fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
+      "fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
+      "fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page resumes a postponed fallback shell",
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page shares a cached parent layout between a prerendered route shell and the fallback shell",
+      "fallback-shells without IO should start and not postpone the response"
+    ],
+    "failed": [],
+    "pending": [
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page does not produce hydration errors when resuming a fallback shell containing a layout with unused params",
+      "fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page shares a cached layout with unused params between a prerendered route shell and the fallback shell"
+    ],
     "flakey": [],
     "runtimeError": false
   },
