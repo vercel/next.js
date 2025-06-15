@@ -1,14 +1,13 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.245.0/containers/javascript-node
+// https://github.com/devcontainers/images/tree/main/src/javascript-node
 {
   "name": "Next.js Dev Container",
   "build": {
     "dockerfile": "Dockerfile",
-    // Update 'VARIANT' to pick a Node version: 18, 16, 14.
-    // Append -bullseye or -buster to pin to an OS version.
-    // Use -bullseye variants on local arm64/Apple Silicon.
+    // Update 'VARIANT' to pick a Node version: 22, 20, 18.
+    // Append -bookworm or -bullseye to pin to an OS version.
     "args": {
-      "VARIANT": "20-bullseye"
+      "VARIANT": "22-bookworm"
     }
   },
   // Configure tool-specific properties.
@@ -16,21 +15,20 @@
     // Configure properties specific to VS Code.
     "vscode": {
       // Add the IDs of extensions you want installed when the container is created.
-      "extensions": ["dbaeumer.vscode-eslint"]
+      "extensions": ["esbenp.prettier-vscode"]
     }
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   // "forwardPorts": [],
   // Use 'postCreateCommand' to run commands after the container is created.
   // "postCreateCommand": "yarn install",
-  // Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+  // Comment out to connect as root instead. More info: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user.
   "remoteUser": "node",
   "features": {
     // For some reason "git" or "rust" doesn't work
     "ghcr.io/devcontainers/features/git:1": "os-provided",
+    "ghcr.io/devcontainers/features/github-cli:1": "latest",
     "ghcr.io/devcontainers/features/rust:1": "latest"
-    // Github latest can't be installed due to GPG issues: https://github.com/cli/cli/discussions/6222
-    // "github-cli": "latest",
   },
   "remoteEnv": {
     "DISPLAY": ":0"
