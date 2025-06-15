@@ -284,6 +284,36 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
 }
 
 /**
+ * Returns the ref of a React element handling differences between React 19 and older versions.
+ * It will throw runtime error if the element is not a valid React element.
+ *
+ * The source is a copy and paste of https://github.com/radix-ui/primitives/blob/6e75e117977c9e6ffa939e6951a707f16ba0f95e/packages/react/presence/src/presence.tsx#L173
+ * It's also duplicated in the App Router source.
+ * @param element React.ReactElement
+ * @returns React.Ref<any> | undefined
+ */
+function getReactElementRef(
+  element: React.ReactElement<{ ref?: React.Ref<unknown> }>
+): React.Ref<any> | undefined {
+  // React <=18 in DEV
+  let getter = Object.getOwnPropertyDescriptor(element.props, 'ref')?.get
+  let mayWarn = getter && 'isReactWarning' in getter && getter.isReactWarning
+  if (mayWarn) {
+    return (element as any).ref
+  }
+
+  // React 19 in DEV
+  getter = Object.getOwnPropertyDescriptor(element, 'ref')?.get
+  mayWarn = getter && 'isReactWarning' in getter && getter.isReactWarning
+  if (mayWarn) {
+    return element.props.ref
+  }
+
+  // Not DEV
+  return element.props.ref || (element as any).ref
+}
+
+/**
  * A React component that extends the HTML `<a>` element to provide [prefetching](https://nextjs.org/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching)
  * and client-side navigation between routes.
  *
@@ -514,7 +544,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const childRef: any = legacyBehavior
-      ? child && typeof child === 'object' && child.ref
+      ? getReactElementRef(child)
       : forwardedRef
 
     const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
