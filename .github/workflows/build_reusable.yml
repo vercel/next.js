@@ -141,8 +141,7 @@ jobs:
       - run: node -v
       - name: Prepare corepack
         if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
-        run: |
-          npm i -g corepack@0.31
+        run: npm i -g corepack@0.31
       - run: corepack enable
       - run: pwd
 

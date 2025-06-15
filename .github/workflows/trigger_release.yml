@@ -83,9 +83,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: npm i -g corepack@0.31
           pnpm --version
 
       - id: get-store-path
