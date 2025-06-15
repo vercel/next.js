@@ -161,7 +161,7 @@ async function nextMetadataImageLoader(
     )
 
     if (existsSync(altPath)) {
-      imageData.alt = await fs.readFile(altPath, 'utf8')
+      imageData.alt = (await fs.readFile(altPath, 'utf8')).trim()
     }
   }
 
