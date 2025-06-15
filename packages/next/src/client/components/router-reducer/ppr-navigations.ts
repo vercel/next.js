@@ -756,34 +756,30 @@ export function listenForDynamicRequest(
 ) {
   responsePromise.then(
     ({ flightData }: FetchServerResponseResult) => {
-      if (typeof flightData === 'string') {
-        // Happens when navigating to page in `pages` from `app`. We shouldn't
-        // get here because should have already handled this during
-        // the prefetch.
-        return
-      }
-      for (const normalizedFlightData of flightData) {
-        const {
-          segmentPath,
-          tree: serverRouterState,
-          seedData: dynamicData,
-          head: dynamicHead,
-        } = normalizedFlightData
+      if (typeof flightData !== 'string') {
+        for (const normalizedFlightData of flightData) {
+          const {
+            segmentPath,
+            tree: serverRouterState,
+            seedData: dynamicData,
+            head: dynamicHead,
+          } = normalizedFlightData
 
-        if (!dynamicData) {
-          // This shouldn't happen. PPR should always send back a response.
-          // However, `FlightDataPath` is a shared type and the pre-PPR handling of
-          // this might return null.
-          continue
+          if (!dynamicData) {
+            // This shouldn't happen. PPR should always send back a response.
+            // However, `FlightDataPath` is a shared type and the pre-PPR handling of
+            // this might return null.
+            continue
+          }
+
+          writeDynamicDataIntoPendingTask(
+            task,
+            segmentPath,
+            serverRouterState,
+            dynamicData,
+            dynamicHead
+          )
         }
-
-        writeDynamicDataIntoPendingTask(
-          task,
-          segmentPath,
-          serverRouterState,
-          dynamicData,
-          dynamicHead
-        )
       }
 
       // Now that we've exhausted all the data we received from the server, if
