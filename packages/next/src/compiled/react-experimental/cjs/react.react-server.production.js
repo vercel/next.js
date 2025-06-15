@@ -36,8 +36,9 @@ function formatProdErrorMessage(code) {
     " for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
   );
 }
-var isArrayImpl = Array.isArray,
-  REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
+var isArrayImpl = Array.isArray;
+function noop() {}
+var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_PORTAL_TYPE = Symbol.for("react.portal"),
   REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
   REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"),
@@ -102,7 +103,6 @@ function getElementKey(element, index) {
     ? escape("" + element.key)
     : index.toString(36);
 }
-function noop$1() {}
 function resolveThenable(thenable) {
   switch (thenable.status) {
     case "fulfilled":
@@ -112,7 +112,7 @@ function resolveThenable(thenable) {
     default:
       switch (
         ("string" === typeof thenable.status
-          ? thenable.then(noop$1, noop$1)
+          ? thenable.then(noop, noop)
           : ((thenable.status = "pending"),
             thenable.then(
               function (fulfilledValue) {
@@ -280,36 +280,35 @@ function createCacheNode() {
   return { s: 0, v: void 0, o: null, p: null };
 }
 var reportGlobalError =
-  "function" === typeof reportError
-    ? reportError
-    : function (error) {
-        if (
-          "object" === typeof window &&
-          "function" === typeof window.ErrorEvent
-        ) {
-          var event = new window.ErrorEvent("error", {
-            bubbles: !0,
-            cancelable: !0,
-            message:
-              "object" === typeof error &&
-              null !== error &&
-              "string" === typeof error.message
-                ? String(error.message)
-                : String(error),
-            error: error
-          });
-          if (!window.dispatchEvent(event)) return;
-        } else if (
-          "object" === typeof process &&
-          "function" === typeof process.emit
-        ) {
-          process.emit("uncaughtException", error);
-          return;
-        }
-        console.error(error);
-      };
-function noop() {}
-var getPrototypeOf = Object.getPrototypeOf,
+    "function" === typeof reportError
+      ? reportError
+      : function (error) {
+          if (
+            "object" === typeof window &&
+            "function" === typeof window.ErrorEvent
+          ) {
+            var event = new window.ErrorEvent("error", {
+              bubbles: !0,
+              cancelable: !0,
+              message:
+                "object" === typeof error &&
+                null !== error &&
+                "string" === typeof error.message
+                  ? String(error.message)
+                  : String(error),
+              error: error
+            });
+            if (!window.dispatchEvent(event)) return;
+          } else if (
+            "object" === typeof process &&
+            "function" === typeof process.emit
+          ) {
+            process.emit("uncaughtException", error);
+            return;
+          }
+          console.error(error);
+        },
+  getPrototypeOf = Object.getPrototypeOf,
   TaintRegistryObjects = ReactSharedInternals.TaintRegistryObjects,
   TaintRegistryValues = ReactSharedInternals.TaintRegistryValues,
   TaintRegistryByteLengths = ReactSharedInternals.TaintRegistryByteLengths,
@@ -569,4 +568,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.2.0-experimental-197d6a04-20250424";
+exports.version = "19.2.0-experimental-b7e2de63-20250611";
