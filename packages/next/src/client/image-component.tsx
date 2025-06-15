@@ -9,6 +9,7 @@ import React, {
   useState,
   forwardRef,
   use,
+  useLayoutEffect,
 } from 'react'
 import ReactDOM from 'react-dom'
 import Head from '../shared/lib/head'
@@ -350,6 +351,9 @@ function ImagePreload({
   )
 }
 
+const useIsomorphicLayoutEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect
+
 /**
  * The `Image` component is used to optimize images.
  *
@@ -373,13 +377,13 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const { onLoad, onLoadingComplete } = props
     const onLoadRef = useRef(onLoad)
 
-    useEffect(() => {
+    useIsomorphicLayoutEffect(() => {
       onLoadRef.current = onLoad
     }, [onLoad])
 
     const onLoadingCompleteRef = useRef(onLoadingComplete)
 
-    useEffect(() => {
+    useIsomorphicLayoutEffect(() => {
       onLoadingCompleteRef.current = onLoadingComplete
     }, [onLoadingComplete])
 
