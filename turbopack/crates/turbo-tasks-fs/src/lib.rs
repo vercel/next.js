@@ -597,6 +597,7 @@ impl FileSystem for DiskFileSystem {
             Err(e)
                 if e.kind() == ErrorKind::NotFound
                     || e.kind() == ErrorKind::NotADirectory
+                    || e.kind() == ErrorKind::PermissionDenied
                     || e.kind() == ErrorKind::InvalidFilename =>
             {
                 return Ok(RawDirectoryContent::not_found());
