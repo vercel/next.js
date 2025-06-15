@@ -22,7 +22,6 @@ import { getImplicitTags, type ImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
-import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
 import * as Log from '../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import {
@@ -758,20 +757,18 @@ export class AppRouteRouteModule extends RouteModule<
                 request = proxyNextRequest(req, workStore)
             }
 
-            // TODO: propagate this pathname from route matcher
-            const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
-
             const tracer = getTracer()
 
             // Update the root span attribute for the route.
-            tracer.setRootSpanAttribute('next.route', route)
+            const { pathname } = this.definition
+            tracer.setRootSpanAttribute('next.route', pathname)
 
             return tracer.trace(
               AppRouteRouteHandlersSpan.runHandler,
               {
-                spanName: `executing api route (app) ${route}`,
+                spanName: `executing api route (app) ${pathname}`,
                 attributes: {
-                  'next.route': route,
+                  'next.route': pathname,
                 },
               },
               async () =>
