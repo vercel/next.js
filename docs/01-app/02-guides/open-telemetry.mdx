@@ -275,6 +275,13 @@ Attributes:
   - `net.peer.port` (only if specified)
 - `next.span_name`
 - `next.span_type`
+- `next.cache.status` - The cache status of the fetch request:
+  - `hit` - The request was served from cache
+  - `miss` - The request was not found in cache and fetched from origin
+  - `skip` - Caching was disabled for this request
+  - `hmr` - The request was served from HMR (Hot Module Reload) cache during development
+- `next.cache.reason` - The reason for the caching behavior (e.g., `"fetchCache = force-cache"`, `"revalidate: 60"`, `"auto no cache"`)
+- `next.cache.revalidate` - The revalidate value used for this request (number of seconds, or `"undefined"` if not set)
 
 This span can be turned off by setting `NEXT_OTEL_FETCH_DISABLED=1` in your environment. This is useful when you want to use a custom fetch instrumentation library.
 
