@@ -1,4 +1,5 @@
 [
+  "@alinea/generated",
   "@appsignal/nodejs",
   "@aws-sdk/client-s3",
   "@aws-sdk/s3-presigned-post",
