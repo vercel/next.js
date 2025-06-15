@@ -76,4 +76,14 @@ describe('@next/third-parties basic usage', () => {
     const dataLayer2 = await browser.eval('window.dataLayer')
     expect(dataLayer2.length).toBe(5)
   })
+
+  it('renders Facebook Pixel', async () => {
+    const browser = await next.browser('/fb-pixel')
+
+    await browser.waitForElementByCss('#_next-fb-pixel')
+    await waitFor(1000)
+
+    const gtmInlineScript = await browser.elementsByCss('#_next-fb-pixel')
+    expect(gtmInlineScript.length).toBe(1)
+  })
 })
