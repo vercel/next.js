@@ -105,15 +105,6 @@ async function versionPackages() {
       throw new Error(`Invalid release type: ${releaseType}`)
     }
   }
-
-  await execa('pnpm', ['changeset', 'version'], {
-    stdio: 'inherit',
-  })
-  // TODO: Update the pnpm-lock.yaml since the packages' depend on
-  // each other. Remove this once they use `workspace:` protocol.
-  await execa('pnpm', ['install', '--no-frozen-lockfile'], {
-    stdio: 'inherit',
-  })
 }
 
 versionPackages()
