@@ -23,6 +23,21 @@ export async function middleware(request) {
     })
   }
 
+  if (url.pathname.includes('/middleware-external-rewrite-body-headers')) {
+    const tmpHeaders = new Headers(request.headers)
+
+    tmpHeaders.set('x-hello-from-middleware1', 'hello')
+
+    return NextResponse.rewrite(
+      'https://next-data-api-endpoint.vercel.app/api/echo-body',
+      {
+        request: {
+          headers: tmpHeaders,
+        },
+      }
+    )
+  }
+
   if (url.pathname.includes('/middleware-external-rewrite-body')) {
     return NextResponse.rewrite(
       'https://next-data-api-endpoint.vercel.app/api/echo-body'

@@ -72,6 +72,21 @@ describe('Middleware Rewrite', () => {
       expect(await res.text()).toEqual(body)
     })
 
+    it('should handle middleware rewrite with body and headers correctly', async () => {
+      const body = JSON.stringify({ hello: 'world' })
+      const res = await next.fetch(
+        '/middleware-external-rewrite-body-headers',
+        {
+          redirect: 'manual',
+          method: 'POST',
+          body,
+        }
+      )
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toEqual(body)
+    })
+
     it('should handle static dynamic rewrite from middleware correctly', async () => {
       const browser = await webdriver(next.url, '/rewrite-to-static')
 
