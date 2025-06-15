@@ -33,16 +33,17 @@ export class ModuleBuildError extends Error {
 // to a log file and details should not be shown to the user.
 export class TurbopackInternalError extends Error {
   name = 'TurbopackInternalError'
+  location: string | undefined
 
   // Manually set this as this isn't statically determinable
   __NEXT_ERROR_CODE = 'TurbopackInternalError'
 
-  static createAndRecordTelemetry(cause: Error) {
-    const error = new TurbopackInternalError(cause)
+  static createAndRecordTelemetry(cause: Error, location?: string) {
+    const error = new TurbopackInternalError(cause, location)
 
     const telemetry = traceGlobals.get('telemetry')
     if (telemetry) {
-      telemetry.record(eventErrorThrown(error))
+      telemetry.record(eventErrorThrown(error, location))
     } else {
       console.error('Expected `telemetry` to be set in globals')
     }
@@ -50,9 +51,10 @@ export class TurbopackInternalError extends Error {
     return error
   }
 
-  constructor(cause: Error) {
+  constructor(cause: Error, location?: string) {
     super(cause.message)
     this.stack = cause.stack
+    this.location = location
   }
 }
 

@@ -11,8 +11,8 @@ use serde::Serialize;
 use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
     Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo,
-    Vc, VcValueType, get_effects, message_queue::CompilationEvent,
-    task_statistics::TaskStatisticsApi, trace::TraceRawVcs,
+    Vc, VcValueType, backend::TurboTasksExecutionError, get_effects,
+    message_queue::CompilationEvent, task_statistics::TaskStatisticsApi, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{
     DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, default_backing_storage,
@@ -487,6 +487,14 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
     }
 }
 
+enum HandlerResult<T> {
+    Ok(T),
+    TurboTasksExecutionError {
+        msg: String,
+        location: Option<String>,
+    },
+}
+
 pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
     turbo_tasks: NextTurboTasks,
     func: JsFunction,
@@ -501,12 +509,30 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             let result = handler().await;
 
             let status = func.call(
-                result.map_err(|e| {
-                    log_internal_error_and_inform(&e);
-                    napi::Error::from_reason(PrettyPrintError(&e).to_string())
-                }),
+                match result {
+                    Ok(result) => Ok(HandlerResult::Ok(result)),
+                    Err(err) => {
+                        log_internal_error_and_inform(&err);
+                        if let Some(exec_err) = err
+                            .root_cause()
+                            .downcast_ref::<Arc<TurboTasksExecutionError>>()
+                        {
+                            if let TurboTasksExecutionError::Panic(panic) = exec_err.as_ref() {
+                                Ok(HandlerResult::TurboTasksExecutionError {
+                                    msg: panic.message.to_string(),
+                                    location: panic.location.clone(),
+                                })
+                            } else {
+                                Err(napi::Error::from_reason(PrettyPrintError(&err).to_string()))
+                            }
+                        } else {
+                            Err(napi::Error::from_reason(PrettyPrintError(&err).to_string()))
+                        }
+                    }
+                },
                 ThreadsafeFunctionCallMode::NonBlocking,
             );
+
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
                 eprintln!("{error}");
