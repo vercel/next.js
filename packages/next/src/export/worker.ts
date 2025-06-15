@@ -361,7 +361,7 @@ export async function exportPages(
     renderResumeDataCachesByPage = {},
   } = input
 
-  if (nextConfig.experimental.enablePrerenderSourceMaps) {
+  if (nextConfig.staticPageGenerationSourcemaps) {
     try {
       // Same as `next dev`
       // Limiting the stack trace to a useful amount of frames is handled by ignore-listing.
