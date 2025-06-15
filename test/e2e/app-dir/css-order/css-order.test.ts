@@ -243,10 +243,9 @@ const allPairs = getPairs(Object.keys(PAGES))
 const options = (mode: string) => ({
   files: {
     app: new FileRef(path.join(__dirname, 'app')),
-    pages: new FileRef(path.join(__dirname, 'pages')),
     'next.config.js': process.env.IS_TURBOPACK_TEST
       ? `
-            module.exports = {}`
+            module.exports = {experimental: {turbopackMinify: false}}`
       : `
             module.exports = {
               experimental: {
@@ -291,6 +290,7 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
         const start = PAGES[ordering[0]]
         const browser = await next.browser(start.url)
         const check = async (pageInfo) => {
+          console.log(pageInfo.url)
           expect(
             await browser
               .waitForElementByCss(pageInfo.selector)
