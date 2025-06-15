@@ -952,12 +952,16 @@ export default class Router implements BaseRouter {
       return
     }
 
+    const needShallowlyNavigate = options.shallow && this._shallow
+
+    this._shallow = needShallowlyNavigate
+
     this.change(
       'replaceState',
       url,
       as,
       Object.assign<{}, TransitionOptions, TransitionOptions>({}, options, {
-        shallow: options.shallow && this._shallow,
+        shallow: needShallowlyNavigate,
         locale: options.locale || this.defaultLocale,
         // @ts-ignore internal value not exposed on types
         _h: 0,
@@ -1864,7 +1868,10 @@ export default class Router implements BaseRouter {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
-      this._shallow = options.shallow
+      if (method === 'pushState') {
+        this._shallow = options.shallow
+      }
+
       window.history[method](
         {
           url,
