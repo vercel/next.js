@@ -4,6 +4,7 @@ const { relative, basename, resolve, join, dirname } = require('path')
 const glob = require('glob')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const fs = require('fs/promises')
+const { existsSync } = require('fs')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
@@ -552,10 +553,10 @@ export async function ncc_react_refresh_utils(task, opts) {
     { recursive: true, force: true }
   )
 
-  const srcDir = join(
-    dirname(require.resolve('@next/react-refresh-utils/package.json')),
-    'dist'
+  const packageDir = dirname(
+    require.resolve('@next/react-refresh-utils/package.json')
   )
+  const srcDir = join(packageDir, 'dist')
   const destDir = join(
     __dirname,
     'dist/compiled/@next/react-refresh-utils/dist'
@@ -579,6 +580,28 @@ export async function ncc_react_refresh_utils(task, opts) {
         'next/dist/compiled/react-refresh/runtime'
       )
     )
+  }
+
+  // Copy TypeScript source files for source map support
+  const srcDestDir = join(__dirname, 'dist/compiled/@next/react-refresh-utils')
+
+  // Copy root TypeScript files
+  const rootTsFiles = glob.sync('*.ts', { cwd: packageDir })
+  for (const file of rootTsFiles) {
+    const content = await fs.readFile(join(packageDir, file), 'utf8')
+    await fs.writeFile(join(srcDestDir, file), content)
+  }
+
+  // Copy internal TypeScript files
+  const internalDir = join(packageDir, 'internal')
+  const internalDestDir = join(srcDestDir, 'internal')
+  if (existsSync(internalDir)) {
+    await fs.mkdir(internalDestDir, { recursive: true })
+    const internalTsFiles = glob.sync('*.ts', { cwd: internalDir })
+    for (const file of internalTsFiles) {
+      const content = await fs.readFile(join(internalDir, file), 'utf8')
+      await fs.writeFile(join(internalDestDir, file), content)
+    }
   }
 }
 
