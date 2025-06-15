@@ -1383,6 +1383,16 @@ export default class Router implements BaseRouter {
       method = 'replaceState'
     }
 
+    // cache issues, rewrites keeps as array and fails 
+    // when is called by resolveRewrites
+    if(rewrites && Array.isArray(rewrites)) {
+      rewrites = {
+        afterFiles: rewrites,
+        beforeFiles: [],
+        fallback: []
+      }
+    }
+
     // we need to resolve the as value using rewrites for dynamic SSG
     // pages to allow building the data URL correctly
     let resolvedAs = as
