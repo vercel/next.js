@@ -80,64 +80,53 @@ First, [create an account on Agility CMS](https://agilitycms.com).
 
 After creating an account you'll be asked to create a new project. Use any name of your liking as the **Project Name** and select the **Blank (advanced users)** template to create a blank Agility CMS instance.
 
-### Step 2: Create an Author Content Definition
+### Step 2: Create an Author Content Model
 
-To create an Author Content Definition in the Agility CMS Content Manager, follow these steps:
+To create an Author Content Model in the Agility CMS Content Manager, follow these steps:
 
-1. Navigate to **Settings** > **Content Definitions**.
-2. Click on the "New" button to create a new Content Definition.
-3. In the Title field, enter "Author". The Reference Name will be automatically populated for you.
-4. Use the Form Builder tab to add the following fields:
+1. Navigate to **Models** > **Content Models**.
+2. Click on the **New Content Model** button to create a new Content Model.
+3. In the Title field, enter `Author`.
+4. Click on the **Add Field** tab to add the following fields:
    - `Name`: Set the Field Label to "Name" and the Field Type to "Text".
    - `Picture`: Set the Field Label to "Picture" and the Field Type to "Image".
-5. Once you have added these fields, click on "Save & Close" to save your Author content definition.
+5. Once you have added these fields, click on "Save" to save your Author content model.
 
-By following these steps, you will be able to define an Author Content Definition in the Agility CMS Content Manager.
+By following these steps, you will be able to define an Author Content Model in the Agility CMS Content Manager.
 
-### Step 3. Create a `List` based on your `Author` Content Definition
+### Step 3. Create a `List` based on your `Author` Content Model
 
-From within the Agility CMS Content Manager, navigate to **Shared Content** and click the **+ (New)** button, then fill the form like so:
+1. Navigate to **Models** > **Content Models** > **Author**.
+2. Click on the "Add Field" tab to add the following fields:
+  - **Name** should be set to **Authors**.
 
-- **Type** should be `Content List`
-- **Content Definition** should be **Author**
-- **Display Name** should be set to **Authors**. This will also pre-populate **Reference Name** for you.
+### Step 4. Create a `Post` Content Model
+1. Navigate to **Models** > **Content Models**.
+2. Click on the **New Content Model** button to create a new Content Model.
+3. In the Title field, enter `Post`.
+4. Click on the **Add Field** tab to add the following fields:
+  - `Title` - Set **Field Type** to `Text`
+  - `Slug` - Set **Field Type** to `Text`
+  - `Date` - Set **Field Type** to `Date/Time`
+  - `AuthorID` - Set **Field Type** to `Number` and enable **Hidden fileld** for Advanced.
+  - `Author` - Do the following:
+    - **Field Type** - `Linked Content`
+    - **Link To** - `Shared Content`
+    - **Link Type** - `Specific Item(s) from a List`
+    - **Render UI** - `Dropdown List`
+    - **Content Selection** - `Specific Content List`
+    - **Content Reference** - `Authors`
+    - **Save Value To Field** - `AuthorID`
+  - `Excerpt` - Set **Field Type** to `Text`
+  - `Content` - Set **Field Type** to `Rich Text`
+  - `Cover Image` - Set **Field Type** to `Image`
+5. Once you have added these fields, click on "Save" to save your Post content model.
 
-### Step 4. Create a `Post` Content Definition
+When you are done, you will be able to define an `Post` content model.
 
-From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New** to create a new **Content Definition**.
+### Step 5. Populate Content
 
-- The **Title** should be `Post`.
-
-Next, add these fields via the **Form Builder** tab (you don't have to modify any other settings):
-
-- `Title` - Set **Field Type** to `Text`
-- `Slug` - Set **Field Type** to `Text`
-- `Date` - Set **Field Type** to `Date/Time`
-- `AuthorID` - Set **Field Type** to `Number` and enable **Hide field from input form**
-- `Author` - Do the following:
-  - **Field Type** - `Linked Content`
-  - **Content Definition** - `Author`
-  - **Content View** - `Shared Content`
-  - **Shared Content** - `Authors`
-  - **Render As** - `Dropdown List`
-  - **Save Value To Field** - `AuthorID`
-- `Excerpt` - Set **Field Type** to `Text`
-- `Content` - Set **Field Type** to `HTML`
-- `Cover Image` - Set **Field Type** to `Image`
-
-When you are done, click **Save & Close** to save your `Post` content definition.
-
-### Step 5. Create a `Dynamic Page List` based on your `Posts` Content Definition
-
-From within the Agility CMS Content Manager, navigate to **Shared Content** and click the **+ (New)** button, then fill the form like so:
-
-- **Type** should be `Dynamic Page List`
-- **Content Definition** should be `Post`
-- **Display Name** should be `Posts`. This will also pre-populate **Reference Name** for you
-
-### Step 6. Populate Content
-
-Go to **Shared Content**, select the **Authors** list and click the **+ New** button to create a new content item:
+Go to **Content**, select the **Authors** list and click the **+ New** button to create a new content item:
 
 - You just need **1 Author content item**.
 - Use dummy data for the text.
@@ -155,122 +144,98 @@ Next, select the **Posts** list and click the **+ New** button to create a new c
 
 For each post content item, you need to click `Publish` after saving. If not, the post will be in the `Staging` state.
 
-### Step 7. Define your `Intro` Module
+### Step 6. Define your `Intro` Component
 
-Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
+Navigate to **Models** > **Component Models** and click **+ New Component Model** to create a new **Component Model**.
 
 - Set **Title** to `Intro`
-- Set **Description** to `Displays an intro message.`
 
 In this case, we are not adding any fields to control the output or behavior, since the content is actually hard-coded in the template.
 
-Click **Save & Close** to save the definition.
+Click **Save & Close** to save the component.
 
-### Step 8. Define your `Hero Post` Module
+### Step 7. Define your `Hero Post` Component
 
-Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
+Navigate to **Models** > **Component Models** and click **+ New Component Model** to create a new **Component Model**.
 
 - Set **Title** to `Hero Post`
-- Set **Description** to `Displays the latest Post.`
 
 In this case, we are not adding any fields to control the output or behavior, since the latest post will be used by default and all of the data is associated to the post itself.
 
-Click **Save & Close** to save the definition.
+Click **Save & Close** to save the component.
 
-### Step 9. Define your `More Stories` Module
+### Step 8. Define your `More Stories` Component
 
-Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
+Navigate to **Models** > **Component Models** and click **+ New Component Model** to create a new **Component Model**.
 
 - Set **Title** to `More Stories`
-- Set **Description** to `Displays a listing of Posts.`
 
 Next, add the following field:
 
 - `Title` - Set **Field Type** to `Text`
 
-Click **Save & Close** to save the definition.
+Click **Save & Close** to save the component.
 
-### Step 10. Define your `Post Details` Module
+### Step 9. Define your `Post Details` Component
 
-Navigate to **Settings** > **Module Definitions** and click **New** to create a new **Module Definition**.
+Navigate to **Models** > **Component Models** and click **+ New Component Model** to create a new **Component Model**.
 
 - Set **Title** to `Post Details`
-- Set **Description** to `Displays the details of a Post.`
 
 In this case, we are not adding any fields to control the output or behavior, since the data is associated to the post itself.
 
-Click **Save & Close** to save the definition.
+Click **Save & Close** to save the component.
 
-### Step 11. Define a `One Column` Page Template
+### Step 10. Add the `Intro`, `Hero Post` and `More Stories` components to the `Main Content Zone` of the `home` page
+Navigate to **Pages** and select `home`, Click **+ Component** to add components.
 
-Navigate to **Settings** > **Page Templates** and click **New** to create a new **Page Template**.
+- Select `Intro` to add the component to `Main Content Zone`
 
-- **Name** should be `One Column Template`
-- **Digital Channel Type** should be `Website`
-- Under **Module Zones** click `+ (New)`
-  - Set **Display Name** to `Main Content Zone`, it will populate **Reference Name** for you
-  - Click `Save` to apply the `Main Content Zone`
+- Select `Hero Post` to add the component to `Main Content Zone`
 
-Click **Save & Close** to save the page template.
+- Select `More Stories` to add the component to `Main Content Zone`
+  - Edit Component, Set **Title** to `More Stories` 
 
-### Step 12. Add a new Page called `home`
+Then click **Publish** on the page in order to publish the page and all of its components.
 
-Navigate to **Pages** and click the **+ (New)** button in the page tree to create a new **Page**.
+### Step 11. Add a new Folder called `posts`
 
-- Set **Type** to `Page`
-- Set **Page Template** to `One Column Template`
-- Set **Menu Text** to `Home` - **Page Title** and **Page Name** fields will be auto-populated.
+Navigate to **Pages** and click the `Website` channel, then click the **Add Folder** button in the page tree to create a new **Folder** in the root of the site:
 
-Click **Save** to create the `/home` page.
-
-Next, let's add the `Intro`, `Hero Post` and `More Stories` modules to the `Main Content Zone` of the `home` page:
-
-- Click the **+ (New)** button on `Main Content Zone` and select `Intro` to add the module to the page
-- Click **Save & Close** on the module to return back to the page
-
-- Click the **+ (New)** button on `Main Content Zone` and select `Hero Post` to add the module to the page
-- Click **Save & Close** on the module to return back to the page
-
-- Click the **+ (New)** button on `Main Content Zone` and select `More Stories` to add the module to the page
-  - Set **Title** to `More Stories`
-- Click **Save & Close** on the module to return back to the page
-
-Then click **Publish** on the page in order to publish the page and all of its modules.
-
-### Step 13. Add a new Folder called `posts`
-
-Navigate to **Pages** and click the `Website` channel, then click the **+ (New)** button in the page tree to create a new **Folder** in the root of the site:
-
-- Set **Type** to `Folder`
 - Set **Menu Text** to `Posts`, **Folder Name** will be auto-populated to `posts`
 
 Click **Save** to create the `/posts` folder.
 
-**Important:** Click **Publish** on the folder.
+Click **Publish** on the folder.
 
-### Step 14. Add a new Dynamic Page called `posts-dynamic`
+### Step 12. Add a new Dynamic Page called `posts-dynamic`
 
-Navigate to **Pages** and select the existing `/posts` folder. Click the **+ (New)** button in the page tree to create a new **Dynamic Page** underneath the `posts` page.
-
-- Set **Type** to `Dynamic Page`
+Navigate to **Pages** and select the existing `/posts` folder. Click the **+ New Page** button in the page tree to create a new **Dynamic Page** underneath the `posts` page.
 - Set **Page Template** to `One Column Template`
+- Set **Page Title** to `Post Dynamic`
+
+Click **Save** to create the `/posts/posts-dynamic` static page.
+
+Click **Properties** tab, Select **Dynamic** for **Page Type** to modify page type to dynamic.
+
 - Set **Build Pages From** to `Posts`
-- Set **Sitemap Label** to `posts-dynamic`
 - Set **Page Path Formula** to `##Slug##`
 - Set **Page Title Formula** and **Menu Text Formula** to `##Title##`
 
 Click **Save** to create the `/posts/posts-dynamic` dynamic page.
 
-Next, let's add the `Post Details` and `More Stories` modules to the `Main Content Zone` of the `posts-dynamic` page:
+Next, let's add the `Post Details` and `More Stories` components to the `Main Content Zone` of the `posts-dynamic` page:
 
-- Click the **+ (New)** button on `Main Content Zone` and select `Post Details` to add the module to the page
-- Click the **+ (New)** button on `Main Content Zone` and select `More Stories` to add the module to the page
-  - Set **Title** to `More Stories`
-- Click **Save & Close** on the module to return back to the `posts-dynamic` page
+Navigate to **Pages** and select `posts-dynamic`, Click **+ Component** to add components.
+
+- Select `Post Details` to add the component to `Main Content Zone`
+
+- Select `More Stories` to add the component to `Main Content Zone`
+  - Edit Component, Set **Title** to `More Stories` 
 
 Then click **Publish** on the page in order to publish the page and all of its modules.
 
-### Step 15. Set up environment variables
+### Step 13. Set up environment variables
 
 Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
@@ -296,7 +261,7 @@ AGILITY_CMS_API_PREVIEW_KEY=...
 AGILITY_CMS_SECURITY_KEY=...
 ```
 
-### Step 16. Run Next.js in development mode
+### Step 14. Run Next.js in development mode
 
 ```bash
 npm install
@@ -310,7 +275,7 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
-### Step 17. Deploy on Vercel
+### Step 15. Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
@@ -326,7 +291,7 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&project-name=cms-agilitycms&repository-name=cms-agilitycms&env=AGILITY_CMS_GUID,AGILITY_CMS_API_FETCH_KEY,AGILITY_CMS_API_PREVIEW_KEY,AGILITY_CMS_SECURITY_KEY&envDescription=API%20Keys%20required%20by%20Agility%20CMS&envLink=https://vercel.link/agility-cms-env)
 
-### Step 18. Try preview mode
+### Step 16. Try preview mode
 
 Now that you've deployed your app to Vercel, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [Next.js Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
 
