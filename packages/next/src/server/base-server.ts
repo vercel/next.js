@@ -933,9 +933,16 @@ export default abstract class Server<
             'http.method': method,
             'http.target': req.url,
           },
+          manualSpanEnd: true,
         },
         async (span) =>
           this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+            res.onClose(() => {
+              if (span) {
+                span.end()
+              }
+            })
+
             if (!span) return
 
             const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
