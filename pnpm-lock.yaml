@@ -733,6 +733,9 @@ importers:
 
   bench/vercel:
     dependencies:
+      '@dotenvx/dotenvx':
+        specifier: 1.39.0
+        version: 1.39.0
       '@szmarczak/http-timer':
         specifier: 5.0.1
         version: 5.0.1
@@ -742,9 +745,6 @@ importers:
       commander:
         specifier: 2.20.0
         version: 2.20.0
-      dotenv:
-        specifier: 10.0.0
-        version: 10.0.0
       downsample-lttb:
         specifier: 0.0.1
         version: 0.0.1
@@ -1637,15 +1637,12 @@ importers:
 
   packages/next-env:
     devDependencies:
+      '@dotenvx/dotenvx':
+        specifier: 1.39.0
+        version: 1.39.0
       '@vercel/ncc':
         specifier: 0.34.0
         version: 0.34.0
-      dotenv:
-        specifier: 16.3.1
-        version: 16.3.1
-      dotenv-expand:
-        specifier: 10.0.0
-        version: 10.0.0
 
   packages/next-mdx:
     dependencies:
@@ -2865,6 +2862,16 @@ packages:
   '@discoveryjs/json-ext@0.5.7':
     resolution: {integrity: sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==}
     engines: {node: '>=10.0.0'}
+
+  '@dotenvx/dotenvx@1.39.0':
+    resolution: {integrity: sha512-qGfDpL/3S17MQYXpR3HkBS5xNQ7wiFlqLdpr+iIQzv17aMRcSlgL4EjMIsYFZ540Dq17J+y5FVElA1AkVoXiUA==}
+    hasBin: true
+
+  '@ecies/ciphers@0.2.3':
+    resolution: {integrity: sha512-tapn6XhOueMwht3E2UzY0ZZjYokdaw9XtL9kEyjhQ/Fb9vL9xTFbOaI+fV0AWvTpYu4BNloC6getKW6NtSg4mA==}
+    engines: {bun: '>=1', deno: '>=2', node: '>=16'}
+    peerDependencies:
+      '@noble/ciphers': ^1.0.0
 
   '@edge-runtime/cookies@6.0.0':
     resolution: {integrity: sha512-VVO/8AwC2qVbygLb2IOkX1zWFx2yWIHzFv4D602CTnoRffd/+cdcXqpSydKaedFrk7a1dRYXbWwjzfV/gwZ2Gw==}
@@ -4366,6 +4373,18 @@ packages:
 
   '@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1':
     resolution: {integrity: sha512-54/JRvkLIzzDWshCWfuhadfrfZVPiElY8Fcgmg1HroEly/EDSszzhBAsarCux+D/kOslTRquNzuyGSmUSTTHGg==}
+
+  '@noble/ciphers@1.2.1':
+    resolution: {integrity: sha512-rONPWMC7PeExE077uLE4oqWrZ1IvAfz3oH9LibVAcVCopJiA9R62uavnbEzdkVmJYI6M6Zgkbeb07+tWjlq2XA==}
+    engines: {node: ^14.21.3 || >=16}
+
+  '@noble/curves@1.8.1':
+    resolution: {integrity: sha512-warwspo+UYUPep0Q+vtdVB4Ugn8GGQj8iyB3gnRWsztmUHTI3S1nhdiWNsPUGL0vud7JlRRk1XEu7Lq1KGTnMQ==}
+    engines: {node: ^14.21.3 || >=16}
+
+  '@noble/hashes@1.7.1':
+    resolution: {integrity: sha512-B8XBPsn4vT/KJAGqDzbwztd+6Yte3P4V7iafm24bxgDe/mlRuK6xmWPuCNrKt2vDafZ8MfJLlchDG/vYafQEjQ==}
+    engines: {node: ^14.21.3 || >=16}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -8382,16 +8401,8 @@ packages:
     resolution: {integrity: sha512-1gxPBJpI/pcjQhKgIU91II6Wkay+dLcN3M6rf2uwP8hRur3HtQXjVrdAK3sjC0piaEuxzMwjXChcETiJl47lAQ==}
     engines: {node: '>=18'}
 
-  dotenv-expand@10.0.0:
-    resolution: {integrity: sha512-GopVGCpVS1UKH75VKHGuQFqS1Gusej0z4FyQkPdwjil2gNIv+LNsqBlboOzpJFZKVT95GkCyWJbBSdFEFUWI2A==}
-    engines: {node: '>=12'}
-
-  dotenv@10.0.0:
-    resolution: {integrity: sha512-rlBi9d8jpv9Sf1klPjNfFAuWDjKLwTIJJ/VxtoTwIR6hnZxcEOQCZg2oIL3MWBYw5GpUDKOEnND7LXTbIpQ03Q==}
-    engines: {node: '>=10'}
-
-  dotenv@16.3.1:
-    resolution: {integrity: sha512-IPzF4w4/Rd94bA9imS68tZBaYyBWSCE47V1RGuMrB94iyTOIEwRmVL2x/4An+6mETpLrKJ5hQkB8W4kFAadeIQ==}
+  dotenv@16.4.7:
+    resolution: {integrity: sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ==}
     engines: {node: '>=12'}
 
   dotenv@8.6.0:
@@ -8418,6 +8429,10 @@ packages:
 
   ecdsa-sig-formatter@1.0.11:
     resolution: {integrity: sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==}
+
+  eciesjs@0.4.14:
+    resolution: {integrity: sha512-eJAgf9pdv214Hn98FlUzclRMYWF7WfoLlkS9nWMTm1qcCwn6Ad4EGD9lr9HXMBfSrZhYQujRE+p0adPRkctC6A==}
+    engines: {bun: '>=1', deno: '>=2', node: '>=16'}
 
   edge-runtime@4.0.1:
     resolution: {integrity: sha512-knylcPEqTugSmZolBR7P0O+StzYHd2J7wSmI0zqETD+xhy2xSeTA03p0SZqMKRsAsHPZ1qIGb7/bL71LUh9hqQ==}
@@ -8959,8 +8974,8 @@ packages:
     resolution: {integrity: sha512-WFDXGHckXPWZX19t1kCsXzOpqX9LWYNqn4C+HqZlk/V0imTkzJZqf87ZBhvpHaftERYknpk0fjSylnXVlVgI0A==}
     engines: {node: '>=10'}
 
-  execa@5.0.0:
-    resolution: {integrity: sha512-ov6w/2LCiuyO4RLYGdpFGjkcs0wMTgGE8PrkTHikeUy5iJekXyPIKUjifk5CsE0pt7sMCrMZ3YNqoCj6idQOnQ==}
+  execa@5.1.1:
+    resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
     engines: {node: '>=10'}
 
   execa@8.0.1:
@@ -9086,6 +9101,14 @@ packages:
 
   fbjs@3.0.2:
     resolution: {integrity: sha512-qv+boqYndjElAJHNN3NoM8XuwQZ1j2m3kEvTgdle8IDjr6oUbkEpvABWtj/rQl3vq4ew7dnElBxL4YJAwTVqQQ==}
+
+  fdir@6.4.3:
+    resolution: {integrity: sha512-PMXmW2y1hDDfTSRc9gaXIuCCRpuoz3Kaz8cUelp3smouvfT632ozg2vrT6lJsHKKOF59YLbOGfAWGUcKEfRMQw==}
+    peerDependencies:
+      picomatch: ^3 || ^4
+    peerDependenciesMeta:
+      picomatch:
+        optional: true
 
   fflate@0.7.4:
     resolution: {integrity: sha512-5u2V/CDW15QM1XbbgS+0DfPxVB+jUKhWEKuuFuHncbk3tEEqzmoXL+2KyOFuKGqOnmdIy0/davWF1CkuwtibCw==}
@@ -12380,6 +12403,10 @@ packages:
     resolution: {integrity: sha512-NuAESUOUMrlIXOfHKzD6bpPu3tYt3xvjNdRIQ+FeT0lNb4K8WR70CaDxhuNguS2XG+GjkyMwOzsN5ZktImfhLA==}
     engines: {node: '>= 0.4'}
 
+  object-treeify@1.1.33:
+    resolution: {integrity: sha512-EFVjAYfzWqWsBMRHPMAXLCDIJnpMhdWAqR7xG6M6a2cs6PMFpl/+Z20w9zDW4vkxOFfddegBKq9Rehd0bxWE7A==}
+    engines: {node: '>= 10'}
+
   object.assign@4.1.4:
     resolution: {integrity: sha512-1mxKf0e58bvyjSCtKYY4sRe9itRk3PJpquJOjeIkz885CczcI4IvJJDLPS72oowuSh+pBxUFROpX+TU++hxhZQ==}
     engines: {node: '>= 0.4'}
@@ -12849,6 +12876,10 @@ packages:
 
   picomatch@4.0.1:
     resolution: {integrity: sha512-xUXwsxNjwTQ8K3GnT4pCJm+xq3RUPQbmkYJTP5aFIfNIvbcc/4MUxgBaaRSZJ6yGJZiGSyYlM6MzwTsRk8SYCg==}
+    engines: {node: '>=12'}
+
+  picomatch@4.0.2:
+    resolution: {integrity: sha512-M7BAV6Rlcy5u+m6oPhAPFgJTzAioX/6B0DxyvDlo9l8+T3nLKbrczg2WLUyzd45L8RqfUMyGPzekbMvX2Ldkwg==}
     engines: {node: '>=12'}
 
   pidtree@0.3.0:
@@ -18131,6 +18162,22 @@ snapshots:
 
   '@discoveryjs/json-ext@0.5.7': {}
 
+  '@dotenvx/dotenvx@1.39.0':
+    dependencies:
+      commander: 11.1.0
+      dotenv: 16.4.7
+      eciesjs: 0.4.14
+      execa: 5.1.1
+      fdir: 6.4.3(picomatch@4.0.2)
+      ignore: 5.3.2
+      object-treeify: 1.1.33
+      picomatch: 4.0.2
+      which: 4.0.0
+
+  '@ecies/ciphers@0.2.3(@noble/ciphers@1.2.1)':
+    dependencies:
+      '@noble/ciphers': 1.2.1
+
   '@edge-runtime/cookies@6.0.0': {}
 
   '@edge-runtime/format@4.0.0': {}
@@ -19323,7 +19370,7 @@ snapshots:
   '@lerna/child-process@4.0.0':
     dependencies:
       chalk: 4.1.2
-      execa: 5.0.0
+      execa: 5.1.1
       strong-log-transformer: 2.1.0
 
   '@lerna/clean@4.0.0':
@@ -19367,7 +19414,7 @@ snapshots:
       '@lerna/write-log-file': 4.0.0
       clone-deep: 4.0.1
       dedent: 0.7.0
-      execa: 5.0.0
+      execa: 5.1.1
       is-ci: 2.0.0
       npmlog: 4.1.2
 
@@ -19935,6 +19982,14 @@ snapshots:
   '@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1':
     dependencies:
       eslint-scope: 5.1.1
+
+  '@noble/ciphers@1.2.1': {}
+
+  '@noble/curves@1.8.1':
+    dependencies:
+      '@noble/hashes': 1.7.1
+
+  '@noble/hashes@1.7.1': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -24691,11 +24746,7 @@ snapshots:
     dependencies:
       type-fest: 4.18.3
 
-  dotenv-expand@10.0.0: {}
-
-  dotenv@10.0.0: {}
-
-  dotenv@16.3.1: {}
+  dotenv@16.4.7: {}
 
   dotenv@8.6.0: {}
 
@@ -24717,6 +24768,13 @@ snapshots:
   ecdsa-sig-formatter@1.0.11:
     dependencies:
       safe-buffer: 5.2.1
+
+  eciesjs@0.4.14:
+    dependencies:
+      '@ecies/ciphers': 0.2.3(@noble/ciphers@1.2.1)
+      '@noble/ciphers': 1.2.1
+      '@noble/curves': 1.8.1
+      '@noble/hashes': 1.7.1
 
   edge-runtime@4.0.1:
     dependencies:
@@ -25723,7 +25781,7 @@ snapshots:
       signal-exit: 3.0.7
       strip-final-newline: 2.0.0
 
-  execa@5.0.0:
+  execa@5.1.1:
     dependencies:
       cross-spawn: 7.0.3
       get-stream: 6.0.0
@@ -25960,6 +26018,10 @@ snapshots:
       promise: 7.3.1
       setimmediate: 1.0.5
       ua-parser-js: 0.7.31
+
+  fdir@6.4.3(picomatch@4.0.2):
+    optionalDependencies:
+      picomatch: 4.0.2
 
   fflate@0.7.4: {}
 
@@ -27731,7 +27793,7 @@ snapshots:
 
   jest-changed-files@29.7.0:
     dependencies:
-      execa: 5.0.0
+      execa: 5.1.1
       jest-util: 29.7.0
       p-limit: 3.1.0
 
@@ -30361,6 +30423,8 @@ snapshots:
 
   object-keys@1.1.1: {}
 
+  object-treeify@1.1.33: {}
+
   object.assign@4.1.4:
     dependencies:
       call-bind: 1.0.7
@@ -30905,6 +30969,8 @@ snapshots:
   picomatch@2.3.1: {}
 
   picomatch@4.0.1: {}
+
+  picomatch@4.0.2: {}
 
   pidtree@0.3.0: {}
 

@@ -1,8 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import * as fs from 'fs'
 import * as path from 'path'
-import * as dotenv from 'dotenv'
-import { expand as dotenvExpand } from 'dotenv-expand'
+import * as dotenv from '@dotenvx/dotenvx'
 
 export type Env = { [key: string]: string | undefined }
 export type LoadedEnvFiles = Array<{
@@ -69,8 +68,6 @@ export function processEnv(
     try {
       let result: dotenv.DotenvConfigOutput = {}
       result.parsed = dotenv.parse(envFile.contents)
-
-      result = dotenvExpand(result)
 
       if (
         result.parsed &&
