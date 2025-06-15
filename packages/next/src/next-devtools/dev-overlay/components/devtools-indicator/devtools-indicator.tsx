@@ -1,6 +1,5 @@
 import type { CSSProperties } from 'react'
 import type { OverlayState, OverlayDispatch } from '../../shared'
-import type { DevToolsScale } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
 
 import { useState } from 'react'
 import { NextLogo } from './next-logo'
@@ -26,13 +25,11 @@ export function DevToolsIndicator({
   dispatch,
   errorCount,
   isBuildError,
-  scale,
 }: {
   state: OverlayState
   dispatch: OverlayDispatch
   errorCount: number
   isBuildError: boolean
-  scale: DevToolsScale
 }) {
   const [open, setOpen] = useState(false)
 
@@ -88,7 +85,7 @@ export function DevToolsIndicator({
           isDevBuilding={state.buildingIndicator}
           isDevRendering={state.renderingIndicator}
           isBuildError={isBuildError}
-          scale={scale}
+          scale={state.scale}
         />
       </Draggable>
     </Toast>
