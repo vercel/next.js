@@ -204,6 +204,21 @@ export class Blah extends Head {
 }
 `
 
+const secondInvalidStaticCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/foo'>Foo</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
 const invalidDynamicCode = `
 import Link from 'next/link';
 
@@ -385,6 +400,16 @@ describe('no-html-link-for-pages', function () {
         report.message,
         'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
       )
+      const [secondReport] = linters[version].withCustomPages.verify(
+        secondInvalidStaticCode,
+        linterConfigWithCustomDirectory,
+        { filename: 'foo.js' }
+      )
+      assert.notEqual(secondReport, undefined, 'No lint errors found.')
+      assert.equal(
+        secondReport.message,
+        'Do not use an `<a>` element to navigate to `/foo/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+      )
     })
     it(`invalid dynamic route (${version})`, function () {
       const [report] = linters[version].withCustomPages.verify(
@@ -480,6 +505,16 @@ describe('no-html-link-for-pages', function () {
       assert.equal(
         report.message,
         'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+      )
+      const [secondReport] = linters[version].withApp.verify(
+        secondInvalidStaticCode,
+        linterConfig,
+        { filename: 'foo.js' }
+      )
+      assert.notEqual(secondReport, undefined, 'No lint errors found.')
+      assert.equal(
+        secondReport.message,
+        'Do not use an `<a>` element to navigate to `/foo/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
       )
     })
     it(`invalid dynamic route with appDir (${version})`, function () {
