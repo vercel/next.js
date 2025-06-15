@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - metadata-streaming-customized-rule', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     overrideFiles: {
       'next.config.js': `
@@ -39,4 +39,12 @@ describe('app-dir - metadata-streaming-customized-rule', () => {
     expect(await $('head title').length).toBe(0)
     expect(await $('body title').length).toBe(1)
   })
+
+  if (isNextDev) {
+    it('should not have schema issue', () => {
+      expect(next.cliOutput).not.toContain(
+        'Invalid next.config.js options detected'
+      )
+    })
+  }
 })
