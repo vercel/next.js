@@ -1,16 +1,23 @@
 import type { DevToolsPanelTabType } from '../devtools-panel'
 import type { OverlayDispatch, OverlayState } from '../../../shared'
+import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
+import type { HydrationErrorState } from '../../../../shared/hydration-error'
 
 import { SettingsTab } from './settings-tab'
+import { IssuesTab } from './issues-tab/issues-tab'
 
 export function DevToolsPanelTab({
   activeTab,
   state,
   dispatch,
+  runtimeErrors,
+  getSquashedHydrationErrorDetails,
 }: {
   activeTab: DevToolsPanelTabType
   state: OverlayState
   dispatch: OverlayDispatch
+  runtimeErrors: ReadyRuntimeError[]
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
 }) {
   if (activeTab === 'settings') {
     return <SettingsTab state={state} dispatch={dispatch} />
@@ -21,7 +28,13 @@ export function DevToolsPanelTab({
   }
 
   if (activeTab === 'issues') {
-    return <div>Issues</div>
+    return (
+      <IssuesTab
+        state={state}
+        runtimeErrors={runtimeErrors}
+        getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+      />
+    )
   }
 
   console.log(
