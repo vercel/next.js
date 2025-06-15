@@ -14,6 +14,10 @@ function applyPatch(
   initialTree: FlightRouterState,
   patchTree: FlightRouterState
 ): FlightRouterState {
+  if (!initialTree || !Array.isArray(initialTree)) {
+    return patchTree
+  }
+
   const [initialSegment, initialParallelRoutes] = initialTree
   const [patchSegment, patchParallelRoutes] = patchTree
 
@@ -28,41 +32,37 @@ function applyPatch(
 
   if (matchSegment(initialSegment, patchSegment)) {
     const newParallelRoutes: FlightRouterState[1] = {}
-    for (const key in initialParallelRoutes) {
-      const isInPatchTreeParallelRoutes =
-        typeof patchParallelRoutes[key] !== 'undefined'
-      if (isInPatchTreeParallelRoutes) {
-        newParallelRoutes[key] = applyPatch(
-          initialParallelRoutes[key],
-          patchParallelRoutes[key]
-        )
-      } else {
-        newParallelRoutes[key] = initialParallelRoutes[key]
+
+    if (initialParallelRoutes && typeof initialParallelRoutes === 'object') {
+      for (const key in initialParallelRoutes) {
+        const isInPatchTreeParallelRoutes =
+          patchParallelRoutes && typeof patchParallelRoutes[key] !== 'undefined'
+
+        if (isInPatchTreeParallelRoutes) {
+          newParallelRoutes[key] = applyPatch(
+            initialParallelRoutes[key],
+            patchParallelRoutes[key]
+          )
+        } else {
+          newParallelRoutes[key] = initialParallelRoutes[key]
+        }
       }
     }
 
-    for (const key in patchParallelRoutes) {
-      if (newParallelRoutes[key]) {
-        continue
+    if (patchParallelRoutes && typeof patchParallelRoutes === 'object') {
+      for (const key in patchParallelRoutes) {
+        if (newParallelRoutes[key]) {
+          continue
+        }
+        newParallelRoutes[key] = patchParallelRoutes[key]
       }
-
-      newParallelRoutes[key] = patchParallelRoutes[key]
     }
 
     const tree: FlightRouterState = [initialSegment, newParallelRoutes]
 
-    // Copy over the existing tree
-    if (initialTree[2]) {
-      tree[2] = initialTree[2]
-    }
-
-    if (initialTree[3]) {
-      tree[3] = initialTree[3]
-    }
-
-    if (initialTree[4]) {
-      tree[4] = initialTree[4]
-    }
+    if (initialTree[2]) tree[2] = initialTree[2]
+    if (initialTree[3]) tree[3] = initialTree[3]
+    if (initialTree[4]) tree[4] = initialTree[4]
 
     return tree
   }
