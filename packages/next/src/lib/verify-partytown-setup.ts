@@ -24,10 +24,10 @@ async function missingDependencyError(dir: string) {
       `\t${bold(
         cyan(
           (packageManager === 'yarn'
-            ? 'yarn add --dev'
+            ? 'yarn add'
             : packageManager === 'pnpm'
-              ? 'pnpm install --save-dev'
-              : 'npm install --save-dev') + ' @builder.io/partytown'
+            ? 'pnpm install'
+            : 'npm install') + ' @builder.io/partytown'
         )
       )}` +
       '\n\n' +
