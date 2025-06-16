@@ -372,7 +372,7 @@ function InnerLayoutRouter({
       ? use(rsc)
       : rsc
 
-  if (!resolvedRsc) {
+  if (!resolvedRsc && segmentPath[0] !== '__not_found__') {
     // The data for this segment is not available, and there's no pending
     // navigation that will be able to fulfill it. We need to fetch more from
     // the server and patch the cache.

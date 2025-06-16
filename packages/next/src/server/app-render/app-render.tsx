@@ -848,6 +848,7 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     StreamingMetadataOutlet,
+    shouldIncludeNotFoundSegment: false, // TODO: figure out the scenario where a notFound is thrown in SSR
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
