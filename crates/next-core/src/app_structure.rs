@@ -24,6 +24,7 @@ use crate::{
         },
     },
     next_import_map::get_next_package,
+    next_root_params::{DynamicPageSegment, DynamicSegmentKind},
 };
 
 // Next.js ignores underscores for routes but you can use %5f to still serve an underscored
@@ -482,7 +483,7 @@ impl AppPageLoaderTree {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Default)]
-pub struct RootParamVecOption(Option<Vec<RcStr>>);
+pub struct RootParamVecOption(Option<Vec<DynamicPageSegment>>);
 
 #[turbo_tasks::value_impl]
 impl ValueDefault for RootParamVecOption {
@@ -765,16 +766,21 @@ pub fn get_entrypoints(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CollectedRootParams(FxIndexSet<RcStr>);
+pub struct CollectedRootParams(FxIndexMap<RcStr, FxIndexSet<DynamicSegmentKind>>);
 
 #[turbo_tasks::function]
 pub async fn collect_root_params(
     entrypoints: ResolvedVc<Entrypoints>,
 ) -> Result<Vc<CollectedRootParams>> {
-    let mut collected_root_params = FxIndexSet::<RcStr>::default();
+    let mut collected_root_params = FxIndexMap::<RcStr, FxIndexSet<DynamicSegmentKind>>::default();
     for (_, entrypoint) in entrypoints.await?.iter() {
         if let Some(ref root_params) = *entrypoint.root_params().await? {
-            collected_root_params.extend(root_params.iter().cloned());
+            for param in root_params {
+                let param_kinds = collected_root_params
+                    .entry(param.param.clone())
+                    .or_default();
+                param_kinds.insert(param.kind);
+            }
         }
     }
     Ok(Vc::cell(collected_root_params))
@@ -1270,13 +1276,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_page
                 .0
                 .iter()
-                .filter_map(|segment| match segment {
-                    PageSegment::Dynamic(param)
-                    | PageSegment::CatchAll(param)
-                    | PageSegment::OptionalCatchAll(param) => Some(param.clone()),
-                    _ => None,
-                })
-                .collect::<Vec<RcStr>>(),
+                .filter_map(|segment| DynamicPageSegment::from_page_segment(segment))
+                .collect::<Vec<_>>(),
         ))
     } else {
         root_params

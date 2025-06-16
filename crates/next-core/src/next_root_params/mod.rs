@@ -24,10 +24,58 @@ use turbopack_core::{
 };
 
 use crate::{
-    app_structure::CollectedRootParams, embed_js::next_js_file_path,
+    app_structure::CollectedRootParams, embed_js::next_js_file_path, next_app::PageSegment,
     next_client::ClientContextType, next_server::ServerContextType,
     next_shared::resolve::InvalidImportModuleIssue,
 };
+
+#[turbo_tasks::value]
+#[derive(Debug, Hash, Copy, Clone)]
+pub enum DynamicSegmentKind {
+    /// e.g. `/[id]`
+    Dynamic,
+    /// e.g. `/[...slug]`
+    CatchAll,
+    /// e.g. `/[[...slug]]`
+    OptionalCatchAll,
+}
+
+impl DynamicSegmentKind {
+    fn get_typescript_type(self) -> RcStr {
+        match self {
+            Self::CatchAll => "string[]".into(),
+            Self::OptionalCatchAll => "string[] | undefined".into(),
+            Self::Dynamic => "string".into(),
+        }
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Debug, Hash, Clone)]
+pub struct DynamicPageSegment {
+    pub param: RcStr,
+    pub kind: DynamicSegmentKind,
+}
+
+impl DynamicPageSegment {
+    pub fn from_page_segment(segment: &PageSegment) -> Option<DynamicPageSegment> {
+        match segment {
+            PageSegment::Dynamic(param) => Some(DynamicPageSegment {
+                param: param.clone(),
+                kind: DynamicSegmentKind::Dynamic,
+            }),
+            PageSegment::CatchAll(param) => Some(DynamicPageSegment {
+                param: param.clone(),
+                kind: DynamicSegmentKind::CatchAll,
+            }),
+            PageSegment::OptionalCatchAll(param) => Some(DynamicPageSegment {
+                param: param.clone(),
+                kind: DynamicSegmentKind::OptionalCatchAll,
+            }),
+            _ => None,
+        }
+    }
+}
 
 pub async fn insert_next_root_params_mapping(
     import_map: &mut ImportMap,
@@ -168,7 +216,7 @@ impl NextRootParamsMapper {
                         import {{ getRootParam }} from 'next/dist/server/request/root-params';
                     "#,
                 ))
-                .chain(collected_root_params.iter().map(|param_name| {
+                .chain(collected_root_params.keys().map(|param_name| {
                     formatdoc!(
                         r#"
                             export function {PARAM_NAME}() {{
@@ -259,10 +307,23 @@ pub async fn get_next_root_params_declaration_asset(
         } else {
             let declarations = collected_root_params
                 .iter()
-                .map(|param_name| {
-                    // TODO(root-params): type as string or string[] depending if the param can
-                    // be a catch-all
-                    let param_type = "string | string[] | undefined";
+                .map(|(param_name, param_kinds)| {
+                    let possible_types_for_param = param_kinds
+                        .iter()
+                        .map(|k| k.get_typescript_type())
+                        .chain(
+                            // A root param getter can be called
+                            // - in a route handler (not yet implemented)
+                            // - a server action (unsupported)
+                            // - in another root layout that doesn't share the same root params.
+                            // For this reason, we currently always want `... | undefined` in the
+                            // type.
+                            iter::once("undefined".into()),
+                        )
+                        .collect::<Vec<_>>();
+
+                    let param_type = union_ts_types(&possible_types_for_param);
+
                     formatdoc!(
                         r#"
                             /** Allows reading the '{PARAM_NAME}' root param. */
@@ -291,4 +352,18 @@ pub async fn get_next_root_params_declaration_asset(
         output_path,
         AssetContent::file(FileContent::Content(File::from(module_content)).cell()),
     ))
+}
+
+fn union_ts_types(types: &Vec<RcStr>) -> RcStr {
+    if types.is_empty() {
+        return "never".into();
+    } else if types.len() == 1 {
+        return types[0].clone();
+    } else {
+        return types
+            .iter()
+            .map(|ty| format!("({})", ty))
+            .join(" | ")
+            .into();
+    }
 }
