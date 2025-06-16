@@ -100,7 +100,9 @@ export async function initialize(opts: {
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir,
-    { silent: false }
+    {
+      silent: opts.dev,
+    }
   )
 
   let compress: ReturnType<typeof setupCompression> | undefined
