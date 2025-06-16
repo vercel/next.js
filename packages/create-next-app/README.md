@@ -31,10 +31,13 @@ You can also pass command line arguments to set up a new project
 non-interactively. See `create-next-app --help`:
 
 ```bash
-Usage: create-next-app [project-directory] [options]
+Usage: create-next-app [directory] [options]
 
 Options:
-  -V, --version                        output the version number
+  -v, --version
+  
+    Output the current version of create-next-app.
+
   --ts, --typescript
 
     Initialize as a TypeScript project. (default)
@@ -63,9 +66,13 @@ Options:
 
     Enable Turbopack by default for development.
 
-  --import-alias <alias-to-configure>
+  --import-alias <prefix/*>
 
     Specify import alias to use (default "@/*").
+
+  --api
+
+    Initialize a headless API using the App Router.
 
   --empty
 
@@ -73,25 +80,37 @@ Options:
 
   --use-npm
 
-    Explicitly tell the CLI to bootstrap the application using npm
+    Explicitly tell the CLI to bootstrap the application using npm.
 
   --use-pnpm
 
-    Explicitly tell the CLI to bootstrap the application using pnpm
+    Explicitly tell the CLI to bootstrap the application using pnpm.
 
   --use-yarn
 
-    Explicitly tell the CLI to bootstrap the application using Yarn
+    Explicitly tell the CLI to bootstrap the application using Yarn.
 
   --use-bun
 
-    Explicitly tell the CLI to bootstrap the application using Bun
+    Explicitly tell the CLI to bootstrap the application using Bun.
 
-  -e, --example [name]|[github-url]
+  --reset, --reset-preferences
+
+    Reset the preferences saved for create-next-app.
+
+  --skip-install
+
+    Explicitly tell the CLI to skip installing packages.
+
+  --yes
+  
+    Use saved preferences or defaults for unprovided options.
+
+  -e, --example <example-name|github-url>
 
     An example to bootstrap the app with. You can use an example name
-    from the official Next.js repo or a GitHub URL. The URL can use
-    any branch and/or subdirectory
+    from the official Next.js repo or a public GitHub URL. The URL can use
+    any branch and/or subdirectory.
 
   --example-path <path-to-example>
 
@@ -100,24 +119,13 @@ Options:
     In this case, you must specify the path to the example separately:
     --example-path foo/bar
 
-  --reset-preferences
-
-    Explicitly tell the CLI to reset any stored preferences
-
-  --skip-install
-
-    Explicitly tell the CLI to skip installing packages
-
   --disable-git
 
-    Explicitly tell the CLI to skip initializing a git repository.
+    Skip initializing a git repository.
 
-  --yes
+  -h, --help
 
-    Use previous preferences or defaults for all options that were not
-    explicitly specified, without prompting.
-
-  -h, --help                           display help for command
+    Display this help message.
 ```
 
 ### Why use Create Next App?
