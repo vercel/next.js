@@ -180,7 +180,7 @@ export async function validateTurboNextConfig({
       `Webpack is configured while Turbopack is not, which may cause problems.`
     )
     Log.warn(
-      `See instructions if you need to configure Turbopack:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack\n`
+      `See instructions if you need to configure Turbopack:\n  https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack\n`
     )
   }
 

@@ -765,7 +765,7 @@ export async function handleAction({
                 new ApiError(
                   413,
                   `Body exceeded ${bodySizeLimit} limit.\n` +
-                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/serverActions#bodysizelimit`
                 )
               )
               return

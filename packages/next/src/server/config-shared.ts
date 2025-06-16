@@ -134,7 +134,7 @@ export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases)
    */
   resolveAlias?: Record<
     string,
@@ -144,14 +144,14 @@ export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A list of extensions to resolve when importing files.
    *
-   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-custom-extensions)
    */
   resolveExtensions?: string[]
 
   /**
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
    */
   rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
 
@@ -181,7 +181,7 @@ export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @deprecated Use `rules` instead.
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
    */
   loaders?: Record<string, TurbopackLoaderItem[]>
 
@@ -439,7 +439,7 @@ export interface ExperimentalConfig {
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
+   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/mdxRs
    */
   mdxRs?:
     | boolean
@@ -454,7 +454,7 @@ export interface ExperimentalConfig {
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
+   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
 
@@ -877,7 +877,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * The default cache handler for the Pages and App Router uses the filesystem cache. This requires no configuration, however, you can customize the cache handler if you prefer.
    *
-   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath).
    */
   cacheHandler?: string | undefined
 
@@ -915,7 +915,7 @@ export interface NextConfig extends Record<string, any> {
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/app/api-reference/config/next-config-js/poweredByHeader) */
   poweredByHeader?: boolean
 
-  /** @see [Using the Image Component](https://nextjs.org/docs/app/api-reference/next-config-js/images) */
+  /** @see [Using the Image Component](https://nextjs.org/docs/app/api-reference/config/next-config-js/images) */
   images?: ImageConfig
 
   /** Configure indicators in development environment */
@@ -980,7 +980,7 @@ export interface NextConfig extends Record<string, any> {
    */
   basePath?: string
 
-  /** @see [Customizing sass options](https://nextjs.org/docs/app/api-reference/next-config-js/sassOptions) */
+  /** @see [Customizing sass options](https://nextjs.org/docs/app/api-reference/config/next-config-js/sassOptions) */
   sassOptions?: {
     implementation?: string
     [key: string]: any
@@ -1032,7 +1032,7 @@ export interface NextConfig extends Record<string, any> {
    * Next.js enables HTTP Keep-Alive by default.
    * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
    *
-   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/next-config-js/httpAgentOptions)
+   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/config/next-config-js/httpAgentOptions)
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
@@ -1163,13 +1163,13 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
-   * @see https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies
+   * @see https://nextjs.org/docs/pages/api-reference/config/next-config-js/bundlePagesRouterDependencies
    */
   bundlePagesRouterDependencies?: boolean
 
   /**
    * A list of packages that should be treated as external in the server build.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages
+   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/serverExternalPackages
    */
   serverExternalPackages?: string[]
 
