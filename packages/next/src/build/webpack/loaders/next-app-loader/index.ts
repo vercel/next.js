@@ -251,6 +251,8 @@ async function createTreeCodeFromPath(
           ${createMetadataExportsCode(metadata)}
         }]`
           continue
+        } else {
+          throw new Error(`Can't resolve ${matchedPagePath}`)
         }
       }
 
