@@ -98,6 +98,8 @@ export async function walkTreeWithFlightRouterState({
     query
   )
 
+  const refetch = flightRouterState?.[3] === 'refetch'
+
   /**
    * Decide if the current segment is where rendering has to start.
    */
@@ -109,7 +111,7 @@ export async function walkTreeWithFlightRouterState({
     // Last item in the tree
     parallelRoutesKeys.length === 0 ||
     // Explicit refresh
-    flightRouterState[3] === 'refetch'
+    refetch
 
   // Pre-PPR, the `loading` component signals to the router how deep to render the component tree
   // to ensure prefetches are quick and inexpensive. If there's no `loading` component anywhere in the tree being rendered,
@@ -192,6 +194,7 @@ export async function walkTreeWithFlightRouterState({
       getDynamicParamFromSegment,
       query
     )
+
     // Create component tree using the slice of the loaderTree
     const seedData = await createComponentTree(
       // This ensures flightRouterPath is valid and filters down the tree
@@ -209,6 +212,7 @@ export async function walkTreeWithFlightRouterState({
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
         StreamingMetadataOutlet,
+        shouldIncludeNotFoundSegment: refetch,
       }
     )
 

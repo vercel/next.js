@@ -212,6 +212,20 @@ async function createTreeCodeFromPath(
       parallelSegments.push(['children', ''])
     } else {
       parallelSegments.push(...resolveParallelSegments(segmentPath))
+
+      // convert the not-found.tsx into a parallel route
+      // TODO: implement Turbopack change
+      const notFoundPath = await resolver(
+        `${appDirPrefix}${
+          segmentPath.endsWith('/') ? segmentPath : segmentPath + '/'
+        }not-found`
+      )
+      if (notFoundPath) {
+        parallelSegments.push(...resolveParallelSegments(segmentPath), [
+          '@__not_found__', // TODO: (1) define this into a constant, (2) error if user defines the same name for parallel route
+          notFoundPath, // segment value is the resolved path for the not-found page
+        ])
+      }
     }
 
     let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
@@ -230,6 +244,20 @@ async function createTreeCodeFromPath(
     }
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
+      if (parallelKey === '@__not_found__') {
+        const resolvedNotFoundPath = parallelSegment as string
+        const varName = `page${nestedCollectedDeclarations.length}`
+        nestedCollectedDeclarations.push([varName, resolvedNotFoundPath])
+        props[normalizeParallelKey(parallelKey)] = `[
+          '${PAGE_SEGMENT_KEY}',
+          {},
+          {
+            page: [${varName}, ${JSON.stringify(resolvedNotFoundPath)}],
+          }
+        ]`
+        continue
+      }
+
       // if parallelSegment is the page segment (ie, `page$` and not ['page$']), it gets loaded into the __PAGE__ slot
       // as it's the page for the current route.
       if (parallelSegment === PAGE_SEGMENT) {
