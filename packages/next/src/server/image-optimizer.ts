@@ -42,6 +42,7 @@ const ICO = 'image/x-icon'
 const ICNS = 'image/x-icns'
 const TIFF = 'image/tiff'
 const BMP = 'image/bmp'
+const PDF = 'application/pdf'
 const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const BYPASS_TYPES = [SVG, ICO, ICNS, BMP]
@@ -152,7 +153,7 @@ async function writeToCacheDir(
  * it matches the "magic number" of known file signatures.
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
-export function detectContentType(buffer: Buffer) {
+export async function detectContentType(buffer: Buffer) {
   if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
     return JPEG
   }
@@ -198,7 +199,36 @@ export function detectContentType(buffer: Buffer) {
   if ([0x42, 0x4d].every((b, i) => buffer[i] === b)) {
     return BMP
   }
-  return null
+
+  const sharp = getSharp(null)
+  const meta = await sharp(buffer)
+    .metadata()
+    .catch((_) => null)
+
+  if (meta?.format) {
+    switch (meta.format) {
+      case 'avif':
+        return AVIF
+      case 'webp':
+        return WEBP
+      case 'png':
+        return PNG
+      case 'jpeg':
+      case 'jpg':
+        return JPEG
+      case 'gif':
+        return GIF
+      case 'svg':
+        return SVG
+      case 'tiff':
+      case 'tif':
+        return TIFF
+      case 'pdf':
+        return PDF
+      default:
+        return null
+    }
+  }
 }
 
 export class ImageOptimizerCache {
@@ -703,7 +733,7 @@ export async function imageOptimizer(
   )
 
   const upstreamType =
-    detectContentType(upstreamBuffer) ||
+    (await detectContentType(upstreamBuffer)) ||
     imageUpstream.contentType?.toLowerCase().trim()
 
   if (upstreamType) {
