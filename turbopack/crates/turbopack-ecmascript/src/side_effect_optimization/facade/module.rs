@@ -261,6 +261,9 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
             part_references,
             code_generation: CodeGens::empty().to_resolved().await?,
             async_module: ResolvedVc::cell(Some(self.async_module().to_resolved().await?)),
+            // The facade module cannot generate source maps, because the inserted references
+            // contain spans from the original module, but the facade module itself doesn't have the
+            // original module's swc_common::SourceMap in `parsed`.
             generate_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
