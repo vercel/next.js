@@ -2,11 +2,15 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
-import { retry } from '../../../lib/next-test-utils'
+import { retry } from 'next-test-utils'
+import { expectTypecheckingSuccess } from './typecheck'
 
 describe('app-root-param-getters - multiple roots', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'multiple-roots'),
+    dependencies: {
+      typescript: '5.8.3',
+    },
   })
 
   it('should have root params on dashboard pages', async () => {
@@ -31,6 +35,10 @@ describe('app-root-param-getters - multiple roots', () => {
       expect(await browser.elementByCss('p').text()).toBe(
         `hello world ${JSON.stringify({ id: '1' })}`
       )
+
+      await expectTypecheckingSuccess(next)
+
+      const originalTypeTestsSource = await next.readFile('type-tests.ts')
 
       // Add a new root layout with a root param.
       // This should make the bundler re-generate 'next/root-params' with a new getter for `stuff`.
@@ -64,6 +72,13 @@ describe('app-root-param-getters - multiple roots', () => {
             }
           `,
         ],
+        [
+          'type-tests.ts',
+          originalTypeTestsSource.replace(
+            '// new types will be patched in here when a test adds new root params',
+            'stuff: () => Promise<string | undefined>'
+          ),
+        ],
       ])
       for (const [filePath, fileContent] of newRootLayoutFiles) {
         await session.write(filePath, fileContent)
@@ -78,8 +93,11 @@ describe('app-root-param-getters - multiple roots', () => {
         )
       })
 
+      await expectTypecheckingSuccess(next)
+
       // Change the name of the root param
       // This should make the bundler re-generate 'next/root-params' again, with `things` instead of `stuff`.
+
       if (isTurbopack) {
         // FIXME(turbopack): Something in our routing logic doesn't handle renaming a route param in turbopack mode.
         // I haven't found the cause for this, but `DefaultRouteMatcherManager.reload` calls
@@ -89,6 +107,7 @@ describe('app-root-param-getters - multiple roots', () => {
         // so we're skipping the rest of the test for now.
         return
       }
+
       await session.renameFolder(
         'app/new-root/[stuff]',
         'app/new-root/[things]'
@@ -104,9 +123,10 @@ describe('app-root-param-getters - multiple roots', () => {
       })
 
       // Update the page to use the new root param name
-      await session.write(
-        'app/new-root/[things]/page.tsx',
-        outdent`
+      const updatedRootLayoutFiles = new Map([
+        [
+          'app/new-root/[things]/page.tsx',
+          outdent`
             import { id, things } from 'next/root-params'
             export default async function Page() {
               return (
@@ -117,8 +137,20 @@ describe('app-root-param-getters - multiple roots', () => {
             export async function generateStaticParams() {
               return [{ things: '123' }]
             }
-          `
-      )
+          `,
+        ],
+        [
+          // Type declarations should have been regenerated
+          'type-tests.ts',
+          originalTypeTestsSource.replace(
+            '// new types will be patched in here when a test adds new root params',
+            'things: () => Promise<string | undefined>'
+          ),
+        ],
+      ])
+      for (const [filePath, fileContent] of updatedRootLayoutFiles) {
+        await session.write(filePath, fileContent)
+      }
 
       // The page should call the getter and get the correct param value.
       await retry(async () => {
@@ -128,6 +160,14 @@ describe('app-root-param-getters - multiple roots', () => {
           `hello new root: ${JSON.stringify(params)}`
         )
       })
+
+      if (!isTurbopack) {
+        // FIXME: seems like `next-types-plugin` doesn't clean up declarations for removed routes,
+        // which causes a typechecking error (because it references layout files that we renamed)
+        await next.remove('.next/types/app/new-root/[stuff]')
+      }
+
+      await expectTypecheckingSuccess(next)
     })
   }
 })
