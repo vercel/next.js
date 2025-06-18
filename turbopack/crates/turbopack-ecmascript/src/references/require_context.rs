@@ -54,7 +54,7 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub(crate) enum DirListEntry {
-    File(ResolvedVc<FileSystemPath>),
+    File(FileSystemPath),
     Dir(ResolvedVc<DirList>),
 }
 
@@ -64,14 +64,14 @@ pub(crate) struct DirList(FxIndexMap<RcStr, DirListEntry>);
 #[turbo_tasks::value_impl]
 impl DirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: Vc<FileSystemPath>, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
+    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
         Self::read_internal(dir, dir, recursive, filter)
     }
 
     #[turbo_tasks::function]
     pub(crate) async fn read_internal(
-        root: Vc<FileSystemPath>,
-        dir: Vc<FileSystemPath>,
+        root: FileSystemPath,
+        dir: FileSystemPath,
         recursive: bool,
         filter: Vc<EsRegex>,
     ) -> Result<Vc<Self>> {
@@ -144,12 +144,12 @@ impl DirList {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FlatDirList(FxIndexMap<RcStr, ResolvedVc<FileSystemPath>>);
+pub(crate) struct FlatDirList(FxIndexMap<RcStr, FileSystemPath>);
 
 #[turbo_tasks::value_impl]
 impl FlatDirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: Vc<FileSystemPath>, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
+    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
         DirList::read(dir, recursive, filter).flatten()
     }
 }
@@ -171,7 +171,7 @@ impl RequireContextMap {
     #[turbo_tasks::function]
     pub(crate) async fn generate(
         origin: Vc<Box<dyn ResolveOrigin>>,
-        dir: Vc<FileSystemPath>,
+        dir: FileSystemPath,
         recursive: bool,
         filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,

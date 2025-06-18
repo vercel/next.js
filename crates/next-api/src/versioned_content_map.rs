@@ -29,7 +29,7 @@ use turbopack_core::{
 struct MapEntry {
     assets_operation: OperationVc<OutputAssets>,
     /// Precomputed map for quick access to output asset by filepath
-    path_to_asset: FxHashMap<ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>>,
+    path_to_asset: FxHashMap<FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
 // HACK: This is technically incorrect because `path_to_asset` contains `ResolvedVc`...
@@ -47,7 +47,7 @@ pub struct PathToOutputOperation(
     /// It may not be 100% correct for the key (`FileSystemPath`) to be in a `ResolvedVc` here, but
     /// it's impractical to make it an `OperationVc`/`OperationValue`, and it's unlikely to
     /// change/break?
-    FxHashMap<ResolvedVc<FileSystemPath>, FxIndexSet<OperationVc<OutputAssets>>>,
+    FxHashMap<FileSystemPath, FxIndexSet<OperationVc<OutputAssets>>>,
 );
 
 // HACK: This is technically incorrect because the map's key is a `ResolvedVc`...
@@ -91,9 +91,9 @@ impl VersionedContentMap {
         self: ResolvedVc<Self>,
         // Output assets to emit
         assets_operation: OperationVc<OutputAssets>,
-        node_root: ResolvedVc<FileSystemPath>,
-        client_relative_path: ResolvedVc<FileSystemPath>,
-        client_output_path: ResolvedVc<FileSystemPath>,
+        node_root: FileSystemPath,
+        client_relative_path: FileSystemPath,
+        client_output_path: FileSystemPath,
     ) -> Result<()> {
         let this = self.await?;
         let compute_entry = compute_entry_operation(
@@ -115,9 +115,9 @@ impl VersionedContentMap {
     async fn compute_entry(
         &self,
         assets_operation: OperationVc<OutputAssets>,
-        node_root: Vc<FileSystemPath>,
-        client_relative_path: Vc<FileSystemPath>,
-        client_output_path: Vc<FileSystemPath>,
+        node_root: FileSystemPath,
+        client_relative_path: FileSystemPath,
+        client_output_path: FileSystemPath,
     ) -> Result<Vc<OptionMapEntry>> {
         let entries = get_entries(assets_operation)
             .read_strongly_consistent()
@@ -167,10 +167,7 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub async fn get(
-        self: Vc<Self>,
-        path: Vc<FileSystemPath>,
-    ) -> Result<Vc<OptionVersionedContent>> {
+    pub async fn get(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<OptionVersionedContent>> {
         Ok(Vc::cell(match *self.get_asset(path).await? {
             Some(asset) => Some(asset.versioned_content().to_resolved().await?),
             None => None,
@@ -180,7 +177,7 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     pub async fn get_source_map(
         self: Vc<Self>,
-        path: Vc<FileSystemPath>,
+        path: FileSystemPath,
         section: Option<RcStr>,
     ) -> Result<Vc<OptionStringifiedSourceMap>> {
         let Some(asset) = &*self.get_asset(path).await? else {
@@ -202,10 +199,7 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_asset(
-        self: Vc<Self>,
-        path: ResolvedVc<FileSystemPath>,
-    ) -> Result<Vc<OptionOutputAsset>> {
+    pub async fn get_asset(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<OptionOutputAsset>> {
         let result = self.raw_get(*path).await?;
         if let Some(MapEntry {
             assets_operation: _,
@@ -220,7 +214,7 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function(invalidator)]
-    pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn keys_in_path(&self, root: FileSystemPath) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
             let map = &self.map_path_to_op.get().0;
             map.keys().copied().collect::<Vec<_>>()
@@ -235,7 +229,7 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function(invalidator)]
-    fn raw_get(&self, path: ResolvedVc<FileSystemPath>) -> Vc<OptionMapEntry> {
+    fn raw_get(&self, path: FileSystemPath) -> Vc<OptionMapEntry> {
         let assets = {
             let map = &self.map_path_to_op.get().0;
             map.get(&path).and_then(|m| m.iter().next().copied())
@@ -257,7 +251,7 @@ impl VersionedContentMap {
     }
 }
 
-type GetEntriesResultT = Vec<(ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>)>;
+type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>;
 
 #[turbo_tasks::value(transparent)]
 struct GetEntriesResult(GetEntriesResultT);
@@ -280,9 +274,9 @@ async fn get_entries(assets: OperationVc<OutputAssets>) -> Result<Vc<GetEntriesR
 fn compute_entry_operation(
     map: ResolvedVc<VersionedContentMap>,
     assets_operation: OperationVc<OutputAssets>,
-    node_root: ResolvedVc<FileSystemPath>,
-    client_relative_path: ResolvedVc<FileSystemPath>,
-    client_output_path: ResolvedVc<FileSystemPath>,
+    node_root: FileSystemPath,
+    client_relative_path: FileSystemPath,
+    client_output_path: FileSystemPath,
 ) -> Vc<OptionMapEntry> {
     map.compute_entry(
         assets_operation,

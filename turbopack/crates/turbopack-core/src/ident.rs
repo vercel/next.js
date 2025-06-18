@@ -61,7 +61,7 @@ impl Layer {
 #[derive(Clone, Debug, Hash, TaskInput)]
 pub struct AssetIdent {
     /// The primary path of the asset
-    pub path: ResolvedVc<FileSystemPath>,
+    pub path: FileSystemPath,
     /// The query string of the asset this is either the empty string or a query string that starts
     /// with a `?` (e.g. `?foo=bar`)
     pub query: RcStr,
@@ -178,9 +178,9 @@ impl AssetIdent {
         ident.cell()
     }
 
-    /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
+    /// Creates an [AssetIdent] from a [FileSystemPath]
     #[turbo_tasks::function]
-    pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn from_path(path: FileSystemPath) -> Vc<Self> {
         Self::new(AssetIdent {
             path,
             query: RcStr::default(),
@@ -222,7 +222,7 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
-    pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn with_path(&self, path: FileSystemPath) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
         Self::new(this)
@@ -268,7 +268,7 @@ impl AssetIdent {
     #[turbo_tasks::function]
     pub async fn output_name(
         &self,
-        context_path: Vc<FileSystemPath>,
+        context_path: FileSystemPath,
         expected_extension: RcStr,
     ) -> Result<Vc<RcStr>> {
         debug_assert!(

@@ -59,8 +59,8 @@ pub(crate) struct ServerActionsManifest {
 #[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
     actions: Vc<AllActions>,
-    project_path: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
+    node_root: FileSystemPath,
     page_name: RcStr,
     runtime: NextRuntime,
     rsc_asset_context: Vc<Box<dyn AssetContext>>,
@@ -100,7 +100,7 @@ pub(crate) async fn create_server_actions_manifest(
 /// client and present inside the paired manifest.
 #[turbo_tasks::function]
 pub(crate) async fn build_server_actions_loader(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     page_name: RcStr,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -150,7 +150,7 @@ pub(crate) async fn build_server_actions_loader(
 /// Builds a manifest containing every action's hashed id, with an internal
 /// module id which exports a function using that hashed name.
 async fn build_manifest(
-    node_root: Vc<FileSystemPath>,
+    node_root: FileSystemPath,
     page_name: RcStr,
     runtime: NextRuntime,
     actions: Vc<AllActions>,

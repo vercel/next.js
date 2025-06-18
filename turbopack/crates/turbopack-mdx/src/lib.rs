@@ -247,7 +247,7 @@ struct MdxTransformResult {
 #[turbo_tasks::value]
 struct MdxIssue {
     /// Place of message.
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     loc: Option<IssueSource>,
     /// Reason for message (should use markdown).
     reason: String,

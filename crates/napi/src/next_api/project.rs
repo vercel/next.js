@@ -494,7 +494,7 @@ impl CompilationEvent for SlowFilesystemEvent {
 #[tracing::instrument(skip(turbo_tasks))]
 async fn benchmark_file_io(
     turbo_tasks: NextTurboTasks,
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
 ) -> Result<Vc<Completion>> {
     // try to get the real file path on disk so that we can use it with tokio
     let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())

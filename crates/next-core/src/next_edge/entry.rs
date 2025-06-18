@@ -11,7 +11,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 #[turbo_tasks::function]
 pub fn wrap_edge_entry(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     pathname: RcStr,
 ) -> Vc<Box<dyn Module>> {

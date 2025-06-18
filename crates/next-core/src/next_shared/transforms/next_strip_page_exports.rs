@@ -13,7 +13,7 @@ use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(
-    pages_dir: Vc<FileSystemPath>,
+    pages_dir: FileSystemPath,
     export_filter: ExportFilter,
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {

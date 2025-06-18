@@ -30,7 +30,7 @@ pub struct EcmascriptChunkItemContent {
     pub source_map: Option<Rope>,
     pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
     pub options: EcmascriptChunkItemOptions,
-    pub rewrite_source_path: Option<ResolvedVc<FileSystemPath>>,
+    pub rewrite_source_path: Option<FileSystemPath>,
     pub placeholder_for_future_extensions: (),
 }
 

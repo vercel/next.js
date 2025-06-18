@@ -41,10 +41,10 @@ pub struct ExcludedExtensions(pub FxIndexSet<RcStr>);
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
-    Nested(ResolvedVc<FileSystemPath>, Vec<RcStr>),
+    Nested(FileSystemPath, Vec<RcStr>),
     /// look into that directory, unless the request has an excluded extension
     Path {
-        dir: ResolvedVc<FileSystemPath>,
+        dir: FileSystemPath,
         excluded_extensions: ResolvedVc<ExcludedExtensions>,
     },
 }
@@ -115,14 +115,14 @@ pub enum ImportMapping {
         name: Option<RcStr>,
         ty: ExternalType,
         traced: ExternalTraced,
-        lookup_dir: ResolvedVc<FileSystemPath>,
+        lookup_dir: FileSystemPath,
     },
     /// An already resolved result that will be returned directly.
     Direct(ResolvedVc<ResolveResult>),
     /// A request alias that will be resolved first, and fall back to resolving
     /// the original request if it fails. Useful for the tsconfig.json
     /// `compilerOptions.paths` option and Next aliases.
-    PrimaryAlternative(RcStr, Option<ResolvedVc<FileSystemPath>>),
+    PrimaryAlternative(RcStr, Option<FileSystemPath>),
     Ignore,
     Empty,
     Alternatives(Vec<ResolvedVc<ImportMapping>>),
@@ -139,10 +139,10 @@ pub enum ReplacedImportMapping {
         name: Option<RcStr>,
         ty: ExternalType,
         traced: ExternalTraced,
-        lookup_dir: ResolvedVc<FileSystemPath>,
+        lookup_dir: FileSystemPath,
     },
     Direct(ResolvedVc<ResolveResult>),
-    PrimaryAlternative(Pattern, Option<ResolvedVc<FileSystemPath>>),
+    PrimaryAlternative(Pattern, Option<FileSystemPath>),
     Ignore,
     Empty,
     Alternatives(Vec<ResolvedVc<ReplacedImportMapping>>),
@@ -152,7 +152,7 @@ pub enum ReplacedImportMapping {
 impl ImportMapping {
     pub fn primary_alternatives(
         list: Vec<RcStr>,
-        lookup_path: Option<ResolvedVc<FileSystemPath>>,
+        lookup_path: Option<FileSystemPath>,
     ) -> ImportMapping {
         if list.is_empty() {
             ImportMapping::Ignore
@@ -346,7 +346,7 @@ impl ImportMap {
     pub fn insert_singleton_alias<'a>(
         &mut self,
         prefix: impl Into<RcStr> + 'a,
-        context_path: ResolvedVc<FileSystemPath>,
+        context_path: FileSystemPath,
     ) {
         let prefix: RcStr = prefix.into();
         let wildcard_prefix: RcStr = (prefix.to_string() + "/").into();
@@ -376,11 +376,7 @@ impl ImportMap {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ResolvedMap {
-    pub by_glob: Vec<(
-        ResolvedVc<FileSystemPath>,
-        ResolvedVc<Glob>,
-        ResolvedVc<ImportMapping>,
-    )>,
+    pub by_glob: Vec<(FileSystemPath, ResolvedVc<Glob>, ResolvedVc<ImportMapping>)>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -392,16 +388,16 @@ pub enum ImportMapResult {
         name: RcStr,
         ty: ExternalType,
         traced: ExternalTraced,
-        lookup_dir: ResolvedVc<FileSystemPath>,
+        lookup_dir: FileSystemPath,
     },
-    Alias(ResolvedVc<Request>, Option<ResolvedVc<FileSystemPath>>),
+    Alias(ResolvedVc<Request>, Option<FileSystemPath>),
     Alternatives(Vec<ImportMapResult>),
     NoEntry,
 }
 
 async fn import_mapping_to_result(
     mapping: Vc<ReplacedImportMapping>,
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     request: Vc<Request>,
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
@@ -499,7 +495,7 @@ impl ImportMap {
     // lookup
     pub async fn lookup(
         &self,
-        lookup_path: Vc<FileSystemPath>,
+        lookup_path: FileSystemPath,
         request: Vc<Request>,
     ) -> Result<ImportMapResult> {
         // relative requests must not match global wildcard aliases.
@@ -547,8 +543,8 @@ impl ResolvedMap {
     #[turbo_tasks::function]
     pub async fn lookup(
         &self,
-        resolved: Vc<FileSystemPath>,
-        lookup_path: Vc<FileSystemPath>,
+        resolved: FileSystemPath,
+        lookup_path: FileSystemPath,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         let resolved = resolved.await?;
@@ -695,7 +691,7 @@ pub trait ImportMappingReplacement {
     #[turbo_tasks::function]
     fn result(
         self: Vc<Self>,
-        lookup_path: Vc<FileSystemPath>,
+        lookup_path: FileSystemPath,
         request: Vc<Request>,
     ) -> Vc<ImportMapResult>;
 }

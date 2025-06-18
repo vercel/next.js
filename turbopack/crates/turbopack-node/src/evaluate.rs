@@ -84,8 +84,8 @@ pub struct JavaScriptEvaluation(#[turbo_tasks(trace_ignore)] JavaScriptStream);
 #[turbo_tasks::value]
 struct EmittedEvaluatePoolAssets {
     bootstrap: ResolvedVc<Box<dyn OutputAsset>>,
-    output_root: ResolvedVc<FileSystemPath>,
-    entrypoint: ResolvedVc<FileSystemPath>,
+    output_root: FileSystemPath,
+    entrypoint: FileSystemPath,
 }
 
 #[turbo_tasks::function(operation)]
@@ -224,7 +224,7 @@ pub enum EnvVarTracking {
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
     module_asset: ResolvedVc<Box<dyn Module>>,
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -400,7 +400,7 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
 #[turbo_tasks::function]
 pub fn evaluate(
     module_asset: ResolvedVc<Box<dyn Module>>,
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     context_ident_for_issue: ResolvedVc<AssetIdent>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -581,7 +581,7 @@ async fn basic_compute(
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize, TraceRawVcs)]
 struct BasicEvaluateContext {
     module_asset: ResolvedVc<Box<dyn Module>>,
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     context_ident_for_issue: ResolvedVc<AssetIdent>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -693,8 +693,8 @@ pub struct EvaluationIssue {
     pub context_ident: ResolvedVc<AssetIdent>,
     pub error: StructuredError,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: ResolvedVc<FileSystemPath>,
-    pub root_path: ResolvedVc<FileSystemPath>,
+    pub assets_root: FileSystemPath,
+    pub root_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]

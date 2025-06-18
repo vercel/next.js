@@ -18,8 +18,8 @@ pub(super) struct EcmascriptBrowserChunkVersion {
 impl EcmascriptBrowserChunkVersion {
     #[turbo_tasks::function]
     pub async fn new(
-        output_root: Vc<FileSystemPath>,
-        chunk_path: Vc<FileSystemPath>,
+        output_root: FileSystemPath,
+        chunk_path: FileSystemPath,
         content: Vc<EcmascriptChunkContent>,
     ) -> Result<Vc<Self>> {
         let output_root = output_root.await?;

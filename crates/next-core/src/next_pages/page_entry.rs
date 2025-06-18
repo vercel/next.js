@@ -34,7 +34,7 @@ pub struct PageSsrEntryModule {
 pub async fn create_page_ssr_entry_module(
     pathname: RcStr,
     reference_type: ReferenceType,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     next_original_name: RcStr,
@@ -196,7 +196,7 @@ fn process_global_item(
 #[turbo_tasks::function]
 async fn wrap_edge_page(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: RcStr,
     pathname: RcStr,

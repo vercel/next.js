@@ -32,7 +32,7 @@ pub async fn get_app_route_entry(
     edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
     page: AppPage,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     original_segment_config: Option<Vc<NextSegmentConfig>>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
@@ -132,7 +132,7 @@ pub async fn get_app_route_entry(
 #[turbo_tasks::function]
 async fn wrap_edge_route(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
     next_config: Vc<NextConfig>,

@@ -102,7 +102,7 @@ fn extension_to_image_format(extension: &str) -> Option<ImageFormat> {
     })
 }
 
-fn result_to_issue<T>(path: ResolvedVc<FileSystemPath>, result: Result<T>) -> Option<T> {
+fn result_to_issue<T>(path: FileSystemPath, result: Result<T>) -> Option<T> {
     match result {
         Ok(r) => Some(r),
         Err(err) => {
@@ -121,7 +121,7 @@ fn result_to_issue<T>(path: ResolvedVc<FileSystemPath>, result: Result<T>) -> Op
 }
 
 fn load_image(
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     bytes: &[u8],
     extension: Option<&str>,
 ) -> Option<(ImageBuffer, Option<ImageFormat>)> {
@@ -136,7 +136,7 @@ enum ImageBuffer {
 }
 
 fn load_image_internal(
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     bytes: &[u8],
     extension: Option<&str>,
 ) -> Result<(ImageBuffer, Option<ImageFormat>)> {
@@ -202,7 +202,7 @@ fn load_image_internal(
 }
 
 fn compute_blur_data(
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     image: image::DynamicImage,
     format: ImageFormat,
     options: &BlurPlaceholderOptions,
@@ -486,7 +486,7 @@ pub async fn optimize(
 
 #[turbo_tasks::value]
 struct ImageProcessingIssue {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     message: ResolvedVc<StyledString>,
     title: Option<ResolvedVc<StyledString>>,
     issue_severity: Option<IssueSeverity>,

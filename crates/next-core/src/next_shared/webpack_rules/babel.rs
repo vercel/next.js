@@ -27,7 +27,7 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 /// webpack loader for each eligible file type if it doesn't already exist.
 #[turbo_tasks::function]
 pub async fn maybe_add_babel_loader(
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     webpack_rules: Option<ResolvedVc<WebpackRules>>,
 ) -> Result<Vc<OptionWebpackRules>> {
     let has_babel_config = {
@@ -112,7 +112,7 @@ pub async fn maybe_add_babel_loader(
 }
 
 #[turbo_tasks::function]
-pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
+pub async fn is_babel_loader_available(project_path: FileSystemPath) -> Result<Vc<bool>> {
     let result = resolve(
         project_path,
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
@@ -125,7 +125,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
 
 #[turbo_tasks::value]
 struct BabelIssue {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     title: ResolvedVc<StyledString>,
     description: ResolvedVc<StyledString>,
     severity: IssueSeverity,

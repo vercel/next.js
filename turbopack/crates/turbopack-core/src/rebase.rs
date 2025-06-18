@@ -17,8 +17,8 @@ use crate::{
 #[derive(Hash)]
 pub struct RebasedAsset {
     module: ResolvedVc<Box<dyn Module>>,
-    input_dir: ResolvedVc<FileSystemPath>,
-    output_dir: ResolvedVc<FileSystemPath>,
+    input_dir: FileSystemPath,
+    output_dir: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -26,8 +26,8 @@ impl RebasedAsset {
     #[turbo_tasks::function]
     pub fn new(
         module: ResolvedVc<Box<dyn Module>>,
-        input_dir: ResolvedVc<FileSystemPath>,
-        output_dir: ResolvedVc<FileSystemPath>,
+        input_dir: FileSystemPath,
+        output_dir: FileSystemPath,
     ) -> Vc<Self> {
         Self::cell(RebasedAsset {
             module,

@@ -41,7 +41,7 @@ pub mod transforms;
 #[turbo_tasks::function]
 async fn emit(
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
-    intermediate_output_path: Vc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
 ) -> Result<()> {
     for asset in internal_assets(intermediate_asset, intermediate_output_path).await? {
         let _ = asset.content().write(asset.path()).resolve().await?;
@@ -64,7 +64,7 @@ struct SeparatedAssets {
 #[turbo_tasks::function]
 async fn internal_assets(
     intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
 ) -> Result<Vc<OutputAssetsSet>> {
     Ok(
         *separate_assets_operation(intermediate_asset, intermediate_output_path)
@@ -82,7 +82,7 @@ pub struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateS
 #[turbo_tasks::function]
 async fn internal_assets_for_source_mapping(
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
-    intermediate_output_path: Vc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
 ) -> Result<Vc<AssetsForSourceMapping>> {
     let internal_assets = internal_assets(intermediate_asset, intermediate_output_path).await?;
     let intermediate_output_path = &*intermediate_output_path.await?;
@@ -105,7 +105,7 @@ pub async fn external_asset_entrypoints(
     module: Vc<Box<dyn EvaluatableAsset>>,
     runtime_entries: Vc<EvaluatableAssets>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
 ) -> Result<Vc<OutputAssetsSet>> {
     Ok(*separate_assets_operation(
         get_intermediate_asset(chunking_context, module, runtime_entries)
@@ -123,7 +123,7 @@ pub async fn external_asset_entrypoints(
 #[turbo_tasks::function(operation)]
 async fn separate_assets_operation(
     intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
 ) -> Result<Vc<SeparatedAssets>> {
     let intermediate_output_path = &*intermediate_output_path.await?;
     #[derive(PartialEq, Eq, Hash, Clone, Copy)]
@@ -185,7 +185,7 @@ async fn separate_assets_operation(
 /// Emit a basic package.json that sets the type of the package to commonjs.
 /// Currently code generated for Node is CommonJS, while authored code may be
 /// ESM, for example.
-fn emit_package_json(dir: Vc<FileSystemPath>) -> Vc<()> {
+fn emit_package_json(dir: FileSystemPath) -> Vc<()> {
     emit(
         Vc::upcast(VirtualOutputAsset::new(
             dir.join(rcstr!("package.json")),
@@ -198,12 +198,12 @@ fn emit_package_json(dir: Vc<FileSystemPath>) -> Vc<()> {
 /// Creates a node.js renderer pool for an entrypoint.
 #[turbo_tasks::function(operation)]
 pub async fn get_renderer_pool_operation(
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    intermediate_output_path: ResolvedVc<FileSystemPath>,
-    output_root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
+    output_root: FileSystemPath,
+    project_dir: FileSystemPath,
     debug: bool,
 ) -> Result<Vc<NodeJsPool>> {
     emit_package_json(*intermediate_output_path).await?;

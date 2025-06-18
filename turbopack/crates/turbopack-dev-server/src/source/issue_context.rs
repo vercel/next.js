@@ -15,7 +15,7 @@ use super::{
 
 #[turbo_tasks::value]
 pub struct IssueFilePathContentSource {
-    file_path: Option<ResolvedVc<FileSystemPath>>,
+    file_path: Option<FileSystemPath>,
     description: RcStr,
     source: ResolvedVc<Box<dyn ContentSource>>,
 }
@@ -24,7 +24,7 @@ pub struct IssueFilePathContentSource {
 impl IssueFilePathContentSource {
     #[turbo_tasks::function]
     pub fn new_file_path(
-        file_path: ResolvedVc<FileSystemPath>,
+        file_path: FileSystemPath,
         description: RcStr,
         source: ResolvedVc<Box<dyn ContentSource>>,
     ) -> Vc<Self> {

@@ -6,7 +6,7 @@ use crate::SpecifiedModuleType;
 
 #[turbo_tasks::value(shared)]
 pub struct SpecifiedModuleTypeIssue {
-    pub path: ResolvedVc<FileSystemPath>,
+    pub path: FileSystemPath,
     pub specified_type: SpecifiedModuleType,
 }
 

@@ -121,7 +121,7 @@ pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> RuleCondition 
 
 pub(crate) fn module_rule_match_pages_page_file(
     enable_mdx_rs: bool,
-    pages_directory: ReadRef<FileSystemPath>,
+    pages_directory: FileSystemPath,
 ) -> RuleCondition {
     let conditions = match_js_extension(enable_mdx_rs);
 

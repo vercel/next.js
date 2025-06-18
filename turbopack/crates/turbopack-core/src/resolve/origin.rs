@@ -107,7 +107,7 @@ async fn resolve_asset(
 #[turbo_tasks::value]
 pub struct PlainResolveOrigin {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    origin_path: ResolvedVc<FileSystemPath>,
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -115,7 +115,7 @@ impl PlainResolveOrigin {
     #[turbo_tasks::function]
     pub fn new(
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-        origin_path: ResolvedVc<FileSystemPath>,
+        origin_path: FileSystemPath,
     ) -> Vc<Self> {
         PlainResolveOrigin {
             asset_context,

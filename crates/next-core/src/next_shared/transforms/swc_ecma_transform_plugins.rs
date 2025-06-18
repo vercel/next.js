@@ -9,7 +9,7 @@ use crate::next_config::NextConfig;
 
 pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<Option<ModuleRule>> {
     let plugin_configs = next_config.experimental_swc_plugins().await?;
     if !plugin_configs.is_empty() {
@@ -31,7 +31,7 @@ pub async fn get_swc_ecma_transform_plugin_rule(
 
 #[cfg(feature = "plugin")]
 pub async fn get_swc_ecma_transform_rule_impl(
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
     plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {

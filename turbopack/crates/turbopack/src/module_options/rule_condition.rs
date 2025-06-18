@@ -15,11 +15,11 @@ pub enum RuleCondition {
     Not(Box<RuleCondition>),
     ReferenceType(ReferenceType),
     ResourceIsVirtualSource,
-    ResourcePathEquals(ReadRef<FileSystemPath>),
+    ResourcePathEquals(FileSystemPath),
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
     ResourcePathInDirectory(String),
-    ResourcePathInExactDirectory(ReadRef<FileSystemPath>),
+    ResourcePathInExactDirectory(FileSystemPath),
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
     ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
@@ -31,7 +31,7 @@ pub enum RuleCondition {
     /// any glob starting with `./` or `../` will only match paths in the
     /// project. Globs starting with `**` can match any path.
     ResourcePathGlob {
-        base: ReadRef<FileSystemPath>,
+        base: FileSystemPath,
         #[turbo_tasks(trace_ignore)]
         glob: ReadRef<Glob>,
     },

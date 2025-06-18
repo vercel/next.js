@@ -12,7 +12,7 @@ use turbopack_resolve::ecmascript::cjs_resolve;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {
-    Request(ResolvedVc<Request>, ResolvedVc<FileSystemPath>),
+    Request(ResolvedVc<Request>, FileSystemPath),
     Evaluatable(ResolvedVc<Box<dyn EvaluatableAsset>>),
     Source(ResolvedVc<Box<dyn Source>>),
 }

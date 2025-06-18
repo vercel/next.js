@@ -106,7 +106,7 @@ async fn resolve_symlink_safely(entry: &DirectoryEntry) -> Result<DirectoryEntry
 ///  but unlike read_glob doesn't accumulate data.
 #[turbo_tasks::function(fs)]
 pub async fn track_glob(
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -116,7 +116,7 @@ pub async fn track_glob(
 #[turbo_tasks::function(fs)]
 async fn track_glob_inner(
     prefix: RcStr,
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -125,7 +125,7 @@ async fn track_glob_inner(
 
 async fn track_glob_internal(
     prefix: &str,
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -328,13 +328,13 @@ pub mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    pub async fn delete(path: ResolvedVc<FileSystemPath>) -> anyhow::Result<()> {
+    pub async fn delete(path: FileSystemPath) -> anyhow::Result<()> {
         path.write(FileContent::NotFound.cell()).await?;
         Ok(())
     }
 
     #[turbo_tasks::function(operation)]
-    pub async fn write(path: ResolvedVc<FileSystemPath>, contents: RcStr) -> anyhow::Result<()> {
+    pub async fn write(path: FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
         path.write(
             FileContent::Content(crate::File::from_bytes(contents.to_string().into_bytes())).cell(),
         )
@@ -343,7 +343,7 @@ pub mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    pub fn track_star_star_glob(path: ResolvedVc<FileSystemPath>) -> Vc<Completion> {
+    pub fn track_star_star_glob(path: FileSystemPath) -> Vc<Completion> {
         path.track_glob(Glob::new("**".into()), false)
     }
 

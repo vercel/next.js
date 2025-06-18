@@ -236,7 +236,7 @@ impl SourceMap {
         Ok(Some(SourceMap::Decoded(InnerSourceMap::new(map))))
     }
 
-    pub async fn new_from_file(file: Vc<FileSystemPath>) -> Result<Option<Self>> {
+    pub async fn new_from_file(file: FileSystemPath) -> Result<Option<Self>> {
         let read = file.read();
         Self::new_from_file_content(read).await
     }
@@ -409,11 +409,11 @@ impl SourceMap {
         })
     }
 
-    pub async fn with_resolved_sources(&self, origin: Vc<FileSystemPath>) -> Result<Self> {
+    pub async fn with_resolved_sources(&self, origin: FileSystemPath) -> Result<Self> {
         async fn resolve_source(
             source_request: BytesStr,
             source_content: Option<BytesStr>,
-            origin: Vc<FileSystemPath>,
+            origin: FileSystemPath,
         ) -> Result<(BytesStr, BytesStr)> {
             Ok(
                 if let Some(path) = *origin.parent().try_join((&*source_request).into()).await? {
@@ -450,7 +450,7 @@ impl SourceMap {
         }
         async fn regular_map_with_resolved_sources(
             map: &RegularMapWrapper,
-            origin: Vc<FileSystemPath>,
+            origin: FileSystemPath,
         ) -> Result<RegularMap> {
             let map = &map.0;
             let file = map.get_file().cloned();
@@ -478,7 +478,7 @@ impl SourceMap {
         }
         async fn decoded_map_with_resolved_sources(
             map: &CrateMapWrapper,
-            origin: Vc<FileSystemPath>,
+            origin: FileSystemPath,
         ) -> Result<CrateMapWrapper> {
             Ok(CrateMapWrapper(match &map.0 {
                 DecodedMap::Regular(map) => {

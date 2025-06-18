@@ -83,7 +83,7 @@ fn match_metadata_file<'a>(
     })
 }
 
-pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
+pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
     let stem = &*path.file_stem().await?;
     let ext = &*path.extension().await?;
 

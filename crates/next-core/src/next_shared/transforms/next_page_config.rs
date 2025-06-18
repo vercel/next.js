@@ -9,10 +9,7 @@ use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, Transfor
 
 use super::module_rule_match_pages_page_file;
 
-pub fn get_next_page_config_rule(
-    enable_mdx_rs: bool,
-    pages_dir: ReadRef<FileSystemPath>,
-) -> ModuleRule {
+pub fn get_next_page_config_rule(enable_mdx_rs: bool, pages_dir: FileSystemPath) -> ModuleRule {
     let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextPageConfig {
         // [TODO]: update once turbopack build works
         is_development: true,

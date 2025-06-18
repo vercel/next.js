@@ -11,7 +11,7 @@ use super::module_rule_match_pages_page_file;
 
 pub fn get_next_disallow_export_all_in_page_rule(
     enable_mdx_rs: bool,
-    pages_dir: ReadRef<FileSystemPath>,
+    pages_dir: FileSystemPath,
 ) -> ModuleRule {
     let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
         NextDisallowReExportAllInPage,

@@ -18,13 +18,13 @@ use turbopack_core::{
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct PackageJsonReference {
-    pub package_json: ResolvedVc<FileSystemPath>,
+    pub package_json: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl PackageJsonReference {
     #[turbo_tasks::function]
-    pub fn new(package_json: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(package_json: FileSystemPath) -> Vc<Self> {
         Self::cell(PackageJsonReference { package_json })
     }
 }
@@ -68,7 +68,7 @@ impl DirAssetReference {
 
 #[turbo_tasks::function]
 async fn resolve_reference_from_dir(
-    parent_path: Vc<FileSystemPath>,
+    parent_path: FileSystemPath,
     path: Vc<Pattern>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let path_ref = path.await?;

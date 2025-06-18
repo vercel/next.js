@@ -17,21 +17,21 @@ use super::{
 #[turbo_tasks::value(shared)]
 pub struct StaticAssetsContentSource {
     pub prefix: ResolvedVc<RcStr>,
-    pub dir: ResolvedVc<FileSystemPath>,
+    pub dir: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticAssetsContentSource {
     // TODO(WEB-1151): Remove this method and migrate users to `with_prefix`.
     #[turbo_tasks::function]
-    pub fn new(prefix: RcStr, dir: Vc<FileSystemPath>) -> Vc<StaticAssetsContentSource> {
+    pub fn new(prefix: RcStr, dir: FileSystemPath) -> Vc<StaticAssetsContentSource> {
         StaticAssetsContentSource::with_prefix(Vc::cell(prefix), dir)
     }
 
     #[turbo_tasks::function]
     pub async fn with_prefix(
         prefix: ResolvedVc<RcStr>,
-        dir: ResolvedVc<FileSystemPath>,
+        dir: FileSystemPath,
     ) -> Result<Vc<StaticAssetsContentSource>> {
         if cfg!(debug_assertions) {
             let prefix_string = prefix.await?;
@@ -44,7 +44,7 @@ impl StaticAssetsContentSource {
 
 // TODO(WEB-1251) It would be better to lazily enumerate the directory
 #[turbo_tasks::function]
-async fn get_routes_from_directory(dir: Vc<FileSystemPath>) -> Result<Vc<RouteTree>> {
+async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>> {
     let dir = dir.read_dir().await?;
     let DirectoryContent::Entries(entries) = &*dir else {
         return Ok(RouteTree::empty());
@@ -84,13 +84,13 @@ impl ContentSource for StaticAssetsContentSource {
 
 #[turbo_tasks::value]
 struct StaticAssetsContentSourceItem {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
-    pub fn new(path: ResolvedVc<FileSystemPath>) -> Vc<StaticAssetsContentSourceItem> {
+    pub fn new(path: FileSystemPath) -> Vc<StaticAssetsContentSourceItem> {
         StaticAssetsContentSourceItem { path }.cell()
     }
 }

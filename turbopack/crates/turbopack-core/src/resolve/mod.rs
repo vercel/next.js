@@ -1148,24 +1148,24 @@ impl ResolveResultOption {
 }
 
 async fn exists(
-    fs_path: Vc<FileSystemPath>,
+    fs_path: FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
-) -> Result<Option<ResolvedVc<FileSystemPath>>> {
+) -> Result<Option<FileSystemPath>> {
     type_exists(fs_path, FileSystemEntryType::File, refs).await
 }
 
 async fn dir_exists(
-    fs_path: Vc<FileSystemPath>,
+    fs_path: FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
-) -> Result<Option<ResolvedVc<FileSystemPath>>> {
+) -> Result<Option<FileSystemPath>> {
     type_exists(fs_path, FileSystemEntryType::Directory, refs).await
 }
 
 async fn type_exists(
-    fs_path: Vc<FileSystemPath>,
+    fs_path: FileSystemPath,
     ty: FileSystemEntryType,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
-) -> Result<Option<ResolvedVc<FileSystemPath>>> {
+) -> Result<Option<FileSystemPath>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
     refs.extend(
         result
@@ -1188,9 +1188,9 @@ async fn type_exists(
 }
 
 async fn any_exists(
-    fs_path: Vc<FileSystemPath>,
+    fs_path: FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
-) -> Result<Option<(FileSystemEntryType, Vc<FileSystemPath>)>> {
+) -> Result<Option<(FileSystemEntryType, FileSystemPath)>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
     refs.extend(
         result
@@ -1227,9 +1227,7 @@ enum ExportsFieldResult {
 /// Extracts the "exports" field out of the package.json, parsing it into an
 /// appropriate [AliasMap] for lookups.
 #[turbo_tasks::function]
-async fn exports_field(
-    package_json_path: ResolvedVc<FileSystemPath>,
-) -> Result<Vc<ExportsFieldResult>> {
+async fn exports_field(package_json_path: FileSystemPath) -> Result<Vc<ExportsFieldResult>> {
     let read = read_package_json(*package_json_path).await?;
     let package_json = match &*read {
         Some(json) => json,
@@ -1257,7 +1255,7 @@ async fn exports_field(
 enum ImportsFieldResult {
     Some(
         #[turbo_tasks(debug_ignore, trace_ignore)] ImportsField,
-        ResolvedVc<FileSystemPath>,
+        FileSystemPath,
     ),
     None,
 }
@@ -1265,7 +1263,7 @@ enum ImportsFieldResult {
 /// Extracts the "imports" field out of the nearest package.json, parsing it
 /// into an appropriate [AliasMap] for lookups.
 #[turbo_tasks::function]
-async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFieldResult>> {
+async fn imports_field(lookup_path: FileSystemPath) -> Result<Vc<ImportsFieldResult>> {
     let package_json_context = find_context_file(lookup_path, package_json()).await?;
     let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context else {
         return Ok(ImportsFieldResult::None.cell());
@@ -1301,13 +1299,13 @@ pub fn package_json() -> Vc<Vec<RcStr>> {
 
 #[turbo_tasks::value(shared)]
 pub enum FindContextFileResult {
-    Found(ResolvedVc<FileSystemPath>, Vec<ResolvedVc<Box<dyn Source>>>),
+    Found(FileSystemPath, Vec<ResolvedVc<Box<dyn Source>>>),
     NotFound(Vec<ResolvedVc<Box<dyn Source>>>),
 }
 
 #[turbo_tasks::function]
 pub async fn find_context_file(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     names: Vc<Vec<RcStr>>,
 ) -> Result<Vc<FindContextFileResult>> {
     let mut refs = Vec::new();
@@ -1347,7 +1345,7 @@ pub async fn find_context_file(
 // Same as find_context_file, but also stop for package.json with the specified key
 #[turbo_tasks::function]
 pub async fn find_context_file_or_package_key(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     names: Vc<Vec<RcStr>>,
     package_key: RcStr,
 ) -> Result<Vc<FindContextFileResult>> {
@@ -1392,8 +1390,8 @@ pub async fn find_context_file_or_package_key(
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
 enum FindPackageItem {
-    PackageDirectory(ResolvedVc<FileSystemPath>),
-    PackageFile(ResolvedVc<FileSystemPath>),
+    PackageDirectory(FileSystemPath),
+    PackageFile(FileSystemPath),
 }
 
 #[turbo_tasks::value]
@@ -1404,7 +1402,7 @@ struct FindPackageResult {
 
 #[turbo_tasks::function]
 async fn find_package(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     package_name: RcStr,
     options: Vc<ResolveModulesOptions>,
 ) -> Result<Vc<FindPackageResult>> {
@@ -1511,14 +1509,11 @@ fn merge_results_with_affecting_sources(
 
 #[turbo_tasks::function]
 pub async fn resolve_raw(
-    lookup_dir: Vc<FileSystemPath>,
+    lookup_dir: FileSystemPath,
     path: Vc<Pattern>,
     force_in_lookup_dir: bool,
 ) -> Result<Vc<ResolveResult>> {
-    async fn to_result(
-        request: &str,
-        path: ResolvedVc<FileSystemPath>,
-    ) -> Result<Vc<ResolveResult>> {
+    async fn to_result(request: &str, path: FileSystemPath) -> Result<Vc<ResolveResult>> {
         let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
         Ok(*ResolveResult::source_with_affecting_sources(
             RequestKey::new(request.into()),
@@ -1584,7 +1579,7 @@ pub async fn resolve_raw(
 
 #[turbo_tasks::function]
 pub async fn resolve(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     reference_type: ReferenceType,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
@@ -1593,7 +1588,7 @@ pub async fn resolve(
 }
 
 pub async fn resolve_inline(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     reference_type: ReferenceType,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
@@ -1682,7 +1677,7 @@ pub async fn url_resolve(
 
 #[tracing::instrument(level = "trace", skip_all)]
 async fn handle_before_resolve_plugins(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     reference_type: ReferenceType,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
@@ -1705,15 +1700,15 @@ async fn handle_before_resolve_plugins(
 
 #[tracing::instrument(level = "trace", skip_all)]
 async fn handle_after_resolve_plugins(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     reference_type: ReferenceType,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     result: Vc<ResolveResult>,
 ) -> Result<Vc<ResolveResult>> {
     async fn apply_plugins_to_path(
-        path: Vc<FileSystemPath>,
-        lookup_path: Vc<FileSystemPath>,
+        path: FileSystemPath,
+        lookup_path: FileSystemPath,
         reference_type: ReferenceType,
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
@@ -1777,7 +1772,7 @@ async fn handle_after_resolve_plugins(
 
 #[turbo_tasks::function]
 async fn resolve_internal(
-    lookup_path: ResolvedVc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     request: ResolvedVc<Request>,
     options: ResolvedVc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
@@ -1785,7 +1780,7 @@ async fn resolve_internal(
 }
 
 async fn resolve_internal_inline(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
@@ -2120,7 +2115,7 @@ async fn resolve_internal_inline(
 
 #[turbo_tasks::function]
 async fn resolve_into_folder(
-    package_path: ResolvedVc<FileSystemPath>,
+    package_path: FileSystemPath,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let package_json_path = package_path.join(rcstr!("package.json"));
@@ -2191,7 +2186,7 @@ async fn resolve_into_folder(
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_relative_request(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
@@ -2395,7 +2390,7 @@ async fn resolve_relative_request(
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn apply_in_package(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     get_request: impl Fn(&FileSystemPath) -> Option<RcStr>,
@@ -2497,7 +2492,7 @@ async fn apply_in_package(
 enum FindSelfReferencePackageResult {
     Found {
         name: String,
-        package_path: ResolvedVc<FileSystemPath>,
+        package_path: FileSystemPath,
     },
     NotFound,
 }
@@ -2506,7 +2501,7 @@ enum FindSelfReferencePackageResult {
 /// Finds the nearest folder containing package.json that could be used for a
 /// self-reference (i.e. has an exports fields).
 async fn find_self_reference(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
 ) -> Result<Vc<FindSelfReferencePackageResult>> {
     let package_json_context = find_context_file(lookup_path, package_json()).await?;
     if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
@@ -2527,7 +2522,7 @@ async fn find_self_reference(
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_module_request(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
@@ -2650,7 +2645,7 @@ async fn resolve_module_request(
 #[turbo_tasks::function]
 async fn resolve_into_package(
     path: Pattern,
-    package_path: ResolvedVc<FileSystemPath>,
+    package_path: FileSystemPath,
     query: RcStr,
     fragment: RcStr,
     options: ResolvedVc<ResolveOptions>,
@@ -2731,8 +2726,8 @@ async fn resolve_into_package(
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_import_map_result(
     result: &ImportMapResult,
-    lookup_path: Vc<FileSystemPath>,
-    original_lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
+    original_lookup_path: FileSystemPath,
     original_request: Vc<Request>,
     options: Vc<ResolveOptions>,
     query: RcStr,
@@ -2829,8 +2824,8 @@ async fn resolve_import_map_result(
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolved(
     request_key: RequestKey,
-    fs_path: Vc<FileSystemPath>,
-    original_context: Vc<FileSystemPath>,
+    fs_path: FileSystemPath,
+    original_context: FileSystemPath,
     original_request: Vc<Request>,
     options_value: &ResolveOptions,
     options: Vc<ResolveOptions>,
@@ -2894,8 +2889,8 @@ async fn resolved(
 }
 
 async fn handle_exports_imports_field(
-    package_path: Vc<FileSystemPath>,
-    package_json_path: Vc<FileSystemPath>,
+    package_path: FileSystemPath,
+    package_json_path: FileSystemPath,
     options: Vc<ResolveOptions>,
     exports_imports_field: &AliasMap<SubpathValue>,
     path: &str,
@@ -2960,7 +2955,7 @@ async fn handle_exports_imports_field(
 /// static strings or conditions like `import` or `require` to handle ESM/CJS
 /// with differently compiled files.
 async fn resolve_package_internal_with_imports_field(
-    file_path: Vc<FileSystemPath>,
+    file_path: FileSystemPath,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     pattern: &Pattern,
@@ -3008,7 +3003,7 @@ async fn resolve_package_internal_with_imports_field(
 pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: ReferenceType,
-    origin_path: Vc<FileSystemPath>,
+    origin_path: FileSystemPath,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
@@ -3052,7 +3047,7 @@ pub async fn handle_resolve_error(
 pub async fn handle_resolve_source_error(
     result: Vc<ResolveResult>,
     reference_type: ReferenceType,
-    origin_path: Vc<FileSystemPath>,
+    origin_path: FileSystemPath,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
@@ -3095,7 +3090,7 @@ pub async fn handle_resolve_source_error(
 
 async fn emit_resolve_error_issue(
     is_optional: bool,
-    origin_path: Vc<FileSystemPath>,
+    origin_path: FileSystemPath,
     reference_type: ReferenceType,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
@@ -3123,7 +3118,7 @@ async fn emit_resolve_error_issue(
 
 async fn emit_unresolvable_issue(
     is_optional: bool,
-    origin_path: Vc<FileSystemPath>,
+    origin_path: FileSystemPath,
     reference_type: ReferenceType,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,

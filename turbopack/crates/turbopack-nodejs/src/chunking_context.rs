@@ -105,17 +105,17 @@ impl NodeJsChunkingContextBuilder {
 #[derive(Debug, Clone, Hash, TaskInput)]
 pub struct NodeJsChunkingContext {
     /// The root path of the project
-    root_path: ResolvedVc<FileSystemPath>,
+    root_path: FileSystemPath,
     /// This path is used to compute the url to request chunks or assets from
-    output_root: ResolvedVc<FileSystemPath>,
+    output_root: FileSystemPath,
     /// The relative path from the output_root to the root_path.
     output_root_to_root_path: RcStr,
     /// This path is used to compute the url to request chunks or assets from
-    client_root: ResolvedVc<FileSystemPath>,
+    client_root: FileSystemPath,
     /// Chunks are placed at this path
-    chunk_root_path: ResolvedVc<FileSystemPath>,
+    chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
-    asset_root_path: ResolvedVc<FileSystemPath>,
+    asset_root_path: FileSystemPath,
     /// Static assets requested from this url base
     asset_prefix: Option<RcStr>,
     /// The environment chunks will be evaluated in.
@@ -143,12 +143,12 @@ pub struct NodeJsChunkingContext {
 impl NodeJsChunkingContext {
     /// Creates a new chunking context builder.
     pub fn builder(
-        root_path: ResolvedVc<FileSystemPath>,
-        output_root: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
+        output_root: FileSystemPath,
         output_root_to_root_path: RcStr,
-        client_root: ResolvedVc<FileSystemPath>,
-        chunk_root_path: ResolvedVc<FileSystemPath>,
-        asset_root_path: ResolvedVc<FileSystemPath>,
+        client_root: FileSystemPath,
+        chunk_root_path: FileSystemPath,
+        asset_root_path: FileSystemPath,
         environment: ResolvedVc<Environment>,
         runtime_type: RuntimeType,
     ) -> NodeJsChunkingContextBuilder {
@@ -263,7 +263,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(&self, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+    async fn asset_url(&self, ident: FileSystemPath) -> Result<Vc<RcStr>> {
         let asset_path = ident.await?.to_string();
         let asset_path = asset_path
             .strip_prefix(&format!("{}/", self.client_root.await?.path))
@@ -388,7 +388,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
-        path: Vc<FileSystemPath>,
+        path: FileSystemPath,
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,

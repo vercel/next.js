@@ -24,7 +24,7 @@ use turbopack_ecmascript::{
 
 use crate::next_app::AppPage;
 
-async fn hash_file_content(path: Vc<FileSystemPath>) -> Result<u64> {
+async fn hash_file_content(path: FileSystemPath) -> Result<u64> {
     let original_file_content = path.read().await?;
 
     Ok(match &*original_file_content {
@@ -41,7 +41,7 @@ async fn hash_file_content(path: Vc<FileSystemPath>) -> Result<u64> {
 #[turbo_tasks::function]
 pub async fn dynamic_image_metadata_source(
     asset_context: Vc<Box<dyn AssetContext>>,
-    path: Vc<FileSystemPath>,
+    path: FileSystemPath,
     ty: RcStr,
     page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {

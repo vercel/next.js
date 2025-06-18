@@ -10,7 +10,7 @@ pub enum ContextCondition {
     Any(Vec<ContextCondition>),
     Not(Box<ContextCondition>),
     InDirectory(String),
-    InPath(ResolvedVc<FileSystemPath>),
+    InPath(FileSystemPath),
 }
 
 impl ContextCondition {

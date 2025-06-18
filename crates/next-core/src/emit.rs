@@ -18,9 +18,9 @@ use turbopack_core::{
 #[turbo_tasks::function]
 pub async fn emit_all_assets(
     assets: Vc<OutputAssets>,
-    node_root: Vc<FileSystemPath>,
-    client_relative_path: Vc<FileSystemPath>,
-    client_output_path: Vc<FileSystemPath>,
+    node_root: FileSystemPath,
+    client_relative_path: FileSystemPath,
+    client_output_path: FileSystemPath,
 ) -> Result<()> {
     let _ = emit_assets(
         all_assets_from_entries(assets),
@@ -41,9 +41,9 @@ pub async fn emit_all_assets(
 #[turbo_tasks::function]
 pub async fn emit_assets(
     assets: Vc<OutputAssets>,
-    node_root: Vc<FileSystemPath>,
-    client_relative_path: Vc<FileSystemPath>,
-    client_output_path: Vc<FileSystemPath>,
+    node_root: FileSystemPath,
+    client_relative_path: FileSystemPath,
+    client_output_path: FileSystemPath,
 ) -> Result<()> {
     let _: Vec<Vc<()>> = assets
         .await?
@@ -86,8 +86,8 @@ async fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
 #[turbo_tasks::function]
 async fn emit_rebase(
     asset: Vc<Box<dyn OutputAsset>>,
-    from: Vc<FileSystemPath>,
-    to: Vc<FileSystemPath>,
+    from: FileSystemPath,
+    to: FileSystemPath,
 ) -> Result<()> {
     let path = rebase(asset.path(), from, to);
     let content = asset.content();

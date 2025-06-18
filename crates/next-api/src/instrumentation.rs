@@ -43,7 +43,7 @@ pub struct InstrumentationEndpoint {
     source: ResolvedVc<Box<dyn Source>>,
     is_edge: bool,
 
-    app_dir: Option<ResolvedVc<FileSystemPath>>,
+    app_dir: Option<FileSystemPath>,
     ecmascript_client_reference_transition_name: Option<RcStr>,
 }
 
@@ -55,7 +55,7 @@ impl InstrumentationEndpoint {
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         source: ResolvedVc<Box<dyn Source>>,
         is_edge: bool,
-        app_dir: Option<ResolvedVc<FileSystemPath>>,
+        app_dir: Option<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<RcStr>,
     ) -> Vc<Self> {
         Self {

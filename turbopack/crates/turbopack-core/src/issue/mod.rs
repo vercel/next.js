@@ -161,7 +161,7 @@ pub trait Issue {
 #[turbo_tasks::value_trait]
 pub trait ImportTracer {
     #[turbo_tasks::function]
-    fn get_traces(self: Vc<Self>, path: ResolvedVc<FileSystemPath>) -> Vc<ImportTraces>;
+    fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Vc<ImportTraces>;
 }
 
 #[turbo_tasks::value(shared)]
@@ -171,7 +171,7 @@ pub struct DelegatingImportTracer {
 }
 
 impl DelegatingImportTracer {
-    async fn get_traces(&self, path: Vc<FileSystemPath>) -> Result<Vec<ImportTrace>> {
+    async fn get_traces(&self, path: FileSystemPath) -> Result<Vec<ImportTrace>> {
         Ok(self
             .delegates
             .iter()
@@ -208,7 +208,7 @@ trait IssueProcessingPath {
 
 #[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
-    pub file_path: Option<ResolvedVc<FileSystemPath>>,
+    pub file_path: Option<FileSystemPath>,
     pub description: ResolvedVc<RcStr>,
 }
 
@@ -988,7 +988,7 @@ where
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
 
@@ -997,7 +997,7 @@ where
 
     async fn issue_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
     async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self>;
@@ -1021,7 +1021,7 @@ where
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
@@ -1054,7 +1054,7 @@ where
 
     async fn issue_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]

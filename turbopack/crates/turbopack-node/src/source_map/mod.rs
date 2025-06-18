@@ -31,8 +31,8 @@ const MAX_CODE_FRAMES: usize = 3;
 pub async fn apply_source_mapping(
     text: &'_ str,
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    root: FileSystemPath,
+    project_dir: FileSystemPath,
     formatting_mode: FormattingMode,
 ) -> Result<Cow<'_, str>> {
     static STACK_TRACE_LINE: Lazy<Regex> =
@@ -188,19 +188,19 @@ enum ResolvedSourceMapping {
     },
     MappedProject {
         frame: StackFrame<'static>,
-        project_path: ReadRef<FileSystemPath>,
+        project_path: FileSystemPath,
         lines: ReadRef<FileLinesContent>,
     },
     MappedLibrary {
         frame: StackFrame<'static>,
-        project_path: ReadRef<FileSystemPath>,
+        project_path: FileSystemPath,
     },
 }
 
 async fn resolve_source_mapping(
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    root: FileSystemPath,
+    project_dir: FileSystemPath,
     frame: &StackFrame<'_>,
 ) -> Result<ResolvedSourceMapping> {
     let Some((line, column)) = frame.get_pos() else {
@@ -275,8 +275,8 @@ impl StructuredError {
     pub async fn print(
         &self,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-        root: Vc<FileSystemPath>,
-        root_path: Vc<FileSystemPath>,
+        root: FileSystemPath,
+        root_path: FileSystemPath,
         formatting_mode: FormattingMode,
     ) -> Result<String> {
         let mut message = String::new();
@@ -322,8 +322,8 @@ impl StructuredError {
 pub async fn trace_stack(
     error: StructuredError,
     root_asset: Vc<Box<dyn OutputAsset>>,
-    output_path: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    output_path: FileSystemPath,
+    project_dir: FileSystemPath,
 ) -> Result<String> {
     let assets_for_source_mapping = internal_assets_for_source_mapping(root_asset, output_path);
 
@@ -340,8 +340,8 @@ pub async fn trace_stack(
 pub async fn trace_stack_with_source_mapping_assets(
     error: StructuredError,
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    output_path: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
+    output_path: FileSystemPath,
+    project_dir: FileSystemPath,
 ) -> Result<String> {
     error
         .print(

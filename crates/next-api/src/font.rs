@@ -12,9 +12,9 @@ use turbopack_core::{
 use crate::paths::get_font_paths_from_root;
 
 pub(crate) async fn create_font_manifest(
-    client_root: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
-    dir: Vc<FileSystemPath>,
+    client_root: FileSystemPath,
+    node_root: FileSystemPath,
+    dir: FileSystemPath,
     original_name: &str,
     manifest_path_prefix: &str,
     pathname: &str,

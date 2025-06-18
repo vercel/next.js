@@ -10,7 +10,7 @@ use crate::next_config::NextConfig;
 /// Returns a transform rule for the relay graphql transform.
 pub async fn get_relay_transform_rule(
     next_config: Vc<NextConfig>,
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<Option<ModuleRule>> {
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     let project_path = &*project_path.await?;

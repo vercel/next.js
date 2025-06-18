@@ -10,7 +10,7 @@ use crate::ProcessEnvIssue;
 pub struct TryDotenvProcessEnv {
     dotenv: ResolvedVc<DotenvProcessEnv>,
     prior: ResolvedVc<Box<dyn ProcessEnv>>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -18,7 +18,7 @@ impl TryDotenvProcessEnv {
     #[turbo_tasks::function]
     pub async fn new(
         prior: ResolvedVc<Box<dyn ProcessEnv>>,
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
     ) -> Result<Vc<Self>> {
         let dotenv = DotenvProcessEnv::new(Some(*prior), *path)
             .to_resolved()

@@ -181,19 +181,19 @@ impl BrowserChunkingContextBuilder {
 pub struct BrowserChunkingContext {
     name: Option<RcStr>,
     /// The root path of the project
-    root_path: ResolvedVc<FileSystemPath>,
+    root_path: FileSystemPath,
     /// Whether to write file sources as file:// paths in source maps
     should_use_file_source_map_uris: bool,
     /// This path is used to compute the url to request chunks from
-    output_root: ResolvedVc<FileSystemPath>,
+    output_root: FileSystemPath,
     /// The relative path from the output_root to the root_path.
     output_root_to_root_path: RcStr,
     /// This path is used to compute the url to request assets from
-    client_root: ResolvedVc<FileSystemPath>,
+    client_root: FileSystemPath,
     /// Chunks are placed at this path
-    chunk_root_path: ResolvedVc<FileSystemPath>,
+    chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
-    asset_root_path: ResolvedVc<FileSystemPath>,
+    asset_root_path: FileSystemPath,
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     chunk_base_path: Option<RcStr>,
@@ -231,12 +231,12 @@ pub struct BrowserChunkingContext {
 
 impl BrowserChunkingContext {
     pub fn builder(
-        root_path: ResolvedVc<FileSystemPath>,
-        output_root: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
+        output_root: FileSystemPath,
         output_root_to_root_path: RcStr,
-        client_root: ResolvedVc<FileSystemPath>,
-        chunk_root_path: ResolvedVc<FileSystemPath>,
-        asset_root_path: ResolvedVc<FileSystemPath>,
+        client_root: FileSystemPath,
+        chunk_root_path: FileSystemPath,
+        asset_root_path: FileSystemPath,
         environment: ResolvedVc<Environment>,
         runtime_type: RuntimeType,
     ) -> BrowserChunkingContextBuilder {
@@ -439,7 +439,7 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(&self, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+    async fn asset_url(&self, ident: FileSystemPath) -> Result<Vc<RcStr>> {
         let asset_path = ident.await?.to_string();
         let asset_path = asset_path
             .strip_prefix(&format!("{}/", self.client_root.await?.path))
@@ -668,7 +668,7 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn entry_chunk_group(
         self: Vc<Self>,
-        _path: Vc<FileSystemPath>,
+        _path: FileSystemPath,
         _evaluatable_assets: Vc<EvaluatableAssets>,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,

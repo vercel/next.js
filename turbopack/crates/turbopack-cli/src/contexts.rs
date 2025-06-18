@@ -49,9 +49,7 @@ async fn foreign_code_context_condition() -> Result<ContextCondition> {
 }
 
 #[turbo_tasks::function]
-pub async fn get_client_import_map(
-    project_path: ResolvedVc<FileSystemPath>,
-) -> Result<Vc<ImportMap>> {
+pub async fn get_client_import_map(project_path: FileSystemPath) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     import_map.insert_singleton_alias("@swc/helpers", project_path);
@@ -78,7 +76,7 @@ pub async fn get_client_import_map(
 
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map = get_client_import_map(project_path).to_resolved().await?;
@@ -104,7 +102,7 @@ pub async fn get_client_resolve_options_context(
 
 #[turbo_tasks::function]
 async fn get_client_module_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
     node_env: Vc<NodeEnv>,
@@ -173,7 +171,7 @@ async fn get_client_module_options_context(
 
 #[turbo_tasks::function]
 pub fn get_client_asset_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     execution_context: Vc<ExecutionContext>,
     compile_time_info: Vc<CompileTimeInfo>,
     node_env: Vc<NodeEnv>,

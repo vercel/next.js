@@ -73,8 +73,8 @@ struct NodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
     assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    assets_root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
     debug: bool,
@@ -159,8 +159,8 @@ struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     stream: BufReader<R>,
     shared: SharedOutputSet,
     assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
+    project_dir: FileSystemPath,
     final_stream: W,
 }
 
@@ -197,8 +197,8 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
         async fn write_source_mapped_final<W: AsyncWrite + Unpin>(
             bytes: &[u8],
             assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-            root: Vc<FileSystemPath>,
-            project_dir: Vc<FileSystemPath>,
+            root: FileSystemPath,
+            project_dir: FileSystemPath,
             final_stream: &mut W,
         ) -> Result<()> {
             if let Ok(text) = std::str::from_utf8(bytes) {
@@ -342,8 +342,8 @@ impl NodeJsPoolProcess {
         env: &FxHashMap<RcStr, RcStr>,
         entrypoint: &Path,
         assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-        assets_root: ResolvedVc<FileSystemPath>,
-        project_dir: ResolvedVc<FileSystemPath>,
+        assets_root: FileSystemPath,
+        project_dir: FileSystemPath,
         shared_stdout: SharedOutputSet,
         shared_stderr: SharedOutputSet,
         debug: bool,
@@ -727,8 +727,8 @@ pub struct NodeJsPool {
     entrypoint: PathBuf,
     env: FxHashMap<RcStr, RcStr>,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: ResolvedVc<FileSystemPath>,
-    pub project_dir: ResolvedVc<FileSystemPath>,
+    pub assets_root: FileSystemPath,
+    pub project_dir: FileSystemPath,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     processes: Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>,
     /// Semaphore to limit the number of concurrent operations in general
@@ -758,8 +758,8 @@ impl NodeJsPool {
         entrypoint: PathBuf,
         env: FxHashMap<RcStr, RcStr>,
         assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-        assets_root: ResolvedVc<FileSystemPath>,
-        project_dir: ResolvedVc<FileSystemPath>,
+        assets_root: FileSystemPath,
+        project_dir: FileSystemPath,
         concurrency: usize,
         debug: bool,
     ) -> Self {

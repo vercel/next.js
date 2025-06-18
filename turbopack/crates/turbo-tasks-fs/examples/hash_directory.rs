@@ -67,12 +67,12 @@ async fn print_hash(dir_hash: Vc<RcStr>) -> Result<Vc<()>> {
     Ok(Default::default())
 }
 
-async fn filename(path: Vc<FileSystemPath>) -> Result<String> {
+async fn filename(path: FileSystemPath) -> Result<String> {
     Ok(path.await?.path.split('/').next_back().unwrap().to_string())
 }
 
 #[turbo_tasks::function]
-async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+async fn hash_directory(directory: FileSystemPath) -> Result<Vc<RcStr>> {
     let dir_path = &directory.await?.path;
     let content = directory.read_dir();
     let mut hashes = BTreeMap::new();
@@ -108,7 +108,7 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
 }
 
 #[turbo_tasks::function]
-async fn hash_file(file_path: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+async fn hash_file(file_path: FileSystemPath) -> Result<Vc<RcStr>> {
     let content = file_path.read().await?;
     Ok(match &*content {
         FileContent::Content(file) => hash_content(&mut file.read()),

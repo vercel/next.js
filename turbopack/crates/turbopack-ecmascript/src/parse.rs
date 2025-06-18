@@ -291,7 +291,7 @@ async fn parse_internal(
 
 async fn parse_file_content(
     string: BytesStr,
-    fs_path_vc: Vc<FileSystemPath>,
+    fs_path_vc: FileSystemPath,
     fs_path: &FileSystemPath,
     ident: &str,
     query: RcStr,

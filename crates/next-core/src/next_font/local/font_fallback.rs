@@ -34,7 +34,7 @@ static BOLD_WEIGHT: f64 = 700.0;
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallbacks(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     options_vc: Vc<NextFontLocalOptions>,
 ) -> Result<Vc<FontFallbackResult>> {
     let options = &*options_vc.await?;
@@ -90,7 +90,7 @@ pub(super) async fn get_font_fallbacks(
 }
 
 async fn get_font_adjustment(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     options: Vc<NextFontLocalOptions>,
     fallback_font: &DefaultFallbackFont,
 ) -> Result<FontResult<FontAdjustment>> {

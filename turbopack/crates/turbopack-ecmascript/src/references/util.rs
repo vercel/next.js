@@ -47,7 +47,7 @@ pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
 #[derive(Debug, Clone)]
 pub struct InlineSourceMap {
     /// The file path of the module containing the sourcemap data URL
-    pub origin_path: ResolvedVc<FileSystemPath>,
+    pub origin_path: FileSystemPath,
     /// The Base64 encoded JSON sourcemap string
     pub source_map: RcStr,
 }

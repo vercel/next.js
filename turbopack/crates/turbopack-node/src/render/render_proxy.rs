@@ -35,15 +35,15 @@ use crate::{
 /// Renders a module as static HTML in a node.js process.
 #[turbo_tasks::function(operation)]
 pub async fn render_proxy_operation(
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: ResolvedVc<FileSystemPath>,
-    output_root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
+    output_root: FileSystemPath,
+    project_dir: FileSystemPath,
     data: ResolvedVc<RenderData>,
     body: ResolvedVc<Body>,
     debug: bool,
@@ -96,7 +96,7 @@ pub async fn render_proxy_operation(
 }
 
 async fn proxy_error(
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     error: anyhow::Error,
     operation: Option<NodeJsOperation>,
 ) -> Result<(u16, RcStr)> {
@@ -152,15 +152,15 @@ struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
 #[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
 struct RenderStreamOptions {
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: ResolvedVc<FileSystemPath>,
-    output_root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
+    output_root: FileSystemPath,
+    project_dir: FileSystemPath,
     data: ResolvedVc<RenderData>,
     body: ResolvedVc<Body>,
     debug: bool,

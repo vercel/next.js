@@ -402,7 +402,7 @@ pub async fn parse_css(
 async fn process_content(
     content_vc: ResolvedVc<FileContent>,
     code: String,
-    fs_path_vc: ResolvedVc<FileSystemPath>,
+    fs_path_vc: FileSystemPath,
     filename: &str,
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -577,7 +577,7 @@ enum CssError {
 }
 
 impl CssError {
-    fn report(self, file: ResolvedVc<FileSystemPath>) {
+    fn report(self, file: FileSystemPath) {
         match self {
             CssError::CssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
@@ -685,7 +685,7 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
 #[turbo_tasks::value]
 struct ParsingIssue {
     msg: RcStr,
-    file: ResolvedVc<FileSystemPath>,
+    file: FileSystemPath,
     source: Option<IssueSource>,
 }
 

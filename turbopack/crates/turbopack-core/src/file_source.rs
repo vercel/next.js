@@ -13,16 +13,16 @@ use crate::{
 /// references to other [Source]s.
 #[turbo_tasks::value]
 pub struct FileSource {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     query: RcStr,
     fragment: RcStr,
 }
 
 impl FileSource {
-    pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(path: FileSystemPath) -> Vc<Self> {
         FileSource::new_with_query_and_fragment(path, RcStr::default(), RcStr::default())
     }
-    pub fn new_with_query(path: Vc<FileSystemPath>, query: RcStr) -> Vc<Self> {
+    pub fn new_with_query(path: FileSystemPath, query: RcStr) -> Vc<Self> {
         FileSource::new_with_query_and_fragment(path, query, RcStr::default())
     }
 }
@@ -31,7 +31,7 @@ impl FileSource {
 impl FileSource {
     #[turbo_tasks::function]
     pub fn new_with_query_and_fragment(
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
         query: RcStr,
         fragment: RcStr,
     ) -> Vc<Self> {

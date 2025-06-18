@@ -13,16 +13,13 @@ use crate::{EnvMap, GLOBAL_ENV_LOCK, ProcessEnv, sorted_env_vars};
 #[turbo_tasks::value]
 pub struct DotenvProcessEnv {
     prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl DotenvProcessEnv {
     #[turbo_tasks::function]
-    pub fn new(
-        prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>,
-        path: ResolvedVc<FileSystemPath>,
-    ) -> Vc<Self> {
+    pub fn new(prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>, path: FileSystemPath) -> Vc<Self> {
         DotenvProcessEnv { prior, path }.cell()
     }
 

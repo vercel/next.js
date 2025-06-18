@@ -37,8 +37,8 @@ pub enum ExternalPredicate {
 /// possible to resolve them at runtime.
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
-    project_path: ResolvedVc<FileSystemPath>,
-    root: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
+    root: FileSystemPath,
     predicate: ResolvedVc<ExternalPredicate>,
     import_externals: bool,
 }
@@ -47,8 +47,8 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
 impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     pub fn new(
-        project_path: ResolvedVc<FileSystemPath>,
-        root: ResolvedVc<FileSystemPath>,
+        project_path: FileSystemPath,
+        root: FileSystemPath,
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
     ) -> Vc<Self> {
@@ -63,7 +63,7 @@ impl ExternalCjsModulesResolvePlugin {
 }
 
 #[turbo_tasks::function]
-fn condition(root: Vc<FileSystemPath>) -> Vc<AfterResolvePluginCondition> {
+fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
     AfterResolvePluginCondition::new(root, Glob::new("**/node_modules/**".into()))
 }
 
@@ -77,8 +77,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: ResolvedVc<FileSystemPath>,
-        lookup_path: ResolvedVc<FileSystemPath>,
+        fs_path: FileSystemPath,
+        lookup_path: FileSystemPath,
         reference_type: ReferenceType,
         request: ResolvedVc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
@@ -161,7 +161,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         }
 
         async fn get_file_type(
-            fs_path: Vc<FileSystemPath>,
+            fs_path: FileSystemPath,
             raw_fs_path: &FileSystemPath,
         ) -> Result<FileType> {
             // node.js only supports these file extensions
@@ -451,7 +451,7 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
 
 #[turbo_tasks::value]
 struct ExternalizeIssue {
-    file_path: ResolvedVc<FileSystemPath>,
+    file_path: FileSystemPath,
     package: RcStr,
     request_str: RcStr,
     reason: Vec<StyledString>,

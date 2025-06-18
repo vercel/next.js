@@ -8,7 +8,7 @@ use crate::next_import_map::get_next_package;
 
 #[turbo_tasks::function]
 pub async fn get_postcss_package_mapping(
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<Vc<ImportMapping>> {
     Ok(ImportMapping::Alternatives(vec![
         // Prefer the local installed version over the next.js version

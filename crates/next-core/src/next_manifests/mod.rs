@@ -35,8 +35,8 @@ pub struct BuildManifest {
 impl BuildManifest {
     pub async fn build_output(
         self,
-        output_path: Vc<FileSystemPath>,
-        client_relative_path: Vc<FileSystemPath>,
+        output_path: FileSystemPath,
+        client_relative_path: FileSystemPath,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let client_relative_path_ref = &*client_relative_path.await?;
 
@@ -421,8 +421,8 @@ pub struct AppBuildManifest {
 impl AppBuildManifest {
     pub async fn build_output(
         self,
-        output_path: Vc<FileSystemPath>,
-        client_relative_path: Vc<FileSystemPath>,
+        output_path: FileSystemPath,
+        client_relative_path: FileSystemPath,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let client_relative_path_ref = &*client_relative_path.await?;
 

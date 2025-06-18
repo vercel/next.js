@@ -19,7 +19,7 @@ use crate::{
 #[derive(PartialEq, Eq, Serialize, Deserialize, NonLocalValue, TraceRawVcs, ValueDebugFormat)]
 enum PathType {
     Fixed {
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
     },
     FromIdent {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -54,7 +54,7 @@ impl SourceMapAsset {
 
     #[turbo_tasks::function]
     pub fn new_fixed(
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
     ) -> Vc<Self> {
         SourceMapAsset {

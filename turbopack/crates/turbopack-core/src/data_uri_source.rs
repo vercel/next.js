@@ -17,7 +17,7 @@ pub struct DataUriSource {
     media_type: RcStr,
     encoding: RcStr,
     data: ResolvedVc<RcStr>,
-    lookup_path: ResolvedVc<FileSystemPath>,
+    lookup_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -27,7 +27,7 @@ impl DataUriSource {
         media_type: RcStr,
         encoding: RcStr,
         data: ResolvedVc<RcStr>,
-        lookup_path: ResolvedVc<FileSystemPath>,
+        lookup_path: FileSystemPath,
     ) -> Vc<Self> {
         Self::cell(DataUriSource {
             media_type,

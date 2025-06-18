@@ -53,13 +53,13 @@ struct NextFontLocalFontFileOptions {
 
 #[turbo_tasks::value]
 pub(crate) struct NextFontLocalResolvePlugin {
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(root: FileSystemPath) -> Vc<Self> {
         NextFontLocalResolvePlugin { root }.cell()
     }
 }
@@ -76,7 +76,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
     async fn before_resolve(
         self: Vc<Self>,
-        lookup_path: Vc<FileSystemPath>,
+        lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
         request_vc: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
@@ -323,7 +323,7 @@ fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontLocalFontFi
 #[turbo_tasks::value(shared)]
 struct FontResolvingIssue {
     font_path: ResolvedVc<RcStr>,
-    origin_path: ResolvedVc<FileSystemPath>,
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]

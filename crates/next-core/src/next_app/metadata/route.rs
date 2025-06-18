@@ -52,7 +52,7 @@ pub async fn get_app_metadata_route_source(
 pub async fn get_app_metadata_route_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     mut page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
@@ -112,7 +112,7 @@ const CACHE_HEADER_NONE: &str = "no-cache, no-store";
 const CACHE_HEADER_LONG_CACHE: &str = "public, immutable, no-transform, max-age=31536000";
 const CACHE_HEADER_REVALIDATE: &str = "public, max-age=0, must-revalidate";
 
-async fn get_base64_file_content(path: Vc<FileSystemPath>) -> Result<String> {
+async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
     let original_file_content = path.read().await?;
 
     Ok(match &*original_file_content {
@@ -127,10 +127,7 @@ async fn get_base64_file_content(path: Vc<FileSystemPath>) -> Result<String> {
 }
 
 #[turbo_tasks::function]
-async fn static_route_source(
-    mode: NextMode,
-    path: Vc<FileSystemPath>,
-) -> Result<Vc<Box<dyn Source>>> {
+async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
     let stem = stem.as_deref().unwrap_or_default();
 
@@ -204,7 +201,7 @@ async fn static_route_source(
 }
 
 #[turbo_tasks::function]
-async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
+async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
     let stem = stem.as_deref().unwrap_or_default();
     let ext = &*path.extension().await?;
@@ -260,7 +257,7 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 #[turbo_tasks::function]
 async fn dynamic_site_map_route_source(
     mode: NextMode,
-    path: Vc<FileSystemPath>,
+    path: FileSystemPath,
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
@@ -353,7 +350,7 @@ async fn dynamic_site_map_route_source(
 }
 
 #[turbo_tasks::function]
-async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
+async fn dynamic_image_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
     let stem = stem.as_deref().unwrap_or_default();
     let ext = &*path.extension().await?;

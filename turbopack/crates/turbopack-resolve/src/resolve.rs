@@ -86,7 +86,7 @@ const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "a
 
 #[turbo_tasks::function]
 async fn base_resolve_options(
-    resolve_path: Vc<FileSystemPath>,
+    resolve_path: FileSystemPath,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
     let parent = resolve_path.parent().resolve().await?;
@@ -276,7 +276,7 @@ async fn base_resolve_options(
 
 #[turbo_tasks::function]
 pub async fn resolve_options(
-    resolve_path: Vc<FileSystemPath>,
+    resolve_path: FileSystemPath,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
     let options_context_value = options_context.await?;

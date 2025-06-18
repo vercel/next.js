@@ -73,12 +73,12 @@ struct SourceMapJson {
 /// `sourceContent`s from disk.
 pub async fn resolve_source_map_sources(
     map: Option<&Rope>,
-    origin: Vc<FileSystemPath>,
+    origin: FileSystemPath,
 ) -> Result<Option<Rope>> {
     async fn resolve_source(
         original_source: &mut String,
         original_content: Option<&mut Option<String>>,
-        origin: Vc<FileSystemPath>,
+        origin: FileSystemPath,
     ) -> Result<()> {
         if let Some(path) = *origin
             .parent()
@@ -119,7 +119,7 @@ pub async fn resolve_source_map_sources(
         anyhow::Ok(())
     }
 
-    async fn resolve_map(map: &mut SourceMapJson, origin: Vc<FileSystemPath>) -> Result<()> {
+    async fn resolve_map(map: &mut SourceMapJson, origin: FileSystemPath) -> Result<()> {
         if let Some(sources) = &mut map.sources {
             let mut contents = if let Some(mut contents) = map.sources_content.take() {
                 contents.resize(sources.len(), None);
@@ -165,7 +165,7 @@ pub async fn resolve_source_map_sources(
 /// is useful for debugging environments.
 pub async fn fileify_source_map(
     map: Option<&Rope>,
-    context_path: Vc<FileSystemPath>,
+    context_path: FileSystemPath,
 ) -> Result<Option<Rope>> {
     let Some(map) = map else {
         return Ok(None);

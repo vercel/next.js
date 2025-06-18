@@ -68,10 +68,7 @@ struct HasPath {
     path: RcStr,
 }
 
-pub(crate) async fn can_use_next_font(
-    project_path: Vc<FileSystemPath>,
-    query: &RcStr,
-) -> Result<bool> {
+pub(crate) async fn can_use_next_font(project_path: FileSystemPath, query: &RcStr) -> Result<bool> {
     let query_map = qstring::QString::from(query.as_str());
     let request: HasPath = parse_json_with_source_context(
         query_map

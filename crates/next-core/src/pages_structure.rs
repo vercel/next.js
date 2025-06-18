@@ -11,28 +11,28 @@ use crate::next_import_map::get_next_package;
 /// A final route in the pages directory.
 #[turbo_tasks::value]
 pub struct PagesStructureItem {
-    pub base_path: ResolvedVc<FileSystemPath>,
+    pub base_path: FileSystemPath,
     pub extensions: ResolvedVc<Vec<RcStr>>,
-    pub fallback_path: Option<ResolvedVc<FileSystemPath>>,
+    pub fallback_path: Option<FileSystemPath>,
 
     /// Pathname of this item in the Next.js router.
-    pub next_router_path: ResolvedVc<FileSystemPath>,
+    pub next_router_path: FileSystemPath,
     /// Unique path corresponding to this item. This differs from
     /// `next_router_path` in that it will include the trailing /index for index
     /// routes, which allows for differentiating with potential /index
     /// directories.
-    pub original_path: ResolvedVc<FileSystemPath>,
+    pub original_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl PagesStructureItem {
     #[turbo_tasks::function]
     fn new(
-        base_path: ResolvedVc<FileSystemPath>,
+        base_path: FileSystemPath,
         extensions: ResolvedVc<Vec<RcStr>>,
-        fallback_path: Option<ResolvedVc<FileSystemPath>>,
-        next_router_path: ResolvedVc<FileSystemPath>,
-        original_path: ResolvedVc<FileSystemPath>,
+        fallback_path: Option<FileSystemPath>,
+        next_router_path: FileSystemPath,
+        original_path: FileSystemPath,
     ) -> Vc<Self> {
         PagesStructureItem {
             base_path,
@@ -49,7 +49,7 @@ impl PagesStructureItem {
         // Check if the file path + extension exists in the filesystem, if so use that. If not fall
         // back to the base path.
         for ext in self.extensions.await?.into_iter() {
-            let file_path: Vc<FileSystemPath> = self.base_path.append(format!(".{ext}").into());
+            let file_path: FileSystemPath = self.base_path.append(format!(".{ext}").into());
             let ty = *file_path.get_type().await?;
             if matches!(ty, FileSystemEntryType::File | FileSystemEntryType::Symlink) {
                 return Ok(file_path);
@@ -80,8 +80,8 @@ pub struct PagesStructure {
 
 #[turbo_tasks::value]
 pub struct PagesDirectoryStructure {
-    pub project_path: ResolvedVc<FileSystemPath>,
-    pub next_router_path: ResolvedVc<FileSystemPath>,
+    pub project_path: FileSystemPath,
+    pub next_router_path: FileSystemPath,
     pub items: Vec<ResolvedVc<PagesStructureItem>>,
     pub children: Vec<ResolvedVc<PagesDirectoryStructure>>,
 }
@@ -99,8 +99,8 @@ impl PagesDirectoryStructure {
 /// Finds and returns the [PagesStructure] of the pages directory if existing.
 #[turbo_tasks::function]
 pub async fn find_pages_structure(
-    project_root: Vc<FileSystemPath>,
-    next_router_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
+    next_router_root: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesStructure>> {
     let pages_root = project_root
@@ -137,9 +137,9 @@ pub async fn find_pages_structure(
 /// Handles the root pages directory.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_root_directory(
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     project_path: Vc<FileSystemPathOption>,
-    next_router_path: Vc<FileSystemPath>,
+    next_router_path: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesStructure>> {
     let page_extensions_raw = &*page_extensions.await?;
@@ -311,8 +311,8 @@ async fn get_pages_structure_for_root_directory(
 /// Calls itself recursively for sub directories.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_directory(
-    project_path: Vc<FileSystemPath>,
-    next_router_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
+    next_router_path: FileSystemPath,
     position: u32,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesDirectoryStructure>> {
@@ -401,7 +401,7 @@ fn page_basename<'a>(name: &'a str, page_extensions: &'a [RcStr]) -> Option<&'a 
 }
 
 fn next_router_path_for_basename(
-    next_router_path: Vc<FileSystemPath>,
+    next_router_path: FileSystemPath,
     basename: &str,
 ) -> Vc<FileSystemPath> {
     if basename == "index" {

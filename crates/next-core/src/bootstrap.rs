@@ -16,7 +16,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 pub fn route_bootstrap(
     asset: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: Vc<FileSystemPath>,
+    base_path: FileSystemPath,
     bootstrap_asset: Vc<Box<dyn Source>>,
     config: Vc<BootstrapConfig>,
 ) -> Vc<Box<dyn EvaluatableAsset>> {
@@ -45,7 +45,7 @@ impl BootstrapConfig {
 pub async fn bootstrap(
     asset: ResolvedVc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: Vc<FileSystemPath>,
+    base_path: FileSystemPath,
     bootstrap_asset: Vc<Box<dyn Source>>,
     inner_assets: Vc<InnerAssets>,
     config: Vc<BootstrapConfig>,

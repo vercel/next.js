@@ -384,7 +384,7 @@ impl EcmascriptModuleAsset {
 #[derive(Copy, Clone)]
 pub(crate) struct ModuleTypeResult {
     pub module_type: SpecifiedModuleType,
-    pub referenced_package_json: Option<ResolvedVc<FileSystemPath>>,
+    pub referenced_package_json: Option<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -400,7 +400,7 @@ impl ModuleTypeResult {
     #[turbo_tasks::function]
     fn new_with_package_json(
         module_type: SpecifiedModuleType,
-        package_json: ResolvedVc<FileSystemPath>,
+        package_json: FileSystemPath,
     ) -> Vc<Self> {
         Self::cell(ModuleTypeResult {
             module_type,
@@ -517,7 +517,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
 
 #[turbo_tasks::function]
 async fn determine_module_type_for_directory(
-    context_path: Vc<FileSystemPath>,
+    context_path: FileSystemPath,
 ) -> Result<Vc<ModuleTypeResult>> {
     let find_package_json =
         find_context_file(context_path, package_json().resolve().await?).await?;

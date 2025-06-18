@@ -25,7 +25,7 @@ static ANSI_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\x1b\[\d+m").unwrap()
 
 pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     captured_issues: I,
-    issues_path: Vc<FileSystemPath>,
+    issues_path: FileSystemPath,
     workspace_root: &str,
 ) -> Result<()> {
     let expected_issues = expected(issues_path).await?;
@@ -63,7 +63,7 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
         );
 
         // Annoyingly, the PlainIssue.source -> PlainIssueSource.asset ->
-        // PlainSource.path -> FileSystemPath.fs -> DiskFileSystem.root changes
+        // PlainSource.path -> Vc<FileSystemPath>.fs -> DiskFileSystem.root changes
         // for everyone.
         let content: RcStr = formatted
             .as_str()
@@ -81,7 +81,7 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     matches_expected(expected_issues, seen).await
 }
 
-pub async fn expected(dir: Vc<FileSystemPath>) -> Result<FxHashSet<Vc<FileSystemPath>>> {
+pub async fn expected(dir: FileSystemPath) -> Result<FxHashSet<FileSystemPath>> {
     let mut expected = FxHashSet::default();
     let entries = dir.read_dir().await?;
     if let DirectoryContent::Entries(entries) = &*entries {
@@ -102,8 +102,8 @@ pub async fn expected(dir: Vc<FileSystemPath>) -> Result<FxHashSet<Vc<FileSystem
 }
 
 pub async fn matches_expected(
-    expected: FxHashSet<Vc<FileSystemPath>>,
-    seen: FxHashSet<Vc<FileSystemPath>>,
+    expected: FxHashSet<FileSystemPath>,
+    seen: FxHashSet<FileSystemPath>,
 ) -> Result<()> {
     for path in diff_paths(&expected, &seen).await? {
         let p = &path.await?.path;
@@ -117,7 +117,7 @@ pub async fn matches_expected(
     Ok(())
 }
 
-pub async fn diff(path: Vc<FileSystemPath>, actual: Vc<AssetContent>) -> Result<()> {
+pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> {
     let path_str = &path.await?.path;
     let expected = AssetContent::file(path.read());
 
@@ -154,7 +154,7 @@ pub async fn diff(path: Vc<FileSystemPath>, actual: Vc<AssetContent>) -> Result<
     Ok(())
 }
 
-async fn get_contents(file: Vc<AssetContent>, path: Vc<FileSystemPath>) -> Result<Option<String>> {
+async fn get_contents(file: Vc<AssetContent>, path: FileSystemPath) -> Result<Option<String>> {
     Ok(
         match &*file.await.context(format!(
             "Unable to read AssetContent of {}",
@@ -184,18 +184,18 @@ async fn get_contents(file: Vc<AssetContent>, path: Vc<FileSystemPath>) -> Resul
     )
 }
 
-async fn remove_file(path: Vc<FileSystemPath>) -> Result<()> {
+async fn remove_file(path: FileSystemPath) -> Result<()> {
     path.write(FileContent::NotFound.cell()).await?;
     Ok(())
 }
 
 /// Values in left that are not in right.
-/// Vc<FileSystemPath> hashes as a Vc, not as the file path, so we need to get
+/// FileSystemPath hashes as a Vc, not as the file path, so we need to get
 /// the path to properly diff.
 async fn diff_paths(
-    left: &FxHashSet<Vc<FileSystemPath>>,
-    right: &FxHashSet<Vc<FileSystemPath>>,
-) -> Result<FxHashSet<Vc<FileSystemPath>>> {
+    left: &FxHashSet<FileSystemPath>,
+    right: &FxHashSet<FileSystemPath>,
+) -> Result<FxHashSet<FileSystemPath>> {
     let mut map = left
         .iter()
         .map(|p| async move { Ok((p.await?.path.clone(), *p)) })

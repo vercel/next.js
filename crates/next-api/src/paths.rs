@@ -31,7 +31,7 @@ pub struct ServerPaths(Vec<ServerPath>);
 #[turbo_tasks::function]
 pub async fn all_server_paths(
     assets: Vc<OutputAssets>,
-    node_root: Vc<FileSystemPath>,
+    node_root: FileSystemPath,
 ) -> Result<Vc<ServerPaths>> {
     let span = tracing::info_span!("all_server_paths");
     async move {
@@ -69,7 +69,7 @@ pub async fn all_server_paths(
 #[turbo_tasks::function]
 pub async fn all_paths_in_root(
     assets: Vc<OutputAssets>,
-    root: Vc<FileSystemPath>,
+    root: FileSystemPath,
 ) -> Result<Vc<Vec<RcStr>>> {
     let all_assets = &*all_assets_from_entries(assets).await?;
     let root = &*root.await?;

@@ -52,8 +52,8 @@ pub enum PathType {
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
 pub async fn pathname_for_path(
-    server_root: Vc<FileSystemPath>,
-    server_path: Vc<FileSystemPath>,
+    server_root: FileSystemPath,
+    server_path: FileSystemPath,
     path_ty: PathType,
 ) -> Result<Vc<RcStr>> {
     let server_path_value = &*server_path.await?;
@@ -98,7 +98,7 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
 #[turbo_tasks::function]
 pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<Vc<Vec<RcStr>>> {
     let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().owned().await?;
 
@@ -115,7 +115,7 @@ pub async fn get_transpiled_packages(
 
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<ContextCondition> {
     let transpiled_packages = get_transpiled_packages(next_config, *project_path).await?;
 
@@ -675,7 +675,7 @@ async fn parse_config_from_js_value(
 /// sure there are none left over.
 pub async fn load_next_js_template(
     path: &str,
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     replacements: FxIndexMap<&'static str, RcStr>,
     injections: FxIndexMap<&'static str, RcStr>,
     imports: FxIndexMap<&'static str, Option<RcStr>>,
@@ -940,7 +940,7 @@ pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
 }
 
 pub fn virtual_next_js_template_path(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     file: String,
 ) -> Vc<FileSystemPath> {
     debug_assert!(!file.contains('/'));
@@ -948,7 +948,7 @@ pub fn virtual_next_js_template_path(
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
     path: RcStr,
 ) -> Result<T> {
     let file_path = get_next_package(*project_path).join(path.clone());

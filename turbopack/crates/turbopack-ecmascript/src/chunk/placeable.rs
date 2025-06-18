@@ -42,7 +42,7 @@ enum SideEffectsValue {
 
 #[turbo_tasks::function]
 async fn side_effects_from_package_json(
-    package_json: ResolvedVc<FileSystemPath>,
+    package_json: FileSystemPath,
 ) -> Result<Vc<SideEffectsValue>> {
     if let FileJsonContent::Content(content) = &*package_json.read_json().await?
         && let Some(side_effects) = content.get("sideEffects")
@@ -130,7 +130,7 @@ async fn side_effects_from_package_json(
 
 #[turbo_tasks::value]
 struct SideEffectsInPackageJsonIssue {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     description: Option<ResolvedVc<StyledString>>,
 }
 
@@ -163,7 +163,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
 #[turbo_tasks::function]
 pub async fn is_marked_as_side_effect_free(
-    path: Vc<FileSystemPath>,
+    path: FileSystemPath,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<bool>> {
     if side_effect_free_packages.await?.matches(&path.await?.path) {

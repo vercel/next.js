@@ -34,8 +34,8 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
-    root_path: ResolvedVc<FileSystemPath>,
-    server_root: ResolvedVc<FileSystemPath>,
+    root_path: FileSystemPath,
+    server_root: FileSystemPath,
     server_root_to_root_path: RcStr,
     environment: ResolvedVc<Environment>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
@@ -58,7 +58,7 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<RuntimeEntries>> {
     let resolve_options_context = get_client_resolve_options_context(*project_path, node_env);
@@ -96,10 +96,10 @@ pub async fn get_client_runtime_entries(
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    root_path: Vc<FileSystemPath>,
+    root_path: FileSystemPath,
     execution_context: Vc<ExecutionContext>,
     entry_requests: Vec<Vc<Request>>,
-    server_root: Vc<FileSystemPath>,
+    server_root: FileSystemPath,
     server_root_to_root_path: RcStr,
     _env: Vc<Box<dyn ProcessEnv>>,
     eager_compile: bool,
