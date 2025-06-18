@@ -74,9 +74,9 @@ async fn read_glob_internal(
 }
 
 // Resolve a symlink checking for recursion.
-async fn resolve_symlink_safely(entry: &DirectoryEntry) -> Result<DirectoryEntry> {
-    let resolved_entry = entry.resolve_symlink().await?;
-    if resolved_entry != *entry && matches!(&resolved_entry, DirectoryEntry::Directory(_)) {
+async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry> {
+    let resolved_entry = entry.clone().resolve_symlink().await?;
+    if resolved_entry != entry && matches!(&resolved_entry, DirectoryEntry::Directory(_)) {
         // We followed a symlink to a directory
         // To prevent an infinite loop, which in the case of turbo-tasks would simply
         // exhaust RAM or go into an infinite loop with the GC we need to check for a
@@ -86,13 +86,10 @@ async fn resolve_symlink_safely(entry: &DirectoryEntry) -> Result<DirectoryEntry
         // ancestor of the current path, which can be detected via a simple prefix
         // match.
         let source_path = entry.path().unwrap();
-        if *source_path
-            .is_inside_or_equal(*resolved_entry.path().unwrap())
-            .await?
-        {
+        if source_path.is_inside_or_equal(&resolved_entry.clone().path().unwrap()) {
             bail!(
                 "'{}' is a symlink causes that causes an infinite loop!",
-                source_path.await?.path.to_string()
+                source_path.path.to_string()
             )
         }
     }
@@ -149,12 +146,12 @@ async fn track_glob_internal(
                     format!("{prefix}/{segment}").into()
                 };
 
-                match resolve_symlink_safely(entry).await? {
+                match resolve_symlink_safely(entry.clone()).await? {
                     DirectoryEntry::Directory(path) => {
                         if glob_value.can_match_in_directory(&entry_path) {
                             completions.push(track_glob_inner(
                                 entry_path,
-                                *path,
+                                path.clone(),
                                 glob,
                                 include_dot_files,
                             ));
@@ -162,7 +159,7 @@ async fn track_glob_internal(
                     }
                     DirectoryEntry::File(path) => {
                         if glob_value.matches(&entry_path) {
-                            reads.push(fs.read(*path))
+                            reads.push(fs.read(path.clone()))
                         }
                     }
                     DirectoryEntry::Symlink(symlink_path) => unreachable!(
@@ -200,7 +197,7 @@ pub mod tests {
     };
 
     use turbo_rcstr::RcStr;
-    use turbo_tasks::{Completion, ReadRef, ResolvedVc, Vc, apply_effects};
+    use turbo_tasks::{Completion, ReadRef, Vc, apply_effects};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use crate::{
@@ -393,42 +390,42 @@ pub mod tests {
                 path,
                 Vec::new(),
             ));
-            let dir = fs.root().join("dir".into()).to_resolved().await?;
-            let read_dir = track_star_star_glob(dir).read_strongly_consistent().await?;
+            let dir = fs.root().await?.join("dir")?;
+            let read_dir = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
 
             // Delete a file that we shouldn't be tracking
-            let delete_result = delete(
-                fs.root()
-                    .join("dir/sub/.vim/.gitignore".into())
-                    .to_resolved()
-                    .await?,
-            );
+            let delete_result = delete(fs.root().await?.join("dir/sub/.vim/.gitignore")?);
             delete_result.read_strongly_consistent().await?;
             apply_effects(delete_result).await?;
 
-            let read_dir2 = track_star_star_glob(dir).read_strongly_consistent().await?;
+            let read_dir2 = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
             assert!(ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Delete a file that we should be tracking
-            let delete_result = delete(fs.root().join("dir/foo".into()).to_resolved().await?);
+            let delete_result = delete(fs.root().await?.join("dir/foo")?);
             delete_result.read_strongly_consistent().await?;
             apply_effects(delete_result).await?;
 
-            let read_dir2 = track_star_star_glob(dir).read_strongly_consistent().await?;
+            let read_dir2 = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
 
             assert!(!ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Modify a symlink target file
             let write_result = write(
-                fs.root()
-                    .join("link_target.js".into())
-                    .to_resolved()
-                    .await?,
+                fs.root().await?.join("link_target.js")?,
                 "new_contents".into(),
             );
             write_result.read_strongly_consistent().await?;
             apply_effects(write_result).await?;
-            let read_dir3 = track_star_star_glob(dir).read_strongly_consistent().await?;
+            let read_dir3 = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
 
             assert!(!ReadRef::ptr_eq(&read_dir3, &read_dir2));
 
@@ -469,6 +466,7 @@ pub mod tests {
             ));
             let err = fs
                 .root()
+                .await?
                 .track_glob(Glob::new("**".into()), false)
                 .await
                 .expect_err("Should have detected an infinite loop");
@@ -481,6 +479,7 @@ pub mod tests {
             // Same when calling track glob
             let err = fs
                 .root()
+                .await?
                 .track_glob(Glob::new("**".into()), false)
                 .await
                 .expect_err("Should have detected an infinite loop");

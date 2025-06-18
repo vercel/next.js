@@ -26,7 +26,7 @@ impl EmbeddedFileSystem {
 impl FileSystem for EmbeddedFileSystem {
     #[turbo_tasks::function]
     async fn read(&self, path: FileSystemPath) -> Result<Vc<FileContent>> {
-        let file = match self.dir.get_file(&path.await?.path) {
+        let file = match self.dir.get_file(&path.path) {
             Some(file) => file,
             None => return Ok(FileContent::NotFound.cell()),
         };
@@ -41,7 +41,7 @@ impl FileSystem for EmbeddedFileSystem {
 
     #[turbo_tasks::function]
     async fn raw_read_dir(&self, path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
-        let path_str = &path.await?.path;
+        let path_str = &path.path;
         let dir = match (path_str.as_str(), self.dir.get_dir(path_str)) {
             ("", _) => self.dir,
             (_, Some(dir)) => dir,
@@ -81,7 +81,7 @@ impl FileSystem for EmbeddedFileSystem {
 
     #[turbo_tasks::function]
     async fn metadata(&self, path: FileSystemPath) -> Result<Vc<FileMeta>> {
-        if self.dir.get_entry(&path.await?.path).is_none() {
+        if self.dir.get_entry(&path.path).is_none() {
             bail!("path not found, can't read metadata");
         }
 
