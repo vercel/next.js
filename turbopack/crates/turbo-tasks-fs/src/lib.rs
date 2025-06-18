@@ -1031,6 +1031,20 @@ pub struct FileSystemPath {
 }
 
 impl FileSystemPath {
+    /// Mimics `ValueToString::to_string`.
+    pub fn value_to_string(&self) -> Vc<RcStr> {
+        value_to_string(self.clone())
+    }
+}
+
+#[turbo_tasks::function]
+async fn value_to_string(path: FileSystemPath) -> Result<Vc<RcStr>> {
+    Ok(Vc::cell(
+        format!("[{}]/{}", path.fs.to_string().await?, path.path).into(),
+    ))
+}
+
+impl FileSystemPath {
     pub fn is_inside_ref(&self, other: &FileSystemPath) -> bool {
         if self.fs == other.fs && self.path.starts_with(&*other.path) {
             if other.path.is_empty() {
