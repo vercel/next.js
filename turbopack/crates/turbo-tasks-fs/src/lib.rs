@@ -60,8 +60,8 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
-    ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, effect, mark_session_dependent,
-    mark_stateful, trace::TraceRawVcs,
+    ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, effect,
+    mark_session_dependent, mark_stateful, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
@@ -1023,8 +1023,8 @@ pub fn get_relative_path_to(path: &str, other_path: &str) -> String {
     result.join("/")
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
