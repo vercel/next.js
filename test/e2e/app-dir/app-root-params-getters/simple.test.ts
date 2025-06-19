@@ -3,9 +3,10 @@ import { assertNoRedbox, retry } from 'next-test-utils'
 import { join } from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
+import { createRequestTracker } from '../../../lib/e2e-utils/request-tracker'
 
 describe('app-root-param-getters - simple', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, isNextDeploy } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'simple'),
   })
 
@@ -89,18 +90,44 @@ describe('app-root-param-getters - simple', () => {
     })
   }
 
-  // root params currently don't work in route handlers.
-  it.failing(
-    'should allow reading root params in a route handler',
-    async () => {
-      const params = { lang: 'en', locale: 'us' }
-      const response = await next.fetch(
-        `/${params.lang}/${params.locale}/route-handler`
+  it('should error when used in a server action', async () => {
+    const params = { lang: 'en', locale: 'us' }
+    const browser = await next.browser(
+      `/${params.lang}/${params.locale}/server-action`
+    )
+    const tracker = createRequestTracker(browser)
+    const [, response] = await tracker.captureResponse(
+      async () => {
+        await browser.elementByCss('button[type="submit"]').click()
+      },
+      {
+        request: {
+          method: 'POST',
+          pathname: `/${params.lang}/${params.locale}/server-action`,
+        },
+      }
+    )
+    expect(response.status()).toBe(500)
+    if (!isNextDeploy) {
+      expect(next.cliOutput).toInclude(
+        "`import('next/root-params').lang()` was used inside a Server Action. This is not supported. Functions from 'next/root-params' can only be called in the context of a route."
       )
-      expect(response.status).toBe(200)
-      expect(await response.json()).toEqual(params)
     }
-  )
+  })
+
+  // TODO(root-params): add support for route handlers
+  it('should error when used in a route handler (until we implement it)', async () => {
+    const params = { lang: 'en', locale: 'us' }
+    const response = await next.fetch(
+      `/${params.lang}/${params.locale}/route-handler`
+    )
+    expect(response.status).toBe(500)
+    if (!isNextDeploy) {
+      expect(next.cliOutput).toInclude(
+        "Route /[lang]/[locale]/route-handler used `import('next/root-params').lang()` inside a Route Handler. Support for this API in Route Handlers is planned for a future version of Next.js."
+      )
+    }
+  })
 })
 
 /** Run cleanup after the current test. */
