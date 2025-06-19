@@ -29,7 +29,7 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     fs::FileType,
     future::Future,
-    io::{self, BufRead, ErrorKind},
+    io::{self, BufRead, BufReader, ErrorKind, Read},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
     sync::Arc,
@@ -51,11 +51,7 @@ use read_glob::{read_glob, track_glob};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::{
-    fs,
-    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
-    sync::{RwLock, RwLockReadGuard},
-};
+use tokio::sync::{RwLock, RwLockReadGuard};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -72,7 +68,7 @@ use self::{invalidation::Write, json::UnparseableJson, mutex_map::MutexMap};
 use crate::{
     attach::AttachedFileSystem,
     invalidator_map::WriteContent,
-    retry::{retry_blocking, retry_future},
+    retry::retry_blocking,
     rope::{Rope, RopeReader},
 };
 
@@ -390,12 +386,12 @@ impl DiskFileSystemInner {
         let root_path = self.root_path().to_path_buf();
 
         // create the directory for the filesystem on disk, if it doesn't exist
-        retry_future(|| {
-            let path = root_path.as_path();
-            fs::create_dir_all(&root_path).instrument(tracing::info_span!(
-                "create root directory",
-                path = display(path.display())
-            ))
+        retry_blocking(root_path.clone(), move |path| {
+            let _tracing =
+                tracing::info_span!("create root directory", path = display(path.display()))
+                    .entered();
+
+            std::fs::create_dir_all(&root_path)
         })
         .concurrency_limited(&self.semaphore)
         .await?;
@@ -413,7 +409,7 @@ impl DiskFileSystemInner {
         );
         if !already_created {
             let func = |p: &Path| std::fs::create_dir_all(p);
-            retry_blocking(directory, func)
+            retry_blocking(directory.to_path_buf(), func)
                 .concurrency_limited(&self.semaphore)
                 .instrument(tracing::info_span!(
                     "create directory",
@@ -559,7 +555,7 @@ impl FileSystem for DiskFileSystem {
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
-        let content = match retry_future(|| File::from_path(full_path.clone()))
+        let content = match retry_blocking(full_path.clone(), |path: &Path| File::from_path(path))
             .concurrency_limited(&self.inner.semaphore)
             .instrument(tracing::info_span!(
                 "read file",
@@ -586,7 +582,7 @@ impl FileSystem for DiskFileSystem {
 
         // we use the sync std function here as it's a lot faster (600%) in
         // node-file-trace
-        let read_dir = match retry_blocking(&full_path, |path| {
+        let read_dir = match retry_blocking(full_path.clone(), |path| {
             let _span =
                 tracing::info_span!("read directory", path = display(path.display())).entered();
             std::fs::read_dir(path)
@@ -640,17 +636,18 @@ impl FileSystem for DiskFileSystem {
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
-        let link_path = match retry_future(|| fs::read_link(&full_path))
-            .concurrency_limited(&self.inner.semaphore)
-            .instrument(tracing::info_span!(
-                "read symlink",
-                path = display(full_path.display())
-            ))
-            .await
-        {
-            Ok(res) => res,
-            Err(_) => return Ok(LinkContent::NotFound.cell()),
-        };
+        let link_path =
+            match retry_blocking(full_path.clone(), |path: &Path| std::fs::read_link(path))
+                .concurrency_limited(&self.inner.semaphore)
+                .instrument(tracing::info_span!(
+                    "read symlink",
+                    path = display(full_path.display())
+                ))
+                .await
+            {
+                Ok(res) => res,
+                Err(_) => return Ok(LinkContent::NotFound.cell()),
+            };
         let is_link_absolute = link_path.is_absolute();
 
         let mut file = link_path.clone();
@@ -779,7 +776,7 @@ impl FileSystem for DiskFileSystem {
 
                     let full_path_to_write = full_path.clone();
                     let content = content.clone();
-                    retry_blocking(&full_path_to_write, move |full_path| {
+                    retry_blocking(full_path_to_write.into_owned(), move |full_path| {
                         use std::io::Write;
 
                         let mut f = std::fs::File::create(full_path)?;
@@ -818,21 +815,23 @@ impl FileSystem for DiskFileSystem {
                     .with_context(|| format!("failed to write to {}", full_path.display()))?;
                 }
                 FileContent::NotFound => {
-                    retry_blocking(&full_path, |path| std::fs::remove_file(path))
-                        .concurrency_limited(&inner.semaphore)
-                        .instrument(tracing::info_span!(
-                            "remove file",
-                            path = display(full_path.display())
-                        ))
-                        .await
-                        .or_else(|err| {
-                            if err.kind() == ErrorKind::NotFound {
-                                Ok(())
-                            } else {
-                                Err(err)
-                            }
-                        })
-                        .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+                    retry_blocking(full_path.clone().into_owned(), |path| {
+                        std::fs::remove_file(path)
+                    })
+                    .concurrency_limited(&inner.semaphore)
+                    .instrument(tracing::info_span!(
+                        "remove file",
+                        path = display(full_path.display())
+                    ))
+                    .await
+                    .or_else(|err| {
+                        if err.kind() == ErrorKind::NotFound {
+                            Ok(())
+                        } else {
+                            Err(err)
+                        }
+                    })
+                    .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
                 }
             }
 
@@ -865,13 +864,15 @@ impl FileSystem for DiskFileSystem {
 
             // TODO(sokra) preform a untracked read here, register an invalidator and get
             // all existing invalidators
-            let old_content = match retry_blocking(&full_path, |path| std::fs::read_link(path))
-                .concurrency_limited(&inner.semaphore)
-                .instrument(tracing::info_span!(
-                    "read symlink before write",
-                    path = display(full_path.display())
-                ))
-                .await
+            let old_content = match retry_blocking(full_path.clone().into_owned(), |path| {
+                std::fs::read_link(path)
+            })
+            .concurrency_limited(&inner.semaphore)
+            .instrument(tracing::info_span!(
+                "read symlink before write",
+                path = display(full_path.display())
+            ))
+            .await
             {
                 Ok(res) => Some((res.is_absolute(), res)),
                 Err(_) => None,
@@ -916,7 +917,7 @@ impl FileSystem for DiskFileSystem {
                         PathBuf::from(unix_to_sys(target).as_ref())
                     };
                     let full_path = full_path.into_owned();
-                    retry_blocking(&target_path, move |target_path| {
+                    retry_blocking(target_path, move |target_path| {
                         let _span = tracing::info_span!(
                             "write symlink",
                             path = display(target_path.display())
@@ -944,17 +945,19 @@ impl FileSystem for DiskFileSystem {
                     anyhow::bail!("invalid symlink target: {}", full_path.display())
                 }
                 LinkContent::NotFound => {
-                    retry_blocking(&full_path, |path| std::fs::remove_file(path))
-                        .concurrency_limited(&inner.semaphore)
-                        .await
-                        .or_else(|err| {
-                            if err.kind() == ErrorKind::NotFound {
-                                Ok(())
-                            } else {
-                                Err(err)
-                            }
-                        })
-                        .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+                    retry_blocking(full_path.clone().into_owned(), |path| {
+                        std::fs::remove_file(path)
+                    })
+                    .concurrency_limited(&inner.semaphore)
+                    .await
+                    .or_else(|err| {
+                        if err.kind() == ErrorKind::NotFound {
+                            Ok(())
+                        } else {
+                            Err(err)
+                        }
+                    })
+                    .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
                 }
             }
 
@@ -970,7 +973,7 @@ impl FileSystem for DiskFileSystem {
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
-        let meta = retry_blocking(&full_path, |path| std::fs::metadata(path))
+        let meta = retry_blocking(full_path.clone(), |path| std::fs::metadata(path))
             .concurrency_limited(&self.inner.semaphore)
             .instrument(tracing::info_span!(
                 "read metadata",
@@ -1708,8 +1711,11 @@ impl FileContent {
     /// Performs a comparison of self's data against a disk file's streamed
     /// read.
     async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
-        let old_file = extract_disk_access(retry_future(|| fs::File::open(path)).await, path)?;
-        let Some(mut old_file) = old_file else {
+        let old_file = extract_disk_access(
+            retry_blocking(path.to_path_buf(), |path| std::fs::File::open(path)).await,
+            path,
+        )?;
+        let Some(old_file) = old_file else {
             return Ok(match self {
                 FileContent::NotFound => FileComparison::Equal,
                 _ => FileComparison::Create,
@@ -1720,7 +1726,14 @@ impl FileContent {
             return Ok(FileComparison::NotEqual);
         };
 
-        let old_meta = extract_disk_access(retry_future(|| old_file.metadata()).await, path)?;
+        let old_meta = extract_disk_access(
+            retry_blocking(path.to_path_buf(), {
+                let old_file = old_file.try_clone()?;
+                move |_| old_file.metadata()
+            })
+            .await,
+            path,
+        )?;
         let Some(old_meta) = old_meta else {
             // If we failed to get meta, then the old file has been deleted between the
             // handle open. In which case, we just pretend the file never
@@ -1735,10 +1748,10 @@ impl FileContent {
         // So meta matches, and we have a file handle. Let's stream the contents to see
         // if they match.
         let mut new_contents = new_file.read();
-        let mut old_contents = BufReader::new(&mut old_file);
+        let mut old_contents = BufReader::new(old_file);
         Ok(loop {
             let new_chunk = new_contents.fill_buf()?;
-            let Ok(old_chunk) = old_contents.fill_buf().await else {
+            let Ok(old_chunk) = old_contents.fill_buf() else {
                 break FileComparison::NotEqual;
             };
 
@@ -1793,12 +1806,12 @@ pub struct File {
 
 impl File {
     /// Reads a [File] from the given path
-    async fn from_path(p: PathBuf) -> io::Result<Self> {
-        let mut file = fs::File::open(p).await?;
-        let metadata = file.metadata().await?;
+    fn from_path(p: &Path) -> io::Result<Self> {
+        let mut file = std::fs::File::open(p)?;
+        let metadata = file.metadata()?;
 
         let mut output = Vec::with_capacity(metadata.len() as usize);
-        file.read_to_end(&mut output).await?;
+        file.read_to_end(&mut output)?;
 
         Ok(File {
             meta: metadata.into(),
