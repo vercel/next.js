@@ -40,6 +40,7 @@ import { createEmptyCacheNode } from '../../app-router'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
+import { prepareFlightRouterStateForRequest } from '../../../flight-data-helpers'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -64,7 +65,7 @@ async function fetchServerAction(
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
       [ACTION]: actionId,
-      [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
+      [NEXT_ROUTER_STATE_TREE]: prepareFlightRouterStateForRequest(state.tree),
       ...(process.env.NEXT_DEPLOYMENT_ID
         ? {
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,

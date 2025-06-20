@@ -29,6 +29,7 @@ import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
+import { prepareFlightRouterStateForRequest } from '../../flight-data-helpers'
 
 export type FetchServerResponseResult = [
   flightData: FlightData,
@@ -61,9 +62,8 @@ export async function fetchServerResponse(
     // Enable flight response
     [RSC_HEADER]: '1',
     // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(
-      JSON.stringify(flightRouterState)
-    ),
+    [NEXT_ROUTER_STATE_TREE]:
+      prepareFlightRouterStateForRequest(flightRouterState),
   }
 
   /**
