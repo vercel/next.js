@@ -33,6 +33,7 @@ import { findSourceMapURL } from '../../app-find-source-map-url'
 import { PrefetchKind } from './router-reducer-types'
 import {
   normalizeFlightData,
+  prepareFlightRouterStateForRequest,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
@@ -126,8 +127,9 @@ export async function fetchServerResponse(
     // Enable flight response
     [RSC_HEADER]: '1',
     // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
-      JSON.stringify(flightRouterState)
+    [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(
+      flightRouterState,
+      options.isHmrRefresh
     ),
   }
 
