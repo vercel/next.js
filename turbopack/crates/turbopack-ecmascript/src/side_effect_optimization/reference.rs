@@ -1,6 +1,10 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
-use swc_core::{common::DUMMY_SP, ecma::ast::Lit, quote};
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::ast::{Ident, Lit},
+    quote,
+};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
 use turbopack_core::{
@@ -20,7 +24,7 @@ use crate::{
     ScopeHoistingContext,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
-    references::esm::base::ReferencedAsset,
+    references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
     runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
@@ -180,38 +184,53 @@ impl EcmascriptModulePartReference {
             ));
         }
 
-        let needs_namespace = match part {
-            ModulePart::Export(_) | ModulePart::RenamedExport { .. } | ModulePart::Evaluation => {
-                false
-            }
-            ModulePart::RenamedNamespace { .. }
-            | ModulePart::Internal(_)
-            | ModulePart::Locals
-            | ModulePart::Exports
-            | ModulePart::Facade => true,
-        };
-
-        if merged_index.is_some() && !needs_namespace {
+        if merged_index.is_some() && part == &ModulePart::Evaluation {
             // No need to import, the module was already executed and is available in the same scope
             // hoisting group (unless it's a namespace import)
         } else {
             let ident = referenced_asset
-                .get_ident(chunking_context, None, scope_hoisting_context)
+                .get_ident(
+                    chunking_context,
+                    match part {
+                        ModulePart::Export(export)
+                        | ModulePart::RenamedExport {
+                            original_export: export,
+                            ..
+                        }
+                        | ModulePart::RenamedNamespace { export } => Some(export.clone()),
+                        ModulePart::Internal(_)
+                        | ModulePart::Locals
+                        | ModulePart::Exports
+                        | ModulePart::Facade
+                        | ModulePart::Evaluation => None,
+                    },
+                    scope_hoisting_context,
+                )
                 .await?
-                .context("part module reference should have an ident")?
-                .as_expr_individual(DUMMY_SP)
-                .unwrap_left();
-            let id = module.chunk_item_id(Vc::upcast(chunking_context)).await?;
+                .context("part module reference should have an ident")?;
 
-            result.push(CodeGenerationHoistedStmt::new(
-                ident.sym.as_str().into(),
-                quote!(
-                    "var $name = $turbopack_import($id);" as Stmt,
-                    name = ident,
-                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
-                    id: Expr = module_id_to_lit(&id),
-                ),
-            ));
+            match ident {
+                ReferencedAssetIdent::LocalBinding { .. } => {
+                    // no need to import
+                }
+                ReferencedAssetIdent::Module { .. } => {
+                    let (sym, ctxt) = ident.into_module_namespace_ident().unwrap();
+                    let key = sym.as_str().into();
+                    let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
+
+                    let id = module.chunk_item_id(Vc::upcast(chunking_context)).await?;
+
+                    result.push(CodeGenerationHoistedStmt::new(
+                        key,
+                        quote!(
+                            "var $name = $turbopack_import($id);" as Stmt,
+                            name = name,
+                            turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                            id: Expr = module_id_to_lit(&id),
+                        ),
+                    ));
+                }
+            }
         }
 
         Ok(CodeGeneration::hoisted_stmts(result))
