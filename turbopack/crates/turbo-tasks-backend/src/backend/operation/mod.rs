@@ -10,7 +10,7 @@ mod update_output;
 
 use std::{
     fmt::{Debug, Formatter},
-    mem::{take, transmute},
+    mem::transmute,
 };
 
 use serde::{Deserialize, Serialize};
@@ -45,25 +45,6 @@ enum TransactionState<'a, 'tx, B: BackingStorage> {
     Owned(Option<B::ReadTransaction<'tx>>),
 }
 
-impl<'a, 'tx1, B: BackingStorage> TransactionState<'a, 'tx1, B> {
-    fn borrow<'l, 'tx2>(&'l self) -> TransactionState<'l, 'tx2, B>
-    where
-        'a: 'l,
-        'tx1: 'a + 'tx2,
-        'tx2: 'l,
-    {
-        match self {
-            TransactionState::None => TransactionState::None,
-            TransactionState::Borrowed(tx) => {
-                TransactionState::Borrowed(tx.map(B::lower_read_transaction))
-            }
-            TransactionState::Owned(tx) => {
-                TransactionState::Borrowed(tx.as_ref().map(B::lower_read_transaction))
-            }
-        }
-    }
-}
-
 pub trait ExecuteContext<'e>: Sized {
     fn session_id(&self) -> SessionId;
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e;
@@ -79,12 +60,6 @@ pub trait ExecuteContext<'e>: Sized {
     where
         T: Clone + Into<AnyOperation>;
     fn suspending_requested(&self) -> bool;
-    type Backend;
-    fn run_operation(
-        &mut self,
-        parent_op_ref: &mut impl Operation,
-        run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, Self::Backend>),
-    );
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
     fn get_task_description(&self, task_id: TaskId) -> String;
     fn should_track_children(&self) -> bool;
@@ -92,17 +67,11 @@ pub trait ExecuteContext<'e>: Sized {
     fn should_track_activeness(&self) -> bool;
 }
 
-pub struct ParentRef<'a> {
-    op: &'a AnyOperation,
-    parent: &'a Option<ParentRef<'a>>,
-}
-
 pub struct ExecuteContextImpl<'e, 'tx, B: BackingStorage>
 where
     Self: 'e,
     'tx: 'e,
 {
-    parent: Option<ParentRef<'e>>,
     backend: &'e TurboTasksBackendInner<B>,
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     _operation_guard: Option<OperationGuard<'e, B>>,
@@ -121,7 +90,6 @@ where
             backend,
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
-            parent: None,
             transaction: TransactionState::None,
         }
     }
@@ -135,7 +103,6 @@ where
             backend,
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
-            parent: None,
             transaction: TransactionState::Borrowed(transaction),
         }
     }
@@ -292,63 +259,11 @@ where
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
-        if self.parent.is_some() {
-            self.backend.operation_suspend_point(|| {
-                let mut nested = Vec::new();
-                nested.push(op.clone().into());
-                let mut cur = self.parent.as_ref();
-                while let Some(ParentRef { op, parent }) = cur {
-                    nested.push((*op).clone());
-                    cur = parent.as_ref();
-                }
-                AnyOperation::Nested(nested)
-            });
-        } else {
-            self.backend.operation_suspend_point(|| op.clone().into());
-        }
+        self.backend.operation_suspend_point(|| op.clone().into());
     }
 
     fn suspending_requested(&self) -> bool {
         self.backend.suspending_requested()
-    }
-
-    type Backend = B;
-
-    fn run_operation(
-        &mut self,
-        parent_op_ref: &mut impl Operation,
-        run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, B>),
-    ) {
-        let parent_op = take(parent_op_ref);
-        let parent_op: AnyOperation = parent_op.into();
-        let this = &*self;
-        fn run_with_inner_ctx<'a, B: BackingStorage>(
-            backend: &'a TurboTasksBackendInner<B>,
-            turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-            parent: ParentRef<'a>,
-            transaction: TransactionState<'a, '_, B>,
-            run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, B>),
-        ) {
-            let mut inner_ctx: ExecuteContextImpl<'_, '_, B> = ExecuteContextImpl {
-                backend,
-                turbo_tasks,
-                _operation_guard: None,
-                parent: Some(parent),
-                transaction,
-            };
-            run(&mut inner_ctx);
-        }
-        run_with_inner_ctx(
-            self.backend,
-            self.turbo_tasks,
-            ParentRef {
-                op: &parent_op,
-                parent: &this.parent,
-            },
-            self.transaction.borrow(),
-            run,
-        );
-        *parent_op_ref = parent_op.try_into().unwrap();
     }
 
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
