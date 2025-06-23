@@ -1,18 +1,24 @@
 import { Suspense } from 'react'
-import { unstable_noStore } from 'next/cache'
+import { connection } from 'next/server'
 
 export function generateStaticParams() {
   return [{ slug: 'first-cookie' }]
 }
 
-function Postpone({ children }) {
-  unstable_noStore()
+async function Postpone({ children }) {
+  await connection()
   return children
 }
 
 export default async function Page({ params }) {
+  const random = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    { cache: 'force-cache' }
+  ).then((res) => res.text())
+
   return (
     <>
+      <p id="random">{random}</p>
       <Suspense>
         <Postpone>
           <p id="page">/rewrite/[slug]</p>

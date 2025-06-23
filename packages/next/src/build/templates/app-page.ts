@@ -39,6 +39,7 @@ import {
 import { getBotType, isBot } from '../../shared/lib/router/utils/is-bot'
 import {
   CachedRouteKind,
+  IncrementalCacheKind,
   type CachedAppPageValue,
   type CachedPageValue,
   type ResponseCacheEntry,
@@ -129,7 +130,6 @@ export async function handler(
   const multiZoneDraftMode = process.env
     .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
-  const initialPostponed = getRequestMeta(req, 'postponed')
   // TODO: replace with more specific flags
   const minimalMode = getRequestMeta(req, 'minimalMode')
 
@@ -248,7 +248,9 @@ export async function handler(
   // If we're in minimal mode, then try to get the postponed information from
   // the request metadata. If available, use it for resuming the postponed
   // render.
-  const minimalPostponed = isRoutePPREnabled ? initialPostponed : undefined
+  const minimalPostponed = isRoutePPREnabled
+    ? getRequestMeta(req, 'postponed')
+    : undefined
 
   // If PPR is enabled, and this is a RSC request (but not a prefetch), then
   // we can use this fact to only generate the flight data for the request
@@ -285,10 +287,10 @@ export async function handler(
     !isSSG ||
     // If this request has provided postponed data, it supports dynamic
     // HTML.
-    typeof initialPostponed === 'string' ||
+    typeof minimalPostponed === 'string' ||
     // If this is a dynamic RSC request, then this render supports dynamic
     // HTML (it's dynamic).
-    isDynamicRSCRequest
+    (isDynamicRSCRequest && !minimalMode)
 
   // When html bots request PPR page, perform the full dynamic rendering.
   const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
@@ -429,6 +431,8 @@ export async function handler(
       })
     }
 
+    const incrementalCache = getRequestMeta(req, 'incrementalCache')
+
     const doRender = async ({
       span,
       postponed,
@@ -446,6 +450,9 @@ export async function handler(
        */
       fallbackRouteParams: OpaqueFallbackRouteParams | null
     }): Promise<ResponseCacheEntry> => {
+      // When we're resuming a render, we should allow dynamic response.
+      if (typeof postponed === 'string') supportsDynamicResponse = true
+
       const context: AppPageRouteHandlerContext = {
         query,
         params,
@@ -471,8 +478,7 @@ export async function handler(
           postponed,
           shouldWaitOnAllReady,
           serveStreamingMetadata,
-          supportsDynamicResponse:
-            typeof postponed === 'string' || supportsDynamicResponse,
+          supportsDynamicResponse,
           buildManifest,
           nextFontManifest,
           reactLoadableManifest,
@@ -507,7 +513,7 @@ export async function handler(
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,
-          incrementalCache: getRequestMeta(req, 'incrementalCache'),
+          incrementalCache,
           cacheLifeProfiles: nextConfig.experimental.cacheLife,
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
@@ -560,6 +566,14 @@ export async function handler(
           err: getRequestMeta(req, 'invokeError'),
           dev: routeModule.isDev,
         },
+      }
+
+      if (isDebugStaticShell || isDebugDynamicAccesses) {
+        context.renderOpts.nextExport = true
+        context.renderOpts.supportsDynamicResponse = false
+        context.renderOpts.isStaticGeneration = true
+        context.renderOpts.isRevalidate = true
+        context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
       const result = await invokeRouteModule(span, context)
@@ -764,10 +778,38 @@ export async function handler(
 
       // Only requests that aren't revalidating can be resumed. If we have the
       // minimal postponed data, then we should resume the render with it.
-      const postponed =
+      let postponed =
         !isOnDemandRevalidate && !isRevalidating && minimalPostponed
           ? minimalPostponed
           : undefined
+
+      // If this is a dynamic RSC request, we should use the postponed data from
+      // the static render (if available). This ensures that we can utilize the
+      // resume data cache (RDC) from the static render to ensure that the data
+      // is consistent between the static and dynamic renders.
+      if (
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        !minimalMode &&
+        incrementalCache &&
+        isDynamicRSCRequest
+      ) {
+        const cachedEntry = await incrementalCache.get(resolvedPathname, {
+          kind: IncrementalCacheKind.APP_PAGE,
+          isRoutePPREnabled: true,
+          isFallback: false,
+          allowStale: true,
+        })
+
+        // If the cache entry is found, we should use the postponed data from
+        // the cache.
+        if (
+          cachedEntry &&
+          cachedEntry.value &&
+          cachedEntry.value.kind === CachedRouteKind.APP_PAGE
+        ) {
+          postponed = cachedEntry.value.postponed
+        }
+      }
 
       // When we're in minimal mode, if we're trying to debug the static shell,
       // we should just return nothing instead of resuming the dynamic render.
@@ -898,12 +940,7 @@ export async function handler(
       // If this is in minimal mode and this is a flight request that isn't a
       // prefetch request while PPR is enabled, it cannot be cached as it contains
       // dynamic content.
-      else if (
-        minimalMode &&
-        isRSCRequest &&
-        !isPrefetchRSCRequest &&
-        isRoutePPREnabled
-      ) {
+      else if (isDynamicRSCRequest) {
         cacheControl = { revalidate: 0, expire: undefined }
       } else if (!routeModule.isDev) {
         // If this is a preview mode request, we shouldn't cache it
@@ -1001,34 +1038,15 @@ export async function handler(
 
       // If there's a callback for `onCacheEntry`, call it with the cache entry
       // and the revalidate options.
-      const onCacheEntry = getRequestMeta(req, 'onCacheEntry')
+      const onCacheEntry =
+        getRequestMeta(req, 'onCacheEntryV2') ??
+        // TODO: Remove this once we've migrated to `onCacheEntryV2`
+        getRequestMeta(req, 'onCacheEntry')
       if (onCacheEntry) {
-        const finished = await onCacheEntry(
-          {
-            ...cacheEntry,
-            // TODO: remove this when upstream doesn't
-            // always expect this value to be "PAGE"
-            value: {
-              ...cacheEntry.value,
-              kind: 'PAGE',
-            },
-          },
-          {
-            url: getRequestMeta(req, 'initURL'),
-          }
-        )
-        if (finished) {
-          // TODO: maybe we have to end the request?
-          return null
-        }
-      }
-
-      // If the request has a postponed state and it's a resume request we
-      // should error.
-      if (didPostpone && minimalPostponed) {
-        throw new Error(
-          'Invariant: postponed state should not be present on a resume request'
-        )
+        const finished = await onCacheEntry(cacheEntry, {
+          url: getRequestMeta(req, 'initURL') ?? req.url,
+        })
+        if (finished) return null
       }
 
       if (cachedData.headers) {
@@ -1118,14 +1136,7 @@ export async function handler(
             generateEtags: nextConfig.generateEtags,
             poweredByHeader: nextConfig.poweredByHeader,
             result: cachedData.html,
-            // Dynamic RSC responses cannot be cached, even if they're
-            // configured with `force-static` because we have no way of
-            // distinguishing between `force-static` and pages that have no
-            // postponed state.
-            // TODO: distinguish `force-static` from pages with no postponed state (static)
-            cacheControl: isDynamicRSCRequest
-              ? { revalidate: 0, expire: undefined }
-              : cacheEntry.cacheControl,
+            cacheControl: cacheEntry.cacheControl,
           })
         }
 
@@ -1145,7 +1156,7 @@ export async function handler(
       }
 
       // This is a request for HTML data.
-      let body = cachedData.html
+      const body = cachedData.html
 
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed

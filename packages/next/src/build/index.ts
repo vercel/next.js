@@ -480,6 +480,7 @@ export type RoutesManifest = {
      * rewrites will get the rewrite headers.
      */
     clientParamParsingOrigins: string[] | undefined
+    dynamicRSCPrerender: boolean
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -1567,6 +1568,7 @@ export default async function build(
               clientParamParsingOrigins: config.experimental.clientParamParsing
                 ? config.experimental.clientParamParsingOrigins
                 : undefined,
+              dynamicRSCPrerender: isAppPPREnabled,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
