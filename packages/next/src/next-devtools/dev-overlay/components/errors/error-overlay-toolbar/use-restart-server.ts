@@ -1,18 +1,18 @@
 import { useTransition } from 'react'
 
-export function useRestartServer({
-  invalidatePersistentCache,
-}: {
-  invalidatePersistentCache: boolean
-}) {
+export function useRestartServer() {
   const [isPending, startTransition] = useTransition()
-  const url = invalidatePersistentCache
-    ? '/__nextjs_restart_dev?invalidatePersistentCache=1'
-    : '/__nextjs_restart_dev'
-
   let hasError = false
 
-  const restartServerAction = () => {
+  const restartServerAction = ({
+    invalidatePersistentCache,
+  }: {
+    invalidatePersistentCache: boolean
+  }) => {
+    const url = invalidatePersistentCache
+      ? '/__nextjs_restart_dev?invalidatePersistentCache=1'
+      : '/__nextjs_restart_dev'
+
     startTransition(async () => {
       const prevId = await fetch('/__nextjs_server_status')
         .then((res) => res.json())

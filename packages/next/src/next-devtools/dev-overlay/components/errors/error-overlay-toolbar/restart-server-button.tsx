@@ -15,16 +15,14 @@ import { useRestartServer } from './use-restart-server'
  * telemetry on how often this is used.
  */
 export function RestartServerButton({ showButton }: { showButton: boolean }) {
-  const { restartServerAction, isPending } = useRestartServer({
-    invalidatePersistentCache: true,
-  })
+  const { restartServerAction, isPending } = useRestartServer()
 
   if (!showButton) {
     return null
   }
 
   function handleClick() {
-    restartServerAction()
+    restartServerAction({ invalidatePersistentCache: true })
   }
 
   return (
