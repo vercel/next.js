@@ -107,6 +107,32 @@ describe('ppr-full', () => {
           await res.text()
         })
 
+        it('should allow soft navigations to and from the / page', async () => {
+          const browser = await next.browser('/')
+
+          await browser.waitForElementByCss(`[data-pathname="/"]`)
+
+          // Add a window var so we can detect if there was a full navigation.
+          const now = Date.now()
+          await browser.eval(`window.beforeNav = ${now}`)
+
+          // Navigate to the page and wait for the page to load.
+          await browser.elementByCss(`a[href="${pathname}"]`).click()
+          await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
+
+          // Ensure we did a client navigation and not a full page navigation.
+          let beforeNav = await browser.eval('window.beforeNav')
+          expect(beforeNav).toBe(now)
+
+          // Navigate back to the home page and wait for the page to load.
+          await browser.elementByCss(`a[href="/"]`).click()
+          await browser.waitForElementByCss(`[data-pathname="/"]`)
+
+          // Ensure we did a client navigation and not a full page navigation.
+          beforeNav = await browser.eval('window.beforeNav')
+          expect(beforeNav).toBe(now)
+        })
+
         it('should allow navigations to and from a pages/ page', async () => {
           const browser = await next.browser(pathname)
 
