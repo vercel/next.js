@@ -27,10 +27,9 @@ export function useRestartServer() {
         return
       }
 
-      // Poll for server restart confirmation
+      // Poll for server restart confirmation.
       let restartConfirmed = false
-      for (let i = 0; i < 30; i++) {
-        // Wait a bit before checking
+      for (let i = 0; i < 10; i++) {
         await new Promise((resolve) => setTimeout(resolve, 200))
 
         try {
