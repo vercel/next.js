@@ -3,6 +3,7 @@
 #![feature(get_mut_unchecked)]
 #![feature(sync_unsafe_cell)]
 #![feature(iter_collect_into)]
+#![feature(bigint_helper_methods)]
 
 mod arc_slice;
 mod collector;
@@ -24,7 +25,7 @@ mod value_buf;
 mod write_batch;
 
 pub use arc_slice::ArcSlice;
-pub use db::{MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
+pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
 pub use key::{KeyBase, QueryKey, StoreKey};
 pub use value_buf::ValueBuffer;
 pub use write_batch::WriteBatch;
