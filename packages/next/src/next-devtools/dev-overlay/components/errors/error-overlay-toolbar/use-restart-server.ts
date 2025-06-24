@@ -14,7 +14,7 @@ export function useRestartServer() {
       : '/__nextjs_restart_dev'
 
     startTransition(async () => {
-      const prevId = await fetch('/__nextjs_server_status')
+      const curId = await fetch('/__nextjs_server_status')
         .then((res) => res.json())
         .then((data) => data.executionId as number)
 
@@ -33,12 +33,12 @@ export function useRestartServer() {
         await new Promise((resolve) => setTimeout(resolve, 200))
 
         try {
-          const curId = await fetch('/__nextjs_server_status')
+          const nextId = await fetch('/__nextjs_server_status')
             .then((res) => res.json())
             .then((data) => data.executionId as number)
 
           // If the execution ID has changed, the server has restarted successfully.
-          if (curId !== prevId) {
+          if (curId !== nextId) {
             restartConfirmed = true
             break
           }
