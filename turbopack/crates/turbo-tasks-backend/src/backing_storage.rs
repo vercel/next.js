@@ -41,9 +41,6 @@ pub trait BackingStorage: BackingStorageSealed {
 /// [`BackingStorage::invalidate`] method.
 pub trait BackingStorageSealed: 'static + Send + Sync {
     type ReadTransaction<'l>;
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i>;
     fn next_free_task_id(&self) -> Result<TaskId>;
     fn next_session_id(&self) -> Result<SessionId>;
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;

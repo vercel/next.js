@@ -262,12 +262,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 {
     type ReadTransaction<'l> = T::ReadTransaction<'l>;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        T::lower_read_transaction(tx)
-    }
-
     fn next_free_task_id(&self) -> Result<TaskId> {
         Ok(TaskId::try_from(
             self.inner

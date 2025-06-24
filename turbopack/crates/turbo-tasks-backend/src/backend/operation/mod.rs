@@ -107,10 +107,11 @@ where
         }
     }
 
-    fn transaction<'l>(&'l mut self) -> Option<&'l B::ReadTransaction<'l>>
-    where
-        'e: 'l,
-    {
+    fn restore_task_data(
+        &mut self,
+        task_id: TaskId,
+        category: TaskDataCategory,
+    ) -> Vec<CachedDataItem> {
         if matches!(self.transaction, TransactionState::None) {
             let tx = self.backend.backing_storage.start_read_transaction();
             let tx = tx.map(|tx| {
@@ -119,23 +120,16 @@ where
             });
             self.transaction = TransactionState::Owned(tx);
         }
-        match &self.transaction {
+        let tx = match &self.transaction {
             TransactionState::None => unreachable!(),
-            TransactionState::Borrowed(tx) => tx.map(B::lower_read_transaction),
-            TransactionState::Owned(tx) => tx.as_ref().map(B::lower_read_transaction),
-        }
-    }
-
-    fn restore_task_data(
-        &mut self,
-        task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Vec<CachedDataItem> {
-        // Safety: `transaction` is a valid transaction from `self.backend.backing_storage`.
+            TransactionState::Borrowed(tx) => *tx,
+            TransactionState::Owned(tx) => tx.as_ref(),
+        };
+        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
         let result = unsafe {
             self.backend
                 .backing_storage
-                .lookup_data(self.transaction(), task_id, category)
+                .lookup_data(tx, task_id, category)
         };
         match result {
             Ok(data) => data,
