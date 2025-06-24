@@ -288,9 +288,13 @@ export async function handler(
     // If this request has provided postponed data, it supports dynamic
     // HTML.
     typeof minimalPostponed === 'string' ||
-    // If this is a dynamic RSC request, then this render supports dynamic
-    // HTML (it's dynamic).
-    (isDynamicRSCRequest && !minimalMode)
+    // If this handler supports onCacheEntryV2, then we can only support
+    // dynamic HTML if it's a dynamic RSC request and not in minimal mode. If it
+    // doesn't support it we must fallback to the default behavior.
+    (getRequestMeta(req, 'onCacheEntryV2')
+      ? isDynamicRSCRequest && !minimalMode
+      : // Otherwise, we can support dynamic HTML if it's a dynamic RSC request.
+        isDynamicRSCRequest)
 
   // When html bots request PPR page, perform the full dynamic rendering.
   const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
