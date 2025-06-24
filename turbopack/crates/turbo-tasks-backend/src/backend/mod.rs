@@ -894,8 +894,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
             (
                 task_id,
-                meta.map(|d| B::serialize(task_id, &d)),
-                data.map(|d| B::serialize(task_id, &d)),
+                meta.map(|d| self.backing_storage.serialize(task_id, &d)),
+                data.map(|d| self.backing_storage.serialize(task_id, &d)),
             )
         };
         let process_snapshot = |task_id: TaskId, inner: Box<InnerStorageSnapshot>| {
@@ -924,8 +924,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             (
                 task_id,
-                meta.map(|meta| B::serialize(task_id, &meta)),
-                data.map(|data| B::serialize(task_id, &data)),
+                meta.map(|meta| self.backing_storage.serialize(task_id, &meta)),
+                data.map(|data| self.backing_storage.serialize(task_id, &data)),
             )
         };
 

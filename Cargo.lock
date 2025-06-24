@@ -4406,6 +4406,7 @@ dependencies = [
  "anyhow",
  "console-subscriber",
  "dhat",
+ "either",
  "getrandom 0.2.15",
  "iana-time-zone",
  "lightningcss-napi",
