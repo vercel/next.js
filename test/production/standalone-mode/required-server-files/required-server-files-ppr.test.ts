@@ -9,6 +9,7 @@ import {
   findPort,
   initNextServerScript,
   killApp,
+  retry,
 } from 'next-test-utils'
 import { ChildProcess } from 'node:child_process'
 
@@ -18,7 +19,8 @@ describe('required server files app router', () => {
   let appPort: number | string
   let delayedPostpone: string
   let rewritePostpone: string
-  let rewriteHTML: string
+  let secondCookiePostpone: string
+  let secondCookieHTML: string
   let cliOutput = ''
 
   beforeAll(async () => {
@@ -61,8 +63,11 @@ describe('required server files app router', () => {
     rewritePostpone = (
       await next.readJSON('.next/server/app/rewrite/first-cookie.meta')
     ).postponed
-    rewriteHTML = await next.readFile(
-      '.next/server/app/rewrite/first-cookie.html'
+    secondCookiePostpone = (
+      await next.readJSON('.next/server/app/rewrite/second-cookie.meta')
+    ).postponed
+    secondCookieHTML = await next.readFile(
+      '.next/server/app/rewrite/second-cookie.html'
     )
 
     await fs.rename(
@@ -355,7 +360,7 @@ describe('required server files app router', () => {
 
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')
-    expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
+    expect(res.headers.has('x-nextjs-postponed')).toBeFalse()
   })
 
   it('should handle prefetch RSC requests', async () => {
@@ -382,7 +387,7 @@ describe('required server files app router', () => {
     // Let's parse the random number out of the HTML that was generated at build
     // time. We want to use that value as it's the one that's tied to the
     // postponed state that we also have.
-    const $ = cheerio.load(rewriteHTML)
+    const $ = cheerio.load(secondCookieHTML)
 
     const random = $('#random').text()
     expect(random).toBeDefined()
@@ -395,13 +400,13 @@ describe('required server files app router', () => {
     // not present in the response without passing the postponed state.
     let res = await fetchViaHTTP(
       appPort,
-      '/rewrite/first-cookie.rsc',
+      '/rewrite/second-cookie.rsc',
       undefined,
       {
         headers: {
           'x-matched-path': '/rewrite/[slug]',
           'x-now-route-matches': createNowRouteMatches({
-            slug: 'first-cookie',
+            slug: 'second-cookie',
           }).toString(),
         },
       }
@@ -411,12 +416,6 @@ describe('required server files app router', () => {
     expect(res.headers.get('content-type')).toEqual('text/x-component')
     expect(res.headers.has('x-nextjs-postponed')).toBeFalse()
 
-    // Ensure that we hit the cache handler and not the resume data cache.
-    expect(cliOutput.substring(start)).toContain('cache-handler get')
-    expect(cliOutput.substring(start)).toContain('cache-handler set')
-    expect(cliOutput.substring(start)).toContain('rdc:miss')
-    expect(cliOutput.substring(start)).not.toContain('rdc:hit')
-
     // We expect that the random value is not present in the response because
     // we're not providing a resume data cache via the postponed state.
     // Instead it'll contain another random number that's been generated at
@@ -424,36 +423,58 @@ describe('required server files app router', () => {
     let rsc = await res.text()
     expect(rsc).not.toContain(random)
 
+    // Ensure that we hit the cache handler and not the resume data cache.
+    await retry(() => {
+      expect(cliOutput.substring(start)).toContain('cache-handler get')
+      expect(cliOutput.substring(start)).toContain('cache-handler set')
+
+      // We expect that there is no resume data cache hit or miss because
+      // we're not providing a resume data cache via the postponed state.
+      expect(cliOutput.substring(start)).not.toContain('rdc:miss')
+      expect(cliOutput.substring(start)).not.toContain('rdc:hit')
+      expect(cliOutput.substring(start)).toContain('rdc:no-resume-data')
+    })
+
     // Reset the start of the logs for this test.
     start = cliOutput.length
 
     // Then let's get the Dynamic RSC request and verify that the random value
     // is present in the response by passing the postponed state.
-    res = await fetchViaHTTP(appPort, '/rewrite/first-cookie.rsc', undefined, {
+    res = await fetchViaHTTP(appPort, '/rewrite/second-cookie.rsc', undefined, {
       method: 'POST',
       headers: {
         'x-matched-path': '/rewrite/[slug]',
         'x-now-route-matches': createNowRouteMatches({
-          slug: 'first-cookie',
+          slug: 'second-cookie',
         }).toString(),
         'next-resume': '1',
       },
-      body: rewritePostpone,
+      body: secondCookiePostpone,
     })
 
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')
     expect(res.headers.has('x-nextjs-postponed')).toBeFalse()
 
-    // Ensure that we hit the resume data cache and not the cache handler.
-    expect(cliOutput.substring(start)).not.toContain('cache-handler get')
-    expect(cliOutput.substring(start)).not.toContain('cache-handler set')
-    expect(cliOutput.substring(start)).toContain('rdc:hit')
-
     // We expect that the random value is present in the response because
     // we're providing a resume data cache via the postponed state.
     rsc = await res.text()
     expect(rsc).toContain(random)
+
+    // Ensure that we hit the resume data cache and not the cache handler.
+    await retry(() => {
+      expect(cliOutput.substring(start)).not.toContain('cache-handler get')
+      expect(cliOutput.substring(start)).not.toContain('cache-handler set')
+
+      // We expect that there is a resume data cache hit because we're providing
+      // a resume data cache via the postponed state.
+      expect(cliOutput.substring(start)).toContain('rdc:hit')
+
+      // We expect that there is no resume data cache miss because we're
+      // providing a resume data cache via the postponed state.
+      expect(cliOutput.substring(start)).not.toContain('rdc:miss')
+      expect(cliOutput.substring(start)).not.toContain('rdc:no-resume-data')
+    })
   })
 
   it('should handle revalidating the fallback page', async () => {

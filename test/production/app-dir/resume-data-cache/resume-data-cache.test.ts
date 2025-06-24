@@ -4,7 +4,7 @@ import { retry } from 'next-test-utils'
 describe('resume-data-cache', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    // TODO: re-enable once support has been added
+    // TODO: re-enable once RDC support has been added to the deployment infrastructure
     skipDeployment: true,
   })
   if (skipped) return
@@ -22,10 +22,8 @@ describe('resume-data-cache', () => {
 
       // Then get the Prefetch RSC and validate that it also contains the same
       // random number.
-      let rsc
-
       await retry(async () => {
-        rsc = await next
+        const rsc = await next
           .fetch('/', {
             headers: {
               RSC: '1',
@@ -39,7 +37,7 @@ describe('resume-data-cache', () => {
       // Then get the dynamic RSC and validate that it also contains the same
       // random number.
       await retry(async () => {
-        rsc = await next
+        const rsc = await next
           .fetch('/', {
             headers: {
               RSC: '1',
@@ -49,13 +47,15 @@ describe('resume-data-cache', () => {
         expect(rsc).toContain(first)
       })
 
-      // Then revalidate the page
+      // Then revalidate the page. Note: Dynamic RSC requests don't trigger
+      // actual revalidation - they only mark tags as needing revalidation.
+      // The actual revalidation only occurs when accessing a static resource again.
       await next.fetch('/revalidate', { method: 'POST' })
 
       // Then get the dynamic RSC again and validate that it still contains the
       // same random number.
       await retry(async () => {
-        rsc = await next
+        const rsc = await next
           .fetch('/', {
             headers: {
               RSC: '1',
@@ -77,7 +77,7 @@ describe('resume-data-cache', () => {
       // Then get the Prefetch RSC and validate that it also contains the new
       // random number.
       await retry(async () => {
-        rsc = await next
+        const rsc = await next
           .fetch('/', {
             headers: {
               RSC: '1',
@@ -91,7 +91,7 @@ describe('resume-data-cache', () => {
       // Then get the dynamic RSC again and validate that it also contains the
       // new random number.
       await retry(async () => {
-        rsc = await next
+        const rsc = await next
           .fetch('/', {
             headers: {
               RSC: '1',

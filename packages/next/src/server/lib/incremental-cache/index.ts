@@ -437,6 +437,10 @@ export class IncrementalCache implements IncrementalCacheType {
         } else if (IncrementalCache.debug) {
           console.log('rdc:miss', cacheKey)
         }
+      } else {
+        if (IncrementalCache.debug) {
+          console.log('rdc:no-resume-data')
+        }
       }
     }
 

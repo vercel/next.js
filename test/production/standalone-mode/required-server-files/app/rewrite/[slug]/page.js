@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 
 export function generateStaticParams() {
-  return [{ slug: 'first-cookie' }]
+  return [{ slug: 'first-cookie' }, { slug: 'second-cookie' }]
 }
 
 async function Postpone({ children }) {

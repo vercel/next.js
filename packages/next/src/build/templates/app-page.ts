@@ -289,11 +289,11 @@ export async function handler(
     // HTML.
     typeof minimalPostponed === 'string' ||
     // If this handler supports onCacheEntryV2, then we can only support
-    // dynamic HTML if it's a dynamic RSC request and not in minimal mode. If it
+    // dynamic responses if it's a dynamic RSC request and not in minimal mode. If it
     // doesn't support it we must fallback to the default behavior.
     (getRequestMeta(req, 'onCacheEntryV2')
       ? isDynamicRSCRequest && !minimalMode
-      : // Otherwise, we can support dynamic HTML if it's a dynamic RSC request.
+      : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
         isDynamicRSCRequest)
 
   // When html bots request PPR page, perform the full dynamic rendering.
