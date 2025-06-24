@@ -409,7 +409,7 @@ describe('required server files app router', () => {
 
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')
-    expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
+    expect(res.headers.has('x-nextjs-postponed')).toBeFalse()
 
     // Ensure that we hit the cache handler and not the resume data cache.
     expect(cliOutput.substring(start)).toContain('cache-handler get')
