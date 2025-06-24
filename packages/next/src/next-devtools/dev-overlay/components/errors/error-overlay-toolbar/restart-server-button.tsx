@@ -32,6 +32,7 @@ export function RestartServerButton({ showButton }: { showButton: boolean }) {
       disabled={isPending}
       title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
     >
+      {/* TODO: Add loading spinner. */}
       <RefreshClockWise width={14} height={14} />
       {isPending ? 'Restarting...' : 'Clear Bundler Cache &amp; Restart'}
     </button>
