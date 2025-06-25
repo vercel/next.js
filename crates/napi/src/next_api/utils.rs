@@ -34,6 +34,33 @@ use crate::util::log_internal_error_and_inform;
 pub type NextTurboTasks =
     Arc<TurboTasks<TurboTasksBackend<Either<DefaultBackingStorage, NoopBackingStorage>>>>;
 
+/// A value often wrapped in [`External`] that retains the Turbopack instance used by Next.js, and
+/// various napi helpers that may have been passed to us from JS.
+///
+/// This is not a [`turbo_tasks::value`], and should only be used within the top-level napi layer.
+/// It should not be passed to a [`turbo_tasks::function`]. For serializable information about the
+/// project, use the [`next_api::project::Project`] type.
+#[derive(Clone)]
+pub struct NextTurbopackContext {
+    inner: Arc<NextTurboContextInner>,
+}
+
+impl NextTurbopackContext {
+    pub fn new(turbo_tasks: NextTurboTasks) -> Self {
+        NextTurbopackContext {
+            inner: Arc::new(NextTurboContextInner { turbo_tasks }),
+        }
+    }
+
+    pub fn turbo_tasks(&self) -> &NextTurboTasks {
+        &self.inner.turbo_tasks
+    }
+}
+
+struct NextTurboContextInner {
+    turbo_tasks: NextTurboTasks,
+}
+
 #[derive(Serialize)]
 struct StartupCacheInvalidationEvent {
     reason_code: Option<String>,
@@ -110,26 +137,35 @@ pub fn create_turbo_tasks(
     })
 }
 
-/// A helper type to hold both a Vc operation and the TurboTasks root process.
-/// Without this, we'd need to pass both individually all over the place
+/// An [`OperationVc`] that can be passed back and forth to JS across the [`napi`][mod@napi]
+/// boundary via [`External`].
+///
+/// It is a helper type to hold both a [`OperationVc`] and the [`NextTurbopackContext`]. Without
+/// this, we'd need to pass both individually all over the place.
+///
+/// This napi-specific abstraction does not implement [`turbo_tasks::NonLocalValue`] or
+/// [`turbo_tasks::OperationValue`] and should be dereferenced to an [`OperationVc`] before being
+/// passed to a [`turbo_tasks::function`].
+//
+// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
 #[derive(Clone)]
-pub struct VcArc<T> {
-    turbo_tasks: NextTurboTasks,
+pub struct DetachedVc<T> {
+    turbopack_ctx: NextTurbopackContext,
     /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.
     vc: OperationVc<T>,
 }
 
-impl<T> VcArc<T> {
-    pub fn new(turbo_tasks: NextTurboTasks, vc: OperationVc<T>) -> Self {
-        Self { turbo_tasks, vc }
+impl<T> DetachedVc<T> {
+    pub fn new(turbopack_ctx: NextTurbopackContext, vc: OperationVc<T>) -> Self {
+        Self { turbopack_ctx, vc }
     }
 
-    pub fn turbo_tasks(&self) -> &NextTurboTasks {
-        &self.turbo_tasks
+    pub fn turbopack_ctx(&self) -> &NextTurbopackContext {
+        &self.turbopack_ctx
     }
 }
 
-impl<T> Deref for VcArc<T> {
+impl<T> Deref for DetachedVc<T> {
     type Target = OperationVc<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -144,11 +180,18 @@ pub fn serde_enum_to_string<T: Serialize>(value: &T) -> Result<String> {
         .to_string())
 }
 
-/// The root of our turbopack computation.
+/// An opaque handle to the root of a turbo-tasks computation created by
+/// [`turbo_tasks::TurboTasks::spawn_root_task`] that can be passed back and forth to JS across the
+/// [`napi`][mod@napi] boundary via [`External`].
+///
+/// JavaScript code receiving this value **must** call [`root_task_dispose`] in a `try...finally`
+/// block to avoid leaking root tasks.
+///
+/// This is used by [`subscribe`] to create a computation that re-executes when dependencies change.
+//
+// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
 pub struct RootTask {
-    #[allow(dead_code)]
-    turbo_tasks: NextTurboTasks,
-    #[allow(dead_code)]
+    turbopack_ctx: NextTurbopackContext,
     task_id: Option<TaskId>,
 }
 
@@ -163,7 +206,10 @@ pub fn root_task_dispose(
     #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
 ) -> napi::Result<()> {
     if let Some(task) = root_task.task_id.take() {
-        root_task.turbo_tasks.dispose_root_task(task);
+        root_task
+            .turbopack_ctx
+            .turbo_tasks()
+            .dispose_root_task(task);
     }
     Ok(())
 }
@@ -392,13 +438,13 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
 }
 
 pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
-    turbo_tasks: NextTurboTasks,
+    turbopack_ctx: NextTurbopackContext,
     func: JsFunction,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
 ) -> napi::Result<External<RootTask>> {
     let func: ThreadsafeFunction<T> = func.create_threadsafe_function(0, mapper)?;
-    let task_id = turbo_tasks.spawn_root_task(move || {
+    let task_id = turbopack_ctx.turbo_tasks().spawn_root_task(move || {
         let handler = handler.clone();
         let func = func.clone();
         Box::pin(async move {
@@ -420,7 +466,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
         })
     });
     Ok(External::new(RootTask {
-        turbo_tasks,
+        turbopack_ctx,
         task_id: Some(task_id),
     }))
 }
