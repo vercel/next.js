@@ -650,13 +650,13 @@ impl TurboPersistence {
     /// duplicate keys and separating all key ranges into unique files.
     pub fn full_compact(&self) -> Result<()> {
         self.compact(&CompactConfig {
-            min_merge: 2,
+            min_merge_count: 2,
             optimal_merge_count: usize::MAX,
-            max_merge: usize::MAX,
-            max_merge_size: u64::MAX,
-            min_merge_duplication_size: 0,
-            optimal_merge_duplication_size: u64::MAX,
-            max_merge_segments: usize::MAX,
+            max_merge_count: usize::MAX,
+            max_merge_bytes: u64::MAX,
+            min_merge_duplication_bytes: 0,
+            optimal_merge_duplication_bytes: u64::MAX,
+            max_merge_segment_count: usize::MAX,
         })?;
         Ok(())
     }

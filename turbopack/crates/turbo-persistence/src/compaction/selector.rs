@@ -102,38 +102,38 @@ pub fn compute_metrics<T: Compactable>(
 /// Configuration for the compaction algorithm.
 pub struct CompactConfig {
     /// The minimum number of files to merge at once.
-    pub min_merge: usize,
+    pub min_merge_count: usize,
 
     /// The optimal number of files to merge at once.
     pub optimal_merge_count: usize,
 
     /// The maximum number of files to merge at once.
-    pub max_merge: usize,
+    pub max_merge_count: usize,
 
     /// The maximum size of all files to merge at once.
-    pub max_merge_size: u64,
+    pub max_merge_bytes: u64,
 
     /// The amount of duplication that need to be in a merge job to be considered for merging.
-    pub min_merge_duplication_size: u64,
+    pub min_merge_duplication_bytes: u64,
 
     /// The optimal duplication size for merging.
-    pub optimal_merge_duplication_size: u64,
+    pub optimal_merge_duplication_bytes: u64,
 
     /// The maximum number of merge segments to determine.
-    pub max_merge_segments: usize,
+    pub max_merge_segment_count: usize,
 }
 
 impl Default for CompactConfig {
     fn default() -> Self {
         const MB: u64 = 1024 * 1024;
         Self {
-            min_merge: 2,
+            min_merge_count: 2,
             optimal_merge_count: 8,
-            max_merge: 32,
-            max_merge_size: 500 * MB,
-            min_merge_duplication_size: MB,
-            optimal_merge_duplication_size: 10 * MB,
-            max_merge_segments: 8,
+            max_merge_count: 32,
+            max_merge_bytes: 500 * MB,
+            min_merge_duplication_bytes: MB,
+            optimal_merge_duplication_bytes: 10 * MB,
+            max_merge_segment_count: 8,
         }
     }
 }
@@ -211,7 +211,7 @@ pub fn get_merge_segments<T: Compactable>(
         if used_compactables[start_index] {
             continue;
         }
-        if real_merge_segments >= config.max_merge_segments {
+        if real_merge_segments >= config.max_merge_segment_count {
             // We have reached the maximum number of merge jobs, so we stop here.
             break;
         }
@@ -230,7 +230,7 @@ pub fn get_merge_segments<T: Compactable>(
                 // Early exit if we have found an optimal merge segment.
                 let duplication_size = total_duplication_size(&duplication);
                 let optimal_merge_job = current_set.len() >= config.optimal_merge_count
-                    && duplication_size >= config.optimal_merge_duplication_size;
+                    && duplication_size >= config.optimal_merge_duplication_bytes;
                 if optimal_merge_job {
                     for &i in current_set.iter() {
                         used_compactables[i] = true;
@@ -243,8 +243,8 @@ pub fn get_merge_segments<T: Compactable>(
 
                 // If we are limited by size or count, we might also crate a merge segment if it's
                 // within the limits.
-                let valid_merge_job = current_set.len() >= config.min_merge
-                    && duplication_size >= config.min_merge_duplication_size;
+                let valid_merge_job = current_set.len() >= config.min_merge_count
+                    && duplication_size >= config.min_merge_duplication_bytes;
                 let mut end_job =
                     |mut current_set: SmallVec<[usize; 1]>, used_compactables: &mut Vec<bool>| {
                         if valid_merge_job {
@@ -260,7 +260,9 @@ pub fn get_merge_segments<T: Compactable>(
                     };
 
                 // Check if we run into the count or size limit.
-                if current_set.len() >= config.max_merge || current_size >= config.max_merge_size {
+                if current_set.len() >= config.max_merge_count
+                    || current_size >= config.max_merge_bytes
+                {
                     // The set is so large so we can't add more compactables to it.
                     end_job(current_set, &mut used_compactables);
                     continue 'outer;
@@ -288,7 +290,7 @@ pub fn get_merge_segments<T: Compactable>(
 
                 // Check if we run into the size limit.
                 let size = compactable.size();
-                if current_size + size > config.max_merge_size {
+                if current_size + size > config.max_merge_bytes {
                     // The next compactable is too large to be added to the current set.
                     end_job(current_set, &mut used_compactables);
                     continue 'outer;
@@ -400,13 +402,13 @@ mod tests {
                 (30, 40),
             ],
             &CompactConfig {
-                min_merge: 2,
+                min_merge_count: 2,
                 optimal_merge_count: 3,
-                max_merge: 4,
-                max_merge_size: u64::MAX,
-                min_merge_duplication_size: 0,
-                optimal_merge_duplication_size: 0,
-                max_merge_segments: usize::MAX,
+                max_merge_count: 4,
+                max_merge_bytes: u64::MAX,
+                min_merge_duplication_bytes: 0,
+                optimal_merge_duplication_bytes: 0,
+                max_merge_segment_count: usize::MAX,
             },
         );
         assert_eq!(merge_jobs, vec![vec![1, 2, 3], vec![5, 6, 8]]);
@@ -427,13 +429,13 @@ mod tests {
                 (30, 40),
             ],
             &CompactConfig {
-                min_merge: 2,
+                min_merge_count: 2,
                 optimal_merge_count: 2,
-                max_merge: usize::MAX,
-                max_merge_size: 300,
-                min_merge_duplication_size: 0,
-                optimal_merge_duplication_size: u64::MAX,
-                max_merge_segments: usize::MAX,
+                max_merge_count: usize::MAX,
+                max_merge_bytes: 300,
+                min_merge_duplication_bytes: 0,
+                optimal_merge_duplication_bytes: u64::MAX,
+                max_merge_segment_count: usize::MAX,
             },
         );
         assert_eq!(merge_jobs, vec![vec![1, 2, 3], vec![5, 6, 8]]);
@@ -454,13 +456,13 @@ mod tests {
                 (30, 40),
             ],
             &CompactConfig {
-                min_merge: 2,
+                min_merge_count: 2,
                 optimal_merge_count: usize::MAX,
-                max_merge: usize::MAX,
-                max_merge_size: u64::MAX,
-                min_merge_duplication_size: 0,
-                optimal_merge_duplication_size: u64::MAX,
-                max_merge_segments: usize::MAX,
+                max_merge_count: usize::MAX,
+                max_merge_bytes: u64::MAX,
+                min_merge_duplication_bytes: 0,
+                optimal_merge_duplication_bytes: u64::MAX,
+                max_merge_segment_count: usize::MAX,
             },
         );
         assert_eq!(merge_jobs, vec![vec![0, 1, 2, 3, 4, 5, 6, 8]]);
@@ -481,13 +483,13 @@ mod tests {
                 (30, 40),
             ],
             &CompactConfig {
-                min_merge: 2,
+                min_merge_count: 2,
                 optimal_merge_count: 7,
-                max_merge: usize::MAX,
-                max_merge_size: u64::MAX,
-                min_merge_duplication_size: 0,
-                optimal_merge_duplication_size: 0,
-                max_merge_segments: usize::MAX,
+                max_merge_count: usize::MAX,
+                max_merge_bytes: u64::MAX,
+                min_merge_duplication_bytes: 0,
+                optimal_merge_duplication_bytes: 0,
+                max_merge_segment_count: usize::MAX,
             },
         );
         assert_eq!(merge_jobs, vec![vec![1, 2, 3, 4, 5, 6, 8]]);
@@ -508,13 +510,13 @@ mod tests {
                 (30, 40),
             ],
             &CompactConfig {
-                min_merge: 2,
+                min_merge_count: 2,
                 optimal_merge_count: 2,
-                max_merge: usize::MAX,
-                max_merge_size: u64::MAX,
-                min_merge_duplication_size: 0,
-                optimal_merge_duplication_size: 0,
-                max_merge_segments: usize::MAX,
+                max_merge_count: usize::MAX,
+                max_merge_bytes: u64::MAX,
+                min_merge_duplication_bytes: 0,
+                optimal_merge_duplication_bytes: 0,
+                max_merge_segment_count: usize::MAX,
             },
         );
         assert_eq!(
@@ -586,13 +588,13 @@ mod tests {
             // assert!(metrics.duplication < 4.0);
 
             let config = CompactConfig {
-                max_merge: 16,
-                min_merge: 2,
+                max_merge_count: 16,
+                min_merge_count: 2,
                 optimal_merge_count: 4,
-                max_merge_size: 5000,
-                min_merge_duplication_size: 200,
-                optimal_merge_duplication_size: 500,
-                max_merge_segments: 4,
+                max_merge_bytes: 5000,
+                min_merge_duplication_bytes: 200,
+                optimal_merge_duplication_bytes: 500,
+                max_merge_segment_count: 4,
             };
             let jobs = get_merge_segments(&containers, &config);
             if !jobs.is_empty() {

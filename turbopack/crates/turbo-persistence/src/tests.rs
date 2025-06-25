@@ -461,8 +461,8 @@ fn persist_changes() -> Result<()> {
 
         db.compact(&CompactConfig {
             optimal_merge_count: 4,
-            min_merge_duplication_size: 1,
-            optimal_merge_duplication_size: 1,
+            min_merge_duplication_bytes: 1,
+            optimal_merge_duplication_bytes: 1,
             ..Default::default()
         })?;
 
@@ -539,8 +539,8 @@ fn partial_compaction() -> Result<()> {
 
             db.compact(&CompactConfig {
                 optimal_merge_count: 4,
-                min_merge_duplication_size: 1,
-                optimal_merge_duplication_size: 1,
+                min_merge_duplication_bytes: 1,
+                optimal_merge_duplication_bytes: 1,
                 ..Default::default()
             })?;
 
@@ -646,8 +646,8 @@ fn merge_file_removal() -> Result<()> {
 
             db.compact(&CompactConfig {
                 optimal_merge_count: 4,
-                min_merge_duplication_size: 1,
-                optimal_merge_duplication_size: 1,
+                min_merge_duplication_bytes: 1,
+                optimal_merge_duplication_bytes: 1,
                 ..Default::default()
             })?;
 

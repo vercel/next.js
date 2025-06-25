@@ -18,13 +18,13 @@ use crate::database::{
 
 const MB: u64 = 1024 * 1024;
 const COMPACT_CONFIG: CompactConfig = CompactConfig {
-    min_merge: 3,
+    min_merge_count: 3,
     optimal_merge_count: 8,
-    max_merge: 64,
-    max_merge_size: 512 * MB,
-    min_merge_duplication_size: MB,
-    optimal_merge_duplication_size: 100 * MB,
-    max_merge_segments: 16,
+    max_merge_count: 64,
+    max_merge_bytes: 512 * MB,
+    min_merge_duplication_bytes: MB,
+    optimal_merge_duplication_bytes: 100 * MB,
+    max_merge_segment_count: 16,
 };
 
 pub struct TurboKeyValueDatabase {
@@ -43,7 +43,8 @@ impl TurboKeyValueDatabase {
         if !db.is_empty() {
             let handle = spawn(move || {
                 db.compact(&CompactConfig {
-                    max_merge_segments: available_parallelism().map_or(4, |c| max(4, c.get() / 4)),
+                    max_merge_segment_count: available_parallelism()
+                        .map_or(4, |c| max(4, c.get() / 4)),
                     ..COMPACT_CONFIG
                 })
             });
@@ -150,7 +151,8 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
             let db = self.db.clone();
             let handle = spawn(move || {
                 db.compact(&CompactConfig {
-                    max_merge_segments: available_parallelism().map_or(4, |c| max(4, c.get() / 2)),
+                    max_merge_segment_count: available_parallelism()
+                        .map_or(4, |c| max(4, c.get() / 2)),
                     ..COMPACT_CONFIG
                 })
             });
