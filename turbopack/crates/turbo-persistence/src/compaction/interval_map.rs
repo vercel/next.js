@@ -96,10 +96,10 @@ impl<T> IntervalMap<T> {
         };
 
         for i in start_index..end_index {
-            if let Some(value) = &self.intervals[i].value {
-                if predicate(value) {
-                    return true;
-                }
+            if let Some(value) = &self.intervals[i].value
+                && predicate(value)
+            {
+                return true;
             }
         }
         false

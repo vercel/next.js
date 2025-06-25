@@ -10,7 +10,6 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicU32, Ordering},
     },
-    u64,
 };
 
 use anyhow::{Context, Result, bail};
@@ -811,7 +810,7 @@ impl TurboPersistence {
                 let family = family as u32;
                 let _span = span.clone().entered();
 
-                let merge_jobs = get_merge_segments(&ssts_with_ranges, &compact_config);
+                let merge_jobs = get_merge_segments(&ssts_with_ranges, compact_config);
 
                 if merge_jobs.is_empty() {
                     return Ok(PartialResultPerFamily {

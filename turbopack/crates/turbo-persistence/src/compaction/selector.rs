@@ -1,5 +1,3 @@
-use std::u64;
-
 use smallvec::{SmallVec, smallvec};
 
 use crate::compaction::interval_map::IntervalMap;
@@ -133,7 +131,7 @@ impl Default for CompactConfig {
             optimal_merge_count: 8,
             max_merge: 32,
             max_merge_size: 500 * MB,
-            min_merge_duplication_size: 1 * MB,
+            min_merge_duplication_size: MB,
             optimal_merge_duplication_size: 10 * MB,
             max_merge_segments: 8,
         }
@@ -355,7 +353,6 @@ mod tests {
     use std::{
         fmt::Debug,
         mem::{replace, swap},
-        usize,
     };
 
     use rand::{Rng, SeedableRng, seq::SliceRandom};

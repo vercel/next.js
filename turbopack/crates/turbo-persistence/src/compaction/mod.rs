@@ -1,2 +1,2 @@
-pub(self) mod interval_map;
+mod interval_map;
 pub mod selector;
