@@ -62,9 +62,10 @@ use url::Url;
 use crate::{
     next_api::{
         endpoint::ExternalEndpoint,
+        turbopack_ctx::{NextTurboTasks, NextTurbopackContext, create_turbo_tasks},
         utils::{
-            DetachedVc, NapiDiagnostic, NapiIssue, NextTurboTasks, NextTurbopackContext, RootTask,
-            TurbopackResult, create_turbo_tasks, get_diagnostics, get_issues, subscribe,
+            DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, get_diagnostics,
+            get_issues, subscribe,
         },
     },
     register,
