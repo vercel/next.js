@@ -15,8 +15,9 @@ use crate::{
     typescript::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
 };
 
-const NODE_EXTERNALS: [&str; 63] = [
+const NODE_EXTERNALS: [&str; 64] = [
     "assert",
+    "assert/strict",
     "async_hooks",
     "buffer",
     "child_process",
