@@ -82,10 +82,14 @@ impl<T> IntervalMap<T> {
             return false;
         }
 
-        let start_index = self
+        let start_index = match self
             .intervals
             .binary_search_by_key(&start, |point| point.start)
-            .unwrap_or_else(|x| x);
+        {
+            Ok(index) => index,
+            Err(index) if index == 0 => 0,
+            Err(index) => index - 1,
+        };
 
         let end_index = match self
             .intervals
@@ -129,11 +133,11 @@ mod tests {
     #[test]
     fn test_interval_map() {
         let mut map = IntervalMap::new();
-        map.update(&(5, 15), |v| *v += 1);
-        map.update(&(10, 15), |v| *v += 2);
-        map.update(&(10, 20), |v| *v += 4);
-        map.update(&(0, u64::MAX), |v| *v += 8);
-        map.update(&(15, 20), |v| *v += 16);
+        map.update(&(5, 15), |v| *v |= 1);
+        map.update(&(10, 15), |v| *v |= 2);
+        map.update(&(10, 20), |v| *v |= 4);
+        map.update(&(0, u64::MAX), |v| *v |= 8);
+        map.update(&(15, 20), |v| *v |= 16);
 
         let expected = vec![
             ((0, 4), &8),
@@ -145,6 +149,19 @@ mod tests {
         ];
         let result: Vec<_> = map.ranges().collect();
         assert_eq!(result, expected);
+
+        // test the `test` method
+        assert!(map.test(&(0, 10), |v| *v & 1 != 0));
+        assert!(map.test(&(0, 10), |v| *v & 2 != 0));
+        assert!(map.test(&(0, 50), |v| *v & 4 != 0));
+        assert!(map.test(&(15, 15), |v| *v & 16 != 0));
+        assert!(map.test(&(0, 15), |v| *v & 16 != 0));
+        assert!(map.test(&(20, 20), |v| *v & 16 != 0));
+        assert!(map.test(&(20, u64::MAX), |v| *v & 16 != 0));
+        assert!(map.test(&(0, u64::MAX), |v| *v & 8 != 0));
+        assert!(map.test(&(0, 0), |v| *v & 8 != 0));
+        assert!(map.test(&(u64::MAX, u64::MAX), |v| *v & 8 != 0));
+        assert!(map.test(&(123, 1234), |v| *v & 8 != 0));
     }
 
     #[test]
