@@ -149,25 +149,20 @@ impl DuplicationInfo {
         if self.total_size == 0 {
             return 0;
         }
-        // This is equal to (self.total_size - self.max_size) * spread(range) / u64::MAX
-        // but we use widening_mul to avoid overflow.
-        (self.total_size - self.max_size)
-            .widening_mul(spread(range))
-            .1
+        ((self.total_size - self.max_size) as u128 * spread(range) as u128 / (u64::MAX as u128 + 1))
+            as u64
     }
 
     fn size(&self, range: &Range) -> u64 {
         if self.total_size == 0 {
             return 0;
         }
-        // This is equal to self.total_size * spread(range) / u64::MAX
-        // but we use widening_mul to avoid overflow.
-        self.total_size.widening_mul(spread(range)).1
+        (self.total_size as u128 * spread(range) as u128 / (u64::MAX as u128 + 1)) as u64
     }
 
     fn add(&mut self, size: u64, range: &Range) {
         // Scale size to full range:
-        let scaled_size = (size as u128 * u64::MAX as u128 / spread(range) as u128) as u64;
+        let scaled_size = (size as u128 * (u64::MAX as u128 + 1) / spread(range) as u128) as u64;
         self.total_size = self.total_size.saturating_add(scaled_size);
         self.max_size = self.max_size.max(scaled_size);
     }

@@ -3,7 +3,6 @@
 #![feature(get_mut_unchecked)]
 #![feature(sync_unsafe_cell)]
 #![feature(iter_collect_into)]
-#![feature(bigint_helper_methods)]
 
 mod arc_slice;
 mod collector;
