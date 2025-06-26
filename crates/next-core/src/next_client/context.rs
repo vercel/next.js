@@ -359,6 +359,7 @@ pub async fn get_client_module_options_context(
     // node_modules context
     let foreign_codes_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
+            enable_typeof_window_inlining: None,
             // Ignore e.g. import(`${url}`) requests in node_modules.
             ignore_dynamic_requests: true,
             ..module_options_context.ecmascript
