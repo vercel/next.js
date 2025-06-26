@@ -11,7 +11,6 @@ import { AppPathnameNormalizer } from '../../../../server/normalizers/built/app/
 import { loadEntrypoint } from '../../../load-entrypoint'
 import type { PageExtensions } from '../../../page-extensions-type'
 import { getFilenameAndExtension } from '../next-metadata-route-loader'
-import type { ParamInfo } from '../next-root-params-loader'
 
 export async function createAppRouteCode({
   appDir,
@@ -27,7 +26,7 @@ export async function createAppRouteCode({
   name: string
   page: string
   pagePath: string
-  rootParams: ParamInfo[]
+  rootParams: string[]
   resolveAppRoute: (
     pathname: string
   ) => Promise<string | undefined> | string | undefined
@@ -81,7 +80,7 @@ export async function createAppRouteCode({
     },
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
-      rootParamNames: JSON.stringify(rootParams.map((p) => p.param)),
+      rootParamNames: JSON.stringify(rootParams),
     }
   )
 }

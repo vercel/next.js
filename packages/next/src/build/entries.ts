@@ -71,7 +71,6 @@ import {
 } from '../lib/is-internal-component'
 import { isMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/route-kind'
-import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
@@ -718,7 +717,10 @@ export async function createEntrypoints(
               page,
               name: serverBundlePath,
               pagePath: absolutePagePath,
-              rootParams: (staticInfo as AppPageStaticInfo).rootParams!,
+              rootParams:
+                (staticInfo as AppPageStaticInfo).rootParams?.map(
+                  (p) => p.param
+                ) || [],
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
@@ -726,7 +728,9 @@ export async function createEntrypoints(
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
               preferredRegion: staticInfo.preferredRegion,
-              middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
+              middlewareConfig: Buffer.from(
+                JSON.stringify(staticInfo.middleware || {})
+              ).toString('base64'),
               isGlobalNotFoundEnabled: config.experimental.globalNotFound
                 ? true
                 : undefined,
@@ -797,7 +801,10 @@ export async function createEntrypoints(
                 name: serverBundlePath,
                 page,
                 pagePath: absolutePagePath,
-                rootParams: (staticInfo as AppPageStaticInfo).rootParams!,
+                rootParams:
+                  (staticInfo as AppPageStaticInfo).rootParams?.map(
+                    (p) => p.param
+                  ) || [],
                 appDir: appDir!,
                 appPaths: matchedAppPaths,
                 pageExtensions,

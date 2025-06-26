@@ -386,9 +386,8 @@ export class AppRouteRouteModule extends RouteModule<
             (prerenderStore = {
               type: 'prerender',
               phase: 'action',
-              // This replicates prior behavior where rootParams is empty in routes
-              // TODO we need to make this have the proper rootParams for this route
-              rootParams: {},
+              // Use the root params from the request store
+              rootParams: requestStore.rootParams,
               implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
@@ -482,7 +481,7 @@ export class AppRouteRouteModule extends RouteModule<
           const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
             type: 'prerender',
             phase: 'action',
-            rootParams: {},
+            rootParams: requestStore.rootParams,
             implicitTags,
             renderSignal: finalController.signal,
             controller: finalController,
@@ -567,7 +566,7 @@ export class AppRouteRouteModule extends RouteModule<
           prerenderStore = {
             type: 'prerender-legacy',
             phase: 'action',
-            rootParams: {},
+            rootParams: requestStore.rootParams,
             implicitTags,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
@@ -697,10 +696,20 @@ export class AppRouteRouteModule extends RouteModule<
       null
     )
 
+    // Extract root params from context.params based on rootParamNames
+    const rootParams: Record<string, string | string[] | undefined> = {}
+    if (context.params && this.rootParamNames.length > 0) {
+      for (const paramName of this.rootParamNames) {
+        if (paramName in context.params) {
+          rootParams[paramName] = context.params[paramName]
+        }
+      }
+    }
+
     const requestStore = createRequestStoreForAPI(
       req,
       req.nextUrl,
-      {}, // TODO: real rootParams
+      rootParams,
       implicitTags,
       undefined,
       context.prerenderManifest.preview

@@ -1,6 +1,8 @@
 import { lang, locale } from 'next/root-params'
 
 export async function GET() {
+  console.log('lang', await lang())
+  console.log('locale', await locale())
   return Response.json(
     // TODO(root-params): We're missing some wiring to set `requestStore.rootParams`,
     // so both of these will currently return undefined
