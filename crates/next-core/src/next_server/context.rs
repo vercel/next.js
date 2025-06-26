@@ -613,10 +613,6 @@ pub async fn get_server_module_options_context(
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
-                ecmascript: EcmascriptOptionsContext {
-                    enable_typeof_window_inlining: None,
-                    ..module_options_context.ecmascript
-                },
                 module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
@@ -680,10 +676,6 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let foreign_code_module_options_context = ModuleOptionsContext {
-                ecmascript: EcmascriptOptionsContext {
-                    enable_typeof_window_inlining: None,
-                    ..module_options_context.ecmascript
-                },
                 module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.

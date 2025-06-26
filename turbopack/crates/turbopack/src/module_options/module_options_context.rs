@@ -71,7 +71,7 @@ pub enum DecoratorsKind {
 }
 
 /// The types when replacing `typeof window` with a constant.
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum TypeofWindow {
     Object,
     Undefined,
