@@ -391,7 +391,7 @@ impl DiskFileSystemInner {
                 tracing::info_span!("create root directory", path = display(path.display()))
                     .entered();
 
-            std::fs::create_dir_all(&root_path)
+            std::fs::create_dir_all(path)
         })
         .concurrency_limited(&self.semaphore)
         .await?;
