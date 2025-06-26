@@ -87,7 +87,7 @@ impl<T> IntervalMap<T> {
             .binary_search_by_key(&start, |point| point.start)
         {
             Ok(index) => index,
-            Err(index) if index == 0 => 0,
+            Err(0) => 0,
             Err(index) => index - 1,
         };
 
