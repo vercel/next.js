@@ -418,6 +418,11 @@ export interface ProjectOptions {
   browserslistQuery: string
 
   /**
+   * Whether there are any rewrites defined
+   */
+  hasRewrites: boolean
+
+  /**
    * When the code is minified, this opts out of the default mangling of local
    * names for variables, functions etc., which can be useful for
    * debugging/profiling purposes.

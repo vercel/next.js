@@ -160,6 +160,9 @@ pub struct NapiProjectOptions {
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: RcStr,
 
+    /// Whether there are any rewrites defined
+    pub has_rewrites: bool,
+
     /// When the code is minified, this opts out of the default mangling of
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
@@ -271,6 +274,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             build_id: val.build_id,
             preview_props: val.preview_props.into(),
             browserslist_query: val.browserslist_query,
+            has_rewrites: val.has_rewrites,
             no_mangling: val.no_mangling,
             current_node_js_version: val.current_node_js_version,
         }

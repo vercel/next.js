@@ -134,6 +134,8 @@ export interface NapiProjectOptions {
   previewProps: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery: RcStr
+  /** Whether there are any rewrites defined */
+  hasRewrites: boolean
   /**
    * When the code is minified, this opts out of the default mangling of
    * local names for variables, functions etc., which can be useful for

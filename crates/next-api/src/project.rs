@@ -183,6 +183,9 @@ pub struct ProjectOptions {
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: RcStr,
 
+    /// Whether there are any rewrites defined
+    pub has_rewrites: bool,
+
     /// When the code is minified, this opts out of the default mangling of
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
@@ -447,6 +450,7 @@ impl ProjectContainer {
         let browserslist_query;
         let no_mangling;
         let current_node_js_version;
+        let has_rewrites;
         {
             let options = self.options_state.get();
             let options = options
@@ -471,6 +475,7 @@ impl ProjectContainer {
             browserslist_query = options.browserslist_query.clone();
             no_mangling = options.no_mangling;
             current_node_js_version = options.current_node_js_version.clone();
+            has_rewrites = options.has_rewrites;
         }
 
         let dist_dir = next_config
@@ -489,6 +494,7 @@ impl ProjectContainer {
             env: ResolvedVc::upcast(env_map.to_resolved().await?),
             define_env: define_env.to_resolved().await?,
             browserslist_query,
+            has_rewrites,
             mode: if dev {
                 NextMode::Development.resolved_cell()
             } else {
@@ -562,6 +568,9 @@ pub struct Project {
 
     /// The browserslist query to use for targeting browsers.
     browserslist_query: RcStr,
+
+    /// Whether there are any rewrites defined
+    has_rewrites: bool,
 
     mode: ResolvedVc<NextMode>,
 
@@ -764,6 +773,11 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn next_mode(&self) -> Vc<NextMode> {
         *self.mode
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn has_rewrites(&self) -> Vc<bool> {
+        Vc::cell(self.has_rewrites)
     }
 
     #[turbo_tasks::function]
@@ -1343,6 +1357,7 @@ impl Project {
                 },
                 self.next_mode(),
                 self.next_config(),
+                self.has_rewrites(),
                 self.execution_context(),
             ),
             Layer::new_with_user_friendly_name(
@@ -1573,6 +1588,7 @@ impl Project {
                 },
                 self.next_mode(),
                 self.next_config(),
+                self.has_rewrites(),
                 self.execution_context(),
             ),
             Layer::new_with_user_friendly_name(

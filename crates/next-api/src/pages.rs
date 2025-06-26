@@ -341,6 +341,7 @@ impl PagesProject {
             },
             self.project().next_mode(),
             self.project().next_config(),
+            self.project().has_rewrites(),
             self.project().encryption_key(),
             self.project().no_mangling(),
         ))
@@ -355,6 +356,7 @@ impl PagesProject {
             },
             self.project().next_mode(),
             self.project().next_config(),
+            self.project().has_rewrites(),
             self.project().execution_context(),
         ))
     }
@@ -564,6 +566,7 @@ impl PagesProject {
             },
             self.project().next_mode(),
             self.project().next_config(),
+            self.project().has_rewrites(),
             self.project().execution_context(),
         ))
     }
@@ -577,6 +580,7 @@ impl PagesProject {
             },
             self.project().next_mode(),
             self.project().next_config(),
+            self.project().has_rewrites(),
             self.project().execution_context(),
         );
         Ok(client_runtime_entries.resolve_entries(Vc::upcast(self.client_module_context())))
