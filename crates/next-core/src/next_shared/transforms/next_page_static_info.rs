@@ -6,6 +6,7 @@ use next_custom_transforms::transforms::page_static_info::{
 use serde_json::Value;
 use swc_core::{
     atoms::{Atom, atom},
+    common::source_map::SmallPos,
     ecma::ast::Program,
 };
 use turbo_rcstr::rcstr;
@@ -13,7 +14,8 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_core::issue::{
-    Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
+    Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+    StyledString,
 };
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
@@ -82,7 +84,11 @@ impl CustomTransformer for NextPageStaticInfo {
             if is_server_layer_page {
                 for warning in collected_exports.warnings.iter() {
                     PageStaticInfoIssue {
-                        file_path: ctx.file_path.clone(),
+                        source: IssueSource::from_swc_offsets(
+                            ctx.source,
+                            warning.span.lo.to_u32(),
+                            warning.span.hi.to_u32(),
+                        ),
                         messages: vec![
                             format!(
                                 "Next.js can't recognize the exported `{}` field in \"{}\" as {}.",
@@ -98,7 +104,8 @@ impl CustomTransformer for NextPageStaticInfo {
             }
 
             if is_app_page
-                && let Some(Const::Value(Value::Object(config_obj))) = properties_to_extract.config
+                && let Some(Const::Value(Value::Object(config_obj), span)) =
+                    properties_to_extract.config
             {
                 let mut messages = vec![format!(
                     "Page config in {} is deprecated. Replace `export const config=…` with the \
@@ -117,7 +124,11 @@ impl CustomTransformer for NextPageStaticInfo {
                 messages.push("Visit https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config for more information.".to_string());
 
                 PageStaticInfoIssue {
-                    file_path: ctx.file_path.clone(),
+                    source: IssueSource::from_swc_offsets(
+                        ctx.source,
+                        span.lo.to_u32(),
+                        span.hi.to_u32(),
+                    ),
                     messages,
                     severity: IssueSeverity::Warning,
                 }
@@ -126,11 +137,15 @@ impl CustomTransformer for NextPageStaticInfo {
             }
 
             if collected_exports.directives.contains(&atom!("client"))
-                && collected_exports.generate_static_params
+                && let Some(span) = collected_exports.generate_static_params
                 && is_app_page
             {
                 PageStaticInfoIssue {
-                    file_path: ctx.file_path.clone(),
+                    source: IssueSource::from_swc_offsets(
+                        ctx.source,
+                        span.lo.to_u32(),
+                        span.hi.to_u32(),
+                    ),
                     messages: vec![format!(r#"Page "{}" cannot use both "use client" and export function "generateStaticParams()"."#, ctx.file_path_str)],
                     severity: IssueSeverity::Error,
                 }
@@ -144,10 +159,10 @@ impl CustomTransformer for NextPageStaticInfo {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct PageStaticInfoIssue {
-    pub file_path: FileSystemPath,
-    pub messages: Vec<String>,
-    pub severity: IssueSeverity,
+struct PageStaticInfoIssue {
+    source: IssueSource,
+    messages: Vec<String>,
+    severity: IssueSeverity,
 }
 
 #[turbo_tasks::value_impl]
@@ -168,7 +183,7 @@ impl Issue for PageStaticInfoIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -182,5 +197,10 @@ impl Issue for PageStaticInfoIssue {
             )
             .resolved_cell(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }

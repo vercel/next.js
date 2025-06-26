@@ -24,7 +24,10 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
+    },
     module::Module,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -254,7 +257,7 @@ impl WebpackLoadersProcessedAsset {
             module_asset: webpack_loaders_executor,
             cwd: project_path.clone(),
             env: *env,
-            context_ident_for_issue: this.source.ident().to_resolved().await?,
+            context_source_for_issue: this.source,
             asset_context: evaluate_context,
             chunking_context: *chunking_context,
             resolve_options_context: Some(transform.resolve_options_context),
@@ -415,7 +418,7 @@ pub struct WebpackLoaderContext {
     pub module_asset: ResolvedVc<Box<dyn Module>>,
     pub cwd: FileSystemPath,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
-    pub context_ident_for_issue: ResolvedVc<AssetIdent>,
+    pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
@@ -466,7 +469,7 @@ impl EvaluateContext for WebpackLoaderContext {
     async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
         EvaluationIssue {
             error,
-            context_ident: self.context_ident_for_issue,
+            source: IssueSource::from_source_only(self.context_source_for_issue),
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().await?.clone_value(),
@@ -526,7 +529,7 @@ impl EvaluateContext for WebpackLoaderContext {
 
                 for build_path in resolved_build_paths {
                     BuildDependencyIssue {
-                        context_ident: self.context_ident_for_issue,
+                        source: IssueSource::from_source_only(self.context_source_for_issue),
                         path: build_path,
                     }
                     .resolved_cell()
@@ -535,7 +538,7 @@ impl EvaluateContext for WebpackLoaderContext {
             }
             InfoMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {
-                    file_path: self.context_ident_for_issue.path().await?.clone_value(),
+                    source: IssueSource::from_source_only(self.context_source_for_issue),
                     error,
                     severity,
                     assets_for_source_mapping: pool.assets_for_source_mapping,
@@ -621,7 +624,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 .collect();
 
             EvaluateErrorLoggingIssue {
-                file_path: self.context_ident_for_issue.path().await?.clone_value(),
+                source: IssueSource::from_source_only(self.context_source_for_issue),
                 logging: logs,
                 severity: if has_errors {
                     IssueSeverity::Error
@@ -725,8 +728,8 @@ async fn apply_webpack_resolve_options(
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
 pub struct BuildDependencyIssue {
-    pub context_ident: ResolvedVc<AssetIdent>,
     pub path: FileSystemPath,
+    pub source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
@@ -747,7 +750,7 @@ impl Issue for BuildDependencyIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.context_ident.path()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -766,11 +769,16 @@ impl Issue for BuildDependencyIssue {
             .resolved_cell(),
         )))
     }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
+    }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct EvaluateEmittedErrorIssue {
-    pub file_path: FileSystemPath,
+    pub source: IssueSource,
     pub severity: IssueSeverity,
     pub error: StructuredError,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
@@ -782,7 +790,7 @@ pub struct EvaluateEmittedErrorIssue {
 impl Issue for EvaluateEmittedErrorIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -816,11 +824,16 @@ impl Issue for EvaluateEmittedErrorIssue {
             .resolved_cell(),
         )))
     }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
+    }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct EvaluateErrorLoggingIssue {
-    pub file_path: FileSystemPath,
+    pub source: IssueSource,
     pub severity: IssueSeverity,
     #[turbo_tasks(trace_ignore)]
     pub logging: Vec<LogInfo>,
@@ -833,7 +846,7 @@ pub struct EvaluateErrorLoggingIssue {
 impl Issue for EvaluateErrorLoggingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -886,5 +899,10 @@ impl Issue for EvaluateErrorLoggingIssue {
             })
             .collect::<Vec<_>>();
         Vc::cell(Some(StyledString::Stack(lines).resolved_cell()))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }

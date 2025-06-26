@@ -369,7 +369,6 @@ pub async fn parse_css(
     };
     async move {
         let content = source.content();
-        let fs_path = source.ident().path();
         let ident_str = &*source.ident().to_string().await?;
         Ok(match &*content.await? {
             AssetContent::Redirect { .. } => ParseCssResult::Unparseable.cell(),
@@ -381,7 +380,6 @@ pub async fn parse_css(
                         process_content(
                             *file_content,
                             string.into_owned(),
-                            fs_path.await?.clone_value(),
                             ident_str,
                             source,
                             origin,
@@ -402,7 +400,6 @@ pub async fn parse_css(
 async fn process_content(
     content_vc: ResolvedVc<FileContent>,
     code: String,
-    fs_path_vc: FileSystemPath,
     filename: &str,
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -463,7 +460,7 @@ async fn process_content(
                     ss.visit(&mut validator).unwrap();
 
                     for err in validator.errors {
-                        err.report(fs_path_vc.clone());
+                        err.report(source);
                     }
                 }
 
@@ -482,13 +479,12 @@ async fn process_content(
                                         line: loc.line as _,
                                         column: loc.column as _,
                                     };
-                                    Some(IssueSource::from_line_col(source, pos, pos))
+                                    IssueSource::from_line_col(source, pos, pos)
                                 }
-                                None => None,
+                                None => IssueSource::from_source_only(source),
                             };
 
                             ParsingIssue {
-                                file: fs_path_vc.clone(),
                                 msg: err.to_string().into(),
                                 source,
                             }
@@ -527,12 +523,11 @@ async fn process_content(
                             line: loc.line as _,
                             column: loc.column as _,
                         };
-                        Some(IssueSource::from_line_col(source, pos, pos))
+                        IssueSource::from_line_col(source, pos, pos)
                     }
-                    None => None,
+                    None => IssueSource::from_source_only(source),
                 };
                 ParsingIssue {
-                    file: fs_path_vc,
                     msg: e.to_string().into(),
                     source,
                 }
@@ -577,17 +572,17 @@ enum CssError {
 }
 
 impl CssError {
-    fn report(self, file: FileSystemPath) {
+    fn report(self, source: ResolvedVc<Box<dyn Source>>) {
         match self {
             CssError::CssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
-                    file,
                     msg: format!(
                         "Selector \"{selector}\" is not pure. Pure selectors must contain at \
                          least one local class or id."
                     )
                     .into(),
-                    source: None,
+                    // TODO: This should include the location of the selector in the file.
+                    source: IssueSource::from_source_only(source),
                 }
                 .resolved_cell()
                 .emit();
@@ -685,15 +680,14 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
 #[turbo_tasks::value]
 struct ParsingIssue {
     msg: RcStr,
-    file: FileSystemPath,
-    source: Option<IssueSource>,
+    source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file.clone().cell()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -707,11 +701,8 @@ impl Issue for ParsingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(match &self.source {
-            Some(s) => Some(s.resolve_source_map().await?.into_owned()),
-            None => None,
-        }))
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]

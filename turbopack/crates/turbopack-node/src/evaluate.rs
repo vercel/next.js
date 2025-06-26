@@ -28,12 +28,15 @@ use turbopack_core::{
     context::AssetContext,
     error::PrettyPrintError,
     file_source::FileSource,
-    ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+        StyledString,
+    },
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
+    source::Source,
     virtual_source::VirtualSource,
 };
 
@@ -411,7 +414,7 @@ pub fn evaluate(
     module_asset: ResolvedVc<Box<dyn Module>>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
-    context_ident_for_issue: ResolvedVc<AssetIdent>,
+    context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
@@ -423,7 +426,7 @@ pub fn evaluate(
         module_asset,
         cwd,
         env,
-        context_ident_for_issue,
+        context_source_for_issue,
         asset_context,
         chunking_context,
         runtime_entries,
@@ -592,7 +595,7 @@ struct BasicEvaluateContext {
     module_asset: ResolvedVc<Box<dyn Module>>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
-    context_ident_for_issue: ResolvedVc<AssetIdent>,
+    context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
@@ -641,7 +644,7 @@ impl EvaluateContext for BasicEvaluateContext {
     async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
         EvaluationIssue {
             error,
-            context_ident: self.context_ident_for_issue,
+            source: IssueSource::from_source_only(self.context_source_for_issue),
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().await?.clone_value(),
@@ -699,7 +702,7 @@ async fn print_error(
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
 pub struct EvaluationIssue {
-    pub context_ident: ResolvedVc<AssetIdent>,
+    pub source: IssueSource,
     pub error: StructuredError,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,
@@ -720,7 +723,7 @@ impl Issue for EvaluationIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.context_ident.path()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -739,5 +742,10 @@ impl Issue for EvaluationIssue {
             )
             .resolved_cell(),
         )))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }

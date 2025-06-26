@@ -1424,7 +1424,7 @@ impl Project {
             )
             .module();
 
-        let config = parse_config_from_source(module, NextRuntime::Edge).await?;
+        let config = parse_config_from_source(source, module, NextRuntime::Edge).await?;
 
         if matches!(config.runtime, NextRuntime::NodeJs) {
             Ok(self.node_middleware_context())

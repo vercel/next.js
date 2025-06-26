@@ -80,7 +80,7 @@ use swc_core::{
 use tracing::Instrument;
 pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
-    TransformPlugin, UnsupportedServerActionIssue,
+    TransformPlugin,
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{

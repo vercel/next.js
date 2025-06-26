@@ -19,7 +19,7 @@ use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::AssetContent,
     context::AssetContext,
-    ident::{AssetIdent, Layer},
+    ident::Layer,
     issue::{IssueExt, IssueSeverity, StyledString},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -710,22 +710,22 @@ async fn get_mock_stylesheet(
         false,
     );
     let loader_path = mock_fs.root().await?.join("loader.js")?;
+    let loader_source = Vc::upcast(VirtualSource::new(
+        loader_path.clone(),
+        AssetContent::file(
+            File::from(format!(
+                "import data from './{}'; export default function load() {{ return data; }};",
+                response_path
+                    .file_name()
+                    .context("Must exist")?
+                    .to_string_lossy(),
+            ))
+            .into(),
+        ),
+    ));
     let mocked_response_asset = asset_context
         .process(
-            Vc::upcast(VirtualSource::new(
-                loader_path.clone(),
-                AssetContent::file(
-                    File::from(format!(
-                        "import data from './{}'; export default function load() {{ return data; \
-                         }};",
-                        response_path
-                            .file_name()
-                            .context("Must exist")?
-                            .to_string_lossy(),
-                    ))
-                    .into(),
-                ),
-            )),
+            loader_source,
             ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module();
@@ -735,7 +735,7 @@ async fn get_mock_stylesheet(
         mocked_response_asset,
         root,
         *env,
-        AssetIdent::from_path(loader_path),
+        loader_source,
         asset_context,
         *chunking_context,
         None,

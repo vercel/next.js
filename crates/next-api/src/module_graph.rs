@@ -477,6 +477,8 @@ impl Issue for CssGlobalImportIssue {
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::ProcessModule.into()
     }
+
+    // TODO(PACK-4879): compute the source information by following the module references
 }
 
 type FxModuleNameMap = FxIndexMap<ResolvedVc<Box<dyn Module>>, RcStr>;

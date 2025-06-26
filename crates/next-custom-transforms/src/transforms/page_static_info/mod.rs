@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::Atom,
     base::SwcComments,
-    common::GLOBALS,
+    common::{GLOBALS, Span},
     ecma::{ast::Program, visit::VisitWith},
 };
 
@@ -45,11 +45,12 @@ pub struct PageStaticInfo {
 pub struct ExportInfoWarning {
     pub key: Atom,
     pub message: &'static str,
+    pub span: Span,
 }
 
 impl ExportInfoWarning {
-    pub fn new(key: Atom, message: &'static str) -> Self {
-        Self { key, message }
+    pub fn new(key: Atom, message: &'static str, span: Span) -> Self {
+        Self { key, message, span }
     }
 }
 
@@ -64,7 +65,7 @@ pub struct ExportInfo {
     pub preferred_region: Vec<Atom>,
     pub generate_image_metadata: Option<bool>,
     pub generate_sitemaps: Option<bool>,
-    pub generate_static_params: bool,
+    pub generate_static_params: Option<Span>,
     pub extra_properties: FxHashSet<Atom>,
     pub directives: FxHashSet<Atom>,
     /// extra properties to bubble up warning messages from visitor,
@@ -228,17 +229,18 @@ mod tests {
     use anyhow::Result;
     use swc_core::{
         base::{
+            Compiler, HandlerOpts, SwcComments,
             config::{IsModule, ParseOptions},
-            try_with_handler, Compiler, HandlerOpts, SwcComments,
+            try_with_handler,
         },
-        common::{errors::ColorConfig, FilePathMapping, SourceMap, GLOBALS},
+        common::{FilePathMapping, GLOBALS, SourceMap, errors::ColorConfig},
         ecma::{
             ast::Program,
             parser::{EsSyntax, Syntax, TsSyntax},
         },
     };
 
-    use super::{collect_rsc_module_info, RscModuleInfo};
+    use super::{RscModuleInfo, collect_rsc_module_info};
 
     fn build_ast_from_source(contents: &str, file_path: &str) -> Result<(Program, SwcComments)> {
         GLOBALS.set(&Default::default(), || {

@@ -77,7 +77,7 @@ impl ModuleReference for UrlAssetReference {
             *self.origin,
             *self.request,
             ReferenceType::Url(UrlReferenceSubType::CssUrl),
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
             false,
         )
     }
