@@ -536,7 +536,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     border-radius: var(--rounded-xl);
     position: absolute;
     font-family: var(--font-stack-sans);
-    z-index: 1000;
+    z-index: 3;
     overflow: hidden;
     opacity: 0;
     outline: 0;
