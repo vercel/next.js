@@ -1,35 +1,37 @@
+use std::ops::RangeInclusive;
+
 use smallvec::{SmallVec, smallvec};
 
 use crate::compaction::interval_map::IntervalMap;
 
-type Range = (u64, u64);
-
 /// The trait for the input of the compaction algorithm.
 pub trait Compactable {
     /// Returns the range of the compactable.
-    fn range(&self) -> Range;
+    fn range(&self) -> RangeInclusive<u64>;
 
     /// Returns the size of the compactable.
     fn size(&self) -> u64;
 }
 
-fn is_overlapping(a: &Range, b: &Range) -> bool {
-    a.0 <= b.1 && b.0 <= a.1
+fn is_overlapping(a: &RangeInclusive<u64>, b: &RangeInclusive<u64>) -> bool {
+    a.start() <= b.end() && b.start() <= a.end()
 }
 
-fn spread(range: &Range) -> u64 {
-    (range.1 - range.0).saturating_add(1)
+fn spread(range: &RangeInclusive<u64>) -> u64 {
+    // The `saturating_add` here isn't technically correct in the `u64::MAX` case, but it's close
+    // enough. There are `u64::MAX + 1` possible `u64` values.
+    (range.end() - range.start()).saturating_add(1)
 }
 
 /// Extends the range `a` to include the range `b`, returns `true` if the range was extended.
-fn extend_range(a: &mut Range, b: &Range) -> bool {
+fn extend_range(a: &mut RangeInclusive<u64>, b: &RangeInclusive<u64>) -> bool {
     let mut extended = false;
-    if b.0 < a.0 {
-        a.0 = b.0;
+    if b.start() < a.start() {
+        *a = (*b.start())..=(*a.end());
         extended = true;
     }
-    if b.1 > a.1 {
-        a.1 = b.1;
+    if b.end() > a.end() {
+        *a = (*a.start())..=(*b.end());
         extended = true;
     }
     extended
@@ -53,14 +55,14 @@ pub struct CompactableMetrics {
 /// Computes metrics about the compactables.
 pub fn compute_metrics<T: Compactable>(
     compactables: &[T],
-    full_range: Range,
+    full_range: RangeInclusive<u64>,
 ) -> CompactableMetrics {
     let mut interval_map: IntervalMap<(DuplicationInfo, usize)> = IntervalMap::new();
     let mut coverage = 0.0f32;
     for c in compactables {
         let range = c.range();
         coverage += spread(&range) as f32;
-        interval_map.update(&range, |(dup_info, count)| {
+        interval_map.update_with_default(range.clone(), |(dup_info, count)| {
             dup_info.add(c.size(), &range);
             *count += 1;
         });
@@ -68,7 +70,7 @@ pub fn compute_metrics<T: Compactable>(
     let full_spread = spread(&full_range) as f32;
 
     let (duplicated_size, duplication, overlap) = interval_map
-        .ranges()
+        .iter()
         .map(|(range, (dup_info, count))| {
             let duplicated_size = dup_info.duplication(&range);
             let total_size = dup_info.size(&range);
@@ -145,7 +147,7 @@ struct DuplicationInfo {
 }
 
 impl DuplicationInfo {
-    fn duplication(&self, range: &Range) -> u64 {
+    fn duplication(&self, range: &RangeInclusive<u64>) -> u64 {
         if self.total_size == 0 {
             return 0;
         }
@@ -153,14 +155,14 @@ impl DuplicationInfo {
             as u64
     }
 
-    fn size(&self, range: &Range) -> u64 {
+    fn size(&self, range: &RangeInclusive<u64>) -> u64 {
         if self.total_size == 0 {
             return 0;
         }
         (self.total_size as u128 * spread(range) as u128 / (u64::MAX as u128 + 1)) as u64
     }
 
-    fn add(&mut self, size: u64, range: &Range) {
+    fn add(&mut self, size: u64, range: &RangeInclusive<u64>) {
         // Scale size to full range:
         let scaled_size = (size as u128 * (u64::MAX as u128 + 1) / spread(range) as u128) as u64;
         self.total_size = self.total_size.saturating_add(scaled_size);
@@ -170,7 +172,7 @@ impl DuplicationInfo {
 
 fn total_duplication_size(duplication: &IntervalMap<DuplicationInfo>) -> u64 {
     duplication
-        .ranges()
+        .iter()
         .map(|(range, info)| info.duplication(&range))
         .sum()
 }
@@ -304,7 +306,7 @@ pub fn get_merge_segments<T: Compactable>(
                 // set.
                 current_set.push(next_index);
                 current_size += size;
-                duplication.update(&range, |dup_info| {
+                duplication.update_with_default(range.clone(), |dup_info| {
                     dup_info.add(size, &range);
                 });
             }
@@ -321,23 +323,19 @@ pub fn get_merge_segments<T: Compactable>(
 
     // Remove single compectable segments that don't overlap with previous segments. We don't need
     // to touch them.
-    // TODO: Technically it's a bit inefficient to use an IntervalMap here, but
-    // it's not very hot code anyway.
-    let mut used_ranges: IntervalMap<bool> = IntervalMap::new();
+    let mut used_ranges: IntervalMap<()> = IntervalMap::new();
     merge_segments.retain(|segment| {
         // Remove a single element segments which doesn't overlap with previous used ranges.
         if segment.len() == 1 {
             let range = compactables[segment[0]].range();
-            if !used_ranges.test(&range, |in_use| *in_use) {
+            if used_ranges.iter_range(range).next().is_none() {
                 return false;
             }
         }
         // Mark the ranges of the segment as used.
         for i in segment {
             let range = compactables[*i].range();
-            used_ranges.update(&range, |in_use| {
-                *in_use = true;
-            });
+            used_ranges.insert(range, Some(()));
         }
         true
     });
@@ -357,13 +355,13 @@ mod tests {
     use super::*;
 
     struct TestCompactable {
-        range: Range,
+        range: RangeInclusive<u64>,
         size: u64,
     }
 
     impl Compactable for TestCompactable {
-        fn range(&self) -> Range {
-            self.range
+        fn range(&self) -> RangeInclusive<u64> {
+            self.range.clone()
         }
 
         fn size(&self) -> u64 {
@@ -371,10 +369,13 @@ mod tests {
         }
     }
 
-    fn compact<const N: usize>(ranges: [(u64, u64); N], config: &CompactConfig) -> Vec<Vec<usize>> {
+    fn compact<const N: usize>(
+        ranges: [RangeInclusive<u64>; N],
+        config: &CompactConfig,
+    ) -> Vec<Vec<usize>> {
         let compactables = ranges
-            .iter()
-            .map(|&range| TestCompactable { range, size: 100 })
+            .into_iter()
+            .map(|range| TestCompactable { range, size: 100 })
             .collect::<Vec<_>>();
         let jobs = get_merge_segments(&compactables, config);
         jobs.into_iter()
@@ -386,15 +387,15 @@ mod tests {
     fn test_compaction_jobs_by_count() {
         let merge_jobs = compact(
             [
-                (0, 10),
-                (10, 30),
-                (9, 13),
-                (0, 30),
-                (40, 44),
-                (41, 42),
-                (41, 47),
-                (90, 100),
-                (30, 40),
+                0..=10,
+                10..=30,
+                9..=13,
+                0..=30,
+                40..=44,
+                41..=42,
+                41..=47,
+                90..=100,
+                30..=40,
             ],
             &CompactConfig {
                 min_merge_count: 2,
@@ -413,15 +414,15 @@ mod tests {
     fn test_compaction_jobs_by_size() {
         let merge_jobs = compact(
             [
-                (0, 10),
-                (10, 30),
-                (9, 13),
-                (0, 30),
-                (40, 44),
-                (41, 42),
-                (41, 47),
-                (90, 100),
-                (30, 40),
+                0..=10,
+                10..=30,
+                9..=13,
+                0..=30,
+                40..=44,
+                41..=42,
+                41..=47,
+                90..=100,
+                30..=40,
             ],
             &CompactConfig {
                 min_merge_count: 2,
@@ -440,15 +441,15 @@ mod tests {
     fn test_compaction_jobs_full() {
         let merge_jobs = compact(
             [
-                (0, 10),
-                (10, 30),
-                (9, 13),
-                (0, 30),
-                (40, 44),
-                (41, 42),
-                (41, 47),
-                (90, 100),
-                (30, 40),
+                0..=10,
+                10..=30,
+                9..=13,
+                0..=30,
+                40..=44,
+                41..=42,
+                41..=47,
+                90..=100,
+                30..=40,
             ],
             &CompactConfig {
                 min_merge_count: 2,
@@ -467,15 +468,15 @@ mod tests {
     fn test_compaction_jobs_big() {
         let merge_jobs = compact(
             [
-                (0, 10),
-                (10, 30),
-                (9, 13),
-                (0, 30),
-                (40, 44),
-                (41, 42),
-                (41, 47),
-                (90, 100),
-                (30, 40),
+                0..=10,
+                10..=30,
+                9..=13,
+                0..=30,
+                40..=44,
+                41..=42,
+                41..=47,
+                90..=100,
+                30..=40,
             ],
             &CompactConfig {
                 min_merge_count: 2,
@@ -494,15 +495,15 @@ mod tests {
     fn test_compaction_jobs_small() {
         let merge_jobs = compact(
             [
-                (0, 10),
-                (10, 30),
-                (9, 13),
-                (0, 30),
-                (40, 44),
-                (41, 42),
-                (41, 47),
-                (90, 100),
-                (30, 40),
+                0..=10,
+                10..=30,
+                9..=13,
+                0..=30,
+                40..=44,
+                41..=42,
+                41..=47,
+                90..=100,
+                30..=40,
             ],
             &CompactConfig {
                 min_merge_count: 2,
@@ -526,8 +527,8 @@ mod tests {
         for (i, c) in compactables.iter().enumerate() {
             let range = c.range();
             let size = c.size();
-            let start = (range.0 / char_width) as usize;
-            let end = (range.1 / char_width) as usize;
+            let start = usize::try_from(range.start() / char_width).unwrap();
+            let end = usize::try_from(range.end() / char_width).unwrap();
             let mut line = format!("{i:>3} | ");
             for j in 0..WIDTH {
                 if j >= start && j <= end {
@@ -568,7 +569,7 @@ mod tests {
 
         for _ in 0..ITERATIONS {
             let total_size = containers.iter().map(|c| c.keys.len()).sum::<usize>();
-            let metrics = compute_metrics(&containers, (0, KEY_RANGE));
+            let metrics = compute_metrics(&containers, 0..=KEY_RANGE);
             debug_print_compactables(&containers, KEY_RANGE);
             println!(
                 "size: {}, coverage: {}, overlap: {}, duplication: {}, items: {}",
@@ -599,7 +600,7 @@ mod tests {
                 do_compact(&mut containers, jobs, batch_index);
                 number_of_compactions += 1;
 
-                let new_metrics = compute_metrics(&containers, (0, KEY_RANGE));
+                let new_metrics = compute_metrics(&containers, 0..=KEY_RANGE);
                 println!(
                     "Compaction done: coverage: {} ({}), overlap: {} ({}), duplication: {} ({})",
                     new_metrics.coverage,
@@ -630,7 +631,7 @@ mod tests {
         }
         println!("Number of compactions: {number_of_compactions}");
 
-        let metrics = compute_metrics(&containers, (0, KEY_RANGE));
+        let metrics = compute_metrics(&containers, 0..=KEY_RANGE);
         assert!(number_of_compactions < 40);
         assert!(containers.len() < 30);
         assert!(metrics.duplication < 0.5);
@@ -649,8 +650,8 @@ mod tests {
     }
 
     impl Compactable for Container {
-        fn range(&self) -> Range {
-            (self.keys[0], *self.keys.last().unwrap())
+        fn range(&self) -> RangeInclusive<u64> {
+            (self.keys[0])..=(*self.keys.last().unwrap())
         }
 
         fn size(&self) -> u64 {
@@ -660,7 +661,7 @@ mod tests {
 
     impl Debug for Container {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let (l, r) = self.range();
+            let (l, r) = self.range().into_inner();
             write!(
                 f,
                 "#{} {}b {l} - {r} ({})",
