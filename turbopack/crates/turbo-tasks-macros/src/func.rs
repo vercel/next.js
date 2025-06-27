@@ -734,8 +734,6 @@ pub struct FunctionArguments {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: Option<Span>,
-    /// If true, the function will not be marked as statically immutable.
-    pub not_immutable: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -763,14 +761,11 @@ impl Parse for FunctionArguments {
                 ("local", Meta::Path(_)) => {
                     parsed_args.local = Some(meta.span());
                 }
-                ("not_immutable", Meta::Path(_)) => {
-                    parsed_args.not_immutable = Some(meta.span());
-                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"local\", \"not_immutable\"",
+                         \"local\"",
                     ));
                 }
             }
@@ -1098,7 +1093,6 @@ pub struct NativeFn {
     pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub local: bool,
-    pub immutable: bool,
 }
 
 impl NativeFn {
@@ -1114,7 +1108,6 @@ impl NativeFn {
             is_self_used,
             filter_trait_call_args,
             local,
-            immutable,
         } = self;
 
         if *is_method {
@@ -1141,7 +1134,6 @@ impl NativeFn {
                             #function_path_string,
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
-                                statically_immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1156,7 +1148,6 @@ impl NativeFn {
                             #function_path_string,
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
-                                statically_immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1172,7 +1163,6 @@ impl NativeFn {
                         #function_path_string,
                         turbo_tasks::macro_helpers::FunctionMeta {
                             local: #local,
-                            statically_immutable: #immutable,
                         },
                         #function_path,
                     )

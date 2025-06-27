@@ -87,7 +87,7 @@ impl AssetGraphContentSource {
         })
     }
 
-    #[turbo_tasks::function(not_immutable)]
+    #[turbo_tasks::function]
     async fn all_assets_map(&self) -> Result<Vc<OutputAssetsMap>> {
         Ok(Vc::cell(
             expand(

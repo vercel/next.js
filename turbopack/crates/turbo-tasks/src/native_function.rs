@@ -144,9 +144,6 @@ pub struct FunctionMeta {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: bool,
-
-    /// If true, the function is statically analyzable immutable.
-    pub statically_immutable: bool,
 }
 
 /// A native (rust) turbo-tasks function. It's used internally by

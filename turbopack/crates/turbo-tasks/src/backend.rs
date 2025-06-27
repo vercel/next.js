@@ -78,10 +78,6 @@ impl CachedTaskType {
     pub fn get_name(&self) -> &'static str {
         self.native_fn.name
     }
-
-    pub fn is_statically_immutable(&self) -> bool {
-        self.native_fn.function_meta.statically_immutable
-    }
 }
 
 // Manual implementation is needed because of a borrow issue with `Box<dyn Trait>`:

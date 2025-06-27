@@ -411,7 +411,7 @@ impl ModuleTypeResult {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModuleAsset {
-    #[turbo_tasks::function(not_immutable)]
+    #[turbo_tasks::function]
     async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
         let real_result = self.parse();
         let this = self.await?;
