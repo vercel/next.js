@@ -3,11 +3,11 @@
 
 /* tslint:disable */
 /* eslint-disable */
+export function mdxCompileSync(value: string, opts: any): any
+export function mdxCompile(value: string, opts: any): Promise<any>
 export function minifySync(s: string, opts: any): any
 export function minify(s: string, opts: any): Promise<any>
 export function transformSync(s: any, opts: any): any
 export function transform(s: any, opts: any): Promise<any>
 export function parseSync(s: string, opts: any): any
 export function parse(s: string, opts: any): Promise<any>
-export function mdxCompileSync(value: string, opts: any): any
-export function mdxCompile(value: string, opts: any): Promise<any>

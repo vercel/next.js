@@ -235,15 +235,24 @@ type ErrorThrownEvent = {
   eventName: typeof ERROR_THROWN_EVENT
   payload: {
     errorCode: string | undefined
+    location: string | undefined
   }
 }
 
-// Creates a Telemetry event for errors. For privacy, only includes the error code.
-export function eventErrorThrown(error: Error): ErrorThrownEvent {
+// Creates a Telemetry event for errors. For privacy, only includes the error code and not the error
+// message.
+//
+// `location` may be included if it's a location internal to the next.js source tree (i.e. a
+// non-absolute path).
+export function eventErrorThrown(
+  error: Error,
+  anonymizedLocation: string | undefined
+): ErrorThrownEvent {
   return {
     eventName: ERROR_THROWN_EVENT,
     payload: {
       errorCode: extractNextErrorCode(error) || 'Unknown',
+      location: anonymizedLocation,
     },
   }
 }

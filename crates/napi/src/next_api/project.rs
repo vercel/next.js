@@ -1,8 +1,9 @@
 use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
+use futures_util::TryFutureExt;
 use napi::{
-    JsFunction, Status,
+    Env, JsFunction, JsObject, Status,
     bindgen_prelude::{External, within_runtime_if_available},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
@@ -62,7 +63,10 @@ use url::Url;
 use crate::{
     next_api::{
         endpoint::ExternalEndpoint,
-        turbopack_ctx::{NextTurboTasks, NextTurbopackContext, create_turbo_tasks},
+        turbopack_ctx::{
+            NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject, NextTurboTasks,
+            NextTurbopackContext, create_turbo_tasks,
+        },
         utils::{
             DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, get_diagnostics,
             get_issues, subscribe,
@@ -330,143 +334,149 @@ pub struct ProjectInstance {
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
-pub async fn project_new(
+pub fn project_new(
+    env: Env,
     options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
-) -> napi::Result<External<ProjectInstance>> {
-    register();
-    let (exit, exit_receiver) = ExitHandler::new_receiver();
+    napi_callbacks: NapiNextTurbopackCallbacksJsObject,
+) -> napi::Result<JsObject> {
+    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(napi_callbacks)?;
+    env.spawn_future(async move {
+        register();
+        let (exit, exit_receiver) = ExitHandler::new_receiver();
 
-    if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
-        exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || drop(dhat_profiler))
+        if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
+            exit.on_exit(async move {
+                tokio::task::spawn_blocking(move || drop(dhat_profiler))
+                    .await
+                    .unwrap()
+            });
+        }
+
+        let mut trace = std::env::var("NEXT_TURBOPACK_TRACING")
+            .ok()
+            .filter(|v| !v.is_empty());
+
+        if cfg!(feature = "tokio-console") && trace.is_none() {
+            // ensure `trace` is set to *something* so that the `tokio-console` feature works,
+            // otherwise you just get empty output from `tokio-console`, which can be
+            // confusing.
+            trace = Some("overview".to_owned());
+        }
+
+        if let Some(mut trace) = trace {
+            // Trace presets
+            match trace.as_str() {
+                "overview" | "1" => {
+                    trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
+                }
+                "next" => {
+                    trace = TRACING_NEXT_TARGETS.join(",");
+                }
+                "turbopack" => {
+                    trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
+                }
+                "turbo-tasks" => {
+                    trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
+                }
+                _ => {}
+            }
+
+            let subscriber = Registry::default();
+
+            if cfg!(feature = "tokio-console") {
+                trace = format!("{trace},tokio=trace,runtime=trace");
+            }
+            #[cfg(feature = "tokio-console")]
+            let subscriber = subscriber.with(console_subscriber::spawn());
+
+            let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
+
+            let internal_dir = PathBuf::from(&options.project_path).join(&options.dist_dir);
+            std::fs::create_dir_all(&internal_dir)
+                .context("Unable to create .next directory")
+                .unwrap();
+            let trace_file = internal_dir.join("trace-turbopack");
+            let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+            let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
+            let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+            exit.on_exit(async move {
+                tokio::task::spawn_blocking(move || drop(trace_writer_guard))
+                    .await
+                    .unwrap();
+            });
+
+            let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
+            if trace_server.is_some() {
+                thread::spawn(move || {
+                    turbopack_trace_server::start_turbopack_trace_server(trace_file);
+                });
+                println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
+            }
+
+            subscriber.init();
+        }
+
+        let memory_limit = turbo_engine_options
+            .memory_limit
+            .map(|m| m as usize)
+            .unwrap_or(usize::MAX);
+        let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
+        let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
+        let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
+        let turbo_tasks = create_turbo_tasks(
+            PathBuf::from(&options.dist_dir),
+            persistent_caching,
+            memory_limit,
+            dependency_tracking,
+            is_ci,
+        )?;
+        let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
+
+        let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
+        if let Some(stats_path) = stats_path {
+            let task_stats = turbo_tasks.task_statistics().enable().clone();
+            exit.on_exit(async move {
+                tokio::task::spawn_blocking(move || {
+                    let mut file = std::fs::File::create(&stats_path)
+                        .with_context(|| format!("failed to create or open {stats_path:?}"))?;
+                    serde_json::to_writer(&file, &task_stats)
+                        .context("failed to serialize or write task statistics")?;
+                    file.flush().context("failed to flush file")
+                })
                 .await
                 .unwrap()
-        });
-    }
-
-    let mut trace = std::env::var("NEXT_TURBOPACK_TRACING")
-        .ok()
-        .filter(|v| !v.is_empty());
-
-    if cfg!(feature = "tokio-console") && trace.is_none() {
-        // ensure `trace` is set to *something* so that the `tokio-console` feature works, otherwise
-        // you just get empty output from `tokio-console`, which can be confusing.
-        trace = Some("overview".to_owned());
-    }
-
-    if let Some(mut trace) = trace {
-        // Trace presets
-        match trace.as_str() {
-            "overview" | "1" => {
-                trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
-            }
-            "next" => {
-                trace = TRACING_NEXT_TARGETS.join(",");
-            }
-            "turbopack" => {
-                trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
-            }
-            "turbo-tasks" => {
-                trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
-            }
-            _ => {}
-        }
-
-        let subscriber = Registry::default();
-
-        if cfg!(feature = "tokio-console") {
-            trace = format!("{trace},tokio=trace,runtime=trace");
-        }
-        #[cfg(feature = "tokio-console")]
-        let subscriber = subscriber.with(console_subscriber::spawn());
-
-        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
-
-        let internal_dir = PathBuf::from(&options.project_path).join(&options.dist_dir);
-        std::fs::create_dir_all(&internal_dir)
-            .context("Unable to create .next directory")
-            .unwrap();
-        let trace_file = internal_dir.join("trace-turbopack");
-        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
-        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
-
-        exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || drop(trace_writer_guard))
-                .await
                 .unwrap();
-        });
-
-        let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
-        if trace_server.is_some() {
-            thread::spawn(move || {
-                turbopack_trace_server::start_turbopack_trace_server(trace_file);
             });
-            println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
         }
 
-        subscriber.init();
-    }
-
-    let memory_limit = turbo_engine_options
-        .memory_limit
-        .map(|m| m as usize)
-        .unwrap_or(usize::MAX);
-    let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
-    let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
-    let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
-    let turbo_tasks = create_turbo_tasks(
-        PathBuf::from(&options.dist_dir),
-        persistent_caching,
-        memory_limit,
-        dependency_tracking,
-        is_ci,
-    )?;
-
-    let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
-    if let Some(stats_path) = stats_path {
-        let task_stats = turbo_tasks.task_statistics().enable().clone();
-        exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || {
-                let mut file = std::fs::File::create(&stats_path)
-                    .with_context(|| format!("failed to create or open {stats_path:?}"))?;
-                serde_json::to_writer(&file, &task_stats)
-                    .context("failed to serialize or write task statistics")?;
-                file.flush().context("failed to flush file")
+        let options: ProjectOptions = options.into();
+        let container = turbo_tasks
+            .run_once(async move {
+                let project = ProjectContainer::new(rcstr!("next.js"), options.dev);
+                let project = project.to_resolved().await?;
+                project.initialize(options).await?;
+                Ok(project)
             })
-            .await
-            .unwrap()
-            .unwrap();
-        });
-    }
-    let options: ProjectOptions = options.into();
-    let container = turbo_tasks
-        .run_once(async move {
-            let project = ProjectContainer::new(rcstr!("next.js"), options.dev);
-            let project = project.to_resolved().await?;
-            project.initialize(options).await?;
-            Ok(project)
-        })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+            .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e))
+            .await?;
 
-    turbo_tasks.spawn_once_task({
-        let tt = turbo_tasks.clone();
-        async move {
-            benchmark_file_io(tt, container.project().node_root().owned().await?)
-                .await
-                .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
-        }
-    });
-    Ok(External::new_with_size_hint(
-        ProjectInstance {
-            turbopack_ctx: NextTurbopackContext::new(turbo_tasks),
+        turbo_tasks.spawn_once_task({
+            let tt = turbo_tasks.clone();
+            async move {
+                benchmark_file_io(tt, container.project().node_root().owned().await?)
+                    .await
+                    .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
+            }
+        });
+
+        Ok(External::new(ProjectInstance {
+            turbopack_ctx,
             container,
             exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
-        },
-        100,
-    ))
+        }))
+    })
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -571,18 +581,16 @@ pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
+    let ctx = &project.turbopack_ctx;
     let options = options.into();
     let container = project.container;
-    project
-        .turbopack_ctx
-        .turbo_tasks()
+    ctx.turbo_tasks()
         .run_once(async move {
             container.update(options).await?;
             Ok(())
         })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-    Ok(())
 }
 
 /// Invalidates the persistent cache so that it will be deleted next time that a turbopack project
@@ -876,12 +884,12 @@ pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
+    let ctx = &project.turbopack_ctx;
     let container = project.container;
-    let tt = project.turbopack_ctx.turbo_tasks().clone();
+    let tt = ctx.turbo_tasks();
+    let tt_clone = tt.clone();
 
-    let (entrypoints, issues, diags) = project
-        .turbopack_ctx
-        .turbo_tasks()
+    let (entrypoints, issues, diags) = tt
         .run_once(async move {
             let entrypoints_with_issues_op =
                 get_all_written_entrypoints_with_issues_operation(container, app_dir_only);
@@ -903,15 +911,15 @@ pub async fn project_write_all_entrypoints_to_disk(
             effects.apply().await?;
 
             // Send a compilation event to indicate that the files have been written to disk
-            tt.send_compilation_event(Arc::new(TimingEvent::new(
+            tt_clone.send_compilation_event(Arc::new(TimingEvent::new(
                 "Finished writing to disk".to_owned(),
                 now.elapsed(),
             )));
 
             Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
         })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+        .await?;
 
     Ok(TurbopackResult {
         result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &project.turbopack_ctx)?,
@@ -1560,21 +1568,23 @@ pub async fn project_trace_source(
     current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
     let container = project.container;
-    let traced_frame = project
-        .turbopack_ctx
-        .turbo_tasks()
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
         .run_once(async move {
-            project_trace_source_operation(
+            let traced_frame = project_trace_source_operation(
                 container,
                 frame,
                 RcStr::from(current_directory_file_url),
             )
             .read_strongly_consistent()
-            .await
+            .await?;
+            Ok(ReadRef::into_owned(traced_frame))
         })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
+        // source files may have changed or been deleted), so these probably aren't internal errors?
+        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-    Ok(ReadRef::into_owned(traced_frame))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
 }
 
 #[napi]
@@ -1583,9 +1593,8 @@ pub async fn project_get_source_for_asset(
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
     let container = project.container;
-    let source = project
-        .turbopack_ctx
-        .turbo_tasks()
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
         .run_once(async move {
             let source_content = &*container
                 .project()
@@ -1604,10 +1613,11 @@ pub async fn project_get_source_for_asset(
 
             Ok(Some(source_content.content().to_str()?.into_owned()))
         })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
+        // source files may have changed or been deleted), so these probably aren't internal errors?
+        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-
-    Ok(source)
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
 }
 
 #[napi]
@@ -1616,9 +1626,8 @@ pub async fn project_get_source_map(
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
     let container = project.container;
-    let source_map = project
-        .turbopack_ctx
-        .turbo_tasks()
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
         .run_once(async move {
             let Some(map) = &*get_source_map_rope_operation(container, file_path)
                 .read_strongly_consistent()
@@ -1628,10 +1637,11 @@ pub async fn project_get_source_map(
             };
             Ok(Some(map.to_str()?.to_string()))
         })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
+        // source files may have changed or been deleted), so these probably aren't internal errors?
+        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-
-    Ok(source_map)
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
 }
 
 #[napi]
