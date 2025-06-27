@@ -1427,19 +1427,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             Cached(Arc<CachedTaskType>),
             Transient(Arc<TransientTask>),
         }
-        let (task_type, once_task, statically_immutable) =
-            if let Some(task_type) = self.lookup_task_type(task_id) {
-                let is_statically_immutable = task_type.is_statically_immutable();
-                (TaskType::Cached(task_type), false, is_statically_immutable)
-            } else if let Some(task_type) = self.transient_tasks.get(&task_id) {
-                (
-                    TaskType::Transient(task_type.clone()),
-                    matches!(**task_type, TransientTask::Once(_)),
-                    false,
-                )
-            } else {
-                return None;
-            };
+        let (task_type, once_task) = if let Some(task_type) = self.lookup_task_type(task_id) {
+            (TaskType::Cached(task_type), false)
+        } else if let Some(task_type) = self.transient_tasks.get(&task_id) {
+            (
+                TaskType::Transient(task_type.clone()),
+                matches!(**task_type, TransientTask::Once(_)),
+            )
+        } else {
+            return None;
+        };
         let execution_reason;
         {
             let mut ctx = self.execute_context(turbo_tasks);
@@ -1489,10 +1486,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
 
             if self.should_track_dependencies() {
-                if statically_immutable {
-                    let _ = task.add(CachedDataItem::Immutable { value: () });
-                }
-
                 // Make all dependencies outdated
                 enum Dep {
                     CurrentCell(CellRef),
