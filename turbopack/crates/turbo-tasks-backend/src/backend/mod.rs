@@ -1784,13 +1784,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Check if the task can be marked as immutable
         let mut is_late_immutable = false;
-        if let Some(dependencies) = task_dependencies_for_late_immutable {
-            if dependencies
+        if let Some(dependencies) = task_dependencies_for_late_immutable
+            && dependencies
                 .iter()
                 .all(|&task_id| ctx.task(task_id, TaskDataCategory::Data).is_immutable())
-            {
-                is_late_immutable = true;
-            }
+        {
+            is_late_immutable = true;
         }
         span.record("immutable", is_late_immutable);
 
