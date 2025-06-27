@@ -51,23 +51,23 @@ import { patchFetch as _patchFetch } from '../lib/patch-fetch'
 
 let SegmentViewNode: typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentViewNode =
   () => null
+let SegmentViewStateNode: typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentViewStateNode =
+  () => null
 if (process.env.NODE_ENV === 'development') {
-  SegmentViewNode = (
+  const mod =
     require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
-  ).SegmentViewNode
+  SegmentViewNode = mod.SegmentViewNode
+  SegmentViewStateNode = mod.SegmentViewStateNode
 }
 
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
 // in the experimental channel of React, so export it from here so that it comes from the bundled runtime
-function patchFetch() {
+export function patchFetch() {
   return _patchFetch({
     workAsyncStorage,
     workUnitAsyncStorage,
   })
 }
 
-export {
-  patchFetch,
-  // Development only
-  SegmentViewNode,
-}
+// Development only
+export { SegmentViewNode, SegmentViewStateNode }

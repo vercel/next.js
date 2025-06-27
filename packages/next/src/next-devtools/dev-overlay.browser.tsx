@@ -31,6 +31,7 @@ import {
   insertSegmentNode,
   removeSegmentNode,
 } from './dev-overlay/segment-explorer-trie'
+import { updateRouteState } from './dev-overlay/segment-explorer-route-state'
 import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
 
 export interface Dispatcher {
@@ -53,6 +54,7 @@ export interface Dispatcher {
   renderingIndicatorShow(): void
   segmentExplorerNodeAdd(nodeState: SegmentNodeState): void
   segmentExplorerNodeRemove(nodeState: SegmentNodeState): void
+  segmentExplorerUpdateRouteState(state: { page: string }): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -146,6 +148,11 @@ export const dispatcher: Dispatcher = {
   segmentExplorerNodeRemove: createQueuable(
     (_: Dispatch, nodeState: SegmentNodeState) => {
       removeSegmentNode(nodeState)
+    }
+  ),
+  segmentExplorerUpdateRouteState: createQueuable(
+    (_: Dispatch, state: { page: string }) => {
+      updateRouteState(state)
     }
   ),
 }

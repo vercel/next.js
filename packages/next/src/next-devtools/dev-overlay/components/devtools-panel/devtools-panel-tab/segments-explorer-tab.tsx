@@ -14,15 +14,8 @@ export function SegmentsExplorerTab({
 }: {
   routerType: 'app' | 'pages'
 }) {
-  return (
-    <div data-nextjs-devtools-panel-segments-explorer>
-      <SegmentsExplorer routerType={routerType} />
-    </div>
-  )
+  return <SegmentsExplorer routerType={routerType} />
 }
 
 export const SEGMENTS_EXPLORER_TAB_STYLES = `
-  [data-nextjs-devtools-panel-segments-explorer] {
-    padding: 0 8px;
-  }
 `

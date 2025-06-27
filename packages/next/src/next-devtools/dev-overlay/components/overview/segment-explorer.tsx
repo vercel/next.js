@@ -1,3 +1,4 @@
+import { useRouteState } from '../../segment-explorer-route-state'
 import {
   useSegmentTree,
   type SegmentTrieNode,
@@ -15,18 +16,32 @@ const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
 }
 
+function PageRouteBar() {
+  const state = useRouteState()
+  const pagePath = `/app${state.page}`
+  return (
+    <div className="segment-explorer-page-route-bar">
+      <BackArrowIcon />
+      <span className="segment-explorer-page-route-bar-path">{pagePath}</span>
+    </div>
+  )
+}
+
 export function PageSegmentTree({ isAppRouter }: { isAppRouter: boolean }) {
   const tree = useSegmentTree()
   return (
-    <div
-      className="segment-explorer-content"
-      data-nextjs-devtool-segment-explorer
-    >
-      {isAppRouter ? (
-        <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
-      ) : (
-        <p>Route Info currently is only available for the App Router.</p>
-      )}
+    <div data-nextjs-devtools-panel-segments-explorer>
+      {isAppRouter && <PageRouteBar />}
+      <div
+        className="segment-explorer-content"
+        data-nextjs-devtool-segment-explorer
+      >
+        {isAppRouter ? (
+          <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
+        ) : (
+          <p>Route Info currently is only available for the App Router.</p>
+        )}
+      </div>
     </div>
   )
 }
@@ -209,6 +224,22 @@ function PageSegmentTreeLayerPresentation({
 export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-content {
     font-size: var(--size-14);
+    padding: 0 8px;
+  }
+
+  .segment-explorer-page-route-bar {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background-color: var(--color-background-200);
+    gap: 12px;
+  }
+
+  .segment-explorer-page-route-bar-path {
+    font-size: var(--size-14);
+    font-weight: 500;
+    color: var(--color-gray-1000);
+    font-family: var(--font-mono);
   }
 
   .segment-explorer-item {
@@ -350,6 +381,20 @@ function InfoIcon(props: React.SVGProps<SVGSVGElement>) {
         d="M7.75 7C8.30228 7.00001 8.75 7.44772 8.75 8V11.25H7.25V8.5H6.25V7H7.75ZM8 4C8.55228 4 9 4.44772 9 5C9 5.55228 8.55228 6 8 6C7.44772 6 7 5.55228 7 5C7 4.44772 7.44772 4 8 4Z"
         fill="var(--color-gray-900)"
       />
+    </svg>
+  )
+}
+
+function BackArrowIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="var(--color-gray-600)"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M4.5 11.25C4.5 11.3881 4.61193 11.5 4.75 11.5H14.4395L11.9395 9L13 7.93945L16.7803 11.7197L16.832 11.7764C17.0723 12.0709 17.0549 12.5057 16.7803 12.7803L13 16.5605L11.9395 15.5L14.4395 13H4.75C3.7835 13 3 12.2165 3 11.25V4.25H4.5V11.25Z" />
     </svg>
   )
 }
