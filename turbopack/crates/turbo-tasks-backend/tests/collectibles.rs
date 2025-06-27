@@ -199,7 +199,7 @@ async fn my_transitive_emitting_function(key: RcStr, key2: RcStr) -> Result<Vc<T
     Ok(Thing::cell(Thing(0)))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, not_immutable)]
 fn my_transitive_emitting_function_collectibles(
     key: RcStr,
     key2: RcStr,

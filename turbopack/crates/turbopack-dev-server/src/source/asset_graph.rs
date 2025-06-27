@@ -87,7 +87,7 @@ impl AssetGraphContentSource {
         })
     }
 
-    #[turbo_tasks::function(invalidator)]
+    #[turbo_tasks::function(not_immutable)]
     async fn all_assets_map(&self) -> Result<Vc<OutputAssetsMap>> {
         Ok(Vc::cell(
             expand(

@@ -178,6 +178,14 @@ pub fn make_task_dirty(
 
     let mut task = ctx.task(task_id, TaskDataCategory::Meta);
 
+    // There must be no way to invalidate immutable tasks. If there would be a way the task is not
+    // immutable.
+    debug_assert!(
+        !task.is_immutable(),
+        "Task {} is immutable, but was made dirty. This should not happen and is a bug.",
+        ctx.get_task_description(task_id)
+    );
+
     make_task_dirty_internal(
         &mut task,
         task_id,

@@ -78,6 +78,10 @@ impl CachedTaskType {
     pub fn get_name(&self) -> &'static str {
         self.native_fn.name
     }
+
+    pub fn is_statically_immutable(&self) -> bool {
+        self.native_fn.function_meta.statically_immutable
+    }
 }
 
 // Manual implementation is needed because of a borrow issue with `Box<dyn Trait>`:
@@ -578,6 +582,7 @@ pub trait Backend: Sync + Send {
         memory_usage: usize,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
+        has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
 
@@ -675,7 +680,6 @@ pub trait Backend: Sync + Send {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
@@ -683,7 +687,6 @@ pub trait Backend: Sync + Send {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 

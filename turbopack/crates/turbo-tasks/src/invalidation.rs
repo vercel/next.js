@@ -14,28 +14,34 @@ use tokio::{runtime::Handle, task_local};
 use crate::{
     FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
     magic_any::HasherMut,
-    manager::{current_task, with_turbo_tasks},
+    manager::{current_task, mark_invalidator, with_turbo_tasks},
     trace::TraceRawVcs,
     util::StaticOrArc,
 };
 
 task_local! {
-    static DISALLOW_INVALIDATOR: ();
+    static STATICALLY_IMMUTABLE: ();
 }
 
-pub fn disallow_invalidator<R>(f: impl Future<Output = R>) -> impl Future<Output = R> {
-    DISALLOW_INVALIDATOR.scope((), f)
+pub fn statically_immutable<R>(f: impl Future<Output = R>) -> impl Future<Output = R> {
+    STATICALLY_IMMUTABLE.scope((), f)
+}
+
+pub fn is_statically_immutable() -> bool {
+    STATICALLY_IMMUTABLE.try_with(|_| {}).is_ok()
 }
 
 /// Get an [`Invalidator`] that can be used to invalidate the current task
 /// based on external events.
 pub fn get_invalidator() -> Invalidator {
-    if DISALLOW_INVALIDATOR.try_with(|_| {}).is_ok() {
+    if is_statically_immutable() {
         panic!(
-            "Invalidator can only be used in the turbo-tasks function that has \
-             #[turbo_tasks::function(invalidator)] attribute"
+            "Invalidator can only be used in a turbo-tasks function that is async or has the \
+             #[turbo_tasks::function(not_immutable)] attribute"
         );
     }
+
+    mark_invalidator();
 
     let handle = Handle::current();
     Invalidator {
