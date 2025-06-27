@@ -9,7 +9,7 @@ use std::{
 use anyhow::Result;
 use indexmap::map::Entry;
 use serde::{Deserialize, Serialize, de::Visitor};
-use tokio::{runtime::Handle, task_local};
+use tokio::runtime::Handle;
 
 use crate::{
     FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
@@ -19,28 +19,9 @@ use crate::{
     util::StaticOrArc,
 };
 
-task_local! {
-    static STATICALLY_IMMUTABLE: ();
-}
-
-pub fn statically_immutable<R>(f: impl Future<Output = R>) -> impl Future<Output = R> {
-    STATICALLY_IMMUTABLE.scope((), f)
-}
-
-pub fn is_statically_immutable() -> bool {
-    STATICALLY_IMMUTABLE.try_with(|_| {}).is_ok()
-}
-
 /// Get an [`Invalidator`] that can be used to invalidate the current task
 /// based on external events.
 pub fn get_invalidator() -> Invalidator {
-    if is_statically_immutable() {
-        panic!(
-            "Invalidator can only be used in a turbo-tasks function that is async or has the \
-             #[turbo_tasks::function(not_immutable)] attribute"
-        );
-    }
-
     mark_invalidator();
 
     let handle = Handle::current();

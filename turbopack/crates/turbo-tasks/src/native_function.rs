@@ -238,14 +238,7 @@ impl NativeFunction {
     /// Executed the function
     pub fn execute(&'static self, this: Option<RawVc>, arg: &dyn MagicAny) -> NativeTaskFuture {
         match (self.implementation).functor(this, arg) {
-            Ok(functor) => {
-                if self.function_meta.statically_immutable {
-                    // TODO avoid this double boxing
-                    return Box::pin(crate::invalidation::statically_immutable(functor));
-                }
-
-                functor
-            }
+            Ok(functor) => functor,
             Err(err) => Box::pin(async { Err(err) }),
         }
     }

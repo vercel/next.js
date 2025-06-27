@@ -2155,12 +2155,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task: task_id,
                 collectible_type,
             };
-            if reader.is_immutable() {
-                panic!(
-                    "Reading collectibiles can only be done in a turbo-tasks function that is \
-                     async or has the #[turbo_tasks::function(not_immutable)] attribute"
-                );
-            }
             if reader
                 .remove(&CachedDataItemKey::OutdatedCollectiblesDependency { target })
                 .is_none()
