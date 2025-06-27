@@ -18,7 +18,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
     },
     next_telemetry::NextFeatureTelemetry,
-    util::{NextRuntime, parse_config_from_source},
+    util::{NextRuntime, OptionEnvMap, parse_config_from_source},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -248,9 +248,9 @@ pub struct PartialProjectOptions {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
-    pub client: Vec<(RcStr, RcStr)>,
-    pub edge: Vec<(RcStr, RcStr)>,
-    pub nodejs: Vec<(RcStr, RcStr)>,
+    pub client: Vec<(RcStr, Option<RcStr>)>,
+    pub edge: Vec<(RcStr, Option<RcStr>)>,
+    pub nodejs: Vec<(RcStr, Option<RcStr>)>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
@@ -583,25 +583,25 @@ pub struct Project {
 
 #[turbo_tasks::value]
 pub struct ProjectDefineEnv {
-    client: ResolvedVc<EnvMap>,
-    edge: ResolvedVc<EnvMap>,
-    nodejs: ResolvedVc<EnvMap>,
+    client: ResolvedVc<OptionEnvMap>,
+    edge: ResolvedVc<OptionEnvMap>,
+    nodejs: ResolvedVc<OptionEnvMap>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProjectDefineEnv {
     #[turbo_tasks::function]
-    pub fn client(&self) -> Vc<EnvMap> {
+    pub fn client(&self) -> Vc<OptionEnvMap> {
         *self.client
     }
 
     #[turbo_tasks::function]
-    pub fn edge(&self) -> Vc<EnvMap> {
+    pub fn edge(&self) -> Vc<OptionEnvMap> {
         *self.edge
     }
 
     #[turbo_tasks::function]
-    pub fn nodejs(&self) -> Vc<EnvMap> {
+    pub fn nodejs(&self) -> Vc<OptionEnvMap> {
         *self.nodejs
     }
 }

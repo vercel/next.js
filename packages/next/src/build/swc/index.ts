@@ -399,6 +399,7 @@ function logLoadFailure(attempts: any, triedWasm = false) {
 }
 
 type RustifiedEnv = { name: string; value: string }[]
+type RustifiedOptionEnv = { name: string; value: string | undefined }[]
 
 export function createDefineEnv({
   isTurbopack,
@@ -421,7 +422,7 @@ export function createDefineEnv({
   }
 
   for (const variant of Object.keys(defineEnv) as (keyof typeof defineEnv)[]) {
-    defineEnv[variant] = rustifyEnv(
+    defineEnv[variant] = rustifyOptionEnv(
       getDefineEnv({
         isTurbopack,
         clientRouterFilters,
@@ -449,6 +450,15 @@ function rustifyEnv(env: Record<string, string>): RustifiedEnv {
       name,
       value,
     }))
+}
+
+function rustifyOptionEnv(
+  env: Record<string, string | undefined>
+): RustifiedOptionEnv {
+  return Object.entries(env).map(([name, value]) => ({
+    name,
+    value,
+  }))
 }
 
 // TODO(sokra) Support wasm option.
