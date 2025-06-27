@@ -1697,10 +1697,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut old_edges = Vec::new();
 
         let has_children = !new_children.is_empty();
+        let is_immutable = task.is_immutable();
         let task_dependencies_for_late_immutable =
             // Task is already statically immutable or
             // previously marked as immutable
-            if !task.is_immutable()
+            if !is_immutable
             // Task has no invalidator
             && !task.has_key(&CachedDataItemKey::HasInvalidator {})
             // Task has no dependencies on collectibles
@@ -1791,7 +1792,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             is_late_immutable = true;
         }
-        span.record("immutable", is_late_immutable);
+        span.record("immutable", is_immutable || is_late_immutable);
 
         if !queue.is_empty() || !old_edges.is_empty() {
             #[cfg(feature = "trace_task_completion")]
