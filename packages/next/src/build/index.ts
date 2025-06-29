@@ -447,7 +447,6 @@ export type RoutesManifest = {
     prefetchSegmentHeader: typeof NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
     prefetchSegmentDirSuffix: typeof RSC_SEGMENTS_DIR_SUFFIX
     prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
-    dynamicRSCPrerender: boolean
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -1371,7 +1370,6 @@ export default async function build(
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
               prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
               prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
-              dynamicRSCPrerender: isAppPPREnabled,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -1886,7 +1884,7 @@ export default async function build(
 
                 const pageFilePath = isAppBuiltinNotFoundPage(pagePath)
                   ? require.resolve(
-                      'next/dist/client/components/not-found-error'
+                      'next/dist/client/components/builtin/not-found'
                     )
                   : path.join(
                       (pageType === 'pages' ? pagesDir : appDir) || '',

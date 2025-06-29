@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
-use swc_core::{common::DUMMY_SP, ecma::ast::Ident, quote};
+use swc_core::{common::DUMMY_SP, quote};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
 use turbopack_core::{
@@ -17,7 +17,7 @@ use super::{
     facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
 };
 use crate::{
-    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration,
+    ScopeHoistingContext, chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration,
     references::esm::base::ReferencedAsset, runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
@@ -156,9 +156,11 @@ impl EcmascriptModulePartReference {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
         let ident = referenced_asset
-            .get_ident(chunking_context)
+            .get_ident(chunking_context, None, ScopeHoistingContext::None)
             .await?
-            .context("part module reference should have an ident")?;
+            .context("part module reference should have an ident")?
+            .as_expr_individual(DUMMY_SP)
+            .unwrap_left();
 
         let ReferencedAsset::Some(module) = *referenced_asset else {
             bail!("part module reference should have an module reference");
@@ -166,10 +168,10 @@ impl EcmascriptModulePartReference {
         let id = module.chunk_item_id(Vc::upcast(chunking_context)).await?;
 
         Ok(CodeGeneration::hoisted_stmt(
-            ident.clone().into(),
+            ident.sym.as_str().into(),
             quote!(
                 "var $name = $turbopack_import($id);" as Stmt,
-                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                name = ident,
                 turbopack_import: Expr = TURBOPACK_IMPORT.into(),
                 id: Expr = module_id_to_lit(&id),
             ),

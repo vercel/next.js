@@ -107,6 +107,8 @@ export function getDefineEnv({
   const isDynamicIOEnabled = !!config.experimental.dynamicIO
   const isUseCacheEnabled = !!config.experimental.useCache
 
+  const isDevToolPanelUIEnabled = Boolean(config.experimental.devtoolNewPanelUI)
+
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: true,
@@ -209,6 +211,15 @@ export function getDefineEnv({
           'process.env.__NEXT_DIST_DIR': distDir,
         }
       : {}),
+    // This is used in devtools to strip the project path in edge runtime,
+    // as there's only a dummy `dir` value (`.`) as edge runtime doesn't have concept of file system.
+    ...(dev && isEdgeServer
+      ? {
+          'process.env.__NEXT_EDGE_PROJECT_DIR': isTurbopack
+            ? path.relative(process.cwd(), projectPath)
+            : projectPath,
+        }
+      : {}),
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
     'process.env.__NEXT_DEV_INDICATOR': config.devIndicators !== false,
     'process.env.__NEXT_DEV_INDICATOR_POSITION':
@@ -288,9 +299,9 @@ export function getDefineEnv({
         }
       : {}),
     'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
-      config.experimental.devtoolSegmentExplorer ?? false,
-    'process.env.__NEXT_DEVTOOL_NEW_PANEL_UI':
-      config.experimental.devtoolNewPanelUI ?? false,
+      // Enable segment explorer in devtools
+      isDevToolPanelUIEnabled || !!config.experimental.devtoolSegmentExplorer,
+    'process.env.__NEXT_DEVTOOL_NEW_PANEL_UI': isDevToolPanelUIEnabled,
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's

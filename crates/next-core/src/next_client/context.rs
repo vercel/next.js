@@ -342,7 +342,7 @@ pub async fn get_client_module_options_context(
             source_maps,
             ..Default::default()
         },
-        preset_env_versions: Some(env),
+        environment: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,
@@ -427,16 +427,19 @@ pub async fn get_client_chunking_context(
     root_path: ResolvedVc<FileSystemPath>,
     client_root: ResolvedVc<FileSystemPath>,
     client_root_to_root_path: RcStr,
-    asset_prefix: Option<RcStr>,
-    chunk_suffix_path: Option<RcStr>,
+    asset_prefix: ResolvedVc<Option<RcStr>>,
+    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
     environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     minify: Vc<bool>,
     source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
+    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
+    let asset_prefix = asset_prefix.owned().await?;
+    let chunk_suffix_path = chunk_suffix_path.owned().await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root,
@@ -471,23 +474,25 @@ pub async fn get_client_chunking_context(
     if next_mode.is_development() {
         builder = builder.hot_module_replacement().use_file_source_map_uris();
     } else {
-        builder = builder.chunking_config(
-            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                min_chunk_size: 50_000,
-                max_chunk_count_per_group: 40,
-                max_merge_chunk_size: 200_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.chunking_config(
-            Vc::<CssChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.use_content_hashing(ContentHashing::Direct { length: 16 })
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 50_000,
+                    max_chunk_count_per_group: 40,
+                    max_merge_chunk_size: 200_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .use_content_hashing(ContentHashing::Direct { length: 16 })
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))

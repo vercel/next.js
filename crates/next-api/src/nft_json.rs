@@ -1,10 +1,10 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 
 use anyhow::{Result, bail};
 use serde_json::json;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{DirectoryEntry, File, FileSystem, FileSystemPath, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::OutputAsset,
@@ -30,6 +30,7 @@ pub struct NftJsonAsset {
     /// An example of this is the two-phase approach used by the `ClientReferenceManifest` in
     /// next.js.
     additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    page_name: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -37,6 +38,7 @@ impl NftJsonAsset {
     #[turbo_tasks::function]
     pub fn new(
         project: ResolvedVc<Project>,
+        page_name: Option<RcStr>,
         chunk: ResolvedVc<Box<dyn OutputAsset>>,
         additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     ) -> Vc<Self> {
@@ -44,6 +46,7 @@ impl NftJsonAsset {
             chunk,
             project,
             additional_assets,
+            page_name,
         }
         .cell()
     }
@@ -95,6 +98,41 @@ fn get_output_specifier(
     bail!("NftJsonAsset: cannot handle filepath {}", path_ref);
 }
 
+/// Apply outputFileTracingIncludes patterns to find additional files
+async fn apply_includes(
+    project_root_path: Vc<FileSystemPath>,
+    glob: Vc<Glob>,
+    ident_folder: &FileSystemPath,
+) -> Result<BTreeSet<RcStr>> {
+    // Read files matching the glob pattern from the project root
+    let glob_result = project_root_path.read_glob(glob).await?;
+
+    // Walk the full glob_result using an explicit stack to avoid async recursion overheads.
+    let mut result = BTreeSet::new();
+    let mut stack = VecDeque::new();
+    stack.push_back(glob_result);
+    while let Some(glob_result) = stack.pop_back() {
+        // Process direct results (files and directories at this level)
+        for entry in glob_result.results.values() {
+            let DirectoryEntry::File(file_path) = entry else {
+                continue;
+            };
+
+            let file_path_ref = file_path.await?;
+            // Convert to relative path from ident_folder to the file
+            if let Some(relative_path) = ident_folder.get_relative_path_to(&file_path_ref) {
+                result.insert(relative_path);
+            }
+        }
+
+        for nested_result in glob_result.inner.values() {
+            let nested_result_ref = nested_result.await?;
+            stack.push_back(nested_result_ref);
+        }
+    }
+    Ok(result)
+}
+
 #[turbo_tasks::value_impl]
 impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
@@ -104,15 +142,20 @@ impl Asset for NftJsonAsset {
 
         let output_root_ref = this.project.output_fs().root().await?;
         let project_root_ref = this.project.project_fs().root().await?;
+        let next_config = this.project.next_config();
+
+        // Parse outputFileTracingIncludes and outputFileTracingExcludes from config
+        let output_file_tracing_includes = &*next_config.output_file_tracing_includes().await?;
+        let output_file_tracing_excludes = &*next_config.output_file_tracing_excludes().await?;
+
         let client_root = this.project.client_fs().root();
         let client_root_ref = client_root.await?;
+        let project_root_path = this.project.project_root_path(); // Example: [project]
 
         // Example: [output]/apps/my-website/.next/server/app -- without the `.nft.json`
         let ident_folder = self.path().parent().await?;
         // Example: [project]/apps/my-website/.next/server/app -- without the `.nft.json`
-        let ident_folder_in_project_fs = this
-            .project
-            .project_root_path() // Example: [project]
+        let ident_folder_in_project_fs = project_root_path
             .join(ident_folder.path.clone()) // apps/my-website/.next/server/app
             .await?;
 
@@ -123,6 +166,51 @@ impl Asset for NftJsonAsset {
             .copied()
             .chain(std::iter::once(chunk))
             .collect();
+
+        let exclude_glob = if let Some(route) = &this.page_name {
+            let project_path = this.project.project_path().await?;
+
+            if let Some(excludes_config) = output_file_tracing_excludes {
+                let mut combined_excludes = BTreeSet::new();
+
+                if let Some(excludes_obj) = excludes_config.as_object() {
+                    for (glob_pattern, exclude_patterns) in excludes_obj {
+                        // Check if the route matches the glob pattern
+                        let glob = Glob::new(RcStr::from(glob_pattern.clone())).await?;
+                        if glob.matches(route)
+                            && let Some(patterns) = exclude_patterns.as_array()
+                        {
+                            for pattern in patterns {
+                                if let Some(pattern_str) = pattern.as_str() {
+                                    combined_excludes.insert(pattern_str);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let glob = Glob::new(
+                    format!(
+                        "{project_path}/{{{}}}",
+                        combined_excludes
+                            .iter()
+                            .copied()
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    )
+                    .into(),
+                )
+                .await?;
+
+                Some(glob)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Collect base assets first
         for referenced_chunk in all_assets_from_entries(Vc::cell(entries)).await? {
             if chunk.eq(referenced_chunk) {
                 continue;
@@ -130,6 +218,12 @@ impl Asset for NftJsonAsset {
 
             let referenced_chunk_path = referenced_chunk.path().await?;
             if referenced_chunk_path.extension_ref() == Some("map") {
+                continue;
+            }
+
+            if let Some(ref exclude_glob) = exclude_glob
+                && exclude_glob.matches(referenced_chunk_path.path.as_str())
+            {
                 continue;
             }
 
@@ -145,6 +239,50 @@ impl Asset for NftJsonAsset {
                 continue;
             };
             result.insert(specifier);
+        }
+
+        // Apply outputFileTracingIncludes and outputFileTracingExcludes
+        // Extract route from chunk path for pattern matching
+        if let Some(route) = &this.page_name {
+            let project_path = this.project.project_path();
+            let mut combined_includes = BTreeSet::new();
+
+            // Process includes
+            if let Some(includes_config) = output_file_tracing_includes
+                && let Some(includes_obj) = includes_config.as_object()
+            {
+                for (glob_pattern, include_patterns) in includes_obj {
+                    // Check if the route matches the glob pattern
+                    let glob = Glob::new(glob_pattern.as_str().into()).await?;
+                    if glob.matches(route)
+                        && let Some(patterns) = include_patterns.as_array()
+                    {
+                        for pattern in patterns {
+                            if let Some(pattern_str) = pattern.as_str() {
+                                combined_includes.insert(pattern_str);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Apply includes - find additional files that match the include patterns
+            if !combined_includes.is_empty() {
+                let glob = Glob::new(
+                    format!(
+                        "{{{}}}",
+                        combined_includes
+                            .iter()
+                            .copied()
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    )
+                    .into(),
+                );
+                let additional_files =
+                    apply_includes(project_path, glob, &ident_folder_in_project_fs).await?;
+                result.extend(additional_files);
+            }
         }
 
         let json = json!({

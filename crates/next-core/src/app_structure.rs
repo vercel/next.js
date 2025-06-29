@@ -910,7 +910,7 @@ async fn directory_tree_to_loader_tree_internal(
         if modules.not_found.is_none() {
             modules.not_found = Some(
                 get_next_package(app_dir)
-                    .join(rcstr!("dist/client/components/not-found-error.js"))
+                    .join(rcstr!("dist/client/components/builtin/not-found.js"))
                     .to_resolved()
                     .await?,
             );
@@ -918,7 +918,7 @@ async fn directory_tree_to_loader_tree_internal(
         if modules.forbidden.is_none() {
             modules.forbidden = Some(
                 get_next_package(app_dir)
-                    .join(rcstr!("dist/client/components/forbidden-error.js"))
+                    .join(rcstr!("dist/client/components/builtin/forbidden.js"))
                     .to_resolved()
                     .await?,
             );
@@ -926,7 +926,15 @@ async fn directory_tree_to_loader_tree_internal(
         if modules.unauthorized.is_none() {
             modules.unauthorized = Some(
                 get_next_package(app_dir)
-                    .join(rcstr!("dist/client/components/unauthorized-error.js"))
+                    .join(rcstr!("dist/client/components/builtin/unauthorized.js"))
+                    .to_resolved()
+                    .await?,
+            );
+        }
+        if modules.global_error.is_none() {
+            modules.global_error = Some(
+                get_next_package(app_dir)
+                    .join(rcstr!("dist/client/components/builtin/global-error.js"))
                     .to_resolved()
                     .await?,
             );
@@ -1130,7 +1138,7 @@ async fn default_route_tree(
             AppDirModules {
                 default: Some(
                     get_next_package(app_dir)
-                        .join(rcstr!("dist/client/components/parallel-route-default.js"))
+                        .join(rcstr!("dist/client/components/builtin/default.js"))
                         .to_resolved()
                         .await?,
                 ),
@@ -1275,7 +1283,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         if modules.layout.is_none() {
             modules.layout = Some(
                 get_next_package(*app_dir)
-                    .join(rcstr!("dist/client/components/default-layout.js"))
+                    .join(rcstr!("dist/client/components/builtin/layout.js"))
                     .to_resolved()
                     .await?,
             );
@@ -1284,7 +1292,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         if modules.not_found.is_none() {
             modules.not_found = Some(
                 get_next_package(*app_dir)
-                    .join(rcstr!("dist/client/components/not-found-error.js"))
+                    .join(rcstr!("dist/client/components/builtin/not-found.js"))
                     .to_resolved()
                     .await?,
             );
@@ -1292,7 +1300,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         if modules.forbidden.is_none() {
             modules.forbidden = Some(
                 get_next_package(*app_dir)
-                    .join(rcstr!("dist/client/components/forbidden-error.js"))
+                    .join(rcstr!("dist/client/components/builtin/forbidden.js"))
                     .to_resolved()
                     .await?,
             );
@@ -1300,7 +1308,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         if modules.unauthorized.is_none() {
             modules.unauthorized = Some(
                 get_next_package(*app_dir)
-                    .join(rcstr!("dist/client/components/unauthorized-error.js"))
+                    .join(rcstr!("dist/client/components/builtin/unauthorized.js"))
                     .to_resolved()
                     .await?,
             );
@@ -1335,7 +1343,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                     page: match modules.global_not_found {
                                         Some(v) => Some(v),
                                         None => Some(get_next_package(*app_dir)
-                                            .join(rcstr!("dist/client/components/global-not-found.js"))
+                                            .join(rcstr!("dist/client/components/builtin/global-not-found.js"))
                                             .to_resolved()
                                             .await?),
                                     },
@@ -1348,7 +1356,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                     page: match modules.not_found {
                                         Some(v) => Some(v),
                                         None => Some(get_next_package(*app_dir)
-                                            .join(rcstr!("dist/client/components/not-found-error.js"))
+                                            .join(rcstr!("dist/client/components/builtin/not-found.js"))
                                             .to_resolved()
                                             .await?),
                                     },

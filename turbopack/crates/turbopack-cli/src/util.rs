@@ -69,7 +69,7 @@ pub async fn project_fs(project_dir: RcStr, watch: bool) -> Result<Vc<Box<dyn Fi
 }
 
 #[turbo_tasks::function]
-pub async fn output_fs(project_dir: RcStr) -> Result<Vc<Box<dyn FileSystem>>> {
+pub fn output_fs(project_dir: RcStr) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("output".into(), project_dir, vec![]);
     Ok(Vc::upcast(disk_fs))
 }

@@ -37,6 +37,7 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Clone)]
+/// A CSS Module asset, as in `.module.css`. For a global CSS module, see [`CssModuleAsset`].
 pub struct ModuleCssAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -423,7 +424,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(sm, mappings, None, true)?;
+    let map = generate_js_source_map(&*sm, mappings, None, true, true)?;
     Ok(map)
 }
 

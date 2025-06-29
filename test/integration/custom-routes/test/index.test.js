@@ -2570,7 +2570,6 @@ const runTests = (isDev = false) => {
           prefetchSegmentSuffix: '.segment.rsc',
           prefetchSuffix: '.prefetch.rsc',
           suffix: '.rsc',
-          dynamicRSCPrerender: !!process.env.__NEXT_EXPERIMENTAL_PPR,
         },
       })
     })

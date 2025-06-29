@@ -10,7 +10,7 @@ export function SegmentViewNode({
 }: {
   type: string
   pagePath: string
-  children: ReactNode
+  children?: ReactNode
 }) {
   useEffect(() => {
     dispatcher.segmentExplorerNodeAdd(type, pagePath)

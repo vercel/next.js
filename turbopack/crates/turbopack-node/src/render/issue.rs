@@ -33,7 +33,7 @@ impl Issue for RenderingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn detail(&self) -> Vc<OptionStyledString> {
+    fn detail(&self) -> Vc<OptionStyledString> {
         let mut details = vec![];
 
         if let Some(status) = self.status

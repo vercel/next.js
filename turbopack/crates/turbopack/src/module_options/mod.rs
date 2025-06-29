@@ -10,11 +10,12 @@ pub use custom_module_type::CustomModuleType;
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     chunk::SourceMapsType,
+    ident::Layer,
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::options::{ImportMap, ImportMapping},
 };
@@ -31,7 +32,7 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-async fn package_import_map_from_import_mapping(
+fn package_import_map_from_import_mapping(
     package_name: RcStr,
     package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
@@ -41,7 +42,7 @@ async fn package_import_map_from_import_mapping(
 }
 
 #[turbo_tasks::function]
-async fn package_import_map_from_context(
+fn package_import_map_from_context(
     package_name: RcStr,
     context_path: ResolvedVc<FileSystemPath>,
 ) -> Vc<ImportMap> {
@@ -139,7 +140,7 @@ impl ModuleOptions {
                 },
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
-            preset_env_versions,
+            environment,
             ref module_rules,
             execution_context,
             tree_shaking_mode,
@@ -180,8 +181,8 @@ impl ModuleOptions {
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
-        if let Some(env) = preset_env_versions {
-            transforms.push(EcmascriptInputTransform::PresetEnv(env));
+        if let Some(environment) = environment {
+            transforms.push(EcmascriptInputTransform::PresetEnv(environment));
         }
 
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
@@ -446,6 +447,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
+                        environment,
                     })],
                 ),
                 ModuleRule::new(
@@ -455,6 +457,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
+                        environment,
                     })],
                 ),
             ]);
@@ -468,7 +471,7 @@ impl ModuleOptions {
                     package_import_map_from_import_mapping("postcss".into(), *postcss_package)
                 } else {
                     package_import_map_from_context(
-                        "postcss".into(),
+                        rcstr!("postcss"),
                         path.context("need_path in ModuleOptions::new is incorrect")?,
                     )
                 };
@@ -485,7 +488,7 @@ impl ModuleOptions {
                                     *execution_context,
                                     Some(import_map),
                                     None,
-                                    "postcss".into(),
+                                    Layer::new(rcstr!("postcss")),
                                     true,
                                 ),
                                 *execution_context,
@@ -507,6 +510,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
+                        environment,
                     })],
                 ),
                 ModuleRule::new(
@@ -537,6 +541,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
+                        environment,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
@@ -547,6 +552,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
+                        environment,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
@@ -562,6 +568,7 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
+                        environment,
                     })],
                 ),
             ]);
@@ -670,7 +677,7 @@ impl ModuleOptions {
                                     *execution_context,
                                     Some(import_map),
                                     None,
-                                    "webpack_loaders".into(),
+                                    Layer::new(rcstr!("webpack_loaders")),
                                     false,
                                 ),
                                 *execution_context,

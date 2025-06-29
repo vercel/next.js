@@ -589,6 +589,7 @@ impl From<&CompileTimeDefineValue> for JsValue {
             CompileTimeDefineValue::JSON(_) => {
                 JsValue::unknown_empty(false, "compile time injected JSON")
             }
+            CompileTimeDefineValue::Undefined => JsValue::Constant(ConstantValue::Undefined),
         }
     }
 }

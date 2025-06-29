@@ -273,7 +273,7 @@ impl ModuleReference for RequireContextAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for RequireContextAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
+    fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(
             format!(
                 "require.context {}/{}",

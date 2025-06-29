@@ -4,6 +4,7 @@ import type { OverlayState } from '../../shared'
 import { DevToolsPanel } from './devtools-panel'
 import { INITIAL_OVERLAY_STATE } from '../../shared'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
+import { runtimeErrors } from '../../storybook/errors'
 
 const meta: Meta<typeof DevToolsPanel> = {
   component: DevToolsPanel,
@@ -34,6 +35,8 @@ export const Default: Story = {
     state,
     dispatch: () => {},
     issueCount: 0,
+    runtimeErrors: [],
+    getSquashedHydrationErrorDetails: () => null,
   },
 }
 
@@ -41,7 +44,9 @@ export const WithIssues: Story = {
   args: {
     state,
     dispatch: () => {},
-    issueCount: 3,
+    issueCount: runtimeErrors.length,
+    runtimeErrors,
+    getSquashedHydrationErrorDetails: () => null,
   },
 }
 
@@ -58,6 +63,8 @@ export const Turbopack: Story = {
     state,
     dispatch: () => {},
     issueCount: 0,
+    runtimeErrors: [],
+    getSquashedHydrationErrorDetails: () => null,
   },
 }
 
@@ -74,5 +81,7 @@ export const Rspack: Story = {
     state,
     dispatch: () => {},
     issueCount: 0,
+    runtimeErrors: [],
+    getSquashedHydrationErrorDetails: () => null,
   },
 }

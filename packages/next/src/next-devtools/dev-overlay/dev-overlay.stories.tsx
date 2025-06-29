@@ -1,22 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import type { DispatcherEvent, OverlayState } from './shared'
+import type { OverlayState } from './shared'
 
 // @ts-expect-error
 import imgApp from './app.png'
 
-import { useReducer } from 'react'
 import { DevOverlay } from './dev-overlay'
+import { errors } from './storybook/errors'
 import {
-  ACTION_DEVTOOLS_POSITION,
-  ACTION_DEVTOOLS_PANEL_CLOSE,
-  ACTION_DEVTOOLS_PANEL_TOGGLE,
-  ACTION_ERROR_OVERLAY_CLOSE,
-  ACTION_ERROR_OVERLAY_OPEN,
-  ACTION_ERROR_OVERLAY_TOGGLE,
-  ACTION_DEVTOOLS_SCALE,
-  NEXT_DEV_TOOLS_SCALE,
-  INITIAL_OVERLAY_STATE,
-} from './shared'
+  storybookDefaultOverlayState,
+  useStorybookOverlayReducer,
+} from './storybook/use-overlay-reducer'
 
 const meta: Meta<typeof DevOverlay> = {
   component: DevOverlay,
@@ -40,104 +33,18 @@ const meta: Meta<typeof DevOverlay> = {
 export default meta
 type Story = StoryObj<typeof DevOverlay>
 
-const initialState: OverlayState = {
-  ...INITIAL_OVERLAY_STATE,
-  routerType: 'app',
-  showIndicator: true,
-  errors: [
-    {
-      id: 1,
-      error: Object.assign(new Error('First error message'), {
-        __NEXT_ERROR_CODE: 'E001',
-      }),
-      componentStackFrames: [
-        {
-          file: 'app/page.tsx',
-          component: 'Home',
-          lineNumber: 10,
-          column: 5,
-          canOpenInEditor: true,
-        },
-      ],
-      frames: [
-        {
-          file: 'app/page.tsx',
-          methodName: 'Home',
-          arguments: [],
-          lineNumber: 10,
-          column: 5,
-        },
-      ],
-      type: 'runtime',
-    },
-    {
-      id: 2,
-      error: Object.assign(new Error('Second error message'), {
-        __NEXT_ERROR_CODE: 'E002',
-      }),
-      frames: [],
-      type: 'runtime',
-    },
-    {
-      id: 3,
-      error: Object.assign(new Error('Third error message'), {
-        __NEXT_ERROR_CODE: 'E003',
-      }),
-      frames: [],
-      type: 'runtime',
-    },
-  ],
-  versionInfo: {
-    installed: '15.2.0',
-    staleness: 'fresh',
-  },
-  isErrorOverlayOpen: false,
-  isDevToolsPanelOpen: false,
-  devToolsPosition: 'bottom-left',
-  scale: NEXT_DEV_TOOLS_SCALE.Medium,
-}
-
-function useOverlayReducer() {
-  return useReducer<OverlayState, [DispatcherEvent]>(
-    (state, action): OverlayState => {
-      switch (action.type) {
-        case ACTION_ERROR_OVERLAY_CLOSE: {
-          return { ...state, isErrorOverlayOpen: false }
-        }
-        case ACTION_ERROR_OVERLAY_OPEN: {
-          return { ...state, isErrorOverlayOpen: true }
-        }
-        case ACTION_ERROR_OVERLAY_TOGGLE: {
-          return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
-        }
-        case ACTION_DEVTOOLS_PANEL_TOGGLE: {
-          return { ...state, isDevToolsPanelOpen: !state.isDevToolsPanelOpen }
-        }
-        case ACTION_DEVTOOLS_PANEL_CLOSE: {
-          return { ...state, isDevToolsPanelOpen: false }
-        }
-        case ACTION_DEVTOOLS_POSITION: {
-          return { ...state, devToolsPosition: action.devToolsPosition }
-        }
-        case ACTION_DEVTOOLS_SCALE: {
-          return { ...state, scale: action.scale }
-        }
-        default: {
-          return state
-        }
-      }
-    },
-    initialState
-  )
-}
-
 function getNoSquashedHydrationErrorDetails() {
   return null
 }
 
+const initialState: OverlayState = {
+  ...storybookDefaultOverlayState,
+  errors,
+}
+
 export const Default: Story = {
   render: function DevOverlayStory() {
-    const [state, dispatch] = useOverlayReducer()
+    const [state, dispatch] = useStorybookOverlayReducer(initialState)
     return (
       <>
         <img
@@ -171,7 +78,7 @@ export const WithPanel: Story = {
     }
   },
   render: function DevOverlayStory() {
-    const [state, dispatch] = useOverlayReducer()
+    const [state, dispatch] = useStorybookOverlayReducer(initialState)
     return (
       <>
         <img

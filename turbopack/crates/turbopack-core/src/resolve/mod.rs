@@ -283,10 +283,7 @@ impl ModuleResolveResultBuilder {
 #[turbo_tasks::value_impl]
 impl ModuleResolveResult {
     #[turbo_tasks::function]
-    pub async fn with_affecting_source(
-        &self,
-        source: ResolvedVc<Box<dyn Source>>,
-    ) -> Result<Vc<Self>> {
+    pub fn with_affecting_source(&self, source: ResolvedVc<Box<dyn Source>>) -> Result<Vc<Self>> {
         Ok(Self {
             primary: self.primary.clone(),
             affecting_sources: self
@@ -300,7 +297,7 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_affecting_sources(
+    pub fn with_affecting_sources(
         &self,
         sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
@@ -478,6 +475,7 @@ pub enum ExternalType {
     CommonJs,
     EcmaScriptModule,
     Global,
+    Script,
 }
 
 impl Display for ExternalType {
@@ -487,6 +485,7 @@ impl Display for ExternalType {
             ExternalType::EcmaScriptModule => write!(f, "esm"),
             ExternalType::Url => write!(f, "url"),
             ExternalType::Global => write!(f, "global"),
+            ExternalType::Script => write!(f, "script"),
         }
     }
 }
@@ -899,10 +898,7 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_affecting_source(
-        &self,
-        source: ResolvedVc<Box<dyn Source>>,
-    ) -> Result<Vc<Self>> {
+    pub fn with_affecting_source(&self, source: ResolvedVc<Box<dyn Source>>) -> Result<Vc<Self>> {
         Ok(Self {
             primary: self.primary.clone(),
             affecting_sources: self
@@ -916,7 +912,7 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_affecting_sources(
+    pub fn with_affecting_sources(
         &self,
         sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
@@ -2785,7 +2781,6 @@ async fn resolve_import_map_result(
                     **alias_lookup_path,
                     request,
                     match ty {
-                        ExternalType::Url => options,
                         // TODO is that root correct?
                         ExternalType::CommonJs => {
                             node_cjs_resolve_options(alias_lookup_path.root())
@@ -2793,7 +2788,7 @@ async fn resolve_import_map_result(
                         ExternalType::EcmaScriptModule => {
                             node_esm_resolve_options(alias_lookup_path.root())
                         }
-                        ExternalType::Global => options,
+                        ExternalType::Script | ExternalType::Url | ExternalType::Global => options,
                     },
                 )
                 .await?

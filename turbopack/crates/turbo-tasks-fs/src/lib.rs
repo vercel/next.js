@@ -46,7 +46,8 @@ use invalidator_map::InvalidatorMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use read_glob::track_glob;
+pub use read_glob::ReadGlobResult;
+use read_glob::{read_glob, track_glob};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -1266,6 +1267,11 @@ impl FileSystemPath {
         Ok(FileSystemPathOption::none())
     }
 
+    #[turbo_tasks::function]
+    pub async fn read_glob(self: Vc<Self>, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
+        read_glob(self, glob).await
+    }
+
     // Tracks all files and directories matching the glob
     // Follows symlinks as though they were part of the original hierarchy.
     #[turbo_tasks::function]
@@ -1301,7 +1307,7 @@ impl FileSystemPath {
     /// Creates a new [`Vc<FileSystemPath>`] like `self` but with the given
     /// extension.
     #[turbo_tasks::function]
-    pub async fn with_extension(&self, extension: RcStr) -> Vc<FileSystemPath> {
+    pub fn with_extension(&self, extension: RcStr) -> Vc<FileSystemPath> {
         let (path_without_extension, _) = self.split_extension();
         Self::new_normalized(
             *self.fs,
@@ -2167,7 +2173,7 @@ impl ValueToString for FileJsonContent {
     /// This operation will only succeed if the file contents are a valid JSON
     /// value.
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
+    fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.to_string().into())),
             FileJsonContent::Unparseable(e) => Err(anyhow!("File is not valid JSON: {}", e)),

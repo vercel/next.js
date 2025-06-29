@@ -1,5 +1,3 @@
-extern crate turbo_tasks_malloc;
-
 use std::{
     fs::{create_dir_all, write},
     mem::forget,
@@ -203,6 +201,7 @@ impl HmrBenchmark {
                 },
                 browserslist_query: RcStr::from("last 2 versions"),
                 no_mangling: false,
+                current_node_js_version: RcStr::from("18.0.0"),
             };
 
             container.initialize(options).await?;

@@ -61,7 +61,7 @@ fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 fetch(`https://...`, { next: { revalidate: false | 0 | number } })
 ```
 
-Set the cache lifetime of a resource (in seconds).
+Set the cache lifetime of a resource (in seconds). [Data Cache](/docs/app/guides/caching#data-cache).
 
 - **`false`** - Cache the resource indefinitely. Semantically equivalent to `revalidate: Infinity`. The HTTP cache may evict older resources over time.
 - **`0`** - Prevent the resource from being cached.
@@ -71,7 +71,6 @@ Set the cache lifetime of a resource (in seconds).
 >
 > - If an individual `fetch()` request sets a `revalidate` number lower than the [default `revalidate`](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) of a route, the whole route revalidation interval will be decreased.
 > - If two fetch requests with the same URL in the same route have different `revalidate` values, the lower value will be used.
-> - As a convenience, it is not necessary to set the `cache` option if `revalidate` is set to a number.
 > - Conflicting options such as `{ revalidate: 3600, cache: 'no-store' }` will cause an error.
 
 ### `options.next.tags`

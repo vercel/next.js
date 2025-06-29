@@ -234,13 +234,17 @@ export default function BlogPage() {
 }
 ```
 
-## Deduplicating requests with `React.cache`
+## Deduplicate requests and cache data
 
-Deduplication is the process of _preventing duplicate requests_ for the same resource during a render pass. It allows you to fetch the same data in different components while preventing multiple network requests to your data source.
+One way to deduplicate `fetch` requests is with [request memoization](/docs/app/guides/caching#request-memoization). With this mechanism, `fetch` calls using `GET` or `HEAD` with the same URL and options in a single render pass are combined into one request. This happens automatically, and you can [opt out](/docs/app/guides/caching#opting-out) by passing an Abort signal to `fetch`.
 
-If you are using `fetch`, requests can be deduplicated by adding `cache: 'force-cache'`. This means you can safely call the same URL with the same options, and only one request will be made.
+Request memoization is scoped to the lifetime of a request.
 
-If you are _not_ using `fetch`, and instead using an ORM or database directly, you can wrap your data fetch with the [React `cache`](https://react.dev/reference/react/cache) function.
+You can also deduplicate `fetch` requests by using Next.js’ [Data Cache](/docs/app/guides/caching#data-cache), for example by setting `cache: 'force-cache'` in your `fetch` options.
+
+Data Cache allows sharing data across the current render pass and incoming requests.
+
+If you are _not_ using `fetch`, and instead using an ORM or database directly, you can wrap your data access with the [React `cache`](https://react.dev/reference/react/cache) function.
 
 ```tsx filename="app/lib/data.ts" switcher
 import { cache } from 'react'
@@ -575,7 +579,7 @@ You can preload data by creating an utility function that you eagerly call above
 You can call `preload()` before `checkIsAvailable()` to eagerly initiate `<Item/>` data dependencies. By the time `<Item/>` is rendered, its data has already been fetched.
 
 ```tsx filename="app/item/[id]/page.tsx" switcher
-import { getItem } from '@/lib/data'
+import { getItem, checkIsAvailable } from '@/lib/data'
 
 export default async function Page({
   params,
@@ -603,7 +607,7 @@ export async function Item({ id }: { id: string }) {
 ```
 
 ```jsx filename="app/item/[id]/page.js" switcher
-import { getItem } from '@/lib/data'
+import { getItem, checkIsAvailable } from '@/lib/data'
 
 export default async function Page({ params }) {
   const { id } = await params

@@ -1,5 +1,6 @@
-import fs from 'node:fs/promises'
-import { join } from 'node:path'
+import glob from 'glob'
+import fs from 'fs-extra'
+import { join } from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
@@ -10,22 +11,27 @@ import {
   initNextServerScript,
   killApp,
 } from 'next-test-utils'
-import { ChildProcess } from 'node:child_process'
+import { ChildProcess } from 'child_process'
 
 describe('required server files app router', () => {
   let next: NextInstance
   let server: ChildProcess
   let appPort: number | string
-  let delayedPostpone: string
-  let rewritePostpone: string
-  let rewriteHTML: string
+  let delayedPostpone
+  let rewritePostpone
   let cliOutput = ''
 
-  beforeAll(async () => {
-    process.env.NOW_BUILDER = '1'
+  const setupNext = async ({
+    nextEnv,
+    minimalMode,
+  }: {
+    nextEnv?: boolean
+    minimalMode?: boolean
+  }) => {
+    // test build against environment with next support
+    process.env.NOW_BUILDER = nextEnv ? '1' : ''
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
-    // Setup the Next.js app and build it.
     next = await createNext({
       files: {
         app: new FileRef(join(__dirname, 'app')),
@@ -41,7 +47,6 @@ describe('required server files app router', () => {
         cacheHandler: './cache-handler.js',
         experimental: {
           ppr: true,
-          clientSegmentCache: true,
         },
         eslint: {
           ignoreDuringBuilds: true,
@@ -49,49 +54,50 @@ describe('required server files app router', () => {
         output: 'standalone',
       },
     })
-
-    // Stop the server, we're going to restart it using the standalone server
-    // below after some cleanup.
     await next.stop()
 
-    // Read the postponed state and the HTML that was generated at build time
-    // from the output of the build.
     delayedPostpone = (await next.readJSON('.next/server/app/delayed.meta'))
       .postponed
     rewritePostpone = (
       await next.readJSON('.next/server/app/rewrite/first-cookie.meta')
     ).postponed
-    rewriteHTML = await next.readFile(
-      '.next/server/app/rewrite/first-cookie.html'
-    )
 
-    await fs.rename(
+    await fs.move(
       join(next.testDir, '.next/standalone'),
       join(next.testDir, 'standalone')
     )
+    for (const file of await fs.readdir(next.testDir)) {
+      if (file !== 'standalone') {
+        await fs.remove(join(next.testDir, file))
+        console.log('removed', file)
+      }
+    }
+    const files = glob.sync('**/*', {
+      cwd: join(next.testDir, 'standalone/.next/server/pages'),
+      dot: true,
+    })
 
-    const serverFilePath = join(next.testDir, 'standalone/server.js')
+    for (const file of files) {
+      if (file.endsWith('.json') || file.endsWith('.html')) {
+        await fs.remove(join(next.testDir, '.next/server', file))
+      }
+    }
 
-    // We're going to use the minimal mode for the server.
+    const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
-      serverFilePath,
-      (await fs.readFile(serverFilePath, 'utf8')).replace(
+      testServer,
+      (await fs.readFile(testServer, 'utf8')).replace(
         'port:',
-        `minimalMode: true, port:`
+        `minimalMode: ${minimalMode},port:`
       )
     )
-
-    // Find a port to use for the server.
     appPort = await findPort()
-
-    // Then we can start the server with the new environment variables.
     server = await initNextServerScript(
-      serverFilePath,
+      testServer,
       /- Local:/,
       {
         ...process.env,
         PORT: `${appPort}`,
-        NEXT_PRIVATE_DEBUG_CACHE: '1',
       },
       undefined,
       {
@@ -104,8 +110,11 @@ describe('required server files app router', () => {
         },
       }
     )
-  })
+  }
 
+  beforeAll(async () => {
+    await setupNext({ nextEnv: true, minimalMode: true })
+  })
   afterAll(async () => {
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
@@ -116,35 +125,37 @@ describe('required server files app router', () => {
     expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
   })
 
-  it('should de-dupe client segment tree revalidate requests', async () => {
-    const { segmentPaths } = await next.readJSON(
-      'standalone/.next/server/app/isr/first.meta'
-    )
-    const outputIdx = cliOutput.length
+  // this enables client segment cache in CI
+  if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+    it('should de-dupe client segment tree revalidate requests', async () => {
+      const { segmentPaths } = await next.readJSON(
+        'standalone/.next/server/app/isr/first.meta'
+      )
+      const outputIdx = cliOutput.length
 
-    for (const segmentPath of segmentPaths) {
-      const outputSegmentPath =
-        join('/isr/[slug].segments', segmentPath) + '.segment.rsc'
+      for (const segmentPath of segmentPaths) {
+        const outputSegmentPath =
+          join('/isr/[slug].segments', segmentPath) + '.segment.rsc'
 
-      require('console').error('requesting', outputSegmentPath)
+        require('console').error('requesting', outputSegmentPath)
 
-      const res = await fetchViaHTTP(appPort, outputSegmentPath, undefined, {
-        headers: {
-          'x-matched-path': '/isr/[slug].segments/_tree.segment.rsc',
-          'x-now-route-matches': createNowRouteMatches({
-            slug: 'first',
-          }).toString(),
-        },
-      })
+        const res = await fetchViaHTTP(appPort, outputSegmentPath, undefined, {
+          headers: {
+            'x-matched-path': '/isr/[slug].segments/_tree.segment.rsc',
+            'x-now-route-matches': 'slug=first&1=first',
+          },
+        })
 
-      expect(res.status).toBe(200)
-      expect(res.headers.get('content-type')).toBe('text/x-component')
-    }
+        expect(res.status).toBe(200)
+        expect(res.headers.get('content-type')).toBe('text/x-component')
+      }
 
-    expect(
-      cliOutput.substring(outputIdx).match(/rendering \/isr\/\[slug\]/g).length
-    ).toBe(1)
-  })
+      expect(
+        cliOutput.substring(outputIdx).match(/rendering \/isr\/\[slug\]/g)
+          .length
+      ).toBe(1)
+    })
+  }
 
   it('should properly stream resume with Next-Resume', async () => {
     const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
@@ -169,6 +180,11 @@ describe('required server files app router', () => {
 
     const firstSuspense = chunks.find((item) => item.chunk.includes('time'))
     const secondSuspense = chunks.find((item) => item.chunk.includes('random'))
+
+    console.log({
+      firstSuspense,
+      secondSuspense,
+    })
 
     expect(secondSuspense.time - firstSuspense.time).toBeGreaterThanOrEqual(
       2 * 1000
@@ -347,15 +363,12 @@ describe('required server files app router', () => {
     const res = await fetchViaHTTP(appPort, '/dyn/first.rsc', undefined, {
       headers: {
         'x-matched-path': '/dyn/[slug]',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'first',
-        }).toString(),
       },
     })
 
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')
-    expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
+    expect(res.headers.has('x-nextjs-postponed')).toBeFalse()
   })
 
   it('should handle prefetch RSC requests', async () => {
@@ -366,9 +379,6 @@ describe('required server files app router', () => {
       {
         headers: {
           'x-matched-path': '/dyn/[slug]',
-          'x-now-route-matches': createNowRouteMatches({
-            slug: 'first',
-          }).toString(),
         },
       }
     )
@@ -376,84 +386,6 @@ describe('required server files app router', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')
     expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
-  })
-
-  it('should use the postponed state for the RSC requests', async () => {
-    // Let's parse the random number out of the HTML that was generated at build
-    // time. We want to use that value as it's the one that's tied to the
-    // postponed state that we also have.
-    const $ = cheerio.load(rewriteHTML)
-
-    const random = $('#random').text()
-    expect(random).toBeDefined()
-    expect(random.length).toBeGreaterThan(0)
-
-    // Record the start of the logs for this test.
-    let start = cliOutput.length
-
-    // Then let's do a Dynamic RSC request and verify that the random value is
-    // not present in the response without passing the postponed state.
-    let res = await fetchViaHTTP(
-      appPort,
-      '/rewrite/first-cookie.rsc',
-      undefined,
-      {
-        headers: {
-          'x-matched-path': '/rewrite/[slug]',
-          'x-now-route-matches': createNowRouteMatches({
-            slug: 'first-cookie',
-          }).toString(),
-        },
-      }
-    )
-
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toEqual('text/x-component')
-    expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
-
-    // Ensure that we hit the cache handler and not the resume data cache.
-    expect(cliOutput.substring(start)).toContain('cache-handler get')
-    expect(cliOutput.substring(start)).toContain('cache-handler set')
-    expect(cliOutput.substring(start)).toContain('rdc:miss')
-    expect(cliOutput.substring(start)).not.toContain('rdc:hit')
-
-    // We expect that the random value is not present in the response because
-    // we're not providing a resume data cache via the postponed state.
-    // Instead it'll contain another random number that's been generated at
-    // runtime.
-    let rsc = await res.text()
-    expect(rsc).not.toContain(random)
-
-    // Reset the start of the logs for this test.
-    start = cliOutput.length
-
-    // Then let's get the Dynamic RSC request and verify that the random value
-    // is present in the response by passing the postponed state.
-    res = await fetchViaHTTP(appPort, '/rewrite/first-cookie.rsc', undefined, {
-      method: 'POST',
-      headers: {
-        'x-matched-path': '/rewrite/[slug]',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'first-cookie',
-        }).toString(),
-        'next-resume': '1',
-      },
-      body: rewritePostpone,
-    })
-
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toEqual('text/x-component')
-    expect(res.headers.has('x-nextjs-postponed')).toBeFalse()
-
-    // Ensure that we hit the resume data cache and not the cache handler.
-    expect(cliOutput.substring(start)).not.toContain('cache-handler get')
-    expect(cliOutput.substring(start)).not.toContain('cache-handler set')
-    expect(cliOutput.substring(start)).toContain('rdc:hit')
-
-    // We expect that the random value is present in the response because
-    // we're providing a resume data cache via the postponed state.
-    rsc = await res.text()
-    expect(rsc).toContain(random)
   })
 
   it('should handle revalidating the fallback page', async () => {

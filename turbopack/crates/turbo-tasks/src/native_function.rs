@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
-    RawVc, TaskInput, TaskPersistence,
+    RawVc, TaskExecutionReason, TaskInput, TaskPersistence,
     magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::register_function,
     task::{
@@ -253,36 +253,27 @@ impl NativeFunction {
         }
     }
 
-    pub fn span(&'static self, persistence: TaskPersistence) -> Span {
-        match persistence {
-            TaskPersistence::Persistent => {
-                tracing::trace_span!("turbo_tasks::function", name = self.name)
-            }
-            TaskPersistence::Transient => {
-                tracing::trace_span!("turbo_tasks::function", name = self.name, transient = true,)
-            }
-            TaskPersistence::Local => {
-                tracing::trace_span!("turbo_tasks::function", name = self.name, local = true,)
-            }
-        }
+    pub fn span(&'static self, persistence: TaskPersistence, reason: TaskExecutionReason) -> Span {
+        let flags = match persistence {
+            TaskPersistence::Persistent => "",
+            TaskPersistence::Transient => "transient",
+            TaskPersistence::Local => "local",
+        };
+        tracing::trace_span!(
+            "turbo_tasks::function",
+            name = self.name,
+            flags = flags,
+            reason = reason.as_str()
+        )
     }
 
     pub fn resolve_span(&'static self, persistence: TaskPersistence) -> Span {
-        match persistence {
-            TaskPersistence::Persistent => {
-                tracing::trace_span!("turbo_tasks::resolve_call", name = self.name)
-            }
-            TaskPersistence::Transient => {
-                tracing::trace_span!(
-                    "turbo_tasks::resolve_call",
-                    name = self.name,
-                    transient = true,
-                )
-            }
-            TaskPersistence::Local => {
-                tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, local = true,)
-            }
-        }
+        let flags = match persistence {
+            TaskPersistence::Persistent => "",
+            TaskPersistence::Transient => "transient",
+            TaskPersistence::Local => "local",
+        };
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
     }
 
     pub fn register(&'static self, global_name: &'static str) {

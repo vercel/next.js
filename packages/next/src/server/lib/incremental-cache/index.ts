@@ -15,6 +15,7 @@ import {
   type SetIncrementalResponseCacheContext,
 } from '../../response-cache'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
+
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
@@ -88,8 +89,8 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly allowedRevalidateHeaderKeys?: string[]
   readonly minimalMode?: boolean
   readonly fetchCacheKeyPrefix?: string
+  readonly revalidatedTags?: string[]
   readonly isOnDemandRevalidate?: boolean
-  readonly revalidatedTags?: readonly string[]
 
   private static readonly debug: boolean =
     !!process.env.NEXT_PRIVATE_DEBUG_CACHE
@@ -178,7 +179,7 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     if (minimalMode) {
-      revalidatedTags = this.revalidatedTags = getPreviouslyRevalidatedTags(
+      revalidatedTags = getPreviouslyRevalidatedTags(
         requestHeaders,
         this.prerenderManifest?.preview?.previewModeId
       )
@@ -425,13 +426,7 @@ export class IncrementalCache implements IncrementalCacheType {
       if (resumeDataCache) {
         const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
-          if (IncrementalCache.debug) {
-            console.log('rdc:hit', cacheKey)
-          }
-
           return { isStale: false, value: memoryCacheData }
-        } else if (IncrementalCache.debug) {
-          console.log('rdc:miss', cacheKey)
         }
       }
     }
@@ -475,32 +470,7 @@ export class IncrementalCache implements IncrementalCacheType {
             workStore?.pendingRevalidatedTags?.includes(tag)
         )
       ) {
-        if (IncrementalCache.debug) {
-          console.log('stale tag', cacheKey)
-        }
-
         return null
-      }
-
-      // As we're able to get the cache entry for this fetch, and the prerender
-      // resume data cache (RDC) is available, it must have been populated by a
-      // previous fetch, but was not yet present in the in-memory cache. This
-      // could be the case when performing multiple renders in parallel during
-      // build time where we de-duplicate the fetch calls.
-      //
-      // We add it to the RDC so that the next fetch call will be able to use it
-      // and it won't have to reach into the fetch cache implementation.
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      if (workUnitStore) {
-        const prerenderResumeDataCache =
-          getPrerenderResumeDataCache(workUnitStore)
-        if (prerenderResumeDataCache) {
-          if (IncrementalCache.debug) {
-            console.log('rdc:set', cacheKey)
-          }
-
-          prerenderResumeDataCache.fetch.set(cacheKey, cacheData.value)
-        }
       }
 
       const revalidate = ctx.revalidate || cacheData.value.revalidate
@@ -601,10 +571,6 @@ export class IncrementalCache implements IncrementalCacheType {
         ? getPrerenderResumeDataCache(workUnitStore)
         : null
       if (prerenderResumeDataCache) {
-        if (IncrementalCache.debug) {
-          console.log('rdc:set', pathname)
-        }
-
         prerenderResumeDataCache.fetch.set(pathname, data)
       }
     }

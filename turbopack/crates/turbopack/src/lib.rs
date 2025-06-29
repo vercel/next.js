@@ -35,6 +35,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    ident::Layer,
     issue::{IssueExt, StyledString, module::ModuleIssue},
     module::Module,
     output::OutputAsset,
@@ -236,7 +237,7 @@ async fn apply_module_type(
                 .await?,
         ),
 
-        ModuleType::Css { ty } => ResolvedVc::upcast(
+        ModuleType::Css { ty, environment } => ResolvedVc::upcast(
             CssModuleAsset::new(
                 *source,
                 Vc::upcast(module_asset_context),
@@ -247,6 +248,7 @@ async fn apply_module_type(
                     .css
                     .minify_type,
                 css_import_context,
+                environment.as_deref().copied(),
             )
             .to_resolved()
             .await?,
@@ -317,7 +319,7 @@ pub struct ModuleAssetContext {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub module_options_context: ResolvedVc<ModuleOptionsContext>,
     pub resolve_options_context: ResolvedVc<ResolveOptionsContext>,
-    pub layer: RcStr,
+    pub layer: Layer,
     transition: Option<ResolvedVc<Box<dyn Transition>>>,
     /// Whether to replace external resolutions with CachedExternalModules. Used with
     /// ModuleOptionsContext.enable_externals_tracing to handle transitive external dependencies.
@@ -332,7 +334,7 @@ impl ModuleAssetContext {
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         module_options_context: ResolvedVc<ModuleOptionsContext>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
-        layer: RcStr,
+        layer: Layer,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -351,7 +353,7 @@ impl ModuleAssetContext {
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         module_options_context: ResolvedVc<ModuleOptionsContext>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
-        layer: RcStr,
+        layer: Layer,
         transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
@@ -371,7 +373,7 @@ impl ModuleAssetContext {
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         module_options_context: ResolvedVc<ModuleOptionsContext>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
-        layer: RcStr,
+        layer: Layer,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -469,7 +471,7 @@ async fn process_default(
     if !span.is_disabled() {
         // Need to use record, otherwise future is not Send for some reason.
         let module_asset_context_ref = module_asset_context.await?;
-        span.record("layer", module_asset_context_ref.layer.as_str());
+        span.record("layer", module_asset_context_ref.layer.name().as_str());
     }
     process_default_internal(
         module_asset_context,
@@ -564,7 +566,7 @@ async fn process_default_internal(
                         }
                     }
                     ModuleRuleEffect::ModuleType(module) => {
-                        current_module_type = Some(*module);
+                        current_module_type = Some(module.clone());
                     }
                     ModuleRuleEffect::ExtendEcmascriptTransforms { prepend, append } => {
                         current_module_type = match current_module_type {
@@ -666,8 +668,7 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
         custom_conditions: match ty {
             ExternalType::CommonJs => vec!["require".into()],
             ExternalType::EcmaScriptModule => vec!["import".into()],
-            ExternalType::Url => vec![],
-            ExternalType::Global => vec![],
+            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![],
         },
         ..Default::default()
     };
@@ -687,11 +688,14 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
                 source_maps: SourceMapsType::None,
                 ..Default::default()
             },
+            // Environment is not passed in order to avoid downleveling JS / CSS for
+            // node-file-trace.
+            environment: None,
             ..Default::default()
         }
         .cell(),
         resolve_options.cell(),
-        rcstr!("externals-tracing"),
+        Layer::new(rcstr!("externals-tracing")),
     ))
 }
 
@@ -702,7 +706,7 @@ impl AssetContext for ModuleAssetContext {
         *self.compile_time_info
     }
 
-    fn layer(&self) -> RcStr {
+    fn layer(&self) -> Layer {
         self.layer.clone()
     }
 
@@ -1014,6 +1018,7 @@ pub async fn replace_external(
             }
         }
         ExternalType::Global => CachedExternalType::Global,
+        ExternalType::Script => CachedExternalType::Script,
         ExternalType::Url => {
             // we don't want to wrap url externals.
             return Ok(None);

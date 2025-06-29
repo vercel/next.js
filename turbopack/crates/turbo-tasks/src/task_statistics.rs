@@ -73,7 +73,7 @@ impl Serialize for TaskStatistics {
     {
         let mut map = serializer.serialize_map(Some(self.inner.len()))?;
         for entry in &self.inner {
-            let key = registry::get_function_global_name(registry::get_function_id(entry.key()));
+            let key = registry::get_function_global_name(entry.key());
             map.serialize_entry(key, entry.value())?;
         }
         map.end()

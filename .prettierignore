@@ -66,6 +66,7 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/next-transform-dynamic/tests
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js
 /turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs
+/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/*
 /turbopack/crates/turbopack-tests/tests/**/output*
 /turbopack/crates/turbopack-tests/tests/**/static
 

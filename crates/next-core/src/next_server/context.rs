@@ -3,7 +3,7 @@ use std::iter::once;
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, TaskInput, Vc};
-use turbo_tasks_env::{EnvMap, ProcessEnv};
+use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
@@ -381,17 +381,15 @@ async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 
 #[turbo_tasks::function]
 pub async fn get_server_compile_time_info(
-    process_env: Vc<Box<dyn ProcessEnv>>,
-    define_env: Vc<EnvMap>,
     cwd: RcStr,
+    define_env: Vc<EnvMap>,
+    node_version: ResolvedVc<NodeJsVersion>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::NodeJsLambda(
             NodeJsEnvironment {
                 compile_target: CompileTarget::current().to_resolved().await?,
-                node_version: NodeJsVersion::resolved_cell(NodeJsVersion::Current(
-                    process_env.to_resolved().await?,
-                )),
+                node_version,
                 cwd: ResolvedVc::cell(Some(cwd)),
             }
             .resolved_cell(),
@@ -414,6 +412,7 @@ pub async fn get_server_module_options_context(
     next_config: Vc<NextConfig>,
     next_runtime: NextRuntime,
     encryption_key: ResolvedVc<RcStr>,
+    environment: ResolvedVc<Environment>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
@@ -553,6 +552,7 @@ pub async fn get_server_module_options_context(
             ..Default::default()
         },
         execution_context: Some(execution_context),
+        environment: Some(environment),
         css: CssOptionsContext {
             source_maps,
             ..Default::default()
@@ -996,6 +996,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
+    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1037,22 +1038,24 @@ pub async fn get_server_chunking_context_with_client_assets(
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris();
     } else {
-        builder = builder.chunking_config(
-            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                min_chunk_size: 20_000,
-                max_chunk_count_per_group: 100,
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.chunking_config(
-            Vc::<CssChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 20_000,
+                    max_chunk_count_per_group: 100,
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())
@@ -1069,6 +1072,7 @@ pub async fn get_server_chunking_context(
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
+    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1108,22 +1112,24 @@ pub async fn get_server_chunking_context(
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris()
     } else {
-        builder = builder.chunking_config(
-            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                min_chunk_size: 20_000,
-                max_chunk_count_per_group: 100,
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.chunking_config(
-            Vc::<CssChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 20_000,
+                    max_chunk_count_per_group: 100,
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())

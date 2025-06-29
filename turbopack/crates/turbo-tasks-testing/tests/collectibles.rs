@@ -200,7 +200,7 @@ async fn my_transitive_emitting_function(key: RcStr, key2: RcStr) -> Result<Vc<T
 }
 
 #[turbo_tasks::function(operation)]
-async fn my_transitive_emitting_function_collectibles(
+fn my_transitive_emitting_function_collectibles(
     key: RcStr,
     key2: RcStr,
 ) -> Result<Vc<Collectibles>> {
@@ -237,13 +237,13 @@ async fn my_emitting_function(key: RcStr) -> Result<()> {
 }
 
 #[turbo_tasks::function]
-async fn my_transitive_emitting_function_with_thing(key: RcStr, _thing: Vc<Thing>) -> Result<()> {
+fn my_transitive_emitting_function_with_thing(key: RcStr, _thing: Vc<Thing>) -> Result<()> {
     let _ = my_emitting_function(key);
     Ok(())
 }
 
 #[turbo_tasks::function(operation)]
-async fn my_transitive_emitting_function_with_resolve(key: RcStr) -> Result<()> {
+fn my_transitive_emitting_function_with_resolve(key: RcStr) -> Result<()> {
     let _ = my_transitive_emitting_function_with_thing(key, get_thing(0));
     Ok(())
 }

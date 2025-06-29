@@ -858,6 +858,7 @@ async fn insert_next_shared_aliases(
             request_to_import_mapping(project_path, "./mdx-components"),
             request_to_import_mapping(project_path, "./src/mdx-components"),
             request_to_import_mapping(project_path, "@mdx-js/react"),
+            request_to_import_mapping(project_path, "@next/mdx/mdx-components.js"),
         ],
     );
 

@@ -603,12 +603,12 @@ describe('ReactRefreshLogBox', () => {
          "source": "./index.module.css
        Parsing css source code failed
        Selector "button" is not pure. Pure selectors must contain at least one local class or id.
-       Example import traces:
-         client:
+       Import traces:
+         Browser:
            ./index.module.css
            ./index.js
            ./pages/index.js
-         ssr:
+         SSR:
            ./index.module.css
            ./index.js
            ./pages/index.js",

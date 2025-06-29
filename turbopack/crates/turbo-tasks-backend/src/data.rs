@@ -3,7 +3,8 @@ use std::cmp::Ordering;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
+    CellId, KeyValuePair, SessionId, TaskExecutionReason, TaskId, TraitTypeId,
+    TypedSharedReference, ValueTypeId,
     backend::TurboTasksExecutionError,
     event::{Event, EventListener},
     registry,
@@ -322,7 +323,13 @@ pub struct InProgressStateInner {
 
 #[derive(Debug)]
 pub enum InProgressState {
-    Scheduled { done_event: Event },
+    Scheduled {
+        /// Event that is triggered when the task output is available (completed flag set).
+        /// This is used to wait for completion when reading the task output before it's available.
+        done_event: Event,
+        /// Reason for scheduling the task.
+        reason: TaskExecutionReason,
+    },
     InProgress(Box<InProgressStateInner>),
     Canceled,
 }
@@ -522,15 +529,20 @@ impl CachedDataItem {
         }
     }
 
-    pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
+    pub fn new_scheduled(
+        reason: TaskExecutionReason,
+        description: impl Fn() -> String + Sync + Send + 'static,
+    ) -> Self {
         CachedDataItem::InProgress {
             value: InProgressState::Scheduled {
                 done_event: Event::new(move || format!("{} done_event", description())),
+                reason,
             },
         }
     }
 
     pub fn new_scheduled_with_listener(
+        reason: TaskExecutionReason,
         description: impl Fn() -> String + Sync + Send + 'static,
         note: impl Fn() -> String + Sync + Send + 'static,
     ) -> (Self, EventListener) {
@@ -538,7 +550,7 @@ impl CachedDataItem {
         let listener = done_event.listen_with_note(note);
         (
             CachedDataItem::InProgress {
-                value: InProgressState::Scheduled { done_event },
+                value: InProgressState::Scheduled { done_event, reason },
             },
             listener,
         )

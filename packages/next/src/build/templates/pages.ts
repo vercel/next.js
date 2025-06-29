@@ -162,7 +162,7 @@ export async function handler(
   )
   const isAmp = query.amp && config.amp
   let cacheKey: null | string = null
-  let isIsrFallback = Boolean(getRequestMeta(req, 'isIsrFallback'))
+  let isIsrFallback = false
   let isNextDataRequest =
     prepareResult.isNextDataRequest && (hasStaticProps || hasServerProps)
 
@@ -530,6 +530,7 @@ export async function handler(
             // Remove the cache control from the response to prevent it from being
             // used in the surrounding cache.
             delete fallbackResponse.cacheControl
+            fallbackResponse.isMiss = true
             return fallbackResponse
           }
         }
@@ -586,6 +587,13 @@ export async function handler(
         prerenderManifest,
       })
 
+      // if we got a cache hit this wasn't an ISR fallback
+      // but it wasn't generated during build so isn't in the
+      // prerender-manifest
+      if (isIsrFallback && !result?.isMiss) {
+        isIsrFallback = false
+      }
+
       // response is finished is no cache entry
       if (!result) {
         return
@@ -629,7 +637,6 @@ export async function handler(
               `Invalid revalidate configuration provided: ${result.cacheControl.revalidate} < 1`
             )
           }
-
           cacheControl = {
             revalidate: result.cacheControl.revalidate,
             expire: result.cacheControl?.expire ?? nextConfig.expireTime,

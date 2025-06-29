@@ -73,7 +73,7 @@ impl SingleItemCssChunk {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+    pub(super) fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let item = self.item.asset_ident();
         Ok(item.with_modifier(rcstr!("single item css chunk")))
     }

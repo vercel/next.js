@@ -38,6 +38,10 @@ export interface OverlayState {
   disableDevIndicator: boolean
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
+  /** This flag is used to handle the Error Overlay state in the "old" overlay.
+   *  In the DevTools panel, this value will used for the "Error Overlay Mode"
+   *  which is viewing the "Issues Tab" as a fullscreen.
+   */
   isErrorOverlayOpen: boolean
   isDevToolsPanelOpen: boolean
   devToolsPosition: Corners

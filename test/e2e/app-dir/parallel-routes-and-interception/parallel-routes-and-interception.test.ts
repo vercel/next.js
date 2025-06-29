@@ -487,6 +487,49 @@ describe('parallel-routes-and-interception', () => {
     })
   })
 
+  describe('route intercepting with prerendered dynamic routes ', () => {
+    it('should render intercepted route', async () => {
+      const browser = await next.browser(
+        '/intercepting-routes-dynamic-prerendered/photos'
+      )
+
+      // Check if navigation to modal route works.
+      await browser
+        .elementByCss(
+          '[href="/intercepting-routes-dynamic-prerendered/photos/1"]'
+        )
+        .click()
+
+      // This should load the intercepted page.
+      await retry(async () => {
+        expect(
+          await browser.waitForElementByCss('#photo-intercepted-1').text()
+        ).toBe('Photo INTERCEPTED 1')
+      })
+
+      // Check if url matches even though it was intercepted.
+      expect(await browser.url()).toBe(
+        next.url + '/intercepting-routes-dynamic-prerendered/photos/1'
+      )
+
+      // There must not be any errors from prefetching the intercepted page.
+      expect(
+        (await browser.log()).filter(({ source }) => source === 'error')
+      ).toEqual([])
+
+      // Trigger a refresh, this should load the normal page, not the modal.
+      await browser.refresh()
+      expect(await browser.waitForElementByCss('#photo-page-1').text()).toBe(
+        'Photo PAGE 1'
+      )
+
+      // Check if the url matches still.
+      expect(await browser.url()).toBe(
+        next.url + '/intercepting-routes-dynamic-prerendered/photos/1'
+      )
+    })
+  })
+
   describe('route intercepting with dynamic optional catch-all routes', () => {
     it('should render intercepted route', async () => {
       const browser = await next.browser(

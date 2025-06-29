@@ -165,7 +165,7 @@ impl Introspectable for NodeApiContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Vc<RcStr> {
+    fn details(&self) -> Vc<RcStr> {
         Vc::cell(
             format!(
                 "base: {:?}\ntype: {:?}",

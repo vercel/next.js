@@ -30,11 +30,11 @@ function isNextjsLink(text: string): boolean {
   return text.startsWith('https://nextjs.org')
 }
 
-function HydrationErrorDescription({ message }: { message: string }) {
+export function HydrationErrorDescription({ message }: { message: string }) {
   return <HotlinkedText text={message} matcher={isNextjsLink} />
 }
 
-function GenericErrorDescription({ error }: { error: Error }) {
+export function GenericErrorDescription({ error }: { error: Error }) {
   const environmentName =
     'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''

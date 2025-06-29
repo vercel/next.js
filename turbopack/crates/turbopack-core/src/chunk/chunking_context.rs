@@ -218,8 +218,16 @@ pub trait ChunkingContext {
         })
     }
 
+    /// Whether `ChunkingType::Traced` are used to create corresponding output assets for each
+    /// traced module.
     #[turbo_tasks::function]
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    /// Whether to use `MergableModule` to merge modules if possible.
+    #[turbo_tasks::function]
+    fn is_module_merging_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 

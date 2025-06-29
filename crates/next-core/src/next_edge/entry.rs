@@ -9,7 +9,7 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::StringifyJs;
 
 #[turbo_tasks::function]
-pub async fn wrap_edge_entry(
+pub fn wrap_edge_entry(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: ResolvedVc<Box<dyn Module>>,

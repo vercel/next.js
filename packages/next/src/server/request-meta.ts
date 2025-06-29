@@ -6,12 +6,8 @@ import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
-import type {
-  ResponseCacheEntry,
-  ServerComponentsHmrCache,
-} from './response-cache'
+import type { ServerComponentsHmrCache } from './response-cache'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
-import type { IncrementalCache } from './lib/incremental-cache'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -72,7 +68,7 @@ export interface RequestMeta {
   /**
    * The incremental cache to use for the request.
    */
-  incrementalCache?: IncrementalCache
+  incrementalCache?: any
 
   /**
    * The server components HMR cache, only for dev.
@@ -122,25 +118,10 @@ export interface RequestMeta {
   /**
    * If provided, this will be called when a response cache entry was generated
    * or looked up in the cache.
-   *
-   * @deprecated Use `onCacheEntryV2` instead.
    */
   onCacheEntry?: (
-    cacheEntry: ResponseCacheEntry,
-    requestMeta: {
-      url: string | undefined
-    }
-  ) => Promise<boolean | void> | boolean | void
-
-  /**
-   * If provided, this will be called when a response cache entry was generated
-   * or looked up in the cache.
-   */
-  onCacheEntryV2?: (
-    cacheEntry: ResponseCacheEntry,
-    requestMeta: {
-      url: string | undefined
-    }
+    cacheEntry: any,
+    requestMeta: any
   ) => Promise<boolean | void> | boolean | void
 
   /**

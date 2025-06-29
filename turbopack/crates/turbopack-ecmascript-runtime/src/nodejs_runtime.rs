@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     environment::Environment,
@@ -10,7 +10,7 @@ use crate::{asset_context::get_runtime_asset_context, embed_js::embed_static_cod
 /// Returns the code for the Node.js production ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_nodejs_runtime_code(
-    environment: Vc<Environment>,
+    environment: ResolvedVc<Environment>,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(environment).await?;

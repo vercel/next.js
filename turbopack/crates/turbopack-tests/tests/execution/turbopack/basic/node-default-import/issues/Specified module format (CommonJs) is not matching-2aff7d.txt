@@ -3,7 +3,7 @@ error - [analysis] [project]/turbopack/crates/turbopack-tests/tests/execution/tu
   The module was automatically converted to an EcmaScript module, but that is in conflict with the specified module format. Either change the "type" field in the package.json or replace EcmaScript import/export syntax with CommonJs syntas in the source file.
   In some cases EcmaScript import/export syntax is added by an transform and isn't actually part of the source code. In these cases revisit transformation options to inject the correct syntax.
   
-  Example import trace:
+  Import trace:
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/invalid-exports.cjs
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/index.js
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/index.js

@@ -10,11 +10,10 @@ import {
 } from '../errors/dev-tools-indicator/utils'
 import {
   ACTION_DEVTOOLS_PANEL_TOGGLE,
-  ACTION_ERROR_OVERLAY_TOGGLE,
-  ACTION_ERROR_OVERLAY_CLOSE,
   STORAGE_KEY_POSITION,
-  ACTION_DEVTOOLS_PANEL_CLOSE,
   ACTION_DEVTOOLS_POSITION,
+  ACTION_DEVTOOLS_PANEL_OPEN,
+  ACTION_ERROR_OVERLAY_OPEN,
 } from '../../shared'
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
 
@@ -35,13 +34,13 @@ export function DevToolsIndicator({
 
   const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
 
-  const toggleErrorOverlay = () => {
-    dispatch({ type: ACTION_DEVTOOLS_PANEL_CLOSE })
-    dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
+  const enableErrorOverlayMode = () => {
+    dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+    // Open the DevTools panel to view as error overlay mode.
+    dispatch({ type: ACTION_DEVTOOLS_PANEL_OPEN })
   }
 
   const toggleDevToolsPanel = () => {
-    dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
     dispatch({ type: ACTION_DEVTOOLS_PANEL_TOGGLE })
   }
 
@@ -56,7 +55,10 @@ export function DevToolsIndicator({
           zIndex: 2147483647,
           [vertical]: `${INDICATOR_PADDING}px`,
           [horizontal]: `${INDICATOR_PADDING}px`,
-          visibility: state.isDevToolsPanelOpen ? 'hidden' : 'visible',
+          visibility:
+            state.isDevToolsPanelOpen || state.isErrorOverlayOpen
+              ? 'hidden'
+              : 'visible',
         } as CSSProperties
       }
     >
@@ -82,7 +84,7 @@ export function DevToolsIndicator({
           disabled={state.disableDevIndicator}
           issueCount={errorCount}
           onTriggerClick={toggleDevToolsPanel}
-          toggleErrorOverlay={toggleErrorOverlay}
+          toggleErrorOverlay={enableErrorOverlayMode}
           isDevBuilding={state.buildingIndicator}
           isDevRendering={state.renderingIndicator}
           isBuildError={isBuildError}

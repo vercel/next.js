@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
@@ -358,7 +359,7 @@ describe('opentelemetry', () => {
           })
 
           it('should handle RSC with fetch in RSC mode', async () => {
-            await next.fetch('/app/param/rsc-fetch', {
+            await next.fetch(`/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`, {
               ...env.fetchInit,
               headers: {
                 ...env.fetchInit?.headers,
@@ -376,7 +377,7 @@ describe('opentelemetry', () => {
                   'http.method': 'GET',
                   'http.route': '/app/[param]/rsc-fetch',
                   'http.status_code': 200,
-                  'http.target': '/app/param/rsc-fetch',
+                  'http.target': `/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`,
                   'next.route': '/app/[param]/rsc-fetch',
                   'next.rsc': true,
                   'next.span_name': 'RSC GET /app/[param]/rsc-fetch',

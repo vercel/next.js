@@ -315,6 +315,8 @@ jobs:
         export TURBOPACK_BUILD=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        # TODO(PACK-4578): Remove
+        export TURBOPACK_TEMP_DISABLE_DUPLICATE_MODULES_CHECK=1
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'

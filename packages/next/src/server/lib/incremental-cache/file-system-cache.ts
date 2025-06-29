@@ -276,16 +276,6 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
-    // If enabled, this will return the possibly stale data without validating
-    // that the tags have expired or not yet been revalidated.
-    if ('allowStale' in ctx && ctx.allowStale) {
-      if (FileSystemCache.debug) {
-        console.log('allow stale', ctx.allowStale)
-      }
-
-      return data ?? null
-    }
-
     if (
       data?.value?.kind === CachedRouteKind.APP_PAGE ||
       data?.value?.kind === CachedRouteKind.PAGES
@@ -302,10 +292,6 @@ export default class FileSystemCache implements CacheHandler {
         // had a tag revalidated, if we want to be a background
         // revalidation instead we return data.lastModified = -1
         if (isStale(cacheTags, data?.lastModified || Date.now())) {
-          if (FileSystemCache.debug) {
-            console.log('stale tags', cacheTags)
-          }
-
           return null
         }
       }
@@ -315,22 +301,17 @@ export default class FileSystemCache implements CacheHandler {
           ? [...(ctx.tags || []), ...(ctx.softTags || [])]
           : []
 
-      // When revalidate tag is called we don't return stale data so it's
-      // updated right away.
-      if (combinedTags.some((tag) => this.revalidatedTags.includes(tag))) {
-        if (FileSystemCache.debug) {
-          console.log('was revalidated', combinedTags)
+      const wasRevalidated = combinedTags.some((tag) => {
+        if (this.revalidatedTags.includes(tag)) {
+          return true
         }
 
-        return null
-      }
-
-      if (isStale(combinedTags, data?.lastModified || Date.now())) {
-        if (FileSystemCache.debug) {
-          console.log('stale tags', combinedTags)
-        }
-
-        return null
+        return isStale([tag], data?.lastModified || Date.now())
+      })
+      // When revalidate tag is called we don't return
+      // stale data so it's updated right away
+      if (wasRevalidated) {
+        data = undefined
       }
     }
 

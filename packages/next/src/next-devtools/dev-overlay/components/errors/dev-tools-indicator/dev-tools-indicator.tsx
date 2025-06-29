@@ -15,7 +15,6 @@ import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
 import GearIcon from '../../../icons/gear-icon'
 import { UserPreferences } from './dev-tools-info/user-preferences'
-import { SegmentsExplorer } from '../../overview/segment-explorer'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
@@ -27,6 +26,7 @@ import {
   type DevToolsScale,
 } from './dev-tools-info/preferences'
 import { Draggable } from './draggable'
+import { SegmentsExplorer } from './dev-tools-info/segments-explorer'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -343,6 +343,7 @@ function DevToolsPopover({
           close={closeToRootMenu}
           triggerRef={triggerRef}
           style={popover}
+          routerType={routerType}
         />
       ) : null}
 

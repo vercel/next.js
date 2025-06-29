@@ -171,6 +171,7 @@ import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { RedirectStatusCode } from '../client/components/redirect-status-code'
+import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -2055,6 +2056,8 @@ export default abstract class Server<
     const isPossibleServerAction = getIsPossibleServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
+    // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
+    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     // Not all CDNs respect the Vary header when caching. We must assume that
     // only the URL is used to vary the responses. The Next client computes a
@@ -2062,20 +2065,10 @@ export default abstract class Server<
     // responding to a request, we must verify that the hash matches the
     // expected value. Neglecting to do this properly can lead to cache
     // poisoning attacks on certain CDNs.
-    // TODO: This is verification only runs during per-segment prefetch
-    // requests, since those are the only ones that both vary on a custom
-    // header and are cacheable. But for safety, we should run this
-    // verification for all requests, once we confirm the behavior is correct.
-    // Will need to update our test suite, since there are a handlful of unit
-    // tests that send fetch requests with custom headers but without a
-    // corresponding cache-busting search param.
-    // TODO: Consider not using custom request headers at all, and instead fully
-    // encode everything into the search param.
     if (
       !this.minimalMode &&
       this.nextConfig.experimental.validateRSCRequestHeaders &&
-      this.isAppSegmentPrefetchEnabled &&
-      getRequestMeta(req, 'segmentPrefetchRSCRequest')
+      isRSCRequest
     ) {
       const headers = req.headers
       const expectedHash = computeCacheBustingSearchParam(
@@ -2084,12 +2077,22 @@ export default abstract class Server<
         headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()],
         headers[NEXT_URL.toLowerCase()]
       )
-      const actualHash = getRequestMeta(req, 'cacheBustingSearchParam') ?? null
+      const actualHash =
+        getRequestMeta(req, 'cacheBustingSearchParam') ??
+        new URL(req.url || '', 'http://localhost').searchParams.get(
+          NEXT_RSC_UNION_QUERY
+        )
+
       if (expectedHash !== actualHash) {
         // The hash sent by the client does not match the expected value.
-        // Respond with an error.
-        res.statusCode = 400
-        res.setHeader('content-type', 'text/plain')
+        // Redirect to the URL with the correct cache-busting search param.
+        // This prevents cache poisoning attacks on CDNs that don't respect Vary headers.
+        // Note: When no headers are present, expectedHash is empty string and client
+        // must send `_rsc` param, otherwise actualHash is null and hash check fails.
+        const url = new URL(req.url || '', 'http://localhost')
+        setCacheBustingSearchParamWithHash(url, expectedHash)
+        res.statusCode = 307
+        res.setHeader('location', `${url.pathname}${url.search}`)
         res.body('').send()
         return null
       }
@@ -2172,10 +2175,6 @@ export default abstract class Server<
      */
     const isPrefetchRSCRequest =
       getRequestMeta(req, 'isPrefetchRSCRequest') ?? false
-
-    // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
-
-    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     // when we are handling a middleware prefetch and it doesn't
     // resolve to a static data route we bail early to avoid
@@ -3034,7 +3033,9 @@ export default abstract class Server<
           fallbackResponse = await this.responseCache.get(
             isProduction ? (locale ? `/${locale}${pathname}` : pathname) : null,
             // This is the response generator for the fallback shell.
-            ({ previousCacheEntry: previousFallbackCacheEntry = null }) => {
+            async ({
+              previousCacheEntry: previousFallbackCacheEntry = null,
+            }) => {
               // For the pages router, fallbacks cannot be revalidated or
               // generated in production. In the case of a missing fallback,
               // we return null, but if it's being revalidated, we just return
@@ -3075,7 +3076,7 @@ export default abstract class Server<
           fallbackResponse = await this.responseCache.get(
             isProduction ? pathname : null,
             // This is the response generator for the fallback shell.
-            () =>
+            async () =>
               doRender({
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
@@ -3105,7 +3106,7 @@ export default abstract class Server<
         if (fallbackResponse) {
           // Remove the cache control from the response to prevent it from being
           // used in the surrounding cache.
-          fallbackResponse.cacheControl = undefined
+          delete fallbackResponse.cacheControl
 
           return fallbackResponse
         }
@@ -3270,9 +3271,15 @@ export default abstract class Server<
       cacheControl = { revalidate: 0, expire: undefined }
     }
 
-    // If this is a flight request that isn't a pre-fetch request while PPR is
-    // enabled, it cannot be cached as it contains dynamic content.
-    else if (isDynamicRSCRequest) {
+    // If this is in minimal mode and this is a flight request that isn't a
+    // prefetch request while PPR is enabled, it cannot be cached as it contains
+    // dynamic content.
+    else if (
+      this.minimalMode &&
+      isRSCRequest &&
+      !isPrefetchRSCRequest &&
+      isRoutePPREnabled
+    ) {
       cacheControl = { revalidate: 0, expire: undefined }
     } else if (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest)) {
       // If this is a preview mode request, we shouldn't cache it
@@ -3382,15 +3389,29 @@ export default abstract class Server<
 
     // If there's a callback for `onCacheEntry`, call it with the cache entry
     // and the revalidate options.
-    const onCacheEntry =
-      getRequestMeta(req, 'onCacheEntryV2') ??
-      // TODO: Remove this once we've migrated to `onCacheEntryV2`
-      getRequestMeta(req, 'onCacheEntry')
+    const onCacheEntry = getRequestMeta(req, 'onCacheEntry')
     if (onCacheEntry) {
-      const finished = await onCacheEntry(cacheEntry, {
-        url: getRequestMeta(req, 'initURL') ?? req.url,
-      })
-      if (finished) return null
+      const finished = await onCacheEntry(
+        {
+          ...cacheEntry,
+          // TODO: remove this when upstream doesn't
+          // always expect this value to be "PAGE"
+          value: {
+            ...cacheEntry.value,
+            kind:
+              cacheEntry.value?.kind === CachedRouteKind.APP_PAGE
+                ? 'PAGE'
+                : cacheEntry.value?.kind,
+          },
+        },
+        {
+          url: getRequestMeta(req, 'initURL'),
+        }
+      )
+      if (finished) {
+        // TODO: maybe we have to end the request?
+        return null
+      }
     }
 
     if (!cachedData) {
@@ -3506,7 +3527,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone.
-      if (didPostpone && !isDynamicRSCRequest) {
+      if (didPostpone) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -3524,7 +3545,14 @@ export default abstract class Server<
           return {
             type: 'rsc',
             body: cachedData.html,
-            cacheControl: cacheEntry.cacheControl,
+            // Dynamic RSC responses cannot be cached, even if they're
+            // configured with `force-static` because we have no way of
+            // distinguishing between `force-static` and pages that have no
+            // postponed state.
+            // TODO: distinguish `force-static` from pages with no postponed state (static)
+            cacheControl: isDynamicRSCRequest
+              ? { revalidate: 0, expire: undefined }
+              : cacheEntry.cacheControl,
           }
         }
 
@@ -3592,12 +3620,12 @@ export default abstract class Server<
       })
         .then(async (result) => {
           if (!result) {
-            throw new InvariantError('expected a result to be returned')
+            throw new Error('Invariant: expected a result to be returned')
           }
 
           if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
-            throw new InvariantError(
-              `expected a page response, got ${result.value?.kind}`
+            throw new Error(
+              `Invariant: expected a page response, got ${result.value?.kind}`
             )
           }
 

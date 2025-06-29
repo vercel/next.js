@@ -156,6 +156,9 @@ pub struct NapiProjectOptions {
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
     pub no_mangling: bool,
+
+    /// The version of Node.js that is available/currently running.
+    pub current_node_js_version: RcStr,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -261,6 +264,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             preview_props: val.preview_props.into(),
             browserslist_query: val.browserslist_query,
             no_mangling: val.no_mangling,
+            current_node_js_version: val.current_node_js_version,
         }
     }
 }

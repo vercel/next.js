@@ -271,6 +271,64 @@ Errors will bubble up to the nearest parent error boundary. This allows for gran
   height="687"
 />
 
+Error boundaries don’t catch errors inside event handlers. They’re designed to catch errors [during rendering](https://react.dev/reference/react/Component#static-getderivedstatefromerror) to show a **fallback UI** instead of crashing the whole app.
+
+In general, errors in event handlers or async code aren’t handled by error boundaries because they run after rendering.
+
+To handle these cases, catch the error manually and store it using `useState` or `useReducer`, then update the UI to inform the user.
+
+```tsx
+'use client'
+
+import { useState } from 'react'
+
+export function Button() {
+  const [error, setError] = useState(null)
+
+  const handleClick = () => {
+    try {
+      // do some work that might fail
+      throw new Error('Exception')
+    } catch (reason) {
+      setError(reason)
+    }
+  }
+
+  if (error) {
+    /* render fallback UI */
+  }
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Click me
+    </button>
+  )
+}
+```
+
+Note that unhandled errors inside `startTransition` from `useTransition`, will bubble up to the nearest error boundary.
+
+```tsx
+'use client'
+
+import { useTransition } from 'react'
+
+export function Button() {
+  const [pending, startTransition] = useTransition()
+
+  const handleClick = () =>
+    startTransition(() => {
+      throw new Error('Exception')
+    })
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Click me
+    </button>
+  )
+}
+```
+
 ### Global errors
 
 While less common, you can handle errors in the root layout using the [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error) file, located in the root app directory, even when leveraging [internationalization](/docs/app/guides/internationalization). Global error UI must define its own `<html>` and `<body>` tags, since it is replacing the root layout or template when active.

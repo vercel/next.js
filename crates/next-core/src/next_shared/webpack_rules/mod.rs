@@ -41,7 +41,7 @@ pub async fn webpack_loader_options(
 }
 
 #[turbo_tasks::function]
-async fn loader_runner_package_mapping() -> Result<Vc<ImportMapping>> {
+fn loader_runner_package_mapping() -> Result<Vc<ImportMapping>> {
     Ok(ImportMapping::Alternatives(vec![
         ImportMapping::External(
             Some("next/dist/compiled/loader-runner".into()),

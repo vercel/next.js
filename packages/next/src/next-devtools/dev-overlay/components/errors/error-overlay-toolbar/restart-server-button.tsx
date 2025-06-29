@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react'
 import { RefreshClockWise } from '../../../icons/refresh-clock-wise'
 
 /**
- * When the user reloads on a specific error and that error persists, we show
- * the restart server button as an option. This is because some errors are
- * recoverable by restarting the server and rebuilding the app.
- *
- * When Turbopack persistent cache is enabled, it will also clear the bundler
- * cache. This improves DX by replacing the need to run `rm -rf .next` manually.
+ * When the Turbopack persistent cache is enabled, and the user reloads on a
+ * specific error and that error persists, we show the restart server button as
+ * an option. This is because some errors are recoverable by clearing the
+ * bundler cache, but we want to provide a shortcut to do this and collect
+ * telemetry on how often this is used.
  */
 export function RestartServerButton({ error }: { error: Error }) {
   const [showButton, setShowButton] = useState(false)
@@ -32,14 +31,8 @@ export function RestartServerButton({ error }: { error: Error }) {
   }
 
   function handleClick() {
-    let endpoint = '/__nextjs_restart_dev'
-
-    if (process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE) {
-      endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
-    }
-
     // TODO: Use Client Action for transition indicator when DevTools is isolated.
-    fetch(endpoint, {
+    fetch('/__nextjs_restart_dev?invalidatePersistentCache', {
       method: 'POST',
     }).then(() => {
       // TODO: poll server status and reload when the server is back up.
@@ -51,14 +44,10 @@ export function RestartServerButton({ error }: { error: Error }) {
     <button
       className="restart-dev-server-button"
       onClick={handleClick}
-      title={
-        process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE
-          ? 'Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing.'
-          : 'Restarts the development server without needing to leave the browser.'
-      }
+      title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
     >
       <RefreshClockWise width={14} height={14} />
-      Restart Dev Server
+      Clear Bundler Cache &amp; Restart
     </button>
   )
 }

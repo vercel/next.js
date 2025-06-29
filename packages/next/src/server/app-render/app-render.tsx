@@ -194,6 +194,9 @@ import {
   trackPendingImport,
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
+import { isReactLargeShellError } from './react-large-shell-error'
+import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
+import { normalizeConventionFilePath } from './segment-explorer-path'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -794,7 +797,6 @@ async function getRSCPayload(
     query,
     appUsingSizeAdjustment,
     componentMod: {
-      GlobalError,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -873,7 +875,10 @@ async function getRSCPayload(
     </React.Fragment>
   )
 
-  const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
+  const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
+    tree,
+    ctx
+  )
 
   // Assume the head we're rendering contains only partial data if PPR is
   // enabled and this is a statically generated response. This is used by the
@@ -930,7 +935,6 @@ async function getErrorRSCPayload(
     query,
     appUsingSizeAdjustment,
     componentMod: {
-      GlobalError,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -1001,7 +1005,10 @@ async function getErrorRSCPayload(
     false,
   ]
 
-  const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
+  const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
+    tree,
+    ctx
+  )
 
   const isPossiblyPartialHead =
     workStore.isStaticGeneration &&
@@ -1092,7 +1099,7 @@ function App<T>({
       <ServerInsertedHTMLProvider>
         <AppRouter
           actionQueue={actionQueue}
-          globalErrorComponentAndStyles={response.G}
+          globalErrorState={response.G}
           assetPrefix={response.p}
           gracefullyDegrade={gracefullyDegrade}
         />
@@ -1149,7 +1156,7 @@ function ErrorApp<T>({
     <ServerInsertedHTMLProvider>
       <AppRouter
         actionQueue={actionQueue}
-        globalErrorComponentAndStyles={response.G}
+        globalErrorState={response.G}
         assetPrefix={response.p}
         gracefullyDegrade={gracefullyDegrade}
       />
@@ -1508,9 +1515,7 @@ async function renderToHTMLOrFlightImpl(
   } else {
     // We're rendering dynamically
     const renderResumeDataCache =
-      renderOpts.renderResumeDataCache ??
-      postponedState?.renderResumeDataCache ??
-      null
+      renderOpts.renderResumeDataCache ?? postponedState?.renderResumeDataCache
 
     const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
     const requestStore = createRequestStoreForRender(
@@ -1564,9 +1569,6 @@ async function renderToHTMLOrFlightImpl(
 
     let formState: null | any = null
     if (isPossibleActionRequest) {
-      // For action requests, we don't want to use the resume data cache.
-      requestStore.renderResumeDataCache = null
-
       // For action requests, we handle them differently with a special render result.
       const actionRequestResult = await handleAction({
         req,
@@ -1607,9 +1609,6 @@ async function renderToHTMLOrFlightImpl(
           }
         }
       }
-
-      // Restore the resume data cache
-      requestStore.renderResumeDataCache = renderResumeDataCache
     }
 
     const options: RenderResultOptions = {
@@ -2357,6 +2356,12 @@ async function spawnDynamicValidationInDev(
           return digest
         }
 
+        if (isReactLargeShellError(err)) {
+          // TODO: Aggregate
+          console.error(err)
+          return undefined
+        }
+
         if (initialServerPrerenderController.signal.aborted) {
           // The render aborted before this error was handled which indicates
           // the error is caused by unfinished components within the render
@@ -2465,6 +2470,12 @@ async function spawnDynamicValidationInDev(
             return digest
           }
 
+          if (isReactLargeShellError(err)) {
+            // TODO: Aggregate
+            console.error(err)
+            return undefined
+          }
+
           if (initialClientController.signal.aborted) {
             // These are expected errors that might error the prerender. we ignore them.
           } else if (
@@ -2556,6 +2567,12 @@ async function spawnDynamicValidationInDev(
                 return err.digest
               }
 
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
+              }
+
               return getDigestForWellKnownError(err)
             },
             signal: finalServerController.signal,
@@ -2630,6 +2647,12 @@ async function spawnDynamicValidationInDev(
                     )
                   }
                   return
+                }
+
+                if (isReactLargeShellError(err)) {
+                  // TODO: Aggregate
+                  console.error(err)
+                  return undefined
                 }
 
                 return getDigestForWellKnownError(err)
@@ -2956,6 +2979,12 @@ async function prerenderToStream(
               return digest
             }
 
+            if (isReactLargeShellError(err)) {
+              // TODO: Aggregate
+              console.error(err)
+              return undefined
+            }
+
             if (initialServerPrerenderController.signal.aborted) {
               // The render aborted before this error was handled which indicates
               // the error is caused by unfinished components within the render
@@ -3055,6 +3084,12 @@ async function prerenderToStream(
 
               if (digest) {
                 return digest
+              }
+
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
               }
 
               if (initialClientController.signal.aborted) {
@@ -3911,11 +3946,16 @@ async function prerenderToStream(
 const getGlobalErrorStyles = async (
   tree: LoaderTree,
   ctx: AppRenderContext
-): Promise<React.ReactNode | undefined> => {
+): Promise<{
+  GlobalError: GlobalErrorComponent
+  styles: React.ReactNode | undefined
+}> => {
   const {
     modules: { 'global-error': globalErrorModule },
   } = parseLoaderTree(tree)
 
+  const GlobalErrorComponent: GlobalErrorComponent =
+    ctx.componentMod.GlobalError
   let globalErrorStyles
   if (globalErrorModule) {
     const [, styles] = await createComponentStylesAndScripts({
@@ -3927,8 +3967,36 @@ const getGlobalErrorStyles = async (
     })
     globalErrorStyles = styles
   }
+  if (ctx.renderOpts.dev) {
+    const dir =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? process.env.__NEXT_EDGE_PROJECT_DIR!
+        : ctx.renderOpts.dir || ''
 
-  return globalErrorStyles
+    const globalErrorModulePath = normalizeConventionFilePath(
+      dir,
+      globalErrorModule?.[1]
+    )
+    if (ctx.renderOpts.devtoolSegmentExplorer && globalErrorModulePath) {
+      const SegmentViewNode = ctx.componentMod.SegmentViewNode
+      globalErrorStyles = (
+        // This will be rendered next to GlobalError component under ErrorBoundary,
+        // it requires a key to avoid React warning about duplicate keys.
+        <SegmentViewNode
+          key="ge-svn"
+          type="global-error"
+          pagePath={globalErrorModulePath}
+        >
+          {globalErrorStyles}
+        </SegmentViewNode>
+      )
+    }
+  }
+
+  return {
+    GlobalError: GlobalErrorComponent,
+    styles: globalErrorStyles,
+  }
 }
 
 async function collectSegmentData(

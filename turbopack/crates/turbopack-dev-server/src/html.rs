@@ -197,7 +197,7 @@ impl DevHtmlAssetContent {
 #[turbo_tasks::value_impl]
 impl DevHtmlAssetContent {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<AssetContent>> {
+    fn content(&self) -> Result<Vc<AssetContent>> {
         let mut scripts = Vec::new();
         let mut stylesheets = Vec::new();
 

@@ -408,7 +408,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
+    fn is_marked_as_side_effect_free(
         &self,
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {

@@ -19,6 +19,7 @@ import type {
   ManifestRedirectRoute,
   RouteType,
 } from '../build'
+import { isStableBuild } from '../shared/lib/canary-only'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -451,6 +452,11 @@ export interface ExperimentalConfig {
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   turbopackMinify?: boolean
+
+  /**
+   * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
+   */
+  turbopackScopeHoisting?: boolean
 
   /**
    * Enable persistent caching for the turbopack dev server and build.
@@ -1350,6 +1356,7 @@ export const defaultConfig = {
       static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
     },
     cssChunking: true,
+    devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
     multiZoneDraftMode: false,
     appNavFailHandling: false,
     prerenderEarlyExit: true,
@@ -1431,7 +1438,9 @@ export const defaultConfig = {
     viewTransition: false,
     routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
-    validateRSCRequestHeaders: false,
+    validateRSCRequestHeaders: !!(
+      process.env.__NEXT_TEST_MODE || !isStableBuild()
+    ),
     staleTimes: {
       dynamic: 0,
       static: 300,

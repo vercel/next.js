@@ -3,8 +3,8 @@ use std::{fmt, sync::Arc};
 use anyhow::{Result, anyhow};
 
 use crate::{
-    MagicAny, OutputContent, RawVc, TaskPersistence, TraitMethod, TurboTasksBackendApi,
-    ValueTypeId,
+    MagicAny, OutputContent, RawVc, TaskExecutionReason, TaskPersistence, TraitMethod,
+    TurboTasksBackendApi, ValueTypeId,
     backend::{Backend, TaskExecutionSpec, TypedCellContent},
     event::Event,
     macro_helpers::NativeFunction,
@@ -26,7 +26,7 @@ pub fn get_local_task_execution_spec<'a>(
 ) -> TaskExecutionSpec<'a> {
     match ty.task_type {
         LocalTaskType::Native { native_fn } => {
-            let span = native_fn.span(TaskPersistence::Local);
+            let span = native_fn.span(TaskPersistence::Local, TaskExecutionReason::Local);
             let entered = span.enter();
             let future = native_fn.execute(ty.this, &*ty.arg);
             drop(entered);

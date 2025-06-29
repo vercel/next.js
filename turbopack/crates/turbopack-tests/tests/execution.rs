@@ -30,13 +30,14 @@ use turbopack::{
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
-    chunk::ChunkingConfig,
+    chunk::{ChunkingConfig, MangleType, MinifyType},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    ident::Layer,
     issue::IssueDescriptionExt,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -242,6 +243,9 @@ async fn run_inner_operation(
 struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
     remove_unused_exports: Option<bool>,
+    scope_hoisting: Option<bool>,
+    #[serde(default)]
+    minify: bool,
 }
 
 #[turbo_tasks::value]
@@ -373,7 +377,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env),
+            environment: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
@@ -408,7 +412,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             ..Default::default()
         }
         .cell(),
-        rcstr!("test"),
+        Layer::new(rcstr!("test")),
     ));
 
     let chunking_context = NodeJsChunkingContext::builder(
@@ -435,6 +439,14 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             ..Default::default()
         },
     )
+    .module_merging(options.scope_hoisting.unwrap_or(true))
+    .minify_type(if options.minify {
+        MinifyType::Minify {
+            mangle: Some(MangleType::OptimalSize),
+        }
+    } else {
+        MinifyType::NoMinify
+    })
     .build();
 
     let jest_entry_source = FileSource::new(jest_entry_path);

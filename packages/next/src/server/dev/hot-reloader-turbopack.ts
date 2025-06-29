@@ -156,7 +156,7 @@ function getSourceMapFromTurbopack(
 }
 
 export async function createHotReloaderTurbopack(
-  opts: SetupOpts,
+  opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
   distDir: string,
   resetFetch: () => void
@@ -210,6 +210,8 @@ export async function createHotReloaderTurbopack(
     'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
   ]
 
+  const currentNodeJsVersion = process.versions.node
+
   const project = await bindings.turbo.createProject(
     {
       projectPath: projectPath,
@@ -243,6 +245,7 @@ export async function createHotReloaderTurbopack(
       previewProps: opts.fsChecker.prerenderManifest.preview,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling: false,
+      currentNodeJsVersion,
     },
     {
       persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
@@ -652,7 +655,11 @@ export async function createHotReloaderTurbopack(
   )
 
   const middlewares = [
-    getOverlayMiddleware(project, projectPath),
+    getOverlayMiddleware({
+      project,
+      projectPath,
+      isSrcDir: opts.isSrcDir,
+    }),
     getSourceMapMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),

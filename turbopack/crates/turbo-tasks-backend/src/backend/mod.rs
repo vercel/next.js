@@ -25,7 +25,8 @@ use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use turbo_tasks::{
     CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency, SessionId,
-    TRANSIENT_TASK_BIT, TaskId, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
+    ValueTypeId,
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
@@ -137,6 +138,9 @@ pub struct BackendOptions {
 
     /// Enables the backing storage.
     pub storage_mode: Option<StorageMode>,
+
+    /// Avoid big preallocations for faster startup. Should only be used for testing purposes.
+    pub small_preallocation: bool,
 }
 
 impl Default for BackendOptions {
@@ -146,6 +150,7 @@ impl Default for BackendOptions {
             children_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
+            small_preallocation: false,
         }
     }
 }
@@ -223,6 +228,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if !options.dependency_tracking {
             options.active_tracking = false;
         }
+        let small_preallocation = options.small_preallocation;
         Self {
             options,
             start_time: Instant::now(),
@@ -242,7 +248,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
             transient_tasks: FxDashMap::default(),
-            storage: Storage::new(),
+            storage: Storage::new(small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
             operations_suspended: Condvar::new(),
@@ -617,8 +623,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         // Output doesn't exist. We need to schedule the task to compute it.
-        let (item, listener) =
-            CachedDataItem::new_scheduled_with_listener(self.get_task_desc_fn(task_id), note);
+        let (item, listener) = CachedDataItem::new_scheduled_with_listener(
+            TaskExecutionReason::OutputNotAvailable,
+            self.get_task_desc_fn(task_id),
+            note,
+        );
         // It's not possible that the task is InProgress at this point. If it is InProgress {
         // done: true } it must have Output and would early return.
         task.add_new(item);
@@ -749,6 +758,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             bail!("{} was canceled", ctx.get_task_description(task_id));
         } else if !is_scheduled
             && task.add(CachedDataItem::new_scheduled(
+                TaskExecutionReason::CellNotAvailable,
                 self.get_task_desc_fn(task_id),
             ))
         {
@@ -1400,7 +1410,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(in_progress) = remove!(task, InProgress) {
             match in_progress {
-                InProgressState::Scheduled { done_event } => done_event.notify(usize::MAX),
+                InProgressState::Scheduled {
+                    done_event,
+                    reason: _,
+                } => done_event.notify(usize::MAX),
                 InProgressState::InProgress(box InProgressStateInner { done_event, .. }) => {
                     done_event.notify(usize::MAX)
                 }
@@ -1431,14 +1444,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         } else {
             return None;
         };
+        let execution_reason;
         {
             let mut ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id, TaskDataCategory::All);
             let in_progress = remove!(task, InProgress)?;
-            let InProgressState::Scheduled { done_event } = in_progress else {
+            let InProgressState::Scheduled { done_event, reason } = in_progress else {
                 task.add_new(CachedDataItem::InProgress { value: in_progress });
                 return None;
             };
+            execution_reason = reason;
             task.add_new(CachedDataItem::InProgress {
                 value: InProgressState::InProgress(Box::new(InProgressStateInner {
                     stale: false,
@@ -1533,7 +1548,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     arg,
                 } = &*task_type;
                 (
-                    native_fn.span(task_id.persistence()),
+                    native_fn.span(task_id.persistence(), execution_reason),
                     native_fn.execute(*this, &**arg),
                 )
             }
@@ -1613,7 +1628,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 unreachable!();
             };
             task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled { done_event },
+                value: InProgressState::Scheduled {
+                    done_event,
+                    reason: TaskExecutionReason::Stale,
+                },
             });
             // Remove old children from new_children to leave only the children that had their
             // active count increased
@@ -1781,7 +1799,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 unreachable!();
             };
             task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled { done_event },
+                value: InProgressState::Scheduled {
+                    done_event,
+                    reason: TaskExecutionReason::Stale,
+                },
             });
             drop(task);
 
@@ -1842,7 +1863,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // If the task is stale, reschedule it
         if stale {
             task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::Scheduled { done_event },
+                value: InProgressState::Scheduled {
+                    done_event,
+                    reason: TaskExecutionReason::Stale,
+                },
             });
             return true;
         }
@@ -2300,10 +2324,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     value: ActivenessState::new_root(root_type, task_id),
                 });
             }
-            task.add(CachedDataItem::new_scheduled(move || match root_type {
-                RootType::RootTask => "Root Task".to_string(),
-                RootType::OnceTask => "Once Task".to_string(),
-            }));
+            task.add(CachedDataItem::new_scheduled(
+                TaskExecutionReason::Initial,
+                move || match root_type {
+                    RootType::RootTask => "Root Task".to_string(),
+                    RootType::OnceTask => "Once Task".to_string(),
+                },
+            ));
         }
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().insert(task_id);

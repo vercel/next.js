@@ -116,7 +116,7 @@ impl Introspectable for SourceMapAsset {
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
         if let Some(asset) =
             ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.generate_source_map)

@@ -39,6 +39,7 @@ parking_lot = { workspace = true }
 pot = "3.0.0"
 rand = { workspace = true }
 rayon = { workspace = true }
+ringmap = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

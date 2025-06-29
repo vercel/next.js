@@ -114,7 +114,7 @@ export function createRequestStoreForRender(
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
-  renderResumeDataCache: RenderResumeDataCache | null
+  renderResumeDataCache: RenderResumeDataCache | undefined
 ): RequestStore {
   return createRequestStoreImpl(
     // Pages start in render phase by default
@@ -148,7 +148,7 @@ export function createRequestStoreForAPI(
     {},
     implicitTags,
     onUpdateCookies,
-    null,
+    undefined,
     previewProps,
     false,
     undefined
@@ -163,7 +163,7 @@ function createRequestStoreImpl(
   rootParams: Params,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  renderResumeDataCache: RenderResumeDataCache | null,
+  renderResumeDataCache: RenderResumeDataCache | undefined,
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
