@@ -10,9 +10,10 @@ export default async function Page(props: {
   return (
     <>
       <p>
-        This page accesses searchParams synchronously but it does so late enough
-        in the render that all unfinished sub-trees have a defined Suspense
-        boundary. This is fine and doesn't need to error the build.
+        This page accesses searchParams synchronously and it triggers dynamic
+        before another component is finished which doesn't define a fallback UI
+        with Suspense. This is considered a build error and the message should
+        clearly indicate that it was caused by a synchronous dynamic API usage.
       </p>
       <Suspense fallback={<Fallback />}>
         <IndirectionOne>
@@ -38,6 +39,11 @@ async function SearchParamsReadingComponent({
   const fooParams = (
     searchParams as unknown as UnsafeUnwrappedSearchParams<typeof searchParams>
   ).foo
+
+  console.log(
+    'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
+  )
+
   return (
     <div>
       this component read the accessed the `foo` search param: {fooParams}
