@@ -166,6 +166,7 @@ fn main() {
                                      Safari versions, last 1 Edge versions"
                     .into(),
                 no_mangling: false,
+                current_node_js_version: "18.0.0".into(),
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();

@@ -107,6 +107,7 @@ pub enum CompileTimeDefineValue {
     Bool(bool),
     String(RcStr),
     JSON(RcStr),
+    Undefined,
 }
 
 impl From<bool> for CompileTimeDefineValue {

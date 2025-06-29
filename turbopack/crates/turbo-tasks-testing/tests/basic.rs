@@ -54,7 +54,7 @@ async fn func_persistent(input: Vc<Value>) -> Result<Vc<Value>> {
 }
 
 #[turbo_tasks::function]
-async fn func_without_args() -> Result<Vc<Value>> {
+fn func_without_args() -> Result<Vc<Value>> {
     println!("func_without_args");
     let value = 123;
     Ok(Value { value }.cell())
@@ -68,7 +68,7 @@ async fn nested_func_without_args_waiting() -> Result<Vc<Value>> {
 }
 
 #[turbo_tasks::function]
-async fn nested_func_without_args_non_waiting() -> Result<Vc<Value>> {
+fn nested_func_without_args_non_waiting() -> Result<Vc<Value>> {
     println!("nested_func_without_args_non_waiting");
     Ok(func_without_args())
 }

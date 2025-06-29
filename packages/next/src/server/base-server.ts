@@ -170,6 +170,8 @@ import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
+import { RedirectStatusCode } from '../client/components/redirect-status-code'
+import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -2054,6 +2056,8 @@ export default abstract class Server<
     const isPossibleServerAction = getIsPossibleServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
+    // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
+    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     // Not all CDNs respect the Vary header when caching. We must assume that
     // only the URL is used to vary the responses. The Next client computes a
@@ -2061,20 +2065,10 @@ export default abstract class Server<
     // responding to a request, we must verify that the hash matches the
     // expected value. Neglecting to do this properly can lead to cache
     // poisoning attacks on certain CDNs.
-    // TODO: This is verification only runs during per-segment prefetch
-    // requests, since those are the only ones that both vary on a custom
-    // header and are cacheable. But for safety, we should run this
-    // verification for all requests, once we confirm the behavior is correct.
-    // Will need to update our test suite, since there are a handlful of unit
-    // tests that send fetch requests with custom headers but without a
-    // corresponding cache-busting search param.
-    // TODO: Consider not using custom request headers at all, and instead fully
-    // encode everything into the search param.
     if (
       !this.minimalMode &&
       this.nextConfig.experimental.validateRSCRequestHeaders &&
-      this.isAppSegmentPrefetchEnabled &&
-      getRequestMeta(req, 'segmentPrefetchRSCRequest')
+      isRSCRequest
     ) {
       const headers = req.headers
       const expectedHash = computeCacheBustingSearchParam(
@@ -2083,12 +2077,22 @@ export default abstract class Server<
         headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()],
         headers[NEXT_URL.toLowerCase()]
       )
-      const actualHash = getRequestMeta(req, 'cacheBustingSearchParam') ?? null
+      const actualHash =
+        getRequestMeta(req, 'cacheBustingSearchParam') ??
+        new URL(req.url || '', 'http://localhost').searchParams.get(
+          NEXT_RSC_UNION_QUERY
+        )
+
       if (expectedHash !== actualHash) {
         // The hash sent by the client does not match the expected value.
-        // Respond with an error.
-        res.statusCode = 400
-        res.setHeader('content-type', 'text/plain')
+        // Redirect to the URL with the correct cache-busting search param.
+        // This prevents cache poisoning attacks on CDNs that don't respect Vary headers.
+        // Note: When no headers are present, expectedHash is empty string and client
+        // must send `_rsc` param, otherwise actualHash is null and hash check fails.
+        const url = new URL(req.url || '', 'http://localhost')
+        setCacheBustingSearchParamWithHash(url, expectedHash)
+        res.statusCode = 307
+        res.setHeader('location', `${url.pathname}${url.search}`)
         res.body('').send()
         return null
       }
@@ -2171,10 +2175,6 @@ export default abstract class Server<
      */
     const isPrefetchRSCRequest =
       getRequestMeta(req, 'isPrefetchRSCRequest') ?? false
-
-    // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
-
-    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     // when we are handling a middleware prefetch and it doesn't
     // resolve to a static data route we bail early to avoid
@@ -2637,11 +2637,23 @@ export default abstract class Server<
             const parsedInitUrl = parseUrl(
               getRequestMeta(req, 'initURL') || req.url
             )
-            request.url = `${parsedInitUrl.pathname?.replace(/(\.prefetch\.rsc|\.rsc)$/, '')}${parsedInitUrl.search || ''}`
+            let initPathname = parsedInitUrl.pathname || '/'
+
+            for (const normalizer of [
+              this.normalizers.segmentPrefetchRSC,
+              this.normalizers.prefetchRSC,
+              this.normalizers.rsc,
+            ]) {
+              if (normalizer?.match(initPathname)) {
+                initPathname = normalizer.normalize(initPathname)
+              }
+            }
+            request.url = `${initPathname}${parsedInitUrl.search || ''}`
 
             // propagate the request context for dev
             setRequestMeta(request, getRequestMeta(req))
             addRequestMeta(request, 'projectDir', this.dir)
+            addRequestMeta(request, 'distDir', this.distDir)
             addRequestMeta(request, 'isIsrFallback', pagesFallback)
             addRequestMeta(request, 'query', query)
             addRequestMeta(request, 'params', opts.params)
@@ -3502,6 +3514,16 @@ export default abstract class Server<
       // behind the experimental PPR flag.
       if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
         res.statusCode = cachedData.status
+      }
+
+      // Redirect information is encoded in RSC payload, so we don't need to use redirect status codes
+      if (
+        !this.minimalMode &&
+        cachedData.status &&
+        RedirectStatusCode[cachedData.status] &&
+        isRSCRequest
+      ) {
+        res.statusCode = 200
       }
 
       // Mark that the request did postpone.

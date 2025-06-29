@@ -81,7 +81,7 @@ pub const TURBOPACK_REQUIRE_REAL: &TurbopackRuntimeFunctionShortcut =
 
 /// Adding an entry to this list will automatically ensure that `__turbopack_XXX__` can be called
 /// from user code (by inserting a replacement into free_var_references)
-pub const TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 21] = [
+pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 21] = [
     ("__turbopack_require__", TURBOPACK_REQUIRE),
     ("__turbopack_module_context__", TURBOPACK_MODULE_CONTEXT),
     ("__turbopack_import__", TURBOPACK_IMPORT),

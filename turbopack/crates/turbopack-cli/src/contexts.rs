@@ -21,6 +21,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
+    ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
 };
 use turbopack_node::{
@@ -111,7 +112,7 @@ async fn get_client_module_options_context(
 ) -> Result<Vc<ModuleOptionsContext>> {
     let is_dev = matches!(*node_env.await?, NodeEnv::Development);
     let module_options_context = ModuleOptionsContext {
-        preset_env_versions: Some(env),
+        environment: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         keep_last_successful_parse: is_dev,
@@ -192,7 +193,7 @@ pub fn get_client_asset_context(
         compile_time_info,
         module_options_context,
         resolve_options_context,
-        rcstr!("client"),
+        Layer::new_with_user_friendly_name(rcstr!("client"), rcstr!("Pages Router Client")),
     ));
 
     asset_context

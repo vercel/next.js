@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{State, Vc};
+use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -58,9 +58,51 @@ async fn recompute() {
     .unwrap()
 }
 
+#[tokio::test]
+async fn immutable_analysis() {
+    run(&REGISTRATION, || async {
+        let input = ChangingInput {
+            state: State::new(1),
+        }
+        .resolved_cell();
+
+        // Verify
+
+        let vc_holder = VcHolder { vc: input }.resolved_cell();
+        let read = vc_holder.compute().strongly_consistent().await?;
+        assert_eq!(read.state_value, 1);
+        assert_eq!(read.state_value2, 1);
+        let random_value = read.random_value;
+
+        println!("changing input1");
+        input.await?.state.set(30);
+        let read = vc_holder.compute().strongly_consistent().await?;
+        assert_eq!(read.state_value, 30);
+        assert_eq!(read.state_value2, 42);
+        assert_ne!(read.random_value, random_value);
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
 #[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
+}
+
+#[turbo_tasks::value]
+struct VcHolder {
+    vc: ResolvedVc<ChangingInput>,
+}
+
+#[turbo_tasks::value_impl]
+impl VcHolder {
+    #[turbo_tasks::function]
+    fn compute(&self) -> Vc<Output> {
+        compute(*self.vc, *self.vc)
+    }
 }
 
 #[turbo_tasks::value]

@@ -36,7 +36,7 @@ pub struct EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    pub(crate) async fn new(
+    pub(crate) fn new(
         chunking_context: ResolvedVc<BrowserChunkingContext>,
         chunk: ResolvedVc<EcmascriptBrowserChunk>,
         content: ResolvedVc<EcmascriptChunkContent>,

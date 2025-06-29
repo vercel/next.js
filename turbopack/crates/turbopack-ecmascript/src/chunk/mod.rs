@@ -142,7 +142,7 @@ impl Chunk for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    async fn chunk_items(&self) -> Vc<ChunkItems> {
+    fn chunk_items(&self) -> Vc<ChunkItems> {
         self.content.included_chunk_items()
     }
 }

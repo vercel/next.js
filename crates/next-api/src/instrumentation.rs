@@ -216,7 +216,7 @@ impl InstrumentationEndpoint {
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(*this.project, *chunk, vec![])
+                    NftJsonAsset::new(*this.project, None, *chunk, vec![])
                         .to_resolved()
                         .await?,
                 ));

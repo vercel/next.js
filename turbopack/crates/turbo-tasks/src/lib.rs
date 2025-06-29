@@ -75,9 +75,9 @@ mod serialization_invalidation;
 pub mod small_duration;
 mod state;
 pub mod task;
+mod task_execution_reason;
 pub mod task_statistics;
 pub mod trace;
-mod trait_helpers;
 mod trait_ref;
 mod triomphe_utils;
 pub mod util;
@@ -95,8 +95,7 @@ pub use completion::{Completion, Completions};
 pub use display::ValueToString;
 pub use effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects};
 pub use id::{
-    ExecutionId, FunctionId, LocalTaskId, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId,
-    ValueTypeId,
+    ExecutionId, LocalTaskId, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
 };
 pub use invalidation::{
     DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
@@ -122,6 +121,7 @@ pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
 pub use state::{State, TransientState};
 pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
+pub use task_execution_reason::TaskExecutionReason;
 pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{TaskInput, function, value_impl};
 pub use value::{TransientInstance, TransientValue};

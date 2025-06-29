@@ -1,32 +1,26 @@
-import { createNext, FileRef } from 'e2e-utils'
-import webdriver, { Playwright } from 'next-webdriver'
-import { NextInstance } from 'e2e-utils'
+import { FileRef } from 'e2e-utils'
+import { Playwright } from 'next-webdriver'
+import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { retry } from 'next-test-utils'
+import { openDevToolsIndicatorPopover, retry } from 'next-test-utils'
 
 describe('client-dev-overlay', () => {
-  let next: NextInstance
-  let browser: Playwright
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-      },
-      env: {
-        // Disable the cooldown period for the dev indicator so that hiding the indicator in a test doesn't
-        // impact subsequent tests.
-        __NEXT_DEV_INDICATOR_COOLDOWN_MS: '0',
-      },
-    })
+  const { next, isTurbopack } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+    },
+    env: {
+      // Disable the cooldown period for the dev indicator so that hiding the indicator in a test doesn't
+      // impact subsequent tests.
+      __NEXT_DEV_INDICATOR_COOLDOWN_MS: '0',
+    },
   })
-  beforeEach(async () => {
-    browser = await webdriver(next.url, '')
-  })
-  afterAll(() => next.destroy())
 
   // The `Playwright.hasElementByCssSelector` cannot be used for elements inside a shadow DOM.
-  function elementExistsInNextJSPortalShadowDOM(selector: string) {
+  function elementExistsInNextJSPortalShadowDOM(
+    browser: Playwright,
+    selector: string
+  ) {
     return browser.eval(
       `!!document.querySelector('nextjs-portal').shadowRoot.querySelector('${selector}')`
     ) as any
@@ -40,45 +34,51 @@ describe('client-dev-overlay', () => {
     preferencesButton: '[data-preferences]',
     hideButton: '[data-hide-dev-tools]',
   }
-  function getToast() {
+  function getToast(browser: Playwright) {
     return browser.elementByCss(selectors.toast)
   }
-  function getPopover() {
+  function getPopover(browser: Playwright) {
     return browser.elementByCss(selectors.popover)
   }
-  function getMinimizeButton() {
+  function getMinimizeButton(browser: Playwright) {
     return browser.elementByCss(selectors.minimizeButton)
   }
-  function getHideButton() {
+  function getHideButton(browser: Playwright) {
     return browser.elementByCss(selectors.hideButton)
   }
-  function getPreferencesButton() {
+  function getPreferencesButton(browser: Playwright) {
     return browser.elementByCss(selectors.preferencesButton)
   }
 
   it('should be able to fullscreen the minimized overlay', async () => {
-    await getMinimizeButton().click()
-    await getToast().click()
+    const browser = await next.browser('/')
+    await getMinimizeButton(browser).click()
+    await getToast(browser).click()
 
     await retry(async () => {
       expect(
-        await elementExistsInNextJSPortalShadowDOM(selectors.fullScreenDialog)
+        await elementExistsInNextJSPortalShadowDOM(
+          browser,
+          selectors.fullScreenDialog
+        )
       ).toBe(true)
     })
   })
 
   it('should be able to minimize the fullscreen overlay', async () => {
-    await getMinimizeButton().click()
-    expect(await elementExistsInNextJSPortalShadowDOM(selectors.toast)).toBe(
-      true
-    )
+    const browser = await next.browser('/')
+    await getMinimizeButton(browser).click()
+    expect(
+      await elementExistsInNextJSPortalShadowDOM(browser, selectors.toast)
+    ).toBe(true)
   })
 
   it('should keep the error indicator visible when there are errors', async () => {
-    await getMinimizeButton().click()
-    await getPopover().click()
-    await getPreferencesButton().click()
-    await getHideButton().click()
+    const browser = await next.browser('/')
+    await getMinimizeButton(browser).click()
+    await getPopover(browser).click()
+    await getPreferencesButton(browser).click()
+    await getHideButton(browser).click()
 
     await retry(async () => {
       const display = await browser.eval(
@@ -89,16 +89,17 @@ describe('client-dev-overlay', () => {
   })
 
   it('should be possible to hide the minimized overlay when there are no errors', async () => {
+    const browser = await next.browser('/')
     const originalContent = await next.readFile('pages/index.js')
     try {
       await next.patchFile('pages/index.js', (content) => {
         return content.replace(`throw Error('example runtime error')`, '')
       })
 
-      await getMinimizeButton().click()
-      await getPopover().click()
-      await getPreferencesButton().click()
-      await getHideButton().click()
+      await getMinimizeButton(browser).click()
+      await getPopover(browser).click()
+      await getPreferencesButton(browser).click()
+      await getHideButton(browser).click()
 
       await retry(async () => {
         const display = await browser.eval(
@@ -112,10 +113,39 @@ describe('client-dev-overlay', () => {
   })
 
   it('should have a role of "dialog" if the page is focused', async () => {
+    const browser = await next.browser('/')
     await retry(async () => {
       expect(
-        await elementExistsInNextJSPortalShadowDOM('[role="dialog"]')
+        await elementExistsInNextJSPortalShadowDOM(browser, '[role="dialog"]')
       ).toBe(true)
     })
+  })
+
+  it('should nudge to use Turbopack unless Turbopack is disabled', async () => {
+    const browser = await next.browser('/')
+
+    await openDevToolsIndicatorPopover(browser)
+
+    const devtoolsMenu = await browser.elementByCss('#nextjs-dev-tools-menu')
+    if (isTurbopack) {
+      expect(await devtoolsMenu.innerText()).toMatchInlineSnapshot(`
+       "Issues
+       1
+       Route
+       Static
+       Turbopack
+       Enabled
+       Preferences"
+      `)
+    } else {
+      expect(await devtoolsMenu.innerText()).toMatchInlineSnapshot(`
+       "Issues
+       1
+       Route
+       Static
+       Try Turbopack
+       Preferences"
+      `)
+    }
   })
 })

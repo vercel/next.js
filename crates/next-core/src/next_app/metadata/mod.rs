@@ -276,7 +276,12 @@ fn format_radix(mut x: u32, radix: u32) -> String {
     }
 
     result.reverse();
-    result[..6].iter().collect()
+
+    // We only need the first 6 characters of the hash but sometimes the hash is too short.
+    // In JavaScript, we use `toString(36).slice(0, 6)` to get the first 6 characters of the hash,
+    // but it will automatically take the minimum of the length of the hash and 6. Rust will panic.
+    let len = result.len().min(6);
+    result[..len].iter().collect()
 }
 
 /// If there's special convention like (...) or @ in the page path,
@@ -360,7 +365,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 
 #[cfg(test)]
 mod test {
-    use super::normalize_metadata_route;
+    use super::{djb2_hash, format_radix, normalize_metadata_route};
     use crate::next_app::AppPage;
 
     #[test]
@@ -384,5 +389,11 @@ mod test {
 
             assert_eq!(&normalized.to_string(), expected);
         }
+    }
+
+    #[test]
+    fn test_format_radix_doesnt_panic_with_result_less_than_6_characters() {
+        let hash = format_radix(djb2_hash("/lookup/[domain]/(dns)"), 36);
+        assert!(hash.len() < 6);
     }
 }

@@ -12,8 +12,7 @@ use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, ValueToString, Vc,
-    apply_effects,
+    ReadConsistency, ReadRef, ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
@@ -23,7 +22,7 @@ use turbo_tasks_fs::{
 };
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::{EcmascriptInputTransform, TreeShakingMode},
+    ecmascript::{EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType},
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         ModuleRule, ModuleRuleEffect, RuleCondition,
@@ -33,7 +32,7 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
         EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
@@ -43,6 +42,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     free_var_references,
+    ident::Layer,
     issue::IssueDescriptionExt,
     module::Module,
     module_graph::{
@@ -98,6 +98,10 @@ struct SnapshotOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
     #[serde(default)]
     remove_unused_exports: bool,
+    #[serde(default)]
+    scope_hoisting: bool,
+    #[serde(default)]
+    production_chunking: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -125,6 +129,8 @@ impl Default for SnapshotOptions {
             environment: Default::default(),
             tree_shaking_mode: Default::default(),
             remove_unused_exports: false,
+            scope_hoisting: false,
+            production_chunking: false,
         }
     }
 }
@@ -304,14 +310,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             css: CssOptionsContext {
                 ..Default::default()
             },
-            preset_env_versions: Some(env),
+            environment: Some(env),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
-                    remove_unused_exports: options.remove_unused_exports,
                     css: CssOptionsContext {
                         ..Default::default()
                     },
+                    environment: Some(env),
+                    tree_shaking_mode: options.tree_shaking_mode,
+                    remove_unused_exports: options.remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
@@ -326,12 +334,12 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             enable_typescript: true,
             enable_react: true,
             enable_node_modules: Some(project_root),
-            custom_conditions: vec!["development".into()],
+            custom_conditions: vec![rcstr!("development")],
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root),
-                    custom_conditions: vec!["development".into()],
+                    custom_conditions: vec![rcstr!("development")],
                     ..Default::default()
                 }
                 .resolved_cell(),
@@ -339,7 +347,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             ..Default::default()
         }
         .cell(),
-        rcstr!("test"),
+        Layer::new(rcstr!("test")),
     ));
 
     let runtime_entries = maybe_load_env(asset_context, *project_path)
@@ -350,8 +358,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let static_root_path = project_path.join(rcstr!("static")).to_resolved().await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
-        Runtime::Browser => Vc::upcast(
-            BrowserChunkingContext::builder(
+        Runtime::Browser => {
+            let mut builder = BrowserChunkingContext::builder(
                 project_root,
                 project_path,
                 project_path_to_project_root,
@@ -361,10 +369,23 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .build(),
-        ),
-        Runtime::NodeJs => Vc::upcast(
-            NodeJsChunkingContext::builder(
+            .module_merging(options.scope_hoisting);
+
+            if options.production_chunking {
+                builder = builder.chunking_config(
+                    Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                    ChunkingConfig {
+                        min_chunk_size: 2_000,
+                        max_chunk_count_per_group: 40,
+                        max_merge_chunk_size: 200_000,
+                        ..Default::default()
+                    },
+                )
+            }
+            Vc::upcast(builder.build())
+        }
+        Runtime::NodeJs => {
+            let mut builder = NodeJsChunkingContext::builder(
                 project_root,
                 project_path,
                 project_path_to_project_root,
@@ -375,8 +396,21 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 options.runtime_type,
             )
             .minify_type(options.minify_type)
-            .build(),
-        ),
+            .module_merging(options.scope_hoisting);
+
+            if options.production_chunking {
+                builder = builder.chunking_config(
+                    Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                    ChunkingConfig {
+                        min_chunk_size: 2_000,
+                        max_chunk_count_per_group: 40,
+                        max_merge_chunk_size: 200_000,
+                        ..Default::default()
+                    },
+                )
+            }
+            Vc::upcast(builder.build())
+        }
     };
 
     let expected_paths = expected(*chunk_root_path)
@@ -493,11 +527,7 @@ async fn walk_asset(
             .await?
             .iter()
             .copied()
-            .map(|asset| async move { Ok(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>(asset)) })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten(),
+            .flat_map(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>),
     );
 
     Ok(())

@@ -57,7 +57,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
-    ident::AssetIdent,
+    ident::{AssetIdent, Layer},
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
@@ -242,6 +242,7 @@ impl AppProject {
             self.project().next_config(),
             NextRuntime::NodeJs,
             self.project().encryption_key(),
+            self.project().server_compile_time_info().environment(),
         ))
     }
 
@@ -255,6 +256,7 @@ impl AppProject {
             self.project().next_config(),
             NextRuntime::Edge,
             self.project().encryption_key(),
+            self.project().edge_compile_time_info().environment(),
         ))
     }
 
@@ -268,6 +270,7 @@ impl AppProject {
             self.project().next_config(),
             NextRuntime::NodeJs,
             self.project().encryption_key(),
+            self.project().server_compile_time_info().environment(),
         ))
     }
 
@@ -281,6 +284,7 @@ impl AppProject {
             self.project().next_config(),
             NextRuntime::Edge,
             self.project().encryption_key(),
+            self.project().edge_compile_time_info().environment(),
         ))
     }
 
@@ -425,7 +429,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+    fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         Ok(ModuleAssetContext::new(
             self.get_rsc_transitions(
                 self.ecmascript_client_reference_transition(),
@@ -435,12 +439,12 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
-            rcstr!("app-rsc"),
+            Layer::new_with_user_friendly_name(rcstr!("app-rsc"), rcstr!("Server Component")),
         ))
     }
 
     #[turbo_tasks::function]
-    async fn edge_rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+    fn edge_rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         Ok(ModuleAssetContext::new(
             self.get_rsc_transitions(
                 self.edge_ecmascript_client_reference_transition(),
@@ -450,7 +454,10 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
-            rcstr!("app-edge-rsc"),
+            Layer::new_with_user_friendly_name(
+                rcstr!("app-edge-rsc"),
+                rcstr!("Edge Server Component"),
+            ),
         ))
     }
 
@@ -501,7 +508,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
-            rcstr!("app-route"),
+            Layer::new_with_user_friendly_name(rcstr!("app-route"), rcstr!("App Route")),
         ))
     }
 
@@ -551,7 +558,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
-            rcstr!("app-edge-route"),
+            Layer::new_with_user_friendly_name(rcstr!("app-edge-route"), rcstr!("Edge App Route")),
         ))
     }
 
@@ -578,7 +585,10 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            rcstr!("app-client"),
+            Layer::new_with_user_friendly_name(
+                rcstr!("app-client"),
+                rcstr!("Client Component Browser"),
+            ),
         ))
     }
 
@@ -592,6 +602,7 @@ impl AppProject {
             self.project().next_config(),
             NextRuntime::NodeJs,
             self.project().encryption_key(),
+            self.project().server_compile_time_info().environment(),
         ))
     }
 
@@ -605,6 +616,7 @@ impl AppProject {
             self.project().next_config(),
             NextRuntime::Edge,
             self.project().encryption_key(),
+            self.project().edge_compile_time_info().environment(),
         ))
     }
 
@@ -661,7 +673,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            rcstr!("app-ssr"),
+            Layer::new_with_user_friendly_name(rcstr!("app-ssr"), rcstr!("Client Component SSR")),
         ))
     }
 
@@ -672,7 +684,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+    fn shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 ..Default::default()
@@ -681,7 +693,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            rcstr!("app-shared"),
+            Layer::new(rcstr!("app-shared")),
         ))
     }
 
@@ -721,7 +733,10 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            rcstr!("app-edge-ssr"),
+            Layer::new_with_user_friendly_name(
+                rcstr!("app-edge-ssr"),
+                rcstr!("Client Component SSR - Edge"),
+            ),
         ))
     }
 
@@ -732,7 +747,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn edge_shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+    fn edge_shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 ..Default::default()
@@ -741,7 +756,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            rcstr!("app-edge-shared"),
+            Layer::new(rcstr!("app-edge-shared")),
         ))
     }
 
@@ -1664,9 +1679,11 @@ impl AppEndpoint {
                     .await?
                     .is_production()
                 {
+                    let page_name = app_entry.pathname.clone();
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             project,
+                            Some(page_name),
                             *rsc_chunk,
                             client_reference_manifest
                                 .iter()

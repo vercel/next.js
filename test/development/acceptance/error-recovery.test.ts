@@ -6,6 +6,7 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+const isRspack = !!process.env.NEXT_RSPACK
 
 describe('pages/ error recovery', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -55,7 +56,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -369,7 +370,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -454,7 +455,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -570,7 +571,7 @@ describe('pages/ error recovery', () => {
        ]
       `)
     } else {
-      if (process.env.NEXT_RSPACK) {
+      if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "nooo",
@@ -752,17 +753,17 @@ describe('pages/ error recovery', () => {
     )
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    if (process.env.NEXT_RSPACK) {
+    if (isRspack) {
       await expect(browser).toDisplayRedbox(`
             {
               "description": "no 1",
               "environmentLabel": null,
               "label": "Runtime Error",
-              "source": "index.js (5:9) @ <unknown>
+              "source": "index.js (5:9) @ eval
             > 5 |   throw Error('no ' + i)
                 |         ^",
               "stack": [
-                "<unknown> index.js (5:9)",
+                "eval index.js (5:9)",
               ],
             }
           `)
@@ -812,7 +813,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -880,7 +881,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",

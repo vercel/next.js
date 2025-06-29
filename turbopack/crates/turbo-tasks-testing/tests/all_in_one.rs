@@ -131,7 +131,7 @@ impl MyTrait for MyStructValue {
         self.to_string()
     }
     #[turbo_tasks::function]
-    async fn my_trait_function3(&self) -> Result<Vc<RcStr>> {
+    fn my_trait_function3(&self) -> Result<Vc<RcStr>> {
         if let Some(next) = self.next {
             return Ok(next.my_trait_function3());
         }

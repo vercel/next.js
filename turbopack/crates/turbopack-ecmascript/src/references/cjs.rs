@@ -40,7 +40,7 @@ pub struct CjsAssetReference {
 #[turbo_tasks::value_impl]
 impl CjsAssetReference {
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,

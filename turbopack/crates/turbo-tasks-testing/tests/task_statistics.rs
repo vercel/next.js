@@ -236,14 +236,14 @@ impl Doublable for WrappedU64 {
     }
 
     #[turbo_tasks::function]
-    async fn double_vc(&self) -> Result<Vc<Self>> {
+    fn double_vc(&self) -> Result<Vc<Self>> {
         let val = self.0;
         Ok(WrappedU64(val * 2).cell())
     }
 }
 
 #[turbo_tasks::function]
-async fn fail(val: u64) -> Result<Vc<()>> {
+fn fail(val: u64) -> Result<Vc<()>> {
     anyhow::bail!("failed using {val}");
 }
 

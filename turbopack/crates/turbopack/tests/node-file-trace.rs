@@ -42,6 +42,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    ident::Layer,
     output::OutputAsset,
     rebase::RebasedAsset,
     reference_type::ReferenceType,
@@ -284,7 +285,8 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
                 },
                 false,
             )
-            .unwrap(),
+            .unwrap()
+            .0,
         ))
     });
 }
@@ -336,14 +338,15 @@ async fn node_file_trace_operation(
     let output_dir = output_fs.root().to_resolved().await?;
 
     let source = FileSource::new(input);
+    let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+        NodeJsEnvironment::default().resolved_cell(),
+    ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
         // TODO It's easy to make a mistake here as this should match the config in the
         // binary. TODO These test cases should move into the
         // `node-file-trace` crate and use the same config.
-        CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironment::default().resolved_cell(),
-        ))),
+        CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 enable_types: true,
@@ -353,6 +356,9 @@ async fn node_file_trace_operation(
                 enable_raw_css: true,
                 ..Default::default()
             },
+            // Environment is not passed in order to avoid downleveling JS / CSS for
+            // node-file-trace.
+            environment: None,
             ..Default::default()
         }
         .cell(),
@@ -363,7 +369,7 @@ async fn node_file_trace_operation(
             ..Default::default()
         }
         .cell(),
-        rcstr!("test"),
+        Layer::new(rcstr!("test")),
     );
     let module = module_asset_context
         .process(Vc::upcast(source), ReferenceType::Undefined)

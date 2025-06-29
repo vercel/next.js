@@ -3,7 +3,7 @@ use std::{io::Write, iter::once};
 use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -187,7 +187,7 @@ impl Module for EcmascriptClientReferenceModule {
         Ok(self
             .server_ident
             .with_modifier(rcstr!("client reference proxy"))
-            .with_layer(self.server_asset_context.layer().owned().await?))
+            .with_layer(self.server_asset_context.into_trait_ref().await?.layer()))
     }
 
     #[turbo_tasks::function]

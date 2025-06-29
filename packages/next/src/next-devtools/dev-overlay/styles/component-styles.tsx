@@ -24,6 +24,21 @@ import { DEV_TOOLS_INFO_USER_PREFERENCES_STYLES } from '../components/errors/dev
 import { DEV_TOOLS_INFO_RENDER_FILES_STYLES } from '../components/overview/segment-explorer'
 import { FADER_STYLES } from '../components/fader'
 import { RESTART_SERVER_BUTTON_STYLES } from '../components/errors/error-overlay-toolbar/restart-server-button'
+import { DEVTOOLS_PANEL_STYLES } from '../components/devtools-panel/devtools-panel'
+import { DEVTOOLS_PANEL_FOOTER_STYLES } from '../components/devtools-panel/devtools-panel-footer'
+import { DEVTOOLS_PANEL_VERSION_INFO_STYLES } from '../components/devtools-panel/devtools-panel-version-info'
+import { DEVTOOLS_PANEL_TAB_SETTINGS_STYLES } from '../components/devtools-panel/devtools-panel-tab/settings-tab'
+import { CALL_STACK_STYLES } from '../components/call-stack/call-stack'
+import { DEVTOOLS_PANEL_TAB_ISSUES_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab'
+import { DEVTOOLS_PANEL_TAB_ISSUES_SIDEBAR_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-sidebar'
+import { DEVTOOLS_PANEL_TAB_ISSUES_SIDEBAR_FRAME_SKELETON_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-sidebar-frame-skeleton'
+import { DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-content'
+import { ISSUE_FEEDBACK_BUTTON_STYLES } from '../components/errors/error-overlay-toolbar/issue-feedback-button'
+import { ERROR_CONTENT_SKELETON_STYLES } from '../container/runtime-error/error-content-skeleton'
+import { SEGMENTS_EXPLORER_TAB_STYLES } from '../components/devtools-panel/devtools-panel-tab/segments-explorer-tab'
+import { SEGMENTS_EXPLORER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/segments-explorer'
+import { DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_LAYOUT_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-content-layout'
+import { DEVTOOLS_PANEL_TAB_ISSUES_EMPTY_CONTENT_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-empty-content'
 
 export function ComponentStyles() {
   return (
@@ -31,6 +46,7 @@ export function ComponentStyles() {
       {css`
         ${COPY_BUTTON_STYLES}
         ${CALL_STACK_FRAME_STYLES}
+        ${CALL_STACK_STYLES}
         ${ENVIRONMENT_NAME_LABEL_STYLES}
         ${overlay}
         ${toast}
@@ -52,8 +68,22 @@ export function ComponentStyles() {
         ${DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES}
         ${DEV_TOOLS_INFO_ROUTE_INFO_STYLES}
         ${DEV_TOOLS_INFO_USER_PREFERENCES_STYLES}
+        ${SEGMENTS_EXPLORER_STYLES}
         ${DEV_TOOLS_INFO_RENDER_FILES_STYLES}
         ${FADER_STYLES}
+        ${DEVTOOLS_PANEL_STYLES}
+        ${DEVTOOLS_PANEL_FOOTER_STYLES}
+        ${DEVTOOLS_PANEL_VERSION_INFO_STYLES}
+        ${DEVTOOLS_PANEL_TAB_SETTINGS_STYLES}
+        ${DEVTOOLS_PANEL_TAB_ISSUES_STYLES}
+        ${DEVTOOLS_PANEL_TAB_ISSUES_EMPTY_CONTENT_STYLES}
+        ${DEVTOOLS_PANEL_TAB_ISSUES_SIDEBAR_STYLES}
+        ${DEVTOOLS_PANEL_TAB_ISSUES_SIDEBAR_FRAME_SKELETON_STYLES}
+        ${DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_STYLES}
+        ${DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_LAYOUT_STYLES}
+        ${ISSUE_FEEDBACK_BUTTON_STYLES}
+        ${ERROR_CONTENT_SKELETON_STYLES}
+        ${SEGMENTS_EXPLORER_TAB_STYLES}
       `}
     </style>
   )

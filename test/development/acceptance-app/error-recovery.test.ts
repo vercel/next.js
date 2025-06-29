@@ -5,6 +5,8 @@ import { check } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
+const isRspack = !!process.env.NEXT_RSPACK
+
 describe('Error recovery app', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -50,6 +52,28 @@ describe('Error recovery app', () => {
        Parsing ecmascript source code failed
        > 1 | export default () => <div/
            |                           ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Unexpected eof
+               │    ,---- 
+               │  1 | export default () => <div/
+               │    \`----
+               │ 
+               │ 
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
@@ -547,19 +571,35 @@ describe('Error recovery app', () => {
     )
 
     await browser.eval('window.triggerError()')
-    await expect(browser).toDisplayCollapsedRedbox(`
-     {
-       "description": "no 1",
-       "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": "index.js (7:11) @ eval
-     >  7 |     throw Error('no ' + i)
-          |           ^",
-       "stack": [
-         "eval index.js (7:11)",
-       ],
-     }
-    `)
+    if (isRspack) {
+      await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "no 1",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "index.js (7:11) @ eval
+         > 7 |     throw Error('no ' + i)
+             |           ^",
+           "stack": [
+             "eval index.js (7:11)",
+           ],
+         }
+        `)
+    } else {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "no 1",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (7:11) @ eval
+       >  7 |     throw Error('no ' + i)
+            |           ^",
+         "stack": [
+           "eval index.js (7:11)",
+         ],
+       }
+      `)
+    }
 
     // Make a syntax error.
     await session.patch(
@@ -799,6 +839,34 @@ describe('Error recovery app', () => {
        Parsing ecmascript source code failed
        > 5 |     return <h1>Default Export</h1>;
            |     ^^^^^^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Expected '{', got 'return'
+               │    ,-[5:1]
+               │  2 |
+               │  3 | class ClassDefault extends React.Component {
+               │  4 |   render()
+               │  5 |     return <h1>Default Export</h1>;
+               │    :     ^^^^^^
+               │  6 |   }
+               │  7 | }
+               │    \`----
+               │ 
+               │ 
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)

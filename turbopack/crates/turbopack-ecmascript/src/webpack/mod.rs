@@ -110,7 +110,7 @@ impl ModuleReference for WebpackChunkAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for WebpackChunkAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
+    fn to_string(&self) -> Vc<RcStr> {
         let chunk_id = match &self.chunk_id {
             Lit::Str(str) => str.value.to_string(),
             Lit::Num(num) => format!("{num}"),

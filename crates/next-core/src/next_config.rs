@@ -98,6 +98,10 @@ pub struct NextConfig {
     pub output: Option<OutputType>,
     pub turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
+    output_file_tracing_includes: Option<serde_json::Value>,
+    output_file_tracing_excludes: Option<serde_json::Value>,
+    // TODO: This option is not respected, it uses Turbopack's root instead.
+    output_file_tracing_root: Option<RcStr>,
 
     /// Enables the bundling of node_modules packages (externals) for pages
     /// server-side bundles.
@@ -763,9 +767,6 @@ pub struct ExperimentalConfig {
     /// Automatically apply the "modularize_imports" optimization to imports of
     /// the specified packages.
     optimize_package_imports: Option<Vec<RcStr>>,
-    output_file_tracing_ignores: Option<Vec<RcStr>>,
-    output_file_tracing_includes: Option<serde_json::Value>,
-    output_file_tracing_root: Option<RcStr>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
@@ -795,10 +796,13 @@ pub struct ExperimentalConfig {
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
+    turbopack_scope_hoisting: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
     turbopack_remove_unused_exports: Option<bool>,
+    /// Devtool option for the segment explorer.
+    devtool_segment_explorer: Option<bool>,
 }
 
 #[derive(
@@ -1109,6 +1113,9 @@ pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 #[turbo_tasks::value(transparent)]
 pub struct OptionServerActions(Option<ServerActions>);
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionJsonValue(pub Option<serde_json::Value>);
+
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
@@ -1335,7 +1342,7 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn import_externals(&self) -> Result<Vc<bool>> {
+    pub fn import_externals(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(match self.experimental.esm_externals {
             Some(EsmExternals::Bool(b)) => b,
             Some(EsmExternals::Loose(_)) => bail!("esmExternals = \"loose\" is not supported"),
@@ -1592,7 +1599,16 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn client_source_maps(&self, _mode: Vc<NextMode>) -> Result<Vc<bool>> {
+    pub async fn turbo_scope_hoisting(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match *mode.await? {
+            // Ignore configuration in development mode to not break HMR
+            NextMode::Development => false,
+            NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
+        }))
+    }
+
+    #[turbo_tasks::function]
+    pub fn client_source_maps(&self, _mode: Vc<NextMode>) -> Result<Vc<bool>> {
         // Temporarily always enable client source maps as tests regress.
         // TODO: Respect both `self.experimental.turbopack_source_maps` and
         //       `self.production_browser_source_maps`
@@ -1601,19 +1617,29 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_source_maps(&self) -> Result<Vc<bool>> {
+    pub fn server_source_maps(&self) -> Result<Vc<bool>> {
         let source_maps = self.experimental.turbopack_source_maps;
         Ok(Vc::cell(source_maps.unwrap_or(true)))
     }
 
     #[turbo_tasks::function]
-    pub async fn typescript_tsconfig_path(&self) -> Result<Vc<Option<RcStr>>> {
+    pub fn typescript_tsconfig_path(&self) -> Result<Vc<Option<RcStr>>> {
         Ok(Vc::cell(
             self.typescript
                 .tsconfig_path
                 .as_ref()
                 .map(|path| path.to_owned().into()),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_file_tracing_includes(&self) -> Vc<OptionJsonValue> {
+        Vc::cell(self.output_file_tracing_includes.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_file_tracing_excludes(&self) -> Vc<OptionJsonValue> {
+        Vc::cell(self.output_file_tracing_excludes.clone())
     }
 }
 

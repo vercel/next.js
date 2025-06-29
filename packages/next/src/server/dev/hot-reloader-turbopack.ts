@@ -98,6 +98,7 @@ import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get
 import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
+import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -155,7 +156,7 @@ function getSourceMapFromTurbopack(
 }
 
 export async function createHotReloaderTurbopack(
-  opts: SetupOpts,
+  opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
   distDir: string,
   resetFetch: () => void
@@ -209,6 +210,8 @@ export async function createHotReloaderTurbopack(
     'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
   ]
 
+  const currentNodeJsVersion = process.versions.node
+
   const project = await bindings.turbo.createProject(
     {
       projectPath: projectPath,
@@ -242,12 +245,16 @@ export async function createHotReloaderTurbopack(
       previewProps: opts.fsChecker.prerenderManifest.preview,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling: false,
+      currentNodeJsVersion,
     },
     {
       persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
     }
   )
+  backgroundLogCompilationEvents(project, {
+    eventTypes: ['StartupCacheInvalidationEvent'],
+  })
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project, projectPath)
   )
@@ -648,7 +655,11 @@ export async function createHotReloaderTurbopack(
   )
 
   const middlewares = [
-    getOverlayMiddleware(project, projectPath),
+    getOverlayMiddleware({
+      project,
+      projectPath,
+      isSrcDir: opts.isSrcDir,
+    }),
     getSourceMapMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),

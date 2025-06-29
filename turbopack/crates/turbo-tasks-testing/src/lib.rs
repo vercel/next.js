@@ -4,7 +4,6 @@ pub mod retry;
 mod run;
 
 use std::{
-    borrow::Cow,
     future::Future,
     mem::replace,
     panic::AssertUnwindSafe,
@@ -21,7 +20,6 @@ use turbo_tasks::{
     backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
     event::{Event, EventListener},
     message_queue::CompilationEvent,
-    registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
 };
@@ -43,13 +41,13 @@ pub struct VcStorage {
 impl VcStorage {
     fn dynamic_call(
         &self,
-        func: turbo_tasks::FunctionId,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this_arg: Option<RawVc>,
         arg: Box<dyn MagicAny>,
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
         let handle = tokio::runtime::Handle::current();
-        let future = registry::get_function(func).execute(this_arg, &*arg);
+        let future = func.execute(this_arg, &*arg);
         let i = {
             let mut tasks = self.tasks.lock().unwrap();
             let i = tasks.len();
@@ -92,7 +90,7 @@ impl VcStorage {
 impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
-        func: turbo_tasks::FunctionId,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -101,7 +99,7 @@ impl TurboTasksCallApi for VcStorage {
     }
     fn native_call(
         &self,
-        _func: turbo_tasks::FunctionId,
+        _func: &'static turbo_tasks::macro_helpers::NativeFunction,
         _this: Option<RawVc>,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -111,8 +109,7 @@ impl TurboTasksCallApi for VcStorage {
 
     fn trait_call(
         &self,
-        _trait_type: turbo_tasks::TraitTypeId,
-        _trait_fn_name: Cow<'static, str>,
+        _trait_type: &'static turbo_tasks::TraitMethod,
         _this: RawVc,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -144,10 +141,6 @@ impl TurboTasksCallApi for VcStorage {
 }
 
 impl TurboTasksApi for VcStorage {
-    fn pin(&self) -> Arc<dyn TurboTasksApi> {
-        self.this.upgrade().unwrap()
-    }
-
     fn invalidate(&self, _task: TaskId) {
         unreachable!()
     }

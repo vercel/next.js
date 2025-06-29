@@ -39,12 +39,12 @@ fn fn_vc_arg(n: Vc<u32>) -> Vc<u32> {
 }
 
 #[turbo_tasks::function]
-async fn async_fn_plain() -> Result<Vc<u32>> {
+fn async_fn_plain() -> Result<Vc<u32>> {
     Ok(Vc::cell(42))
 }
 
 #[turbo_tasks::function]
-async fn async_fn_arg(n: u32) -> Result<Vc<u32>> {
+fn async_fn_arg(n: u32) -> Result<Vc<u32>> {
     Ok(Vc::cell(n))
 }
 
@@ -81,7 +81,7 @@ impl Value {
     }
 
     #[turbo_tasks::function]
-    async fn async_static_method() -> Result<Vc<u32>> {
+    fn async_static_method() -> Result<Vc<u32>> {
         Ok(Vc::cell(42))
     }
 
@@ -91,7 +91,7 @@ impl Value {
     }
 
     #[turbo_tasks::function]
-    async fn async_method(&self) -> Result<Vc<u32>> {
+    fn async_method(&self) -> Result<Vc<u32>> {
         Ok(Vc::cell(self.0))
     }
 
@@ -101,7 +101,7 @@ impl Value {
     }
 
     #[turbo_tasks::function]
-    async fn async_vc_method(&self) -> Result<Vc<u32>> {
+    fn async_vc_method(&self) -> Result<Vc<u32>> {
         Ok(Vc::cell(self.0))
     }
 }
@@ -162,7 +162,7 @@ trait ValueTrait {
         Vc::cell(42)
     }
     #[turbo_tasks::function]
-    async fn default_async_static_trait_method() -> Result<Vc<u32>> {
+    fn default_async_static_trait_method() -> Result<Vc<u32>> {
         Ok(Vc::cell(42))
     }
     #[turbo_tasks::function]
@@ -174,7 +174,7 @@ trait ValueTrait {
         Vc::cell(42)
     }
     #[turbo_tasks::function]
-    async fn default_async_trait_method(self: Vc<Self>) -> Result<Vc<u32>> {
+    fn default_async_trait_method(self: Vc<Self>) -> Result<Vc<u32>> {
         Ok(Vc::cell(42))
     }
 }
@@ -187,7 +187,7 @@ impl ValueTrait for Value {
     }
 
     #[turbo_tasks::function]
-    async fn async_static_trait_method() -> Result<Vc<u32>> {
+    fn async_static_trait_method() -> Result<Vc<u32>> {
         Ok(Vc::cell(42))
     }
 
@@ -197,7 +197,7 @@ impl ValueTrait for Value {
     }
 
     #[turbo_tasks::function]
-    async fn async_trait_method(&self) -> Result<Vc<u32>> {
+    fn async_trait_method(&self) -> Result<Vc<u32>> {
         Ok(Vc::cell(self.0))
     }
 }

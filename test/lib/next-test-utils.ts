@@ -1678,12 +1678,18 @@ export async function getStackFramesContent(browser) {
 }
 
 export async function toggleCollapseCallStackFrames(browser: Playwright) {
-  const button = await browser.elementByCss('[data-expand-ignore-button]')
-  const lastExpanded = await button.getAttribute('data-expand-ignore-button')
+  const button = await browser.elementByCss(
+    '[data-nextjs-call-stack-ignored-list-toggle-button]'
+  )
+  const lastExpanded = await button.getAttribute(
+    'data-nextjs-call-stack-ignored-list-toggle-button'
+  )
   await button.click()
 
   await retry(async () => {
-    const currExpanded = await button.getAttribute('data-expand-ignore-button')
+    const currExpanded = await button.getAttribute(
+      'data-nextjs-call-stack-ignored-list-toggle-button'
+    )
     expect(currExpanded).not.toBe(lastExpanded)
   })
 }

@@ -18,7 +18,6 @@ function shouldIgnorePath(modulePath) {
  */
 module.exports = ({ dev, ...rest }) => {
   const experimental = false
-  const turbo = false
 
   const bundledReactChannel = experimental ? '-experimental' : ''
 
@@ -52,24 +51,6 @@ module.exports = ({ dev, ...rest }) => {
     plugins: [
       // TODO: React Compiler
       new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
-      new webpack.DefinePlugin({
-        // TODO: Hardcode it and ensure module resolution resolves to .node entrypoint in Node.js
-        // 'typeof window': JSON.stringify('object'),
-        'process.env.NEXT_MINIMAL': JSON.stringify('true'),
-        'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
-        'this.minimalMode': JSON.stringify(true),
-        'this.renderOpts.dev': JSON.stringify(dev),
-        'renderOpts.dev': JSON.stringify(dev),
-        'process.env.NODE_ENV': JSON.stringify(
-          dev ? 'development' : 'production'
-        ),
-        'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
-          experimental ? true : false
-        ),
-        'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
-        'process.turbopack': JSON.stringify(turbo),
-        'process.env.TURBOPACK': JSON.stringify(turbo),
-      }),
     ].filter(Boolean),
     stats: {
       optimizationBailout: true,

@@ -21,10 +21,10 @@ use turbo_tasks::{
 use crate::{
     GitVersionInfo,
     backend::{AnyOperation, TaskDataCategory},
-    backing_storage::BackingStorage,
+    backing_storage::{BackingStorage, BackingStorageSealed},
     data::CachedDataItem,
     database::{
-        db_invalidation::{check_db_invalidation_and_cleanup, invalidate_db},
+        db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
         key_value_database::{KeySpace, KeyValueDatabase},
         write_batch::{
@@ -32,6 +32,7 @@ use crate::{
             WriteBuffer,
         },
     },
+    db_invalidation::invalidation_reasons,
     utils::chunked_vec::ChunkedVec,
 };
 
@@ -120,15 +121,21 @@ pub struct KeyValueDatabaseBackingStorageInner<T: KeyValueDatabase> {
     base_path: Option<PathBuf>,
     /// Used to skip calling [`invalidate_db`] when the database has already been invalidated.
     invalidated: Mutex<bool>,
+    /// We configure a panic hook to invalidate the cache. This guard cleans up our panic hook upon
+    /// drop.
     _panic_hook_guard: Option<PanicHookGuard>,
 }
 
 pub struct KeyValueDatabaseBackingStorage<T: KeyValueDatabase> {
+    // wrapped so that `register_panic_hook` can hold a weak reference to `inner`.
     inner: Arc<KeyValueDatabaseBackingStorageInner<T>>,
 }
 
+/// A wrapper type used by [`crate::turbo_backing_storage`] and [`crate::noop_backing_storage`].
+///
+/// Wraps a low-level key-value database into a higher-level [`BackingStorage`] type.
 impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
-    pub fn new_in_memory(database: T) -> Self {
+    pub(crate) fn new_in_memory(database: T) -> Self {
         Self {
             inner: Arc::new(KeyValueDatabaseBackingStorageInner {
                 database,
@@ -139,19 +146,30 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
         }
     }
 
-    pub fn open_versioned_on_disk(
+    /// Handles boilerplate logic for an on-disk persisted database with versioning.
+    ///
+    /// - Creates a directory per version, with a maximum number of old versions and performs
+    ///   automatic cleanup of old versions.
+    /// - Checks for a database invalidation marker file, and cleans up the database as needed.
+    /// - [Registers a dynamic panic hook][turbo_tasks::panic_hooks] to invalidate the database upon
+    ///   a panic. This invalidates the database using [`invalidation_reasons::PANIC`].
+    ///
+    /// Along with returning a [`KeyValueDatabaseBackingStorage`], this returns a
+    /// [`StartupCacheState`], which can be used by the application for logging information to the
+    /// user or telemetry about the cache.
+    pub(crate) fn open_versioned_on_disk(
         base_path: PathBuf,
         version_info: &GitVersionInfo,
         is_ci: bool,
         database: impl FnOnce(PathBuf) -> Result<T>,
-    ) -> Result<Self>
+    ) -> Result<(Self, StartupCacheState)>
     where
         T: Send + Sync + 'static,
     {
-        check_db_invalidation_and_cleanup(&base_path)?;
+        let startup_cache_state = check_db_invalidation_and_cleanup(&base_path)?;
         let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)?;
         let database = (database)(versioned_path)?;
-        Ok(Self {
+        let backing_storage = Self {
             inner: Arc::new_cyclic(
                 move |weak_inner: &Weak<KeyValueDatabaseBackingStorageInner<T>>| {
                     let panic_hook_guard = if should_invalidate_on_panic() {
@@ -164,7 +182,7 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
                             // or turbo-tasks failed, and it may be hard to recover. We don't want
                             // the cache to stick around, as that may persist bugs. Make a
                             // best-effort attempt to invalidate the database (ignoring failures).
-                            let _ = inner.invalidate();
+                            let _ = inner.invalidate(invalidation_reasons::PANIC);
                         })))
                     } else {
                         None
@@ -177,7 +195,8 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
                     }
                 },
             ),
-        })
+        };
+        Ok((backing_storage, startup_cache_state))
     }
 }
 
@@ -197,7 +216,7 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
         }
     }
 
-    fn invalidate(&self) -> Result<()> {
+    fn invalidate(&self, reason_code: &str) -> Result<()> {
         // `base_path` can be `None` for a `NoopKvDb`
         if let Some(base_path) = &self.base_path {
             // Invalidation could happen frequently if there's a bunch of panics. We only need to
@@ -212,7 +231,7 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
             // Invalidate first, as it's a very fast atomic operation. `prevent_writes` is allowed
             // to be slower (e.g. wait for a lock) and is allowed to corrupt the database with
             // partial writes.
-            invalidate_db(base_path)?;
+            invalidate_db(base_path, reason_code)?;
             self.database.prevent_writes();
             // Avoid redundant invalidations from future panics
             *invalidated_guard = true;
@@ -231,6 +250,14 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
 }
 
 impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
+    for KeyValueDatabaseBackingStorage<T>
+{
+    fn invalidate(&self, reason_code: &str) -> Result<()> {
+        self.inner.invalidate(reason_code)
+    }
+}
+
+impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
     for KeyValueDatabaseBackingStorage<T>
 {
     type ReadTransaction<'l> = T::ReadTransaction<'l>;
@@ -565,10 +592,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         inner
             .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, category))
             .with_context(|| format!("Looking up data for {task_id} from database failed"))
-    }
-
-    fn invalidate(&self) -> Result<()> {
-        self.inner.invalidate()
     }
 
     fn shutdown(&self) -> Result<()> {

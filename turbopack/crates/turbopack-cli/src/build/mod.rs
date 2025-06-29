@@ -342,23 +342,25 @@ async fn build_internal(
             match *node_env.await? {
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
-                    builder = builder.chunking_config(
-                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                        ChunkingConfig {
-                            min_chunk_size: 50_000,
-                            max_chunk_count_per_group: 40,
-                            max_merge_chunk_size: 200_000,
-                            ..Default::default()
-                        },
-                    );
-                    builder = builder.chunking_config(
-                        Vc::<CssChunkType>::default().to_resolved().await?,
-                        ChunkingConfig {
-                            max_merge_chunk_size: 100_000,
-                            ..Default::default()
-                        },
-                    );
-                    builder = builder.use_content_hashing(ContentHashing::Direct { length: 16 })
+                    builder = builder
+                        .chunking_config(
+                            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                            ChunkingConfig {
+                                min_chunk_size: 50_000,
+                                max_chunk_count_per_group: 40,
+                                max_merge_chunk_size: 200_000,
+                                ..Default::default()
+                            },
+                        )
+                        .chunking_config(
+                            Vc::<CssChunkType>::default().to_resolved().await?,
+                            ChunkingConfig {
+                                max_merge_chunk_size: 100_000,
+                                ..Default::default()
+                            },
+                        )
+                        .use_content_hashing(ContentHashing::Direct { length: 16 })
+                        .module_merging(true);
                 }
             }
 
@@ -386,22 +388,24 @@ async fn build_internal(
             match *node_env.await? {
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
-                    builder = builder.chunking_config(
-                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                        ChunkingConfig {
-                            min_chunk_size: 20_000,
-                            max_chunk_count_per_group: 100,
-                            max_merge_chunk_size: 100_000,
-                            ..Default::default()
-                        },
-                    );
-                    builder = builder.chunking_config(
-                        Vc::<CssChunkType>::default().to_resolved().await?,
-                        ChunkingConfig {
-                            max_merge_chunk_size: 100_000,
-                            ..Default::default()
-                        },
-                    );
+                    builder = builder
+                        .chunking_config(
+                            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                            ChunkingConfig {
+                                min_chunk_size: 20_000,
+                                max_chunk_count_per_group: 100,
+                                max_merge_chunk_size: 100_000,
+                                ..Default::default()
+                            },
+                        )
+                        .chunking_config(
+                            Vc::<CssChunkType>::default().to_resolved().await?,
+                            ChunkingConfig {
+                                max_merge_chunk_size: 100_000,
+                                ..Default::default()
+                            },
+                        )
+                        .module_merging(true);
                 }
             }
 

@@ -1,8 +1,10 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
 import { css } from '../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
-import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
 import type { DevToolsScale } from './dev-tools-info/preferences'
+import { useMinimumLoadingTimeMultiple } from '../../devtools-indicator/hooks/use-minimum-loading-time-multiple'
+import { useUpdateAnimation } from '../../devtools-indicator/hooks/use-update-animation'
+import { useMeasureWidth } from '../../devtools-indicator/hooks/use-measure-width'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
@@ -485,60 +487,6 @@ function AnimateCount({
       </div>
     </div>
   )
-}
-
-function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>): number {
-  const [width, setWidth] = useState<number>(0)
-
-  useEffect(() => {
-    const el = ref.current
-
-    if (!el) {
-      return
-    }
-
-    const observer = new ResizeObserver(([{ contentRect }]) => {
-      setWidth(contentRect.width)
-    })
-
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [ref])
-
-  return width
-}
-
-function useUpdateAnimation(issueCount: number, animationDurationMs = 0) {
-  const lastUpdatedTimeStamp = useRef<number | null>(null)
-  const [animate, setAnimate] = useState(false)
-
-  useEffect(() => {
-    if (issueCount > 0) {
-      const deltaMs = lastUpdatedTimeStamp.current
-        ? Date.now() - lastUpdatedTimeStamp.current
-        : -1
-      lastUpdatedTimeStamp.current = Date.now()
-
-      // We don't animate if `issueCount` changes too quickly
-      if (deltaMs <= animationDurationMs) {
-        return
-      }
-
-      setAnimate(true)
-      // It is important to use a CSS transitioned state, not a CSS keyframed animation
-      // because if the issue count increases faster than the animation duration, it
-      // will abruptly stop and not transition smoothly back to its original state.
-      const timeoutId = window.setTimeout(() => {
-        setAnimate(false)
-      }, animationDurationMs)
-
-      return () => {
-        clearTimeout(timeoutId)
-      }
-    }
-  }, [issueCount, animationDurationMs])
-
-  return animate
 }
 
 function NextMark({

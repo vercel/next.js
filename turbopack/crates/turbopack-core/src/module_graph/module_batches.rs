@@ -330,6 +330,7 @@ impl PreBatches {
                 |_, node, state| {
                     let item = PreBatchItem::ParallelModule(node.module);
                     state.items.push(item);
+                    Ok(())
                 },
             )
             .await?;

@@ -101,7 +101,7 @@ impl ModuleReference for TsReferencePathAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
+    fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(format!("typescript reference path comment {}", self.path,).into())
     }
 }
@@ -140,7 +140,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
+    fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(format!("typescript reference type comment {}", self.module,).into())
     }
 }

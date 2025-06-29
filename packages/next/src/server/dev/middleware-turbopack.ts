@@ -6,10 +6,9 @@ import {
   type OriginalStackFramesResponse,
 } from '../../next-devtools/server/shared'
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
-import fs, { constants as FS } from 'fs/promises'
 import path from 'path'
 import url from 'url'
-import { launchEditor } from '../../next-devtools/server/launch-editor'
+import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   SourceMapConsumer,
@@ -371,7 +370,15 @@ async function createOriginalStackFrame(
   }
 }
 
-export function getOverlayMiddleware(project: Project, projectPath: string) {
+export function getOverlayMiddleware({
+  project,
+  projectPath,
+  isSrcDir,
+}: {
+  project: Project
+  projectPath: string
+  isSrcDir: boolean
+}) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -421,23 +428,34 @@ export function getOverlayMiddleware(project: Project, projectPath: string) {
 
       return middlewareResponse.json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {
-      const frame = createStackFrame(searchParams)
+      const isAppRelativePath = searchParams.get('isAppRelativePath') === '1'
 
-      if (!frame) return middlewareResponse.badRequest(res)
-
-      const fileExists = await fs.access(frame.file, FS.F_OK).then(
-        () => true,
-        () => false
-      )
-      if (!fileExists) return middlewareResponse.notFound(res)
-
-      try {
-        launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
-      } catch (err) {
-        console.log('Failed to launch editor:', err)
-        return middlewareResponse.internalServerError(res)
+      let openEditorResult
+      if (isAppRelativePath) {
+        const relativeFilePath = searchParams.get('file') || ''
+        const absoluteFilePath = path.join(
+          projectPath,
+          'app',
+          isSrcDir ? 'src' : '',
+          relativeFilePath
+        )
+        openEditorResult = await openFileInEditor(absoluteFilePath, 1, 1)
+      } else {
+        const frame = createStackFrame(searchParams)
+        if (!frame) return middlewareResponse.badRequest(res)
+        openEditorResult = await openFileInEditor(
+          frame.file,
+          frame.line ?? 1,
+          frame.column ?? 1
+        )
       }
 
+      if (openEditorResult.error) {
+        return middlewareResponse.internalServerError(res)
+      }
+      if (!openEditorResult.found) {
+        return middlewareResponse.notFound(res)
+      }
       return middlewareResponse.noContent(res)
     }
 

@@ -573,7 +573,7 @@ export function createPatchedFetcher(
         const fetchIdx = workStore.nextFetchId ?? 1
         workStore.nextFetchId = fetchIdx + 1
 
-        let handleUnlock = () => Promise.resolve()
+        let handleUnlock: () => Promise<void> | void = () => {}
 
         const doOriginalFetch = async (
           isStale?: boolean,

@@ -103,20 +103,21 @@ describe('app-dir - capture-console-error-owner-stack', () => {
     const browser = await next.browser('/rsc')
 
     await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "description": "boom",
-         "environmentLabel": "Server",
-         "label": "Console Error",
-         "source": "app/rsc/page.js (2:17) @ Page
-       > 2 |   console.error(new Error('boom'))
-           |                 ^",
-         "stack": [
-           "Page app/rsc/page.js (2:17)",
-           "JSON.parse <anonymous> (0:0)",
-           "Page <anonymous> (0:0)",
-         ],
-       }
-      `)
+     {
+       "description": "boom",
+       "environmentLabel": "Server",
+       "label": "Console Error",
+       "source": "app/rsc/page.js (2:17) @ Page
+     > 2 |   console.error(new Error('boom'))
+         |                 ^",
+       "stack": [
+         "Page app/rsc/page.js (2:17)",
+         "JSON.parse <anonymous> (0:0)",
+         "JSON.parse <anonymous> (0:0)",
+         "Page <anonymous> (0:0)",
+       ],
+     }
+    `)
   })
 
   it('should display the error message in error event when event.error is not present', async () => {

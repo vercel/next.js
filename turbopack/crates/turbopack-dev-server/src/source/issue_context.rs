@@ -147,7 +147,7 @@ fn get_content_source_get_operation(
 #[turbo_tasks::value_impl]
 impl Introspectable for IssueFilePathContentSource {
     #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<RcStr>> {
+    fn ty(&self) -> Result<Vc<RcStr>> {
         Ok(
             if let Some(source) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source) {
                 source.ty()
@@ -170,7 +170,7 @@ impl Introspectable for IssueFilePathContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<RcStr>> {
+    fn details(&self) -> Result<Vc<RcStr>> {
         Ok(
             if let Some(source) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source) {
                 source.details()
@@ -181,7 +181,7 @@ impl Introspectable for IssueFilePathContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(
             if let Some(source) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source) {
                 source.children()

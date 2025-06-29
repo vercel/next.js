@@ -29,7 +29,7 @@ impl AvailableModules {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_modules(
+    pub fn with_modules(
         self: ResolvedVc<Self>,
         modules: ResolvedVc<AvailableModulesSet>,
     ) -> Result<Vc<Self>> {

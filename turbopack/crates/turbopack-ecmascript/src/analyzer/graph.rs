@@ -799,6 +799,9 @@ pub fn is_in_try(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
         .find_map(|ast_ref| match ast_ref.kind() {
             AstParentKind::ArrowExpr(ArrowExprField::Body) => Some(false),
             AstParentKind::Function(FunctionField::Body) => Some(false),
+            AstParentKind::Constructor(ConstructorField::Body) => Some(false),
+            AstParentKind::ClassMethod(ClassMethodField::Function) => Some(false),
+            AstParentKind::MethodProp(MethodPropField::Function) => Some(false),
             AstParentKind::TryStmt(TryStmtField::Block) => Some(true),
             _ => None,
         })
@@ -1912,6 +1915,36 @@ impl VisitAstPath for Analyzer<'_> {
                 in_try: is_in_try(ast_path),
             })
         }
+    }
+
+    fn visit_this_expr<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast ThisExpr,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        // TODO: would it be better to compute this while traversing?
+        // `this` is rebound within functions and class method members
+        if ast_path.iter().rev().any(|node| {
+            matches!(
+                node.kind(),
+                AstParentKind::MethodProp(MethodPropField::Function)
+                    | AstParentKind::Constructor(ConstructorField::Body)
+                    | AstParentKind::ClassMethod(ClassMethodField::Function)
+                    | AstParentKind::ClassDecl(ClassDeclField::Class)
+                    | AstParentKind::ClassExpr(ClassExprField::Class)
+                    | AstParentKind::Function(FunctionField::Body)
+            )
+        }) {
+            // We are in some scope that will rebind this
+            return;
+        }
+        // Otherwise 'this' is free
+        self.add_effect(Effect::FreeVar {
+            var: Box::new(JsValue::FreeVar(atom!("this"))),
+            ast_path: as_parent_path(ast_path),
+            span: node.span(),
+            in_try: is_in_try(ast_path),
+        })
     }
 
     fn visit_meta_prop_expr<'ast: 'r, 'r>(

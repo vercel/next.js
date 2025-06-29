@@ -47,6 +47,8 @@ impl ConstantValueCodeGen {
                 CompileTimeDefineValue::Bool(false) => quote!("(\"TURBOPACK compile-time value\", false)" as Expr),
                 CompileTimeDefineValue::String(ref s) => quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = s.to_string().into()),
                 CompileTimeDefineValue::JSON(ref s) => quote!("(\"TURBOPACK compile-time value\", JSON.parse($e))" as Expr, e: Expr = s.to_string().into()),
+                // undefined can be re-bound, so use `void 0` to avoid any risks
+                CompileTimeDefineValue::Undefined => quote!("(\"TURBOPACK compile-time value\", void 0)" as Expr),
             };
         });
 

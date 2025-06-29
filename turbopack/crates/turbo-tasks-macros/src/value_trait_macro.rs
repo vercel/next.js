@@ -5,14 +5,16 @@ use syn::{
     FnArg, ItemTrait, Pat, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
-    ValueTraitArguments, get_trait_default_impl_function_id_ident,
-    get_trait_default_impl_function_ident, get_trait_type_id_ident, get_trait_type_ident,
-    get_trait_type_vtable_registry, is_self_used,
+    ValueTraitArguments, get_trait_default_impl_function_ident, get_trait_type_id_ident,
+    get_trait_type_ident, get_trait_type_vtable_registry, is_self_used,
 };
 
-use crate::func::{
-    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-    split_function_attributes,
+use crate::{
+    func::{
+        DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+        split_function_attributes,
+    },
+    function_macro::is_immutable,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -165,8 +167,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         let turbo_signature = turbo_fn.signature();
-        let arg_types = turbo_fn.exposed_input_types();
-        let dynamic_block = turbo_fn.dynamic_block(&trait_type_id_ident);
+        let dynamic_block = turbo_fn.dynamic_block(&trait_type_ident);
         dynamic_trait_fns.push(quote! {
             #turbo_signature #dynamic_block
         });
@@ -194,21 +195,17 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 // - This only makes sense when a default implementation is present.
                 local: false,
                 invalidator: func_args.invalidator.is_some(),
-                immutable: sig.asyncness.is_none() && func_args.invalidator.is_none(),
+                immutable: is_immutable(sig) && func_args.invalidator.is_none(),
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
             let native_function_ty = native_function.ty();
             let native_function_def = native_function.definition();
 
-            let native_function_id_ident =
-                get_trait_default_impl_function_id_ident(trait_ident, ident);
-            let native_function_id_ty = native_function.id_ty();
-            let native_function_id_def =
-                native_function.id_definition(&native_function_ident.clone().into());
-
             trait_methods.push(quote! {
-                trait_type.register_default_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into(), *#native_function_id_ident);
+                trait_type.register_default_trait_method(
+                    stringify!(#ident),
+                    &#native_function_ident);
             });
 
             native_functions.push(quote! {
@@ -232,16 +229,12 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 pub(crate) static #native_function_ident:
                     turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                         turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
-                #[doc(hidden)]
-                pub(crate) static #native_function_id_ident:
-                    turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
-                        turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
             });
 
-            Some(turbo_fn.static_block(&native_function_id_ident))
+            Some(turbo_fn.static_block(&native_function_ident))
         } else {
             trait_methods.push(quote! {
-                trait_type.register_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into());
+                trait_type.register_trait_method(stringify!(#ident));
             });
             None
         };
@@ -290,7 +283,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         #[doc(hidden)]
         pub(crate) static #trait_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitType> =
             turbo_tasks::macro_helpers::Lazy::new(|| {
-                let mut trait_type = turbo_tasks::TraitType::new(stringify!(#trait_ident).to_string());;
+                let mut trait_type = turbo_tasks::TraitType::new(stringify!(#trait_ident));;
                 #(#trait_methods)*
                 trait_type
             });

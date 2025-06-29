@@ -29,6 +29,16 @@ redirect(path, type)
 
 By default, `redirect` will use `push` (adding a new entry to the browser history stack) in [Server Actions](/docs/app/getting-started/updating-data) and `replace` (replacing the current URL in the browser history stack) everywhere else. You can override this behavior by specifying the `type` parameter.
 
+The `RedirectType` object contains the available options for the `type` parameter.
+
+```ts
+import { redirect, RedirectType } from 'next/navigation'
+
+redirect('/redirect-to', RedirectType.replace)
+// or
+redirect('/redirect-to', RedirectType.push)
+```
+
 The `type` parameter has no effect when used in Server Components.
 
 ### Returns

@@ -27,6 +27,7 @@ import {
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig, {
+  getCacheDirectories,
   loadProjectInfo,
 } from '../../build/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
@@ -88,6 +89,7 @@ import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
+import { checkPersistentCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -260,6 +262,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
+  private isSrcDir: boolean
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -272,6 +275,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     dir: string,
     {
       config,
+      isSrcDir,
       pagesDir,
       distDir,
       buildId,
@@ -283,6 +287,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch,
     }: {
       config: NextConfigComplete
+      isSrcDir: boolean
       pagesDir?: string
       distDir: string
       buildId: string
@@ -300,6 +305,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dir = dir
+    this.isSrcDir = isSrcDir
     this.middlewares = []
     this.pagesDir = pagesDir
     this.appDir = appDir
@@ -1155,6 +1161,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // @ts-ignore webpack 5
     this.activeWebpackConfigs.parallelism = 1
 
+    await Promise.all(
+      Array.from(getCacheDirectories(this.activeWebpackConfigs)).map(
+        checkPersistentCacheInvalidationAndCleanup
+      )
+    )
     this.multiCompiler = getWebpackBundler()(
       this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
@@ -1560,6 +1571,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.middlewares = [
       getOverlayMiddleware({
         rootDirectory: this.dir,
+        isSrcDir: this.isSrcDir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
@@ -1574,6 +1586,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       getDisableDevIndicatorMiddleware(),
       getRestartDevServerMiddleware({
         telemetry: this.telemetry,
+        webpackCacheDirectories:
+          this.activeWebpackConfigs != null
+            ? getCacheDirectories(this.activeWebpackConfigs)
+            : undefined,
       }),
     ]
   }

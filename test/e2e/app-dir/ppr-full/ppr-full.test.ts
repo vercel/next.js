@@ -3,6 +3,7 @@ import { measurePPRTimings } from 'e2e-utils/ppr'
 import { links } from './components/links'
 import cheerio from 'cheerio'
 import { retry } from 'next-test-utils'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 type Page = {
   pathname: string
@@ -45,6 +46,26 @@ const pages: Page[] = [
     revalidate: 120,
   },
 ]
+
+const addCacheBustingSearchParam = (
+  pathname: string,
+  headers: Record<string, string | string[] | undefined>
+) => {
+  const cacheKey = computeCacheBustingSearchParam(
+    headers['Next-Router-Prefetch'],
+    headers['Next-Router-Segment-Prefetch'],
+    headers['Next-Router-State-Tree'],
+    headers['Next-URL']
+  )
+
+  if (cacheKey === null) {
+    return pathname
+  }
+
+  const url = new URL(pathname, 'http://localhost')
+  url.searchParams.set('_rsc', cacheKey)
+  return url.pathname + url.search
+}
 
 describe('ppr-full', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -536,8 +557,17 @@ describe('ppr-full', () => {
       describe.each(pages)('for $pathname', ({ pathname, revalidate }) => {
         it('should have correct headers', async () => {
           await retry(async () => {
-            const res = await next.fetch(pathname, {
-              headers: { RSC: '1', 'Next-Router-Prefetch': '1' },
+            const headers = {
+              RSC: '1',
+              'Next-Router-Prefetch': '1',
+            }
+            const urlWithCacheBusting = addCacheBustingSearchParam(
+              pathname,
+              headers
+            )
+
+            const res = await next.fetch(urlWithCacheBusting, {
+              headers,
             })
 
             expect(res.status).toEqual(200)
@@ -565,12 +595,18 @@ describe('ppr-full', () => {
 
         it('should not contain dynamic content', async () => {
           const unexpected = `${Date.now()}:${Math.random()}`
-          const res = await next.fetch(pathname, {
-            headers: {
-              RSC: '1',
-              'Next-Router-Prefetch': '1',
-              'X-Test-Input': unexpected,
-            },
+          const headers = {
+            RSC: '1',
+            'Next-Router-Prefetch': '1',
+            'X-Test-Input': unexpected,
+          }
+          const urlWithCacheBusting = addCacheBustingSearchParam(
+            pathname,
+            headers
+          )
+
+          const res = await next.fetch(urlWithCacheBusting, {
+            headers,
           })
           expect(res.status).toEqual(200)
           expect(res.headers.get('content-type')).toEqual('text/x-component')
@@ -583,8 +619,14 @@ describe('ppr-full', () => {
     describe('Dynamic RSC Response', () => {
       describe.each(pages)('for $pathname', ({ pathname, dynamic }) => {
         it('should have correct headers', async () => {
-          const res = await next.fetch(pathname, {
-            headers: { RSC: '1' },
+          const headers = { RSC: '1' }
+          const urlWithCacheBusting = addCacheBustingSearchParam(
+            pathname,
+            headers
+          )
+
+          const res = await next.fetch(urlWithCacheBusting, {
+            headers,
           })
           expect(res.status).toEqual(200)
           expect(res.headers.get('content-type')).toEqual('text/x-component')
@@ -601,8 +643,17 @@ describe('ppr-full', () => {
         if (dynamic === true || dynamic === 'force-dynamic') {
           it('should contain dynamic content', async () => {
             const expected = `${Date.now()}:${Math.random()}`
-            const res = await next.fetch(pathname, {
-              headers: { RSC: '1', 'X-Test-Input': expected },
+            const headers = {
+              RSC: '1',
+              'X-Test-Input': expected,
+            }
+            const urlWithCacheBusting = addCacheBustingSearchParam(
+              pathname,
+              headers
+            )
+
+            const res = await next.fetch(urlWithCacheBusting, {
+              headers,
             })
             expect(res.status).toEqual(200)
             expect(res.headers.get('content-type')).toEqual('text/x-component')
@@ -612,11 +663,17 @@ describe('ppr-full', () => {
         } else {
           it('should not contain dynamic content', async () => {
             const unexpected = `${Date.now()}:${Math.random()}`
-            const res = await next.fetch(pathname, {
-              headers: {
-                RSC: '1',
-                'X-Test-Input': unexpected,
-              },
+            const headers = {
+              RSC: '1',
+              'X-Test-Input': unexpected,
+            }
+            const urlWithCacheBusting = addCacheBustingSearchParam(
+              pathname,
+              headers
+            )
+
+            const res = await next.fetch(urlWithCacheBusting, {
+              headers,
             })
             expect(res.status).toEqual(200)
             expect(res.headers.get('content-type')).toEqual('text/x-component')

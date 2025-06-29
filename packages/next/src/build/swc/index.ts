@@ -21,6 +21,7 @@ import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
+  NapiSourceDiagnostic,
 } from './generated-native'
 import type {
   Binding,
@@ -159,15 +160,27 @@ let lastNativeBindingsLoadErrorCode:
   | 'unsupported_target'
   | string
   | undefined = undefined
+// Used to cache calls to `loadBindings`
+let pendingBindings: Promise<Binding>
+// some things call `loadNative` directly instead of `loadBindings`... Cache calls to that
+// separately.
 let nativeBindings: Binding
+// can allow hacky sync access to bindings for loadBindingsSync
 let wasmBindings: Binding
 let downloadWasmPromise: any
-let pendingBindings: any
 let swcTraceFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
+/**
+ * Attempts to load a native or wasm binding.
+ *
+ * By default, this first tries to use a native binding, falling back to a wasm binding if that
+ * fails.
+ *
+ * This function is `async` as wasm requires an asynchronous import in browsers.
+ */
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
@@ -178,6 +191,10 @@ export async function loadBindings(
 
   if (pendingBindings) {
     return pendingBindings
+  }
+
+  if (process.env.NEXT_TEST_WASM) {
+    useWasmBinary = true
   }
 
   // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
@@ -291,7 +308,10 @@ async function tryLoadNativeWithFallback(attempts: Array<string>) {
   return undefined
 }
 
-async function tryLoadWasmWithFallback(attempts: any[]) {
+// helper for loadBindings
+async function tryLoadWasmWithFallback(
+  attempts: any[]
+): Promise<Binding | undefined> {
   try {
     let bindings = await loadWasm('')
     // @ts-expect-error TODO: this event has a wrong type.
@@ -343,8 +363,8 @@ function loadBindingsSync() {
     attempts = attempts.concat(a)
   }
 
-  // we can leverage the wasm bindings if they are already
-  // loaded
+  // HACK: we can leverage the wasm bindings if they are already loaded
+  // this may introduce race conditions
   if (wasmBindings) {
     return wasmBindings
   }
@@ -711,13 +731,14 @@ function bindingToApi(
       )
     }
 
-    compilationEventsSubscribe() {
+    compilationEventsSubscribe(eventTypes?: string[]) {
       return subscribe<TurbopackResult<CompilationEvent>>(
         true,
         async (callback) => {
           binding.projectCompilationEventsSubscribe(
             this._nativeProject,
-            callback
+            callback,
+            eventTypes
           )
         }
       )
@@ -1058,119 +1079,53 @@ function bindingToApi(
   }
 }
 
-async function loadWasm(importPath = '') {
-  if (wasmBindings) {
-    return wasmBindings
-  }
-
+// helper for loadWasm
+async function loadWasmRawBindings(importPath = ''): Promise<RawWasmBindings> {
   let attempts = []
-  for (let pkg of ['@next/swc-wasm-nodejs', '@next/swc-wasm-web']) {
-    try {
-      let pkgPath = pkg
 
-      if (importPath) {
-        // the import path must be exact when not in node_modules
-        pkgPath = path.join(importPath, pkg, 'wasm.js')
-      }
-      let bindings: RawWasmBindings = await import(
-        pathToFileURL(pkgPath).toString()
-      )
-      if (pkg === '@next/swc-wasm-web') {
-        bindings = await bindings.default!()
-      }
-      infoLog('next-swc build: wasm build @next/swc-wasm-web')
+  // Used by `run-tests` to force use of a locally-built wasm binary. This environment variable is
+  // unstable and subject to change.
+  const testWasmDir = process.env.NEXT_TEST_WASM_DIR
 
-      // Note wasm binary does not support async intefaces yet, all async
-      // interface coereces to sync interfaces.
-      wasmBindings = {
-        css: {
-          lightning: {
-            transform: function (_options: any) {
-              throw new Error(
-                '`css.lightning.transform` is not supported by the wasm bindings.'
-              )
-            },
-            transformStyleAttr: function (_options: any) {
-              throw new Error(
-                '`css.lightning.transformStyleAttr` is not supported by the wasm bindings.'
-              )
-            },
-          },
-        },
-        isWasm: true,
-        transform(src: string, options: any) {
-          // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published (current v12.2)
-          return bindings?.transform
-            ? bindings.transform(src.toString(), options)
-            : Promise.resolve(bindings.transformSync(src.toString(), options))
-        },
-        transformSync(src: string, options: any) {
-          return bindings.transformSync(src.toString(), options)
-        },
-        minify(src: string, options: any) {
-          return bindings?.minify
-            ? bindings.minify(src.toString(), options)
-            : Promise.resolve(bindings.minifySync(src.toString(), options))
-        },
-        minifySync(src: string, options: any) {
-          return bindings.minifySync(src.toString(), options)
-        },
-        parse(src: string, options: any) {
-          return bindings?.parse
-            ? bindings.parse(src.toString(), options)
-            : Promise.resolve(bindings.parseSync(src.toString(), options))
-        },
-        getTargetTriple() {
-          return undefined
-        },
-        turbo: {
-          createProject: function (
-            _options: ProjectOptions,
-            _turboEngineOptions?: TurboEngineOptions | undefined
-          ): Promise<Project> {
-            throw new Error(
-              '`turbo.createProject` is not supported by the wasm bindings.'
-            )
-          },
-          startTurbopackTraceServer: function (_traceFilePath: string): void {
-            throw new Error(
-              '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
-            )
-          },
-        },
-        mdx: {
-          compile(src: string, options: any) {
-            return bindings.mdxCompile(src, getMdxOptions(options))
-          },
-          compileSync(src: string, options: any) {
-            return bindings.mdxCompileSync(src, getMdxOptions(options))
-          },
-        },
-        reactCompiler: {
-          isReactCompilerRequired(_filename: string) {
-            return Promise.resolve(true)
-          },
-        },
-        rspack: {
-          getModuleNamedExports: function (
-            _resourcePath: string
-          ): Promise<string[]> {
-            throw new Error(
-              '`rspack.getModuleNamedExports` is not supported by the wasm bindings.'
-            )
-          },
-        },
-      }
-      return wasmBindings
-    } catch (e: any) {
-      // Only log attempts for loading wasm when loading as fallback
-      if (importPath) {
-        if (e?.code === 'ERR_MODULE_NOT_FOUND') {
-          attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+  if (testWasmDir) {
+    // assume these are node.js bindings and don't need a call to `.default()`
+    const rawBindings = await import(
+      pathToFileURL(path.join(testWasmDir, 'wasm.js')).toString()
+    )
+    infoLog(`next-swc build: wasm build ${testWasmDir}`)
+    return rawBindings
+  } else {
+    for (let pkg of ['@next/swc-wasm-nodejs', '@next/swc-wasm-web']) {
+      try {
+        let pkgPath = pkg
+
+        if (importPath) {
+          // the import path must be exact when not in node_modules
+          pkgPath = path.join(importPath, pkg, 'wasm.js')
+        }
+        const importedRawBindings = await import(
+          pathToFileURL(pkgPath).toString()
+        )
+        let rawBindings
+        if (pkg === '@next/swc-wasm-web') {
+          // https://rustwasm.github.io/docs/wasm-bindgen/examples/without-a-bundler.html
+          // `default` must be called to initialize the module
+          rawBindings = await importedRawBindings.default!()
         } else {
-          attempts.push(
-            `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
-          )
+          rawBindings = importedRawBindings
+        }
+        infoLog(`next-swc build: wasm build ${pkg}`)
+        return rawBindings
+      } catch (e: any) {
+        // Only log attempts for loading wasm when loading as fallback
+        if (importPath) {
+          if (e?.code === 'ERR_MODULE_NOT_FOUND') {
+            attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+          } else {
+            attempts.push(
+              `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
+            )
+          }
         }
       }
     }
@@ -1179,9 +1134,130 @@ async function loadWasm(importPath = '') {
   throw attempts
 }
 
+// helper for tryLoadWasmWithFallback / loadBindings.
+async function loadWasm(importPath = '') {
+  const rawBindings = await loadWasmRawBindings(importPath)
+
+  function removeUndefined(obj: any): any {
+    // serde-wasm-bindgen expect that `undefined` values map to `()` in rust, but we want to treat
+    // those fields as non-existent, so remove them before passing them to rust.
+    //
+    // The native (non-wasm) bindings use `JSON.stringify`, which strips undefined values.
+    if (typeof obj !== 'object' || obj === null) {
+      return obj
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(removeUndefined)
+    }
+    const newObj: { [key: string]: any } = {}
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof v !== 'undefined') {
+        newObj[k] = removeUndefined(v)
+      }
+    }
+    return newObj
+  }
+
+  // Note wasm binary does not support async intefaces yet, all async
+  // interface coereces to sync interfaces.
+  wasmBindings = {
+    css: {
+      lightning: {
+        transform: function (_options: any) {
+          throw new Error(
+            '`css.lightning.transform` is not supported by the wasm bindings.'
+          )
+        },
+        transformStyleAttr: function (_options: any) {
+          throw new Error(
+            '`css.lightning.transformStyleAttr` is not supported by the wasm bindings.'
+          )
+        },
+      },
+    },
+    isWasm: true,
+    transform(src: string, options: any): Promise<any> {
+      return rawBindings.transform(src.toString(), removeUndefined(options))
+    },
+    transformSync(src: string, options: any) {
+      return rawBindings.transformSync(src.toString(), removeUndefined(options))
+    },
+    minify(src: string, options: any): Promise<any> {
+      return rawBindings.minify(src.toString(), removeUndefined(options))
+    },
+    minifySync(src: string, options: any) {
+      return rawBindings.minifySync(src.toString(), removeUndefined(options))
+    },
+    parse(src: string, options: any): Promise<any> {
+      return rawBindings.parse(src.toString(), removeUndefined(options))
+    },
+    getTargetTriple() {
+      return undefined
+    },
+    turbo: {
+      createProject(
+        _options: ProjectOptions,
+        _turboEngineOptions?: TurboEngineOptions | undefined
+      ): Promise<Project> {
+        throw new Error(
+          '`turbo.createProject` is not supported by the wasm bindings.'
+        )
+      },
+      startTurbopackTraceServer(_traceFilePath: string): void {
+        throw new Error(
+          '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
+        )
+      },
+    },
+    mdx: {
+      compile(src: string, options: any) {
+        return rawBindings.mdxCompile(
+          src,
+          removeUndefined(getMdxOptions(options))
+        )
+      },
+      compileSync(src: string, options: any) {
+        return rawBindings.mdxCompileSync(
+          src,
+          removeUndefined(getMdxOptions(options))
+        )
+      },
+    },
+    reactCompiler: {
+      isReactCompilerRequired(_filename: string) {
+        return Promise.resolve(true)
+      },
+    },
+    rspack: {
+      getModuleNamedExports(_resourcePath: string): Promise<string[]> {
+        throw new Error(
+          '`rspack.getModuleNamedExports` is not supported by the wasm bindings.'
+        )
+      },
+      warnForEdgeRuntime(
+        _source: string,
+        _isProduction: boolean
+      ): Promise<NapiSourceDiagnostic[]> {
+        throw new Error(
+          '`rspack.warnForEdgeRuntime` is not supported by the wasm bindings.'
+        )
+      },
+    },
+  }
+  return wasmBindings
+}
+
+/**
+ * Loads the native (non-wasm) bindings. Prefer `loadBindings` over this API, as that includes a
+ * wasm fallback.
+ */
 function loadNative(importPath?: string) {
   if (nativeBindings) {
     return nativeBindings
+  }
+
+  if (process.env.NEXT_TEST_WASM) {
+    throw new Error('cannot run loadNative when `NEXT_TEST_WASM` is set')
   }
 
   const customBindings: RawBindings = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
@@ -1288,11 +1364,11 @@ function loadNative(importPath?: string) {
       },
 
       minify(src: string, options: any) {
-        return bindings.minify(toBuffer(src), toBuffer(options ?? {}))
+        return bindings.minify(Buffer.from(src), toBuffer(options ?? {}))
       },
 
       minifySync(src: string, options: any) {
-        return bindings.minifySync(toBuffer(src), toBuffer(options ?? {}))
+        return bindings.minifySync(Buffer.from(src), toBuffer(options ?? {}))
       },
 
       parse(src: string, options: any) {
@@ -1341,6 +1417,12 @@ function loadNative(importPath?: string) {
           resourcePath: string
         ): Promise<string[]> {
           return bindings.getModuleNamedExports(resourcePath)
+        },
+        warnForEdgeRuntime: function (
+          source: string,
+          isProduction: boolean
+        ): Promise<NapiSourceDiagnostic[]> {
+          return bindings.warnForEdgeRuntime(source, isProduction)
         },
       },
     }
@@ -1465,4 +1547,12 @@ export async function getModuleNamedExports(
 ): Promise<string[]> {
   const bindings = await loadBindings()
   return bindings.rspack.getModuleNamedExports(resourcePath)
+}
+
+export async function warnForEdgeRuntime(
+  source: string,
+  isProduction: boolean
+): Promise<NapiSourceDiagnostic[]> {
+  const bindings = await loadBindings()
+  return bindings.rspack.warnForEdgeRuntime(source, isProduction)
 }

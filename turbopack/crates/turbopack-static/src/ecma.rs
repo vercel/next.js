@@ -35,7 +35,7 @@ impl StaticUrlJsModule {
     }
 
     #[turbo_tasks::function]
-    async fn static_output_asset(
+    fn static_output_asset(
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<StaticOutputAsset> {

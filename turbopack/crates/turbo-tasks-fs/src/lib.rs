@@ -46,7 +46,8 @@ use invalidator_map::InvalidatorMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use read_glob::track_glob;
+pub use read_glob::ReadGlobResult;
+use read_glob::{read_glob, track_glob};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -521,7 +522,7 @@ impl DiskFileSystem {
     ///   be a full path, since it is possible that root & project dir is different and requires to
     ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
-    pub async fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
+    pub fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
         mark_stateful();
 
         let instance = DiskFileSystem {
@@ -1180,14 +1181,13 @@ impl FileSystemPath {
     /// contain ".." or "." seqments, but it must not leave the root of the
     /// filesystem.
     #[turbo_tasks::function]
-    pub async fn join(self: Vc<Self>, path: RcStr) -> Result<Vc<Self>> {
-        let this = self.await?;
-        if let Some(path) = join_path(&this.path, &path) {
-            Ok(Self::new_normalized(*this.fs, path.into()))
+    pub fn join(&self, path: RcStr) -> Result<Vc<Self>> {
+        if let Some(path) = join_path(&self.path, &path) {
+            Ok(Self::new_normalized(*self.fs, path.into()))
         } else {
             bail!(
                 "Vc<FileSystemPath>(\"{}\").join(\"{}\") leaves the filesystem root",
-                this.path,
+                self.path,
                 path
             );
         }
@@ -1195,42 +1195,40 @@ impl FileSystemPath {
 
     /// Adds a suffix to the filename. [path] must not contain `/`.
     #[turbo_tasks::function]
-    pub async fn append(self: Vc<Self>, path: RcStr) -> Result<Vc<Self>> {
-        let this = self.await?;
+    pub fn append(&self, path: RcStr) -> Result<Vc<Self>> {
         if path.contains('/') {
             bail!(
-                "Vc<FileSystemPath>(\"{}\").append(\"{}\") must not append '/'",
-                this.path,
+                "FileSystemPath(\"{}\").append(\"{}\") must not append '/'",
+                self.path,
                 path
             )
         }
         Ok(Self::new_normalized(
-            *this.fs,
-            format!("{}{}", this.path, path).into(),
+            *self.fs,
+            format!("{}{}", self.path, path).into(),
         ))
     }
 
     /// Adds a suffix to the basename of the filename. [appending] must not
     /// contain `/`. Extension will stay intact.
     #[turbo_tasks::function]
-    pub async fn append_to_stem(self: Vc<Self>, appending: RcStr) -> Result<Vc<Self>> {
-        let this = self.await?;
+    pub fn append_to_stem(&self, appending: RcStr) -> Result<Vc<Self>> {
         if appending.contains('/') {
             bail!(
-                "Vc<FileSystemPath>(\"{}\").append_to_stem(\"{}\") must not append '/'",
-                this.path,
+                "FileSystemPath(\"{}\").append_to_stem(\"{}\") must not append '/'",
+                self.path,
                 appending
             )
         }
-        if let (path, Some(ext)) = this.split_extension() {
+        if let (path, Some(ext)) = self.split_extension() {
             return Ok(Self::new_normalized(
-                *this.fs,
+                *self.fs,
                 format!("{path}{appending}.{ext}").into(),
             ));
         }
         Ok(Self::new_normalized(
-            *this.fs,
-            format!("{}{}", this.path, appending).into(),
+            *self.fs,
+            format!("{}{}", self.path, appending).into(),
         ))
     }
 
@@ -1269,6 +1267,11 @@ impl FileSystemPath {
         Ok(FileSystemPathOption::none())
     }
 
+    #[turbo_tasks::function]
+    pub async fn read_glob(self: Vc<Self>, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
+        read_glob(self, glob).await
+    }
+
     // Tracks all files and directories matching the glob
     // Follows symlinks as though they were part of the original hierarchy.
     #[turbo_tasks::function]
@@ -1304,7 +1307,7 @@ impl FileSystemPath {
     /// Creates a new [`Vc<FileSystemPath>`] like `self` but with the given
     /// extension.
     #[turbo_tasks::function]
-    pub async fn with_extension(&self, extension: RcStr) -> Vc<FileSystemPath> {
+    pub fn with_extension(&self, extension: RcStr) -> Vc<FileSystemPath> {
         let (path_without_extension, _) = self.split_extension();
         Self::new_normalized(
             *self.fs,
@@ -2119,17 +2122,16 @@ impl FileContent {
 #[turbo_tasks::value_impl]
 impl FileContent {
     #[turbo_tasks::function]
-    pub async fn len(self: Vc<Self>) -> Result<Vc<Option<u64>>> {
-        Ok(Vc::cell(match &*self.await? {
+    pub fn len(&self) -> Result<Vc<Option<u64>>> {
+        Ok(Vc::cell(match self {
             FileContent::Content(file) => Some(file.content.len() as u64),
             FileContent::NotFound => None,
         }))
     }
 
     #[turbo_tasks::function]
-    pub async fn parse_json(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
-        let this = self.await?;
-        Ok(this.parse_json_ref().into())
+    pub fn parse_json(&self) -> Result<Vc<FileJsonContent>> {
+        Ok(self.parse_json_ref().into())
     }
 
     #[turbo_tasks::function]
@@ -2171,7 +2173,7 @@ impl ValueToString for FileJsonContent {
     /// This operation will only succeed if the file contents are a valid JSON
     /// value.
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
+    fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.to_string().into())),
             FileJsonContent::Unparseable(e) => Err(anyhow!("File is not valid JSON: {}", e)),

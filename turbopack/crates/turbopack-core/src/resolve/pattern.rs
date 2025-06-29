@@ -532,17 +532,9 @@ impl Pattern {
     /// Order into Alternatives -> Concatenation -> Constant/Dynamic
     /// Merge when possible
     pub fn normalize(&mut self) {
-        let mut alternatives = [Vec::new()];
         match self {
-            Pattern::Constant(c) => {
-                for alt in alternatives.iter_mut() {
-                    alt.push(Pattern::Constant(c.clone()));
-                }
-            }
-            Pattern::Dynamic => {
-                for alt in alternatives.iter_mut() {
-                    alt.push(Pattern::Dynamic);
-                }
+            Pattern::Dynamic | Pattern::Constant(_) => {
+                // already normalized
             }
             Pattern::Alternatives(list) => {
                 for alt in list.iter_mut() {
@@ -630,6 +622,7 @@ impl Pattern {
                             })
                             .collect(),
                     );
+                    // The recursive call will deduplicate the alternatives after simplifying them
                     self.normalize();
                 } else {
                     let mut new_parts = Vec::new();

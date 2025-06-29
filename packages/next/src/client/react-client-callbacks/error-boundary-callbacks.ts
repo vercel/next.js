@@ -12,7 +12,7 @@ import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-cs
 import { reportGlobalError } from './report-global-error'
 import { originConsoleError } from '../../next-devtools/userspace/app/errors/intercept-console-error'
 import { ErrorBoundaryHandler } from '../components/error-boundary'
-import DefaultErrorBoundary from '../components/global-error'
+import DefaultErrorBoundary from '../components/builtin/global-error'
 
 export function onCaughtError(
   thrownValue: unknown,

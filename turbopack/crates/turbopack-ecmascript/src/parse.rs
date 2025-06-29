@@ -9,7 +9,7 @@ use swc_core::{
         BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
         errors::{HANDLER, Handler},
         input::StringInput,
-        source_map::SourceMapGenConfig,
+        source_map::{Files, SourceMapGenConfig, build_source_map},
         util::take::Take,
     },
     ecma::{
@@ -99,56 +99,70 @@ impl ParseResult {
     }
 }
 
+/// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
+/// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
 #[instrument(level = Level::INFO, skip_all)]
-pub fn generate_js_source_map(
-    files_map: Arc<swc_core::common::SourceMap>,
+pub fn generate_js_source_map<'a>(
+    files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
-    original_source_map: Option<&Rope>,
+    original_source_maps: impl IntoIterator<Item = &'a Rope>,
+    original_source_maps_complete: bool,
     inline_sources_content: bool,
 ) -> Result<Rope> {
-    let original_source_map = original_source_map.map(|x| x.to_bytes());
-    let input_map = if let Some(original_source_map) = &original_source_map {
-        Some(swc_sourcemap::lazy::decode(original_source_map)?.into_source_map()?)
-    } else {
-        None
-    };
+    let original_source_maps = original_source_maps
+        .into_iter()
+        .map(|map| map.to_bytes())
+        .collect::<Vec<_>>();
+    let original_source_maps = original_source_maps
+        .iter()
+        .map(|map| Ok(swc_sourcemap::lazy::decode(map)?.into_source_map()?))
+        .collect::<Result<Vec<_>>>()?;
 
-    let new_mappings = files_map.build_source_map(
+    let fast_path_single_original_source_map =
+        original_source_maps.len() == 1 && original_source_maps_complete;
+
+    let mut new_mappings = build_source_map(
+        files_map,
         &mappings,
         None,
-        InlineSourcesContentConfig {
+        &InlineSourcesContentConfig {
             // If we are going to adjust the source map, we are going to throw the source contents
             // of this source map away regardless.
             //
             // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
             // We only need the source content of `A`, and a way to map the content of `B` back to
             // `A`, while constructing the final source map, `C`.
-            inline_sources_content: inline_sources_content && input_map.is_none(),
+            inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
         },
     );
 
-    match input_map {
-        Some(mut map) => {
-            // TODO: Make this more efficient
-            map.adjust_mappings(new_mappings);
+    if original_source_maps.is_empty() {
+        // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
+        // need to adjust mappings
 
-            // TODO: Enable this when we have a way to handle the ignore list
-            // add_default_ignore_list(&mut map);
-            let map = map.into_raw_sourcemap();
-            let result = serde_json::to_vec(&map)?;
-            Ok(Rope::from(result))
-        }
-        None => {
-            // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
-            // need to adjust mappings
-            let mut map = new_mappings;
+        add_default_ignore_list(&mut new_mappings);
 
-            add_default_ignore_list(&mut map);
+        let mut result = vec![];
+        new_mappings.to_writer(&mut result)?;
+        Ok(Rope::from(result))
+    } else if fast_path_single_original_source_map {
+        let mut map = original_source_maps.into_iter().next().unwrap();
+        // TODO: Make this more efficient
+        map.adjust_mappings(new_mappings);
 
-            let mut result = vec![];
-            map.to_writer(&mut result)?;
-            Ok(Rope::from(result))
-        }
+        // TODO: Enable this when we have a way to handle the ignore list
+        // add_default_ignore_list(&mut map);
+        let map = map.into_raw_sourcemap();
+        let result = serde_json::to_vec(&map)?;
+        Ok(Rope::from(result))
+    } else {
+        let mut map = new_mappings.adjust_mappings_from_multiple(original_source_maps);
+
+        add_default_ignore_list(&mut map);
+
+        let mut result = vec![];
+        map.to_writer(&mut result)?;
+        Ok(Rope::from(result))
     }
 }
 
@@ -390,6 +404,8 @@ async fn parse_file_content(
                 EcmascriptModuleAssetType::Typescript { .. }
                     | EcmascriptModuleAssetType::TypescriptDeclaration
             );
+
+            let helpers=Helpers::new(true);
             let span = tracing::trace_span!("swc_resolver").entered();
 
             parsed_program.visit_mut_with(&mut resolver(
@@ -414,7 +430,11 @@ async fn parse_file_content(
             parsed_program.mutate(swc_core::ecma::lints::rules::lint_pass(rules));
             drop(span);
 
-            parsed_program.mutate(swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management());
+            HELPERS.set(&helpers, || {
+                parsed_program.mutate(
+                    swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management(),
+                );
+            });
 
             let var_with_ts_declare = if is_typescript {
                 VarDeclWithTsDeclareCollector::collect(&parsed_program)
@@ -422,6 +442,7 @@ async fn parse_file_content(
                 FxHashSet::default()
             };
 
+            let mut helpers = helpers.data();
             let transform_context = TransformContext {
                 comments: &comments,
                 source_map: &source_map,
@@ -436,8 +457,8 @@ async fn parse_file_content(
             let span = tracing::trace_span!("transforms");
             async {
                 for transform in transforms.iter() {
-                    transform
-                        .apply(&mut parsed_program, &transform_context)
+                    helpers = transform
+                        .apply(&mut parsed_program, &transform_context, helpers)
                         .await?;
                 }
                 anyhow::Ok(())
@@ -461,9 +482,12 @@ async fn parse_file_content(
                 return Ok(ParseResult::Unparseable { messages });
             }
 
-            parsed_program.visit_mut_with(
-                &mut swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
-            );
+            let helpers = Helpers::from_data(helpers);
+            HELPERS.set(&helpers, || {
+                parsed_program.mutate(
+                    swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
+                );
+            });
 
             let eval_context = EvalContext::new(
                 &parsed_program,
@@ -486,7 +510,7 @@ async fn parse_file_content(
         },
         |f, cx| {
             GLOBALS.set(globals_ref, || {
-                HANDLER.set(&handler, || HELPERS.set(&Helpers::new(true), || f.poll(cx)))
+                HANDLER.set(&handler, || f.poll(cx))
             })
         },
     )

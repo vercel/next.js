@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize, ser::SerializeSeq};
+use smallvec::SmallVec;
 
 use crate::{
     CellId, RawVc, TaskId,
@@ -21,8 +22,8 @@ impl Default for TaskCell {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TaskData {
-    pub children: Vec<TaskId>,
-    pub dependencies: Vec<RawVc>,
+    pub children: SmallVec<[TaskId; 4]>,
+    pub dependencies: SmallVec<[RawVc; 1]>,
     pub cells: TaskCells,
     pub output: RawVc,
 }
@@ -130,24 +131,26 @@ pub struct ActivateResult {
 
     /// Further tasks that need to be activated that
     /// didn't fit into that batch
-    pub more_tasks_to_activate: Vec<TaskId>,
+    pub more_tasks_to_activate: SmallVec<[TaskId; 4]>,
 }
 
 #[derive(Debug)]
 pub struct PersistResult {
     /// Tasks that need to be activated
-    pub tasks_to_activate: Vec<TaskId>,
+    pub tasks_to_activate: SmallVec<[TaskId; 4]>,
 
     /// Tasks that need to be deactivated
-    pub tasks_to_deactivate: Vec<TaskId>,
+    pub tasks_to_deactivate: SmallVec<[TaskId; 4]>,
 }
 
 #[derive(Debug)]
 pub struct DeactivateResult {
     /// Further tasks that need to be deactivated that
     /// didn't fit into that batch
-    pub more_tasks_to_deactivate: Vec<TaskId>,
+    pub more_tasks_to_deactivate: SmallVec<[TaskId; 4]>,
 }
+
+pub type TypeIds = SmallVec<[TaskId; 4]>;
 
 pub trait PersistedGraph: Sync + Send {
     /// read task data and state for a specific task.
@@ -216,8 +219,10 @@ pub trait PersistedGraph: Sync + Send {
     /// Removes all external keep alives that were not renewed this round.
     /// This is usually called after the initial build has finished and all
     /// external keep alives has been renewed.
-    fn remove_outdated_externally_active(&self, api: &dyn PersistedGraphApi)
-    -> Result<Vec<TaskId>>;
+    fn remove_outdated_externally_active(
+        &self,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>>;
 
     /// update the dirty flag for a stored task
     /// Returns true, when the task is active and should be scheduled
@@ -228,23 +233,27 @@ pub trait PersistedGraph: Sync + Send {
 
     /// make all tasks that depend on that vc dirty and
     /// return a list of active tasks that should be scheduled
-    fn make_dependent_dirty(&self, vc: RawVc, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>>;
+    fn make_dependent_dirty(
+        &self,
+        vc: RawVc,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>>;
 
     /// Get all tasks that are active, but not persisted.
     /// This is usually called at beginning to create and schedule
     /// tasks that are missing in the persisted graph
-    fn get_active_external_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>>;
+    fn get_active_external_tasks(
+        &self,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>>;
 
     /// Get all tasks that are dirty and active.
     /// This is usually called at the beginning to schedule these tasks.
-    fn get_dirty_active_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>>;
+    fn get_dirty_active_tasks(&self, api: &dyn PersistedGraphApi) -> Result<SmallVec<[TaskId; 4]>>;
 
     /// Get tasks that have active update pending that need to be continued
     /// returns (tasks_to_activate, tasks_to_deactivate)
-    fn get_pending_active_update(
-        &self,
-        api: &dyn PersistedGraphApi,
-    ) -> Result<(Vec<TaskId>, Vec<TaskId>)>;
+    fn get_pending_active_update(&self, api: &dyn PersistedGraphApi) -> Result<(TypeIds, TypeIds)>;
 
     /// Stop operations
     #[allow(unused_variables)]
@@ -350,8 +359,8 @@ impl PersistedGraph for () {
     fn remove_outdated_externally_active(
         &self,
         _api: &dyn PersistedGraphApi,
-    ) -> Result<Vec<TaskId>> {
-        Ok(Vec::new())
+    ) -> Result<SmallVec<[TaskId; 4]>> {
+        Ok(Default::default())
     }
 
     fn make_dirty(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<bool> {
@@ -366,22 +375,28 @@ impl PersistedGraph for () {
         &self,
         _vc: RawVc,
         _api: &dyn PersistedGraphApi,
-    ) -> Result<Vec<TaskId>> {
-        Ok(Vec::new())
+    ) -> Result<SmallVec<[TaskId; 4]>> {
+        Ok(Default::default())
     }
 
-    fn get_active_external_tasks(&self, _api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
-        Ok(Vec::new())
+    fn get_active_external_tasks(
+        &self,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>> {
+        Ok(Default::default())
     }
 
-    fn get_dirty_active_tasks(&self, _api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
-        Ok(Vec::new())
+    fn get_dirty_active_tasks(
+        &self,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>> {
+        Ok(Default::default())
     }
 
     fn get_pending_active_update(
         &self,
         _api: &dyn PersistedGraphApi,
-    ) -> Result<(Vec<TaskId>, Vec<TaskId>)> {
-        Ok((Vec::new(), Vec::new()))
+    ) -> Result<(SmallVec<[TaskId; 4]>, SmallVec<[TaskId; 4]>)> {
+        Ok((Default::default(), Default::default()))
     }
 }

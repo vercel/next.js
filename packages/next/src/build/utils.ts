@@ -69,7 +69,6 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 import { RouteKind } from '../server/route-kind'
 import type { PageExtensions } from './page-extensions-type'
-import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { FallbackMode } from '../lib/fallback'
 import type { OutgoingHttpHeaders } from 'http'
@@ -1175,7 +1174,6 @@ export async function isPageStatic({
         // in incremental mode.
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE &&
-          !isInterceptionRouteAppPath(page) &&
           checkIsRoutePPREnabled(pprConfig, appConfig)
 
         // If force dynamic was set and we don't have PPR enabled, then set the
@@ -1758,7 +1756,7 @@ export function isReservedPage(page: string) {
 }
 
 export function isAppBuiltinNotFoundPage(page: string) {
-  return /next[\\/]dist[\\/]client[\\/]components[\\/](not-found-error|global-not-found)/.test(
+  return /next[\\/]dist[\\/]client[\\/]components[\\/]builtin[\\/](not-found|global-not-found)/.test(
     page
   )
 }

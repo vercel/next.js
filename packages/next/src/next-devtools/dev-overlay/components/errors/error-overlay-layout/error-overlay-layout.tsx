@@ -28,7 +28,6 @@ import {
   DIALOG_HEADER_STYLES,
 } from '../dialog/header'
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
-import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
@@ -37,6 +36,7 @@ import { EnvironmentNameLabel } from '../environment-name-label/environment-name
 import { useFocusTrap } from '../dev-tools-indicator/utils'
 import { Fader } from '../../fader'
 import { Resizer } from '../../resizer'
+import { OverlayBackdrop } from '../../overlay'
 
 export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
@@ -109,7 +109,8 @@ export function ErrorOverlayLayout({
   }
 
   return (
-    <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
+    <ErrorOverlayOverlay {...animationProps}>
+      <OverlayBackdrop fixed={isBuildError} />
       <div
         data-nextjs-dialog-root
         onTransitionEnd={onTransitionEnd}
@@ -184,7 +185,6 @@ export const styles = `
   ${errorTypeLabelStyles}
   ${errorMessageStyles}
   ${toolbarStyles}
-  ${CALL_STACK_STYLES}
 
   [data-nextjs-error-label-group] {
     display: flex;

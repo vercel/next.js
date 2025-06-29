@@ -89,7 +89,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     if (!cacheHandlers.default) {
       cacheHandlers.default = require.resolve(
-        '../../../../server/lib/cache-handlers/default'
+        '../../../../server/lib/cache-handlers/default.external'
       )
     }
 
