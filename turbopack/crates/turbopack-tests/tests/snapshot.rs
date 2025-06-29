@@ -34,7 +34,7 @@ use turbopack_core::{
         EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
-    compile_time_info::CompileTimeInfo,
+    compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefineableNameSegment},
     condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -296,13 +296,31 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     .to_resolved()
     .await?;
 
-    let defines = compile_time_defines!(
+    let mut defines = compile_time_defines!(
         process.turbopack = true,
         process.env.TURBOPACK = true,
         process.env.NODE_ENV = "development",
         DEFINED_VALUE = "value",
         DEFINED_TRUE = true,
+        DEFINED_NULL = json!(null),
+        DEFINED_INT = json!(1),
+        DEFINED_FLOAT = json!(0.01),
+        DEFINED_ARRAY = json!([ false, 0, "1", { "v": "v" }, null ]),
         A.VERY.LONG.DEFINED.VALUE = json!({ "test": true }),
+    );
+
+    defines.0.insert(
+        vec![DefineableNameSegment::from("DEFINED_EVALED")],
+        CompileTimeDefineValue::Evaluate("1 + 1".into()),
+    );
+
+    defines.0.insert(
+        vec![DefineableNameSegment::from("DEFINED_EVALED_NESTED")],
+        CompileTimeDefineValue::Array(vec![
+            CompileTimeDefineValue::Bool(true),
+            CompileTimeDefineValue::Undefined,
+            CompileTimeDefineValue::Evaluate("() => 1".into()),
+        ]),
     );
 
     let compile_time_info = CompileTimeInfo::builder(env)

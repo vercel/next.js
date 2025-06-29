@@ -67,7 +67,7 @@ where
     async fn resolve_input(&self) -> Result<Self> {
         let mut resolved = Vec::with_capacity(self.len());
         for value in self {
-            resolved.push(value.resolve_input().await?);
+            resolved.push(Box::pin(value.resolve_input()).await?);
         }
         Ok(resolved)
     }

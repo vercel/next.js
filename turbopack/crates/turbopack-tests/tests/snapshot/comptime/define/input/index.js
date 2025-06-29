@@ -6,6 +6,30 @@ if (DEFINED_TRUE) {
   console.log('DEFINED_VALUE')
 }
 
+if (!DEFINED_NULL) {
+  console.log('DEFINED_NULL', DEFINED_NULL)
+}
+
+if (DEFINED_INT) {
+  console.log('DEFINED_INT', DEFINED_INT)
+}
+
+if (DEFINED_FLOAT) {
+  console.log('DEFINED_FLOAT', DEFINED_FLOAT)
+}
+
+if (DEFINED_ARRAY) {
+  console.log('DEFINED_ARRAY', DEFINED_ARRAY)
+}
+
+if (DEFINED_EVALED) {
+  console.log('DEFINED_EVALED', DEFINED_EVALED)
+}
+
+if (DEFINED_EVALED_NESTED) {
+  console.log('DEFINED_EVALED_NESTED', DEFINED_EVALED_NESTED)
+}
+
 if (A.VERY.LONG.DEFINED.VALUE) {
   console.log('A.VERY.LONG.DEFINED.VALUE')
 }

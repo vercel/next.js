@@ -47,6 +47,7 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             ConstantValue::BigInt(n) => n.to_string().into(),
             ConstantValue::Regex(box (exp, flags)) => format!("/{exp}/{flags}").into(),
             ConstantValue::Undefined => rcstr!("undefined"),
+            ConstantValue::Evaluate(eval) => eval.clone(),
         }),
         JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_rcstr()),
         JsValue::Alternatives {

@@ -104,10 +104,14 @@ macro_rules! free_var_references {
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Hash, TaskInput)]
 pub enum CompileTimeDefineValue {
+    Null,
     Bool(bool),
+    Number(RcStr),
     String(RcStr),
-    JSON(RcStr),
+    Array(Vec<CompileTimeDefineValue>),
+    Object(Vec<(RcStr, CompileTimeDefineValue)>),
     Undefined,
+    Evaluate(RcStr),
 }
 
 impl From<bool> for CompileTimeDefineValue {
@@ -136,7 +140,16 @@ impl From<&str> for CompileTimeDefineValue {
 
 impl From<serde_json::Value> for CompileTimeDefineValue {
     fn from(value: serde_json::Value) -> Self {
-        Self::JSON(value.to_string().into())
+        match value {
+            serde_json::Value::Null => Self::Null,
+            serde_json::Value::Bool(b) => Self::Bool(b),
+            serde_json::Value::Number(n) => Self::Number(n.to_string().into()),
+            serde_json::Value::String(s) => Self::String(s.into()),
+            serde_json::Value::Array(a) => Self::Array(a.into_iter().map(|i| i.into()).collect()),
+            serde_json::Value::Object(m) => {
+                Self::Object(m.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+            }
+        }
     }
 }
 

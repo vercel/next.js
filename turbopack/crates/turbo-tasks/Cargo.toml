@@ -33,7 +33,7 @@ futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mopa = "0.2.0"
 once_cell = { workspace = true }
-parking_lot = { workspace = true, features = ["serde"]}
+parking_lot = { workspace = true, features = ["serde"] }
 pin-project-lite = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }
@@ -41,7 +41,12 @@ rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 serde_regex = "1.1.0"
-shrink-to-fit = { workspace=true,features = ["indexmap", "serde_json", "smallvec", "nightly"] }
+shrink-to-fit = { workspace = true, features = [
+  "indexmap",
+  "serde_json",
+  "smallvec",
+  "nightly",
+] }
 smallvec = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
