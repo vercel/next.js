@@ -1846,7 +1846,7 @@ export function getSupportedBrowsers(
   return MODERN_BROWSERSLIST_TARGET
 }
 
-export function isWebpackServerOnlyLayer(
+export function shouldUseReactServerCondition(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(

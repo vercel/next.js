@@ -12,7 +12,7 @@ import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
-  isWebpackServerOnlyLayer,
+  shouldUseReactServerCondition,
   isWebpackDefaultLayer,
   RSPACK_DEFAULT_LAYERS_REGEX,
 } from './utils'
@@ -1484,7 +1484,7 @@ export default async function getBaseWebpackConfig(
                 },
               },
               {
-                issuerLayer: isWebpackServerOnlyLayer,
+                issuerLayer: shouldUseReactServerCondition,
                 resolve: {
                   alias: createAppRouterApiAliases(true),
                 },
@@ -1500,7 +1500,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackServerOnlyLayer,
+                issuerLayer: shouldUseReactServerCondition,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1571,7 +1571,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    issuerLayer: isWebpackServerOnlyLayer,
+                    issuerLayer: shouldUseReactServerCondition,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1688,7 +1688,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: isWebpackServerOnlyLayer,
+                    issuerLayer: shouldUseReactServerCondition,
                     exclude: asyncStoragesRegex,
                     use: appServerLayerLoaders,
                   },

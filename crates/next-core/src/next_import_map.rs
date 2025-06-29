@@ -787,7 +787,7 @@ async fn rsc_aliases(
                     "react-server-dom-webpack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
                     "react-server-dom-turbopack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
                 });
-        } else if ty.supports_react_server() {
+        } else if ty.should_use_react_server_condition() {
             alias.extend(fxindexmap! {
                 "react/jsx-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
                 "react/jsx-dev-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
@@ -808,7 +808,7 @@ async fn rsc_aliases(
         }
     }
 
-    if runtime == NextRuntime::Edge && ty.supports_react_server() {
+    if runtime == NextRuntime::Edge && ty.should_use_react_server_condition() {
         alias.extend(fxindexmap! {
             "react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
             "next/dist/compiled/react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
