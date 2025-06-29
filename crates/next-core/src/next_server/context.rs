@@ -118,7 +118,6 @@ impl ServerContextType {
             self,
             ServerContextType::AppRSC { .. }
                 | ServerContextType::AppRoute { .. }
-                | ServerContextType::PagesApi { .. }
                 | ServerContextType::Middleware { .. }
                 | ServerContextType::Instrumentation { .. }
         )
