@@ -80,8 +80,6 @@ describe.each([
              |                ^",
            "stack": [
              "SyncIO app/client.tsx (5:16)",
-             "JSON.parse <anonymous> (0:0)",
-             "JSON.parse <anonymous> (0:0)",
              "LogSafely <anonymous> (0:0)",
            ],
          }
@@ -193,8 +191,6 @@ describe.each([
                "body <anonymous> (1:13)",
                "html <anonymous> (1:13)",
                "Root [Server] <anonymous> (1:22)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            }
@@ -217,8 +213,6 @@ describe.each([
                "body <anonymous> (1:13)",
                "html <anonymous> (1:13)",
                "Root [Server] <anonymous> (1:22)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            }
@@ -368,8 +362,6 @@ describe.each([
              |                ^",
            "stack": [
              "SyncIO app/client.tsx (5:16)",
-             "JSON.parse <anonymous> (0:0)",
-             "JSON.parse <anonymous> (0:0)",
              "LogSafely <anonymous> (0:0)",
            ],
          }

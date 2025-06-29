@@ -101,8 +101,6 @@ describe.each([
                "body <anonymous> (1:13)",
                "html <anonymous> (1:13)",
                "Root [Server] <anonymous> (1:22)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            },
@@ -278,8 +276,6 @@ describe.each([
               |     ^",
            "stack": [
              "SearchParamsReadingComponent app/page.tsx (42:5)",
-             "JSON.parse <anonymous> (0:0)",
-             "JSON.parse <anonymous> (0:0)",
              "Page app/page.tsx (19:11)",
            ],
          }
@@ -333,8 +329,6 @@ describe.each([
               |     ^",
              "stack": [
                "SearchParamsReadingComponent app/page.tsx (40:5)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "Page app/page.tsx (19:11)",
              ],
            },
@@ -347,8 +341,6 @@ describe.each([
               |     ^",
              "stack": [
                "SearchParamsReadingComponent app/page.tsx (40:5)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            },
@@ -459,8 +451,6 @@ describe.each([
               |                                                                   ^",
            "stack": [
              "CookiesReadingComponent app/page.tsx (34:67)",
-             "JSON.parse <anonymous> (0:0)",
-             "JSON.parse <anonymous> (0:0)",
              "Page app/page.tsx (17:11)",
            ],
          }
@@ -514,8 +504,6 @@ describe.each([
               |                                                                   ^",
              "stack": [
                "CookiesReadingComponent app/page.tsx (32:67)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "Page app/page.tsx (17:11)",
              ],
            },
@@ -528,8 +516,6 @@ describe.each([
               |                                                                   ^",
              "stack": [
                "CookiesReadingComponent app/page.tsx (32:67)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            },
