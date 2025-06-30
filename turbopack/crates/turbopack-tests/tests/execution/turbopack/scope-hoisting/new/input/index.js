@@ -1,6 +1,6 @@
-import { parseAliasedExpression } from './src/parser/expression-parser.js'
+import { parseExpression } from './src/parser/expression-parser.js'
+console.log(parseExpression)
 
 import('./auth2.js')
-console.log(parseAliasedExpression)
 
 it('should work', () => {})
