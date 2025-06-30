@@ -13,17 +13,13 @@ import {
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
 
-// // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromFetch } from 'react-server-dom-webpack/client'
-// // eslint-disable-next-line import/no-extraneous-dependencies
-// import { encodeReply } from 'react-server-dom-webpack/client'
-const { createFromFetch, createTemporaryReferenceSet, encodeReply } = (
-  !!process.env.NEXT_RUNTIME
-    ? // eslint-disable-next-line import/no-extraneous-dependencies
-      (require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge'))
-    : // eslint-disable-next-line import/no-extraneous-dependencies
-      (require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client'))
-) as typeof import('react-server-dom-webpack/client')
+// Import explicitly from .browser
+// eslint-disable-next-line import/no-extraneous-dependencies
+import {
+  createFromFetch,
+  createTemporaryReferenceSet,
+  encodeReply,
+} from 'react-server-dom-webpack/client'
 
 import {
   PrefetchKind,

@@ -281,6 +281,7 @@ describe('dynamic-data with dynamic = "error"', () => {
 })
 
 describe('dynamic-data inside cache scope', () => {
+  const isExperimentalReact = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
   const { isTurbopack, next, isNextDev, isNextDeploy, skipped } = nextTestSetup(
     {
       files: __dirname + '/fixtures/cache-scoped',
@@ -315,7 +316,7 @@ describe('dynamic-data inside cache scope', () => {
              |                                        ^",
            "stack": [
              "${isTurbopack ? '<anonymous>' : 'eval'} app/cookies/page.js (4:40)",
-             "async Page app/cookies/page.js (15:11)",
+             "${isTurbopack || !isExperimentalReact ? 'async ' : ''}Page app/cookies/page.js (15:11)",
            ],
          }
         `)
@@ -355,7 +356,7 @@ describe('dynamic-data inside cache scope', () => {
              |                                        ^",
            "stack": [
              "${isTurbopack ? '<anonymous>' : 'eval'} app/headers/page.js (4:40)",
-             "async Page app/headers/page.js (15:21)",
+             "${isTurbopack || !isExperimentalReact ? 'async ' : ''}Page app/headers/page.js (15:21)",
            ],
          }
         `)

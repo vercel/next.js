@@ -276,15 +276,15 @@ type ReactDOMEntrypoint =
 type ReactServerDOMWebpackEntrypoint =
   | 'client'
   // TODO: client.browser
-  | 'client.edge'
+  // TODO: client.edge
   // TODO: client.node
-  // TODO: server
+  | 'server'
   // TODO: server.browser
-  | 'server.edge'
+  // TODO: server.edge
   | 'server.node'
-  // TODO: static
-  // TODO: static.browser
-  | 'static.edge'
+  | 'static'
+// TODO: static.browser
+// TODO: static.edge
 // TODO: static.node
 
 type ReactPackagesEntryPoint =
@@ -350,16 +350,15 @@ export function createVendoredReactAliases(
       'react-dom/server$':                     /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
       'react-dom/server.browser$':             /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
       // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
-      'react-dom/server.edge$':                /* ❌ */ `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
+      'react-dom/server.edge$':                /* ❌ */ `next/dist/build/webpack/alias/react-dom-server${bundledReactChannel}.js`,
       'react-dom/static$':                     /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
       'react-dom/static.browser$':             /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
       'react-dom/static.edge$':                /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
       // file:///./../compiled/react-server-dom-webpack/package.json
       'react-server-dom-webpack/client$':      /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.browser`,
-      'react-server-dom-webpack/client.edge$': /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-      'react-server-dom-webpack/server.edge$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+      'react-server-dom-webpack/server$':      /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.browser`,
       'react-server-dom-webpack/server.node$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-      'react-server-dom-webpack/static.edge$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
+      'react-server-dom-webpack/static$':      /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.browser`,
     }
   } else if (
     environmentCondition === 'browser' &&
@@ -378,16 +377,15 @@ export function createVendoredReactAliases(
       'react-dom/server$':                     /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
       'react-dom/server.browser$':             /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
       // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
-      'react-dom/server.edge$':                /* ❌ */ `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
+      'react-dom/server.edge$':                /* ❌ */ `next/dist/build/webpack/alias/react-dom-server${bundledReactChannel}.js`,
       'react-dom/static$':                     /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
       'react-dom/static.browser$':             /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
       'react-dom/static.edge$':                /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
       // file:///./../compiled/react-server-dom-webpack/package.json
       'react-server-dom-webpack/client$':      /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.browser`,
-      'react-server-dom-webpack/client.edge$': /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-      'react-server-dom-webpack/server.edge$': /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+      'react-server-dom-webpack/server$':      /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.browser`,
       'react-server-dom-webpack/server.node$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-      'react-server-dom-webpack/static.edge$': /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
+      'react-server-dom-webpack/static$':      /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.browser`,
     }
   } else if (environmentCondition === 'nodejs' && reactCondition === 'client') {
     // prettier-ignore
@@ -403,16 +401,15 @@ export function createVendoredReactAliases(
       'react-dom/server$':                    /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.node`,
       'react-dom/server.browser$':            /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
       // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
-      'react-dom/server.edge$':               /* ✅ */ `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
+      'react-dom/server.edge$':               /* ✅ */ `next/dist/build/webpack/alias/react-dom-server${bundledReactChannel}.js`,
       'react-dom/static$':                    /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.node`,
       'react-dom/static.browser$':            /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
       'react-dom/static.edge$':               /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
       // file:///./../compiled/react-server-dom-webpack/package.json
-      'react-server-dom-webpack/client$':     /* ❔ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.node`,
-      'react-server-dom-webpack/client.edge$':/* ✅ */ `next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-webpack-client-edge`,
-      'react-server-dom-webpack/server.edge$':/* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+      'react-server-dom-webpack/client$':     /* ✅ */ `next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-webpack-client`,
+      'react-server-dom-webpack/server$':     /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
       'react-server-dom-webpack/server.node$':/* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-      'react-server-dom-webpack/static.edge$':/* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
+      'react-server-dom-webpack/static$':     /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.node`,
     }
   } else if (environmentCondition === 'nodejs' && reactCondition === 'server') {
     // prettier-ignore
@@ -428,16 +425,15 @@ export function createVendoredReactAliases(
       'react-dom/server$':                     /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.node`,
       'react-dom/server.browser$':             /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
       // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
-      'react-dom/server.edge$':                /* ❌ */ `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
+      'react-dom/server.edge$':                /* ❌ */ `next/dist/build/webpack/alias/react-dom-server${bundledReactChannel}.js`,
       'react-dom/static$':                     /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.node`,
       'react-dom/static.browser$':             /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
       'react-dom/static.edge$':                /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
       // file:///./../compiled/react-server-dom-webpack/package.json
       'react-server-dom-webpack/client$':      /* ❔ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.node`,
-      'react-server-dom-webpack/client.edge$': /* ❔ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-      'react-server-dom-webpack/server.edge$': /* ✅ */ `next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-webpack-server-edge`,
-      'react-server-dom-webpack/server.node$': /* ✅ */ `next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-webpack-server-node`,
-      'react-server-dom-webpack/static.edge$': /* ✅ */ `next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-webpack-static-edge`,
+      'react-server-dom-webpack/server$':      /* ✅ */ `next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-webpack-server`,
+      'react-server-dom-webpack/server.node$': /* ✅ */ `next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-webpack-server`,
+      'react-server-dom-webpack/static$':      /* ✅ */ `next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-webpack-static`,
     }
   } else if (environmentCondition === 'edge' && reactCondition === 'client') {
     // prettier-ignore
@@ -450,19 +446,18 @@ export function createVendoredReactAliases(
       // file:///./../compiled/react-dom/package.json
       'react-dom$':                            /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}`,
       'react-dom/client$':                     /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-      'react-dom/server$':                     /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+      'react-dom/server$':                     /* ✅ */ `next/dist/build/webpack/alias/react-dom-server${bundledReactChannel}.js`,
       'react-dom/server.browser$':             /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
       // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
-      'react-dom/server.edge$':                /* ✅ */ `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
+      'react-dom/server.edge$':                /* ✅ */ `next/dist/build/webpack/alias/react-dom-server${bundledReactChannel}.js`,
       'react-dom/static$':                     /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
       'react-dom/static.browser$':             /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
       'react-dom/static.edge$':                /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
       // file:///./../compiled/react-server-dom-webpack/package.json
       'react-server-dom-webpack/client$':      /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-      'react-server-dom-webpack/client.edge$': /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-      'react-server-dom-webpack/server.edge$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+      'react-server-dom-webpack/server$':      /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
       'react-server-dom-webpack/server.node$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-      'react-server-dom-webpack/static.edge$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
+      'react-server-dom-webpack/static$':      /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
     }
   } else if (environmentCondition === 'edge' && reactCondition === 'server') {
     // prettier-ignore
@@ -475,19 +470,18 @@ export function createVendoredReactAliases(
       // file:///./../compiled/react-dom/package.json
       'react-dom$':                            /* ✅ */ `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
       'react-dom/client$':                     /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-      'react-dom/server$':                     /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+      'react-dom/server$':                     /* ❌ */ `next/dist/build/webpack/alias/react-dom-server${bundledReactChannel}.js`,
       'react-dom/server.browser$':             /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
       // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
-      'react-dom/server.edge$':                /* ❌ */ `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
+      'react-dom/server.edge$':                /* ❌ */ `next/dist/build/webpack/alias/react-dom-server${bundledReactChannel}.js`,
       'react-dom/static$':                     /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
       'react-dom/static.browser$':             /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
       'react-dom/static.edge$':                /* ❌ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
       // file:///./../compiled/react-server-dom-webpack/package.json
       'react-server-dom-webpack/client$':      /* ❔ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-      'react-server-dom-webpack/client.edge$': /* ❔ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-      'react-server-dom-webpack/server.edge$': /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+      'react-server-dom-webpack/server$':      /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
       'react-server-dom-webpack/server.node$': /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-      'react-server-dom-webpack/static.edge$': /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
+      'react-server-dom-webpack/static$':      /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
     }
 
     // prettier-ignore

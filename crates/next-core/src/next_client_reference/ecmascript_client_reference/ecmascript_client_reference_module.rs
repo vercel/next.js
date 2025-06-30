@@ -85,7 +85,7 @@ impl EcmascriptClientReferenceModule {
             writedoc!(
                 code,
                 r#"
-                    import {{ registerClientReference }} from "react-server-dom-turbopack/server.edge";
+                    import {{ registerClientReference }} from "react-server-dom-turbopack/server";
                 "#,
             )?;
 
@@ -135,7 +135,7 @@ impl EcmascriptClientReferenceModule {
             writedoc!(
                 code,
                 r#"
-                    const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server.edge");
+                    const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server");
 
                     {TURBOPACK_EXPORT_NAMESPACE}(createClientModuleProxy({server_module_path}));
                 "#,

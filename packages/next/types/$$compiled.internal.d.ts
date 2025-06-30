@@ -14,7 +14,6 @@ declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
-declare module 'next/dist/compiled/react-server-dom-webpack/static.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/client'
 declare module 'next/dist/compiled/react-server-dom-turbopack/client.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
@@ -26,13 +25,9 @@ declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'react-server-dom-webpack/client' {
-  export interface Options {
-    callServer?: CallServerCallback
-    temporaryReferences?: TemporaryReferenceSet
-    findSourceMapURL?: FindSourceMapURLCallback
-    replayConsoleLogs?: boolean
-    environmentName?: string
-  }
+  import type { Options } from 'react-server-dom-webpack/client.edge'
+
+  export { Options }
 
   type TemporaryReferenceSet = Map<string, unknown>
 
@@ -84,7 +79,10 @@ declare module 'react-server-dom-webpack/client' {
 
   export function encodeReply(
     value: unknown,
-    options?: { temporaryReferences?: TemporaryReferenceSet }
+    options?: {
+      temporaryReferences?: TemporaryReferenceSet
+      signal?: AbortSignal
+    }
   ): Promise<string | FormData>
 }
 
@@ -156,8 +154,20 @@ declare module 'react-server-dom-webpack/server.edge' {
 
   export function createClientModuleProxy(moduleId: string): unknown
 }
+
+declare module 'react-server-dom-webpack/server' {
+  export * from 'react-server-dom-webpack/server.node'
+}
+
 declare module 'react-server-dom-webpack/server.node' {
   import type { Busboy } from 'busboy'
+
+  export {
+    createClientModuleProxy,
+    decodeReplyFromAsyncIterable,
+    registerServerReference,
+    renderToReadableStream,
+  } from 'react-server-dom-webpack/server.edge'
 
   export type TemporaryReferenceSet = WeakMap<any, string>
 
@@ -190,11 +200,11 @@ declare module 'react-server-dom-webpack/server.node' {
     options?: { temporaryReferences?: TemporaryReferenceSet }
   ): Promise<unknown[]>
 
-  export function decodeReply(
+  export function decodeReply<T>(
     body: string | FormData,
     webpackMap: ServerManifest,
     options?: { temporaryReferences?: TemporaryReferenceSet }
-  ): Promise<unknown[]>
+  ): Promise<T[]>
 
   export function decodeAction(
     body: FormData,
@@ -207,7 +217,7 @@ declare module 'react-server-dom-webpack/server.node' {
     serverManifest: ServerManifest
   ): Promise<ReactFormState | null>
 }
-declare module 'react-server-dom-webpack/static.edge' {
+declare module 'react-server-dom-webpack/static' {
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export function unstable_prerender(
@@ -235,7 +245,8 @@ declare module 'react-server-dom-webpack/static.edge' {
 }
 declare module 'react-server-dom-webpack/client.edge' {
   export interface Options {
-    serverConsumerManifest: ServerConsumerManifest
+    callServer?: CallServerCallback
+    serverConsumerManifest?: ServerConsumerManifest
     nonce?: string
     encodeFormAction?: EncodeFormActionCallback
     temporaryReferences?: TemporaryReferenceSet

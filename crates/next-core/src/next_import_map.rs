@@ -771,14 +771,12 @@ async fn apply_vendored_react_aliases_server(
             "react-dom/static.browser" =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser"),
             "react-dom/static.edge" =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
-            "react-server-dom-webpack/client" =>        /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-webpack/client.edge" =>   /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-            "react-server-dom-webpack/server.edge" =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
+            "react-server-dom-webpack/client" =>        /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
+            "react-server-dom-webpack/server" =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
             "react-server-dom-webpack/server.node" =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-webpack/static.edge" =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
-            "react-server-dom-turbopack/client" =>      /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-turbopack/client.edge" => /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-            "react-server-dom-turbopack/server.edge" => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
+            "react-server-dom-webpack/static" =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.node"),
+            "react-server-dom-turbopack/client" =>      /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
+            "react-server-dom-turbopack/server" =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
             "react-server-dom-turbopack/server.node" => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
             "react-server-dom-turbopack/static.edge" => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
         })
@@ -800,16 +798,14 @@ async fn apply_vendored_react_aliases_server(
             "react-dom/static.browser" =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser"),
             "react-dom/static.edge" =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
-            "react-server-dom-webpack/client" =>        /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-webpack/client.edge" =>   /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-webpack/server.edge" =>   /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-            "react-server-dom-webpack/server.node" =>   /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-            "react-server-dom-webpack/static.edge" =>   /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static-edge"),
-            "react-server-dom-turbopack/client" =>      /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-turbopack/client.edge" => /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-turbopack/server.edge" => /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-            "react-server-dom-turbopack/server.node" => /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-            "react-server-dom-turbopack/static.edge" => /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static-edge"),
+            "react-server-dom-webpack/client" =>        /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.node"),
+            "react-server-dom-webpack/server" =>        /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            "react-server-dom-webpack/server.node" =>   /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            "react-server-dom-webpack/static" =>        /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
+            "react-server-dom-turbopack/client" =>      /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.node"),
+            "react-server-dom-turbopack/server" =>      /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            "react-server-dom-turbopack/server.node" => /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            "react-server-dom-turbopack/static" =>      /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
 
             // Needed to make `react-dom/server` work.
             // TODO: really?
@@ -834,15 +830,13 @@ async fn apply_vendored_react_aliases_server(
             "react-dom/static.edge" =>                  /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
             "react-server-dom-webpack/client" =>        /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-webpack/client.edge" =>   /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-webpack/server.edge" =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
+            "react-server-dom-webpack/server" =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
             "react-server-dom-webpack/server.node" =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-webpack/static.edge" =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
+            "react-server-dom-webpack/static" =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
             "react-server-dom-turbopack/client" =>      /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-turbopack/client.edge" => /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-turbopack/server.edge" => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
+            "react-server-dom-turbopack/server" =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
             "react-server-dom-turbopack/server.node" => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-turbopack/static.edge" => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
+            "react-server-dom-turbopack/static" =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
         })
     } else if runtime == NextRuntime::Edge && react_condition == "server" {
         react_alias.extend(fxindexmap! {
@@ -863,15 +857,13 @@ async fn apply_vendored_react_aliases_server(
             "react-dom/static.edge" =>                  /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
             "react-server-dom-webpack/client" =>        /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-webpack/client.edge" =>   /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-webpack/server.edge" =>   /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
+            "react-server-dom-webpack/server" =>        /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
             "react-server-dom-webpack/server.node" =>   /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-webpack/static.edge" =>   /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
+            "react-server-dom-webpack/static" =>        /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
             "react-server-dom-turbopack/client" =>      /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-turbopack/client.edge" => /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-turbopack/server.edge" => /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
+            "react-server-dom-turbopack/server" =>      /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
             "react-server-dom-turbopack/server.node" => /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-turbopack/static.edge" => /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
+            "react-server-dom-turbopack/static" =>      /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
         });
 
         react_alias.extend(fxindexmap! {

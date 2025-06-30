@@ -65,8 +65,8 @@ declare module 'next/dist/compiled/amphtml-validator' {
   export type ValidationError = any
 }
 
-declare module 'react-server-dom-webpack/server.edge'
-declare module 'react-server-dom-webpack/static.edge'
+declare module 'react-server-dom-webpack/server'
+declare module 'react-server-dom-webpack/static'
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
