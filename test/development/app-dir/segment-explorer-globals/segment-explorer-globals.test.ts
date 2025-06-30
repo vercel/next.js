@@ -1,13 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { hasDevToolsPanel, openDevToolsIndicatorPopover } from 'next-test-utils'
+import { openDevToolsIndicatorPopover } from 'next-test-utils'
 import { Playwright } from 'next-webdriver'
 
 async function getSegmentExplorerContent(browser: Playwright) {
-  const isPanelOpen = await hasDevToolsPanel(browser)
-  if (!isPanelOpen) {
-    // open the devtool button
-    await openDevToolsIndicatorPopover(browser)
-  }
+  await openDevToolsIndicatorPopover(browser)
 
   // open segment explorer tab
   await browser

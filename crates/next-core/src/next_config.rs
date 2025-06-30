@@ -802,6 +802,7 @@ pub struct ExperimentalConfig {
     /// Defaults to false in development mode, true in production mode.
     turbopack_remove_unused_exports: Option<bool>,
     /// Devtool option for new panel UI.
+    #[serde(rename = "devtoolNewPanelUI")]
     devtool_new_panel_ui: Option<bool>,
 }
 

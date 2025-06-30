@@ -83,7 +83,6 @@ const OVERLAYS = {
   Turbo: 'turbo',
   Route: 'route',
   Preferences: 'preferences',
-  SegmentExplorer: 'segment-explorer',
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
@@ -400,13 +399,6 @@ function DevToolsPopover({
                 value={<GearIcon />}
                 onClick={() => setOpen(OVERLAYS.Preferences)}
                 index={isTurbopack ? 2 : 3}
-              />
-              <MenuItem
-                data-segment-explorer
-                label="Route Info"
-                value={<ChevronRight />}
-                onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
-                index={isTurbopack ? 3 : 4}
               />
             </div>
           </Context.Provider>

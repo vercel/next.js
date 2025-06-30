@@ -739,7 +739,7 @@ export interface ExperimentalConfig {
   /**
    * Enable new panel UI for the Next.js DevTools.
    */
-  devtoolNewPanelUi?: boolean
+  devtoolNewPanelUI?: boolean
 }
 
 export type ExportPathMap = {
@@ -1351,7 +1351,7 @@ export const defaultConfig = {
       static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
     },
     cssChunking: true,
-    devtoolNewPanelUi: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
+    devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
     multiZoneDraftMode: false,
     appNavFailHandling: false,
     prerenderEarlyExit: true,

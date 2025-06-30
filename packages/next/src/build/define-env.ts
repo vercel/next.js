@@ -107,7 +107,7 @@ export function getDefineEnv({
   const isDynamicIOEnabled = !!config.experimental.dynamicIO
   const isUseCacheEnabled = !!config.experimental.useCache
 
-  const isDevToolPanelUIEnabled = Boolean(config.experimental.devtoolNewPanelUi)
+  const isDevToolPanelUIEnabled = Boolean(config.experimental.devtoolNewPanelUI)
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
