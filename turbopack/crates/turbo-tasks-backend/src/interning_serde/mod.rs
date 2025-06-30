@@ -7,10 +7,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
 #[derive(Serialize)]
-struct SerData<'l>(&'l [u8], FxIndexSet<RcStr>);
+struct SerData<'l>(#[serde(with = "serde_bytes")] &'l [u8], FxIndexSet<RcStr>);
 
 #[derive(Deserialize)]
-struct DeserData<'l>(&'l [u8], FxIndexSet<RcStr>);
+struct DeserData<'l>(#[serde(with = "serde_bytes")] &'l [u8], FxIndexSet<RcStr>);
 
 pub fn to_vec<T>(config: &pot::Config, value: &T) -> pot::Result<Vec<u8>>
 where
