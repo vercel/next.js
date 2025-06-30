@@ -12,21 +12,20 @@ describe('hydration-error-count', () => {
      [
        {
          "componentStack": "...
-         <OuterLayoutRouter parallelRouterKey="children" template={<RenderFromTemplateContext>}>
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/bad-nesting" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
+         <RenderFromTemplateContext>
+           <ScrollAndFocusHandler segmentPath={[...]}>
+             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/bad-nesting" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <Page params={Promise} searchParams={Promise}>
+     >                         <p>
      >                           <p>
-     >                             <p>
-                             ...",
+                           ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -61,22 +60,21 @@ describe('hydration-error-count', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <OuterLayoutRouter parallelRouterKey="children" template={<RenderFromTemplateContext>}>
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/html-diff" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-                                 <p>
-     +                             client
-     -                             server
-                             ...",
+         <RenderFromTemplateContext>
+           <ScrollAndFocusHandler segmentPath={[...]}>
+             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/html-diff" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <Page params={Promise} searchParams={Promise}>
+                               <p>
+     +                           client
+     -                           server
+                           ...",
        "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -98,21 +96,20 @@ describe('hydration-error-count', () => {
      [
        {
          "componentStack": "...
-         <OuterLayoutRouter parallelRouterKey="children" template={<RenderFromTemplateContext>}>
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/two-issues" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <p className="client">
-     >                             <p>
-                             ...",
+         <RenderFromTemplateContext>
+           <ScrollAndFocusHandler segmentPath={[...]}>
+             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/two-issues" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <Page params={Promise} searchParams={Promise}>
+     >                         <p className="client">
+     >                           <p>
+                           ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -127,23 +124,22 @@ describe('hydration-error-count', () => {
        },
        {
          "componentStack": "...
-         <OuterLayoutRouter parallelRouterKey="children" template={<RenderFromTemplateContext>}>
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/two-issues" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-                                 <p
-     +                             className="client"
-     -                             className="server"
-                                 >
-                             ...",
+         <RenderFromTemplateContext>
+           <ScrollAndFocusHandler segmentPath={[...]}>
+             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/two-issues" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <Page params={Promise} searchParams={Promise}>
+                               <p
+     +                           className="client"
+     -                           className="server"
+                               >
+                           ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -166,21 +162,20 @@ describe('hydration-error-count', () => {
      [
        {
          "componentStack": "...
-         <OuterLayoutRouter parallelRouterKey="children" template={<RenderFromTemplateContext>}>
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/hydration..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
+         <RenderFromTemplateContext>
+           <ScrollAndFocusHandler segmentPath={[...]}>
+             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/hydration..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <Page params={Promise} searchParams={Promise}>
+     >                         <p>
      >                           <p>
-     >                             <p>
-                             ...",
+                           ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,

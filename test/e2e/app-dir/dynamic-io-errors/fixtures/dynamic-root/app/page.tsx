@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-import { IndirectionOne, IndirectionTwo, IndirectionThree } from './indirection'
+import { IndirectionOne, IndirectionTwo } from './indirection'
 
 export default async function Page() {
   return (
@@ -24,12 +24,10 @@ export default async function Page() {
           <FetchingComponent nonce="d" />
         </Suspense>
       </IndirectionTwo>
-      <IndirectionThree>
-        <FetchingComponent nonce="e" />
-        <Suspense fallback="loading...">
-          <FetchingComponent nonce="f" />
-        </Suspense>
-      </IndirectionThree>
+      <FetchingComponent nonce="e" />
+      <Suspense fallback="loading...">
+        <FetchingComponent nonce="f" />
+      </Suspense>
     </>
   )
 }

@@ -63,6 +63,7 @@ const state: OverlayState = {
   isDevToolsPanelOpen: false,
   devToolsPosition: 'bottom-left',
   scale: 1,
+  page: '',
 }
 
 export const StaticRoute: Story = {

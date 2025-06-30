@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
@@ -89,9 +90,11 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
         // Can still render the suspenseful content with browser
         const browser = await next.browser('/suspenseful/dynamic')
-        expect(await browser.elementByCss('.suspenseful-layout').text()).toBe(
-          'suspenseful - dynamic'
-        )
+        await retry(async () => {
+          expect(await browser.elementByCss('.suspenseful-layout').text()).toBe(
+            'suspenseful - dynamic'
+          )
+        })
       })
 
       it('should contain async generated metadata in head for simple dynamic page', async () => {

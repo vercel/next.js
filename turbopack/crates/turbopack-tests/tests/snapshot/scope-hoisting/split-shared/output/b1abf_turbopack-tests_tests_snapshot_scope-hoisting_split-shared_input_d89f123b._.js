@@ -1,12 +1,12 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/b1abf_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_d89f123b._.js", {
 
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/index.js [test] (ecmascript)": (function(__turbopack_context__) {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
 {
 setTimeout(()=>__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/inner.js [test] (ecmascript, async loader)")(__turbopack_context__.i), 500);
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/y/index.js [test] (ecmascript)": (function(__turbopack_context__) {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/y/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
 {

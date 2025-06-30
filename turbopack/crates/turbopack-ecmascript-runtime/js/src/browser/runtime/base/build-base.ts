@@ -100,8 +100,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     const sourceInfo: SourceInfo = { type: SourceType.Parent, parentId: id }
 
     const r = commonJsRequire.bind(null, module)
-    moduleFactory.call(
-      module.exports,
+    moduleFactory(
       augmentContext({
         a: asyncModule.bind(null, module),
         e: module.exports,

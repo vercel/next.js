@@ -60,8 +60,8 @@ impl Default for CacheKinds {
     }
 }
 
-#[turbo_tasks::value(serialization = "custom", eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, OperationValue)]
+#[turbo_tasks::value(eq = "manual")]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct NextConfig {
     // TODO all fields should be private and access should be wrapped within a turbo-tasks function
@@ -98,6 +98,10 @@ pub struct NextConfig {
     pub output: Option<OutputType>,
     pub turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
+    output_file_tracing_includes: Option<serde_json::Value>,
+    output_file_tracing_excludes: Option<serde_json::Value>,
+    // TODO: This option is not respected, it uses Turbopack's root instead.
+    output_file_tracing_root: Option<RcStr>,
 
     /// Enables the bundling of node_modules packages (externals) for pages
     /// server-side bundles.
@@ -763,9 +767,6 @@ pub struct ExperimentalConfig {
     /// Automatically apply the "modularize_imports" optimization to imports of
     /// the specified packages.
     optimize_package_imports: Option<Vec<RcStr>>,
-    output_file_tracing_ignores: Option<Vec<RcStr>>,
-    output_file_tracing_includes: Option<serde_json::Value>,
-    output_file_tracing_root: Option<RcStr>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
@@ -1111,6 +1112,9 @@ pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionServerActions(Option<ServerActions>);
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionJsonValue(pub Option<serde_json::Value>);
 
 #[turbo_tasks::value_impl]
 impl NextConfig {
@@ -1627,6 +1631,16 @@ impl NextConfig {
                 .map(|path| path.to_owned().into()),
         ))
     }
+
+    #[turbo_tasks::function]
+    pub fn output_file_tracing_includes(&self) -> Vc<OptionJsonValue> {
+        Vc::cell(self.output_file_tracing_includes.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_file_tracing_excludes(&self) -> Vc<OptionJsonValue> {
+        Vc::cell(self.output_file_tracing_excludes.clone())
+    }
 }
 
 /// A subset of ts/jsconfig that next.js implicitly
@@ -1657,7 +1671,7 @@ impl JsConfig {
 
 #[turbo_tasks::value]
 struct OutdatedConfigIssue {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     old_name: RcStr,
     new_name: RcStr,
     description: RcStr,
@@ -1676,7 +1690,7 @@ impl Issue for OutdatedConfigIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]

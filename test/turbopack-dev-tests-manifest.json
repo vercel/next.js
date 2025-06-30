@@ -7885,6 +7885,7 @@
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with prerendered dynamic routes  should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
@@ -8818,18 +8819,16 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
-    "passed": [],
+    "passed": ["Invalid Global CSS with Custom App should fail to build"],
     "failed": [],
-    "pending": [
-      "Invalid Global CSS with Custom App production only should fail to build"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
-    "passed": [],
+    "passed": ["Invalid Global CSS should fail to build"],
     "failed": [],
-    "pending": ["Invalid Global CSS production only should fail to build"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9052,11 +9051,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Valid and Invalid Global CSS with Custom App production only should fail to build"
+    "passed": [
+      "Valid and Invalid Global CSS with Custom App should fail to build"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

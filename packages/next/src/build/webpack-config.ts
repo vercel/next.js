@@ -2456,7 +2456,7 @@ export default async function getBaseWebpackConfig(
       config,
       defaultLoaders,
       totalPages: Object.keys(entrypoints).length,
-      webpack,
+      webpack: bundler,
       ...(isNodeOrEdgeCompilation
         ? {
             nextRuntime: isEdgeServer ? 'edge' : 'nodejs',

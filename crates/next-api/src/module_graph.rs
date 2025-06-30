@@ -440,14 +440,13 @@ impl Issue for CssGlobalImportIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let parent_path = &self.parent_module.ident().path();
-        let module_path = &self.module.ident().path();
-        let relative_import_location = parent_path.parent().await?;
+        let parent_path = self.parent_module.ident().path().await?.clone_value();
+        let module_path = self.module.ident().path().await?.clone_value();
+        let relative_import_location = parent_path.parent();
 
-        let import_path = match relative_import_location.get_relative_path_to(&*module_path.await?)
-        {
+        let import_path = match relative_import_location.get_relative_path_to(&module_path) {
             Some(path) => path,
-            None => module_path.await?.path.clone(),
+            None => module_path.path.clone(),
         };
         let cleaned_import_path =
             if import_path.ends_with(".scss.css") || import_path.ends_with(".sass.css") {
@@ -458,7 +457,7 @@ impl Issue for CssGlobalImportIssue {
 
         Ok(Vc::cell(Some(
             StyledString::Stack(vec![
-                StyledString::Text(format!("Location: {}", parent_path.await?.path).into()),
+                StyledString::Text(format!("Location: {}", parent_path.path).into()),
                 StyledString::Text(format!("Import path: {cleaned_import_path}",).into()),
             ])
             .resolved_cell(),
@@ -512,6 +511,15 @@ async fn validate_pages_css_imports(
     graph.traverse_edges_from_entries(entries, |parent_info, node| {
         let module = node.module;
 
+        // If the module being imported isn't a global css module, there is nothing to validate.
+        let module_is_global_css =
+            ResolvedVc::try_downcast_type::<CssModuleAsset>(module).is_some();
+
+        if !module_is_global_css {
+            return GraphTraversalAction::Continue;
+        }
+
+        // We allow imports of global CSS files which are inside of `node_modules`.
         let module_name_contains_node_modules = module_name_map
             .get(&module)
             .is_some_and(|s| s.contains("node_modules"));
@@ -520,8 +528,9 @@ async fn validate_pages_css_imports(
             return GraphTraversalAction::Continue;
         }
 
+        // If we're at a root node, there is nothing importing this module and we can skip
+        // any further validations.
         let Some((parent_node, _)) = parent_info else {
-            // root node, no parent
             return GraphTraversalAction::Continue;
         };
 
@@ -530,17 +539,14 @@ async fn validate_pages_css_imports(
             .is_some()
             || ResolvedVc::try_downcast_type::<CssModuleAsset>(parent_module).is_some();
 
+        // We also always allow .module css/scss/sass files to import global css files as well.
         if parent_is_css_module {
             return GraphTraversalAction::Continue;
         }
 
-        let module_is_global_css =
-            ResolvedVc::try_downcast_type::<CssModuleAsset>(module).is_some();
-
-        if !module_is_global_css {
-            return GraphTraversalAction::Continue;
-        }
-
+        // If all of the above invariants have been checked, we look to see if the parent module is
+        // the same as the app module. If it isn't we know it isn't a valid place to import global
+        // css.
         if parent_module != app_module {
             CssGlobalImportIssue::new(parent_module, module)
                 .resolved_cell()
@@ -740,6 +746,11 @@ impl ReducedGraphs {
     }
 
     #[turbo_tasks::function]
+    /// Validates that the global CSS/SCSS/SASS imports are only valid imports with the following
+    /// rules:
+    /// * The import is made from a `node_modules` package
+    /// * The import is made from a `.module.css` file
+    /// * The import is made from the `pages/_app.js`, or equivalent file.
     pub async fn validate_pages_css_imports(
         &self,
         entry: Vc<Box<dyn Module>>,
@@ -747,28 +758,34 @@ impl ReducedGraphs {
     ) -> Result<()> {
         let span = tracing::info_span!("validate pages css imports");
         async move {
-            let mut ident_vec = Vec::new();
-            for graph in self.bare_graphs.await?.graphs.iter() {
-                let inputs = graph
+            let graphs = &self.bare_graphs.await?.graphs;
+
+            // We need to collect the module names here to pass into the
+            // `validate_pages_css_imports` function. This is because the function is
+            // called for each graph, and we need to know the module names of the parent
+            // modules to determine if the import is valid. We can't do this in the
+            // called function because it's within a closure that can't resolve turbo tasks.
+            let graph_to_module_ident_tuples = async |graph: &ResolvedVc<SingleModuleGraph>| {
+                graph
                     .await?
                     .graph
                     .node_weights()
-                    .map(async |n| {
-                        Ok((
-                            n.module(),
-                            RcStr::from(n.module().ident().to_string().await?.as_str()),
-                        ))
-                    })
+                    .map(async |n| Ok((n.module(), n.module().ident().to_string().owned().await?)))
                     .try_join()
-                    .await?;
-                ident_vec.extend(inputs);
-            }
-            let idents = ModuleNameMap(ident_vec.into_iter().collect::<FxIndexMap<_, _>>()).cell();
+                    .await
+            };
 
-            let _ = self
-                .bare_graphs
+            let identifier_map = graphs
+                .iter()
+                .map(graph_to_module_ident_tuples)
+                .try_join()
                 .await?
-                .graphs
+                .into_iter()
+                .flatten()
+                .collect::<FxIndexMap<_, _>>();
+            let identifier_map = ModuleNameMap(identifier_map).cell();
+
+            let _ = graphs
                 .iter()
                 .map(|graph| {
                     validate_pages_css_imports(
@@ -776,7 +793,7 @@ impl ReducedGraphs {
                         self.is_single_page,
                         entry,
                         app_module,
-                        idents,
+                        identifier_map,
                     )
                 })
                 .try_join()

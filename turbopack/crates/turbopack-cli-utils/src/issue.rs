@@ -173,16 +173,24 @@ pub fn format_issue(
     }
     let traces = &*plain_issue.import_traces;
     if !traces.is_empty() {
-        /// Returns the layer used by all items in the trace if it is unique.
-        /// Returns None, if there are multiple different layers (or no layers)
-        fn get_layer(items: &[PlainTraceItem]) -> Option<RcStr> {
-            let layer = items.first().and_then(|t| t.layer.clone());
-            for item in items.iter().skip(1) {
-                if item.layer != layer {
-                    return None;
-                }
-            }
-            layer
+        /// Returns the leaf layer name, which is the first present layer name in the trace
+        fn leaf_layer_name(items: &[PlainTraceItem]) -> Option<RcStr> {
+            items
+                .iter()
+                .find(|t| t.layer.is_some())
+                .and_then(|t| t.layer.clone())
+        }
+        /// Returns whether or not all layers in the trace are identical
+        /// If a layer is missing we ignore it in this analysis
+        fn are_layers_identical(items: &[PlainTraceItem]) -> bool {
+            let Some(first_present_layer) = items.iter().position(|t| t.layer.is_some()) else {
+                return true; // if all layers are absent they are the same.
+            };
+            let layer = &items[first_present_layer].layer;
+            items
+                .iter()
+                .skip(first_present_layer + 1)
+                .all(|t| t.layer.is_none() || &t.layer == layer)
         }
         fn format_trace_items(
             out: &mut String,
@@ -223,28 +231,27 @@ pub fn format_issue(
             // We don't put the layer in the header for the single case. Either they are all the
             // same in which case it should be clear from the filename or they are different and we
             // need to print them on the items anyway.
-            writeln!(styled_issue, "Example import trace:").unwrap();
-            format_trace_items(&mut styled_issue, "  ", get_layer(trace).is_none(), trace);
+            writeln!(styled_issue, "Import trace:").unwrap();
+            format_trace_items(&mut styled_issue, "  ", !are_layers_identical(trace), trace);
         } else {
             // When there are multiple traces we:
             // * display the layer in the header if the trace has a consistent layer
             // * label the traces with their index, unless the layer is sufficiently unique.
-            styled_issue.push_str("Example import traces:\n");
-            let traces_and_layers: Vec<_> = traces.iter().map(|t| (get_layer(t), t)).collect();
-            let every_trace_has_a_distinct_layer = traces_and_layers
+            styled_issue.push_str("Import traces:\n");
+            let every_trace_has_a_distinct_root_layer = traces
                 .iter()
-                .filter_map(|t| t.0.clone())
-                .collect::<FxHashSet<_>>()
+                .filter_map(|t| leaf_layer_name(t))
+                .collect::<FxHashSet<RcStr>>()
                 .len()
-                == traces_and_layers.len();
-            if every_trace_has_a_distinct_layer {
-                for (layer, trace) in traces_and_layers {
-                    writeln!(styled_issue, "  {}:", layer.unwrap()).unwrap();
+                == traces.len();
+            if every_trace_has_a_distinct_root_layer {
+                for trace in traces {
+                    writeln!(styled_issue, "  {}:", leaf_layer_name(trace).unwrap()).unwrap();
                     format_trace_items(&mut styled_issue, "    ", false, trace);
                 }
             } else {
-                for (index, (layer, trace)) in traces_and_layers.iter().enumerate() {
-                    let print_layers = match layer {
+                for (index, trace) in traces.iter().enumerate() {
+                    let printed_layer = match leaf_layer_name(trace) {
                         Some(layer) => {
                             writeln!(styled_issue, "  #{} [{layer}]:", index + 1).unwrap();
                             false
@@ -254,7 +261,12 @@ pub fn format_issue(
                             true
                         }
                     };
-                    format_trace_items(&mut styled_issue, "    ", print_layers, trace);
+                    format_trace_items(
+                        &mut styled_issue,
+                        "    ",
+                        !printed_layer || !are_layers_identical(trace),
+                        trace,
+                    );
                 }
             }
         }

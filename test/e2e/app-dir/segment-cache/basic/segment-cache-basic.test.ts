@@ -2,11 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (basic tests)', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     test('ppr is disabled', () => {})
     return
   }

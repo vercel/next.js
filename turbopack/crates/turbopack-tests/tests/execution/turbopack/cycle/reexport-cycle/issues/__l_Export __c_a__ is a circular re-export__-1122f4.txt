@@ -10,7 +10,7 @@ error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/tu
   
   
   
-  Example import trace:
+  Import trace:
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/b.js
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/a.js
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/index.js

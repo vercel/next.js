@@ -120,7 +120,7 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
-     not-found-error.js"
+     not-found.js"
     `)
   })
 
@@ -128,7 +128,7 @@ describe('segment-explorer', () => {
     const browser = await next.browser('/runtime-error')
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
-     global-error.tsx"
+     global-error.js"
     `)
   })
 

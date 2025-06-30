@@ -165,9 +165,13 @@ export function DevToolsPanel({
                       onClick={() => setActiveTab('issues')}
                     >
                       Issues
-                      <span data-nextjs-devtools-panel-header-tab-issues-badge>
-                        {issueCount}
-                      </span>
+                      {issueCount > 0 ? (
+                        <span
+                          data-nextjs-devtools-panel-header-tab-issues-badge
+                        >
+                          {issueCount}
+                        </span>
+                      ) : null}
                     </button>
                     <button
                       data-nextjs-devtools-panel-header-tab={
@@ -208,6 +212,7 @@ export function DevToolsPanel({
               </DialogHeader>
               <DialogBody data-nextjs-devtools-panel-dialog-body>
                 <DevToolsPanelTab
+                  page={state.page}
                   activeTab={activeTab}
                   devToolsPosition={state.devToolsPosition}
                   scale={state.scale}
@@ -273,11 +278,7 @@ export const DEVTOOLS_PANEL_STYLES = css`
     }
 
     @media (min-width: 992px) {
-      max-width: 960px;
-    }
-
-    @media (min-width: 1200px) {
-      max-width: 1140px;
+      max-width: 920px;
     }
   }
 
@@ -307,8 +308,11 @@ export const DEVTOOLS_PANEL_STYLES = css`
     box-shadow: var(--shadow-lg);
     position: relative;
     width: 100%;
-    max-height: 75vh;
-    min-height: 450px;
+    height: 350px;
+
+    @media (min-width: 768px) {
+      height: 450px;
+    }
   }
 
   [data-nextjs-devtools-panel-header] {
@@ -351,7 +355,9 @@ export const DEVTOOLS_PANEL_STYLES = css`
   }
 
   [data-nextjs-devtools-panel-header-tab-issues-badge] {
-    display: inline-block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-left: 8px;
     background-color: var(--color-red-400);
     color: var(--color-red-900);
@@ -378,7 +384,7 @@ export const DEVTOOLS_PANEL_STYLES = css`
     align-items: center;
     justify-content: center;
     padding: 6px;
-    color: var(--color-gray-600);
+    color: var(--color-gray-1000);
     border-radius: 4px;
     transition: all 0.2s ease;
 

@@ -1884,7 +1884,7 @@ export default async function build(
 
                 const pageFilePath = isAppBuiltinNotFoundPage(pagePath)
                   ? require.resolve(
-                      'next/dist/client/components/not-found-error'
+                      'next/dist/client/components/builtin/not-found'
                     )
                   : path.join(
                       (pageType === 'pages' ? pagesDir : appDir) || '',

@@ -27,7 +27,7 @@ import type {
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
 import type { FlightRouterState } from '../../server/app-render/types'
 import type { ClientInstrumentationHooks } from '../app-index'
-import type { GlobalErrorComponent } from './global-error'
+import type { GlobalErrorComponent } from './builtin/global-error'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 

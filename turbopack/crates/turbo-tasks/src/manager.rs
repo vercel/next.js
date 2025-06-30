@@ -16,6 +16,7 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use tokio::{runtime::Handle, select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
 use tracing::{Instrument, Level, Span, info_span, instrument, trace_span};
@@ -399,7 +400,7 @@ struct CurrentTaskState {
     /// Affected tasks, that are tracked during task execution. These tasks will
     /// be invalidated when the execution finishes or before reading a cell
     /// value.
-    tasks_to_notify: Vec<TaskId>,
+    tasks_to_notify: SmallVec<[TaskId; 4]>,
 
     /// True if the current task has state in cells
     stateful: bool,
@@ -429,7 +430,7 @@ impl CurrentTaskState {
         Self {
             task_id,
             execution_id,
-            tasks_to_notify: Vec::new(),
+            tasks_to_notify: SmallVec::new(),
             stateful: false,
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
@@ -1514,7 +1515,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             let CurrentTaskState {
                 tasks_to_notify, ..
             } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter());
+            tasks_to_notify.extend(tasks.iter().copied());
         });
         if result.is_err() {
             let _guard = trace_span!("schedule_notify_tasks", count = tasks.len()).entered();
@@ -1529,7 +1530,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             let CurrentTaskState {
                 tasks_to_notify, ..
             } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter());
+            tasks_to_notify.extend(tasks.iter().copied());
         });
         if result.is_err() {
             let _guard = trace_span!("schedule_notify_tasks_set", count = tasks.len()).entered();

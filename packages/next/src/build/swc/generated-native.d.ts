@@ -136,6 +136,8 @@ export interface NapiProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+  /** The version of Node.js that is available/currently running. */
+  currentNodeJsVersion: RcStr
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {

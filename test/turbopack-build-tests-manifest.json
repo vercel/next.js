@@ -4032,6 +4032,7 @@
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with prerendered dynamic routes  should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
@@ -5484,6 +5485,7 @@
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
+      "segment cache (basic tests) prefetch interception route with params",
       "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
@@ -5497,7 +5499,7 @@
     "passed": [
       "segment cache (CDN cache busting) perform fully prefetched navigation when a third-party proxy performs a redirect",
       "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
-      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
+      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with a redirect to correct cache busting query param if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
     "failed": [],
     "pending": [],
@@ -9756,19 +9758,19 @@
     "runtimeError": false
   },
   "test/integration/build-trace-extra-entries-turbo/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "build trace with extra entries production mode should build and trace correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/build-trace-extra-entries/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "build trace with extra entries production mode should build and trace correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

@@ -97,11 +97,7 @@ import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
-import {
-  createComponentTree,
-  getRootParams,
-  normalizeConventionFilePath,
-} from './create-component-tree'
+import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import {
   getServerModuleMap,
@@ -198,7 +194,9 @@ import {
   trackPendingImport,
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
-import type { GlobalErrorComponent } from '../../client/components/global-error'
+import { isReactLargeShellError } from './react-large-shell-error'
+import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
+import { normalizeConventionFilePath } from './segment-explorer-path'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -2358,6 +2356,12 @@ async function spawnDynamicValidationInDev(
           return digest
         }
 
+        if (isReactLargeShellError(err)) {
+          // TODO: Aggregate
+          console.error(err)
+          return undefined
+        }
+
         if (initialServerPrerenderController.signal.aborted) {
           // The render aborted before this error was handled which indicates
           // the error is caused by unfinished components within the render
@@ -2466,6 +2470,12 @@ async function spawnDynamicValidationInDev(
             return digest
           }
 
+          if (isReactLargeShellError(err)) {
+            // TODO: Aggregate
+            console.error(err)
+            return undefined
+          }
+
           if (initialClientController.signal.aborted) {
             // These are expected errors that might error the prerender. we ignore them.
           } else if (
@@ -2557,6 +2567,12 @@ async function spawnDynamicValidationInDev(
                 return err.digest
               }
 
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
+              }
+
               return getDigestForWellKnownError(err)
             },
             signal: finalServerController.signal,
@@ -2631,6 +2647,12 @@ async function spawnDynamicValidationInDev(
                     )
                   }
                   return
+                }
+
+                if (isReactLargeShellError(err)) {
+                  // TODO: Aggregate
+                  console.error(err)
+                  return undefined
                 }
 
                 return getDigestForWellKnownError(err)
@@ -2957,6 +2979,12 @@ async function prerenderToStream(
               return digest
             }
 
+            if (isReactLargeShellError(err)) {
+              // TODO: Aggregate
+              console.error(err)
+              return undefined
+            }
+
             if (initialServerPrerenderController.signal.aborted) {
               // The render aborted before this error was handled which indicates
               // the error is caused by unfinished components within the render
@@ -3056,6 +3084,12 @@ async function prerenderToStream(
 
               if (digest) {
                 return digest
+              }
+
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
               }
 
               if (initialClientController.signal.aborted) {
@@ -3946,7 +3980,13 @@ const getGlobalErrorStyles = async (
     if (ctx.renderOpts.devtoolSegmentExplorer && globalErrorModulePath) {
       const SegmentViewNode = ctx.componentMod.SegmentViewNode
       globalErrorStyles = (
-        <SegmentViewNode type="global-error" pagePath={globalErrorModulePath}>
+        // This will be rendered next to GlobalError component under ErrorBoundary,
+        // it requires a key to avoid React warning about duplicate keys.
+        <SegmentViewNode
+          key="ge-svn"
+          type="global-error"
+          pagePath={globalErrorModulePath}
+        >
           {globalErrorStyles}
         </SegmentViewNode>
       )

@@ -33,6 +33,7 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Clone)]
+/// A global CSS asset. Notably not a `.module.css` module, which is [`ModuleCssAsset`] instead.
 pub struct CssModuleAsset {
     source: ResolvedVc<Box<dyn Source>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
