@@ -50,31 +50,50 @@ where
     start..=end
 }
 
-/// This is a conceptually more efficient version of a sparse array `[Option<T>: u64::MAX]` (or
-/// `[Option<T>: B::max()]`), where entries are deduplicated using a variation on [run-length
+/// This is a conceptually more efficient version of a sparse array `[T: u64::MAX]` (or `[T:
+/// B::bound_max()]`), where entries are deduplicated using a variation on [run-length
 /// encoding][rle].
 ///
 /// Ranges can be split by [`IntervalMap::update`], but are never merged.
 ///
 /// [rle]: https://en.wikipedia.org/wiki/Run-length_encoding
 pub struct IntervalMap<T, B = u64> {
-    /// Represents the start of non-overlapping ranges with values. There's an implicit `None`
-    /// interval starting at `B::bound_min()`. The last span extends to `B::bound_max()`
-    /// (inclusive). When splitting an existing interval (with [`IntervalMap::update`])
-    interval_starts: BTreeMap<B, Option<T>>,
+    /// Represents the start of non-overlapping ranges with values.
+    ///
+    /// When constructing `IntervalMap`, we add a `Default::default()` interval starting at
+    /// `B::bound_min()`.
+    ///
+    /// Each interval extends until the start of the next one (exclusive). The last span in the map
+    /// extends to `B::bound_max()` (inclusive).
+    interval_starts: BTreeMap<B, T>,
 }
 
-impl<T, B> Default for IntervalMap<T, B> {
+impl<T, B> Default for IntervalMap<T, B>
+where
+    T: Default,
+    B: IntervalBound,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T, B> IntervalMap<T, B> {
-    pub const fn new() -> Self {
-        Self {
-            interval_starts: BTreeMap::new(),
-        }
+impl<T, B> IntervalMap<T, B>
+where
+    T: Default,
+    B: IntervalBound,
+{
+    /// Creates a new [`IntervalMap`] with a [`Default::default`] value spanning from
+    /// [`IntervalBound::bound_min`] to [`IntervalBound::bound_max`] (inclusive). Typically, that's
+    /// `0..=u64::MAX`.
+    ///
+    /// Note: Unlike many stdlib collections, this collection will perform an allocation during
+    /// construction. This could be avoided in the future by special-casing of the initial default
+    /// interval as a lazily constructed or stack allocated value.
+    pub fn new() -> Self {
+        let mut interval_starts = BTreeMap::new();
+        interval_starts.insert(B::bound_min(), Default::default());
+        Self { interval_starts }
     }
 }
 
@@ -82,42 +101,22 @@ impl<T, B> IntervalMap<T, B>
 where
     B: Ord,
 {
-    fn upper_bound(&self, bound: Bound<&B>) -> Option<(&B, &Option<T>)> {
+    /// Returns the largest value that's less than ([`Bound::Excluded`]) or equal to
+    /// ([`Bound::Included`]) the given `bound`.
+    ///
+    /// It is guaranteed to return a value, as there's always an interval starting at
+    /// [`IntervalBound::bound_min`].
+    ///
+    /// This is an approximation of the nightly-only `BTreeMap::upper_bound` API, but it returns a
+    /// key-value pair instead of a cursor.
+    ///
+    /// Panics if `bound` is `Bound::Exclusive(IntervalBound::bound_min())`, as that would imply an
+    /// empty range.
+    fn upper_bound(&self, bound: Bound<&B>) -> (&B, &T) {
         self.interval_starts
             .range((Bound::Unbounded, bound))
             .next_back()
-    }
-}
-
-impl<T, B> IntervalMap<T, B>
-where
-    B: IntervalBound,
-{
-    /// Returns an iterator over the non-`None` intervals intersecting with the given range and
-    /// their associated values.
-    pub fn iter_range(&self, range: impl RangeBounds<B>) -> IntervalMapIterator<'_, T, B> {
-        fn inner<T, B>(
-            this: &IntervalMap<T, B>,
-            range: RangeInclusive<B>,
-        ) -> IntervalMapIterator<'_, T, B>
-        where
-            B: Ord,
-        {
-            let start = this
-                .upper_bound(Bound::Included(range.start()))
-                .map_or_else(|| range.start(), |(pos, _)| pos);
-            IntervalMapIterator {
-                starts_iter: this.interval_starts.range(start..=range.end()).peekable(),
-            }
-        }
-        inner(self, into_range_inclusive(range))
-    }
-
-    /// Returns an iterator over the non-`None` intervals and their associated values.
-    pub fn iter(&self) -> IntervalMapIterator<'_, T, B> {
-        IntervalMapIterator {
-            starts_iter: self.interval_starts.range(..).peekable(),
-        }
+            .expect("interval_starts should always contain a value at `B::bound_min`")
     }
 }
 
@@ -133,34 +132,27 @@ where
     ///
     /// Returns a mutable reference to the value at the interval start.
     fn ensure_split_interval(&mut self, position: B) {
-        // This could be slightly optimized with `BTreeMap::upper_bound_mut` from the nightly
-        // `btree_cursors` feature (we could let `update` use the cursor), but this is good enough.
         let closest_start = self.upper_bound(Bound::Included(&position));
-        let value = if let Some(closest_start) = closest_start {
+
+        if *closest_start.0 == position {
             // there's already a point there, bail
-            if *closest_start.0 == position {
-                return;
-            }
-            (*closest_start.1).clone()
-        } else {
-            // there's an implicit interval with `None` starting at `B::bound_min()`.
-            None
-        };
-        // this insert could happen with a cursor
-        self.interval_starts.insert(position, value);
+            return;
+        }
+
+        self.interval_starts
+            .insert(position, (*closest_start.1).clone());
     }
 
-    /// Applies the update function to all values in the specified range. Some of these values may
-    /// be `None`. It doesn't iterate over every value one-by-one, but instead it iterates over
-    /// ranges.
+    /// Applies the update function to all values in the specified range. It doesn't iterate over
+    /// every value one-by-one, but instead it iterates over intersecting ranges.
     ///
     /// This always splits intervals in case the value is modified. Split intervals are never
     /// merged. On average, `n` calls to `update` with unique ranges will create `n` intervals.
-    pub fn update(&mut self, bounds: impl RangeBounds<B>, mut update: impl FnMut(&mut Option<T>)) {
+    pub fn update(&mut self, bounds: impl RangeBounds<B>, mut update: impl FnMut(&mut T)) {
         fn get_iter_mut<T, B>(
             this: &mut IntervalMap<T, B>,
             range: RangeInclusive<B>,
-        ) -> impl Iterator<Item = (&B, &mut Option<T>)>
+        ) -> impl Iterator<Item = (&B, &mut T)>
         where
             B: IntervalBound,
             T: Clone,
@@ -183,36 +175,11 @@ where
         get_iter_mut(self, into_range_inclusive(bounds)).for_each(|(_, value)| update(value));
     }
 
-    /// Applies the update function to all values in the specified range, using
-    /// [`Default::default()`] where the current value is `None`.
-    ///
-    /// This is a modified version of [`IntervalMap::update`] for types that implement
-    /// [`Default`].
-    pub fn update_with_default(
-        &mut self,
-        bounds: impl RangeBounds<B>,
-        mut update: impl FnMut(&mut T),
-    ) where
-        T: Default,
-    {
-        self.update(bounds, |opt_value| {
-            if let Some(v) = opt_value.as_mut() {
-                update(v);
-            } else {
-                let mut v = T::default();
-                update(&mut v);
-                *opt_value = Some(v)
-            }
-        });
-    }
-
-    pub fn insert(&mut self, bounds: impl RangeBounds<B>, value: Option<T>)
+    pub fn insert(&mut self, bounds: impl RangeBounds<B>, value: T)
     where
         T: Clone,
     {
-        // this would be a lot more efficient with the `btree_cursors` nightly feature, but either
-        // way, it's still O(n log n)
-        fn inner<T, B>(this: &mut IntervalMap<T, B>, range: RangeInclusive<B>, value: Option<T>)
+        fn inner<T, B>(this: &mut IntervalMap<T, B>, range: RangeInclusive<B>, value: T)
         where
             B: IntervalBound,
             T: Clone,
@@ -247,8 +214,42 @@ where
     }
 }
 
+impl<T, B> IntervalMap<T, B>
+where
+    B: IntervalBound,
+{
+    /// Returns an iterator over all the intervals intersecting with the given range and their
+    /// associated values.
+    pub fn iter_itersecting(&self, range: impl RangeBounds<B>) -> IntervalMapIterator<'_, T, B> {
+        fn inner<T, B>(
+            this: &IntervalMap<T, B>,
+            range: RangeInclusive<B>,
+        ) -> IntervalMapIterator<'_, T, B>
+        where
+            B: Ord,
+        {
+            let (start_position, _) = this.upper_bound(Bound::Included(range.start()));
+            IntervalMapIterator {
+                starts_iter: this
+                    .interval_starts
+                    .range(start_position..=range.end())
+                    .peekable(),
+            }
+        }
+        // slightly reduce monomorphization
+        inner(self, into_range_inclusive(range))
+    }
+
+    /// Returns an iterator over the non-`None` intervals and their associated values.
+    pub fn iter(&self) -> IntervalMapIterator<'_, T, B> {
+        IntervalMapIterator {
+            starts_iter: self.interval_starts.range(..).peekable(),
+        }
+    }
+}
+
 pub struct IntervalMapIterator<'a, T, B> {
-    starts_iter: Peekable<btree_map::Range<'a, B, Option<T>>>,
+    starts_iter: Peekable<btree_map::Range<'a, B, T>>,
 }
 
 impl<'a, T, B> Iterator for IntervalMapIterator<'a, T, B>
@@ -258,17 +259,13 @@ where
     type Item = (RangeInclusive<B>, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(entry) = self.starts_iter.next() {
-            if let Some(value) = entry.1.as_ref() {
-                let bound_end = self
-                    .starts_iter
-                    .peek()
-                    .map(|entry| entry.0.checked_decrement().unwrap_or_else(B::bound_min))
-                    .unwrap_or_else(|| B::bound_max());
-                return Some(((*entry.0)..=bound_end, value));
-            }
-        }
-        None
+        let entry = self.starts_iter.next()?;
+        let bound_end = self
+            .starts_iter
+            .peek()
+            .map(|entry| entry.0.checked_decrement().unwrap_or_else(B::bound_min))
+            .unwrap_or_else(|| B::bound_max());
+        Some(((*entry.0)..=bound_end, entry.1))
     }
 }
 
@@ -321,12 +318,12 @@ mod tests {
     #[test]
     fn test_interval_map() {
         let mut map = IntervalMap::new();
-        map.update_with_default(5..=15, |v| *v |= 1);
-        map.update_with_default(10..=15, |v| *v |= 2);
-        map.update_with_default(10..=20, |v| *v |= 4);
-        map.update_with_default(0..=u64::MAX, |v| *v |= 8);
-        map.update_with_default(15..=20, |v| *v |= 16);
-        map.update_with_default(25..=30, |v| *v |= 32);
+        map.update(5..=15, |v| *v |= 1);
+        map.update(10..=15, |v| *v |= 2);
+        map.update(10..=20, |v| *v |= 4);
+        map.update(0..=u64::MAX, |v| *v |= 8);
+        map.update(15..=20, |v| *v |= 16);
+        map.update(25..=30, |v| *v |= 32);
 
         let expected = vec![
             (0..=4, &8),
@@ -341,10 +338,10 @@ mod tests {
         let result: Vec<_> = map.iter().collect();
         assert_eq!(result, expected);
 
-        assert!(map.iter_range(0..=10).any(|(_, v)| *v & 1 != 0));
-        assert!(map.iter_range(0..=10).any(|(_, v)| *v & 2 != 0));
-        assert!(!map.iter_range(0..10).any(|(_, v)| *v & 2 != 0));
-        assert!(map.iter_range(0..=50).any(|(_, v)| *v & 4 != 0));
+        assert!(map.iter_itersecting(0..=10).any(|(_, v)| *v & 1 != 0));
+        assert!(map.iter_itersecting(0..=10).any(|(_, v)| *v & 2 != 0));
+        assert!(!map.iter_itersecting(0..10).any(|(_, v)| *v & 2 != 0));
+        assert!(map.iter_itersecting(0..=50).any(|(_, v)| *v & 4 != 0));
         /*assert!(map.test(&(15, 15), |v| *v & 16 != 0));
         assert!(map.test(&(0, 15), |v| *v & 16 != 0));
         assert!(map.test(&(20, 20), |v| *v & 16 != 0));
@@ -359,16 +356,18 @@ mod tests {
     fn test_interval_map_empty() {
         let map: IntervalMap<u32> = IntervalMap::new();
         let result: Vec<_> = map.iter().collect();
-        assert!(result.is_empty());
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], (0..=u64::MAX, &0));
     }
 
     #[test]
     fn test_interval_map_single_point() {
         let mut map: IntervalMap<u32> = IntervalMap::new();
-        map.insert(10..=10, Some(1));
+        map.insert(10..=10, 1);
 
+        let expected = vec![(0..=9, &0), (10..=10, &1), (11..=u64::MAX, &0)];
         let result: Vec<_> = map.iter().collect();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0], (10..=10, &1));
+        assert_eq!(result, expected);
     }
 }

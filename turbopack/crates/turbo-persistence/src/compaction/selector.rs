@@ -4,12 +4,13 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::compaction::interval_map::IntervalMap;
 
-/// The trait for the input of the compaction algorithm.
+/// Represents part of a database (i.e. an SST file) with a range of keys (i.e. hashes) and a size
+/// of that data in bytes.
 pub trait Compactable {
-    /// Returns the range of the compactable.
+    /// The range of keys stored in this database segment.
     fn range(&self) -> RangeInclusive<u64>;
 
-    /// Returns the size of the compactable.
+    /// The size of the compactable database segment in bytes.
     fn size(&self) -> u64;
 }
 
@@ -17,10 +18,9 @@ fn is_overlapping(a: &RangeInclusive<u64>, b: &RangeInclusive<u64>) -> bool {
     a.start() <= b.end() && b.start() <= a.end()
 }
 
-fn spread(range: &RangeInclusive<u64>) -> u64 {
-    // The `saturating_add` here isn't technically correct in the `u64::MAX` case, but it's close
-    // enough. There are `u64::MAX + 1` possible `u64` values.
-    (range.end() - range.start()).saturating_add(1)
+fn spread(range: &RangeInclusive<u64>) -> u128 {
+    // the spread of `0..=u64::MAX` is `u64::MAX + 1`, so this could overflow as u64
+    u128::from(range.end() - range.start()) + 1
 }
 
 /// Extends the range `a` to include the range `b`, returns `true` if the range was extended.
@@ -57,12 +57,13 @@ pub fn compute_metrics<T: Compactable>(
     compactables: &[T],
     full_range: RangeInclusive<u64>,
 ) -> CompactableMetrics {
-    let mut interval_map: IntervalMap<(DuplicationInfo, usize)> = IntervalMap::new();
+    let mut interval_map = IntervalMap::<Option<(DuplicationInfo, usize)>>::new();
     let mut coverage = 0.0f32;
     for c in compactables {
         let range = c.range();
         coverage += spread(&range) as f32;
-        interval_map.update_with_default(range.clone(), |(dup_info, count)| {
+        interval_map.update(range.clone(), |value| {
+            let (dup_info, count) = value.get_or_insert_default();
             dup_info.add(c.size(), &range);
             *count += 1;
         });
@@ -71,6 +72,7 @@ pub fn compute_metrics<T: Compactable>(
 
     let (duplicated_size, duplication, overlap) = interval_map
         .iter()
+        .flat_map(|(range, value)| Some((range, value.as_ref()?)))
         .map(|(range, (dup_info, count))| {
             let duplicated_size = dup_info.duplication(&range);
             let total_size = dup_info.size(&range);
@@ -142,37 +144,55 @@ impl Default for CompactConfig {
 
 #[derive(Clone, Default)]
 struct DuplicationInfo {
+    /// The sum of all encountered scaled sizes.
     total_size: u64,
+    /// The largest encountered single scaled size.
     max_size: u64,
 }
 
 impl DuplicationInfo {
+    /// Get a value in the range `0..=u64` that represents the estimated amount of duplication
+    /// across the given range. The units are arbitrary, but linear.
     fn duplication(&self, range: &RangeInclusive<u64>) -> u64 {
         if self.total_size == 0 {
             return 0;
         }
-        ((self.total_size - self.max_size) as u128 * spread(range) as u128 / (u64::MAX as u128 + 1))
-            as u64
+        // the maximum numerator value is `u64::MAX + 1`
+        u64::try_from(
+            u128::from(self.total_size - self.max_size) * spread(range)
+                / (u128::from(u64::MAX) + 1),
+        )
+        .expect("should not overflow, denominator was `u64::MAX+1`")
     }
 
+    /// The estimated size (in bytes) of a database segment containing `range` keys.
     fn size(&self, range: &RangeInclusive<u64>) -> u64 {
         if self.total_size == 0 {
             return 0;
         }
-        (self.total_size as u128 * spread(range) as u128 / (u64::MAX as u128 + 1)) as u64
+        // the maximum numerator value is `u64::MAX + 1`
+        u64::try_from(u128::from(self.total_size) * spread(range) / (u128::from(u64::MAX) + 1))
+            .expect("should not overflow, denominator was `u64::MAX+1`")
     }
 
     fn add(&mut self, size: u64, range: &RangeInclusive<u64>) {
+        // Assumption: `size` is typically much smaller than `spread(range)`. The spread is some
+        // fraction of `u64` (the full possible key-space), but no SST file is anywhere close to
+        // `u64::MAX` bytes.
+
         // Scale size to full range:
-        let scaled_size = (size as u128 * (u64::MAX as u128 + 1) / spread(range) as u128) as u64;
+        let scaled_size =
+            u64::try_from(u128::from(size) * (u128::from(u64::MAX) + 1) / spread(range))
+                .unwrap_or(u64::MAX);
         self.total_size = self.total_size.saturating_add(scaled_size);
         self.max_size = self.max_size.max(scaled_size);
     }
 }
 
-fn total_duplication_size(duplication: &IntervalMap<DuplicationInfo>) -> u64 {
+fn total_duplication_size(duplication: &IntervalMap<Option<DuplicationInfo>>) -> u64 {
     duplication
         .iter()
+        .flat_map(|(range, info)| Some((range, info.as_ref()?)))
         .map(|(range, info)| info.duplication(&range))
         .sum()
 }
@@ -218,7 +238,7 @@ pub fn get_merge_segments<T: Compactable>(
         'search: loop {
             let mut current_set = smallvec![start_index];
             let mut current_size = start_compactable.size();
-            let mut duplication: IntervalMap<DuplicationInfo> = IntervalMap::new();
+            let mut duplication = IntervalMap::<Option<DuplicationInfo>>::new();
             let mut current_skip = 0;
 
             // We will capture compactables in the current_range until we find a optimal merge
@@ -306,8 +326,8 @@ pub fn get_merge_segments<T: Compactable>(
                 // set.
                 current_set.push(next_index);
                 current_size += size;
-                duplication.update_with_default(range.clone(), |dup_info| {
-                    dup_info.add(size, &range);
+                duplication.update(range.clone(), |dup_info| {
+                    dup_info.get_or_insert_default().add(size, &range);
                 });
             }
         }
@@ -323,19 +343,19 @@ pub fn get_merge_segments<T: Compactable>(
 
     // Remove single compectable segments that don't overlap with previous segments. We don't need
     // to touch them.
-    let mut used_ranges: IntervalMap<()> = IntervalMap::new();
+    let mut used_ranges = IntervalMap::<bool>::new();
     merge_segments.retain(|segment| {
         // Remove a single element segments which doesn't overlap with previous used ranges.
         if segment.len() == 1 {
             let range = compactables[segment[0]].range();
-            if used_ranges.iter_range(range).next().is_none() {
+            if used_ranges.iter_itersecting(range).any(|(_, v)| *v) {
                 return false;
             }
         }
         // Mark the ranges of the segment as used.
         for i in segment {
             let range = compactables[*i].range();
-            used_ranges.insert(range, Some(()));
+            used_ranges.insert(range, true);
         }
         true
     });
