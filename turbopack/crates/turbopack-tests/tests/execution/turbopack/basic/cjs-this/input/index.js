@@ -7,7 +7,8 @@ it('`this` in cjs should be exports', () => {
       return this
     },
   }
-  expect(o.foo).toBe(exports)
+  // Regression test for a bug where we didn't identify the `this` ref in `foo` as being bound.
+  expect(o.foo).toBe(o)
 })
 
 // Use a dummy assignment to ensure we are parsed as a cjs module
