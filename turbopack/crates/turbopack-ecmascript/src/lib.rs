@@ -1302,8 +1302,16 @@ async fn merge_modules(
 
     let export_contexts = contents
         .iter()
-        .map(|(module, content)| (*module, content.export_contexts.as_ref().unwrap()))
-        .collect::<FxHashMap<_, _>>();
+        .map(|(module, content)| {
+            Ok((
+                *module,
+                content
+                    .export_contexts
+                    .as_ref()
+                    .context("expected exports contexts")?,
+            ))
+        })
+        .collect::<Result<FxHashMap<_, _>>>()?;
 
     let (merged_ast, inserted) = GLOBALS.set(globals_merged, || {
         // As an optimization, assume an average number of 5 contexts per module.
@@ -1325,7 +1333,9 @@ async fn merge_modules(
                                 .next_power_of_two()
                                 .trailing_zeros(),
                             current_module: *module,
-                            current_module_idx: module_contexts.get_index_of(module).unwrap()
+                            current_module_idx: module_contexts
+                                .get_index_of(module)
+                                .context("expected module in module_contexts")?
                                 as u32,
                             reverse_module_contexts: module_contexts
                                 .iter()
@@ -1334,7 +1344,8 @@ async fn merge_modules(
                             export_contexts: &export_contexts,
                             unique_contexts_cache: &mut unique_contexts_cache,
                         });
-                    });
+                        anyhow::Ok(())
+                    })?;
 
                     Ok(match program.take() {
                         Program::Module(module) => Either::Left(module.body.into_iter()),
