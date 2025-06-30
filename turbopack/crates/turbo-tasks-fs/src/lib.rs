@@ -864,7 +864,7 @@ impl FileSystem for DiskFileSystem {
 
             // TODO(sokra) preform a untracked read here, register an invalidator and get
             // all existing invalidators
-            let old_content = match retry_blocking(full_path.clone().into_owned(), |path| {
+            let old_content = match retry_blocking(full_path.to_owned(), |path| {
                 std::fs::read_link(path)
             })
             .concurrency_limited(&inner.semaphore)
