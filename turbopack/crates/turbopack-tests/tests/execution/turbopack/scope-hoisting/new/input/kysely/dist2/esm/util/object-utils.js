@@ -1,6 +1,4 @@
-export function freeze(obj) {
-  return Object.freeze(obj)
-}
+export function freeze() {}
 export function isBoolean() {}
 export function isNull() {}
 export function isNumber() {}
