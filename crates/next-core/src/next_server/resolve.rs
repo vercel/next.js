@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
@@ -64,7 +64,7 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new(root, Glob::new("**/node_modules/**".into()))
+    AfterResolvePluginCondition::new(root, Glob::new(rcstr!("**/node_modules/**")))
 }
 
 #[turbo_tasks::value_impl]

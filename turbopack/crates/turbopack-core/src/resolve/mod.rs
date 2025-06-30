@@ -87,7 +87,7 @@ pub enum ModuleResolveResultItem {
 }
 
 impl ModuleResolveResultItem {
-    pub async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
+    async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),
             ModuleResolveResultItem::Unknown(source) => {
@@ -317,7 +317,7 @@ impl ModuleResolveResult {
     /// [ModuleResolveResult::Unresolvable] in the given list, while keeping
     /// track of all the affecting_sources in all the [ModuleResolveResult]s.
     #[turbo_tasks::function]
-    pub async fn select_first(results: Vec<Vc<ModuleResolveResult>>) -> Result<Vc<Self>> {
+    async fn select_first(results: Vec<Vc<ModuleResolveResult>>) -> Result<Vc<Self>> {
         let mut affecting_sources = vec![];
         for result in &results {
             affecting_sources.extend(result.await?.affecting_sources_iter());
@@ -357,7 +357,7 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn alternatives_with_affecting_sources(
+    async fn alternatives_with_affecting_sources(
         results: Vec<Vc<ModuleResolveResult>>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
@@ -694,44 +694,6 @@ impl ResolveResult {
         self.primary.is_empty()
     }
 
-    pub async fn map<A, AF, R, RF>(&self, source_fn: A, affecting_source_fn: R) -> Result<Self>
-    where
-        A: Fn(ResolvedVc<Box<dyn Source>>) -> AF,
-        AF: Future<Output = Result<ResolvedVc<Box<dyn Source>>>>,
-        R: Fn(ResolvedVc<Box<dyn Source>>) -> RF,
-        RF: Future<Output = Result<ResolvedVc<Box<dyn Source>>>>,
-    {
-        Ok(Self {
-            primary: self
-                .primary
-                .iter()
-                .map(|(request, result)| {
-                    let asset_fn = &source_fn;
-                    let request = request.clone();
-                    let result = result.clone();
-                    async move {
-                        if let ResolveResultItem::Source(asset) = result {
-                            Ok((request, ResolveResultItem::Source(asset_fn(asset).await?)))
-                        } else {
-                            Ok((request, result))
-                        }
-                    }
-                })
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
-            affecting_sources: self
-                .affecting_sources
-                .iter()
-                .copied()
-                .map(affecting_source_fn)
-                .try_join()
-                .await?
-                .into_boxed_slice(),
-        })
-    }
-
     pub async fn map_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
     where
         A: Fn(ResolvedVc<Box<dyn Source>>) -> AF,
@@ -804,7 +766,7 @@ impl ResolveResult {
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are set to the
     /// passed `request`.
-    pub fn with_request_ref(&self, request: RcStr) -> Self {
+    fn with_request_ref(&self, request: RcStr) -> Self {
         let new_primary = self
             .primary
             .iter()
@@ -840,9 +802,9 @@ impl ResolveResult {
     }
 }
 
-pub struct ResolveResultBuilder {
-    pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
-    pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
+struct ResolveResultBuilder {
+    primary: FxIndexMap<RequestKey, ResolveResultItem>,
+    affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
 impl From<ResolveResultBuilder> for ResolveResult {
@@ -898,7 +860,7 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub fn with_affecting_source(&self, source: ResolvedVc<Box<dyn Source>>) -> Result<Vc<Self>> {
+    fn with_affecting_source(&self, source: ResolvedVc<Box<dyn Source>>) -> Result<Vc<Self>> {
         Ok(Self {
             primary: self.primary.clone(),
             affecting_sources: self
@@ -912,7 +874,7 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub fn with_affecting_sources(
+    fn with_affecting_sources(
         &self,
         sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
@@ -932,7 +894,7 @@ impl ResolveResult {
     /// [ResolveResult::Unresolvable] in the given list, while keeping track
     /// of all the affecting_sources in all the [ResolveResult]s.
     #[turbo_tasks::function]
-    pub async fn select_first(results: Vec<Vc<ResolveResult>>) -> Result<Vc<Self>> {
+    async fn select_first(results: Vec<Vc<ResolveResult>>) -> Result<Vc<Self>> {
         let mut affecting_sources = vec![];
         for result in &results {
             affecting_sources.extend(result.await?.get_affecting_sources());
@@ -953,7 +915,7 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn alternatives(results: Vec<Vc<ResolveResult>>) -> Result<Vc<Self>> {
+    async fn alternatives(results: Vec<Vc<ResolveResult>>) -> Result<Vc<Self>> {
         if results.len() == 1 {
             return Ok(results.into_iter().next().unwrap());
         }
@@ -972,7 +934,7 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn alternatives_with_affecting_sources(
+    async fn alternatives_with_affecting_sources(
         results: Vec<Vc<ResolveResult>>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
@@ -1040,7 +1002,7 @@ impl ResolveResult {
     /// contains [RequestKey]s that don't have the `old_request_key` prefix, but if there are still
     /// some, they are discarded.
     #[turbo_tasks::function]
-    pub fn with_replaced_request_key(
+    fn with_replaced_request_key(
         &self,
         old_request_key: RcStr,
         request_key: RequestKey,
@@ -1074,7 +1036,7 @@ impl ResolveResult {
     /// [ResolveResult] contains [RequestKey]s that do not match the `old_request_key` prefix, but
     /// if there are still some, they are discarded.
     #[turbo_tasks::function]
-    pub async fn with_replaced_request_key_pattern(
+    async fn with_replaced_request_key_pattern(
         &self,
         old_request_key: Vc<Pattern>,
         request_key: Vc<Pattern>,
@@ -1109,7 +1071,7 @@ impl ResolveResult {
     /// Returns a new [ResolveResult] where all [RequestKey]s are set to the
     /// passed `request`.
     #[turbo_tasks::function]
-    pub fn with_request(&self, request: RcStr) -> Vc<Self> {
+    fn with_request(&self, request: RcStr) -> Vc<Self> {
         let new_primary = self
             .primary
             .iter()
@@ -1502,14 +1464,14 @@ fn merge_results_with_affecting_sources(
 
 #[turbo_tasks::function]
 pub async fn resolve_raw(
-    lookup_dir: FileSystemPath,
+    lookup_path: FileSystemPath,
     path: Vc<Pattern>,
     force_in_lookup_dir: bool,
 ) -> Result<Vc<ResolveResult>> {
-    async fn to_result(request: &str, path: FileSystemPath) -> Result<Vc<ResolveResult>> {
+    async fn to_result(request: RcStr, path: FileSystemPath) -> Result<Vc<ResolveResult>> {
         let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
         Ok(*ResolveResult::source_with_affecting_sources(
-            RequestKey::new(request.into()),
+            RequestKey::new(request),
             ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
             symlinks
                 .iter()
@@ -1525,7 +1487,7 @@ pub async fn resolve_raw(
 
     let mut results = Vec::new();
 
-    let lookup_dir_str = lookup_dir.value_to_string().await?;
+    let lookup_path_str = lookup_path.value_to_string().await?;
     let pat = path.await?;
     if let Some(pat) = pat
         .filter_could_match("/ROOT/")
@@ -1533,7 +1495,7 @@ pub async fn resolve_raw(
     {
         let path = Pattern::new(pat);
         let matches = read_matches(
-            lookup_dir.root().await?.clone_value(),
+            lookup_path.root().await?.clone_value(),
             rcstr!("/ROOT/"),
             true,
             path,
@@ -1544,31 +1506,31 @@ pub async fn resolve_raw(
             println!(
                 "WARN: resolving abs pattern {} in {} leads to {} results",
                 path_str,
-                lookup_dir_str,
+                lookup_path_str,
                 matches.len()
             );
         } else {
             for m in matches.iter() {
                 if let PatternMatch::File(request, path) = m {
-                    results.push(to_result(request, path.clone()).await?);
+                    results.push(to_result(request.clone(), path.clone()).await?);
                 }
             }
         }
     }
 
     {
-        let matches = read_matches(lookup_dir, rcstr!(""), force_in_lookup_dir, path).await?;
+        let matches = read_matches(lookup_path, rcstr!(""), force_in_lookup_dir, path).await?;
         if matches.len() > 10000 {
             println!(
                 "WARN: resolving pattern {} in {} leads to {} results",
                 pat,
-                lookup_dir_str,
+                lookup_path_str,
                 matches.len()
             );
         }
         for m in matches.iter() {
             if let PatternMatch::File(request, path) = m {
-                results.push(to_result(request, path.clone()).await?);
+                results.push(to_result(request.clone(), path.clone()).await?);
             }
         }
     }
@@ -1911,22 +1873,6 @@ async fn resolve_internal_inline(
                 force_in_lookup_dir,
                 fragment,
             } => {
-                if !fragment.is_empty()
-                    && let Ok(result) = resolve_relative_request(
-                        lookup_path.clone(),
-                        request,
-                        options,
-                        options_value,
-                        path,
-                        query.clone(),
-                        *force_in_lookup_dir,
-                        fragment.clone(),
-                    )
-                    .await
-                {
-                    return Ok(result);
-                }
-                // Resolve without fragment
                 resolve_relative_request(
                     lookup_path.clone(),
                     request,
@@ -1935,7 +1881,7 @@ async fn resolve_internal_inline(
                     path,
                     query.clone(),
                     *force_in_lookup_dir,
-                    RcStr::default(),
+                    fragment.clone(),
                 )
                 .await?
             }
@@ -2014,7 +1960,6 @@ async fn resolve_internal_inline(
             }
             Request::Empty => *ResolveResult::unresolvable(),
             Request::PackageInternal { path } => {
-                let options_value = options.await?;
                 let (conditions, unspecified_conditions) = options_value
                     .in_package
                     .iter()
@@ -2045,7 +1990,7 @@ async fn resolve_internal_inline(
                 let uri: RcStr = stringify_data_uri(media_type, encoding, *data)
                     .await?
                     .into();
-                if options.await?.parse_data_uris {
+                if options_value.parse_data_uris {
                     *ResolveResult::primary_with_key(
                         RequestKey::new(uri.clone()),
                         ResolveResultItem::Source(ResolvedVc::upcast(
@@ -2550,7 +2495,7 @@ async fn resolve_module_request(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
-    module: &str,
+    module: &RcStr,
     path: &Pattern,
     query: RcStr,
     fragment: RcStr,
@@ -2561,7 +2506,7 @@ async fn resolve_module_request(
         options,
         options_value,
         |_| {
-            let full_pattern = Pattern::concat([RcStr::from(module).into(), path.clone()]);
+            let full_pattern = Pattern::concat([module.clone().into(), path.clone()]);
             full_pattern.into_string()
         },
         query.clone(),
@@ -2577,7 +2522,7 @@ async fn resolve_module_request(
     // fields/fallbacks.
     if let FindSelfReferencePackageResult::Found { name, package_path } =
         &*find_self_reference(lookup_path.clone()).await?
-        && name == module
+        && module == name
     {
         let result = resolve_into_package(
             path.clone(),
@@ -2593,7 +2538,7 @@ async fn resolve_module_request(
 
     let result = find_package(
         lookup_path.clone(),
-        module.into(),
+        module.clone(),
         resolve_modules_options(options).resolve().await?,
     )
     .await?;
@@ -2643,7 +2588,7 @@ async fn resolve_module_request(
 
     let module_result =
         merge_results_with_affecting_sources(results, result.affecting_sources.clone())
-            .with_replaced_request_key(rcstr!("."), RequestKey::new(module.into()));
+            .with_replaced_request_key(rcstr!("."), RequestKey::new(module.clone()));
 
     if options_value.prefer_relative {
         let module_prefix: RcStr = format!("./{module}").into();
@@ -2662,7 +2607,7 @@ async fn resolve_module_request(
         ))
         .await?;
         let relative_result = relative_result
-            .with_replaced_request_key(module_prefix, RequestKey::new(module.into()));
+            .with_replaced_request_key(module_prefix, RequestKey::new(module.clone()));
 
         Ok(merge_results(vec![relative_result, module_result]))
     } else {
@@ -2704,9 +2649,9 @@ async fn resolve_into_package(
                 };
 
                 let path = if &*path == "/" {
-                    ".".to_string()
+                    rcstr!(".")
                 } else {
-                    format!(".{path}")
+                    format!(".{path}").into()
                 };
 
                 results.push(
@@ -2831,14 +2776,14 @@ async fn resolve_import_map_result(
             let results = list
                 .iter()
                 .map(|result| {
-                    Box::pin(resolve_import_map_result(
+                    resolve_import_map_result(
                         result,
                         lookup_path.clone(),
                         original_lookup_path.clone(),
                         original_request,
                         options,
                         query.clone(),
-                    ))
+                    )
                 })
                 .try_join()
                 .await?;
