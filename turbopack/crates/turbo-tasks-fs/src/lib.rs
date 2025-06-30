@@ -815,7 +815,7 @@ impl FileSystem for DiskFileSystem {
                     .with_context(|| format!("failed to write to {}", full_path.display()))?;
                 }
                 FileContent::NotFound => {
-                    retry_blocking(full_path.clone().into_owned(), |path| {
+                    retry_blocking(full_path.to_owned(), |path| {
                         std::fs::remove_file(path)
                     })
                     .concurrency_limited(&inner.semaphore)
