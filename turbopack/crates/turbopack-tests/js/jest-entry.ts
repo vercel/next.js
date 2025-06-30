@@ -36,7 +36,7 @@ export default async function run() {
   await import('TESTS')
 
   let jestResult = await jest.run()
-  // Jest test results can contain references to arbirtrary objects.
+  // Jest test results can contain references to arbitrary objects.
   // Defensively remove circular references to avoid breaking our serialization protocol.
   const seen = new Set()
   jestResult = JSON.parse(
