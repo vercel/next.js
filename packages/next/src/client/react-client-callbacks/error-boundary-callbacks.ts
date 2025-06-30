@@ -13,7 +13,6 @@ import { reportGlobalError } from './report-global-error'
 import { originConsoleError } from '../../next-devtools/userspace/app/errors/intercept-console-error'
 import { ErrorBoundaryHandler } from '../components/error-boundary'
 import DefaultErrorBoundary from '../components/builtin/global-error'
-import { SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE } from '../../next-devtools/userspace/app/segment-explorer-node'
 
 export function onCaughtError(
   thrownValue: unknown,
@@ -38,12 +37,15 @@ export function onCaughtError(
         .props.errorComponent === DefaultErrorBoundary)
 
   // Skip the segment explorer triggered error
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    thrownValue instanceof Error &&
-    thrownValue.message === SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE
-  ) {
-    return
+  if (process.env.NODE_ENV !== 'production') {
+    const { SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE } =
+      require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+    if (
+      thrownValue instanceof Error &&
+      thrownValue.message === SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE
+    ) {
+      return
+    }
   }
 
   if (isImplicitErrorBoundary) {
