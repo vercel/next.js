@@ -1,2 +1,2 @@
-import { parseExpression } from './src/parser/expression-parser.js'
+import { parseExpression } from './src/parser.js'
 console.log(parseExpression)
