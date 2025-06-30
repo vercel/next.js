@@ -566,13 +566,13 @@ describe.each(
                  at createCookiesAccessError (webpack://<next-src>)
                  at Promise.get (webpack://<next-src>)
                  at CookiesReadingComponent (webpack:///app/page.tsx:32:66)
-               579 | ) {
-               580 |   const prefix = route ? \`Route "\${route}" \` : 'This route '
-             > 581 |   return new Error(
+               583 | ) {
+               584 |   const prefix = route ? \`Route "\${route}" \` : 'This route '
+             > 585 |   return new Error(
                    |         ^
-               582 |     \`\${prefix}used \${expression}. \` +
-               583 |       \`\\\`cookies()\\\` should be awaited before using its value. \` +
-               584 |       \`Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis\`
+               586 |     \`\${prefix}used \${expression}. \` +
+               587 |       \`\\\`cookies()\\\` should be awaited before using its value. \` +
+               588 |       \`Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis\`
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -822,13 +822,13 @@ describe.each(
                  at createHeadersAccessError (webpack://<next-src>)
                  at Promise.get (webpack://<next-src>)
                  at HeadersReadingComponent (webpack:///app/page.tsx:32:69)
-               501 | ) {
-               502 |   const prefix = route ? \`Route "\${route}" \` : 'This route '
-             > 503 |   return new Error(
+               505 | ) {
+               506 |   const prefix = route ? \`Route "\${route}" \` : 'This route '
+             > 507 |   return new Error(
                    |         ^
-               504 |     \`\${prefix}used \${expression}. \` +
-               505 |       \`\\\`headers()\\\` should be awaited before using its value. \` +
-               506 |       \`Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis\`
+               508 |     \`\${prefix}used \${expression}. \` +
+               509 |       \`\\\`headers()\\\` should be awaited before using its value. \` +
+               510 |       \`Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis\`
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
