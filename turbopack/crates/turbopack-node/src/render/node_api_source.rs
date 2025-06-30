@@ -125,15 +125,15 @@ impl GetContentSourceContent for NodeApiContentSource {
         };
         let entry = (*self.entry).entry(data.clone()).await?;
         Ok(ContentSourceContent::HttpProxy(render_proxy_operation(
-            self.cwd,
+            self.cwd.clone(),
             self.env,
-            self.server_root.join(path.clone()).to_resolved().await?,
+            self.server_root.join(&path.clone())?,
             ResolvedVc::upcast(entry.module),
             entry.runtime_entries,
             entry.chunking_context,
-            entry.intermediate_output_path,
-            entry.output_root,
-            entry.project_dir,
+            entry.intermediate_output_path.clone(),
+            entry.output_root.clone(),
+            entry.project_dir.clone(),
             RenderData {
                 params: params.clone(),
                 method: method.clone(),

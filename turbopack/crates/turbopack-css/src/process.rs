@@ -381,7 +381,7 @@ pub async fn parse_css(
                         process_content(
                             *file_content,
                             string.into_owned(),
-                            fs_path.to_resolved().await?,
+                            fs_path.await?.clone_value(),
                             ident_str,
                             source,
                             origin,
@@ -463,7 +463,7 @@ async fn process_content(
                     ss.visit(&mut validator).unwrap();
 
                     for err in validator.errors {
-                        err.report(fs_path_vc);
+                        err.report(fs_path_vc.clone());
                     }
                 }
 
@@ -488,7 +488,7 @@ async fn process_content(
                             };
 
                             ParsingIssue {
-                                file: fs_path_vc,
+                                file: fs_path_vc.clone(),
                                 msg: err.to_string().into(),
                                 source,
                             }
@@ -693,7 +693,7 @@ struct ParsingIssue {
 impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file
+        self.file.clone().cell()
     }
 
     #[turbo_tasks::function]

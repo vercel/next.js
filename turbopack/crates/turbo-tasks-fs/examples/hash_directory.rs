@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
-            let input = fs.root().join("demo".into());
+            let input = fs.root().await?.join("demo")?;
             let dir_hash = hash_directory(input);
             print_hash(dir_hash).await?;
             Ok::<Vc<()>, _>(Default::default())
@@ -68,12 +68,12 @@ async fn print_hash(dir_hash: Vc<RcStr>) -> Result<Vc<()>> {
 }
 
 async fn filename(path: FileSystemPath) -> Result<String> {
-    Ok(path.await?.path.split('/').next_back().unwrap().to_string())
+    Ok(path.path.split('/').next_back().unwrap().to_string())
 }
 
 #[turbo_tasks::function]
 async fn hash_directory(directory: FileSystemPath) -> Result<Vc<RcStr>> {
-    let dir_path = &directory.await?.path;
+    let dir_path = &directory.path;
     let content = directory.read_dir();
     let mut hashes = BTreeMap::new();
     match &*content.await? {
@@ -81,19 +81,19 @@ async fn hash_directory(directory: FileSystemPath) -> Result<Vc<RcStr>> {
             for entry in entries.values() {
                 match entry {
                     DirectoryEntry::File(path) => {
-                        let name = filename(**path).await?;
-                        hashes.insert(name, hash_file(**path).owned().await?);
+                        let name = filename(path.clone()).await?;
+                        hashes.insert(name, hash_file(path.clone()).owned().await?);
                     }
                     DirectoryEntry::Directory(path) => {
-                        let name = filename(**path).await?;
-                        hashes.insert(name, hash_directory(**path).owned().await?);
+                        let name = filename(path.clone()).await?;
+                        hashes.insert(name, hash_directory(path.clone()).owned().await?);
                     }
                     _ => {}
                 }
             }
         }
         DirectoryContent::NotFound => {
-            println!("{}: not found", directory.await?.path);
+            println!("{}: not found", directory.path);
         }
     };
     let hash = hash_content(

@@ -49,8 +49,8 @@ pub async fn node_evaluate_asset_context(
             Some(
                 turbopack_node::embed_js::embed_fs()
                     .root()
-                    .to_resolved()
-                    .await?,
+                    .await?
+                    .clone_value(),
             ),
         )
         .resolved_cell(),
@@ -69,9 +69,10 @@ pub async fn node_evaluate_asset_context(
         enable_node_modules: Some(
             execution_context
                 .project_path()
+                .await?
                 .root()
-                .to_resolved()
-                .await?,
+                .await?
+                .clone_value(),
         ),
         enable_node_externals: true,
         enable_node_native_modules: true,

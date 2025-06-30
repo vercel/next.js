@@ -5,7 +5,7 @@ use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_file,
 };
@@ -80,12 +80,8 @@ pub async fn resolve_source_map_sources(
         original_content: Option<&mut Option<String>>,
         origin: FileSystemPath,
     ) -> Result<()> {
-        if let Some(path) = *origin
-            .parent()
-            .try_join((&**original_source).into())
-            .await?
-        {
-            let path_str = path.to_string().await?;
+        if let Some(path) = origin.parent().try_join(original_source)? {
+            let path_str = path.value_to_string().await?;
             let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
             *original_source = source;
 
@@ -100,7 +96,7 @@ pub async fn resolve_source_map_sources(
                 }
             }
         } else {
-            let origin_str = origin.to_string().await?;
+            let origin_str = origin.value_to_string().await?;
             static INVALID_REGEX: Lazy<Regex> =
                 Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
             let source = INVALID_REGEX.replace_all(original_source, |s: &regex::Captures<'_>| {
@@ -130,7 +126,7 @@ pub async fn resolve_source_map_sources(
 
             for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
                 if let Some(source) = source {
-                    resolve_source(source, Some(content), origin).await?;
+                    resolve_source(source, Some(content), origin.clone()).await?;
                 }
             }
 
@@ -149,12 +145,12 @@ pub async fn resolve_source_map_sources(
     };
 
     if let Some(file) = &mut map.file {
-        resolve_source(file, None, origin).await?;
+        resolve_source(file, None, origin.clone()).await?;
     }
 
-    resolve_map(&mut map, origin).await?;
+    resolve_map(&mut map, origin.clone()).await?;
     for section in map.sections.iter_mut().flatten() {
-        resolve_map(&mut section.map, origin).await?;
+        resolve_map(&mut section.map, origin.clone()).await?;
     }
 
     let map = Rope::from(serde_json::to_vec(&map)?);
@@ -187,7 +183,7 @@ pub async fn fileify_source_map(
         if let Some(src) = src
             && let Some(src_rest) = src.strip_prefix(&prefix)
         {
-            *src = uri_from_file(context_path, Some(src_rest)).await?;
+            *src = uri_from_file(context_path.clone(), Some(src_rest)).await?;
         }
         anyhow::Ok(())
     };

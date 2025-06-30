@@ -2,7 +2,7 @@ use std::{env, sync::MutexGuard};
 
 use anyhow::{Context, Result, anyhow};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use crate::{EnvMap, GLOBAL_ENV_LOCK, ProcessEnv, sorted_env_vars};
@@ -62,7 +62,7 @@ impl DotenvProcessEnv {
             if let Err(e) = res {
                 return Err(e).context(anyhow!(
                     "unable to read {} for env vars",
-                    this.path.to_string().await?
+                    this.path.value_to_string().await?
                 ));
             }
 

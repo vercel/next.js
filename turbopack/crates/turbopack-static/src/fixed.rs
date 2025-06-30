@@ -30,7 +30,7 @@ impl FixedStaticAsset {
 impl OutputAsset for FixedStaticAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
-        *self.output_path
+        self.output_path.clone().cell()
     }
 }
 

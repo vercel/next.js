@@ -28,7 +28,7 @@ impl ExecutionContext {
 
     #[turbo_tasks::function]
     pub fn project_path(&self) -> Vc<FileSystemPath> {
-        *self.project_path
+        self.project_path.clone().cell()
     }
 
     #[turbo_tasks::function]

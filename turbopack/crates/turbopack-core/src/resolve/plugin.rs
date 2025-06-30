@@ -25,10 +25,10 @@ impl AfterResolvePluginCondition {
 
     #[turbo_tasks::function]
     pub async fn matches(&self, fs_path: FileSystemPath) -> Result<Vc<bool>> {
-        let root = self.root.await?;
+        let root = self.root.clone();
         let glob = self.glob.await?;
 
-        let path = fs_path.await?;
+        let path = fs_path;
 
         if let Some(path) = root.get_path_to(&path)
             && glob.matches(path)

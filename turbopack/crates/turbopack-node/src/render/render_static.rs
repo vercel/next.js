@@ -295,9 +295,9 @@ async fn render_stream_internal(
             cwd,
             env,
             intermediate_asset,
-            intermediate_output_path,
+            intermediate_output_path.clone(),
             output_root,
-            project_dir,
+            project_dir.clone(),
             debug,
         );
 
@@ -346,8 +346,8 @@ async fn render_stream_internal(
                 let trace = trace_stack(
                     error,
                     *intermediate_asset,
-                    *intermediate_output_path,
-                    *project_dir,
+                    intermediate_output_path.clone(),
+                    project_dir.clone(),
                 )
                 .await?;
                 yield RenderItem::Response(
@@ -379,7 +379,7 @@ async fn render_stream_internal(
                     // headers/body to a proxy error.
                     operation.disallow_reuse();
                     let trace =
-                        trace_stack(error, *intermediate_asset, *intermediate_output_path, *project_dir).await?;
+                        trace_stack(error, *intermediate_asset, intermediate_output_path.clone(), project_dir.clone()).await?;
                         drop(guard);
                     Err(anyhow!("error during streaming render: {}", trace))?;
                     return;

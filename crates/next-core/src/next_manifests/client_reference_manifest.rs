@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    Vc, trace::TraceRawVcs,
+    FxIndexSet, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -96,8 +96,8 @@ impl ClientReferenceManifest {
                 layout_segment_client_chunks,
                 client_component_ssr_chunks,
             } = &*client_references_chunks.await?;
-            let client_relative_path = &*client_relative_path.await?;
-            let node_root_ref = &*node_root.await?;
+            let client_relative_path = client_relative_path.clone();
+            let node_root_ref = node_root.clone();
 
             let client_references_ecmascript = client_references
                 .await?
@@ -139,7 +139,7 @@ impl ClientReferenceManifest {
                         Ok(if let Some(path) = path {
                             (chunk, Either::Left(path))
                         } else {
-                            (chunk, Either::Right(chunk.path().await?))
+                            (chunk, Either::Right(chunk.path().await?.clone_value()))
                         })
                     })
                     .try_join()
@@ -326,8 +326,9 @@ impl ClientReferenceManifest {
             for (server_component, client_chunks) in layout_segment_client_chunks.iter() {
                 let server_component_name = server_component
                     .server_path()
-                    .with_extension("".into())
-                    .to_string()
+                    .await?
+                    .with_extension("")
+                    .value_to_string()
                     .owned()
                     .await?;
                 let mut entry_css_files_with_chunk = Vec::new();
@@ -395,10 +396,9 @@ impl ClientReferenceManifest {
             // path still (same as webpack does)
             let normalized_manifest_entry = entry_name.replace("%5F", "_");
             Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
-                node_root.join(
-                    format!("server/app{normalized_manifest_entry}_client-reference-manifest.js",)
-                        .into(),
-                ),
+                node_root.join(&format!(
+                    "server/app{normalized_manifest_entry}_client-reference-manifest.js",
+                ))?,
                 AssetContent::file(
                     File::from(formatdoc! {
                         r#"

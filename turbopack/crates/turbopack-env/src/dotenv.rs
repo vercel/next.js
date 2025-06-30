@@ -22,7 +22,7 @@ pub async fn load_env(project_path: FileSystemPath) -> Result<Vc<Box<dyn Process
         }),
     ));
 
-    let files = [
+    let mut files = [
         Some(format!(".env.{node_env}.local")),
         if node_env == "test" {
             None
@@ -35,10 +35,10 @@ pub async fn load_env(project_path: FileSystemPath) -> Result<Vc<Box<dyn Process
     .into_iter()
     .flatten();
 
-    let env = files.fold(env, |prior, f| {
-        let path = project_path.join(f.into());
-        Vc::upcast(TryDotenvProcessEnv::new(prior, path))
-    });
+    let env = files.try_fold(env, |prior, f| {
+        let path = project_path.join(&f)?;
+        anyhow::Ok(Vc::upcast(TryDotenvProcessEnv::new(prior, path)))
+    })?;
 
     Ok(env)
 }

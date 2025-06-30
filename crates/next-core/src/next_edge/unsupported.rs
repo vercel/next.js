@@ -49,9 +49,10 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
         if let Request::Module { module, .. } = request {
             // Call out to separate `unsupported_module_source` to only have a single Source cell
             // for requests with different subpaths: `fs` and `fs/promises`.
-            let source = unsupported_module_source(lookup_path.root(), module.clone())
-                .to_resolved()
-                .await?;
+            let source =
+                unsupported_module_source(lookup_path.root().await?.clone_value(), module.clone())
+                    .to_resolved()
+                    .await?;
             Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source))).cell())
         } else {
             Ok(ImportMapResult::NoEntry.cell())

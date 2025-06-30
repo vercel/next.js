@@ -56,7 +56,7 @@ impl ContentSource for IssueFilePathContentSource {
     async fn get_routes(self: ResolvedVc<Self>) -> Result<Vc<RouteTree>> {
         let this = self.await?;
         let routes = content_source_get_routes_operation(this.source)
-            .issue_file_path(this.file_path.map(|v| *v), &*this.description)
+            .issue_file_path(this.file_path.clone(), &*this.description)
             .await?
             .connect();
         Ok(routes.map_routes(Vc::upcast(
@@ -111,7 +111,7 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
     async fn vary(&self) -> Result<Vc<ContentSourceDataVary>> {
         let source = self.source.await?;
         Ok(get_content_source_vary_operation(self.get_content)
-            .issue_file_path(source.file_path.map(|v| *v), &*source.description)
+            .issue_file_path(source.file_path.clone(), &*source.description)
             .await?
             .connect())
     }
@@ -121,7 +121,7 @@ impl GetContentSourceContent for IssueContextGetContentSourceContent {
         let source = self.source.await?;
         Ok(
             get_content_source_get_operation(self.get_content, path, data)
-                .issue_file_path(source.file_path.map(|v| *v), &*source.description)
+                .issue_file_path(source.file_path.clone(), &*source.description)
                 .await?
                 .connect(),
         )

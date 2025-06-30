@@ -1,7 +1,7 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -25,17 +25,20 @@ pub(crate) async fn create_font_manifest(
 
     // `_next` gets added again later, so we "strip" it here via
     // `get_font_paths_from_root`.
-    let font_paths: Vec<String> =
-        get_font_paths_from_root(&*client_root.await?, &all_client_output_assets)
-            .await?
-            .iter()
-            .filter_map(|p| p.split("_next/").last().map(|f| f.to_string()))
-            .collect();
+    let font_paths: Vec<String> = get_font_paths_from_root(&client_root, &all_client_output_assets)
+        .await?
+        .iter()
+        .filter_map(|p| p.split("_next/").last().map(|f| f.to_string()))
+        .collect();
 
     let path = if app_dir {
-        node_root.join(format!("server/app{manifest_path_prefix}/next-font-manifest.json",).into())
+        node_root.join(&format!(
+            "server/app{manifest_path_prefix}/next-font-manifest.json",
+        ))?
     } else {
-        node_root.join(format!("server/pages{manifest_path_prefix}/next-font-manifest.json").into())
+        node_root.join(&format!(
+            "server/pages{manifest_path_prefix}/next-font-manifest.json",
+        ))?
     };
 
     let has_fonts = !font_paths.is_empty();
@@ -50,7 +53,7 @@ pub(crate) async fn create_font_manifest(
     let next_font_manifest = if !has_fonts {
         Default::default()
     } else if app_dir {
-        let dir_str = dir.to_string().await?;
+        let dir_str = dir.value_to_string().await?;
         let page_path = format!("{dir_str}{original_name}").into();
 
         NextFontManifest {

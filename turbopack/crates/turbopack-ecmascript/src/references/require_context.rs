@@ -65,7 +65,7 @@ pub(crate) struct DirList(FxIndexMap<RcStr, DirListEntry>);
 impl DirList {
     #[turbo_tasks::function]
     pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
-        Self::read_internal(dir, dir, recursive, filter)
+        Self::read_internal(dir.clone(), dir, recursive, filter)
     }
 
     #[turbo_tasks::function]
@@ -75,8 +75,8 @@ impl DirList {
         recursive: bool,
         filter: Vc<EsRegex>,
     ) -> Result<Vc<Self>> {
-        let root_val = &root.await?;
-        let dir_val = &dir.await?;
+        let root_val = root.clone();
+        let dir_val = dir.clone();
         let regex = &filter.await?;
 
         let mut list = FxIndexMap::default();
@@ -90,20 +90,25 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?)
+                    if let Some(relative_path) = root_val.get_relative_path_to(path)
                         && regex.is_match(&relative_path)
                     {
-                        list.insert(relative_path, DirListEntry::File(*path));
+                        list.insert(relative_path, DirListEntry::File(path.clone()));
                     }
                 }
                 DirectoryEntry::Directory(path) if recursive => {
-                    if let Some(relative_path) = dir_val.get_relative_path_to(&*path.await?) {
+                    if let Some(relative_path) = dir_val.get_relative_path_to(path) {
                         list.insert(
                             relative_path,
                             DirListEntry::Dir(
-                                DirList::read_internal(root, **path, recursive, filter)
-                                    .to_resolved()
-                                    .await?,
+                                DirList::read_internal(
+                                    root.clone(),
+                                    path.clone(),
+                                    recursive,
+                                    filter,
+                                )
+                                .to_resolved()
+                                .await?,
                             ),
                         );
                     }
@@ -130,7 +135,7 @@ impl DirList {
             for (k, entry) in &*dir {
                 match entry {
                     DirListEntry::File(path) => {
-                        list.insert(k.clone(), *path);
+                        list.insert(k.clone(), path.clone());
                     }
                     DirListEntry::Dir(d) => {
                         queue.push_back(d.await?);
@@ -177,14 +182,14 @@ impl RequireContextMap {
         issue_source: Option<IssueSource>,
         is_optional: bool,
     ) -> Result<Vc<Self>> {
-        let origin_path = &*origin.origin_path().parent().await?;
+        let origin_path = origin.origin_path().await?.parent();
 
         let list = &*FlatDirList::read(dir, recursive, filter).await?;
 
         let mut map = FxIndexMap::default();
 
         for (context_relative, path) in list {
-            let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) else {
+            let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
                 bail!("invariant error: this was already checked in `list_dir`");
             };
 
@@ -234,7 +239,7 @@ impl RequireContextAssetReference {
     ) -> Result<Self> {
         let map = RequireContextMap::generate(
             *origin,
-            origin.origin_path().parent().join(dir.clone()),
+            origin.origin_path().await?.parent().join(&dir)?,
             include_subdirs,
             filter,
             issue_source.clone(),

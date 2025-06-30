@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueDefault, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    TryJoinIterExt, ValueDefault, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -129,10 +129,10 @@ impl VersionedContentMap {
             let mut changed = false;
 
             // get current map's keys, subtract keys that don't exist in operation
-            let mut stale_assets = map.0.keys().copied().collect::<FxHashSet<_>>();
+            let mut stale_assets = map.0.keys().cloned().collect::<FxHashSet<_>>();
 
             for (k, _) in entries.iter().flatten() {
-                let res = map.0.entry(*k).or_default().insert(assets_operation);
+                let res = map.0.entry(k.clone()).or_default().insert(assets_operation);
                 stale_assets.remove(k);
                 changed = changed || res;
             }
@@ -161,7 +161,7 @@ impl VersionedContentMap {
         .await?;
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation,
-            path_to_asset: entries.iter().flatten().copied().collect(),
+            path_to_asset: entries.iter().flatten().cloned().collect(),
         }));
         Ok(map_entry)
     }
@@ -180,7 +180,7 @@ impl VersionedContentMap {
         path: FileSystemPath,
         section: Option<RcStr>,
     ) -> Result<Vc<OptionStringifiedSourceMap>> {
-        let Some(asset) = &*self.get_asset(path).await? else {
+        let Some(asset) = &*self.get_asset(path.clone()).await? else {
             return Ok(Vc::cell(None));
         };
 
@@ -193,14 +193,14 @@ impl VersionedContentMap {
                 generate_source_map.generate_source_map()
             })
         } else {
-            let path = path.to_string().await?;
+            let path = path.value_to_string().await?;
             bail!("no source map for path {}", path);
         }
     }
 
     #[turbo_tasks::function]
     pub async fn get_asset(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<OptionOutputAsset>> {
-        let result = self.raw_get(*path).await?;
+        let result = self.raw_get(path.clone()).await?;
         if let Some(MapEntry {
             assets_operation: _,
             path_to_asset,
@@ -217,12 +217,14 @@ impl VersionedContentMap {
     pub async fn keys_in_path(&self, root: FileSystemPath) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
             let map = &self.map_path_to_op.get().0;
-            map.keys().copied().collect::<Vec<_>>()
+            map.keys().cloned().collect::<Vec<_>>()
         };
-        let root = &root.await?;
         let keys = keys
             .into_iter()
-            .map(|path| async move { Ok(root.get_path_to(&*path.await?).map(RcStr::from)) })
+            .map(|path| {
+                let root = root.clone();
+                async move { Ok(root.get_path_to(&path).map(RcStr::from)) }
+            })
             .try_flat_join()
             .await?;
         Ok(Vc::cell(keys))
@@ -262,7 +264,7 @@ async fn get_entries(assets: OperationVc<OutputAssets>) -> Result<Vc<GetEntriesR
     let entries = assets_ref
         .iter()
         .map(|&asset| async move {
-            let path = asset.path().to_resolved().await?;
+            let path = asset.path().await?.clone_value();
             Ok((path, asset))
         })
         .try_join()
@@ -280,8 +282,8 @@ fn compute_entry_operation(
 ) -> Vc<OptionMapEntry> {
     map.compute_entry(
         assets_operation,
-        *node_root,
-        *client_relative_path,
-        *client_output_path,
+        node_root,
+        client_relative_path,
+        client_output_path,
     )
 }

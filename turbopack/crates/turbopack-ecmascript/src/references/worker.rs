@@ -74,7 +74,7 @@ impl WorkerAssetReference {
                 title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
                 message: StyledString::Text(rcstr!("asset is not placeable in ESM chunks"))
                     .resolved_cell(),
-                path: self.origin.origin_path().to_resolved().await?,
+                path: self.origin.origin_path().await?.clone_value(),
             }
             .resolved_cell()
             .emit();

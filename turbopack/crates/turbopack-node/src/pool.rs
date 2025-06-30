@@ -120,8 +120,8 @@ impl NodeJsPoolProcess {
                 apply_source_mapping(
                     text,
                     *self.assets_for_source_mapping,
-                    *self.assets_root,
-                    *self.project_dir,
+                    self.assets_root.clone(),
+                    self.project_dir.clone(),
                     formatting_mode,
                 )
                 .await
@@ -130,8 +130,8 @@ impl NodeJsPoolProcess {
                 let cow = apply_source_mapping(
                     text,
                     *self.assets_for_source_mapping,
-                    *self.assets_root,
-                    *self.project_dir,
+                    self.assets_root.clone(),
+                    self.project_dir.clone(),
                     formatting_mode,
                 )
                 .await?;
@@ -298,8 +298,8 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                             write_source_mapped_final(
                                 &entry.data,
                                 **assets_for_source_mapping,
-                                **root,
-                                **project_dir,
+                                root.clone(),
+                                project_dir.clone(),
                                 final_stream,
                             )
                             .await?;
@@ -325,8 +325,8 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             write_source_mapped_final(
                 &buffer,
                 **assets_for_source_mapping,
-                **root,
-                **project_dir,
+                root.clone(),
+                project_dir.clone(),
                 final_stream,
             )
             .await?;
@@ -440,16 +440,16 @@ impl NodeJsPoolProcess {
             stream: child_stdout,
             shared: shared_stdout,
             assets_for_source_mapping,
-            root: assets_root,
-            project_dir,
+            root: assets_root.clone(),
+            project_dir: project_dir.clone(),
             final_stream: stdout(),
         };
         let stderr_handler = OutputStreamHandler {
             stream: child_stderr,
             shared: shared_stderr,
             assets_for_source_mapping,
-            root: assets_root,
-            project_dir,
+            root: assets_root.clone(),
+            project_dir: project_dir.clone(),
             final_stream: stderr(),
         };
 
@@ -457,8 +457,8 @@ impl NodeJsPoolProcess {
             child: Some(child),
             connection,
             assets_for_source_mapping,
-            assets_root,
-            project_dir,
+            assets_root: assets_root.clone(),
+            project_dir: project_dir.clone(),
             stdout_handler,
             stderr_handler,
             debug,
@@ -838,8 +838,8 @@ impl NodeJsPool {
             &self.env,
             self.entrypoint.as_path(),
             self.assets_for_source_mapping,
-            self.assets_root,
-            self.project_dir,
+            self.assets_root.clone(),
+            self.project_dir.clone(),
             self.shared_stdout.clone(),
             self.shared_stderr.clone(),
             self.debug,

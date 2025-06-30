@@ -52,7 +52,7 @@ impl Source for DataUriSource {
             )))[0..6]
         );
         Ok(
-            AssetIdent::from_path(self.lookup_path.join(filename.into()))
+            AssetIdent::from_path(self.lookup_path.join(&filename)?)
                 .with_content_type(content_type),
         )
     }

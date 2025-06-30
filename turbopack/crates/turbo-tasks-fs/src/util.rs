@@ -173,7 +173,7 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
 
     let sys_path = root_fs
         .to_sys_path(match path {
-            Some(path) => root.join(path.into()),
+            Some(path) => root.join(path.into())?,
             None => root,
         })
         .await?;

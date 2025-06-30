@@ -32,7 +32,7 @@ impl StaticEcmascriptCode {
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
-                Vc::upcast(FileSource::new(*asset_path)),
+                Vc::upcast(FileSource::new(asset_path.clone())),
                 ReferenceType::Runtime,
             )
             .module()

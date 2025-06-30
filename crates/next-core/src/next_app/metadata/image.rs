@@ -5,7 +5,7 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -33,7 +33,10 @@ async fn hash_file_content(path: FileSystemPath) -> Result<u64> {
             hash_xxh3_hash64(&*content)
         }
         FileContent::NotFound => {
-            bail!("metadata file not found: {}", &path.to_string().await?);
+            bail!(
+                "metadata file not found: {}",
+                &path.value_to_string().await?
+            );
         }
     })
 }
@@ -45,11 +48,11 @@ pub async fn dynamic_image_metadata_source(
     ty: RcStr,
     page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let stem = path.file_stem().await?;
-    let stem = stem.as_deref().unwrap_or_default();
-    let ext = &*path.extension().await?;
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
+    let ext = path.extension();
 
-    let hash_query = format!("?{:x}", hash_file_content(path).await?);
+    let hash_query = format!("?{:x}", hash_file_content(path.clone()).await?);
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
@@ -71,7 +74,7 @@ pub async fn dynamic_image_metadata_source(
         format!("data.sizes = `{sizes}`;")
     };
 
-    let source = Vc::upcast(FileSource::new(path));
+    let source = Vc::upcast(FileSource::new(path.clone()));
     let module = asset_context
         .process(
             source,
@@ -133,7 +136,7 @@ pub async fn dynamic_image_metadata_source(
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--metadata.js").into()),
+        path.parent().join(&format!("{stem}--metadata.js"))?,
         AssetContent::file(file.into()),
     );
 

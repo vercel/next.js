@@ -169,7 +169,7 @@ pub struct FetchIssue {
 impl Issue for FetchIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.issue_context
+        self.issue_context.clone().cell()
     }
 
     fn severity(&self) -> IssueSeverity {

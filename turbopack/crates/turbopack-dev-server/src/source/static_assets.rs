@@ -57,11 +57,11 @@ async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>>
                 Some(RouteTree::new_route(
                     vec![BaseSegment::Static(name.clone())],
                     RouteType::Exact,
-                    Vc::upcast(StaticAssetsContentSourceItem::new(**path)),
+                    Vc::upcast(StaticAssetsContentSourceItem::new(path.clone())),
                 ))
             }
             DirectoryEntry::Directory(path) => Some(
-                get_routes_from_directory(**path)
+                get_routes_from_directory(path.clone())
                     .with_prepended_base(vec![BaseSegment::Static(name.clone())]),
             ),
             _ => None,
@@ -78,7 +78,7 @@ impl ContentSource for StaticAssetsContentSource {
     async fn get_routes(&self) -> Result<Vc<RouteTree>> {
         let prefix = self.prefix.await?;
         let prefix = BaseSegment::from_static_pathname(prefix.as_str()).collect::<Vec<_>>();
-        Ok(get_routes_from_directory(*self.dir).with_prepended_base(prefix))
+        Ok(get_routes_from_directory(self.dir.clone()).with_prepended_base(prefix))
     }
 }
 
@@ -99,7 +99,7 @@ impl StaticAssetsContentSourceItem {
 impl GetContentSourceContent for StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
     fn get(&self, _path: RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
-        let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(*self.path)).content();
+        let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(self.path.clone())).content();
         ContentSourceContent::static_content(content.versioned())
     }
 }
@@ -127,15 +127,17 @@ impl Introspectable for StaticAssetsContentSource {
                     let child = match entry {
                         DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
                             ResolvedVc::upcast(
-                                IntrospectableSource::new(Vc::upcast(FileSource::new(**path)))
-                                    .to_resolved()
-                                    .await?,
+                                IntrospectableSource::new(Vc::upcast(FileSource::new(
+                                    path.clone(),
+                                )))
+                                .to_resolved()
+                                .await?,
                             )
                         }
                         DirectoryEntry::Directory(path) => ResolvedVc::upcast(
                             StaticAssetsContentSource::with_prefix(
                                 Vc::cell(format!("{}{name}/", &*prefix).into()),
-                                **path,
+                                path.clone(),
                             )
                             .to_resolved()
                             .await?,

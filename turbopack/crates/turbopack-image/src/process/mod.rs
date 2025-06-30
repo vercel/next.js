@@ -125,7 +125,7 @@ fn load_image(
     bytes: &[u8],
     extension: Option<&str>,
 ) -> Option<(ImageBuffer, Option<ImageFormat>)> {
-    result_to_issue(path, load_image_internal(path, bytes, extension))
+    result_to_issue(path.clone(), load_image_internal(path, bytes, extension))
 }
 
 /// Type of raw image buffer read by reader from `load_image`.
@@ -348,19 +348,19 @@ pub async fn get_meta_data(
         bail!("Input image not found");
     };
     let bytes = content.content().to_bytes();
-    let path_resolved = ident.path().to_resolved().await?;
-    let path = path_resolved.await?;
+    let path_resolved = ident.path().await?.clone_value();
+    let path = path_resolved.clone();
     let extension = path.extension_ref();
     if extension == Some("svg") {
         let content = result_to_issue(
-            path_resolved,
+            path_resolved.clone(),
             std::str::from_utf8(&bytes).context("Input image is not valid utf-8"),
         );
         let Some(content) = content else {
             return Ok(ImageMetaData::fallback_value(Some(mime::IMAGE_SVG)).cell());
         };
         let info = result_to_issue(
-            path_resolved,
+            path_resolved.clone(),
             calculate(content).context("Failed to parse svg source code for image dimensions"),
         );
         let Some((width, height)) = info else {
@@ -374,7 +374,7 @@ pub async fn get_meta_data(
         }
         .cell());
     }
-    let Some((image, format)) = load_image(path_resolved, &bytes, extension) else {
+    let Some((image, format)) = load_image(path_resolved.clone(), &bytes, extension) else {
         return Ok(ImageMetaData::fallback_value(None).cell());
     };
 
@@ -392,7 +392,7 @@ pub async fn get_meta_data(
                         | Some(ImageFormat::Avif)
                 ) {
                     compute_blur_data(
-                        path_resolved,
+                        path_resolved.clone(),
                         image,
                         format.unwrap(),
                         &*blur_placeholder.await?,
@@ -431,7 +431,7 @@ pub async fn optimize(
         return Ok(FileContent::NotFound.cell());
     };
     let bytes = content.content().to_bytes();
-    let path = ident.path().to_resolved().await?;
+    let path = ident.path().await?.clone_value();
 
     let Some((image, format)) = load_image(path, &bytes, ident.path().await?.extension_ref())
     else {
@@ -500,7 +500,7 @@ impl Issue for ImageProcessingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]

@@ -60,7 +60,7 @@ impl ModuleReference for NodePreGypConfigReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         resolve_node_pre_gyp_files(
-            *self.context_dir,
+            self.context_dir.clone(),
             *self.config_file_pattern,
             *self.compile_target,
         )
@@ -71,7 +71,7 @@ impl ModuleReference for NodePreGypConfigReference {
 impl ValueToString for NodePreGypConfigReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let context_dir = self.context_dir.to_string().await?;
+        let context_dir = self.context_dir.value_to_string().await?;
         let config_file_pattern = self.config_file_pattern.to_string().await?;
         let compile_target = self.compile_target.await?;
         Ok(Vc::cell(
@@ -105,8 +105,8 @@ pub async fn resolve_node_pre_gyp_files(
         && let AssetContent::File(file) = &*config_asset.content().await?
         && let FileContent::Content(config_file) = &*file.await?
     {
-        let config_file_path = config_asset.ident().path();
-        let mut affecting_paths = vec![config_file_path];
+        let config_file_path = config_asset.ident().path().await?.clone_value();
+        let mut affecting_paths = vec![config_file_path.clone()];
         let config_file_dir = config_file_path.parent();
         let node_pre_gyp_config: NodePreGypConfigJson =
             parse_json_rope_with_source_context(config_file.content())?;
@@ -135,16 +135,16 @@ pub async fn resolve_node_pre_gyp_files(
 
             // Find all dynamic libraries in the given directory.
             if let DirectoryContent::Entries(entries) = &*config_file_dir
-                .join(native_binding_path.clone())
+                .join(&native_binding_path)?
                 .read_dir()
                 .await?
             {
                 let extension = compile_target.dylib_ext();
                 for (key, entry) in entries.iter().filter(|(k, _)| k.ends_with(extension)) {
-                    if let &DirectoryEntry::File(dylib) | &DirectoryEntry::Symlink(dylib) = entry {
+                    if let DirectoryEntry::File(dylib) | DirectoryEntry::Symlink(dylib) = entry {
                         sources.insert(
                             format!("{native_binding_path}/{key}").into(),
-                            Vc::upcast(FileSource::new(*dylib)),
+                            Vc::upcast(FileSource::new(dylib.clone())),
                         );
                     }
                 }
@@ -155,7 +155,7 @@ pub async fn resolve_node_pre_gyp_files(
                 native_binding_path, node_pre_gyp_config.binary.module_name
             )
             .into();
-            let resolved_file_vc = config_file_dir.join(node_file_path.clone());
+            let resolved_file_vc = config_file_dir.join(&node_file_path)?;
             if *resolved_file_vc.get_type().await? == FileSystemEntryType::File {
                 sources.insert(
                     node_file_path,
@@ -166,26 +166,26 @@ pub async fn resolve_node_pre_gyp_files(
         if let DirectoryContent::Entries(entries) = &*config_file_dir
             // TODO
             // read the dependencies path from `bindings.gyp`
-            .join(rcstr!("deps/lib"))
+            .join("deps/lib")?
             .read_dir()
             .await?
         {
             for (key, entry) in entries.iter() {
-                match *entry {
+                match entry {
                     DirectoryEntry::File(dylib) => {
                         sources.insert(
                             format!("deps/lib/{key}").into(),
-                            Vc::upcast(FileSource::new(*dylib)),
+                            Vc::upcast(FileSource::new(dylib.clone())),
                         );
                     }
                     DirectoryEntry::Symlink(dylib) => {
                         let realpath_with_links = dylib.realpath_with_links().await?;
-                        for &symlink in realpath_with_links.symlinks.iter() {
-                            affecting_paths.push(*symlink);
+                        for symlink in realpath_with_links.symlinks.iter() {
+                            affecting_paths.push(symlink.clone());
                         }
                         sources.insert(
                             format!("deps/lib/{key}").into(),
-                            Vc::upcast(FileSource::new(*realpath_with_links.path)),
+                            Vc::upcast(FileSource::new(realpath_with_links.path.clone())),
                         );
                     }
                     _ => {}
@@ -237,7 +237,7 @@ impl NodeGypBuildReference {
 impl ModuleReference for NodeGypBuildReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        resolve_node_gyp_build_files(*self.context_dir, *self.compile_target)
+        resolve_node_gyp_build_files(self.context_dir.clone(), *self.compile_target)
     }
 }
 
@@ -245,7 +245,7 @@ impl ModuleReference for NodeGypBuildReference {
 impl ValueToString for NodeGypBuildReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let context_dir = self.context_dir.to_string().await?;
+        let context_dir = self.context_dir.value_to_string().await?;
         let compile_target = self.compile_target.await?;
         Ok(Vc::cell(
             format!("node-gyp in {context_dir} for {compile_target}").into(),
@@ -264,7 +264,7 @@ pub async fn resolve_node_gyp_build_files(
             .expect("create napi_build_version regex failed")
     });
     let binding_gyp_pat = Pattern::new(Pattern::Constant(rcstr!("binding.gyp")));
-    let gyp_file = resolve_raw(context_dir, binding_gyp_pat, true);
+    let gyp_file = resolve_raw(context_dir.clone(), binding_gyp_pat, true);
     if let [binding_gyp] = &gyp_file.primary_sources().await?[..] {
         let mut merged_affecting_sources =
             gyp_file.await?.get_affecting_sources().collect::<Vec<_>>();
@@ -276,7 +276,7 @@ pub async fn resolve_node_gyp_build_files(
                 FxIndexMap::with_capacity_and_hasher(captured.len(), Default::default());
             for found in captured.iter().skip(1).flatten() {
                 let name = found.as_str();
-                let target_path = context_dir.join(rcstr!("build/Release"));
+                let target_path = context_dir.join("build/Release")?;
                 let resolved_prebuilt_file = resolve_raw(
                     target_path,
                     Pattern::new(Pattern::Constant(format!("{name}.node").into())),
@@ -347,7 +347,7 @@ impl NodeBindingsReference {
 impl ModuleReference for NodeBindingsReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        resolve_node_bindings_files(*self.context_dir, self.file_name.clone())
+        resolve_node_bindings_files(self.context_dir.clone(), self.file_name.clone())
     }
 }
 
@@ -356,7 +356,7 @@ impl ValueToString for NodeBindingsReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
-            format!("bindings in {}", self.context_dir.to_string().await?,).into(),
+            format!("bindings in {}", self.context_dir.value_to_string().await?,).into(),
         ))
     }
 }
@@ -378,7 +378,7 @@ pub async fn resolve_node_bindings_files(
     let mut root_context_dir = context_dir;
     loop {
         let resolved = resolve_raw(
-            root_context_dir,
+            root_context_dir.clone(),
             Pattern::new(Pattern::Constant(rcstr!("package.json"))),
             true,
         )
@@ -390,23 +390,22 @@ pub async fn resolve_node_bindings_files(
         {
             break;
         };
-        let current_context = root_context_dir.await?;
+        let current_context = root_context_dir.clone();
         let parent = root_context_dir.parent();
-        let parent_context = parent.await?;
-        if parent_context.path == current_context.path {
+        if parent.path == current_context.path {
             break;
         }
         root_context_dir = parent;
     }
 
     let try_path = |sub_path: RcStr| async move {
-        let path = root_context_dir.join(sub_path.clone());
+        let path = root_context_dir.join(&sub_path)?;
         Ok(
             if matches!(*path.get_type().await?, FileSystemEntryType::File) {
                 Some((
                     RequestKey::new(sub_path),
                     ResolvedVc::upcast(
-                        RawModule::new(Vc::upcast(FileSource::new(path)))
+                        RawModule::new(Vc::upcast(FileSource::new(path.clone())))
                             .to_resolved()
                             .await?,
                     ),
@@ -419,7 +418,7 @@ pub async fn resolve_node_bindings_files(
 
     let modules = BINDINGS_TRY
         .iter()
-        .map(|try_dir| try_path(format!("{}/{}", try_dir, &file_name).into()))
+        .map(|try_dir| try_path.clone()(format!("{}/{}", try_dir, &file_name).into()))
         .try_flat_join()
         .await?;
     Ok(*ModuleResolveResult::modules(modules))

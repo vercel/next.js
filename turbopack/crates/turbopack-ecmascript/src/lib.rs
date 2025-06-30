@@ -381,7 +381,7 @@ impl EcmascriptModuleAsset {
 }
 
 #[turbo_tasks::value]
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub(crate) struct ModuleTypeResult {
     pub module_type: SpecifiedModuleType,
     pub referenced_package_json: Option<FileSystemPath>,
@@ -479,7 +479,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         let analyze = self.analyze();
         let analyze_ref = analyze.await?;
 
-        let module_type_result = *self.determine_module_type().await?;
+        let module_type_result = self.determine_module_type().await?;
         let generate_source_map = *chunking_context
             .reference_module_source_maps(Vc::upcast(*self))
             .await?;
@@ -521,7 +521,7 @@ async fn determine_module_type_for_directory(
 ) -> Result<Vc<ModuleTypeResult>> {
     let find_package_json =
         find_context_file(context_path, package_json().resolve().await?).await?;
-    let FindContextFileResult::Found(package_json, _) = *find_package_json else {
+    let FindContextFileResult::Found(package_json, _) = &*find_package_json else {
         return Ok(ModuleTypeResult::new(SpecifiedModuleType::Automatic));
     };
 
@@ -535,13 +535,13 @@ async fn determine_module_type_for_directory(
                 Some("commonjs") => SpecifiedModuleType::CommonJs,
                 _ => SpecifiedModuleType::Automatic,
             },
-            *package_json,
+            package_json.clone(),
         ));
     }
 
     Ok(ModuleTypeResult::new_with_package_json(
         SpecifiedModuleType::Automatic,
-        *package_json,
+        package_json.clone(),
     ))
 }
 
@@ -638,15 +638,7 @@ impl EcmascriptModuleAsset {
             SpecifiedModuleType::Automatic => {}
         }
 
-        determine_module_type_for_directory(
-            self.origin_path()
-                .resolve()
-                .await?
-                .parent()
-                .resolve()
-                .await?,
-        )
-        .await
+        determine_module_type_for_directory(self.origin_path().await?.parent()).await
     }
 }
 
@@ -722,8 +714,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
-        let pkg_side_effect_free =
-            is_marked_as_side_effect_free(self.ident().path(), side_effect_free_packages);
+        let pkg_side_effect_free = is_marked_as_side_effect_free(
+            self.ident().path().await?.clone_value(),
+            side_effect_free_packages,
+        );
         Ok(if *pkg_side_effect_free.await? {
             pkg_side_effect_free
         } else {

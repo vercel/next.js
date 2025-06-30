@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPath, LinkContent};
 
 use crate::{
@@ -47,7 +47,7 @@ impl FileSource {
 impl Source for FileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        let mut ident = AssetIdent::from_path(*self.path);
+        let mut ident = AssetIdent::from_path(self.path.clone());
         if !self.query.is_empty() {
             ident = ident.with_query(self.query.clone());
         }

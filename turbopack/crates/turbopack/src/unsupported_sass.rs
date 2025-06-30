@@ -31,8 +31,11 @@ impl UnsupportedSassResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**/*.{sass,scss}".into()))
+    async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
+        Ok(AfterResolvePluginCondition::new(
+            self.root.root().await?.clone_value(),
+            Glob::new("**/*.{sass,scss}".into()),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -43,8 +46,8 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
         _reference_type: ReferenceType,
         request: ResolvedVc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        let extension = fs_path.extension().await?;
-        if ["sass", "scss"].iter().any(|ext| *ext == &**extension) {
+        let extension = fs_path.extension();
+        if ["sass", "scss"].contains(&extension) {
             UnsupportedSassModuleIssue {
                 file_path: lookup_path,
                 request,
@@ -83,7 +86,7 @@ impl Issue for UnsupportedSassModuleIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]

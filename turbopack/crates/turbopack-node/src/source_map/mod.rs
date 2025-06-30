@@ -62,9 +62,13 @@ pub async fn apply_source_mapping(
             line: Some(line),
             column: Some(column),
         };
-        let resolved =
-            resolve_source_mapping(assets_for_source_mapping, root, project_dir.root(), &frame)
-                .await;
+        let resolved = resolve_source_mapping(
+            assets_for_source_mapping,
+            root.clone(),
+            project_dir.root().await?.clone_value(),
+            &frame,
+        )
+        .await;
         write_resolved(
             &mut new,
             resolved,
@@ -238,17 +242,17 @@ async fn resolve_source_mapping(
                 PROJECT_FILESYSTEM_NAME,
                 "]/"
             )) {
-                let fs_path = project_dir.join(project_path.into());
+                let fs_path = project_dir.join(project_path)?;
                 if lib_code {
                     return Ok(ResolvedSourceMapping::MappedLibrary {
                         frame: frame.clone(),
-                        project_path: fs_path.await?,
+                        project_path: fs_path.clone(),
                     });
                 } else {
                     let lines = fs_path.read().lines().await?;
                     return Ok(ResolvedSourceMapping::MappedProject {
                         frame: frame.clone(),
-                        project_path: fs_path.await?,
+                        project_path: fs_path.clone(),
                         lines,
                     });
                 }
@@ -295,8 +299,13 @@ impl StructuredError {
 
         for frame in &self.stack {
             let frame = frame.unmangle_identifiers(magic);
-            let resolved =
-                resolve_source_mapping(assets_for_source_mapping, root, root_path, &frame).await;
+            let resolved = resolve_source_mapping(
+                assets_for_source_mapping,
+                root.clone(),
+                root_path.clone(),
+                &frame,
+            )
+            .await;
             write_resolved(
                 &mut message,
                 resolved,
@@ -310,8 +319,13 @@ impl StructuredError {
         if let Some(cause) = &self.cause {
             message.write_str("\nCaused by: ")?;
             message.write_str(
-                &Box::pin(cause.print(assets_for_source_mapping, root, root_path, formatting_mode))
-                    .await?,
+                &Box::pin(cause.print(
+                    assets_for_source_mapping,
+                    root.clone(),
+                    root_path.clone(),
+                    formatting_mode,
+                ))
+                .await?,
             )?;
         }
 
@@ -325,7 +339,8 @@ pub async fn trace_stack(
     output_path: FileSystemPath,
     project_dir: FileSystemPath,
 ) -> Result<String> {
-    let assets_for_source_mapping = internal_assets_for_source_mapping(root_asset, output_path);
+    let assets_for_source_mapping =
+        internal_assets_for_source_mapping(root_asset, output_path.clone());
 
     trace_stack_with_source_mapping_assets(
         error,

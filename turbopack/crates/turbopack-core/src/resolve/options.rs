@@ -161,7 +161,9 @@ impl ImportMapping {
         } else {
             ImportMapping::Alternatives(
                 list.into_iter()
-                    .map(|s| ImportMapping::PrimaryAlternative(s, lookup_path).resolved_cell())
+                    .map(|s| {
+                        ImportMapping::PrimaryAlternative(s, lookup_path.clone()).resolved_cell()
+                    })
                     .collect(),
             )
         }
@@ -200,10 +202,13 @@ impl AliasTemplate for Vc<ImportMapping> {
                     name: name.clone(),
                     ty: *ty,
                     traced: *traced,
-                    lookup_dir: *lookup_dir,
+                    lookup_dir: lookup_dir.clone(),
                 },
                 ImportMapping::PrimaryAlternative(name, lookup_dir) => {
-                    ReplacedImportMapping::PrimaryAlternative((*name).clone().into(), *lookup_dir)
+                    ReplacedImportMapping::PrimaryAlternative(
+                        (*name).clone().into(),
+                        lookup_dir.clone(),
+                    )
                 }
                 ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
                 ImportMapping::Ignore => ReplacedImportMapping::Ignore,
@@ -248,21 +253,21 @@ impl AliasTemplate for Vc<ImportMapping> {
                             name: capture.spread_into_star(name).as_string().map(|s| s.into()),
                             ty: *ty,
                             traced: *traced,
-                            lookup_dir: *lookup_dir,
+                            lookup_dir: lookup_dir.clone(),
                         }
                     } else {
                         ReplacedImportMapping::PrimaryAlternativeExternal {
                             name: None,
                             ty: *ty,
                             traced: *traced,
-                            lookup_dir: *lookup_dir,
+                            lookup_dir: lookup_dir.clone(),
                         }
                     }
                 }
                 ImportMapping::PrimaryAlternative(name, lookup_dir) => {
                     ReplacedImportMapping::PrimaryAlternative(
                         capture.spread_into_star(name),
-                        *lookup_dir,
+                        lookup_dir.clone(),
                     )
                 }
                 ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
@@ -353,7 +358,8 @@ impl ImportMap {
         let wildcard_alias: RcStr = (prefix.to_string() + "/*").into();
         self.insert_exact_alias(
             prefix.clone(),
-            ImportMapping::PrimaryAlternative(prefix.clone(), Some(context_path)).resolved_cell(),
+            ImportMapping::PrimaryAlternative(prefix.clone(), Some(context_path.clone()))
+                .resolved_cell(),
         );
         self.insert_wildcard_alias(
             wildcard_prefix,
@@ -428,7 +434,7 @@ async fn import_mapping_to_result(
             },
             ty: *ty,
             traced: *traced,
-            lookup_dir: *lookup_dir,
+            lookup_dir: lookup_dir.clone(),
         },
         ReplacedImportMapping::Ignore => {
             ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore))
@@ -438,11 +444,17 @@ async fn import_mapping_to_result(
         }
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
             let request = Request::parse(name.clone()).to_resolved().await?;
-            ImportMapResult::Alias(request, *context)
+            ImportMapResult::Alias(request, context.clone())
         }
         ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()
-                .map(|mapping| Box::pin(import_mapping_to_result(**mapping, lookup_path, request)))
+                .map(|mapping| {
+                    Box::pin(import_mapping_to_result(
+                        **mapping,
+                        lookup_path.clone(),
+                        request,
+                    ))
+                })
                 .try_join()
                 .await?,
         ),
@@ -462,7 +474,7 @@ impl ValueToString for ImportMapResult {
             ImportMapResult::AliasExternal { .. } => Ok(Vc::cell(rcstr!("TODO external"))),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
-                    let path = path.to_string().await?;
+                    let path = path.value_to_string().await?;
                     format!(
                         "aliased to {} inside of {}",
                         request.to_string().await?,
@@ -524,8 +536,12 @@ impl ImportMap {
             .chain(lookup_rel_parent.into_iter())
             .chain(lookup.into_iter())
             .map(async |result| {
-                import_mapping_to_result(*result.try_join_into_self().await?, lookup_path, request)
-                    .await
+                import_mapping_to_result(
+                    *result.try_join_into_self().await?,
+                    lookup_path.clone(),
+                    request,
+                )
+                .await
             })
             .try_join()
             .await?;
@@ -547,9 +563,7 @@ impl ResolvedMap {
         lookup_path: FileSystemPath,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
-        let resolved = resolved.await?;
         for (root, glob, mapping) in self.by_glob.iter() {
-            let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved)
                 && glob.await?.matches(path)
             {

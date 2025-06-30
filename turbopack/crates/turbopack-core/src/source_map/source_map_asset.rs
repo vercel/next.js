@@ -72,14 +72,16 @@ impl OutputAsset for SourceMapAsset {
         // NOTE(alexkirsz) We used to include the asset's version id in the path,
         // but this caused `all_assets_map` to be recomputed on every change.
         let this = self.await?;
-        Ok(match this.path_ty {
+        Ok(match &this.path_ty {
             PathType::FromIdent {
                 chunking_context,
                 ident_for_path,
             } => chunking_context
-                .chunk_path(Some(Vc::upcast(self)), *ident_for_path, rcstr!(".js"))
-                .append(rcstr!(".map")),
-            PathType::Fixed { path } => path.append(rcstr!(".map")),
+                .chunk_path(Some(Vc::upcast(self)), **ident_for_path, rcstr!(".js"))
+                .await?
+                .append(".map")?
+                .cell(),
+            PathType::Fixed { path } => path.append(".map")?.cell(),
         })
     }
 }

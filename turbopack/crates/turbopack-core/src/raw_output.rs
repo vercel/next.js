@@ -19,7 +19,7 @@ pub struct RawOutput {
 impl OutputAsset for RawOutput {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 }
 

@@ -17,17 +17,15 @@ pub struct ReadGlobResult {
 ///
 /// DETERMINISM: Result is in random order. Either sort result or do not depend
 /// on the order.
-pub async fn read_glob(
-    directory: Vc<FileSystemPath>,
-    glob: Vc<Glob>,
-) -> Result<Vc<ReadGlobResult>> {
+#[turbo_tasks::function(fs)]
+pub async fn read_glob(directory: FileSystemPath, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
     read_glob_internal("", directory, glob).await
 }
 
 #[turbo_tasks::function(fs)]
 async fn read_glob_inner(
     prefix: RcStr,
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
     read_glob_internal(&prefix, directory, glob).await
@@ -36,7 +34,7 @@ async fn read_glob_inner(
 // The `prefix` represents the relative directory path where symlinks are not resolve.
 async fn read_glob_internal(
     prefix: &str,
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
     let dir = directory.read_dir().await?;
@@ -52,16 +50,16 @@ async fn read_glob_internal(
                 } else {
                     format!("{prefix}/{segment}").into()
                 };
-                let entry = resolve_symlink_safely(entry).await?;
+                let entry = resolve_symlink_safely(entry.clone()).await?;
                 if glob_value.matches(&entry_path) {
-                    result.results.insert(entry_path.to_string(), entry);
+                    result.results.insert(entry_path.to_string(), entry.clone());
                 }
                 if let DirectoryEntry::Directory(path) = entry
                     && glob_value.can_match_in_directory(&entry_path)
                 {
                     result.inner.insert(
                         entry_path.to_string(),
-                        read_glob_inner(entry_path, *path, glob)
+                        read_glob_inner(entry_path, path.clone(), glob)
                             .to_resolved()
                             .await?,
                     );
@@ -166,8 +164,7 @@ async fn track_glob_internal(
                         "resolve_symlink_safely() should have resolved all symlinks, but found \
                          unresolved symlink at path: '{}'. Found path: '{}'. Please report this \
                          as a bug.",
-                        entry_path,
-                        symlink_path.await?
+                        entry_path, symlink_path
                     ),
                     DirectoryEntry::Other(path) => {
                         if glob_value.matches(&entry_path) {
@@ -232,34 +229,34 @@ pub mod tests {
                 path,
                 Vec::new(),
             ));
-            let read_dir = fs.root().read_glob(Glob::new("**".into())).await.unwrap();
+            let read_dir = fs
+                .root()
+                .await?
+                .read_glob(Glob::new("**".into()))
+                .await
+                .unwrap();
             assert_eq!(read_dir.results.len(), 2);
             assert_eq!(
                 read_dir.results.get("foo"),
-                Some(&DirectoryEntry::File(
-                    fs.root().join("foo".into()).to_resolved().await?
-                ))
+                Some(&DirectoryEntry::File(fs.root().await?.join("foo")?))
             );
             assert_eq!(
                 read_dir.results.get("sub"),
-                Some(&DirectoryEntry::Directory(
-                    fs.root().join("sub".into()).to_resolved().await?
-                ))
+                Some(&DirectoryEntry::Directory(fs.root().await?.join("sub")?))
             );
             assert_eq!(read_dir.inner.len(), 1);
             let inner = &*read_dir.inner.get("sub").unwrap().await?;
             assert_eq!(inner.results.len(), 1);
             assert_eq!(
                 inner.results.get("sub/bar"),
-                Some(&DirectoryEntry::File(
-                    fs.root().join("sub/bar".into()).to_resolved().await?
-                ))
+                Some(&DirectoryEntry::File(fs.root().await?.join("sub/bar")?))
             );
             assert_eq!(inner.inner.len(), 0);
 
             // Now with a more specific pattern
             let read_dir = fs
                 .root()
+                .await?
                 .read_glob(Glob::new("**/bar".into()))
                 .await
                 .unwrap();
@@ -269,9 +266,7 @@ pub mod tests {
             assert_eq!(inner.results.len(), 1);
             assert_eq!(
                 inner.results.get("sub/bar"),
-                Some(&DirectoryEntry::File(
-                    fs.root().join("sub/bar".into()).to_resolved().await?
-                ))
+                Some(&DirectoryEntry::File(fs.root().await?.join("sub/bar")?))
             );
             assert_eq!(inner.inner.len(), 0);
 
@@ -308,13 +303,16 @@ pub mod tests {
                 path,
                 Vec::new(),
             ));
-            let read_dir = fs.root().read_glob(Glob::new("*.js".into())).await.unwrap();
+            let read_dir = fs
+                .root()
+                .await?
+                .read_glob(Glob::new("*.js".into()))
+                .await
+                .unwrap();
             assert_eq!(read_dir.results.len(), 1);
             assert_eq!(
                 read_dir.results.get("link.js"),
-                Some(&DirectoryEntry::File(
-                    fs.root().join("sub/foo.js".into()).to_resolved().await?
-                ))
+                Some(&DirectoryEntry::File(fs.root().await?.join("sub/foo.js")?))
             );
             assert_eq!(read_dir.inner.len(), 0);
 
@@ -526,6 +524,7 @@ pub mod tests {
             ));
             let err = fs
                 .root()
+                .await?
                 .read_glob(Glob::new("**".into()))
                 .await
                 .expect_err("Should have detected an infinite loop");
@@ -538,6 +537,7 @@ pub mod tests {
             // Same when calling track glob
             let err = fs
                 .root()
+                .await?
                 .track_glob(Glob::new("**".into()), false)
                 .await
                 .expect_err("Should have detected an infinite loop");

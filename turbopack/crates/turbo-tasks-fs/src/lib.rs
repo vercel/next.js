@@ -1242,12 +1242,13 @@ impl FileSystemPath {
 
     /// Similar to [FileSystemPath::join], but returns an Option that will be
     /// None when the joined path would leave the filesystem root.
+    #[allow(clippy::needless_borrow)] // for windows build
     pub fn try_join(&self, path: &str) -> Result<Option<FileSystemPath>> {
         // TODO(PACK-3279): Remove this once we do not produce invalid paths at the first place.
         #[cfg(target_os = "windows")]
         let path = path.replace('\\', "/");
 
-        if let Some(path) = join_path(&self.path, path) {
+        if let Some(path) = join_path(&self.path, &path) {
             Ok(Some(Self::new_normalized(self.fs, path.into())))
         } else {
             Ok(None)
@@ -1265,9 +1266,8 @@ impl FileSystemPath {
         Ok(None)
     }
 
-    #[turbo_tasks::function]
-    pub async fn read_glob(self: Vc<Self>, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
-        read_glob(self, glob).await
+    pub fn read_glob(&self, glob: Vc<Glob>) -> Vc<ReadGlobResult> {
+        read_glob(self.clone(), glob)
     }
 
     // Tracks all files and directories matching the glob
@@ -2386,8 +2386,9 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             current_vc = if link_type.contains(LinkType::ABSOLUTE) {
                 (*current_vc.root().await?).clone()
             } else {
-                parent_result.path.join(target)?
-            };
+                parent_result.path
+            }
+            .join(target)?;
         } else {
             // get_type() and read_link() might disagree temporarily due to turbo-tasks
             // eventual consistency or if the file gets invalidated before the directory does
