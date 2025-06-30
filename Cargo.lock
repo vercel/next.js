@@ -9163,7 +9163,7 @@ version = "0.1.0"
 dependencies = [
  "bytes-str",
  "codspeed-criterion-compat",
- "indexmap 2.7.1",
+ "indexmap 2.9.0",
  "napi",
  "new_debug_unreachable",
  "rustc-hash 2.1.1",
