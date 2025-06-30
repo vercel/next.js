@@ -815,21 +815,23 @@ impl FileSystem for DiskFileSystem {
                     .with_context(|| format!("failed to write to {}", full_path.display()))?;
                 }
                 FileContent::NotFound => {
-                    retry_blocking(full_path.to_owned(), |path| std::fs::remove_file(path))
-                        .concurrency_limited(&inner.semaphore)
-                        .instrument(tracing::info_span!(
-                            "remove file",
-                            path = display(full_path.display())
-                        ))
-                        .await
-                        .or_else(|err| {
-                            if err.kind() == ErrorKind::NotFound {
-                                Ok(())
-                            } else {
-                                Err(err)
-                            }
-                        })
-                        .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+                    retry_blocking(full_path.clone().into_owned(), |path| {
+                        std::fs::remove_file(path)
+                    })
+                    .concurrency_limited(&inner.semaphore)
+                    .instrument(tracing::info_span!(
+                        "remove file",
+                        path = display(full_path.display())
+                    ))
+                    .await
+                    .or_else(|err| {
+                        if err.kind() == ErrorKind::NotFound {
+                            Ok(())
+                        } else {
+                            Err(err)
+                        }
+                    })
+                    .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
                 }
             }
 
@@ -862,18 +864,19 @@ impl FileSystem for DiskFileSystem {
 
             // TODO(sokra) preform a untracked read here, register an invalidator and get
             // all existing invalidators
-            let old_content =
-                match retry_blocking(full_path.to_owned(), |path| std::fs::read_link(path))
-                    .concurrency_limited(&inner.semaphore)
-                    .instrument(tracing::info_span!(
-                        "read symlink before write",
-                        path = display(full_path.display())
-                    ))
-                    .await
-                {
-                    Ok(res) => Some((res.is_absolute(), res)),
-                    Err(_) => None,
-                };
+            let old_content = match retry_blocking(full_path.clone().into_owned(), |path| {
+                std::fs::read_link(path)
+            })
+            .concurrency_limited(&inner.semaphore)
+            .instrument(tracing::info_span!(
+                "read symlink before write",
+                path = display(full_path.display())
+            ))
+            .await
+            {
+                Ok(res) => Some((res.is_absolute(), res)),
+                Err(_) => None,
+            };
             let is_equal = match (&*content, &old_content) {
                 (LinkContent::Link { target, link_type }, Some((old_is_absolute, old_target))) => {
                     Path::new(&**target) == old_target
@@ -942,17 +945,19 @@ impl FileSystem for DiskFileSystem {
                     anyhow::bail!("invalid symlink target: {}", full_path.display())
                 }
                 LinkContent::NotFound => {
-                    retry_blocking(full_path.to_owned(), |path| std::fs::remove_file(path))
-                        .concurrency_limited(&inner.semaphore)
-                        .await
-                        .or_else(|err| {
-                            if err.kind() == ErrorKind::NotFound {
-                                Ok(())
-                            } else {
-                                Err(err)
-                            }
-                        })
-                        .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
+                    retry_blocking(full_path.clone().into_owned(), |path| {
+                        std::fs::remove_file(path)
+                    })
+                    .concurrency_limited(&inner.semaphore)
+                    .await
+                    .or_else(|err| {
+                        if err.kind() == ErrorKind::NotFound {
+                            Ok(())
+                        } else {
+                            Err(err)
+                        }
+                    })
+                    .with_context(|| anyhow!("removing {} failed", full_path.display()))?;
                 }
             }
 
