@@ -455,20 +455,20 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         .filter_map(|m| intra_group_references.get(m))
                         .flatten()
                         .copied()
-                        .filter(|m| !before_list.contains(m))
+                        .filter(|m| common_list.contains(m) || after_list.contains(m))
                         .collect::<FxHashSet<_>>();
                     let references_from_common = common_list
                         .iter()
                         .filter_map(|m| intra_group_references.get(m))
                         .flatten()
-                        .filter(|m| !common_list.contains(m))
+                        .filter(|m| before_list.contains(m) || after_list.contains(m))
                         .collect::<FxHashSet<_>>();
                     let references_from_after = after_list
                         .iter()
                         .filter_map(|m| intra_group_references.get(m))
                         .flatten()
                         .copied()
-                        .filter(|m| !after_list.contains(m))
+                        .filter(|m| before_list.contains(m) || common_list.contains(m))
                         .collect::<FxHashSet<_>>();
 
                     let modules_to_expose = before_list
