@@ -107,7 +107,7 @@ jobs:
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
       - id: test-result
         name: Set test result variable
-        run: echo 'immediately-true=${{ needs.test-deploy.result != 'success' && 'true' || 'false' }}' >> "$GITHUB_OUTPUT"
+        run: echo 'immediately-close=${{ needs.test-deploy.result != 'success' && 'true' || 'false' }}' >> "$GITHUB_OUTPUT"
       - name: Check token
         run: gh auth status
         env:
