@@ -1,6 +1,5 @@
-import { parseExpression } from './expression-parser.js'
 import { expressionBuilder } from '../expression/expression-builder.js'
-console.log(parseExpression, expressionBuilder)
+console.log(expressionBuilder)
 
 export function parseSelectArg() {}
 export function parseSelectAll() {}
