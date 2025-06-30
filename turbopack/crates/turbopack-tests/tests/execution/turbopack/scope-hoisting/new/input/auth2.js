@@ -1,3 +1,5 @@
-import { sql } from './src/raw-builder/sql.js'
+import { freeze } from './src/util/object-utils.js'
+import { parseExpression } from './src/parser/expression-parser.js'
+console.log(freeze, parseExpression)
 
-console.log(sql)
+export const sql = 123

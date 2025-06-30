@@ -1,6 +1,6 @@
-import { parseAliasedExpression } from './expression-parser.js'
+import { parseExpression } from './expression-parser.js'
 import { expressionBuilder } from '../expression/expression-builder.js'
-console.log(parseAliasedExpression, expressionBuilder)
+console.log(parseExpression, expressionBuilder)
 
 export function parseSelectArg() {}
 export function parseSelectAll() {}
