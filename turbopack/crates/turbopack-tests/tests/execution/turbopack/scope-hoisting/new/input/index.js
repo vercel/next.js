@@ -1,6 +1,4 @@
-import { parseExpression } from './src/parser/expression-parser.js'
-console.log(parseExpression)
-
-import('./auth2.js')
-
-it('should work', () => {})
+it('should work', async () => {
+  await import('./auth1.js')
+  await import('./auth2.js')
+})
