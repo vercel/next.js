@@ -231,6 +231,7 @@ export function DevToolsPanel({
             <DevToolsPanelFooter
               versionInfo={state.versionInfo}
               isDraggable={!isFullscreen}
+              showRestartServerButton={state.showRestartServerButton}
             />
           </Dialog>
         </>

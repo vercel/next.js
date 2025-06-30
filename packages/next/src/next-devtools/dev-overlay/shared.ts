@@ -36,6 +36,10 @@ export interface OverlayState {
   staticIndicator: boolean
   showIndicator: boolean
   disableDevIndicator: boolean
+  /** Whether to show the restart server button in the panel UI. Currently
+   *  only used when Turbopack + Persistent Cache is enabled.
+   */
+  showRestartServerButton: boolean
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
   /** This flag is used to handle the Error Overlay state in the "old" overlay.
@@ -76,6 +80,7 @@ export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'devtools-panel-toggle'
 
 export const ACTION_DEVTOOLS_POSITION = 'devtools-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
+export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -176,6 +181,11 @@ export interface DevToolUpdateRouteStateAction {
   page: string
 }
 
+export interface RestartServerButtonAction {
+  type: typeof ACTION_RESTART_SERVER_BUTTON
+  showRestartServerButton: boolean
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -200,6 +210,8 @@ export type DispatcherEvent =
   | DevToolsIndicatorPositionAction
   | DevToolsScaleAction
   | DevToolUpdateRouteStateAction
+  | RestartServerButtonAction
+
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: v8
   // 2nd group: SpiderMonkey, JavaScriptCore
@@ -238,6 +250,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
   isDevToolsPanelOpen: false,
+  showRestartServerButton: false,
   devToolsPosition: 'bottom-left',
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
@@ -420,6 +433,12 @@ export function useErrorOverlayReducer(
         }
         case ACTION_DEVTOOL_UPDATE_ROUTE_STATE: {
           return { ...state, page: action.page }
+        }
+        case ACTION_RESTART_SERVER_BUTTON: {
+          return {
+            ...state,
+            showRestartServerButton: action.showRestartServerButton,
+          }
         }
         default: {
           return state
