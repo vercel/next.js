@@ -1728,9 +1728,11 @@ impl FileContent {
 
         let old_meta = extract_disk_access(
             retry_blocking(path.to_path_buf(), {
-                let old_file = old_file.try_clone()?;
-                move |_| old_file.metadata()
+
+                let file_for_metadata = old_file.try_clone()?;
+                move |_| file_for_metadata.metadata()
             })
+
             .await,
             path,
         )?;
