@@ -77,7 +77,7 @@ impl ModuleOptions {
 
         if !rules.is_empty() {
             for (condition, new_context) in rules.iter() {
-                if condition.matches(&path).await? {
+                if condition.matches(&path) {
                     return Ok(ModuleOptions::new(
                         path,
                         **new_context,
