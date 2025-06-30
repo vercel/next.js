@@ -1,4 +1,10 @@
-import { useCallback, useState, useRef, useLayoutEffect } from 'react'
+import {
+  useCallback,
+  useState,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+} from 'react'
 import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
 
 export function SegmentBoundaryTrigger({
@@ -11,6 +17,11 @@ export function SegmentBoundaryTrigger({
   const [isOpen, setIsOpen] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const [shadowRoot] = useState<ShadowRoot>(() => {
+    const ownerDocument = document
+    const portalNode = ownerDocument.querySelector('nextjs-portal')!
+    return portalNode.shadowRoot! as ShadowRoot
+  })
 
   const updateDropdownPosition = useCallback(() => {
     if (triggerRef.current) {
@@ -28,34 +39,50 @@ export function SegmentBoundaryTrigger({
     }
   }, [isOpen, updateDropdownPosition])
 
-  const handlePointerEnter = useCallback(() => {
-    setIsOpen(true)
-    updateDropdownPosition()
-  }, [updateDropdownPosition])
-
-  const handlePointerLeave = useCallback(
-    (e: React.PointerEvent<HTMLElement>) => {
-      const relatedTarget = e.relatedTarget
+  const handleClickOutside = useCallback(
+    (e: Event) => {
+      const target = e.target as HTMLElement
+      if (!target || !isOpen) return
       if (
-        relatedTarget instanceof HTMLElement &&
-        (relatedTarget.closest(
+        target.closest(
           '[data-nextjs-dev-overlay-segment-boundary-dropdown-backdrop]'
         ) ||
-          relatedTarget.closest(
-            '[data-nextjs-dev-overlay-segment-boundary-trigger-button]'
-          ))
+        target.closest(
+          '[data-nextjs-dev-overlay-segment-boundary-trigger-button]'
+        )
       ) {
         return
       }
-
-      // This will only auto close for mouse leave,
-      // but preserve for touch events.
-      if (e.pointerType === 'mouse') {
-        setIsOpen(false)
-      }
+      setIsOpen(false)
     },
-    []
+    [isOpen]
   )
+
+  // click outside of the trigger button or dropdown menu, in shadow root
+  useEffect(() => {
+    shadowRoot.addEventListener('click', handleClickOutside)
+    return () => {
+      shadowRoot.removeEventListener('click', handleClickOutside)
+    }
+  }, [handleClickOutside, isOpen, shadowRoot])
+
+  // close itself when unfocus: click outside of shadow root or clicking other triggers
+  const handleFocusOut = useCallback((e: Event) => {
+    if (e.target === triggerRef.current) {
+      setIsOpen(false)
+    }
+  }, [])
+  useEffect(() => {
+    shadowRoot.addEventListener('focusout', handleFocusOut)
+    return () => {
+      shadowRoot.removeEventListener('focusout', handleFocusOut)
+    }
+  }, [handleFocusOut, shadowRoot])
+
+  const handleToggleMenu = useCallback(() => {
+    setIsOpen((prev) => !prev)
+    updateDropdownPosition()
+  }, [updateDropdownPosition])
 
   const triggerOptions = [
     { label: 'Trigger Loading', value: 'loading', icon: <LoadingIcon /> },
@@ -96,8 +123,7 @@ export function SegmentBoundaryTrigger({
         ref={triggerRef}
         className="segment-boundary-trigger-button"
         data-nextjs-dev-overlay-segment-boundary-trigger-button
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
+        onClick={handleToggleMenu}
         type="button"
       >
         <DropdownIcon />
@@ -111,7 +137,6 @@ export function SegmentBoundaryTrigger({
             right: dropdownPosition.right,
             paddingTop: offset, // Visual spacing while backdrop covers the gap
           }}
-          onPointerLeave={handlePointerLeave}
         >
           <div className="segment-boundary-dropdown">
             {triggerOptions.map((option) => (
