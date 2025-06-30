@@ -266,7 +266,7 @@ type ReactDOMEntrypoint =
   | 'server'
   | 'server.edge'
   | 'server.browser'
-  // TOOD: server.node
+  // TODO: server.node
   | 'static'
   | 'static.browser'
   | 'static.edge'
@@ -327,7 +327,7 @@ export function createVendoredReactAliases(
     : isEdgeServer
       ? 'edge'
       : 'nodejs'
-  const reactConditon = shouldUseReactServerCondition(layer)
+  const reactCondition = shouldUseReactServerCondition(layer)
     ? 'server'
     : 'client'
 
@@ -336,7 +336,7 @@ export function createVendoredReactAliases(
   // ❔ Alias that may produce correct code in certain conditions.Keep until react-markup is available.
 
   let reactAlias: ReactAliases
-  if (environmentCondition === 'browser' && reactConditon === 'client') {
+  if (environmentCondition === 'browser' && reactCondition === 'client') {
     // prettier-ignore
     reactAlias = {
       // file:///./../compiled/react/package.json
@@ -361,7 +361,10 @@ export function createVendoredReactAliases(
       'react-server-dom-webpack/server.node$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
       'react-server-dom-webpack/static.edge$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
     }
-  } else if (environmentCondition === 'browser' && reactConditon === 'server') {
+  } else if (
+    environmentCondition === 'browser' &&
+    reactCondition === 'server'
+  ) {
     // prettier-ignore
     reactAlias = {
       // file:///./../compiled/react/package.json
@@ -386,7 +389,7 @@ export function createVendoredReactAliases(
       'react-server-dom-webpack/server.node$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
       'react-server-dom-webpack/static.edge$': /* ✅ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
     }
-  } else if (environmentCondition === 'nodejs' && reactConditon === 'client') {
+  } else if (environmentCondition === 'nodejs' && reactCondition === 'client') {
     // prettier-ignore
     reactAlias = {
       // file:///./../compiled/react/package.json
@@ -400,8 +403,8 @@ export function createVendoredReactAliases(
       'react-dom/server$':                    /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.node`,
       'react-dom/server.browser$':            /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
       // optimizations to ignore the legacy build of react-dom/server in `server.edge` build
-      'react-dom/server.edge$':               /* ✅ */`next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
-      'react-dom/static$':                    /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.node`, 
+      'react-dom/server.edge$':               /* ✅ */ `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
+      'react-dom/static$':                    /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.node`,
       'react-dom/static.browser$':            /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.browser`,
       'react-dom/static.edge$':               /* ❔ */ `next/dist/compiled/react-dom${bundledReactChannel}/static.edge`,
       // file:///./../compiled/react-server-dom-webpack/package.json
@@ -411,7 +414,7 @@ export function createVendoredReactAliases(
       'react-server-dom-webpack/server.node$':/* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
       'react-server-dom-webpack/static.edge$':/* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
     }
-  } else if (environmentCondition === 'nodejs' && reactConditon === 'server') {
+  } else if (environmentCondition === 'nodejs' && reactCondition === 'server') {
     // prettier-ignore
     reactAlias = {
       // file:///./../compiled/react/package.json
@@ -436,7 +439,7 @@ export function createVendoredReactAliases(
       'react-server-dom-webpack/server.node$': /* ✅ */ `next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-webpack-server-node`,
       'react-server-dom-webpack/static.edge$': /* ✅ */ `next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-webpack-static-edge`,
     }
-  } else if (environmentCondition === 'edge' && reactConditon === 'client') {
+  } else if (environmentCondition === 'edge' && reactCondition === 'client') {
     // prettier-ignore
     reactAlias = {
       // file:///./../compiled/react/package.json
@@ -461,7 +464,7 @@ export function createVendoredReactAliases(
       'react-server-dom-webpack/server.node$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
       'react-server-dom-webpack/static.edge$': /* ❌ */ `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/static.edge`,
     }
-  } else if (environmentCondition === 'edge' && reactConditon === 'server') {
+  } else if (environmentCondition === 'edge' && reactCondition === 'server') {
     // prettier-ignore
     reactAlias = {
       // file:///./../compiled/react/package.json
@@ -499,7 +502,7 @@ export function createVendoredReactAliases(
     reactAlias[`next/dist/compiled/react-dom${bundledReactChannel}$`             ] = reactAlias[`react-dom$`]
   } else {
     throw new Error(
-      `Unsupported environment condition "${environmentCondition}" and react condition "${reactConditon}". This is a bug in Next.js.`
+      `Unsupported environment condition "${environmentCondition}" and react condition "${reactCondition}". This is a bug in Next.js.`
     )
   }
 
