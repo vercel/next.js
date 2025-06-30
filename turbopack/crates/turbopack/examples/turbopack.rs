@@ -42,9 +42,9 @@ async fn main() -> Result<()> {
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
-            let input = fs.root().join(rcstr!("demo"));
-            let output = fs.root().join(rcstr!("out"));
-            let entry = fs.root().join(rcstr!("demo/index.js"));
+            let input = fs.root().await?.join("demo")?;
+            let output = fs.root().await?.join("out")?;
+            let entry = fs.root().await?.join("demo/index.js")?;
 
             let source = FileSource::new(entry);
             let module_asset_context = turbopack::ModuleAssetContext::new(
@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
                 ResolveOptionsContext {
                     enable_typescript: true,
                     enable_react: true,
-                    enable_node_modules: Some(fs.root().to_resolved().await?),
+                    enable_node_modules: Some(fs.root().await?.clone_value()),
                     custom_conditions: vec![rcstr!("development")],
                     ..Default::default()
                 }
@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
                     turbopack_core::reference_type::ReferenceType::Undefined,
                 )
                 .module();
-            let rebased = RebasedAsset::new(module, input, output);
+            let rebased = RebasedAsset::new(module, input, output.clone());
             emit_with_completion(Vc::upcast(rebased), output).await?;
 
             anyhow::Ok::<Vc<()>>(Default::default())

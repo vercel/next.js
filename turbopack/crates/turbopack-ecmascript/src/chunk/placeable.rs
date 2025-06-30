@@ -25,11 +25,14 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
         Vc::cell(None)
     }
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
+    async fn is_marked_as_side_effect_free(
         self: Vc<Self>,
         side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        is_marked_as_side_effect_free(self.ident().path(), side_effect_free_packages)
+    ) -> Result<Vc<bool>> {
+        Ok(is_marked_as_side_effect_free(
+            self.ident().path().await?.clone_value(),
+            side_effect_free_packages,
+        ))
     }
 }
 
@@ -42,7 +45,7 @@ enum SideEffectsValue {
 
 #[turbo_tasks::function]
 async fn side_effects_from_package_json(
-    package_json: ResolvedVc<FileSystemPath>,
+    package_json: FileSystemPath,
 ) -> Result<Vc<SideEffectsValue>> {
     if let FileJsonContent::Content(content) = &*package_json.read_json().await?
         && let Some(side_effects) = content.get("sideEffects")
@@ -63,7 +66,7 @@ async fn side_effects_from_package_json(
                         }
                     } else {
                         SideEffectsInPackageJsonIssue {
-                            path: package_json,
+                            path: package_json.clone(),
                             description: Some(
                                 StyledString::Text(
                                     format!(
@@ -80,26 +83,29 @@ async fn side_effects_from_package_json(
                         None
                     }
                 })
-                .map(|glob| async move {
-                    match glob.resolve().await {
-                        Ok(glob) => Ok(Some(glob)),
-                        Err(err) => {
-                            SideEffectsInPackageJsonIssue {
-                                path: package_json,
-                                description: Some(
-                                    StyledString::Text(
-                                        format!(
-                                            "Invalid glob in sideEffects: {}",
-                                            PrettyPrintError(&err)
+                .map(|glob| {
+                    let package_json = package_json.clone();
+                    async move {
+                        match glob.resolve().await {
+                            Ok(glob) => Ok(Some(glob)),
+                            Err(err) => {
+                                SideEffectsInPackageJsonIssue {
+                                    path: package_json.clone(),
+                                    description: Some(
+                                        StyledString::Text(
+                                            format!(
+                                                "Invalid glob in sideEffects: {}",
+                                                PrettyPrintError(&err)
+                                            )
+                                            .into(),
                                         )
-                                        .into(),
-                                    )
-                                    .resolved_cell(),
-                                ),
+                                        .resolved_cell(),
+                                    ),
+                                }
+                                .resolved_cell()
+                                .emit();
+                                Ok(None)
                             }
-                            .resolved_cell()
-                            .emit();
-                            Ok(None)
                         }
                     }
                 })
@@ -110,7 +116,7 @@ async fn side_effects_from_package_json(
             );
         } else {
             SideEffectsInPackageJsonIssue {
-                path: package_json,
+                path: package_json.clone(),
                 description: Some(
                     StyledString::Text(
                         format!(
@@ -130,7 +136,7 @@ async fn side_effects_from_package_json(
 
 #[turbo_tasks::value]
 struct SideEffectsInPackageJsonIssue {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     description: Option<ResolvedVc<StyledString>>,
 }
 
@@ -147,7 +153,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]
@@ -163,25 +169,21 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
 #[turbo_tasks::function]
 pub async fn is_marked_as_side_effect_free(
-    path: Vc<FileSystemPath>,
+    path: FileSystemPath,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<bool>> {
-    if side_effect_free_packages.await?.matches(&path.await?.path) {
+    if side_effect_free_packages.await?.matches(&path.path) {
         return Ok(Vc::cell(true));
     }
 
     let find_package_json = find_context_file(path.parent(), package_json()).await?;
 
-    if let FindContextFileResult::Found(package_json, _) = *find_package_json {
-        match *side_effects_from_package_json(*package_json).await? {
+    if let FindContextFileResult::Found(package_json, _) = &*find_package_json {
+        match *side_effects_from_package_json(package_json.clone()).await? {
             SideEffectsValue::None => {}
             SideEffectsValue::Constant(side_effects) => return Ok(Vc::cell(!side_effects)),
             SideEffectsValue::Glob(glob) => {
-                if let Some(rel_path) = package_json
-                    .parent()
-                    .await?
-                    .get_relative_path_to(&*path.await?)
-                {
+                if let Some(rel_path) = package_json.parent().get_relative_path_to(&path) {
                     let rel_path = rel_path.strip_prefix("./").unwrap_or(&rel_path);
                     return Ok(Vc::cell(!glob.await?.matches(rel_path)));
                 }

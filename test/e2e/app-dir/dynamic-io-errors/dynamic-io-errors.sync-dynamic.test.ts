@@ -1,19 +1,29 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
 
-describe.each([
-  { inPrerenderDebugMode: true, name: 'With --prerender-debug' },
-  { inPrerenderDebugMode: false, name: 'Without --prerender-debug' },
-])('Dynamic IO Errors - $name', ({ inPrerenderDebugMode }) => {
-  // We want to skip building and starting in start mode, and in dev mode when
-  // prerender debug mode is enabled, which doesn't exist for `next dev`.
-  const skipStart =
-    process.env.NEXT_TEST_MODE === 'start' || inPrerenderDebugMode
-
+describe.each(
+  isNextDev
+    ? [
+        {
+          inPrerenderDebugMode: false,
+          name: 'Dev',
+        },
+      ]
+    : [
+        {
+          inPrerenderDebugMode: false,
+          name: 'Build Without --prerender-debug',
+        },
+        {
+          inPrerenderDebugMode: true,
+          name: 'Build With --prerender-debug',
+        },
+      ]
+)('Dynamic IO Errors - $name', ({ inPrerenderDebugMode }) => {
   describe('Sync Dynamic - With Fallback - client searchParams', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/sync-client-search-with-fallback',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -23,11 +33,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       // We don't error the build, but we do show a dev-only error so that users
       // migrate to the async usage.
       it('should show a collapsed redbox error', async () => {
@@ -64,9 +69,9 @@ describe.each([
   })
 
   describe('Sync Dynamic - Without Fallback - client searchParams', () => {
-    const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/sync-client-search-without-fallback',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -76,11 +81,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should show a collapsed redbox with two errors', async () => {
         const browser = await next.browser('/')
 
@@ -101,8 +101,6 @@ describe.each([
                "body <anonymous> (1:13)",
                "html <anonymous> (1:13)",
                "Root [Server] <anonymous> (1:22)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            },
@@ -246,9 +244,9 @@ describe.each([
   })
 
   describe('Sync Dynamic - With Fallback - server searchParams', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/sync-server-search-with-fallback',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -258,11 +256,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       // We don't error the build, but we do show a dev-only error so that users
       // migrate to the async usage.
       it('should show a collapsed redbox error', async () => {
@@ -278,8 +271,6 @@ describe.each([
               |     ^",
            "stack": [
              "SearchParamsReadingComponent app/page.tsx (42:5)",
-             "JSON.parse <anonymous> (0:0)",
-             "JSON.parse <anonymous> (0:0)",
              "Page app/page.tsx (19:11)",
            ],
          }
@@ -301,9 +292,9 @@ describe.each([
   })
 
   describe('Sync Dynamic - Without Fallback - server searchParams', () => {
-    const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/sync-server-search-without-fallback',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -313,11 +304,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       // TODO: Ideally we'd only show the error once.
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
@@ -333,8 +319,6 @@ describe.each([
               |     ^",
              "stack": [
                "SearchParamsReadingComponent app/page.tsx (40:5)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "Page app/page.tsx (19:11)",
              ],
            },
@@ -347,8 +331,6 @@ describe.each([
               |     ^",
              "stack": [
                "SearchParamsReadingComponent app/page.tsx (40:5)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            },
@@ -427,9 +409,9 @@ describe.each([
   })
 
   describe('Sync Dynamic - With Fallback - cookies', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/sync-cookies-with-fallback',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -439,11 +421,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       // We don't error the build, but we do show a dev-only error so that users
       // migrate to the async usage.
       it('should show a collapsed redbox error', async () => {
@@ -459,8 +436,6 @@ describe.each([
               |                                                                   ^",
            "stack": [
              "CookiesReadingComponent app/page.tsx (34:67)",
-             "JSON.parse <anonymous> (0:0)",
-             "JSON.parse <anonymous> (0:0)",
              "Page app/page.tsx (17:11)",
            ],
          }
@@ -482,9 +457,9 @@ describe.each([
   })
 
   describe('Sync Dynamic - Without Fallback - cookies', () => {
-    const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/sync-cookies-without-fallback',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -494,11 +469,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       // TODO: Ideally we'd only show the error once.
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
@@ -514,8 +484,6 @@ describe.each([
               |                                                                   ^",
              "stack": [
                "CookiesReadingComponent app/page.tsx (32:67)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "Page app/page.tsx (17:11)",
              ],
            },
@@ -528,8 +496,6 @@ describe.each([
               |                                                                   ^",
              "stack": [
                "CookiesReadingComponent app/page.tsx (32:67)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            },

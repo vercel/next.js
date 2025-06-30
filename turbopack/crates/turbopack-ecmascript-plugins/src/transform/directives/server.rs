@@ -41,7 +41,7 @@ impl CustomTransformer for ServerDirectiveTransformer {
                 Program::Script(s) => s.body = vec![stmt],
             }
             UnsupportedServerActionIssue {
-                file_path: ctx.file_path,
+                file_path: ctx.file_path.clone(),
             }
             .resolved_cell()
             .emit();

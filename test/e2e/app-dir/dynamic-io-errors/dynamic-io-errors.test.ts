@@ -1,20 +1,30 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { assertNoErrorToast } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
 
-describe.each([
-  { inPrerenderDebugMode: true, name: 'With --prerender-debug' },
-  { inPrerenderDebugMode: false, name: 'Without --prerender-debug' },
-])('Dynamic IO Errors - $name', ({ inPrerenderDebugMode }) => {
-  // We want to skip building and starting in start mode, and in dev mode when
-  // prerender debug mode is enabled, which doesn't exist for `next dev`.
-  const skipStart =
-    process.env.NEXT_TEST_MODE === 'start' || inPrerenderDebugMode
-
+describe.each(
+  isNextDev
+    ? [
+        {
+          inPrerenderDebugMode: false,
+          name: 'Dev',
+        },
+      ]
+    : [
+        {
+          inPrerenderDebugMode: false,
+          name: 'Build Without --prerender-debug',
+        },
+        {
+          inPrerenderDebugMode: true,
+          name: 'Build With --prerender-debug',
+        },
+      ]
+)('Dynamic IO Errors - $name', ({ inPrerenderDebugMode }) => {
   describe('Dynamic Metadata - Static Route', () => {
-    const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/dynamic-metadata-static-route',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -24,11 +34,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
@@ -98,9 +103,9 @@ describe.each([
   })
 
   describe('Dynamic Metadata - Error Route', () => {
-    const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/dynamic-metadata-error-route',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -110,11 +115,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
@@ -132,8 +132,6 @@ describe.each([
                "body <anonymous> (1:13)",
                "html <anonymous> (1:13)",
                "Root [Server] <anonymous> (1:22)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            }
@@ -154,8 +152,6 @@ describe.each([
                "body <anonymous> (1:13)",
                "html <anonymous> (1:13)",
                "Root [Server] <anonymous> (1:22)",
-               "JSON.parse <anonymous> (0:0)",
-               "JSON.parse <anonymous> (0:0)",
                "LogSafely <anonymous> (0:0)",
              ],
            }
@@ -265,9 +261,9 @@ describe.each([
   })
 
   describe('Dynamic Metadata - Static Route With Suspense', () => {
-    const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/dynamic-metadata-static-with-suspense',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -277,11 +273,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
@@ -347,9 +338,9 @@ describe.each([
   })
 
   describe('Dynamic Metadata - Dynamic Route', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/dynamic-metadata-dynamic-route',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -359,11 +350,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should not show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
         await assertNoErrorToast(browser)
@@ -385,9 +371,9 @@ describe.each([
   })
 
   describe('Dynamic Viewport - Static Route', () => {
-    const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/dynamic-viewport-static-route',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -397,11 +383,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
@@ -467,9 +448,9 @@ describe.each([
   })
 
   describe('Dynamic Viewport - Dynamic Route', () => {
-    const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/dynamic-viewport-dynamic-route',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -479,11 +460,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
@@ -549,9 +525,9 @@ describe.each([
   })
 
   describe('Static Route', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/static',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -561,11 +537,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should not show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
         await assertNoErrorToast(browser)
@@ -582,9 +553,9 @@ describe.each([
   })
 
   describe('Dynamic Root', () => {
-    const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/dynamic-root',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -594,11 +565,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should show a collapsed redbox with two errors', async () => {
         const browser = await next.browser('/')
 
@@ -620,8 +586,6 @@ describe.each([
                  "body <anonymous> (1:13)",
                  "html <anonymous> (1:13)",
                  "Root [Server] <anonymous> (1:22)",
-                 "JSON.parse <anonymous> (0:0)",
-                 "JSON.parse <anonymous> (0:0)",
                  "LogSafely <anonymous> (0:0)",
                ],
              },
@@ -637,8 +601,6 @@ describe.each([
                  "body <anonymous> (1:13)",
                  "html <anonymous> (1:13)",
                  "Root [Server] <anonymous> (1:22)",
-                 "JSON.parse <anonymous> (0:0)",
-                 "JSON.parse <anonymous> (0:0)",
                  "LogSafely <anonymous> (0:0)",
                ],
              },
@@ -662,8 +624,6 @@ describe.each([
                  "body <anonymous> (1:13)",
                  "html <anonymous> (1:13)",
                  "Root [Server] <anonymous> (1:22)",
-                 "JSON.parse <anonymous> (0:0)",
-                 "JSON.parse <anonymous> (0:0)",
                  "LogSafely <anonymous> (0:0)",
                ],
              },
@@ -681,8 +641,6 @@ describe.each([
                  "body <anonymous> (1:13)",
                  "html <anonymous> (1:13)",
                  "Root [Server] <anonymous> (1:22)",
-                 "JSON.parse <anonymous> (0:0)",
-                 "JSON.parse <anonymous> (0:0)",
                  "LogSafely <anonymous> (0:0)",
                ],
              },
@@ -859,9 +817,9 @@ describe.each([
   })
 
   describe('Dynamic Boundary', () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/dynamic-boundary',
-      skipStart,
+      skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
@@ -871,11 +829,6 @@ describe.each([
     }
 
     if (isNextDev) {
-      if (inPrerenderDebugMode) {
-        it('prerender debug mode does not exist for `next dev`', () => {})
-        return
-      }
-
       it('should not show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
         await assertNoErrorToast(browser)
