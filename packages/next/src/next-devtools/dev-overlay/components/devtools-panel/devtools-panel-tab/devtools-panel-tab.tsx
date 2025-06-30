@@ -19,6 +19,7 @@ export function DevToolsPanelTab({
   runtimeErrors,
   getSquashedHydrationErrorDetails,
   buildError,
+  page,
 }: {
   activeTab: DevToolsPanelTabType
   devToolsPosition: Corners
@@ -30,6 +31,7 @@ export function DevToolsPanelTab({
   runtimeErrors: ReadyRuntimeError[]
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   buildError: OverlayState['buildError']
+  page: string
 }) {
   switch (activeTab) {
     case 'settings':
@@ -42,7 +44,7 @@ export function DevToolsPanelTab({
         />
       )
     case 'route':
-      return <SegmentsExplorerTab routerType={routerType} />
+      return <SegmentsExplorerTab routerType={routerType} page={page} />
     case 'issues':
       return (
         <IssuesTab

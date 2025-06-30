@@ -1,4 +1,3 @@
-import { useRouteState } from '../../segment-explorer-route-state'
 import {
   useSegmentTree,
   type SegmentTrieNode,
@@ -16,9 +15,8 @@ const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
 }
 
-function PageRouteBar() {
-  const state = useRouteState()
-  const pagePath = `/app${state.page}`
+function PageRouteBar({ page }: { page: string }) {
+  const pagePath = `/app${page}`
   return (
     <div className="segment-explorer-page-route-bar">
       <BackArrowIcon />
@@ -27,11 +25,17 @@ function PageRouteBar() {
   )
 }
 
-export function PageSegmentTree({ isAppRouter }: { isAppRouter: boolean }) {
+export function PageSegmentTree({
+  isAppRouter,
+  page,
+}: {
+  isAppRouter: boolean
+  page: string
+}) {
   const tree = useSegmentTree()
   return (
     <div data-nextjs-devtools-panel-segments-explorer>
-      {isAppRouter && <PageRouteBar />}
+      {isAppRouter && <PageRouteBar page={page} />}
       <div
         className="segment-explorer-content"
         data-nextjs-devtool-segment-explorer

@@ -212,6 +212,7 @@ export function DevToolsPanel({
               </DialogHeader>
               <DialogBody data-nextjs-devtools-panel-dialog-body>
                 <DevToolsPanelTab
+                  page={state.page}
                   activeTab={activeTab}
                   devToolsPosition={state.devToolsPosition}
                   scale={state.scale}
