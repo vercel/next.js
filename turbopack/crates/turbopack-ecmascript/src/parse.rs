@@ -215,8 +215,8 @@ async fn parse_internal(
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
-    let fs_path_vc = source.ident().path();
-    let fs_path = &*fs_path_vc.await?;
+    let fs_path_vc = source.ident().path().await?.clone_value();
+    let fs_path = fs_path_vc.clone();
     let ident = &*source.ident().to_string().await?;
     let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;
     let content = match content.await {
@@ -245,8 +245,8 @@ async fn parse_internal(
                         let transforms = &*transforms.await?;
                         match parse_file_content(
                             string,
-                            fs_path_vc,
-                            fs_path,
+                            fs_path_vc.clone(),
+                            &fs_path,
                             ident,
                             source.ident().await?.query.clone(),
                             file_path_hash,
@@ -291,7 +291,7 @@ async fn parse_internal(
 
 async fn parse_file_content(
     string: BytesStr,
-    fs_path_vc: Vc<FileSystemPath>,
+    fs_path_vc: FileSystemPath,
     fs_path: &FileSystemPath,
     ident: &str,
     query: RcStr,
@@ -452,7 +452,7 @@ async fn parse_file_content(
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
                 query_str: query,
-                file_path: fs_path_vc.to_resolved().await?,
+                file_path: fs_path_vc.clone(),
             };
             let span = tracing::trace_span!("transforms");
             async {

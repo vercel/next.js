@@ -4108,6 +4108,27 @@
           "disabledDepth fell below zero. This is a bug in React. Please file an issue."
         );
     }
+    function formatOwnerStack(error) {
+      var prevPrepareStackTrace = Error.prepareStackTrace;
+      Error.prepareStackTrace = void 0;
+      error = error.stack;
+      Error.prepareStackTrace = prevPrepareStackTrace;
+      error.startsWith("Error: react-stack-top-frame\n") &&
+        (error = error.slice(29));
+      prevPrepareStackTrace = error.indexOf("\n");
+      -1 !== prevPrepareStackTrace &&
+        (error = error.slice(prevPrepareStackTrace + 1));
+      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
+      -1 !== prevPrepareStackTrace &&
+        (prevPrepareStackTrace = error.lastIndexOf(
+          "\n",
+          prevPrepareStackTrace
+        ));
+      if (-1 !== prevPrepareStackTrace)
+        error = error.slice(0, prevPrepareStackTrace);
+      else return "";
+      return error;
+    }
     function describeBuiltInComponentFrame(name) {
       if (void 0 === prefix)
         try {
@@ -4280,27 +4301,6 @@
       "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
       return sampleLines;
     }
-    function formatOwnerStack(error) {
-      var prevPrepareStackTrace = Error.prepareStackTrace;
-      Error.prepareStackTrace = void 0;
-      error = error.stack;
-      Error.prepareStackTrace = prevPrepareStackTrace;
-      error.startsWith("Error: react-stack-top-frame\n") &&
-        (error = error.slice(29));
-      prevPrepareStackTrace = error.indexOf("\n");
-      -1 !== prevPrepareStackTrace &&
-        (error = error.slice(prevPrepareStackTrace + 1));
-      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
-      -1 !== prevPrepareStackTrace &&
-        (prevPrepareStackTrace = error.lastIndexOf(
-          "\n",
-          prevPrepareStackTrace
-        ));
-      if (-1 !== prevPrepareStackTrace)
-        error = error.slice(0, prevPrepareStackTrace);
-      else return "";
-      return error;
-    }
     function describeComponentStackByType(type) {
       if ("string" === typeof type) return describeBuiltInComponentFrame(type);
       if ("function" === typeof type)
@@ -4324,13 +4324,26 @@
             }
             return describeComponentStackByType(type);
         }
-        if ("string" === typeof type.name)
-          return (
-            (payload = type.env),
-            describeBuiltInComponentFrame(
-              type.name + (payload ? " [" + payload + "]" : "")
-            )
-          );
+        if ("string" === typeof type.name) {
+          a: {
+            payload = type.name;
+            lazyComponent = type.env;
+            type = type.debugLocation;
+            if (null != type) {
+              type = formatOwnerStack(type);
+              var idx = type.lastIndexOf("\n");
+              type = -1 === idx ? type : type.slice(idx + 1);
+              if (-1 !== type.indexOf(payload)) {
+                payload = "\n" + type;
+                break a;
+              }
+            }
+            payload = describeBuiltInComponentFrame(
+              payload + (lazyComponent ? " [" + lazyComponent + "]" : "")
+            );
+          }
+          return payload;
+        }
       }
       switch (type) {
         case REACT_SUSPENSE_LIST_TYPE:
@@ -6866,8 +6879,8 @@
         if (13 !== request.status && request.status !== CLOSED) {
           boundary = task.replay;
           if (null === boundary) {
-            logRecoverableError(request, error, segment, null);
-            fatalError(request, error, segment, null);
+            logRecoverableError(request, error, segment, task.debugTask);
+            fatalError(request, error, segment, task.debugTask);
             return;
           }
           boundary.pendingTasks--;
@@ -6895,7 +6908,12 @@
       } else
         boundary.status !== CLIENT_RENDERED &&
           ((boundary.status = CLIENT_RENDERED),
-          (errorDigest = logRecoverableError(request, error, segment, null)),
+          (errorDigest = logRecoverableError(
+            request,
+            error,
+            segment,
+            task.debugTask
+          )),
           (boundary.status = CLIENT_RENDERED),
           encodeErrorForBoundary(boundary, errorDigest, error, segment, !0),
           untrackBoundary(request, boundary),
@@ -9665,5 +9683,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-canary-fa3feba6-20250623";
+    exports.version = "19.2.0-canary-4db4b21c-20250626";
   })();

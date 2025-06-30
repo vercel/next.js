@@ -97,11 +97,7 @@ import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
-import {
-  createComponentTree,
-  getRootParams,
-  normalizeConventionFilePath,
-} from './create-component-tree'
+import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import {
   getServerModuleMap,
@@ -200,6 +196,7 @@ import {
 } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
+import { normalizeConventionFilePath } from './segment-explorer-path'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -3983,7 +3980,13 @@ const getGlobalErrorStyles = async (
     if (ctx.renderOpts.devtoolSegmentExplorer && globalErrorModulePath) {
       const SegmentViewNode = ctx.componentMod.SegmentViewNode
       globalErrorStyles = (
-        <SegmentViewNode type="global-error" pagePath={globalErrorModulePath}>
+        // This will be rendered next to GlobalError component under ErrorBoundary,
+        // it requires a key to avoid React warning about duplicate keys.
+        <SegmentViewNode
+          key="ge-svn"
+          type="global-error"
+          pagePath={globalErrorModulePath}
+        >
           {globalErrorStyles}
         </SegmentViewNode>
       )

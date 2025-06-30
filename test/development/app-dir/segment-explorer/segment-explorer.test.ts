@@ -128,7 +128,7 @@ describe('segment-explorer', () => {
     const browser = await next.browser('/runtime-error')
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
-     global-error.tsx"
+     global-error.js"
     `)
   })
 

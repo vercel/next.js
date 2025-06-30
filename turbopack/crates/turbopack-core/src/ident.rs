@@ -61,7 +61,7 @@ impl Layer {
 #[derive(Clone, Debug, Hash, TaskInput)]
 pub struct AssetIdent {
     /// The primary path of the asset
-    pub path: ResolvedVc<FileSystemPath>,
+    pub path: FileSystemPath,
     /// The query string of the asset this is either the empty string or a query string that starts
     /// with a `?` (e.g. `?foo=bar`)
     pub query: RcStr,
@@ -91,12 +91,9 @@ impl AssetIdent {
     }
 
     pub async fn rename_as_ref(&mut self, pattern: &str) -> Result<()> {
-        let root = self.path.root();
-        let path = self.path.await?;
-        self.path = root
-            .join(pattern.replace('*', &path.path).into())
-            .to_resolved()
-            .await?;
+        let root = self.path.root().await?;
+        let path = self.path.clone();
+        self.path = root.join(&pattern.replace('*', &path.path))?;
         Ok(())
     }
 }
@@ -105,7 +102,7 @@ impl AssetIdent {
 impl ValueToString for AssetIdent {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut s = self.path.to_string().owned().await?.into_owned();
+        let mut s = self.path.value_to_string().owned().await?.into_owned();
 
         // The query string is either empty or non-empty starting with `?` so we can just concat
         s.push_str(&self.query);
@@ -178,9 +175,9 @@ impl AssetIdent {
         ident.cell()
     }
 
-    /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
+    /// Creates an [AssetIdent] from a [FileSystemPath]
     #[turbo_tasks::function]
-    pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn from_path(path: FileSystemPath) -> Vc<Self> {
         Self::new(AssetIdent {
             path,
             query: RcStr::default(),
@@ -222,7 +219,7 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
-    pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn with_path(&self, path: FileSystemPath) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
         Self::new(this)
@@ -258,7 +255,7 @@ impl AssetIdent {
 
     #[turbo_tasks::function]
     pub fn path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     /// Computes a unique output asset name for the given asset identifier.
@@ -268,7 +265,7 @@ impl AssetIdent {
     #[turbo_tasks::function]
     pub async fn output_name(
         &self,
-        context_path: Vc<FileSystemPath>,
+        context_path: FileSystemPath,
         expected_extension: RcStr,
     ) -> Result<Vc<RcStr>> {
         debug_assert!(
@@ -279,11 +276,11 @@ impl AssetIdent {
         // to be compatible with all operating systems + URLs.
 
         // For clippy -- This explicit deref is necessary
-        let path = &*self.path.await?;
-        let mut name = if let Some(inner) = context_path.await?.get_path_to(path) {
+        let path = &self.path;
+        let mut name = if let Some(inner) = context_path.get_path_to(path) {
             clean_separators(inner)
         } else {
-            clean_separators(&self.path.to_string().await?)
+            clean_separators(&self.path.value_to_string().await?)
         };
         let removed_extension = name.ends_with(&*expected_extension);
         if removed_extension {

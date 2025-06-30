@@ -768,13 +768,11 @@ function RequestInstance(
   model,
   bundlerConfig,
   onError,
-  identifierPrefix,
   onPostpone,
-  temporaryReferences,
-  environmentName,
-  filterStackFrame,
   onAllReady,
-  onFatalError
+  onFatalError,
+  identifierPrefix,
+  temporaryReferences
 ) {
   if (
     null !== ReactSharedInternalsServer.A &&
@@ -782,9 +780,9 @@ function RequestInstance(
   )
     throw Error("Currently React only supports one RSC renderer at a time.");
   ReactSharedInternalsServer.A = DefaultAsyncDispatcher;
-  filterStackFrame = new Set();
-  environmentName = [];
-  var cleanupQueue = [];
+  var abortSet = new Set(),
+    pingedTasks = [],
+    cleanupQueue = [];
   TaintRegistryPendingRequests.add(cleanupQueue);
   var hints = new Set();
   this.type = type;
@@ -796,9 +794,8 @@ function RequestInstance(
   this.cacheController = new AbortController();
   this.pendingChunks = this.nextChunkId = 0;
   this.hints = hints;
-  this.abortListeners = new Set();
-  this.abortableTasks = filterStackFrame;
-  this.pingedTasks = environmentName;
+  this.abortableTasks = abortSet;
+  this.pingedTasks = pingedTasks;
   this.completedImportChunks = [];
   this.completedHintChunks = [];
   this.completedRegularChunks = [];
@@ -815,8 +812,8 @@ function RequestInstance(
   this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
-  type = createTask(this, model, null, !1, filterStackFrame);
-  environmentName.push(type);
+  type = createTask(this, model, null, !1, abortSet);
+  pingedTasks.push(type);
 }
 var currentRequest = null;
 function resolveRequest() {
@@ -827,7 +824,7 @@ function resolveRequest() {
 function serializeThenable(request, task, thenable) {
   var newTask = createTask(
     request,
-    null,
+    thenable,
     task.keyPath,
     task.implicitSlot,
     request.abortableTasks
@@ -843,11 +840,9 @@ function serializeThenable(request, task, thenable) {
       if (12 === request.status)
         return (
           request.abortableTasks.delete(newTask),
-          (newTask.status = 3),
           21 === request.type
-            ? request.pendingChunks--
-            : ((task = stringify(serializeByValueID(request.fatalError))),
-              emitModelChunk(request, newTask.id, task)),
+            ? haltTask(newTask, request)
+            : abortTask(newTask, request, request.fatalError),
           newTask.id
         );
       "string" !== typeof thenable.status &&
@@ -878,14 +873,18 @@ function serializeThenable(request, task, thenable) {
 }
 function serializeReadableStream(request, task, stream) {
   function progress(entry) {
-    if (!aborted)
+    if (0 === streamTask.status)
       if (entry.done)
-        (entry = streamTask.id.toString(16) + ":C\n"),
+        (streamTask.status = 1),
+          (entry = streamTask.id.toString(16) + ":C\n"),
           request.completedRegularChunks.push(entry),
+          request.abortableTasks.delete(streamTask),
+          request.cacheController.signal.removeEventListener(
+            "abort",
+            abortStream
+          ),
           enqueueFlush(request),
-          request.abortListeners.delete(abortStream),
-          callOnAllReadyIfReady(request),
-          (aborted = !0);
+          callOnAllReadyIfReady(request);
       else
         try {
           (streamTask.model = entry.value),
@@ -898,21 +897,23 @@ function serializeReadableStream(request, task, stream) {
         }
   }
   function error(reason) {
-    aborted ||
-      ((aborted = !0),
-      request.abortListeners.delete(abortStream),
+    0 === streamTask.status &&
+      (request.cacheController.signal.removeEventListener("abort", abortStream),
       erroredTask(request, streamTask, reason),
       enqueueFlush(request),
       reader.cancel(reason).then(error, error));
   }
-  function abortStream(reason) {
-    aborted ||
-      ((aborted = !0),
-      request.abortListeners.delete(abortStream),
+  function abortStream() {
+    if (0 === streamTask.status) {
+      var signal = request.cacheController.signal;
+      signal.removeEventListener("abort", abortStream);
+      signal = signal.reason;
       21 === request.type
-        ? request.pendingChunks--
-        : (erroredTask(request, streamTask, reason), enqueueFlush(request)),
-      reader.cancel(reason).then(error, error));
+        ? (haltTask(streamTask, request),
+          request.abortableTasks.delete(streamTask))
+        : (erroredTask(request, streamTask, signal), enqueueFlush(request));
+      reader.cancel(signal).then(error, error);
+    }
   }
   var supportsBYOB = stream.supportsBYOB;
   if (void 0 === supportsBYOB)
@@ -929,19 +930,18 @@ function serializeReadableStream(request, task, stream) {
       task.implicitSlot,
       request.abortableTasks
     );
-  request.abortableTasks.delete(streamTask);
   request.pendingChunks++;
   task = streamTask.id.toString(16) + ":" + (supportsBYOB ? "r" : "R") + "\n";
   request.completedRegularChunks.push(task);
-  var aborted = !1;
-  request.abortListeners.add(abortStream);
+  request.cacheController.signal.addEventListener("abort", abortStream);
   reader.read().then(progress, error);
   return serializeByValueID(streamTask.id);
 }
 function serializeAsyncIterable(request, task, iterable, iterator) {
   function progress(entry) {
-    if (!aborted)
+    if (0 === streamTask.status)
       if (entry.done) {
+        streamTask.status = 1;
         if (void 0 === entry.value)
           var endStreamRow = streamTask.id.toString(16) + ":C\n";
         else
@@ -957,10 +957,13 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             return;
           }
         request.completedRegularChunks.push(endStreamRow);
+        request.abortableTasks.delete(streamTask);
+        request.cacheController.signal.removeEventListener(
+          "abort",
+          abortIterable
+        );
         enqueueFlush(request);
-        request.abortListeners.delete(abortIterable);
         callOnAllReadyIfReady(request);
-        aborted = !0;
       } else
         try {
           (streamTask.model = entry.value),
@@ -973,23 +976,29 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
         }
   }
   function error(reason) {
-    aborted ||
-      ((aborted = !0),
-      request.abortListeners.delete(abortIterable),
+    0 === streamTask.status &&
+      (request.cacheController.signal.removeEventListener(
+        "abort",
+        abortIterable
+      ),
       erroredTask(request, streamTask, reason),
       enqueueFlush(request),
       "function" === typeof iterator.throw &&
         iterator.throw(reason).then(error, error));
   }
-  function abortIterable(reason) {
-    aborted ||
-      ((aborted = !0),
-      request.abortListeners.delete(abortIterable),
+  function abortIterable() {
+    if (0 === streamTask.status) {
+      var signal = request.cacheController.signal;
+      signal.removeEventListener("abort", abortIterable);
+      var reason = signal.reason;
       21 === request.type
-        ? request.pendingChunks--
-        : (erroredTask(request, streamTask, reason), enqueueFlush(request)),
+        ? (haltTask(streamTask, request),
+          request.abortableTasks.delete(streamTask))
+        : (erroredTask(request, streamTask, signal.reason),
+          enqueueFlush(request));
       "function" === typeof iterator.throw &&
-        iterator.throw(reason).then(error, error));
+        iterator.throw(reason).then(error, error);
+    }
   }
   iterable = iterable === iterator;
   var streamTask = createTask(
@@ -999,12 +1008,10 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
     task.implicitSlot,
     request.abortableTasks
   );
-  request.abortableTasks.delete(streamTask);
   request.pendingChunks++;
   task = streamTask.id.toString(16) + ":" + (iterable ? "x" : "X") + "\n";
   request.completedRegularChunks.push(task);
-  var aborted = !1;
-  request.abortListeners.add(abortIterable);
+  request.cacheController.signal.addEventListener("abort", abortIterable);
   iterator.next().then(progress, error);
   return serializeByValueID(streamTask.id);
 }
@@ -1363,10 +1370,9 @@ function serializeTypedArray(request, tag, typedArray) {
 }
 function serializeBlob(request, blob) {
   function progress(entry) {
-    if (!aborted)
+    if (0 === newTask.status)
       if (entry.done)
-        request.abortListeners.delete(abortBlob),
-          (aborted = !0),
+        request.cacheController.signal.removeEventListener("abort", abortBlob),
           pingTask(request, newTask);
       else
         return (
@@ -1374,27 +1380,27 @@ function serializeBlob(request, blob) {
         );
   }
   function error(reason) {
-    aborted ||
-      ((aborted = !0),
-      request.abortListeners.delete(abortBlob),
+    0 === newTask.status &&
+      (request.cacheController.signal.removeEventListener("abort", abortBlob),
       erroredTask(request, newTask, reason),
       enqueueFlush(request),
       reader.cancel(reason).then(error, error));
   }
-  function abortBlob(reason) {
-    aborted ||
-      ((aborted = !0),
-      request.abortListeners.delete(abortBlob),
+  function abortBlob() {
+    if (0 === newTask.status) {
+      var signal = request.cacheController.signal;
+      signal.removeEventListener("abort", abortBlob);
+      signal = signal.reason;
       21 === request.type
-        ? request.pendingChunks--
-        : (erroredTask(request, newTask, reason), enqueueFlush(request)),
-      reader.cancel(reason).then(error, error));
+        ? haltTask(newTask, request)
+        : (erroredTask(request, newTask, signal), enqueueFlush(request));
+      reader.cancel(signal).then(error, error);
+    }
   }
   var model = [blob.type],
     newTask = createTask(request, model, null, !1, request.abortableTasks),
-    reader = blob.stream().getReader(),
-    aborted = !1;
-  request.abortListeners.add(abortBlob);
+    reader = blob.stream().getReader();
+  request.cacheController.signal.addEventListener("abort", abortBlob);
   reader.read().then(progress).catch(error);
   return "$B" + newTask.id.toString(16);
 }
@@ -1756,10 +1762,6 @@ function emitErrorChunk(request, id, digest) {
   id = id.toString(16) + ":E" + stringify(digest) + "\n";
   request.completedErrorChunks.push(id);
 }
-function emitModelChunk(request, id, json) {
-  id = id.toString(16) + ":" + json + "\n";
-  request.completedRegularChunks.push(id);
-}
 function emitTypedArrayChunk(request, id, tag, typedArray) {
   if (TaintRegistryByteLengths.has(typedArray.byteLength)) {
     var tainted = TaintRegistryValues.get(
@@ -1827,7 +1829,9 @@ function emitChunk(request, task, value) {
                             : value instanceof DataView
                               ? emitTypedArrayChunk(request, id, "V", value)
                               : ((value = stringify(value, task.toJSON)),
-                                emitModelChunk(request, task.id, value));
+                                (task =
+                                  task.id.toString(16) + ":" + value + "\n"),
+                                request.completedRegularChunks.push(task));
 }
 function erroredTask(request, task, error) {
   task.status = 4;
@@ -1862,24 +1866,20 @@ function retryTask(request, task) {
         request.writtenObjects.set(resolvedModel, serializeByValueID(task.id)),
           emitChunk(request, task, resolvedModel);
       else {
-        var json = stringify(resolvedModel);
-        emitModelChunk(request, task.id, json);
+        var json = stringify(resolvedModel),
+          processedChunk = task.id.toString(16) + ":" + json + "\n";
+        request.completedRegularChunks.push(processedChunk);
       }
       task.status = 1;
       request.abortableTasks.delete(task);
       callOnAllReadyIfReady(request);
     } catch (thrownValue) {
       if (12 === request.status)
-        if (
-          (request.abortableTasks.delete(task),
-          (task.status = 3),
-          21 === request.type)
-        )
-          request.pendingChunks--;
-        else {
-          var model = stringify(serializeByValueID(request.fatalError));
-          emitModelChunk(request, task.id, model);
-        }
+        request.abortableTasks.delete(task),
+          (task.status = 0),
+          21 === request.type
+            ? haltTask(task, request)
+            : abortTask(task, request, request.fatalError);
       else {
         var x =
           thrownValue === SuspenseException
@@ -1935,6 +1935,9 @@ function abortTask(task, request, errorId) {
     (errorId = serializeByValueID(errorId)),
     (task = encodeReferenceChunk(request, task.id, errorId)),
     request.completedErrorChunks.push(task));
+}
+function haltTask(task, request) {
+  5 !== task.status && ((task.status = 3), request.pendingChunks--);
 }
 function flushCompletedChunks(request, destination) {
   currentView = new Uint8Array(2048);
@@ -2028,8 +2031,8 @@ function enqueueFlush(request) {
     }));
 }
 function callOnAllReadyIfReady(request) {
-  if (0 === request.abortableTasks.size && 0 === request.abortListeners.size)
-    request.onAllReady();
+  0 === request.abortableTasks.size &&
+    ((request = request.onAllReady), request());
 }
 function startFlowing(request, destination) {
   if (13 === request.status)
@@ -2046,12 +2049,14 @@ function startFlowing(request, destination) {
 function abort(request, reason) {
   try {
     11 >= request.status &&
-      ((request.status = 12), request.cacheController.abort(reason));
+      ((request.status = 12),
+      request.cacheController.abort(reason),
+      callOnAllReadyIfReady(request));
     var abortableTasks = request.abortableTasks;
     if (0 < abortableTasks.size) {
       if (21 === request.type)
         abortableTasks.forEach(function (task) {
-          5 !== task.status && ((task.status = 3), request.pendingChunks--);
+          return haltTask(task, request);
         });
       else if (
         "object" === typeof reason &&
@@ -2087,30 +2092,10 @@ function abort(request, reason) {
       abortableTasks.clear();
       callOnAllReadyIfReady(request);
     }
-    var abortListeners = request.abortListeners;
-    if (0 < abortListeners.size) {
-      var error$28 =
-        "object" === typeof reason &&
-        null !== reason &&
-        reason.$$typeof === REACT_POSTPONE_TYPE
-          ? Error("The render was aborted due to being postponed.")
-          : void 0 === reason
-            ? Error("The render was aborted by the server without a reason.")
-            : "object" === typeof reason &&
-                null !== reason &&
-                "function" === typeof reason.then
-              ? Error("The render was aborted by the server with a promise.")
-              : reason;
-      abortListeners.forEach(function (callback) {
-        return callback(error$28);
-      });
-      abortListeners.clear();
-      callOnAllReadyIfReady(request);
-    }
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
-  } catch (error$29) {
-    logRecoverableError(request, error$29, null), fatalError(request, error$29);
+  } catch (error$28) {
+    logRecoverableError(request, error$28, null), fatalError(request, error$28);
   }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2558,8 +2543,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$32 = createPendingChunk(response);
-        chunk$32.then(
+        var chunk$31 = createPendingChunk(response);
+        chunk$31.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2567,10 +2552,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$32;
+        previousBlockedChunk = chunk$31;
         chunk.then(function () {
-          previousBlockedChunk === chunk$32 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$32, json, -1);
+          previousBlockedChunk === chunk$31 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$31, json, -1);
         });
       }
     },
@@ -2983,20 +2968,20 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
       ? queuedFields.push(name, value)
       : resolveField(response, name, value);
   });
-  busboyStream.on("file", function (name, value, _ref) {
-    var filename = _ref.filename,
-      mimeType = _ref.mimeType;
-    if ("base64" === _ref.encoding.toLowerCase())
+  busboyStream.on("file", function (name, value, _ref2) {
+    var filename = _ref2.filename,
+      mimeType = _ref2.mimeType;
+    if ("base64" === _ref2.encoding.toLowerCase())
       throw Error(
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_259 = [];
+    var JSCompiler_object_inline_chunks_254 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_259.push(chunk);
+      JSCompiler_object_inline_chunks_254.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_259, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_254, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
@@ -3044,13 +3029,11 @@ exports.renderToPipeableStream = function (model, webpackMap, options) {
       model,
       webpackMap,
       options ? options.onError : void 0,
-      options ? options.identifierPrefix : void 0,
       options ? options.onPostpone : void 0,
-      options ? options.temporaryReferences : void 0,
-      void 0,
-      void 0,
       noop,
-      noop
+      noop,
+      options ? options.identifierPrefix : void 0,
+      options ? options.temporaryReferences : void 0
     ),
     hasStartedFlowing = !1;
   startWork(request);
@@ -3087,13 +3070,11 @@ exports.renderToReadableStream = function (model, webpackMap, options) {
     model,
     webpackMap,
     options ? options.onError : void 0,
-    options ? options.identifierPrefix : void 0,
     options ? options.onPostpone : void 0,
-    options ? options.temporaryReferences : void 0,
-    void 0,
-    void 0,
     noop,
-    noop
+    noop,
+    options ? options.identifierPrefix : void 0,
+    options ? options.temporaryReferences : void 0
   );
   if (options && options.signal) {
     var signal = options.signal;
@@ -3132,11 +3113,7 @@ exports.unstable_prerender = function (model, webpackMap, options) {
       model,
       webpackMap,
       options ? options.onError : void 0,
-      options ? options.identifierPrefix : void 0,
       options ? options.onPostpone : void 0,
-      options ? options.temporaryReferences : void 0,
-      void 0,
-      void 0,
       function () {
         var writable,
           stream = new ReadableStream(
@@ -3158,7 +3135,9 @@ exports.unstable_prerender = function (model, webpackMap, options) {
           );
         resolve({ prelude: stream });
       },
-      reject
+      reject,
+      options ? options.identifierPrefix : void 0,
+      options ? options.temporaryReferences : void 0
     );
     if (options && options.signal) {
       var signal = options.signal;
@@ -3181,11 +3160,7 @@ exports.unstable_prerenderToNodeStream = function (model, webpackMap, options) {
       model,
       webpackMap,
       options ? options.onError : void 0,
-      options ? options.identifierPrefix : void 0,
       options ? options.onPostpone : void 0,
-      options ? options.temporaryReferences : void 0,
-      void 0,
-      void 0,
       function () {
         var readable = new stream.Readable({
             read: function () {
@@ -3195,7 +3170,9 @@ exports.unstable_prerenderToNodeStream = function (model, webpackMap, options) {
           writable = createFakeWritableFromNodeReadable(readable);
         resolve({ prelude: readable });
       },
-      reject
+      reject,
+      options ? options.identifierPrefix : void 0,
+      options ? options.temporaryReferences : void 0
     );
     if (options && options.signal) {
       var signal = options.signal;

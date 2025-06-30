@@ -1,6 +1,15 @@
-import { useSegmentTree, type SegmentTrieNode } from '../../segment-explorer'
+import {
+  useSegmentTree,
+  type SegmentTrieNode,
+} from '../../segment-explorer-trie'
 import { css } from '../../utils/css'
 import { cx } from '../../utils/cx'
+import {
+  SegmentBoundaryTrigger,
+  styles as segmentBoundaryTriggerStyles,
+} from './segment-boundary-trigger'
+
+const BUILTIN_PREFIX = '__next_builtin__'
 
 const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
@@ -66,6 +75,7 @@ function PageSegmentTreeLayerPresentation({
 
   const folderChildrenKeys: string[] = []
   const filesChildrenKeys: string[] = []
+  let pageChild = null
 
   for (const childKey of sortedChildrenKeys) {
     const childNode = node.children[childKey]
@@ -79,6 +89,20 @@ function PageSegmentTreeLayerPresentation({
 
     // Otherwise, it's a folder node, add it to folderChildrenKeys
     folderChildrenKeys.push(childKey)
+  }
+
+  for (const fileChildSegment of filesChildrenKeys) {
+    const childNode = node.children[fileChildSegment]
+    if (!childNode || !childNode.value) continue
+
+    // If it's a page node, we can use it as the page child
+    if (
+      childNode.value.type !== 'layout' &&
+      childNode.value.type !== 'template'
+    ) {
+      pageChild = childNode
+      break // We only need one page child
+    }
   }
 
   const hasFilesChildren = filesChildrenKeys.length > 0
@@ -115,7 +139,10 @@ function PageSegmentTreeLayerPresentation({
                       return null
                     }
                     const filePath = childNode.value.pagePath
-                    const fileName = filePath.split('/').pop() || ''
+                    const lastSegment = filePath.split('/').pop() || ''
+                    const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
+                    const fileName = lastSegment.replace(BUILTIN_PREFIX, '')
+
                     return (
                       <span
                         key={fileChildSegment}
@@ -124,15 +151,32 @@ function PageSegmentTreeLayerPresentation({
                         }}
                         className={cx(
                           'segment-explorer-file-label',
-                          `segment-explorer-file-label--${childNode.value.type}`
+                          `segment-explorer-file-label--${childNode.value.type}`,
+                          isBuiltin && 'segment-explorer-file-label--builtin'
                         )}
                       >
                         {fileName}
+                        {isBuiltin && (
+                          <TooltipSpan
+                            title={`The default Next.js not found is being shown. You can customize this page by adding your own ${fileName} file to the app/ directory.`}
+                          >
+                            <InfoIcon />
+                          </TooltipSpan>
+                        )}
                       </span>
                     )
                   })}
                 </span>
               )}
+              {/* TODO: only show triggers in dev panel remove this once the new panel UI is stable */}
+              {process.env.__NEXT_DEVTOOL_NEW_PANEL_UI &&
+                pageChild &&
+                pageChild.value && (
+                  <SegmentBoundaryTrigger
+                    offset={6}
+                    onSelectBoundary={pageChild.value.setBoundaryType}
+                  />
+                )}
             </div>
           </div>
         </div>
@@ -193,6 +237,12 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-filename {
     display: inline-flex;
+    width: 100%;
+    align-items: center;
+  }
+
+  .segment-explorer-filename select {
+    margin-left: auto;
   }
 
   .segment-explorer-filename--path {
@@ -213,6 +263,10 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   }
 
   .segment-explorer-file-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
     padding: 2px 6px;
     border-radius: 16px;
     font-size: var(--size-12);
@@ -220,6 +274,11 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     user-select: none;
     cursor: pointer;
   }
+
+  .segment-explorer-file-label:hover {
+    filter: brightness(1.05);
+  }
+
   .segment-explorer-file-label--layout,
   .segment-explorer-file-label--template,
   .segment-explorer-file-label--default {
@@ -228,7 +287,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   }
   .segment-explorer-file-label--page {
     background-color: var(--color-blue-300);
-    color: var(--color-blue-800);
+    color: var(--color-blue-900);
   }
   .segment-explorer-file-label--not-found,
   .segment-explorer-file-label--forbidden,
@@ -245,6 +304,18 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     background-color: var(--color-red-300);
     color: var(--color-red-900);
   }
+  .segment-explorer-file-label--builtin {
+    background-color: transparent;
+    color: var(--color-gray-900);
+    border: 1px dashed var(--color-gray-500);
+    cursor: default;
+  }
+  .segment-explorer-file-label--builtin svg {
+    margin-left: 4px;
+    margin-right: -4px;
+  }
+
+  ${segmentBoundaryTriggerStyles}
 `
 
 function openInEditor({ filePath }: { filePath: string }) {
@@ -259,4 +330,36 @@ function openInEditor({ filePath }: { filePath: string }) {
       process.env.__NEXT_ROUTER_BASEPATH || ''
     }/__nextjs_launch-editor?${params.toString()}`
   )
+}
+
+function InfoIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
+        fill="var(--color-gray-400)"
+      />
+      <path
+        d="M7.75 7C8.30228 7.00001 8.75 7.44772 8.75 8V11.25H7.25V8.5H6.25V7H7.75ZM8 4C8.55228 4 9 4.44772 9 5C9 5.55228 8.55228 6 8 6C7.44772 6 7 5.55228 7 5C7 4.44772 7.44772 4 8 4Z"
+        fill="var(--color-gray-900)"
+      />
+    </svg>
+  )
+}
+
+function TooltipSpan({
+  children,
+  title,
+}: {
+  children: React.ReactNode
+  title: string
+}) {
+  return <span title={title}>{children}</span>
 }

@@ -1082,11 +1082,10 @@
         error += "\n    at " + structuredStackTrace[i].toString();
       return error;
     }
-    function ReactPromise(status, value, reason, response) {
+    function ReactPromise(status, value, reason) {
       this.status = status;
       this.value = value;
       this.reason = reason;
-      this._response = response;
       this._debugInfo = null;
     }
     function readChunk(chunk) {
@@ -1108,8 +1107,8 @@
           throw chunk.reason;
       }
     }
-    function createPendingChunk(response) {
-      return new ReactPromise("pending", null, null, response);
+    function createPendingChunk() {
+      return new ReactPromise("pending", null, null);
     }
     function wakeChunk(listeners, value) {
       for (var i = 0; i < listeners.length; i++) (0, listeners[i])(value);
@@ -1155,25 +1154,26 @@
         (done ? '{"done":true,"value":' : '{"done":false,"value":') +
           value +
           "}",
-        null,
         response
       );
     }
-    function resolveIteratorResultChunk(chunk, value, done) {
+    function resolveIteratorResultChunk(response, chunk, value, done) {
       resolveModelChunk(
+        response,
         chunk,
         (done ? '{"done":true,"value":' : '{"done":false,"value":') +
           value +
           "}"
       );
     }
-    function resolveModelChunk(chunk, value) {
+    function resolveModelChunk(response, chunk, value) {
       if ("pending" !== chunk.status) chunk.reason.enqueueModel(value);
       else {
         var resolveListeners = chunk.value,
           rejectListeners = chunk.reason;
         chunk.status = "resolved_model";
         chunk.value = value;
+        chunk.reason = response;
         null !== resolveListeners &&
           (initializeModelChunk(chunk),
           wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners));
@@ -1193,12 +1193,13 @@
     function initializeModelChunk(chunk) {
       var prevHandler = initializingHandler;
       initializingHandler = null;
-      var resolvedModel = chunk.value;
+      var resolvedModel = chunk.value,
+        response = chunk.reason;
       chunk.status = "blocked";
       chunk.value = null;
       chunk.reason = null;
       try {
-        var value = JSON.parse(resolvedModel, chunk._response._fromJSON),
+        var value = JSON.parse(resolvedModel, response._fromJSON),
           resolveListeners = chunk.value;
         null !== resolveListeners &&
           ((chunk.value = null),
@@ -1235,6 +1236,9 @@
       response._chunks.forEach(function (chunk) {
         "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
       });
+      var debugChannel = response._debugChannel;
+      void 0 !== debugChannel &&
+        (debugChannel(""), (response._debugChannel = void 0));
     }
     function nullRefGetter() {
       return null;
@@ -1270,8 +1274,8 @@
         chunk = chunks.get(id);
       chunk ||
         ((chunk = response._closed
-          ? new ReactPromise("rejected", null, response._closedReason, response)
-          : createPendingChunk(response)),
+          ? new ReactPromise("rejected", null, response._closedReason)
+          : createPendingChunk()),
         chunks.set(id, chunk));
       return chunk;
     }
@@ -1728,6 +1732,9 @@
             }
           case "Y":
             return (
+              2 < value.length &&
+                (response = response._debugChannel) &&
+                ((value = value.slice(2)), response("R:" + value)),
               Object.defineProperty(parentObject, key, {
                 get: function () {
                   return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
@@ -1761,7 +1768,8 @@
       temporaryReferences,
       findSourceMapURL,
       replayConsole,
-      environmentName
+      environmentName,
+      debugChannel
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
@@ -1791,43 +1799,41 @@
           '"use ' + environmentName.toLowerCase() + '"'
         ));
       this._debugFindSourceMapURL = findSourceMapURL;
+      this._debugChannel = debugChannel;
       this._replayConsole = replayConsole;
       this._rootEnvironmentName = environmentName;
       this._fromJSON = createFromJSONCallback(this);
     }
     function resolveDebugHalt(response, id) {
-      var chunks = response._chunks,
-        chunk = chunks.get(id);
-      chunk || chunks.set(id, (chunk = createPendingChunk(response)));
+      response = response._chunks;
+      var chunk = response.get(id);
+      chunk || response.set(id, (chunk = createPendingChunk()));
       if ("pending" === chunk.status || "blocked" === chunk.status)
-        (response = chunk),
-          (response.status = "halted"),
-          (response.value = null),
-          (response.reason = null);
+        (id = chunk),
+          (id.status = "halted"),
+          (id.value = null),
+          (id.reason = null);
     }
     function resolveModel(response, id, model) {
       var chunks = response._chunks,
         chunk = chunks.get(id);
       chunk
-        ? resolveModelChunk(chunk, model)
-        : chunks.set(
-            id,
-            new ReactPromise("resolved_model", model, null, response)
-          );
+        ? resolveModelChunk(response, chunk, model)
+        : chunks.set(id, new ReactPromise("resolved_model", model, response));
     }
     function resolveText(response, id, text) {
-      var chunks = response._chunks,
-        chunk = chunks.get(id);
+      response = response._chunks;
+      var chunk = response.get(id);
       chunk && "pending" !== chunk.status
         ? chunk.reason.enqueueValue(text)
-        : chunks.set(id, new ReactPromise("fulfilled", text, null, response));
+        : response.set(id, new ReactPromise("fulfilled", text, null));
     }
     function resolveBuffer(response, id, buffer) {
-      var chunks = response._chunks,
-        chunk = chunks.get(id);
+      response = response._chunks;
+      var chunk = response.get(id);
       chunk && "pending" !== chunk.status
         ? chunk.reason.enqueueValue(buffer)
-        : chunks.set(id, new ReactPromise("fulfilled", buffer, null, response));
+        : response.set(id, new ReactPromise("fulfilled", buffer, null));
     }
     function resolveModule(response, id, model) {
       var chunks = response._chunks,
@@ -1842,14 +1848,14 @@
         model[1],
         response._nonce
       );
-      if ((model = preloadModule(clientReference))) {
+      if ((response = preloadModule(clientReference))) {
         if (chunk) {
           var blockedChunk = chunk;
           blockedChunk.status = "blocked";
         } else
-          (blockedChunk = new ReactPromise("blocked", null, null, response)),
+          (blockedChunk = new ReactPromise("blocked", null, null)),
             chunks.set(id, blockedChunk);
-        model.then(
+        response.then(
           function () {
             return resolveModuleChunk(blockedChunk, clientReference);
           },
@@ -1862,28 +1868,20 @@
           ? resolveModuleChunk(chunk, clientReference)
           : chunks.set(
               id,
-              new ReactPromise(
-                "resolved_module",
-                clientReference,
-                null,
-                response
-              )
+              new ReactPromise("resolved_module", clientReference, null)
             );
     }
     function resolveStream(response, id, stream, controller) {
-      var chunks = response._chunks,
-        chunk = chunks.get(id);
-      chunk
-        ? "pending" === chunk.status &&
-          ((response = chunk.value),
-          (chunk.status = "fulfilled"),
-          (chunk.value = stream),
-          (chunk.reason = controller),
-          null !== response && wakeChunk(response, chunk.value))
-        : chunks.set(
-            id,
-            new ReactPromise("fulfilled", stream, controller, response)
-          );
+      var chunks = response._chunks;
+      response = chunks.get(id);
+      response
+        ? "pending" === response.status &&
+          ((id = response.value),
+          (response.status = "fulfilled"),
+          (response.value = stream),
+          (response.reason = controller),
+          null !== id && wakeChunk(id, response.value))
+        : chunks.set(id, new ReactPromise("fulfilled", stream, controller));
     }
     function startReadableStream(response, id, type) {
       var controller = null;
@@ -1904,12 +1902,7 @@
         },
         enqueueModel: function (json) {
           if (null === previousBlockedChunk) {
-            var chunk = new ReactPromise(
-              "resolved_model",
-              json,
-              null,
-              response
-            );
+            var chunk = new ReactPromise("resolved_model", json, response);
             initializeModelChunk(chunk);
             "fulfilled" === chunk.status
               ? controller.enqueue(chunk.value)
@@ -1924,7 +1917,7 @@
                 (previousBlockedChunk = chunk));
           } else {
             chunk = previousBlockedChunk;
-            var _chunk3 = createPendingChunk(response);
+            var _chunk3 = createPendingChunk();
             _chunk3.then(
               function (v) {
                 return controller.enqueue(v);
@@ -1936,7 +1929,7 @@
             previousBlockedChunk = _chunk3;
             chunk.then(function () {
               previousBlockedChunk === _chunk3 && (previousBlockedChunk = null);
-              resolveModelChunk(_chunk3, json);
+              resolveModelChunk(response, _chunk3, json);
             });
           }
         },
@@ -1987,10 +1980,9 @@
               return new ReactPromise(
                 "fulfilled",
                 { done: !0, value: void 0 },
-                null,
-                response
+                null
               );
-            buffer[nextReadIndex] = createPendingChunk(response);
+            buffer[nextReadIndex] = createPendingChunk();
           }
           return buffer[nextReadIndex++];
         });
@@ -2005,8 +1997,7 @@
               buffer[nextWriteIndex] = new ReactPromise(
                 "fulfilled",
                 { done: !1, value: value },
-                null,
-                response
+                null
               );
             else {
               var chunk = buffer[nextWriteIndex],
@@ -2030,7 +2021,12 @@
                   value,
                   !1
                 ))
-              : resolveIteratorResultChunk(buffer[nextWriteIndex], value, !1);
+              : resolveIteratorResultChunk(
+                  response,
+                  buffer[nextWriteIndex],
+                  value,
+                  !1
+                );
             nextWriteIndex++;
           },
           close: function (value) {
@@ -2041,9 +2037,15 @@
                   value,
                   !0
                 ))
-              : resolveIteratorResultChunk(buffer[nextWriteIndex], value, !0);
+              : resolveIteratorResultChunk(
+                  response,
+                  buffer[nextWriteIndex],
+                  value,
+                  !0
+                );
             for (nextWriteIndex++; nextWriteIndex < buffer.length; )
               resolveIteratorResultChunk(
+                response,
                 buffer[nextWriteIndex++],
                 '"$undefined"',
                 !0
@@ -2053,7 +2055,7 @@
             closed = !0;
             for (
               nextWriteIndex === buffer.length &&
-              (buffer[nextWriteIndex] = createPendingChunk(response));
+              (buffer[nextWriteIndex] = createPendingChunk());
               nextWriteIndex < buffer.length;
 
             )
@@ -2327,15 +2329,20 @@
       return Error("react-stack-top-frame");
     }
     function initializeFakeStack(response, debugInfo) {
-      void 0 === debugInfo.debugStack &&
-        (null != debugInfo.stack &&
+      if (void 0 === debugInfo.debugStack) {
+        null != debugInfo.stack &&
           (debugInfo.debugStack = createFakeJSXCallStackInDEV(
             response,
             debugInfo.stack,
             null == debugInfo.env ? "" : debugInfo.env
-          )),
-        null != debugInfo.owner &&
-          initializeFakeStack(response, debugInfo.owner));
+          ));
+        var owner = debugInfo.owner;
+        null != owner &&
+          (initializeFakeStack(response, owner),
+          void 0 === owner.debugLocation &&
+            null != debugInfo.debugStack &&
+            (owner.debugLocation = debugInfo.debugStack));
+      }
     }
     function resolveDebugInfo(response, id, debugInfo) {
       void 0 !== debugInfo.stack && initializeFakeTask(response, debugInfo);
@@ -2528,14 +2535,14 @@
           var chunk = row.get(id);
           chunk
             ? triggerErrorOnChunk(chunk, tag)
-            : row.set(id, new ReactPromise("rejected", null, tag, response));
+            : row.set(id, new ReactPromise("rejected", null, tag));
           break;
         case 84:
           resolveText(response, id, row);
           break;
         case 78:
         case 68:
-          tag = new ReactPromise("resolved_model", row, null, response);
+          tag = new ReactPromise("resolved_model", row, response);
           initializeModelChunk(tag);
           "fulfilled" === tag.status
             ? resolveDebugInfo(response, id, tag.value)
@@ -2729,12 +2736,7 @@
               ? ((stack = initializingHandler),
                 (initializingHandler = stack.parent),
                 stack.errored
-                  ? ((key = new ReactPromise(
-                      "rejected",
-                      null,
-                      stack.value,
-                      response
-                    )),
+                  ? ((key = new ReactPromise("rejected", null, stack.value)),
                     (stack = {
                       name: getComponentNameFromType(value.type) || "",
                       owner: value._owner
@@ -2744,7 +2746,7 @@
                     (key._debugInfo = [stack]),
                     (value = createLazyChunkWrapper(key)))
                   : 0 < stack.deps &&
-                    ((key = new ReactPromise("blocked", null, null, response)),
+                    ((key = new ReactPromise("blocked", null, null)),
                     (stack.value = value),
                     (stack.chunk = key),
                     (value = Object.freeze.bind(Object, value.props)),
@@ -2778,7 +2780,8 @@
           : void 0,
         options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
         options ? !0 === options.replayConsoleLogs : !1,
-        options && options.environmentName ? options.environmentName : void 0
+        options && options.environmentName ? options.environmentName : void 0,
+        void 0
       );
     }
     function startReadingFromStream(response, stream) {
@@ -3004,7 +3007,8 @@
         void 0,
         options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
         options ? !0 === options.replayConsoleLogs : !1,
-        options && options.environmentName ? options.environmentName : void 0
+        options && options.environmentName ? options.environmentName : void 0,
+        void 0
       );
       stream.on("data", function (chunk) {
         if ("string" === typeof chunk) {

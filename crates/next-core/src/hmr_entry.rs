@@ -28,12 +28,13 @@ use turbopack_ecmascript::{
 /// Each entry point in the HMR system has an ident with a different nested asset.
 /// This produces the 'base' ident for the HMR entry point, which is then modified
 #[turbo_tasks::function]
-fn hmr_entry_point_base_ident() -> Vc<AssetIdent> {
-    AssetIdent::from_path(
+async fn hmr_entry_point_base_ident() -> Result<Vc<AssetIdent>> {
+    Ok(AssetIdent::from_path(
         VirtualFileSystem::new_with_name(rcstr!("hmr-entry"))
             .root()
-            .join(rcstr!("hmr-entry.js")),
-    )
+            .await?
+            .join("hmr-entry.js")?,
+    ))
 }
 
 #[turbo_tasks::value(shared)]

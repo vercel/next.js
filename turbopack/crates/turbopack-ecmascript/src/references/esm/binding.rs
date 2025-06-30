@@ -87,22 +87,26 @@ impl EsmBinding {
                 // normal key-value pairs.
                 Some(swc_core::ecma::visit::AstParentKind::Prop(PropField::Shorthand)) => {
                     ast_path.pop();
-                    visitors.push(
-                        create_visitor!(exact ast_path, visit_mut_prop(prop: &mut Prop) {
+                    visitors.push(create_visitor!(
+                        exact,
+                        ast_path,
+                        visit_mut_prop,
+                        |prop: &mut Prop| {
                             if let Prop::Shorthand(ident) = prop {
                                 // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
                                 match &imported_ident {
                                     ImportedIdent::Module(imported_ident) => {
                                         *prop = Prop::KeyValue(KeyValueProp {
                                             key: PropName::Ident(ident.clone().into()),
-                                            value: Box::new(imported_ident.as_expr(ident.span, false))
+                                            value: Box::new(
+                                                imported_ident.as_expr(ident.span, false),
+                                            ),
                                         });
                                     }
                                     ImportedIdent::None => {
                                         *prop = Prop::KeyValue(KeyValueProp {
                                             key: PropName::Ident(ident.clone().into()),
-                                            value:
-                                            Expr::undefined(ident.span),
+                                            value: Expr::undefined(ident.span),
                                         });
                                     }
                                     ImportedIdent::Unresolvable => {
@@ -110,8 +114,8 @@ impl EsmBinding {
                                     }
                                 }
                             }
-                        }),
-                    );
+                        }
+                    ));
                     break;
                 }
                 // Any other expression can be replaced with the import accessor.
@@ -125,8 +129,11 @@ impl EsmBinding {
                             ))
                         );
 
-                    visitors.push(
-                        create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
+                    visitors.push(create_visitor!(
+                        exact,
+                        ast_path,
+                        visit_mut_expr,
+                        |expr: &mut Expr| {
                             use swc_core::common::Spanned;
                             match &imported_ident {
                                 ImportedIdent::Module(imported_ident) => {
@@ -139,8 +146,8 @@ impl EsmBinding {
                                     // Do nothing, the reference will insert a throw
                                 }
                             }
-                        }),
-                    );
+                        }
+                    ));
                     break;
                 }
                 Some(swc_core::ecma::visit::AstParentKind::BindingIdent(
@@ -156,8 +163,11 @@ impl EsmBinding {
                     {
                         ast_path.pop();
 
-                        visitors.push(
-                            create_visitor!(exact ast_path, visit_mut_simple_assign_target(l: &mut SimpleAssignTarget) {
+                        visitors.push(create_visitor!(
+                            exact,
+                            ast_path,
+                            visit_mut_simple_assign_target,
+                            |l: &mut SimpleAssignTarget| {
                                 use swc_core::common::Spanned;
                                 match &imported_ident {
                                     ImportedIdent::Module(imported_ident) => {
@@ -176,8 +186,8 @@ impl EsmBinding {
                                         // Do nothing, the reference will insert a throw
                                     }
                                 }
-                            })
-                        );
+                            }
+                        ));
                         break;
                     }
                 }

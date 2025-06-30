@@ -44,7 +44,7 @@ fn package_import_map_from_import_mapping(
 #[turbo_tasks::function]
 fn package_import_map_from_context(
     package_name: RcStr,
-    context_path: ResolvedVc<FileSystemPath>,
+    context_path: FileSystemPath,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
@@ -63,7 +63,7 @@ pub struct ModuleOptions {
 impl ModuleOptions {
     #[turbo_tasks::function]
     pub async fn new(
-        path: Vc<FileSystemPath>,
+        path: FileSystemPath,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
     ) -> Result<Vc<ModuleOptions>> {
@@ -76,7 +76,7 @@ impl ModuleOptions {
         } = *module_options_context.await?;
 
         if !rules.is_empty() {
-            let path_value = path.await?;
+            let path_value = path.clone();
 
             for (condition, new_context) in rules.iter() {
                 if condition.matches(&path_value).await? {
@@ -112,7 +112,7 @@ impl ModuleOptions {
 
     #[turbo_tasks::function]
     async fn new_internal(
-        path: Option<Vc<FileSystemPath>>,
+        path: Option<FileSystemPath>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
     ) -> Result<Vc<ModuleOptions>> {
@@ -472,7 +472,8 @@ impl ModuleOptions {
                 } else {
                     package_import_map_from_context(
                         rcstr!("postcss"),
-                        path.context("need_path in ModuleOptions::new is incorrect")?,
+                        path.clone()
+                            .context("need_path in ModuleOptions::new is incorrect")?,
                     )
                 };
 
@@ -653,7 +654,7 @@ impl ModuleOptions {
 
                             match &condition.path {
                                 ConditionPath::Glob(glob) => RuleCondition::ResourcePathGlob {
-                                    base: execution_context.project_path().await?,
+                                    base: execution_context.project_path().await?.clone_value(),
                                     glob: Glob::new(glob.clone()).await?,
                                 },
                                 ConditionPath::Regex(regex) => {
@@ -662,7 +663,7 @@ impl ModuleOptions {
                             }
                         } else if key.contains('/') {
                             RuleCondition::ResourcePathGlob {
-                                base: execution_context.project_path().await?,
+                                base: execution_context.project_path().await?.clone_value(),
                                 glob: Glob::new(key.clone()).await?,
                             }
                         } else {

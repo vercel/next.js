@@ -2964,16 +2964,16 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     ));
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1865 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1875 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preconnects_1879 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1880 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1881 = new Set(),
-    JSCompiler_object_inline_styles_1882 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1883 = new Set(),
-    JSCompiler_object_inline_scripts_1884 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1885 = new Set(),
-    JSCompiler_object_inline_preloads_1886 = {
+  var JSCompiler_object_inline_preconnects_1889 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1890 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1891 = new Set(),
+    JSCompiler_object_inline_styles_1892 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1893 = new Set(),
+    JSCompiler_object_inline_scripts_1894 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1895 = new Set(),
+    JSCompiler_object_inline_preloads_1896 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -3010,7 +3010,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1883.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1893.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src), '"');
       "string" === typeof integrity &&
         bootstrapChunks.push(
@@ -3057,7 +3057,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1883.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1893.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i),
@@ -3079,7 +3079,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push(' async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1865,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1875,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script",
     startInlineStyle: "<style",
@@ -3099,14 +3099,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1879,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1880,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1881,
-    styles: JSCompiler_object_inline_styles_1882,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1883,
-    scripts: JSCompiler_object_inline_scripts_1884,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1885,
-    preloads: JSCompiler_object_inline_preloads_1886,
+    preconnects: JSCompiler_object_inline_preconnects_1889,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1890,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1891,
+    styles: JSCompiler_object_inline_styles_1892,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1893,
+    scripts: JSCompiler_object_inline_scripts_1894,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1895,
+    preloads: JSCompiler_object_inline_preloads_1896,
     nonce: { script: void 0, style: void 0 },
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
@@ -3862,13 +3862,37 @@ function describeComponentStackByType(type) {
         }
         return describeComponentStackByType(type);
     }
-    if ("string" === typeof type.name)
-      return (
-        (payload = type.env),
-        describeBuiltInComponentFrame(
-          type.name + (payload ? " [" + payload + "]" : "")
-        )
-      );
+    if ("string" === typeof type.name) {
+      a: {
+        payload = type.name;
+        lazyComponent = type.env;
+        var location = type.debugLocation;
+        if (
+          null != location &&
+          ((type = Error.prepareStackTrace),
+          (Error.prepareStackTrace = void 0),
+          (location = location.stack),
+          (Error.prepareStackTrace = type),
+          location.startsWith("Error: react-stack-top-frame\n") &&
+            (location = location.slice(29)),
+          (type = location.indexOf("\n")),
+          -1 !== type && (location = location.slice(type + 1)),
+          (type = location.indexOf("react-stack-bottom-frame")),
+          -1 !== type && (type = location.lastIndexOf("\n", type)),
+          (type = -1 !== type ? (location = location.slice(0, type)) : ""),
+          (location = type.lastIndexOf("\n")),
+          (type = -1 === location ? type : type.slice(location + 1)),
+          -1 !== type.indexOf(payload))
+        ) {
+          payload = "\n" + type;
+          break a;
+        }
+        payload = describeBuiltInComponentFrame(
+          payload + (lazyComponent ? " [" + lazyComponent + "]" : "")
+        );
+      }
+      return payload;
+    }
   }
   switch (type) {
     case REACT_SUSPENSE_LIST_TYPE:
@@ -7186,4 +7210,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.2.0-experimental-fa3feba6-20250623";
+exports.version = "19.2.0-experimental-4db4b21c-20250626";

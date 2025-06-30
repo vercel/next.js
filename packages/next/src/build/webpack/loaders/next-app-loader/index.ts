@@ -159,8 +159,8 @@ async function createTreeCodeFromPath(
   const pages: string[] = []
 
   let rootLayout: string | undefined
-  let globalError: string | undefined
-  let globalNotFound: string | undefined
+  let globalError: string = defaultGlobalErrorPath
+  let globalNotFound: string = defaultNotFoundPath
 
   async function resolveAdjacentParallelSegments(
     segmentPath: string
@@ -303,6 +303,33 @@ async function createTreeCodeFromPath(
         })
       )
 
+      // Only resolve global-* convention files at the root layer
+      if (isRootLayer) {
+        const resolvedGlobalErrorPath = await resolver(
+          `${appDirPrefix}/${GLOBAL_ERROR_FILE_TYPE}`
+        )
+        if (resolvedGlobalErrorPath) {
+          globalError = resolvedGlobalErrorPath
+        }
+        // Add global-error to root layer's filePaths, so that it's always available,
+        // by default it's the built-in global-error.js
+        filePaths.push([GLOBAL_ERROR_FILE_TYPE, globalError])
+
+        // TODO(global-not-found): remove this flag assertion condition
+        //  once global-not-found is stable
+        if (isGlobalNotFoundEnabled) {
+          const resolvedGlobalNotFoundPath = await resolver(
+            `${appDirPrefix}/${GLOBAL_NOT_FOUND_FILE_TYPE}`
+          )
+          if (resolvedGlobalNotFoundPath) {
+            globalNotFound = resolvedGlobalNotFoundPath
+          }
+          // Add global-not-found to root layer's filePaths, so that it's always available,
+          // by default it's the built-in global-not-found.js
+          filePaths.push([GLOBAL_NOT_FOUND_FILE_TYPE, globalNotFound])
+        }
+      }
+
       let definedFilePaths = filePaths.filter(
         ([, filePath]) => filePath !== undefined
       ) as [ValueOf<typeof FILE_TYPES>, string][]
@@ -358,25 +385,6 @@ async function createTreeCodeFromPath(
         ) {
           rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
-        }
-      }
-
-      if (!globalError) {
-        const resolvedGlobalErrorPath = await resolver(
-          `${appDirPrefix}/${GLOBAL_ERROR_FILE_TYPE}`
-        )
-        if (resolvedGlobalErrorPath) {
-          globalError = resolvedGlobalErrorPath
-        }
-      }
-      // TODO(global-not-found): remove this flag assertion condition
-      //  once global-not-found is stable
-      if (isGlobalNotFoundEnabled && !globalNotFound) {
-        const resolvedGlobalNotFoundPath = await resolver(
-          `${appDirPrefix}/${GLOBAL_NOT_FOUND_FILE_TYPE}`
-        )
-        if (resolvedGlobalNotFoundPath) {
-          globalNotFound = resolvedGlobalNotFoundPath
         }
       }
 
@@ -523,8 +531,8 @@ async function createTreeCodeFromPath(
     treeCode: `${treeCode}.children;`,
     pages: `${JSON.stringify(pages)};`,
     rootLayout,
-    globalError: globalError ?? defaultGlobalErrorPath,
-    globalNotFound: globalNotFound ?? defaultNotFoundPath,
+    globalError,
+    globalNotFound,
   }
 }
 

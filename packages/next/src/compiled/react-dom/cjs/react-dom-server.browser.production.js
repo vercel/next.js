@@ -3962,13 +3962,37 @@ function describeComponentStackByType(type) {
         }
         return describeComponentStackByType(type);
     }
-    if ("string" === typeof type.name)
-      return (
-        (payload = type.env),
-        describeBuiltInComponentFrame(
-          type.name + (payload ? " [" + payload + "]" : "")
-        )
-      );
+    if ("string" === typeof type.name) {
+      a: {
+        payload = type.name;
+        lazyComponent = type.env;
+        var location = type.debugLocation;
+        if (
+          null != location &&
+          ((type = Error.prepareStackTrace),
+          (Error.prepareStackTrace = void 0),
+          (location = location.stack),
+          (Error.prepareStackTrace = type),
+          location.startsWith("Error: react-stack-top-frame\n") &&
+            (location = location.slice(29)),
+          (type = location.indexOf("\n")),
+          -1 !== type && (location = location.slice(type + 1)),
+          (type = location.indexOf("react-stack-bottom-frame")),
+          -1 !== type && (type = location.lastIndexOf("\n", type)),
+          (type = -1 !== type ? (location = location.slice(0, type)) : ""),
+          (location = type.lastIndexOf("\n")),
+          (type = -1 === location ? type : type.slice(location + 1)),
+          -1 !== type.indexOf(payload))
+        ) {
+          payload = "\n" + type;
+          break a;
+        }
+        payload = describeBuiltInComponentFrame(
+          payload + (lazyComponent ? " [" + lazyComponent + "]" : "")
+        );
+      }
+      return payload;
+    }
   }
   switch (type) {
     case REACT_SUSPENSE_LIST_TYPE:
@@ -6818,12 +6842,12 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-fa3feba6-20250623" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-4db4b21c-20250626" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.2.0-canary-fa3feba6-20250623"
+        "19.2.0-canary-4db4b21c-20250626"
       )
     );
 }
@@ -6970,4 +6994,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-fa3feba6-20250623";
+exports.version = "19.2.0-canary-4db4b21c-20250626";

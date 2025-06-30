@@ -22,8 +22,6 @@ describe('Dynamic IO Dev Errors', () => {
          |                       ^",
        "stack": [
          "Page app/error/page.tsx (2:23)",
-         "JSON.parse <anonymous> (0:0)",
-         "JSON.parse <anonymous> (0:0)",
          "LogSafely <anonymous> (0:0)",
        ],
      }
@@ -49,8 +47,6 @@ describe('Dynamic IO Dev Errors', () => {
          |                       ^",
        "stack": [
          "Page app/error/page.tsx (2:23)",
-         "JSON.parse <anonymous> (0:0)",
-         "JSON.parse <anonymous> (0:0)",
          "LogSafely <anonymous> (0:0)",
        ],
      }
@@ -112,8 +108,6 @@ describe('Dynamic IO Dev Errors', () => {
          "body <anonymous> (1:13)",
          "html <anonymous> (1:13)",
          "Root [Server] <anonymous> (1:22)",
-         "JSON.parse <anonymous> (0:0)",
-         "JSON.parse <anonymous> (0:0)",
          "LogSafely <anonymous> (0:0)",
        ],
      }

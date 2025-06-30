@@ -35,9 +35,9 @@ checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
 name = "afl"
-version = "0.15.18"
+version = "0.15.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eda81c043843d2eeb489c3f30774953326fa043b7a6470d4c2ad7c3cdfd9847b"
+checksum = "a2e868a49dcc54f7edcec970721ba68c4b5cc5f1e478393ae2dd2d475efd752e"
 dependencies = [
  "home",
  "libc",
@@ -9163,9 +9163,11 @@ version = "0.1.0"
 dependencies = [
  "bytes-str",
  "codspeed-criterion-compat",
+ "indexmap 2.9.0",
  "napi",
  "new_debug_unreachable",
  "rustc-hash 2.1.1",
+ "scoped-tls",
  "serde",
  "shrink-to-fit",
  "triomphe 0.1.12",
@@ -9257,6 +9259,7 @@ dependencies = [
  "rstest",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_bytes",
  "serde_json",
  "serde_path_to_error",
  "smallvec",
@@ -11532,9 +11535,9 @@ dependencies = [
 
 [[package]]
 name = "xdg"
-version = "2.5.2"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "213b7324336b53d2414b2db8537e56544d981803139155afa84f76eeebb7a546"
+checksum = "2fb433233f2df9344722454bc7e96465c9d03bff9d77c248f9e7523fe79585b5"
 
 [[package]]
 name = "xtask"

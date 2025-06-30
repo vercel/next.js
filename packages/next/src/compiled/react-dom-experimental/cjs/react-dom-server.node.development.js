@@ -4451,6 +4451,27 @@
         error += "\n    at " + structuredStackTrace[i].toString();
       return error;
     }
+    function formatOwnerStack(error) {
+      var prevPrepareStackTrace = Error.prepareStackTrace;
+      Error.prepareStackTrace = prepareStackTrace;
+      error = error.stack;
+      Error.prepareStackTrace = prevPrepareStackTrace;
+      error.startsWith("Error: react-stack-top-frame\n") &&
+        (error = error.slice(29));
+      prevPrepareStackTrace = error.indexOf("\n");
+      -1 !== prevPrepareStackTrace &&
+        (error = error.slice(prevPrepareStackTrace + 1));
+      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
+      -1 !== prevPrepareStackTrace &&
+        (prevPrepareStackTrace = error.lastIndexOf(
+          "\n",
+          prevPrepareStackTrace
+        ));
+      if (-1 !== prevPrepareStackTrace)
+        error = error.slice(0, prevPrepareStackTrace);
+      else return "";
+      return error;
+    }
     function describeBuiltInComponentFrame(name) {
       if (void 0 === prefix)
         try {
@@ -4623,27 +4644,6 @@
       "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
       return sampleLines;
     }
-    function formatOwnerStack(error) {
-      var prevPrepareStackTrace = Error.prepareStackTrace;
-      Error.prepareStackTrace = prepareStackTrace;
-      error = error.stack;
-      Error.prepareStackTrace = prevPrepareStackTrace;
-      error.startsWith("Error: react-stack-top-frame\n") &&
-        (error = error.slice(29));
-      prevPrepareStackTrace = error.indexOf("\n");
-      -1 !== prevPrepareStackTrace &&
-        (error = error.slice(prevPrepareStackTrace + 1));
-      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
-      -1 !== prevPrepareStackTrace &&
-        (prevPrepareStackTrace = error.lastIndexOf(
-          "\n",
-          prevPrepareStackTrace
-        ));
-      if (-1 !== prevPrepareStackTrace)
-        error = error.slice(0, prevPrepareStackTrace);
-      else return "";
-      return error;
-    }
     function describeComponentStackByType(type) {
       if ("string" === typeof type) return describeBuiltInComponentFrame(type);
       if ("function" === typeof type)
@@ -4667,13 +4667,26 @@
             }
             return describeComponentStackByType(type);
         }
-        if ("string" === typeof type.name)
-          return (
-            (payload = type.env),
-            describeBuiltInComponentFrame(
-              type.name + (payload ? " [" + payload + "]" : "")
-            )
-          );
+        if ("string" === typeof type.name) {
+          a: {
+            payload = type.name;
+            lazyComponent = type.env;
+            type = type.debugLocation;
+            if (null != type) {
+              type = formatOwnerStack(type);
+              var idx = type.lastIndexOf("\n");
+              type = -1 === idx ? type : type.slice(idx + 1);
+              if (-1 !== type.indexOf(payload)) {
+                payload = "\n" + type;
+                break a;
+              }
+            }
+            payload = describeBuiltInComponentFrame(
+              payload + (lazyComponent ? " [" + lazyComponent + "]" : "")
+            );
+          }
+          return payload;
+        }
       }
       switch (type) {
         case REACT_SUSPENSE_LIST_TYPE:
@@ -5209,6 +5222,25 @@
           "\nError generating stack: " + x.message + "\n" + x.stack;
       }
       return JSCompiler_inline_result$jscomp$0;
+    }
+    function pushHaltedAwaitOnComponentStack(task, debugInfo) {
+      if (null != debugInfo)
+        for (var i = debugInfo.length - 1; 0 <= i; i--) {
+          var info = debugInfo[i];
+          if ("string" === typeof info.name) break;
+          if ("number" === typeof info.time) break;
+          if (null != info.awaited) {
+            var bestStack = null == info.debugStack ? info.awaited : info;
+            void 0 !== bestStack.debugStack &&
+              ((task.componentStack = {
+                parent: task.componentStack,
+                type: info,
+                owner: bestStack.owner,
+                stack: bestStack.debugStack
+              }),
+              (task.debugTask = bestStack.debugTask));
+          }
+        }
     }
     function pushServerComponentStack(task, debugInfo) {
       if (null != debugInfo)
@@ -7733,7 +7765,11 @@
         if (6 === segment.status) return;
         segment.status = ABORTED;
       }
-      var errorInfo = getThrownInfo(task.componentStack);
+      var errorInfo = getThrownInfo(task.componentStack),
+        node = task.node;
+      null !== node &&
+        "object" === typeof node &&
+        pushHaltedAwaitOnComponentStack(task, node._debugInfo);
       if (null === boundary) {
         if (13 !== request.status && request.status !== CLOSED) {
           boundary = task.replay;
@@ -7743,22 +7779,42 @@
             error.$$typeof === REACT_POSTPONE_TYPE
               ? ((boundary = request.trackedPostpones),
                 null !== boundary && null !== segment
-                  ? (logPostpone(request, error.message, errorInfo, null),
+                  ? (logPostpone(
+                      request,
+                      error.message,
+                      errorInfo,
+                      task.debugTask
+                    ),
                     trackPostpone(request, boundary, task, segment),
                     finishedTask(request, null, task.row, segment))
-                  : ((task = Error(
+                  : ((segment = Error(
                       "The render was aborted with postpone when the shell is incomplete. Reason: " +
                         error.message
                     )),
-                    logRecoverableError(request, task, errorInfo, null),
-                    fatalError(request, task, errorInfo, null)))
+                    logRecoverableError(
+                      request,
+                      segment,
+                      errorInfo,
+                      task.debugTask
+                    ),
+                    fatalError(request, segment, errorInfo, task.debugTask)))
               : null !== request.trackedPostpones && null !== segment
                 ? ((boundary = request.trackedPostpones),
-                  logRecoverableError(request, error, errorInfo, null),
+                  logRecoverableError(
+                    request,
+                    error,
+                    errorInfo,
+                    task.debugTask
+                  ),
                   trackPostpone(request, boundary, task, segment),
                   finishedTask(request, null, task.row, segment))
-                : (logRecoverableError(request, error, errorInfo, null),
-                  fatalError(request, error, errorInfo, null));
+                : (logRecoverableError(
+                    request,
+                    error,
+                    errorInfo,
+                    task.debugTask
+                  ),
+                  fatalError(request, error, errorInfo, task.debugTask));
             return;
           }
           boundary.pendingTasks--;
@@ -7767,7 +7823,7 @@
             ("object" === typeof error &&
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
-              ? (logPostpone(request, error.message, errorInfo, null),
+              ? (logPostpone(request, error.message, errorInfo, task.debugTask),
                 (segment = "POSTPONE"))
               : (segment = logRecoverableError(
                   request,
@@ -7789,16 +7845,21 @@
           0 === request.pendingRootTasks && completeShell(request);
         }
       } else {
-        var _trackedPostpones2 = request.trackedPostpones;
+        node = request.trackedPostpones;
         if (boundary.status !== CLIENT_RENDERED) {
-          if (null !== _trackedPostpones2 && null !== segment)
+          if (null !== node && null !== segment)
             return (
               "object" === typeof error &&
               null !== error &&
               error.$$typeof === REACT_POSTPONE_TYPE
-                ? logPostpone(request, error.message, errorInfo, null)
-                : logRecoverableError(request, error, errorInfo, null),
-              trackPostpone(request, _trackedPostpones2, task, segment),
+                ? logPostpone(request, error.message, errorInfo, task.debugTask)
+                : logRecoverableError(
+                    request,
+                    error,
+                    errorInfo,
+                    task.debugTask
+                  ),
+              trackPostpone(request, node, task, segment),
               boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
                 return abortTask(fallbackTask, request, error);
               }),
@@ -7811,7 +7872,7 @@
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
           ) {
-            logPostpone(request, error.message, errorInfo, null);
+            logPostpone(request, error.message, errorInfo, task.debugTask);
             if (null !== request.trackedPostpones && null !== segment) {
               trackPostpone(request, request.trackedPostpones, task, segment);
               finishedTask(request, task.blockedBoundary, task.row, segment);
@@ -7822,7 +7883,13 @@
               return;
             }
             segment = "POSTPONE";
-          } else segment = logRecoverableError(request, error, errorInfo, null);
+          } else
+            segment = logRecoverableError(
+              request,
+              error,
+              errorInfo,
+              task.debugTask
+            );
           boundary.status = CLIENT_RENDERED;
           encodeErrorForBoundary(boundary, segment, error, errorInfo, !0);
           untrackBoundary(request, boundary);
@@ -9296,11 +9363,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-fa3feba6-20250623" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-4db4b21c-20250626" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-fa3feba6-20250623\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-4db4b21c-20250626\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -11425,5 +11492,5 @@
         }
       };
     };
-    exports.version = "19.2.0-experimental-fa3feba6-20250623";
+    exports.version = "19.2.0-experimental-4db4b21c-20250626";
   })();

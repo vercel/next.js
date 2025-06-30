@@ -2044,19 +2044,19 @@ function getTargetInstForChangeEvent(domEventName, targetInst) {
 }
 var isInputEventSupported = !1;
 if (canUseDOM) {
-  var JSCompiler_inline_result$jscomp$294;
+  var JSCompiler_inline_result$jscomp$295;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_434 = "oninput" in document;
-    if (!isSupported$jscomp$inline_434) {
-      var element$jscomp$inline_435 = document.createElement("div");
-      element$jscomp$inline_435.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_434 =
-        "function" === typeof element$jscomp$inline_435.oninput;
+    var isSupported$jscomp$inline_440 = "oninput" in document;
+    if (!isSupported$jscomp$inline_440) {
+      var element$jscomp$inline_441 = document.createElement("div");
+      element$jscomp$inline_441.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_440 =
+        "function" === typeof element$jscomp$inline_441.oninput;
     }
-    JSCompiler_inline_result$jscomp$294 = isSupported$jscomp$inline_434;
-  } else JSCompiler_inline_result$jscomp$294 = !1;
+    JSCompiler_inline_result$jscomp$295 = isSupported$jscomp$inline_440;
+  } else JSCompiler_inline_result$jscomp$295 = !1;
   isInputEventSupported =
-    JSCompiler_inline_result$jscomp$294 &&
+    JSCompiler_inline_result$jscomp$295 &&
     (!document.documentMode || 9 < document.documentMode);
 }
 function stopWatchingForValueChange() {
@@ -12082,20 +12082,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1591 = 0;
-  i$jscomp$inline_1591 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1591++
+  var i$jscomp$inline_1597 = 0;
+  i$jscomp$inline_1597 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1597++
 ) {
-  var eventName$jscomp$inline_1592 =
-      simpleEventPluginEvents[i$jscomp$inline_1591],
-    domEventName$jscomp$inline_1593 =
-      eventName$jscomp$inline_1592.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1594 =
-      eventName$jscomp$inline_1592[0].toUpperCase() +
-      eventName$jscomp$inline_1592.slice(1);
+  var eventName$jscomp$inline_1598 =
+      simpleEventPluginEvents[i$jscomp$inline_1597],
+    domEventName$jscomp$inline_1599 =
+      eventName$jscomp$inline_1598.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1600 =
+      eventName$jscomp$inline_1598[0].toUpperCase() +
+      eventName$jscomp$inline_1598.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1593,
-    "on" + capitalizedEvent$jscomp$inline_1594
+    domEventName$jscomp$inline_1599,
+    "on" + capitalizedEvent$jscomp$inline_1600
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15711,16 +15711,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1851 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1857 = React.version;
 if (
-  "19.2.0-canary-fa3feba6-20250623" !==
-  isomorphicReactPackageVersion$jscomp$inline_1851
+  "19.2.0-canary-4db4b21c-20250626" !==
+  isomorphicReactPackageVersion$jscomp$inline_1857
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1851,
-      "19.2.0-canary-fa3feba6-20250623"
+      isomorphicReactPackageVersion$jscomp$inline_1857,
+      "19.2.0-canary-4db4b21c-20250626"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15740,24 +15740,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2344 = {
+var internals$jscomp$inline_2350 = {
   bundleType: 0,
-  version: "19.2.0-canary-fa3feba6-20250623",
+  version: "19.2.0-canary-4db4b21c-20250626",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-fa3feba6-20250623"
+  reconcilerVersion: "19.2.0-canary-4db4b21c-20250626"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2345 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2351 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2345.isDisabled &&
-    hook$jscomp$inline_2345.supportsFiber
+    !hook$jscomp$inline_2351.isDisabled &&
+    hook$jscomp$inline_2351.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2345.inject(
-        internals$jscomp$inline_2344
+      (rendererID = hook$jscomp$inline_2351.inject(
+        internals$jscomp$inline_2350
       )),
-        (injectedHook = hook$jscomp$inline_2345);
+        (injectedHook = hook$jscomp$inline_2351);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -15843,4 +15843,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.2.0-canary-fa3feba6-20250623";
+exports.version = "19.2.0-canary-4db4b21c-20250626";

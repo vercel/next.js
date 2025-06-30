@@ -440,14 +440,13 @@ impl Issue for CssGlobalImportIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let parent_path = &self.parent_module.ident().path();
-        let module_path = &self.module.ident().path();
-        let relative_import_location = parent_path.parent().await?;
+        let parent_path = self.parent_module.ident().path().await?.clone_value();
+        let module_path = self.module.ident().path().await?.clone_value();
+        let relative_import_location = parent_path.parent();
 
-        let import_path = match relative_import_location.get_relative_path_to(&*module_path.await?)
-        {
+        let import_path = match relative_import_location.get_relative_path_to(&module_path) {
             Some(path) => path,
-            None => module_path.await?.path.clone(),
+            None => module_path.path.clone(),
         };
         let cleaned_import_path =
             if import_path.ends_with(".scss.css") || import_path.ends_with(".sass.css") {
@@ -458,7 +457,7 @@ impl Issue for CssGlobalImportIssue {
 
         Ok(Vc::cell(Some(
             StyledString::Stack(vec![
-                StyledString::Text(format!("Location: {}", parent_path.await?.path).into()),
+                StyledString::Text(format!("Location: {}", parent_path.path).into()),
                 StyledString::Text(format!("Import path: {cleaned_import_path}",).into()),
             ])
             .resolved_cell(),

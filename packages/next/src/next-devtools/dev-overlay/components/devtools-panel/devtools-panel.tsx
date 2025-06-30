@@ -277,11 +277,7 @@ export const DEVTOOLS_PANEL_STYLES = css`
     }
 
     @media (min-width: 992px) {
-      max-width: 960px;
-    }
-
-    @media (min-width: 1200px) {
-      max-width: 1140px;
+      max-width: 920px;
     }
   }
 
@@ -311,8 +307,11 @@ export const DEVTOOLS_PANEL_STYLES = css`
     box-shadow: var(--shadow-lg);
     position: relative;
     width: 100%;
-    max-height: 75vh;
-    min-height: 450px;
+    height: 350px;
+
+    @media (min-width: 768px) {
+      height: 450px;
+    }
   }
 
   [data-nextjs-devtools-panel-header] {
@@ -384,7 +383,7 @@ export const DEVTOOLS_PANEL_STYLES = css`
     align-items: center;
     justify-content: center;
     padding: 6px;
-    color: var(--color-gray-600);
+    color: var(--color-gray-1000);
     border-radius: 4px;
     transition: all 0.2s ease;
 

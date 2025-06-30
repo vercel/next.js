@@ -40,7 +40,7 @@ impl EsmModuleItem {
         let mut visitors = Vec::new();
 
         visitors.push(
-            create_visitor!(self.path, visit_mut_module_item(module_item: &mut ModuleItem) {
+            create_visitor!(self.path, visit_mut_module_item, |module_item: &mut ModuleItem| {
                 let item = replace(module_item, ModuleItem::Stmt(quote!(";" as Stmt)));
                 if let ModuleItem::ModuleDecl(module_decl) = item {
                     match module_decl {

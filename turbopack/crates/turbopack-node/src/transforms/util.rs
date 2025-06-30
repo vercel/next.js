@@ -35,13 +35,16 @@ pub async fn emitted_assets_to_virtual_sources(
         .collect::<BTreeMap<_, _>>()
         .into_iter()
         .map(|(file, (content, _source_map))| {
-            // TODO handle SourceMap
-            VirtualSource::new(
-                ServerFileSystem::new().root().join(file),
-                AssetContent::File(FileContent::Content(File::from(content)).resolved_cell())
-                    .cell(),
-            )
-            .to_resolved()
+            async move {
+                // TODO handle SourceMap
+                VirtualSource::new(
+                    ServerFileSystem::new().root().await?.join(&file)?,
+                    AssetContent::File(FileContent::Content(File::from(content)).resolved_cell())
+                        .cell(),
+                )
+                .to_resolved()
+                .await
+            }
         })
         .try_join()
         .await

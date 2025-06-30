@@ -441,9 +441,12 @@ pub async fn project_new(
 
     let tasks_ref = turbo_tasks.clone();
     turbo_tasks.spawn_once_task(async move {
-        benchmark_file_io(tasks_ref, container.project().node_root())
-            .await
-            .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
+        benchmark_file_io(
+            tasks_ref,
+            container.project().node_root().await?.clone_value(),
+        )
+        .await
+        .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
     });
     Ok(External::new_with_size_hint(
         ProjectInstance {
@@ -494,7 +497,7 @@ impl CompilationEvent for SlowFilesystemEvent {
 #[tracing::instrument(skip(turbo_tasks))]
 async fn benchmark_file_io(
     turbo_tasks: NextTurboTasks,
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
 ) -> Result<Vc<Completion>> {
     // try to get the real file path on disk so that we can use it with tokio
     let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
@@ -1403,12 +1406,13 @@ pub async fn get_source_map_rope(
         return Ok(OptionStringifiedSourceMap::none());
     };
 
-    let server_path = container.project().node_root().join(chunk_base.into());
+    let server_path = container.project().node_root().await?.join(chunk_base)?;
 
     let client_path = container
         .project()
         .client_relative_path()
-        .join(chunk_base.into());
+        .await?
+        .join(chunk_base)?;
 
     let mut map = container.get_source_map(server_path, module.clone());
 
@@ -1476,8 +1480,12 @@ pub async fn project_trace_source_operation(
         }
     };
 
-    let project_root_uri =
-        uri_from_file(container.project().project_root_path(), None).await? + "/";
+    let project_root_uri = uri_from_file(
+        container.project().project_root_path().await?.clone_value(),
+        None,
+    )
+    .await?
+        + "/";
     let (file, original_file, is_internal) =
         if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
             // Client code uses file://
@@ -1563,9 +1571,11 @@ pub async fn project_get_source_for_asset(
                 .container
                 .project()
                 .project_path()
+                .await?
                 .fs()
                 .root()
-                .join(file_path.clone())
+                .await?
+                .join(&file_path)?
                 .read()
                 .await?;
 

@@ -26,6 +26,7 @@ import type {
   UseCachePageComponentProps,
 } from '../use-cache/use-cache-wrapper'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import { getConventionPathByType } from './segment-explorer-path'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -605,7 +606,11 @@ async function createComponentTreeInternal({
     const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
     if (loadingFilePath) {
       loadingElement = (
-        <SegmentViewNode type="loading" pagePath={loadingFilePath}>
+        <SegmentViewNode
+          key={cacheNodeKey + '-loading'}
+          type="loading"
+          pagePath={loadingFilePath}
+        >
           {loadingElement}
         </SegmentViewNode>
       )
@@ -746,10 +751,12 @@ async function createComponentTreeInternal({
     const pageFilePath =
       getConventionPathByType(tree, dir, 'page') ??
       getConventionPathByType(tree, dir, 'defaultPage')
+    const segmentType = isDefaultSegment ? 'default' : 'page'
     const wrappedPageElement =
       isSegmentViewEnabled && pageFilePath ? (
         <SegmentViewNode
-          type={isDefaultSegment ? 'default' : 'page'}
+          key={cacheNodeKey + '-' + segmentType}
+          type={segmentType}
           pagePath={pageFilePath}
         >
           {pageElement}
@@ -936,7 +943,7 @@ async function createComponentTreeInternal({
     const layoutFilePath = getConventionPathByType(tree, dir, 'layout')
     const wrappedSegmentNode =
       isSegmentViewEnabled && layoutFilePath ? (
-        <SegmentViewNode type="layout" pagePath={layoutFilePath}>
+        <SegmentViewNode key="layout" type="layout" pagePath={layoutFilePath}>
           {segmentNode}
         </SegmentViewNode>
       ) : (
@@ -1091,6 +1098,7 @@ async function createBoundaryConventionElement({
   const wrappedElement =
     isSegmentViewEnabled && element ? (
       <SegmentViewNode
+        key={cacheNodeKey + '-' + conventionName}
         type={conventionName}
         pagePath={getConventionPathByType(tree, dir, conventionName)!}
       >
@@ -1101,54 +1109,4 @@ async function createBoundaryConventionElement({
     )
 
   return wrappedElement
-}
-
-export function normalizeConventionFilePath(
-  projectDir: string,
-  conventionPath: string | undefined
-) {
-  const cwd = process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd()
-  const nextInternalPrefixRegex =
-    /^(.*[\\/])?next[\\/]dist[\\/]client[\\/]components[\\/]builtin[\\/]/
-
-  let relativePath = (conventionPath || '')
-    // remove turbopack [project] prefix
-    .replace(/^\[project\][\\/]/, '')
-    // remove the project root from the path
-    .replace(projectDir, '')
-    // remove cwd prefix
-    .replace(cwd, '')
-    // remove /(src/)?app/ dir prefix
-    .replace(/^([\\/])*(src[\\/])?app[\\/]/, '')
-
-  // If it's internal file only keep the filename, strip nextjs internal prefix
-  if (nextInternalPrefixRegex.test(relativePath)) {
-    relativePath = relativePath.replace(nextInternalPrefixRegex, '')
-  }
-
-  return relativePath
-}
-
-function getConventionPathByType(
-  tree: LoaderTree,
-  dir: string,
-  conventionType:
-    | 'layout'
-    | 'template'
-    | 'page'
-    | 'not-found'
-    | 'error'
-    | 'loading'
-    | 'forbidden'
-    | 'unauthorized'
-    | 'defaultPage'
-) {
-  const modules = tree[2]
-  const conventionPath = modules[conventionType]
-    ? modules[conventionType][1]
-    : undefined
-  if (conventionPath) {
-    return normalizeConventionFilePath(dir, conventionPath)
-  }
-  return undefined
 }

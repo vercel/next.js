@@ -2126,19 +2126,19 @@ function getTargetInstForChangeEvent(domEventName, targetInst) {
 }
 var isInputEventSupported = !1;
 if (canUseDOM) {
-  var JSCompiler_inline_result$jscomp$312;
+  var JSCompiler_inline_result$jscomp$313;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_453 = "oninput" in document;
-    if (!isSupported$jscomp$inline_453) {
-      var element$jscomp$inline_454 = document.createElement("div");
-      element$jscomp$inline_454.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_453 =
-        "function" === typeof element$jscomp$inline_454.oninput;
+    var isSupported$jscomp$inline_459 = "oninput" in document;
+    if (!isSupported$jscomp$inline_459) {
+      var element$jscomp$inline_460 = document.createElement("div");
+      element$jscomp$inline_460.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_459 =
+        "function" === typeof element$jscomp$inline_460.oninput;
     }
-    JSCompiler_inline_result$jscomp$312 = isSupported$jscomp$inline_453;
-  } else JSCompiler_inline_result$jscomp$312 = !1;
+    JSCompiler_inline_result$jscomp$313 = isSupported$jscomp$inline_459;
+  } else JSCompiler_inline_result$jscomp$313 = !1;
   isInputEventSupported =
-    JSCompiler_inline_result$jscomp$312 &&
+    JSCompiler_inline_result$jscomp$313 &&
     (!document.documentMode || 9 < document.documentMode);
 }
 function stopWatchingForValueChange() {
@@ -12764,20 +12764,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1693 = 0;
-  i$jscomp$inline_1693 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1693++
+  var i$jscomp$inline_1699 = 0;
+  i$jscomp$inline_1699 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1699++
 ) {
-  var eventName$jscomp$inline_1694 =
-      simpleEventPluginEvents[i$jscomp$inline_1693],
-    domEventName$jscomp$inline_1695 =
-      eventName$jscomp$inline_1694.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1696 =
-      eventName$jscomp$inline_1694[0].toUpperCase() +
-      eventName$jscomp$inline_1694.slice(1);
+  var eventName$jscomp$inline_1700 =
+      simpleEventPluginEvents[i$jscomp$inline_1699],
+    domEventName$jscomp$inline_1701 =
+      eventName$jscomp$inline_1700.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1702 =
+      eventName$jscomp$inline_1700[0].toUpperCase() +
+      eventName$jscomp$inline_1700.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1695,
-    "on" + capitalizedEvent$jscomp$inline_1696
+    domEventName$jscomp$inline_1701,
+    "on" + capitalizedEvent$jscomp$inline_1702
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -16412,16 +16412,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1955 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1961 = React.version;
 if (
-  "19.2.0-canary-fa3feba6-20250623" !==
-  isomorphicReactPackageVersion$jscomp$inline_1955
+  "19.2.0-canary-4db4b21c-20250626" !==
+  isomorphicReactPackageVersion$jscomp$inline_1961
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1955,
-      "19.2.0-canary-fa3feba6-20250623"
+      isomorphicReactPackageVersion$jscomp$inline_1961,
+      "19.2.0-canary-4db4b21c-20250626"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -16441,12 +16441,12 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_1962 = {
+var internals$jscomp$inline_1968 = {
   bundleType: 0,
-  version: "19.2.0-canary-fa3feba6-20250623",
+  version: "19.2.0-canary-4db4b21c-20250626",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-fa3feba6-20250623",
+  reconcilerVersion: "19.2.0-canary-4db4b21c-20250626",
   getLaneLabelMap: function () {
     for (
       var map = new Map(), lane = 1, index$293 = 0;
@@ -16464,16 +16464,16 @@ var internals$jscomp$inline_1962 = {
   }
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2416 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2422 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2416.isDisabled &&
-    hook$jscomp$inline_2416.supportsFiber
+    !hook$jscomp$inline_2422.isDisabled &&
+    hook$jscomp$inline_2422.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2416.inject(
-        internals$jscomp$inline_1962
+      (rendererID = hook$jscomp$inline_2422.inject(
+        internals$jscomp$inline_1968
       )),
-        (injectedHook = hook$jscomp$inline_2416);
+        (injectedHook = hook$jscomp$inline_2422);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -16719,7 +16719,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-canary-fa3feba6-20250623";
+exports.version = "19.2.0-canary-4db4b21c-20250626";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
