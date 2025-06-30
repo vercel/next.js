@@ -111,14 +111,6 @@ export function SegmentBoundaryTrigger({
 
   return (
     <div className="segment-boundary-trigger">
-      {/* add the reset button here as well, use the same icon */}
-      <button
-        className="segment-boundary-trigger-button segment-boundary-trigger-button--reset"
-        onClick={() => handleSelect(resetOption.value)}
-        type="button"
-      >
-        <ResetIcon />
-      </button>
       <button
         ref={triggerRef}
         className="segment-boundary-trigger-button"
