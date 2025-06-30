@@ -130,7 +130,7 @@ jobs:
             };
 
             if (immediatelyClose === 'true') {
-              inputs.immediately-close = 'true';
+              inputs['immediately-close'] = 'true';
             }
 
             await github.request(
