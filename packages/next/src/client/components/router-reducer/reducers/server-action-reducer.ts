@@ -13,10 +13,10 @@ import {
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
 
-// Import explicitly from .browser
+// TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
 import {
-  createFromFetch,
+  createFromFetch as createFromFetchBrowser,
   createTemporaryReferenceSet,
   encodeReply,
 } from 'react-server-dom-webpack/client'
@@ -55,6 +55,9 @@ import {
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
 import { revalidateEntireCache } from '../../segment-cache'
+
+const createFromFetch =
+  createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined

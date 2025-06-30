@@ -86,6 +86,36 @@ declare module 'react-server-dom-webpack/client' {
   ): Promise<string | FormData>
 }
 
+declare module 'react-server-dom-webpack/client.browser' {
+  import {
+    createTemporaryReferenceSet,
+    encodeReply,
+    type CallServerCallback,
+    type FindSourceMapURLCallback,
+    type TemporaryReferenceSet,
+  } from 'react-server-dom-webpack/client.edge'
+
+  export { createTemporaryReferenceSet, encodeReply }
+
+  export interface Options {
+    callServer?: CallServerCallback
+    environmentName?: string
+    findSourceMapURL?: FindSourceMapURLCallback
+    replayConsoleLogs?: boolean
+    temporaryReferences?: TemporaryReferenceSet
+  }
+
+  export function createFromFetch<T>(
+    promiseForResponse: Promise<Response>,
+    options?: Options
+  ): Promise<T>
+
+  export function createFromReadableStream<T>(
+    stream: ReadableStream,
+    options?: Options
+  ): Promise<T>
+}
+
 declare module 'react-server-dom-webpack/server.edge' {
   export type ImportManifestEntry = {
     id: string | number
@@ -246,7 +276,7 @@ declare module 'react-server-dom-webpack/static' {
 declare module 'react-server-dom-webpack/client.edge' {
   export interface Options {
     callServer?: CallServerCallback
-    serverConsumerManifest?: ServerConsumerManifest
+    serverConsumerManifest: ServerConsumerManifest
     nonce?: string
     encodeFormAction?: EncodeFormActionCallback
     temporaryReferences?: TemporaryReferenceSet
