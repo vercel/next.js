@@ -101,7 +101,7 @@ impl ImportMetaRef {
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let visitor = create_visitor!(self.ast_path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {
             *expr = Expr::Ident(meta_ident());
         });
 

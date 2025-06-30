@@ -145,8 +145,8 @@ impl WorkerAssetReferenceCodeGen {
             .chunk_item_id_from_ident(loader.ident())
             .await?;
 
-        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-            let message = if let Expr::New(NewExpr { args, ..}) = expr {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+            let message = if let Expr::New(NewExpr { args, .. }) = expr {
                 if let Some(args) = args {
                     match args.first_mut() {
                         Some(ExprOrSpread { spread: None, expr }) => {
@@ -158,21 +158,21 @@ impl WorkerAssetReferenceCodeGen {
                             );
 
                             if let Some(opts) = args.get_mut(1)
-                                && opts.spread.is_none(){
-                                    *opts.expr = *quote_expr!(
-                                        "{...$opts, type: undefined}",
-                                        opts: Expr = (*opts.expr).take()
-                                    );
-                                }
+                                && opts.spread.is_none()
+                            {
+                                *opts.expr = *quote_expr!(
+                                    "{...$opts, type: undefined}",
+                                    opts: Expr = (*opts.expr).take()
+                                );
+                            }
                             return;
                         }
                         // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
-                        Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
-                            "spread operator is illegal in new Worker() expressions."
-                        }
-                        _ => {
-                            "new Worker() expressions require at least 1 argument"
-                        }
+                        Some(ExprOrSpread {
+                            spread: Some(_),
+                            expr: _,
+                        }) => "spread operator is illegal in new Worker() expressions.",
+                        _ => "new Worker() expressions require at least 1 argument",
                     }
                 } else {
                     "new Worker() expressions require at least 1 argument"

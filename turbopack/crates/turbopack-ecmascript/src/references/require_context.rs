@@ -325,16 +325,20 @@ impl RequireContextAssetReferenceCodeGen {
 
         let mut visitors = Vec::new();
 
-        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-            if let Expr::Call(_) = expr {
-                *expr = quote!(
-                    "$turbopack_module_context($turbopack_require($id))" as Expr,
-                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
-                    turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                    id: Expr = module_id_to_lit(&module_id)
-                );
+        visitors.push(create_visitor!(
+            self.path,
+            visit_mut_expr,
+            |expr: &mut Expr| {
+                if let Expr::Call(_) = expr {
+                    *expr = quote!(
+                        "$turbopack_module_context($turbopack_require($id))" as Expr,
+                        turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
+                        turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
+                        id: Expr = module_id_to_lit(&module_id)
+                    );
+                }
             }
-        }));
+        ));
 
         Ok(CodeGeneration::visitors(visitors))
     }
