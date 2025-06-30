@@ -6,6 +6,9 @@ import { useLayoutEffect } from 'react'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
 import { notFound } from '../../../client/components/not-found'
 
+export const SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE =
+  'NEXT_DEVTOOLS_SIMULATED_ERROR'
+
 export type SegmentNodeState = {
   type: string
   pagePath: string
@@ -48,7 +51,7 @@ function NotFoundSegmentNode(): React.ReactNode {
 }
 
 function ErrorSegmentNode(): React.ReactNode {
-  throw new Error('NEXT_DEVTOOLS_SIMULATED_ERROR')
+  throw new Error(SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE)
 }
 
 const forever = new Promise(() => {})
