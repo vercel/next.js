@@ -1,4 +1,5 @@
-import { parseValueExpression } from '../parser/value-parser.js'
-console.log(parseValueExpression)
+import { freeze } from '../util/object-utils.js'
+import { parseExpression } from '../parser/expression-parser.js'
+console.log(freeze, parseExpression)
 
 export const sql = 123
