@@ -10,7 +10,7 @@ use turbo_tasks::FxIndexSet;
 struct SerData<'l>(&'l [u8], FxIndexSet<RcStr>);
 
 #[derive(Deserialize)]
-struct DeserData<'l>(&'l [u8], Vec<RcStr>);
+struct DeserData<'l>(&'l [u8], FxIndexSet<RcStr>);
 
 pub fn to_vec<T>(config: &pot::Config, value: &T) -> pot::Result<Vec<u8>>
 where
@@ -36,7 +36,7 @@ pub fn from_slice<'de, T>(config: &pot::Config, slice: &'de [u8]) -> pot::Result
 where
     T: Deserialize<'de>,
 {
-    let data: DeserData = config.deserialize(slice)?;
+    let data: DeserData<'de> = config.deserialize(slice)?;
 
     turbo_rcstr::set_de_map(&data.1, || config.deserialize(data.0))
 }
