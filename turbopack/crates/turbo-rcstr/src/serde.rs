@@ -16,7 +16,7 @@ scoped_thread_local!(
 
 scoped_thread_local!(
     /// Read-only map interned ids to their strings
-    static DE_MAP: IndexSet<RcStr, BuildHasherDefault<FxHasher>>
+    static DE_MAP: Vec<RcStr>
 );
 
 pub fn set_ser_map<F, R>(f: F) -> (R, IndexSet<RcStr, BuildHasherDefault<FxHasher>>)
@@ -30,7 +30,7 @@ where
     (r, map.into_inner())
 }
 
-pub fn set_de_map<F, R>(map: &IndexSet<RcStr, BuildHasherDefault<FxHasher>>, f: F) -> R
+pub fn set_de_map<F, R>(map: &Vec<RcStr>, f: F) -> R
 where
     F: FnOnce() -> R,
 {
@@ -90,7 +90,7 @@ impl<'de> Deserialize<'de> for RcStr {
             Repr::String(s) => Ok(RcStr::from(s)),
             Repr::Id(id) => DE_MAP.with(|map| {
                 let s = map
-                    .get_index(id as usize)
+                    .get(id as usize)
                     .ok_or_else(|| D::Error::custom(format!("failed to find id: {id}")))?;
                 Ok(s.clone())
             }),
