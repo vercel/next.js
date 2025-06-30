@@ -580,8 +580,6 @@ impl EvaluateContext for WebpackLoaderContext {
                     options,
                 );
 
-                let request_str = request.to_string().await?;
-                let lookup_path_str = lookup_path.value_to_string().await?;
                 if let Some(source) = *resolved.first_source().await? {
                     if let Some(path) = self
                         .cwd
@@ -591,12 +589,16 @@ impl EvaluateContext for WebpackLoaderContext {
                     } else {
                         bail!(
                             "Resolving {} in {} ends up on a different filesystem",
-                            request_str,
-                            lookup_path_str
+                            request.to_string().await?,
+                            lookup_path.value_to_string().await?
                         );
                     }
                 } else {
-                    bail!("Unable to resolve {} in {}", request_str, lookup_path_str);
+                    bail!(
+                        "Unable to resolve {} in {}",
+                        request.to_string().await?,
+                        lookup_path.value_to_string().await?
+                    );
                 }
             }
         }
