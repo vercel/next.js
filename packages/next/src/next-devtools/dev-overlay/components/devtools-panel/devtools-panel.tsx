@@ -15,6 +15,7 @@ import {
   STORAGE_KEY_SCALE,
   STORAGE_KEY_POSITION,
   ACTION_ERROR_OVERLAY_CLOSE,
+  STORAGE_KEY_ACTIVE_TAB,
 } from '../../shared'
 import { css } from '../../utils/css'
 import { OverlayBackdrop } from '../overlay'
@@ -25,8 +26,6 @@ import { Cross } from '../../icons/cross'
 import { MinimizeIcon } from '../../icons/minimize'
 
 export type DevToolsPanelTabType = 'issues' | 'route' | 'settings'
-
-const STORAGE_KEY_ACTIVE_TAB = 'nextjs-devtools-active-tab'
 
 function useSessionState<T extends string>(
   key: string,
@@ -78,6 +77,9 @@ export function DevToolsPanel({
   if (state.isErrorOverlayOpen !== prevIsErrorOverlayOpen) {
     if (state.isErrorOverlayOpen) {
       setIsFullscreen(true)
+      // We should always show the issues tab initially if we're
+      // programmatically opening the panel to highlight errors.
+      setActiveTab('issues')
     }
     setPrevIsErrorOverlayOpen(state.isErrorOverlayOpen)
   }
