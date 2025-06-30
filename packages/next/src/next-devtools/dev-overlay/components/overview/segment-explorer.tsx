@@ -308,6 +308,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     background-color: transparent;
     color: var(--color-gray-900);
     border: 1px dashed var(--color-gray-500);
+    cursor: default;
   }
   .segment-explorer-file-label--builtin svg {
     margin-left: 4px;
