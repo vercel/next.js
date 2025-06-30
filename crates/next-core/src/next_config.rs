@@ -60,8 +60,8 @@ impl Default for CacheKinds {
     }
 }
 
-#[turbo_tasks::value(serialization = "custom", eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, OperationValue)]
+#[turbo_tasks::value(eq = "manual")]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct NextConfig {
     // TODO all fields should be private and access should be wrapped within a turbo-tasks function
