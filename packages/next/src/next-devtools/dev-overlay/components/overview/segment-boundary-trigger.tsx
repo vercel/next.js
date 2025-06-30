@@ -155,7 +155,7 @@ function DropdownIcon() {
     >
       <path
         d="M2.5 6.5C3.32843 6.5 4 7.17157 4 8C4 8.82843 3.32843 9.5 2.5 9.5C1.67157 9.5 1 8.82843 1 8C1 7.17157 1.67157 6.5 2.5 6.5ZM8 6.5C8.82843 6.5 9.5 7.17157 9.5 8C9.5 8.82843 8.82843 9.5 8 9.5C7.17157 9.5 6.5 8.82843 6.5 8C6.5 7.17157 7.17157 6.5 8 6.5ZM13.5 6.5C14.3284 6.5 15 7.17157 15 8C15 8.82843 14.3284 9.5 13.5 9.5C12.6716 9.5 12 8.82843 12 8C12 7.17157 12.6716 6.5 13.5 6.5Z"
-        fill="#171717"
+        fill="currentColor"
       />
     </svg>
   )
@@ -253,14 +253,14 @@ function ResetIcon() {
     >
       <path
         d="M9.96484 3C13.8463 3.00018 17 6.13012 17 10C17 13.8699 13.8463 16.9998 9.96484 17C7.62404 17 5.54877 15.8617 4.27051 14.1123L3.82812 13.5068L5.03906 12.6221L5.48145 13.2275C6.48815 14.6053 8.12092 15.5 9.96484 15.5C13.0259 15.4998 15.5 13.0335 15.5 10C15.5 6.96654 13.0259 4.50018 9.96484 4.5C7.42905 4.5 5.29544 6.19429 4.63867 8.5H8V10H2.75C2.33579 10 2 9.66421 2 9.25V4H3.5V7.2373C4.57781 4.74376 7.06749 3 9.96484 3Z"
-        fill="#8F8F8F"
+        fill="currentColor"
       />
     </svg>
   )
 }
 
 export const styles = `
-.segment-boundary-trigger {
+  .segment-boundary-trigger {
     position: relative;
     display: inline-flex;
     margin-left: auto;
@@ -274,7 +274,7 @@ export const styles = `
     align-items: center;
     justify-content: center;
     font-weight: 500;
-    color: var(--color-gray-1000);
+    color: var(--color-gray-700);
     border-radius: 6px;
   }
   .segment-boundary-trigger-button--reset {
@@ -287,6 +287,7 @@ export const styles = `
   }
   .segment-boundary-trigger-button:hover {
     background: var(--color-gray-400);
+    color: var(--color-gray-1000);
   }
   .segment-boundary-dropdown-backdrop {
     position: fixed;
