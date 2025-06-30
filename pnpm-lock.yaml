@@ -15,6 +15,7 @@ overrides:
   '@babel/traverse': 7.27.4
   '@types/react': 18.2.71
   '@types/react-dom': 18.2.25
+  mime: 1.6.0
 
 importers:
 
@@ -365,6 +366,9 @@ importers:
       lost:
         specifier: 8.3.1
         version: 8.3.1
+      mime:
+        specifier: 1.6.0
+        version: 1.6.0
       minimatch:
         specifier: 3.0.4
         version: 3.0.4
@@ -5962,7 +5966,7 @@ packages:
       jest-matcher-utils: 27.2.5
       jpeg-js: 0.4.3
       json5: 2.2.0
-      mime: 3.0.0
+      mime: 1.6.0
       minimatch: 3.0.4
       ms: 2.1.3
       open: 8.4.0
@@ -7058,7 +7062,7 @@ packages:
     resolution: {integrity: sha512-5eEkJZ/BLvTE3vXGKkWlyTSUVZuzj23Wj8PoyOq2lt5I3CYbiLBOPb3XmCW6QcuOibIUE6emHXHt9E/F/rCa6w==}
     deprecated: This is a stub types definition. mime provides its own type definitions, so you do not need this installed.
     dependencies:
-      mime: 4.0.7
+      mime: 1.6.0
     dev: true
 
   /@types/minimatch@3.0.5:
@@ -17292,18 +17296,6 @@ packages:
     hasBin: true
     dev: true
 
-  /mime@3.0.0:
-    resolution: {integrity: sha512-jSCU7/VB1loIWBZe14aEYHU/+1UMEHoaO7qxCOVJOw9GgH72VAWppxNcjU+x9a2k3GSIBXNKxXQFqRvvZ7vr3A==}
-    engines: {node: '>=10.0.0'}
-    hasBin: true
-    dev: true
-
-  /mime@4.0.7:
-    resolution: {integrity: sha512-2OfDPL+e03E0LrXaGYOtTFIYhiuzep94NSsuhrNULq+stylcJedcHdzHtz0atMUuGwJfFYs0YL5xeC/Ca2x0eQ==}
-    engines: {node: '>=16'}
-    hasBin: true
-    dev: true
-
   /mimic-fn@1.2.0:
     resolution: {integrity: sha512-jf84uxzwiuiIVKiOLpfYk7N46TSy8ubTonmneY9vrpHNAnp0QBt2BxWV9dO3/j+BoVAb+a5G6YDPW3M5HOdMWQ==}
     engines: {node: '>=4'}
@@ -18996,7 +18988,7 @@ packages:
       extract-zip: 2.0.1
       https-proxy-agent: 5.0.0
       jpeg-js: 0.4.3
-      mime: 3.0.0
+      mime: 1.6.0
       pngjs: 6.0.0
       progress: 2.0.3
       proper-lockfile: 4.1.2

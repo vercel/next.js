@@ -120,7 +120,13 @@ export default function ({
 
           properties.forEach((property) => {
             const key: any = property.get('key')
-            propertiesMap[(key.node as any).name] = property
+            propertiesMap[(key.node as any)?.name as string] =
+              property as unknown as NodePath<
+                | BabelTypes.BooleanLiteral
+                | BabelTypes.ObjectMethod
+                | BabelTypes.ObjectProperty
+                | BabelTypes.SpreadElement
+              >
           })
 
           if (propertiesMap.loadableGenerated) {
