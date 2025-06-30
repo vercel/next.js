@@ -1464,7 +1464,7 @@ fn merge_results_with_affecting_sources(
 
 #[turbo_tasks::function]
 pub async fn resolve_raw(
-    lookup_path: FileSystemPath,
+    lookup_dir: FileSystemPath,
     path: Vc<Pattern>,
     force_in_lookup_dir: bool,
 ) -> Result<Vc<ResolveResult>> {
@@ -1487,7 +1487,7 @@ pub async fn resolve_raw(
 
     let mut results = Vec::new();
 
-    let lookup_path_str = lookup_path.value_to_string().await?;
+    let lookup_dir_str = lookup_dir.value_to_string().await?;
     let pat = path.await?;
     if let Some(pat) = pat
         .filter_could_match("/ROOT/")
@@ -1495,7 +1495,7 @@ pub async fn resolve_raw(
     {
         let path = Pattern::new(pat);
         let matches = read_matches(
-            lookup_path.root().await?.clone_value(),
+            lookup_dir.root().await?.clone_value(),
             rcstr!("/ROOT/"),
             true,
             path,
@@ -1506,7 +1506,7 @@ pub async fn resolve_raw(
             println!(
                 "WARN: resolving abs pattern {} in {} leads to {} results",
                 path_str,
-                lookup_path_str,
+                lookup_dir_str,
                 matches.len()
             );
         } else {
@@ -1519,12 +1519,12 @@ pub async fn resolve_raw(
     }
 
     {
-        let matches = read_matches(lookup_path, rcstr!(""), force_in_lookup_dir, path).await?;
+        let matches = read_matches(lookup_dir, rcstr!(""), force_in_lookup_dir, path).await?;
         if matches.len() > 10000 {
             println!(
                 "WARN: resolving pattern {} in {} leads to {} results",
                 pat,
-                lookup_path_str,
+                lookup_dir_str,
                 matches.len()
             );
         }
