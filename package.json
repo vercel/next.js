@@ -106,8 +106,8 @@
     "@types/jest": "29.5.5",
     "@types/node": "20.2.5",
     "@types/node-fetch": "2.6.1",
-    "@types/react": "18.2.37",
-    "@types/react-dom": "18.2.15",
+    "@types/react": "18.2.71",
+    "@types/react-dom": "18.2.25",
     "@types/relay-runtime": "14.1.13",
     "@types/selenium-webdriver": "4.0.15",
     "@types/sharp": "0.29.3",
@@ -121,7 +121,7 @@
     "alex": "9.1.0",
     "amphtml-validator": "1.0.35",
     "async-sema": "3.0.1",
-    "browserslist": "4.24.4",
+    "browserslist": "4.25.0",
     "buffer": "5.6.0",
     "cheerio": "0.22.0",
     "cookie": "0.4.1",
@@ -245,15 +245,15 @@
   },
   "resolutions": {
     "webpack": "5.90.0",
-    "browserslist": "4.22.2",
+    "browserslist": "4.25.0",
     "caniuse-lite": "1.0.30001579",
     "@types/node": "20.2.5",
     "@babel/core": "7.27.4",
     "@babel/parser": "7.27.5",
     "@babel/types": "7.27.6",
     "@babel/traverse": "7.27.4",
-    "@types/react": "18.2.37",
-    "@types/react-dom": "18.2.15"
+    "@types/react": "18.2.71",
+    "@types/react-dom": "18.2.25"
   },
   "engines": {
     "node": ">=18.17.0",
