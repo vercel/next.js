@@ -36,6 +36,18 @@ export function onCaughtError(
       (errorInfo.errorBoundary! as InstanceType<typeof ErrorBoundaryHandler>)
         .props.errorComponent === DefaultErrorBoundary)
 
+  // Skip the segment explorer triggered error
+  if (process.env.NODE_ENV !== 'production') {
+    const { SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE } =
+      require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+    if (
+      thrownValue instanceof Error &&
+      thrownValue.message === SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE
+    ) {
+      return
+    }
+  }
+
   if (isImplicitErrorBoundary) {
     // We don't consider errors caught unless they're caught by an explicit error
     // boundary. The built-in ones are considered implicit.

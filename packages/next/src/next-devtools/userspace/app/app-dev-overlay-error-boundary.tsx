@@ -4,6 +4,7 @@ import { RuntimeErrorHandler } from '../../../client/dev/runtime-error-handler'
 import { ErrorBoundary } from '../../../client/components/error-boundary'
 import DefaultGlobalError from '../../../client/components/builtin/global-error'
 import type { GlobalErrorState } from '../../../client/components/app-router-instance'
+import { SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE } from './segment-explorer-node'
 
 type AppDevOverlayErrorBoundaryProps = {
   children: React.ReactNode
@@ -51,7 +52,13 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
     }
   }
 
-  componentDidCatch() {
+  componentDidCatch(err: Error) {
+    if (
+      process.env.NODE_ENV === 'development' &&
+      err.message === SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE
+    ) {
+      return
+    }
     dispatcher.openErrorOverlay()
   }
 

@@ -46,7 +46,7 @@ pub struct MiddlewareEndpoint {
     project: ResolvedVc<Project>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source: ResolvedVc<Box<dyn Source>>,
-    app_dir: Option<ResolvedVc<FileSystemPath>>,
+    app_dir: Option<FileSystemPath>,
     ecmascript_client_reference_transition_name: Option<RcStr>,
 }
 
@@ -57,7 +57,7 @@ impl MiddlewareEndpoint {
         project: ResolvedVc<Project>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         source: ResolvedVc<Box<dyn Source>>,
-        app_dir: Option<ResolvedVc<FileSystemPath>>,
+        app_dir: Option<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<RcStr>,
     ) -> Vc<Self> {
         Self {
@@ -82,7 +82,7 @@ impl MiddlewareEndpoint {
 
         let module = get_middleware_module(
             *self.asset_context,
-            self.project.project_path(),
+            self.project.project_path().await?.clone_value(),
             userland_module,
         );
 
@@ -93,7 +93,7 @@ impl MiddlewareEndpoint {
         }
         Ok(wrap_edge_entry(
             *self.asset_context,
-            self.project.project_path(),
+            self.project.project_path().await?.clone_value(),
             module,
             rcstr!("middleware"),
         ))
@@ -108,7 +108,7 @@ impl MiddlewareEndpoint {
 
         let evaluatable_assets = get_server_runtime_entries(
             ServerContextType::Middleware {
-                app_dir: this.app_dir,
+                app_dir: this.app_dir.clone(),
                 ecmascript_client_reference_transition_name: this
                     .ecmascript_client_reference_transition_name
                     .clone(),
@@ -149,10 +149,11 @@ impl MiddlewareEndpoint {
             .entry_chunk_group(
                 this.project
                     .node_root()
-                    .join(rcstr!("server/middleware.js")),
+                    .await?
+                    .join("server/middleware.js")?,
                 get_server_runtime_entries(
                     ServerContextType::Middleware {
-                        app_dir: this.app_dir,
+                        app_dir: this.app_dir.clone(),
                         ecmascript_client_reference_transition_name: this
                             .ecmascript_client_reference_transition_name
                             .clone(),
@@ -260,7 +261,8 @@ impl MiddlewareEndpoint {
             let middleware_manifest_v2 = VirtualOutputAsset::new(
                 this.project
                     .node_root()
-                    .join(rcstr!("server/middleware/middleware-manifest.json")),
+                    .await?
+                    .join("server/middleware/middleware-manifest.json")?,
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &middleware_manifest_v2,
@@ -277,8 +279,8 @@ impl MiddlewareEndpoint {
             let edge_files = self.edge_files();
             let mut output_assets = edge_files.owned().await?;
 
-            let node_root = this.project.node_root();
-            let node_root_value = node_root.await?;
+            let node_root = this.project.node_root().await?.clone_value();
+            let node_root_value = node_root.clone();
 
             let file_paths_from_root =
                 get_js_paths_from_root(&node_root_value, &output_assets).await?;
@@ -320,7 +322,7 @@ impl MiddlewareEndpoint {
                 ..Default::default()
             };
             let middleware_manifest_v2 = VirtualOutputAsset::new(
-                node_root.join(rcstr!("server/middleware/middleware-manifest.json")),
+                node_root.join("server/middleware/middleware-manifest.json")?,
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &middleware_manifest_v2,
@@ -357,11 +359,11 @@ impl Endpoint for MiddlewareEndpoint {
             let output_assets = self.output_assets();
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
-                let node_root = this.project.node_root();
+                let node_root = this.project.node_root().await?.clone_value();
                 let server_paths = all_server_paths(output_assets, node_root).owned().await?;
 
                 // Middleware could in theory have a client path (e.g. `new URL`).
-                let client_relative_root = this.project.client_relative_path();
+                let client_relative_root = this.project.client_relative_path().await?.clone_value();
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .into_future()
                     .owned()

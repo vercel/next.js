@@ -713,5 +713,6 @@
   "712": "`rspack.warnForEdgeRuntime` is not supported by the wasm bindings.",
   "713": "Unexpected error during process lookup",
   "714": "cannot run loadNative when `NEXT_TEST_WASM` is set",
-  "715": "Server Action \"%s\" was not found on the server. \\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action"
+  "715": "Server Action \"%s\" was not found on the server. \\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "716": "NEXT_DEVTOOLS_SIMULATED_ERROR"
 }

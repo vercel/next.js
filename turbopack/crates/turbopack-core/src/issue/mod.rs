@@ -161,7 +161,7 @@ pub trait Issue {
 #[turbo_tasks::value_trait]
 pub trait ImportTracer {
     #[turbo_tasks::function]
-    fn get_traces(self: Vc<Self>, path: ResolvedVc<FileSystemPath>) -> Vc<ImportTraces>;
+    fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Vc<ImportTraces>;
 }
 
 #[turbo_tasks::value(shared)]
@@ -171,11 +171,11 @@ pub struct DelegatingImportTracer {
 }
 
 impl DelegatingImportTracer {
-    async fn get_traces(&self, path: Vc<FileSystemPath>) -> Result<Vec<ImportTrace>> {
+    async fn get_traces(&self, path: FileSystemPath) -> Result<Vec<ImportTrace>> {
         Ok(self
             .delegates
             .iter()
-            .map(|d| d.get_traces(path))
+            .map(|d| d.get_traces(path.clone()))
             .try_join()
             .await?
             .iter()
@@ -208,7 +208,7 @@ trait IssueProcessingPath {
 
 #[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
-    pub file_path: Option<ResolvedVc<FileSystemPath>>,
+    pub file_path: Option<FileSystemPath>,
     pub description: ResolvedVc<RcStr>,
 }
 
@@ -216,10 +216,10 @@ pub struct IssueProcessingPathItem {
 impl ValueToString for IssueProcessingPathItem {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        if let Some(context) = self.file_path {
+        if let Some(context) = &self.file_path {
             let description_str = self.description.await?;
             Ok(Vc::cell(
-                format!("{} ({})", context.to_string().await?, description_str).into(),
+                format!("{} ({})", context.value_to_string().await?, description_str).into(),
             ))
         } else {
             Ok(*self.description)
@@ -232,8 +232,8 @@ impl IssueProcessingPathItem {
     #[turbo_tasks::function]
     pub async fn into_plain(&self) -> Result<Vc<PlainIssueProcessingPathItem>> {
         Ok(PlainIssueProcessingPathItem {
-            file_path: if let Some(context) = self.file_path {
-                Some(context.to_string().await?)
+            file_path: if let Some(context) = &self.file_path {
+                Some(context.value_to_string().await?)
             } else {
                 None
             },
@@ -647,7 +647,7 @@ impl PlainTraceItem {
     async fn from_asset_ident(asset: ReadRef<AssetIdent>) -> Result<Self> {
         // TODO(lukesandberg): How should we display paths? it would be good to display all paths
         // relative to the cwd or the project root.
-        let fs_path = asset.path.await?;
+        let fs_path = asset.path.clone();
         let fs_name = fs_path.fs.to_string().owned().await?;
         let root_path = fs_path.fs.root().await?.path.clone();
         let path = fs_path.path.clone();
@@ -881,7 +881,13 @@ impl PlainIssue {
             processing_path: processing_path.into_plain().await?,
             import_traces: match import_tracer {
                 Some(tracer) => {
-                    into_plain_trace(tracer.await?.get_traces(issue.file_path()).await?).await?
+                    into_plain_trace(
+                        tracer
+                            .await?
+                            .get_traces(issue.file_path().await?.clone_value())
+                            .await?,
+                    )
+                    .await?
                 }
                 None => vec![],
             },
@@ -988,7 +994,7 @@ where
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
 
@@ -997,7 +1003,7 @@ where
 
     async fn issue_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
     async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self>;
@@ -1021,7 +1027,7 @@ where
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
@@ -1032,10 +1038,7 @@ where
                     ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
-                                file_path: match file_path.into() {
-                                    Some(path) => Some(path.to_resolved().await?),
-                                    None => None,
-                                },
+                                file_path: file_path.into(),
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),
@@ -1054,7 +1057,7 @@ where
 
     async fn issue_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
@@ -1065,10 +1068,7 @@ where
                     ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
-                                file_path: match file_path.into() {
-                                    Some(path) => Some(path.to_resolved().await?),
-                                    None => None,
-                                },
+                                file_path: file_path.into(),
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),

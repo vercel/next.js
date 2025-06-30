@@ -49,11 +49,11 @@ import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
 
-let SegmentViewNode: typeof import('../../next-devtools/userspace/app/segment-explorer').SegmentViewNode =
+let SegmentViewNode: typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentViewNode =
   () => null
 if (process.env.NODE_ENV === 'development') {
   SegmentViewNode = (
-    require('../../next-devtools/userspace/app/segment-explorer') as typeof import('../../next-devtools/userspace/app/segment-explorer')
+    require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
   ).SegmentViewNode
 }
 

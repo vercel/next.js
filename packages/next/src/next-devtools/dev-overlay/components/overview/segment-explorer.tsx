@@ -1,6 +1,13 @@
-import { useSegmentTree, type SegmentTrieNode } from '../../segment-explorer'
+import {
+  useSegmentTree,
+  type SegmentTrieNode,
+} from '../../segment-explorer-trie'
 import { css } from '../../utils/css'
 import { cx } from '../../utils/cx'
+import {
+  SegmentBoundaryTrigger,
+  styles as segmentBoundaryTriggerStyles,
+} from './segment-boundary-trigger'
 
 const BUILTIN_PREFIX = '__next_builtin__'
 
@@ -68,6 +75,7 @@ function PageSegmentTreeLayerPresentation({
 
   const folderChildrenKeys: string[] = []
   const filesChildrenKeys: string[] = []
+  let pageChild = null
 
   for (const childKey of sortedChildrenKeys) {
     const childNode = node.children[childKey]
@@ -81,6 +89,20 @@ function PageSegmentTreeLayerPresentation({
 
     // Otherwise, it's a folder node, add it to folderChildrenKeys
     folderChildrenKeys.push(childKey)
+  }
+
+  for (const fileChildSegment of filesChildrenKeys) {
+    const childNode = node.children[fileChildSegment]
+    if (!childNode || !childNode.value) continue
+
+    // If it's a page node, we can use it as the page child
+    if (
+      childNode.value.type !== 'layout' &&
+      childNode.value.type !== 'template'
+    ) {
+      pageChild = childNode
+      break // We only need one page child
+    }
   }
 
   const hasFilesChildren = filesChildrenKeys.length > 0
@@ -146,6 +168,15 @@ function PageSegmentTreeLayerPresentation({
                   })}
                 </span>
               )}
+              {/* TODO: only show triggers in dev panel remove this once the new panel UI is stable */}
+              {process.env.__NEXT_DEVTOOL_NEW_PANEL_UI &&
+                pageChild &&
+                pageChild.value && (
+                  <SegmentBoundaryTrigger
+                    offset={6}
+                    onSelectBoundary={pageChild.value.setBoundaryType}
+                  />
+                )}
             </div>
           </div>
         </div>
@@ -206,6 +237,12 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-filename {
     display: inline-flex;
+    width: 100%;
+    align-items: center;
+  }
+
+  .segment-explorer-filename select {
+    margin-left: auto;
   }
 
   .segment-explorer-filename--path {
@@ -226,6 +263,10 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   }
 
   .segment-explorer-file-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
     padding: 2px 6px;
     border-radius: 16px;
     font-size: var(--size-12);
@@ -263,17 +304,18 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     background-color: var(--color-red-300);
     color: var(--color-red-900);
   }
-
   .segment-explorer-file-label--builtin {
     background-color: transparent;
     color: var(--color-gray-900);
     border: 1px dashed var(--color-gray-500);
+    cursor: default;
   }
-
   .segment-explorer-file-label--builtin svg {
     margin-left: 4px;
     margin-right: -4px;
   }
+
+  ${segmentBoundaryTriggerStyles}
 `
 
 function openInEditor({ filePath }: { filePath: string }) {

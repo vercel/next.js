@@ -71,7 +71,7 @@ pub trait AssetContext {
     #[turbo_tasks::function]
     fn resolve_options(
         self: Vc<Self>,
-        origin_path: Vc<FileSystemPath>,
+        origin_path: FileSystemPath,
         reference_type: ReferenceType,
     ) -> Vc<ResolveOptions>;
 
@@ -79,7 +79,7 @@ pub trait AssetContext {
     #[turbo_tasks::function]
     fn resolve_asset(
         self: Vc<Self>,
-        origin_path: Vc<FileSystemPath>,
+        origin_path: FileSystemPath,
         request: Vc<Request>,
         resolve_options: Vc<ResolveOptions>,
         reference_type: ReferenceType,

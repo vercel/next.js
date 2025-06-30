@@ -11,9 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    ReadConsistency, ReadRef, ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects,
-};
+use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -191,12 +189,16 @@ async fn run(resource: PathBuf) -> Result<()> {
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
-    let out_vc = out_op.resolve_strongly_consistent().await?;
+    let out_vc = out_op
+        .resolve_strongly_consistent()
+        .await?
+        .await?
+        .clone_value();
     let captured_issues = out_op.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues.get_plain_issues().await?;
 
-    snapshot_issues(plain_issues, out_vc.join(rcstr!("issues")), &REPO_ROOT)
+    snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
         .await
         .context("Unable to handle issues")?;
 
@@ -219,21 +221,17 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
     let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root().to_resolved().await?;
+    let project_root = project_fs.root().await?.clone_value();
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
     let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
-    let project_path = project_root
-        .join(relative_path.clone())
-        .to_resolved()
-        .await?;
+    let project_path = project_root.join(&relative_path)?;
 
     let project_path_to_project_root = project_path
-        .await?
-        .get_relative_path_to(&*project_root.await?)
+        .get_relative_path_to(&project_root)
         .context("Project path is in root path")?;
 
-    let entry_asset = project_path.join(options.entry.into());
+    let entry_asset = project_path.join(&options.entry)?;
 
     let env = Environment::new(match options.environment {
         SnapshotEnvironment::Browser => {
@@ -333,12 +331,12 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         ResolveOptionsContext {
             enable_typescript: true,
             enable_react: true,
-            enable_node_modules: Some(project_root),
+            enable_node_modules: Some(project_root.clone()),
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ResolveOptionsContext {
-                    enable_node_modules: Some(project_root),
+                    enable_node_modules: Some(project_root.clone()),
                     custom_conditions: vec![rcstr!("development")],
                     ..Default::default()
                 }
@@ -350,22 +348,22 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Layer::new(rcstr!("test")),
     ));
 
-    let runtime_entries = maybe_load_env(asset_context, *project_path)
+    let runtime_entries = maybe_load_env(asset_context, project_path.clone())
         .await?
         .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
 
-    let chunk_root_path = project_path.join(rcstr!("output")).to_resolved().await?;
-    let static_root_path = project_path.join(rcstr!("static")).to_resolved().await?;
+    let chunk_root_path = project_path.join("output")?;
+    let static_root_path = project_path.join("static")?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Browser => {
             let mut builder = BrowserChunkingContext::builder(
                 project_root,
-                project_path,
+                project_path.clone(),
                 project_path_to_project_root,
-                project_path,
-                chunk_root_path,
-                static_root_path,
+                project_path.clone(),
+                chunk_root_path.clone(),
+                static_root_path.clone(),
                 env,
                 options.runtime_type,
             )
@@ -387,11 +385,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Runtime::NodeJs => {
             let mut builder = NodeJsChunkingContext::builder(
                 project_root,
-                project_path,
+                project_path.clone(),
                 project_path_to_project_root,
-                project_path,
-                chunk_root_path,
-                static_root_path,
+                project_path.clone(),
+                chunk_root_path.clone(),
+                static_root_path.clone(),
                 env,
                 options.runtime_type,
             )
@@ -413,10 +411,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         }
     };
 
-    let expected_paths = expected(*chunk_root_path)
+    let expected_paths = expected(chunk_root_path.clone())
         .await?
-        .union(&expected(*static_root_path).await?)
-        .copied()
+        .union(&expected(static_root_path.clone()).await?)
+        .cloned()
         .collect();
 
     let entry_module = asset_context
@@ -458,17 +456,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                         .entry_chunk_group(
                             // `expected` expects a completely flat output directory.
                             chunk_root_path
-                                .join(
-                                    entry_module
-                                        .ident()
-                                        .path()
-                                        .file_stem()
-                                        .await?
-                                        .as_deref()
-                                        .unwrap()
-                                        .into(),
-                                )
-                                .with_extension(rcstr!("entry.js")),
+                                .join(entry_module.ident().path().await?.file_stem().unwrap())?
+                                .with_extension("entry.js"),
                             evaluatable_assets,
                             module_graph,
                             OutputAssets::empty(),
@@ -487,7 +476,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let mut seen = FxHashSet::default();
     let mut queue: VecDeque<_> = chunks.await?.iter().copied().collect();
 
-    let output_path = project_path.await?;
+    let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {
         walk_asset(asset, &output_path, &mut seen, &mut queue)
             .await
@@ -501,24 +490,24 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await
         .context("Actual assets doesn't match with expected assets")?;
 
-    Ok(*project_path)
+    Ok(project_path.cell())
 }
 
 async fn walk_asset(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-    output_path: &ReadRef<FileSystemPath>,
-    seen: &mut FxHashSet<Vc<FileSystemPath>>,
+    output_path: &FileSystemPath,
+    seen: &mut FxHashSet<FileSystemPath>,
     queue: &mut VecDeque<ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
-    let path = asset.path().resolve().await?;
+    let path = asset.path().await?.clone_value();
 
-    if !seen.insert(path) {
+    if !seen.insert(path.clone()) {
         return Ok(());
     }
 
-    if path.await?.is_inside_ref(output_path) {
+    if path.is_inside_ref(output_path) {
         // Only consider assets that should be written to disk.
-        diff(path, asset.content()).await?;
+        diff(path.clone(), asset.content()).await?;
     }
 
     queue.extend(
@@ -535,15 +524,15 @@ async fn walk_asset(
 
 async fn maybe_load_env(
     _context: Vc<Box<dyn AssetContext>>,
-    path: Vc<FileSystemPath>,
+    path: FileSystemPath,
 ) -> Result<Option<Vc<Box<dyn Source>>>> {
-    let dotenv_path = path.join(rcstr!("input/.env"));
+    let dotenv_path = path.join("input/.env")?;
 
     if !dotenv_path.read().await?.is_content() {
         return Ok(None);
     }
 
-    let env = DotenvProcessEnv::new(None, dotenv_path);
+    let env = DotenvProcessEnv::new(None, dotenv_path.clone());
     let asset = ProcessEnvAsset::new(dotenv_path, Vc::upcast(env));
     Ok(Some(Vc::upcast(asset)))
 }
