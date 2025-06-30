@@ -71,8 +71,8 @@ export type DynamicTrackingState = {
    */
   readonly dynamicAccesses: Array<DynamicAccess>
 
-  syncDynamicExpression: undefined | string
-  syncDynamicErrorWithStack: null | Error
+  syncRequestDataAccessError: null | Error
+  syncPlatformIOAccessError: null | Error
 }
 
 // Stores dynamic reasons used during an SSR render.
@@ -90,8 +90,8 @@ export function createDynamicTrackingState(
   return {
     isDebugDynamicAccesses,
     dynamicAccesses: [],
-    syncDynamicExpression: undefined,
-    syncDynamicErrorWithStack: null,
+    syncPlatformIOAccessError: null,
+    syncRequestDataAccessError: null,
   }
 }
 
@@ -291,9 +291,8 @@ export function abortOnSynchronousPlatformIOAccess(
   // value late we can use it to determine if any of the aborted tasks are the task that
   // called the sync IO expression in the first place.
   if (dynamicTracking) {
-    if (dynamicTracking.syncDynamicErrorWithStack === null) {
-      dynamicTracking.syncDynamicExpression = expression
-      dynamicTracking.syncDynamicErrorWithStack = errorWithStack
+    if (dynamicTracking.syncPlatformIOAccessError === null) {
+      dynamicTracking.syncPlatformIOAccessError = errorWithStack
     }
   }
 }
@@ -336,9 +335,8 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
     // called the sync IO expression in the first place.
     const dynamicTracking = prerenderStore.dynamicTracking
     if (dynamicTracking) {
-      if (dynamicTracking.syncDynamicErrorWithStack === null) {
-        dynamicTracking.syncDynamicExpression = expression
-        dynamicTracking.syncDynamicErrorWithStack = errorWithStack
+      if (dynamicTracking.syncRequestDataAccessError === null) {
+        dynamicTracking.syncRequestDataAccessError = errorWithStack
       }
     }
   }
@@ -641,10 +639,16 @@ export function trackAllowedDynamicAccess(
     // of disallowed
     dynamicValidation.hasAllowedDynamic = true
     return
-  } else if (clientDynamic.syncDynamicErrorWithStack) {
+  } else if (clientDynamic.syncPlatformIOAccessError) {
     // This task was the task that called the sync error.
     dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
+      clientDynamic.syncPlatformIOAccessError
+    )
+    return
+  } else if (clientDynamic.syncRequestDataAccessError) {
+    // This task was the task that called the sync error.
+    dynamicValidation.dynamicErrors.push(
+      clientDynamic.syncRequestDataAccessError
     )
     return
   } else {
@@ -681,6 +685,13 @@ export function throwIfDisallowedDynamic(
     throw new StaticGenBailoutError()
   }
 
+  // In dev mode, we always want to log a sync request data access error,
+  // regardless of the prelude state, so that users will migrate to the async
+  // usage.
+  if (workStore.dev && serverDynamic.syncRequestDataAccessError) {
+    console.error(serverDynamic.syncRequestDataAccessError)
+  }
+
   if (prelude !== PreludeState.Full) {
     if (dynamicValidation.hasSuspenseAboveBody) {
       // This route has opted into allowing fully dynamic rendering
@@ -689,11 +700,23 @@ export function throwIfDisallowedDynamic(
       return
     }
 
-    if (serverDynamic.syncDynamicErrorWithStack) {
-      // There is no shell and the server did something sync dynamic likely
-      // leading to an early termination of the prerender before the shell
-      // could be completed.
-      console.error(serverDynamic.syncDynamicErrorWithStack)
+    if (serverDynamic.syncPlatformIOAccessError) {
+      // There is no shell and the server synchronously accessed platform IO,
+      // likely leading to an early termination of the prerender before the
+      // shell could be completed.
+      console.error(serverDynamic.syncPlatformIOAccessError)
+      // We terminate the build/validating render
+      throw new StaticGenBailoutError()
+    }
+
+    if (serverDynamic.syncRequestDataAccessError) {
+      // There is no shell and the server synchronously accessed request data,
+      // likely leading to an early termination of the prerender before the
+      // shell could be completed.
+      if (!workStore.dev) {
+        // In dev mode, we've already logged this error above.
+        console.error(serverDynamic.syncRequestDataAccessError)
+      }
       // We terminate the build/validating render
       throw new StaticGenBailoutError()
     }

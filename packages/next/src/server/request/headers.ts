@@ -487,8 +487,12 @@ function syncIODev(route: string | undefined, expression: string) {
     const requestStore = workUnitStore
     trackSynchronousRequestDataAccessInDev(requestStore)
   }
-  // In all cases we warn normally
-  warnForSyncAccess(route, expression)
+
+  // We don't warn when dynamic IO is enabled, in which case the sync IO access
+  // is tracked and logged as part of the spawned dev validation separately.
+  if (!process.env.__NEXT_DYNAMIC_IO) {
+    warnForSyncAccess(route, expression)
+  }
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(

@@ -696,13 +696,6 @@ function syncIODev(
   expression: string,
   missingProperties?: Array<string>
 ) {
-  // In all cases we warn normally
-  if (missingProperties && missingProperties.length > 0) {
-    warnForIncompleteEnumeration(route, expression, missingProperties)
-  } else {
-    warnForSyncAccess(route, expression)
-  }
-
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (
     workUnitStore &&
@@ -713,6 +706,16 @@ function syncIODev(
     // Prerender environment when we read Request data synchronously
     const requestStore = workUnitStore
     trackSynchronousRequestDataAccessInDev(requestStore)
+  }
+
+  // We don't warn when dynamic IO is enabled, in which case the sync IO access
+  // is tracked and logged as part of the spawned dev validation separately.
+  if (!process.env.__NEXT_DYNAMIC_IO) {
+    if (missingProperties && missingProperties.length > 0) {
+      warnForIncompleteEnumeration(route, expression, missingProperties)
+    } else {
+      warnForSyncAccess(route, expression)
+    }
   }
 }
 

@@ -478,6 +478,9 @@ function syncIODev(
     trackSynchronousRequestDataAccessInDev(requestStore)
   }
   // In all cases we warn normally
+  // TODO: When we add a dev validation for the fallback shell, we should skip
+  // the log here, if dynamicIO is enabled, to avoid the log from appearing
+  // twice.
   if (missingProperties && missingProperties.length > 0) {
     warnForIncompleteEnumeration(route, expression, missingProperties)
   } else {

@@ -261,17 +261,18 @@ describe.each(
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
+        // TODO: This should be logged in the "Prerender" environment.
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-           "environmentLabel": "Prerender",
+           "environmentLabel": "Server",
            "label": "Console Error",
            "source": "app/page.tsx (42:5) @ SearchParamsReadingComponent
          > 42 |   ).foo
               |     ^",
            "stack": [
              "SearchParamsReadingComponent app/page.tsx (42:5)",
-             "Page app/page.tsx (19:11)",
+             "LogSafely <anonymous> (0:0)",
            ],
          }
         `)
@@ -315,37 +316,23 @@ describe.each(
     }
 
     if (isNextDev) {
-      // TODO: Ideally we'd only show the error once.
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
+        // TODO: This should be logged in the "Prerender" environment.
         await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Prerender",
-             "label": "Console Error",
-             "source": "app/page.tsx (41:5) @ SearchParamsReadingComponent
+         {
+           "description": "Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/page.tsx (41:5) @ SearchParamsReadingComponent
          > 41 |   ).foo
               |     ^",
-             "stack": [
-               "SearchParamsReadingComponent app/page.tsx (41:5)",
-               "Page app/page.tsx (20:11)",
-             ],
-           },
-           {
-             "description": "Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/page.tsx (41:5) @ SearchParamsReadingComponent
-         > 41 |   ).foo
-              |     ^",
-             "stack": [
-               "SearchParamsReadingComponent app/page.tsx (41:5)",
-               "LogSafely <anonymous> (0:0)",
-             ],
-           },
-         ]
+           "stack": [
+             "SearchParamsReadingComponent app/page.tsx (41:5)",
+             "LogSafely <anonymous> (0:0)",
+           ],
+         }
         `)
       })
 
@@ -448,6 +435,7 @@ describe.each(
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
+        // TODO: This should be logged in the "Prerender" environment.
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
@@ -458,7 +446,7 @@ describe.each(
               |                                                                  ^",
            "stack": [
              "CookiesReadingComponent app/page.tsx (33:66)",
-             "Page app/page.tsx (16:11)",
+             "LogSafely <anonymous> (0:0)",
            ],
          }
         `)
@@ -502,37 +490,23 @@ describe.each(
     }
 
     if (isNextDev) {
-      // TODO: Ideally we'd only show the error once.
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
+        // TODO: This should be logged in the "Prerender" environment.
         await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/page.tsx (32:67) @ CookiesReadingComponent
+         {
+           "description": "Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/page.tsx (32:67) @ CookiesReadingComponent
          > 32 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
               |                                                                   ^",
-             "stack": [
-               "CookiesReadingComponent app/page.tsx (32:67)",
-               "Page app/page.tsx (17:11)",
-             ],
-           },
-           {
-             "description": "Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/page.tsx (32:67) @ CookiesReadingComponent
-         > 32 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-              |                                                                   ^",
-             "stack": [
-               "CookiesReadingComponent app/page.tsx (32:67)",
-               "LogSafely <anonymous> (0:0)",
-             ],
-           },
-         ]
+           "stack": [
+             "CookiesReadingComponent app/page.tsx (32:67)",
+             "LogSafely <anonymous> (0:0)",
+           ],
+         }
         `)
       })
 
@@ -717,20 +691,21 @@ describe.each(
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
+        // TODO: This should be logged in the "Prerender" environment.
         await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/" used \`headers().get('user-agent')\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/page.tsx (33:70) @ HeadersReadingComponent
-             > 33 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                  |                                                                      ^",
-               "stack": [
-                 "HeadersReadingComponent app/page.tsx (33:70)",
-                 "Page app/page.tsx (16:11)",
-               ],
-             }
-            `)
+         {
+           "description": "Route "/" used \`headers().get('user-agent')\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/page.tsx (33:70) @ HeadersReadingComponent
+         > 33 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+              |                                                                      ^",
+           "stack": [
+             "HeadersReadingComponent app/page.tsx (33:70)",
+             "LogSafely <anonymous> (0:0)",
+           ],
+         }
+        `)
       })
 
       it('should prefix a log after sync dynamic IO with "Server"', async () => {
@@ -771,38 +746,24 @@ describe.each(
     }
 
     if (isNextDev) {
-      // TODO: Ideally we'd only show the error once.
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
+        // TODO: This should be logged in the "Prerender" environment.
         await expect(browser).toDisplayCollapsedRedbox(`
-             [
-               {
-                 "description": "Route "/" used \`headers().get('user-agent')\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/page.tsx (32:70) @ HeadersReadingComponent
-             > 32 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                  |                                                                      ^",
-                 "stack": [
-                   "HeadersReadingComponent app/page.tsx (32:70)",
-                   "Page app/page.tsx (17:11)",
-                 ],
-               },
-               {
-                 "description": "Route "/" used \`headers().get('user-agent')\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/page.tsx (32:70) @ HeadersReadingComponent
-             > 32 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                  |                                                                      ^",
-                 "stack": [
-                   "HeadersReadingComponent app/page.tsx (32:70)",
-                   "LogSafely <anonymous> (0:0)",
-                 ],
-               },
-             ]
-            `)
+         {
+           "description": "Route "/" used \`headers().get('user-agent')\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/page.tsx (32:70) @ HeadersReadingComponent
+         > 32 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+              |                                                                      ^",
+           "stack": [
+             "HeadersReadingComponent app/page.tsx (32:70)",
+             "LogSafely <anonymous> (0:0)",
+           ],
+         }
+        `)
       })
 
       it('should prefix a log after sync dynamic IO with "Server"', async () => {

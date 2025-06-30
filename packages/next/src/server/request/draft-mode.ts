@@ -152,7 +152,7 @@ function createExoticDraftModeWithDevWarnings(
   Object.defineProperty(promise, 'isEnabled', {
     get() {
       const expression = '`draftMode().isEnabled`'
-      syncIODev(route, expression)
+      syncIODev(route, expression, false)
       return instance.isEnabled
     },
     enumerable: true,
@@ -162,7 +162,7 @@ function createExoticDraftModeWithDevWarnings(
   Object.defineProperty(promise, 'enable', {
     value: function get() {
       const expression = '`draftMode().enable()`'
-      syncIODev(route, expression)
+      syncIODev(route, expression, true)
       return instance.enable.apply(instance, arguments as any)
     },
   })
@@ -170,7 +170,7 @@ function createExoticDraftModeWithDevWarnings(
   Object.defineProperty(promise, 'disable', {
     value: function get() {
       const expression = '`draftMode().disable()`'
-      syncIODev(route, expression)
+      syncIODev(route, expression, true)
       return instance.disable.apply(instance, arguments as any)
     },
   })
@@ -209,7 +209,11 @@ class DraftMode {
   }
 }
 
-function syncIODev(route: string | undefined, expression: string) {
+function syncIODev(
+  route: string | undefined,
+  expression: string,
+  wouldAbort: boolean
+) {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (
     workUnitStore &&
@@ -221,8 +225,13 @@ function syncIODev(route: string | undefined, expression: string) {
     const requestStore = workUnitStore
     trackSynchronousRequestDataAccessInDev(requestStore)
   }
-  // In all cases we warn normally
-  warnForSyncAccess(route, expression)
+
+  // We don't warn when dynamic IO is enabled and the sync access would trigger
+  // an abort. This is tracked and logged as part of the spawned dev validation
+  // separately.
+  if (!(process.env.__NEXT_DYNAMIC_IO && wouldAbort)) {
+    warnForSyncAccess(route, expression)
+  }
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
