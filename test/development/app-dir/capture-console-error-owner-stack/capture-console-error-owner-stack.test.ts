@@ -112,8 +112,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
          |                 ^",
        "stack": [
          "Page app/rsc/page.js (2:17)",
-         "JSON.parse <anonymous> (0:0)",
-         "JSON.parse <anonymous> (0:0)",
          "Page <anonymous> (0:0)",
        ],
      }

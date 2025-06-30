@@ -35,7 +35,7 @@ impl MemberReplacement {
         let key = self.key.clone();
         let value = self.value.clone();
 
-        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let member = Expr::Member(MemberExpr {
                 span: DUMMY_SP,
                 obj: Box::new(Expr::Ident((&*key).into())),
