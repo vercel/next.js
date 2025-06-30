@@ -17,6 +17,7 @@ export function SegmentBoundaryTrigger({
   const [isOpen, setIsOpen] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const [shadowRoot] = useState<ShadowRoot>(() => {
     const ownerDocument = document
     const portalNode = ownerDocument.querySelector('nextjs-portal')!
@@ -68,7 +69,12 @@ export function SegmentBoundaryTrigger({
 
   // close itself when unfocus: click outside of shadow root or clicking other triggers
   const handleFocusOut = useCallback((e: Event) => {
-    if (e.target === triggerRef.current) {
+    const triggerRootNode = rootRef.current
+    if (
+      e.target instanceof HTMLElement &&
+      triggerRootNode &&
+      !triggerRootNode.contains(e.target)
+    ) {
       setIsOpen(false)
     }
   }, [])
@@ -110,7 +116,7 @@ export function SegmentBoundaryTrigger({
   }
 
   return (
-    <div className="segment-boundary-trigger">
+    <div className="segment-boundary-trigger" ref={rootRef}>
       <button
         ref={triggerRef}
         className="segment-boundary-trigger-button"
