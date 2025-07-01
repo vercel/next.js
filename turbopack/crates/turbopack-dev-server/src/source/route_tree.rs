@@ -10,7 +10,7 @@ use turbo_tasks::{
 
 use super::{GetContentSourceContent, GetContentSourceContents};
 
-/// The type of the route. THis will decide about the remaining segments of the
+/// The type of the route. This will decide about the remaining segments of the
 /// route after the base.
 #[derive(
     TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
