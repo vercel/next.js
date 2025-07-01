@@ -49,7 +49,7 @@ function createObserver(options: UseIntersectionObserverInit): Observer {
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       const callback = elements.get(entry.target)
-      const isVisible = entry.isIntersecting || entry.intersectionRatio > 0
+      const isVisible = true
       if (callback && isVisible) {
         callback(isVisible)
       }
