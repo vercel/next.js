@@ -911,7 +911,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/next-devtools/dev-overlay/segment-explorer.test.tsx": {
+  "packages/next/src/next-devtools/dev-overlay/segment-explorer-trie.test.tsx": {
     "passed": [
       "Segment Explorer add complex structure",
       "Segment Explorer remove node in the middle"
@@ -2678,6 +2678,16 @@
       "app-dir - owner-stack should log stitched error for SSR errors",
       "app-dir - owner-stack should log stitched error for browser caught errors",
       "app-dir - owner-stack should log stitched error for browser uncaught errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/segment-explorer-globals/segment-explorer-globals.test.ts": {
+    "passed": [
+      "segment-explorer - globals should display parallel routes default page when present",
+      "segment-explorer - globals should show global-error segment"
     ],
     "failed": [],
     "pending": [],
@@ -5272,8 +5282,8 @@
       "app dir - basic <Link /> should soft replace",
       "app dir - basic HMR should HMR correctly for client component",
       "app dir - basic HMR should HMR correctly for server component",
-      "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
+      "app dir - basic bootstrap scripts should successfully bootstrap even when using CSP",
       "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir - basic known bugs should handle as on next/link",
       "app dir - basic known bugs should handle next/link back to initially loaded page",
@@ -5991,10 +6001,8 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.platform-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - Math.random() does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - Math.random() does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - Math.random() does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - Math.random() does not run in dev"
+      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - Math.random() should not show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - Math.random() should show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
@@ -6013,14 +6021,10 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO does not run in dev"
+      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
+      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
@@ -6029,18 +6033,12 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - server searchParams does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - server searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - server searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - server searchParams does not run in dev"
+      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - client searchParams should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - cookies should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - server searchParams should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - client searchParams should show a collapsed redbox with two errors",
+      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - cookies should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - server searchParams should show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
@@ -6049,24 +6047,15 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Dynamic Boundary does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Error Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Root does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Static Route does not run in dev",
-      "Dynamic IO Errors - With Minification Static Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Boundary does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Error Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Root does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Static Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Static Route does not run in dev"
+      "Dynamic IO Errors - Dev Dynamic Boundary should not show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Metadata - Dynamic Route should not show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Metadata - Error Route should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Metadata - Static Route With Suspense should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Metadata - Static Route should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Root should show a collapsed redbox with two errors",
+      "Dynamic IO Errors - Dev Dynamic Viewport - Dynamic Route should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Viewport - Static Route should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Static Route should not show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
@@ -8020,6 +8009,7 @@
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with prerendered dynamic routes  should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
@@ -8955,17 +8945,15 @@
   },
   "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
     "passed": [],
-    "failed": [],
-    "pending": [
-      "Invalid Global CSS with Custom App production only should fail to build"
-    ],
+    "failed": ["Invalid Global CSS with Custom App should fail to build"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
     "passed": [],
-    "failed": [],
-    "pending": ["Invalid Global CSS production only should fail to build"],
+    "failed": ["Invalid Global CSS should fail to build"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9189,10 +9177,10 @@
   },
   "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
     "passed": [],
-    "failed": [],
-    "pending": [
-      "Valid and Invalid Global CSS with Custom App production only should fail to build"
+    "failed": [
+      "Valid and Invalid Global CSS with Custom App should fail to build"
     ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10855,6 +10843,8 @@
       "react version App Router page headers with nodejs runtime",
       "react version App Router page with edge runtime",
       "react version App Router page with nodejs runtime",
+      "react version Pages Router API route with edge runtime",
+      "react version Pages Router API route with nodejs runtime",
       "react version Pages Router page headers with edge runtime",
       "react version Pages Router page headers with nodejs runtime",
       "react version Pages Router page with edge runtime",
