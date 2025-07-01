@@ -1,5 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { assertLog, getPrerenderOutput } from './utils'
+import { getPrerenderOutput } from './utils'
 
 describe.each(
   isNextDev
@@ -499,9 +499,9 @@ describe.each(
     }
   })
 
-  describe('Sync Dynamic - With Fallback - params', () => {
+  describe('Sync Dynamic - client params', () => {
     const { next, isTurbopack, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/sync-params-with-fallback',
+      files: __dirname + '/fixtures/sync-client-params',
       skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
@@ -512,70 +512,65 @@ describe.each(
     }
 
     if (isNextDev) {
-      // We don't error the build, but we do show a dev-only error so that users
-      // migrate to the async usage.
-      it('should show a collapsed redbox error', async () => {
+      it('should return `undefined` for `params.slug`', async () => {
+        const browser = await next.browser('/test')
+
+        expect(await browser.elementById('param').text()).toBe('undefined')
+      })
+
+      it('should show a collapsed redbox with a sync access error', async () => {
         const browser = await next.browser('/test')
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/[slug]/page.tsx (32:23) @ ParamsReadingComponent
-             > 32 |   const slug = params.slug
-                  |                       ^",
-               "stack": [
-                 "ParamsReadingComponent app/[slug]/page.tsx (32:23)",
-                 "Page app/[slug]/page.tsx (15:11)",
-               ],
-             }
-            `)
+           {
+             "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/[slug]/page.tsx (20:39) @ ParamsReadingComponent
+           > 20 |       <span id="param">{String(params.slug)}</span>
+                |                                       ^",
+             "stack": [
+               "ParamsReadingComponent app/[slug]/page.tsx (20:39)",
+               "Page app/[slug]/page.tsx (11:7)",
+             ],
+           }
+          `)
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "description": "Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
+             "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
+             "environmentLabel": null,
              "label": "Console Error",
-             "source": null,
+             "source": "app/[slug]/page.tsx (20:39) @ ParamsReadingComponent
+           > 20 |       <span id="param">{String(params.slug)}</span>
+                |                                       ^",
              "stack": [
-               "ParamsReadingComponent rsc:/Server/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (85:25)",
-               "Page rsc:/Prerender/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (30:106)",
+               "ParamsReadingComponent app/[slug]/page.tsx (20:39)",
+               "Page app/[slug]/page.tsx (11:7)",
              ],
            }
           `)
         }
       })
-
-      it('should prefix a log after sync dynamic IO with "Server"', async () => {
-        const browser = await next.browser('/test')
-        const logs = await browser.log()
-
-        assertLog(
-          logs,
-          'Server',
-          'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-        )
-      })
     } else {
-      it('should not error the build when synchronously reading params if all dynamic access is inside a Suspense boundary', async () => {
+      it('should not error the build when synchronously reading `params.slug`', async () => {
         try {
           await next.start()
         } catch {
-          throw new Error('expected build not to fail for fully static project')
+          throw new Error('expected build not to fail')
         }
 
         expect(next.cliOutput).toContain('◐ /[slug] ')
-        const $ = await next.render$('/test')
-        expect($('[data-fallback]').length).toBe(2)
+        const browser = await next.browser('/test')
+        expect(await browser.elementById('param').text()).toBe('undefined')
       })
     }
   })
 
-  describe('Sync Dynamic - Without Fallback - params', () => {
+  describe('Sync Dynamic - server params', () => {
     const { next, isTurbopack, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/sync-params-without-fallback',
+      files: __dirname + '/fixtures/sync-server-params',
       skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
@@ -586,125 +581,58 @@ describe.each(
     }
 
     if (isNextDev) {
-      it('should show a collapsed redbox error', async () => {
+      it('should return `undefined` for `params.slug`', async () => {
+        const browser = await next.browser('/test')
+
+        expect(await browser.elementById('param').text()).toBe('undefined')
+      })
+
+      it('should show a collapsed redbox with a sync access error', async () => {
         const browser = await next.browser('/test')
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/[slug]/page.tsx (31:23) @ ParamsReadingComponent
-             > 31 |   const slug = params.slug
-                  |                       ^",
-               "stack": [
-                 "ParamsReadingComponent app/[slug]/page.tsx (31:23)",
-                 "Page app/[slug]/page.tsx (16:11)",
-               ],
-             }
-            `)
+           {
+             "description": "Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/[slug]/page.tsx (21:39) @ ParamsReadingComponent
+           > 21 |       <span id="param">{String(params.slug)}</span>
+                |                                       ^",
+             "stack": [
+               "ParamsReadingComponent app/[slug]/page.tsx (21:39)",
+               "Page app/[slug]/page.tsx (12:7)",
+             ],
+           }
+          `)
         } else {
+          // TODO(veil): Source mapping breaks due to double-encoding of the
+          // square brackets.
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "description": "Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
+             "environmentLabel": "Prerender",
              "label": "Console Error",
              "source": null,
              "stack": [
-               "ParamsReadingComponent rsc:/Server/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (74:25)",
-               "Page rsc:/Prerender/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (30:106)",
+               "ParamsReadingComponent rsc:/Prerender/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (40:41)",
+               "Page rsc:/Prerender/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (23:88)",
              ],
            }
           `)
         }
       })
-
-      it('should prefix a log after sync dynamic IO with "Server"', async () => {
-        const browser = await next.browser('/test')
-        const logs = await browser.log()
-
-        assertLog(
-          logs,
-          'Server',
-          'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-        )
-      })
     } else {
-      it('should error the build if dynamic IO happens in the root (outside a Suspense)', async () => {
+      it('should not error the build when synchronously reading `params.slug`', async () => {
         try {
-          await next.build()
+          await next.start()
         } catch {
-          // we expect the build to fail
+          throw new Error('expected build not to fail')
         }
 
-        const output = getPrerenderOutput(next.cliOutput, {
-          isMinified: !inPrerenderDebugMode,
-        })
-
-        if (isTurbopack) {
-          if (inPrerenderDebugMode) {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at Reflect.get (<anonymous>)
-                 at ParamsReadingComponent (turbopack:///[project]/app/[slug]/page.tsx:31:22)
-               29 | async function ParamsReadingComponent({ params }) {
-               30 |   await new Promise((r) => process.nextTick(r))
-             > 31 |   const slug = params.slug
-                  |                      ^
-               32 |
-               33 |   console.log(
-               34 |     'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-             Error occurred prerendering page "/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
-
-             > Export encountered errors on following paths:
-             	/[slug]/page: /[slug]"
-            `)
-          } else {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at c (<anonymous>)
-                 at d (<next-dist-dir>)
-                 at e (<next-dist-dir>)
-                 at f (<next-dist-dir>)
-             Error occurred prerendering page "/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /[slug]/page: /[slug], exiting the build."
-            `)
-          }
-        } else {
-          if (inPrerenderDebugMode) {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at Reflect.get (<anonymous>)
-                 at ParamsReadingComponent (webpack:///app/[slug]/page.tsx:31:22)
-               29 | async function ParamsReadingComponent({ params }) {
-               30 |   await new Promise((r) => process.nextTick(r))
-             > 31 |   const slug = params.slug
-                  |                      ^
-               32 |
-               33 |   console.log(
-               34 |     'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-             Error occurred prerendering page "/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
-
-             > Export encountered errors on following paths:
-             	/[slug]/page: /[slug]"
-            `)
-          } else {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at c (<anonymous>)
-                 at d (<next-dist-dir>)
-                 at e (<next-dist-dir>)
-                 at f (<next-dist-dir>)
-             Error occurred prerendering page "/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /[slug]/page: /[slug], exiting the build."
-            `)
-          }
-        }
+        expect(next.cliOutput).toContain('◐ /[slug] ')
+        const browser = await next.browser('/test')
+        expect(await browser.elementById('param').text()).toBe('undefined')
       })
     }
   })

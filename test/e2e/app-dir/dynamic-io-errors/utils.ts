@@ -1,7 +1,6 @@
 // Used to deterministically stub out minified local names in stack traces.
 const abc = 'abcdefghijklmnopqrstuvwxyz'
 const hostElementsUsedInFixtures = ['html', 'body', 'main', 'div']
-import escapeStringRegexp from 'escape-string-regexp'
 
 export function getPrerenderOutput(
   cliOutput: string,
@@ -58,20 +57,4 @@ export function getPrerenderOutput(
   }
 
   return lines.join('\n').trim()
-}
-
-export function assertLog(
-  logs: Array<{ source: string; message: string }>,
-  environment: 'Server' | 'Prerender' | 'Cache',
-  message: string
-) {
-  expect(logs.map((l) => l.message)).toEqual(
-    expect.arrayContaining([
-      expect.stringMatching(
-        new RegExp(
-          `^.*${escapeStringRegexp(message)}.*  \\b${environment}\\b  $`
-        )
-      ),
-    ])
-  )
 }
