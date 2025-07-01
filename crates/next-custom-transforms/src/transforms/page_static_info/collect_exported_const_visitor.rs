@@ -12,7 +12,7 @@ use swc_core::{
 };
 
 /// The values extracted for the corresponding AST node.
-/// refer extract_expored_const_values for the supported value types.
+/// refer extract_exported_const_values for the supported value types.
 /// Undefined / null is treated as None.
 pub enum Const {
     Value(Value),

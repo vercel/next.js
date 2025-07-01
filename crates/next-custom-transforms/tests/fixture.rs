@@ -9,8 +9,8 @@ use next_custom_transforms::transforms::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
     debug_fn_name::debug_fn_name,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::{next_font_loaders, Config as FontLoaderConfig},
+    dynamic::{NextDynamicMode, next_dynamic},
+    fonts::{Config as FontLoaderConfig, next_font_loaders},
     named_import_transform::named_import_transform,
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
@@ -18,9 +18,9 @@ use next_custom_transforms::transforms::{
     page_config::page_config_test,
     pure::pure_magic,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
-    shake_exports::{shake_exports, Config as ShakeExportsConfig},
-    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    server_actions::{self, ServerActionsMode, server_actions},
+    shake_exports::{Config as ShakeExportsConfig, shake_exports},
+    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
     track_dynamic_imports::track_dynamic_imports,
     warn_for_edge_runtime::warn_for_edge_runtime,
 };
@@ -28,20 +28,20 @@ use rustc_hash::FxHashSet;
 use serde::de::DeserializeOwned;
 use swc_core::{
     atoms::atom,
-    common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
+    common::{FileName, Mark, SyntaxContext, comments::SingleThreadedComments},
     ecma::{
         ast::Pass,
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
             react::jsx,
-            testing::{test_fixture, FixtureTestConfig},
+            testing::{FixtureTestConfig, test_fixture},
         },
         utils::ExprCtx,
-        visit::{visit_mut_pass, visit_pass, Visit},
+        visit::{Visit, visit_mut_pass, visit_pass},
     },
 };
-use swc_relay::{relay, RelayLanguageConfig};
+use swc_relay::{RelayLanguageConfig, relay};
 use testing::fixture;
 
 fn syntax() -> Syntax {
@@ -789,7 +789,7 @@ fn pure(input: PathBuf) {
     );
 }
 
-fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
+fn run_strip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
     test_fixture(
         syntax(),
         &|tr| {
@@ -830,14 +830,14 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
 fn next_transform_strip_page_exports_fixture_data(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_stip_page_exports_test(&input, &output, ExportFilter::StripDefaultExport);
+    run_strip_page_exports_test(&input, &output, ExportFilter::StripDefaultExport);
 }
 
 #[fixture("tests/fixture/strip-page-exports/**/output-default.js")]
 fn next_transform_strip_page_exports_fixture_default(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_stip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
+    run_strip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
 }
 
 #[fixture("tests/fixture/debug-fn-name/**/input.js")]

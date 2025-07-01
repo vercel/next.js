@@ -45,7 +45,7 @@ impl SourcePos {
 
     /// Increments the line/column position to account for new source code.
     /// Line terminators are the classic "\n", "\r", "\r\n" (which counts as
-    /// a single terminator), and JSON LINE/PARAGRAPH SEPARATORs.
+    /// a single terminator), and JSON LINE/PARAGRAPH separators.
     ///
     /// See https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-line-terminators
     pub fn update(&mut self, code: &[u8]) {
