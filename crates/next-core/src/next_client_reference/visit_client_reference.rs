@@ -234,8 +234,8 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                 }
             };
 
-            // Pass include_traced to reuse the same cached task result, but they will be filtered
-            // out again immedately again.
+            // Pass include_traced to reuse the same cached `primary_chunkable_referenced_modules`
+            // task result, but the traced references will be filtered out again afterwards.
             let referenced_modules =
                 primary_chunkable_referenced_modules(*parent_module, include_traced).await?;
 
