@@ -56,7 +56,7 @@ export function DevToolsIndicator({
           [vertical]: `${INDICATOR_PADDING}px`,
           [horizontal]: `${INDICATOR_PADDING}px`,
           visibility:
-            state.isDevToolsPanelOpen && !state.isErrorOverlayOpen
+            state.isDevToolsPanelOpen || state.isErrorOverlayOpen
               ? 'hidden'
               : 'visible',
         } as CSSProperties

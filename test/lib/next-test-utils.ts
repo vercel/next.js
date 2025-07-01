@@ -951,11 +951,6 @@ export async function openRedbox(browser: Playwright): Promise<void> {
 export async function openDevToolsIndicatorPopover(
   browser: Playwright
 ): Promise<void> {
-  // If the devtools panel is already open, we don't assert the indicator,
-  // and no need to open it again.
-  if (await hasDevToolsPanel(browser)) {
-    return
-  }
   const devToolsIndicator = await assertHasDevToolsIndicator(browser)
 
   try {

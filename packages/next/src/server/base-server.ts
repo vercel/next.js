@@ -612,7 +612,8 @@ export default abstract class Server<
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
-      devtoolNewPanelUI: this.nextConfig.experimental.devtoolNewPanelUI,
+      devtoolSegmentExplorer:
+        this.nextConfig.experimental.devtoolSegmentExplorer,
     }
 
     // Initialize next/config with the environment configuration

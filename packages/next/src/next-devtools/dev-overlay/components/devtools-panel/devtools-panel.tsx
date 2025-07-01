@@ -161,8 +161,7 @@ export function DevToolsPanel({
                 >
                   <div data-nextjs-devtools-panel-header-tab-group>
                     <button
-                      data-nextjs-devtools-panel-header-tab="issues"
-                      data-nextjs-devtools-panel-header-tab-active={
+                      data-nextjs-devtools-panel-header-tab={
                         activeTab === 'issues'
                       }
                       onClick={() => setActiveTab('issues')}
@@ -177,8 +176,7 @@ export function DevToolsPanel({
                       ) : null}
                     </button>
                     <button
-                      data-nextjs-devtools-panel-header-tab="route"
-                      data-nextjs-devtools-panel-header-tab-active={
+                      data-nextjs-devtools-panel-header-tab={
                         activeTab === 'route'
                       }
                       onClick={() => setActiveTab('route')}
@@ -186,8 +184,7 @@ export function DevToolsPanel({
                       Route Info
                     </button>
                     <button
-                      data-nextjs-devtools-panel-header-tab="settings"
-                      data-nextjs-devtools-panel-header-tab-active={
+                      data-nextjs-devtools-panel-header-tab={
                         activeTab === 'settings'
                       }
                       onClick={() => setActiveTab('settings')}
@@ -355,7 +352,7 @@ export const DEVTOOLS_PANEL_STYLES = css`
     }
   }
 
-  [data-nextjs-devtools-panel-header-tab-active='true'] {
+  [data-nextjs-devtools-panel-header-tab='true'] {
     color: var(--color-gray-1000);
     background-color: var(--color-gray-100);
   }
