@@ -1,4 +1,5 @@
-use std::{fmt::Debug, hash::Hash, pin::Pin};
+use core::panic;
+use std::{fmt::Debug, hash::Hash, pin::Pin, sync::OnceLock};
 
 use anyhow::Result;
 use futures::Future;
@@ -166,6 +167,8 @@ pub struct NativeFunction {
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
     pub(crate) implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+
+    global_name: OnceLock<&'static str>,
 }
 
 impl Debug for NativeFunction {
@@ -191,6 +194,7 @@ impl NativeFunction {
             function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
+            global_name: Default::default(),
         }
     }
 
@@ -213,6 +217,7 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn()),
+            global_name: Default::default(),
         }
     }
 
@@ -236,6 +241,7 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn_with_this()),
+            global_name: Default::default(),
         }
     }
 
@@ -276,7 +282,20 @@ impl NativeFunction {
         tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
     }
 
+    /// Returns the global name for this object
+    pub fn global_name(&self) -> &'static str {
+        self.global_name
+            .get()
+            .expect("cannot call `global_name` unless `register` has already been called")
+    }
+
     pub fn register(&'static self, global_name: &'static str) {
+        match self.global_name.set(global_name) {
+            Ok(_) => {}
+            Err(prev) => {
+                panic!("function {global_name} registered twice, previously with {prev}");
+            }
+        }
         register_function(global_name, self);
     }
 }
