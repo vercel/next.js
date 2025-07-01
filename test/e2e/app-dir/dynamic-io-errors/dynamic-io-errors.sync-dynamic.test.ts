@@ -430,68 +430,9 @@ describe.each(
     }
   })
 
-  describe('Sync Dynamic - With Fallback - cookies', () => {
-    const { next, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/sync-cookies-with-fallback',
-      skipStart: !isNextDev,
-      skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
-    })
-
-    if (skipped) {
-      return
-    }
-
-    if (isNextDev) {
-      // We don't error the build, but we do show a dev-only error so that users
-      // migrate to the async usage.
-      it('should show a collapsed redbox error', async () => {
-        const browser = await next.browser('/')
-
-        await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-           "environmentLabel": "Server",
-           "label": "Console Error",
-           "source": "app/page.tsx (33:66) @ CookiesReadingComponent
-         > 33 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-              |                                                                  ^",
-           "stack": [
-             "CookiesReadingComponent app/page.tsx (33:66)",
-             "Page app/page.tsx (16:11)",
-           ],
-         }
-        `)
-      })
-
-      it('should prefix a log after sync dynamic IO with "Server"', async () => {
-        const browser = await next.browser('/')
-        const logs = await browser.log()
-
-        assertLog(
-          logs,
-          'Server',
-          'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-        )
-      })
-    } else {
-      it('should not error the build when synchronously reading cookies if all dynamic access is inside a Suspense boundary', async () => {
-        try {
-          await next.start()
-        } catch {
-          throw new Error('expected build not to fail for fully static project')
-        }
-
-        expect(next.cliOutput).toContain('◐ / ')
-        const $ = await next.render$('/')
-        expect($('[data-fallback]').length).toBe(2)
-      })
-    }
-  })
-
-  describe('Sync Dynamic - Without Fallback - cookies', () => {
+  describe('Sync Dynamic - cookies', () => {
     const { next, isTurbopack, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/sync-cookies-without-fallback',
+      files: __dirname + '/fixtures/sync-cookies',
       skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
@@ -502,52 +443,69 @@ describe.each(
     }
 
     if (isNextDev) {
-      // TODO: Ideally we'd only show the error once.
-      it('should show a collapsed redbox error', async () => {
+      it('should show a redbox with a sync access error and a runtime error', async () => {
         const browser = await next.browser('/')
 
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/page.tsx (32:67) @ CookiesReadingComponent
-         > 32 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-              |                                                                   ^",
-             "stack": [
-               "CookiesReadingComponent app/page.tsx (32:67)",
-               "Page app/page.tsx (17:11)",
-             ],
-           },
-           {
-             "description": "Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/page.tsx (32:67) @ CookiesReadingComponent
-         > 32 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-              |                                                                   ^",
-             "stack": [
-               "CookiesReadingComponent app/page.tsx (32:67)",
-               "LogSafely <anonymous> (0:0)",
-             ],
-           },
-         ]
-        `)
-      })
-
-      it('should prefix a log after sync dynamic IO with "Server"', async () => {
-        const browser = await next.browser('/')
-        const logs = await browser.log()
-
-        assertLog(
-          logs,
-          'Server',
-          'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-        )
+        if (isTurbopack) {
+          await expect(browser).toDisplayRedbox(`
+           [
+             {
+               "description": "Route "/" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": "app/page.tsx (17:26) @ CookiesReadingComponent
+           > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                |                          ^",
+               "stack": [
+                 "CookiesReadingComponent app/page.tsx (17:26)",
+                 "Page app/page.tsx (11:7)",
+               ],
+             },
+             {
+               "description": "(0 , <turbopack-module-id>.cookies)(...).get is not a function",
+               "environmentLabel": "Prerender",
+               "label": "Runtime TypeError",
+               "source": "app/page.tsx (17:67) @ CookiesReadingComponent
+           > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                |                                                                   ^",
+               "stack": [
+                 "CookiesReadingComponent app/page.tsx (17:67)",
+               ],
+             },
+           ]
+          `)
+        } else {
+          await expect(browser).toDisplayRedbox(`
+           [
+             {
+               "description": "Route "/" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": "app/page.tsx (17:18) @ CookiesReadingComponent
+           > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                |                  ^",
+               "stack": [
+                 "CookiesReadingComponent app/page.tsx (17:18)",
+                 "Page app/page.tsx (11:7)",
+               ],
+             },
+             {
+               "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+               "environmentLabel": "Prerender",
+               "label": "Runtime TypeError",
+               "source": "app/page.tsx (17:67) @ CookiesReadingComponent
+           > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                |                                                                   ^",
+               "stack": [
+                 "CookiesReadingComponent app/page.tsx (17:67)",
+               ],
+             },
+           ]
+          `)
+        }
       })
     } else {
-      it('should error the build if dynamic IO happens in the root (outside a Suspense)', async () => {
+      it('should error the build with a runtime error', async () => {
         try {
           await next.build()
         } catch {
@@ -561,56 +519,62 @@ describe.each(
         if (isTurbopack) {
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at CookiesReadingComponent (turbopack:///[project]/app/page.tsx:32:66)
-               30 | async function CookiesReadingComponent() {
-               31 |   await new Promise((r) => process.nextTick(r))
-             > 32 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+             "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+             TypeError: <module-function>().get is not a function
+                 at CookiesReadingComponent (turbopack:///[project]/app/page.tsx:17:66)
+                 at stringify (<anonymous>)
+               15 |
+               16 | async function CookiesReadingComponent() {
+             > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
                   |                                                                  ^
-               33 |
-               34 |   console.log(
-               35 |     'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+               18 |   return <div>this component reads the \`token\` cookie synchronously</div>
+               19 | }
+               20 | {
+               digest: '<error-digest>'
+             }
 
              > Export encountered errors on following paths:
              	/page: /"
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+             "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+             TypeError: <module-function>().get is not a function
                  at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at c (<next-dist-dir>)
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+                 at b (<anonymous>) {
+               digest: '<error-digest>'
+             }
              Export encountered an error on /page: /, exiting the build."
             `)
           }
         } else {
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at createCookiesAccessError (webpack://<next-src>)
-                 at Promise.get (webpack://<next-src>)
-                 at CookiesReadingComponent (webpack:///app/page.tsx:32:66)
-               579 | ) {
-               580 |   const prefix = route ? \`Route "\${route}" \` : 'This route '
-             > 581 |   return new Error(
-                   |         ^
-               582 |     \`\${prefix}used \${expression}. \` +
-               583 |       \`\\\`cookies()\\\` should be awaited before using its value. \` +
-               584 |       \`Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis\`
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+             "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+             TypeError: <module-function>().get is not a function
+                 at CookiesReadingComponent (webpack:///app/page.tsx:17:66)
+                 at stringify (<anonymous>)
+               15 |
+               16 | async function CookiesReadingComponent() {
+             > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                  |                                                                  ^
+               18 |   return <div>this component reads the \`token\` cookie synchronously</div>
+               19 | }
+               20 | {
+               digest: '<error-digest>'
+             }
 
              > Export encountered errors on following paths:
              	/page: /"
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`cookies().get('token')\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+             "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+             TypeError: <module-function>().get is not a function
                  at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at c (<next-dist-dir>)
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+                 at b (<anonymous>) {
+               digest: '<error-digest>'
+             }
              Export encountered an error on /page: /, exiting the build."
             `)
           }
