@@ -200,7 +200,6 @@ impl HmrBenchmark {
                     preview_mode_signing_key: RcStr::from("test-key"),
                 },
                 browserslist_query: RcStr::from("last 2 versions"),
-                has_rewrites: false,
                 no_mangling: false,
                 current_node_js_version: RcStr::from("18.0.0"),
             };

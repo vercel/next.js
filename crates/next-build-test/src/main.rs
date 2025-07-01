@@ -165,7 +165,6 @@ fn main() {
                 browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 \
                                      Safari versions, last 1 Edge versions"
                     .into(),
-                has_rewrites: false,
                 no_mangling: false,
                 current_node_js_version: "18.0.0".into(),
             };

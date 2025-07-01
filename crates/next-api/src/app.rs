@@ -210,7 +210,6 @@ impl AppProject {
             self.client_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
-            self.project().has_rewrites(),
             self.project().encryption_key(),
             self.project().no_mangling(),
         ))
@@ -223,7 +222,6 @@ impl AppProject {
             self.client_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
-            self.project().has_rewrites(),
             self.project().execution_context(),
         ))
     }
@@ -308,7 +306,6 @@ impl AppProject {
             self.rsc_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
-            self.project().has_rewrites(),
             self.project().execution_context(),
         ))
     }
@@ -333,7 +330,6 @@ impl AppProject {
             self.route_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
-            self.project().has_rewrites(),
             self.project().execution_context(),
         ))
     }
@@ -642,7 +638,6 @@ impl AppProject {
             self.ssr_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
-            self.project().has_rewrites(),
             self.project().execution_context(),
         ))
     }
@@ -807,7 +802,6 @@ impl AppProject {
             self.client_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
-            self.project().has_rewrites(),
             self.project().execution_context(),
         )
         .resolve_entries(Vc::upcast(self.client_module_context())))

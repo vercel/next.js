@@ -22,9 +22,7 @@ import mitt from '../mitt'
 import { getLocationOrigin, getURL, loadGetInitialProps, ST } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
-// Use the full specifier here, so that this can easily be excluded in Turbopack if there are no rewrites.
-// This hack could be removed once we use an ESM build of Next.js and correctly specify sideEffects: false.
-import resolveRewrites from 'next/dist/shared/lib/router/utils/resolve-rewrites'
+import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'

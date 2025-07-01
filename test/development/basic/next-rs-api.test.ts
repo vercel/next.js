@@ -235,7 +235,6 @@ describe('next.rs api', () => {
         previewModeSigningKey: '12345',
       },
       browserslistQuery: 'last 2 versions',
-      hasRewrites: false,
       noMangling: false,
       currentNodeJsVersion: '18.0.0',
     })
