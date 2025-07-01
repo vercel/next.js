@@ -110,11 +110,10 @@ where
     ///
     /// Panics if `bound` is `Bound::Exclusive(IntervalBound::bound_min())`, as that would imply an
     /// empty range.
-    fn upper_bound(&self, bound: Bound<&B>) -> (&B, &T) {
+    fn upper_bound(&self, bound: Bound<&B>) -> Option<(&B, &T)> {
         self.interval_starts
             .range((Bound::Unbounded, bound))
             .next_back()
-            .expect("interval_starts should always contain a value at `B::bound_min`")
     }
 }
 
@@ -135,9 +134,15 @@ where
             return;
         }
 
-        let tail = end_bound
-            .checked_increment()
-            .map(|tb| (tb, self.upper_bound(Bound::Included(&tb)).1.clone()));
+        let tail = end_bound.checked_increment().map(|tb| {
+            (
+                tb,
+                self.upper_bound(Bound::Included(&tb))
+                    .expect("at least one interval starting at `B::bound_min`")
+                    .1
+                    .clone(),
+            )
+        });
 
         // defer removals to avoid multiple simultaneous mutable borrows
         let mut remove_list = Vec::new();
@@ -146,16 +151,22 @@ where
         let mut prev_value = if let Some(cur_value) = self.interval_starts.get_mut(&start_bound) {
             update(cur_value);
             let cur_value = cur_value.clone();
-            let prev_value = start_bound
-                .checked_decrement()
-                .map(|sb| self.upper_bound(Bound::Included(&sb)).1);
+            // N.B. `prev_value` can be `None` if `start_bound` is `B::bound_min()`
+            let prev_value = self
+                .upper_bound(Bound::Excluded(&start_bound))
+                .map(|(_, v)| v);
             if Some(&cur_value) == prev_value {
                 // merge identical adjacent intervals
                 remove_list.push(start_bound);
             }
             cur_value
         } else {
-            let prev_value = self.upper_bound(Bound::Excluded(&start_bound)).1;
+            let prev_value = self
+                .upper_bound(Bound::Excluded(&start_bound))
+                .expect(
+                    "there's no interval starting at `start_bound`, so there must be one before it",
+                )
+                .1;
             let mut cur_value = prev_value.clone();
             update(&mut cur_value);
             if &cur_value != prev_value {
@@ -216,7 +227,9 @@ where
             B: IntervalBound,
         {
             // the first intersecting range may begin before `range.start()`
-            let (start_position, _) = this.upper_bound(Bound::Included(range.start()));
+            let (start_position, _) = this
+                .upper_bound(Bound::Included(range.start()))
+                .expect("at least one interval starting at `B::bound_min`");
             IntervalMapIterator {
                 starts_iter: this.interval_starts.range(start_position..).peekable(),
                 end_bound: *range.end(),
