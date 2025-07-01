@@ -48,7 +48,7 @@ where
     start..=end
 }
 
-/// This is a conceptually more efficient version of a sparse array `[T: u64::MAX]` (or `[T:
+/// This is a conceptually more efficient version of an array `[T: u64::MAX]` (or `[T:
 /// B::bound_max()]`), where entries are deduplicated using a variation on [run-length
 /// encoding][rle].
 ///
