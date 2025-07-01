@@ -384,7 +384,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             // Find the longest common sequence in the lists, starting from the given module.
             let mut common_length = 2;
             loop {
-                let m = lists[first_occurrence.list].get(first_occurrence.entry + common_length - 1);
+                let m =
+                    lists[first_occurrence.list].get(first_occurrence.entry + common_length - 1);
                 if m.is_some()
                     && common_occurrences
                         .iter()
@@ -485,8 +486,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     exposed_modules_imported.extend(modules_to_expose);
                 }
 
-                // The occurrences for the "before" list (`list`) are still valid, need to update the
-                // occurrences for the "after" list
+                // The occurrences for the "before" list (`list`) are still valid, need to update
+                // the occurrences for the "after" list
                 if !after_list.is_empty() {
                     let after_index = lists.len();
                     lists.push(after_list.clone());

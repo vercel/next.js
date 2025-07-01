@@ -557,8 +557,7 @@ impl IssueReporter for ConsoleUi {
                     } else {
                         min(contexts.len(), DEFAULT_SHOW_COUNT)
                     };
-                    for (context, issues) in contexts.into_iter().take(category_issues_take_count)
-                    {
+                    for (context, issues) in contexts.into_iter().take(category_issues_take_count) {
                         issues.sort();
                         println!("{indent}{}", context.bright_blue());
                         let issues_size = issues.len();
