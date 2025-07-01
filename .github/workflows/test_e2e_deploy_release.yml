@@ -120,7 +120,7 @@ jobs:
           retry-exempt-status-codes: 400,401,404
           # Default github token cannot dispatch events to the remote repo, it should be
           # a PAT with Actions write access (https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28#create-a-workflow-dispatch-event)
-          github-token: ${{ secrets.FRONT_TEST_TOKEN }}
+          github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
           # Note `workflow_id` and `inputs` are contract between vercel/front,
           # if these need to be changed both side should be updated accordingly.
           script: |
