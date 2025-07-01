@@ -49,6 +49,9 @@ fn bench_small_apps(c: &mut Criterion) {
     let (apps_dir, apps) = list_apps();
     let mut g = c.benchmark_group("turbopack/build/apps");
 
+    let thread_count =
+        std::thread::available_parallelism().expect("failed to get available parallelism") * 3 / 2;
+
     for app in apps {
         g.bench_function(
             BenchmarkId::new("build", app.file_name().unwrap().to_string_lossy()),
@@ -57,7 +60,8 @@ fn bench_small_apps(c: &mut Criterion) {
                 let app = app.clone();
 
                 b.iter(move || {
-                    let mut rt = tokio::runtime::Builder::new_multi_thread();
+                    let mut rt =
+                        tokio::runtime::Builder::new_multi_thread().max_threads(thread_count);
                     rt.enable_all().on_thread_stop(|| {
                         TurboMalloc::thread_stop();
                     });
