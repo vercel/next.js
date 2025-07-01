@@ -145,13 +145,10 @@ pub async fn find_server_entries(
         let graph = AdjacencyMap::new()
             .skip_duplicates()
             .visit(
-                vec![FindServerEntriesNode {
-                    state: { FindServerEntriesNodeState::Entry },
-                    ty: FindServerEntriesNodeType::Internal(
-                        entry,
-                        entry.ident().to_string().await?,
-                    ),
-                }],
+                vec![FindServerEntriesNode::Internal(
+                    entry,
+                    entry.ident().to_string().await?,
+                )],
                 FindServerEntries { include_traced },
             )
             .await
@@ -161,15 +158,14 @@ pub async fn find_server_entries(
         let mut server_component_entries = vec![];
         let mut server_utils = vec![];
         for node in graph.postorder_topological() {
-            match &node.ty {
-                FindServerEntriesNodeType::ServerUtilEntry(server_util, _) => {
+            match node {
+                FindServerEntriesNode::ServerUtilEntry(server_util, _) => {
                     server_utils.push(*server_util);
                 }
-                FindServerEntriesNodeType::ServerComponentEntry(server_component, _) => {
+                FindServerEntriesNode::ServerComponentEntry(server_component, _) => {
                     server_component_entries.push(*server_component);
                 }
-                FindServerEntriesNodeType::Internal(_, _)
-                | FindServerEntriesNodeType::ClientReference => {}
+                FindServerEntriesNode::Internal(_, _) | FindServerEntriesNode::ClientReference => {}
             }
         }
 
@@ -200,43 +196,7 @@ struct FindServerEntries {
     TraceRawVcs,
     NonLocalValue,
 )]
-struct FindServerEntriesNode {
-    state: FindServerEntriesNodeState,
-    ty: FindServerEntriesNodeType,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    Debug,
-    ValueDebugFormat,
-    TraceRawVcs,
-    NonLocalValue,
-)]
-enum FindServerEntriesNodeState {
-    Entry,
-    InServerComponent,
-    InServerUtil,
-}
-
-#[derive(
-    Clone,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    Debug,
-    ValueDebugFormat,
-    TraceRawVcs,
-    NonLocalValue,
-)]
-enum FindServerEntriesNodeType {
+enum FindServerEntriesNode {
     ClientReference,
     ServerComponentEntry(ResolvedVc<NextServerComponentModule>, ReadRef<RcStr>),
     ServerUtilEntry(ResolvedVc<NextServerUtilityModule>, ReadRef<RcStr>),
@@ -249,11 +209,11 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<FindServerEntriesNode> {
-        match edge.ty {
-            FindServerEntriesNodeType::Internal(..) => VisitControlFlow::Continue(edge),
-            FindServerEntriesNodeType::ClientReference
-            | FindServerEntriesNodeType::ServerUtilEntry(..)
-            | FindServerEntriesNodeType::ServerComponentEntry(..) => VisitControlFlow::Skip(edge),
+        match edge {
+            FindServerEntriesNode::Internal(..) => VisitControlFlow::Continue(edge),
+            FindServerEntriesNode::ClientReference
+            | FindServerEntriesNode::ServerUtilEntry(..)
+            | FindServerEntriesNode::ServerComponentEntry(..) => VisitControlFlow::Skip(edge),
         }
     }
 
@@ -261,13 +221,15 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
         let node = node.clone();
         let include_traced = self.include_traced;
         async move {
-            let parent_module = match node.ty {
+            let parent_module = match node {
                 // This should never occur since we always skip visiting these
                 // nodes' edges.
-                FindServerEntriesNodeType::ClientReference => return Ok(vec![]),
-                FindServerEntriesNodeType::Internal(module, _) => module,
-                FindServerEntriesNodeType::ServerUtilEntry(module, _) => ResolvedVc::upcast(module),
-                FindServerEntriesNodeType::ServerComponentEntry(module, _) => {
+                FindServerEntriesNode::ClientReference => {
+                    unreachable!("ClientReference node should not be visited")
+                }
+                FindServerEntriesNode::Internal(module, _) => module,
+                FindServerEntriesNode::ServerUtilEntry(module, _) => ResolvedVc::upcast(module),
+                FindServerEntriesNode::ServerComponentEntry(module, _) => {
                     ResolvedVc::upcast(module)
                 }
             };
@@ -284,52 +246,37 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                     _ => Some(modules.iter()),
                 })
                 .flatten()
-                .map(|module| {
-                    let node_state = node.state;
-                    async move {
-                        if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
+                .map(async |module| {
+                    if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
+                        .is_some()
+                        || ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module)
                             .is_some()
-                            || ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module)
-                                .is_some()
-                        {
-                            return Ok(FindServerEntriesNode {
-                                state: node_state,
-                                ty: FindServerEntriesNodeType::ClientReference,
-                            });
-                        }
-
-                        if let Some(server_component_asset) =
-                            ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
-                        {
-                            return Ok(FindServerEntriesNode {
-                                state: FindServerEntriesNodeState::InServerComponent,
-                                ty: FindServerEntriesNodeType::ServerComponentEntry(
-                                    server_component_asset,
-                                    server_component_asset.ident().to_string().await?,
-                                ),
-                            });
-                        }
-
-                        if let Some(server_util_module) =
-                            ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
-                        {
-                            return Ok(FindServerEntriesNode {
-                                state: FindServerEntriesNodeState::InServerUtil,
-                                ty: FindServerEntriesNodeType::ServerUtilEntry(
-                                    server_util_module,
-                                    module.ident().to_string().await?,
-                                ),
-                            });
-                        }
-
-                        Ok(FindServerEntriesNode {
-                            state: node_state,
-                            ty: FindServerEntriesNodeType::Internal(
-                                *module,
-                                module.ident().to_string().await?,
-                            ),
-                        })
+                    {
+                        return Ok(FindServerEntriesNode::ClientReference);
                     }
+
+                    if let Some(server_component_asset) =
+                        ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
+                    {
+                        return Ok(FindServerEntriesNode::ServerComponentEntry(
+                            server_component_asset,
+                            server_component_asset.ident().to_string().await?,
+                        ));
+                    }
+
+                    if let Some(server_util_module) =
+                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
+                    {
+                        return Ok(FindServerEntriesNode::ServerUtilEntry(
+                            server_util_module,
+                            module.ident().to_string().await?,
+                        ));
+                    }
+
+                    Ok(FindServerEntriesNode::Internal(
+                        *module,
+                        module.ident().to_string().await?,
+                    ))
                 });
 
             let assets = referenced_modules.try_join().await?;
@@ -339,17 +286,17 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
     }
 
     fn span(&mut self, node: &FindServerEntriesNode) -> tracing::Span {
-        match &node.ty {
-            FindServerEntriesNodeType::ClientReference => {
+        match node {
+            FindServerEntriesNode::ClientReference => {
                 tracing::info_span!("client reference")
             }
-            FindServerEntriesNodeType::Internal(_, name) => {
+            FindServerEntriesNode::Internal(_, name) => {
                 tracing::info_span!("module", name = name.to_string())
             }
-            FindServerEntriesNodeType::ServerUtilEntry(_, name) => {
+            FindServerEntriesNode::ServerUtilEntry(_, name) => {
                 tracing::info_span!("server util", name = name.to_string())
             }
-            FindServerEntriesNodeType::ServerComponentEntry(_, name) => {
+            FindServerEntriesNode::ServerComponentEntry(_, name) => {
                 tracing::info_span!("layout segment", name = name.to_string())
             }
         }
