@@ -1553,7 +1553,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 )
             }
             TaskType::Transient(task_type) => {
-                let task_type = task_type.clone();
                 let span = tracing::trace_span!("turbo_tasks::root_task");
                 let future = match &*task_type {
                     TransientTask::Root(f) => f(),
