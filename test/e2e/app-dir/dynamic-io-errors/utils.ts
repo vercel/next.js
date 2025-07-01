@@ -35,13 +35,10 @@ export function getPrerenderOutput(
       lines.push(
         isMinified
           ? line
-              .replace(/at [\w.]+ \(.next[^)]+\)/, replaceNextDistStackFrame)
-              .replace(
-                /at ([\w.]+) \(<anonymous>\)/,
-                replaceAnonymousStackFrame
-              )
+              .replace(/at \S+ \(.next[^)]+\)/, replaceNextDistStackFrame)
+              .replace(/at (\S+) \(<anonymous>\)/, replaceAnonymousStackFrame)
           : line.replace(
-              /at ([\w.]+) \((webpack:\/\/)\/src[^)]+\)/,
+              /at (\S+) \((webpack:\/\/)\/src[^)]+\)/,
               `at $1 ($2<next-src>)`
             )
       )
