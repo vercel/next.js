@@ -9,7 +9,7 @@ import {
   styles as segmentBoundaryTriggerStyles,
 } from './segment-boundary-trigger'
 import { Tooltip, styles as tooltipStyles } from '../../../components/tooltip'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 const BUILTIN_PREFIX = '__next_builtin__'
 
@@ -66,6 +66,8 @@ function PageSegmentTreeLayerPresentation({
     if (!portal) return null
     return portal.shadowRoot as ShadowRoot
   })
+  // This is a workaround as base-ui popup container only accepts shadowRoot when it's in a ref.
+  const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
   const childrenKeys = Object.keys(node.children)
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
@@ -187,8 +189,10 @@ function PageSegmentTreeLayerPresentation({
                           <Tooltip
                             direction="right"
                             title={`The default Next.js not found is being shown. You can customize this page by adding your own ${fileName} file to the app/ directory.`}
-                            container={shadowRoot!}
-                            offset={8}
+                            // x-ref: https://github.com/mui/base-ui/issues/2224
+                            // @ts-expect-error remove this expect-error once shadowRoot is supported as container
+                            container={shadowRootRef}
+                            offset={12}
                             bgcolor="var(--color-gray-1000)"
                             color="var(--color-gray-100)"
                           >

@@ -9,7 +9,7 @@ const meta: Meta<typeof Tooltip> = {
     docs: {
       description: {
         component:
-          'A tooltip component that displays helpful information on hover. Supports 4 directions: top, bottom, left, and right.',
+          'A tooltip component built on @base-ui-components/react/tooltip. Supports 4 directions with configurable styling.',
       },
     },
   },
@@ -23,9 +23,21 @@ const meta: Meta<typeof Tooltip> = {
       control: { type: 'text' },
       description: 'The text content of the tooltip',
     },
-    children: {
-      control: { type: 'text' },
-      description: 'The trigger element that shows the tooltip on hover',
+    arrowSize: {
+      control: { type: 'range', min: 2, max: 12, step: 1 },
+      description: 'Size of the tooltip arrow in pixels',
+    },
+    offset: {
+      control: { type: 'range', min: 0, max: 20, step: 1 },
+      description: 'Distance between tooltip and trigger element',
+    },
+    bgcolor: {
+      control: { type: 'color' },
+      description: 'Background color of the tooltip',
+    },
+    color: {
+      control: { type: 'color' },
+      description: 'Text color of the tooltip',
     },
   },
 }
@@ -38,10 +50,13 @@ export const Default: Story = {
   args: {
     title: 'This is a helpful tooltip',
     direction: 'top',
-    children: 'Hover me',
+    arrowSize: 6,
+    offset: 8,
+    bgcolor: 'var(--color-gray-1000)',
+    color: 'var(--color-gray-100)',
   },
   render: (args) => (
-    <main>
+    <div>
       <style dangerouslySetInnerHTML={{ __html: styles }} />
       <Tooltip {...args}>
         <button
@@ -54,10 +69,10 @@ export const Default: Story = {
             cursor: 'pointer',
           }}
         >
-          {args.children}
+          Hover for tooltip
         </button>
       </Tooltip>
-    </main>
+    </div>
   ),
 }
 
@@ -72,18 +87,18 @@ export const AllDirections: Story = {
     },
   },
   render: () => (
-    <main>
+    <div>
       <style dangerouslySetInnerHTML={{ __html: styles }} />
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 120px)',
-          gridTemplateRows: 'repeat(3, 60px)',
+          gridTemplateColumns: 'repeat(3, 140px)',
+          gridTemplateRows: 'repeat(3, 80px)',
           gap: '20px',
           alignItems: 'center',
           justifyItems: 'center',
-          width: '400px',
-          height: '240px',
+          width: '460px',
+          height: '280px',
         }}
       >
         {/* Top row - Top tooltip */}
@@ -123,8 +138,8 @@ export const AllDirections: Story = {
         </Tooltip>
         <div
           style={{
-            width: '80px',
-            height: '40px',
+            width: '100px',
+            height: '60px',
             backgroundColor: '#f3f4f6',
             borderRadius: '4px',
             display: 'flex',
@@ -134,7 +149,7 @@ export const AllDirections: Story = {
             color: '#6b7280',
           }}
         >
-          Center
+          Center Element
         </div>
         <Tooltip title="Tooltip appears to the right" direction="right">
           <button
@@ -171,35 +186,7 @@ export const AllDirections: Story = {
         </Tooltip>
         <div></div>
       </div>
-    </main>
-  ),
-}
-
-// Long text tooltip
-export const LongText: Story = {
-  args: {
-    title:
-      'This is a much longer tooltip text that demonstrates how the tooltip handles wrapping and longer content. It should display properly without breaking the layout.',
-    direction: 'top',
-  },
-  render: (args) => (
-    <main>
-      <style dangerouslySetInnerHTML={{ __html: styles }} />
-      <Tooltip {...args}>
-        <button
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#6366f1',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
-        >
-          Long Tooltip
-        </button>
-      </Tooltip>
-    </main>
+    </div>
   ),
 }
 
@@ -208,13 +195,12 @@ export const DifferentTriggers: Story = {
   parameters: {
     docs: {
       description: {
-        story:
-          'Tooltips can be applied to different types of elements, not just buttons.',
+        story: 'Tooltips can be applied to different types of elements.',
       },
     },
   },
   render: () => (
-    <main>
+    <div>
       <style dangerouslySetInnerHTML={{ __html: styles }} />
       <div
         style={{
@@ -224,7 +210,7 @@ export const DifferentTriggers: Story = {
           flexWrap: 'wrap',
         }}
       >
-        <Tooltip title="Button with tooltip" direction="top">
+        <Tooltip title="Button with helpful information" direction="top">
           <button
             style={{
               padding: '8px 16px',
@@ -239,54 +225,47 @@ export const DifferentTriggers: Story = {
           </button>
         </Tooltip>
 
-        <div>
-          <Tooltip title="Span element with tooltip" direction="bottom">
-            <span
-              style={{
-                padding: '4px 8px',
-                backgroundColor: '#f1f5f9',
-                border: '1px solid #cbd5e1',
-                borderRadius: '4px',
-                cursor: 'help',
-              }}
-            >
-              Span Element
-            </span>
-          </Tooltip>
-        </div>
-      </div>
-
-      <div
-        style={{
-          marginTop: '20px',
-        }}
-      >
-        <Tooltip title="Icon with helpful information" direction="right">
+        <Tooltip title="Span element with tooltip" direction="bottom">
           <span
             style={{
-              width: '24px',
-              height: '24px',
+              padding: '4px 8px',
+              backgroundColor: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '4px',
+              cursor: 'help',
+            }}
+          >
+            Span Element
+          </span>
+        </Tooltip>
+
+        <Tooltip title="Help icon with information" direction="right">
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
               backgroundColor: '#64748b',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              fontSize: '12px',
+              fontSize: '14px',
               cursor: 'help',
+              fontWeight: 'bold',
             }}
           >
             ?
-          </span>
+          </div>
         </Tooltip>
-      </div>
-      <div>
-        <Tooltip title="Link with additional context" direction="left">
+
+        <Tooltip title="Interactive link with context" direction="left">
           <a
             href="#"
             style={{
               color: '#0070f3',
               textDecoration: 'underline',
+              padding: '4px',
             }}
             onClick={(e) => e.preventDefault()}
           >
@@ -294,6 +273,36 @@ export const DifferentTriggers: Story = {
           </a>
         </Tooltip>
       </div>
-    </main>
+    </div>
+  ),
+}
+
+// Long text content
+export const LongText: Story = {
+  args: {
+    title:
+      'This is a much longer tooltip text that demonstrates how the tooltip handles wrapping and longer content. It should display properly without breaking the layout and maintain good readability.',
+    direction: 'top',
+    arrowSize: 6,
+    offset: 8,
+  },
+  render: (args) => (
+    <div>
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
+      <Tooltip {...args}>
+        <button
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#6366f1',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          Long Text Tooltip
+        </button>
+      </Tooltip>
+    </div>
   ),
 }
