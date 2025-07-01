@@ -5,8 +5,8 @@
 
 // import() doesn't care about whether a module is an async module or not
 __turbopack_context__.s({
-    "AlternativeCreateUserAction": (()=>AlternativeCreateUserAction),
-    "CreateUserAction": (()=>CreateUserAction)
+    "AlternativeCreateUserAction": ()=>AlternativeCreateUserAction,
+    "CreateUserAction": ()=>CreateUserAction
 });
 const UserApi = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript, async loader)")(__turbopack_context__.i);
 const CreateUserAction = async (name)=>{

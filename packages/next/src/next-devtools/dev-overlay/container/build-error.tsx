@@ -8,7 +8,7 @@ export interface BuildErrorProps extends ErrorBaseProps {
   message: string
 }
 
-const getErrorTextFromBuildErrorMessage = (multiLineMessage: string) => {
+export const getErrorTextFromBuildErrorMessage = (multiLineMessage: string) => {
   const lines = multiLineMessage.split('\n')
   // The multi-line build error message looks like:
   // <file path>:<line number>:<column number>

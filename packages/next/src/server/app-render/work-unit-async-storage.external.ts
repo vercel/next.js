@@ -109,6 +109,14 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
 
   readonly rootParams: Params
 
+  /**
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
+   */
+  readonly allowEmptyStaticShell: boolean
+
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   expire: number // server expiration time
@@ -116,9 +124,17 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
   tags: null | string[]
 
   /**
-   * The resume data cache for this prerender.
+   * A mutable resume data cache for this prerender.
    */
   prerenderResumeDataCache: PrerenderResumeDataCache | null
+
+  /**
+   * An immutable resume data cache for this prerender. This may be provided
+   * instead of the `prerenderResumeDataCache` if the prerender is not supposed
+   * to fill caches, and only read from prefilled caches, e.g. when prerendering
+   * an optional fallback shell.
+   */
+  renderResumeDataCache: RenderResumeDataCache | null
 
   /**
    * The HMR refresh hash is only provided in dev mode. It is needed for the dev
@@ -272,21 +288,24 @@ export function getPrerenderResumeDataCache(
 export function getRenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): RenderResumeDataCache | null {
-  if (
-    workUnitStore.type !== 'prerender-legacy' &&
-    workUnitStore.type !== 'cache' &&
-    workUnitStore.type !== 'unstable-cache'
-  ) {
-    if (workUnitStore.type === 'request') {
+  switch (workUnitStore.type) {
+    case 'request':
       return workUnitStore.renderResumeDataCache
-    }
-
-    // We return the mutable resume data cache here as an immutable version of
-    // the cache as it can also be used for reading.
-    return workUnitStore.prerenderResumeDataCache
+    case 'prerender':
+    case 'prerender-client':
+      if (workUnitStore.renderResumeDataCache) {
+        // If we are in a prerender, we might have a render resume data cache
+        // that is used to read from prefilled caches.
+        return workUnitStore.renderResumeDataCache
+      }
+    // fallthrough
+    case 'prerender-ppr':
+      // Otherwise we return the mutable resume data cache here as an immutable
+      // version of the cache as it can also be used for reading.
+      return workUnitStore.prerenderResumeDataCache
+    default:
+      return null
   }
-
-  return null
 }
 
 export function getHmrRefreshHash(

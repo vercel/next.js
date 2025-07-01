@@ -68,8 +68,11 @@ impl EcmascriptBrowserEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    fn chunks_data(&self) -> Vc<ChunksData> {
-        ChunkData::from_assets(self.chunking_context.output_root(), *self.other_chunks)
+    async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
+        Ok(ChunkData::from_assets(
+            self.chunking_context.output_root().await?.clone_value(),
+            *self.other_chunks,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -166,18 +169,7 @@ impl EcmascriptBrowserEvaluateChunk {
         )?;
 
         match chunking_context.runtime_type() {
-            RuntimeType::Development => {
-                let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
-                    environment,
-                    chunking_context.chunk_base_path(),
-                    chunking_context.chunk_suffix_path(),
-                    chunking_context.runtime_type(),
-                    output_root_to_root_path,
-                    source_maps,
-                );
-                code.push_code(&*runtime_code.await?);
-            }
-            RuntimeType::Production => {
+            RuntimeType::Production | RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),

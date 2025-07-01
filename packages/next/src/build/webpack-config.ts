@@ -289,6 +289,21 @@ export function hasExternalOtelApiPackage(): boolean {
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
+export function getCacheDirectories(
+  configs: webpack.Configuration[]
+): Set<string> {
+  return new Set(
+    configs
+      .map((cfg) => {
+        if (typeof cfg.cache === 'object' && cfg.cache.type === 'filesystem') {
+          return cfg.cache.cacheDirectory
+        }
+        return null
+      })
+      .filter((dir) => dir != null)
+  )
+}
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -756,7 +771,6 @@ export default async function getBaseWebpackConfig(
       distDir,
       isClient,
       isEdgeServer,
-      isNodeServer,
       dev,
       config,
       pagesDir,
@@ -2441,7 +2455,7 @@ export default async function getBaseWebpackConfig(
       config,
       defaultLoaders,
       totalPages: Object.keys(entrypoints).length,
-      webpack,
+      webpack: bundler,
       ...(isNodeOrEdgeCompilation
         ? {
             nextRuntime: isEdgeServer ? 'edge' : 'nodejs',

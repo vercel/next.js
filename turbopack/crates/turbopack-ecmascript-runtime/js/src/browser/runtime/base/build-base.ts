@@ -100,8 +100,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     const sourceInfo: SourceInfo = { type: SourceType.Parent, parentId: id }
 
     const r = commonJsRequire.bind(null, module)
-    moduleFactory.call(
-      module.exports,
+    moduleFactory(
       augmentContext({
         a: asyncModule.bind(null, module),
         e: module.exports,
@@ -109,10 +108,10 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
         t: runtimeRequire,
         f: moduleContext,
         i: esmImport.bind(null, module),
-        s: esmExport.bind(null, module, module.exports),
-        j: dynamicExport.bind(null, module, module.exports),
-        v: exportValue.bind(null, module),
-        n: exportNamespace.bind(null, module),
+        s: esmExport.bind(null, module, module.exports, moduleCache),
+        j: dynamicExport.bind(null, module, module.exports, moduleCache),
+        v: exportValue.bind(null, module, moduleCache),
+        n: exportNamespace.bind(null, module, moduleCache),
         m: module,
         c: moduleCache,
         M: moduleFactories,

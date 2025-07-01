@@ -43,7 +43,7 @@ pub struct EcmascriptModulePartAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
-    async fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
+    fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
         let parsed = self.full_module.failsafe_parse();
         let split_data = split(self.full_module.ident(), self.full_module.source(), parsed);
         Ok(part_of_module(split_data, self.part.clone()))
@@ -92,7 +92,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
         let analyze = self.analyze();
         let analyze_ref = analyze.await?;
 
-        let module_type_result = *module.full_module.determine_module_type().await?;
+        let module_type_result = module.full_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
             .reference_module_source_maps(Vc::upcast(self))
             .await?;

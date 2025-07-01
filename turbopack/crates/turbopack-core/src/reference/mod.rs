@@ -290,7 +290,7 @@ type ModulesVec = Vec<ResolvedVc<Box<dyn Module>>>;
 pub struct ModulesWithRefData(Vec<(ChunkingType, ExportUsage, ModulesVec)>);
 
 /// Aggregates all primary [Module]s referenced by an [Module] via [ChunkableModuleReference]s.
-/// This does not include transitively references [Module]s, only includes
+/// This does not include transitively referenced [Module]s, only includes
 /// primary [Module]s referenced.
 ///
 /// [Module]: crate::module::Module

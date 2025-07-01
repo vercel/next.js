@@ -855,4 +855,21 @@ describe('app dir - metadata', () => {
       )
     }
   })
+
+  it('regression: renders a large shell', async () => {
+    const pageErrors: unknown[] = []
+    await next.browser('/large-shell/foo', {
+      beforePageLoad(page) {
+        page.on('pageerror', (error) => {
+          pageErrors.push(error)
+        })
+      },
+    })
+
+    // TODO: Assert on errorless pages by default.
+    // This isn't 100% accurate.
+    // We sometimes receive the pageerror after the hydration complete event
+    // since that event is just for shell hydration not everything being hydrated.
+    expect(pageErrors).toEqual([])
+  })
 })

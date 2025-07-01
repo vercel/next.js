@@ -83,6 +83,7 @@ export const __next_app__ = {
 }
 
 import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -184,12 +185,6 @@ export async function handler(
       isPrerendered ||
       prerenderManifest.routes[normalizedSrcPage]
   )
-
-  // if the page is dynamicParams: false and this pathname wasn't prerender
-  // trigger the no fallback handling
-  if (isSSG && prerenderInfo?.fallback === false && !isPrerendered) {
-    throw new NoFallbackError()
-  }
 
   const userAgent = req.headers['user-agent'] || ''
   const botType = getBotType(userAgent)
@@ -316,6 +311,15 @@ export async function handler(
     ssgCacheKey = resolvedPathname
   }
 
+  // the staticPathKey differs from ssgCacheKey since
+  // ssgCacheKey is null in dev since we're always in "dynamic"
+  // mode in dev to bypass the cache, but we still need to honor
+  // dynamicParams = false in dev mode
+  let staticPathKey = ssgCacheKey
+  if (!staticPathKey && routeModule.isDev) {
+    staticPathKey = resolvedPathname
+  }
+
   const ComponentMod = {
     ...entryBase,
     tree,
@@ -365,9 +369,9 @@ export async function handler(
 
           // If the warmup is successful, we should use the resume data
           // cache from the warmup.
-          if (warmup.metadata.devRenderResumeDataCache) {
-            context.renderOpts.devRenderResumeDataCache =
-              warmup.metadata.devRenderResumeDataCache
+          if (warmup.metadata.renderResumeDataCache) {
+            context.renderOpts.renderResumeDataCache =
+              warmup.metadata.renderResumeDataCache
           }
         }
       }
@@ -480,8 +484,7 @@ export async function handler(
           deploymentId: nextConfig.deploymentId,
           enableTainting: nextConfig.experimental.taint,
           htmlLimitedBots: nextConfig.htmlLimitedBots,
-          devtoolSegmentExplorer:
-            nextConfig.experimental.devtoolSegmentExplorer,
+          devtoolNewPanelUI: nextConfig.experimental.devtoolNewPanelUI,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,
@@ -649,12 +652,24 @@ export async function handler(
       if (
         !minimalMode &&
         fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
-        ssgCacheKey &&
+        staticPathKey &&
         !didRespond &&
         !isDraftMode &&
         pageIsDynamic &&
         (isProduction || !isPrerendered)
       ) {
+        // if the page has dynamicParams: false and this pathname wasn't
+        // prerendered trigger the no fallback handling
+        if (
+          // In development, fall through to render to handle missing
+          // getStaticPaths.
+          (isProduction || prerenderInfo) &&
+          // When fallback isn't present, abort this render so we 404
+          fallbackMode === FallbackMode.NOT_FOUND
+        ) {
+          throw new NoFallbackError()
+        }
+
         let fallbackResponse: ResponseCacheEntry | null | undefined
 
         if (isRoutePPREnabled && !isRSCRequest) {
@@ -997,6 +1012,16 @@ export async function handler(
       // behind the experimental PPR flag.
       if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
         res.statusCode = cachedData.status
+      }
+
+      // Redirect information is encoded in RSC payload, so we don't need to use redirect status codes
+      if (
+        !minimalMode &&
+        cachedData.status &&
+        RedirectStatusCode[cachedData.status] &&
+        isRSCRequest
+      ) {
+        res.statusCode = 200
       }
 
       // Mark that the request did postpone.

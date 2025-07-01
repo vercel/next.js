@@ -42,6 +42,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    ident::Layer,
     output::OutputAsset,
     rebase::RebasedAsset,
     reference_type::ReferenceType,
@@ -284,7 +285,8 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
                 },
                 false,
             )
-            .unwrap(),
+            .unwrap()
+            .0,
         ))
     });
 }
@@ -329,21 +331,22 @@ async fn node_file_trace_operation(
         package_root.clone(),
         vec![],
     ));
-    let input_dir = workspace_fs.root().to_resolved().await?;
-    let input = input_dir.join(format!("tests/{input}").into());
+    let input_dir = workspace_fs.root().await?.clone_value();
+    let input = input_dir.join(&format!("tests/{input}"))?;
 
     let output_fs = DiskFileSystem::new(rcstr!("output"), directory.clone(), vec![]);
-    let output_dir = output_fs.root().to_resolved().await?;
+    let output_dir = output_fs.root().await?.clone_value();
 
     let source = FileSource::new(input);
+    let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+        NodeJsEnvironment::default().resolved_cell(),
+    ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
         // TODO It's easy to make a mistake here as this should match the config in the
         // binary. TODO These test cases should move into the
         // `node-file-trace` crate and use the same config.
-        CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironment::default().resolved_cell(),
-        ))),
+        CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 enable_types: true,
@@ -353,27 +356,30 @@ async fn node_file_trace_operation(
                 enable_raw_css: true,
                 ..Default::default()
             },
+            // Environment is not passed in order to avoid downleveling JS / CSS for
+            // node-file-trace.
+            environment: None,
             ..Default::default()
         }
         .cell(),
         ResolveOptionsContext {
             enable_node_native_modules: true,
-            enable_node_modules: Some(input_dir),
+            enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
             ..Default::default()
         }
         .cell(),
-        rcstr!("test"),
+        Layer::new(rcstr!("test")),
     );
     let module = module_asset_context
         .process(Vc::upcast(source), ReferenceType::Undefined)
         .module();
 
-    let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)
+    let rebased = RebasedAsset::new(Vc::upcast(module), input_dir.clone(), output_dir.clone())
         .to_resolved()
         .await?;
 
-    let emit_op = emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+    let emit_op = emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir.clone());
     emit_op.read_strongly_consistent().await?;
     apply_effects(emit_op).await?;
 

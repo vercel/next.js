@@ -30,7 +30,6 @@ export function createWebpackAliases({
   distDir,
   isClient,
   isEdgeServer,
-  isNodeServer,
   dev,
   config,
   pagesDir,
@@ -42,7 +41,6 @@ export function createWebpackAliases({
   distDir: string
   isClient: boolean
   isEdgeServer: boolean
-  isNodeServer: boolean
   dev: boolean
   config: NextConfigComplete
   pagesDir: string | undefined
@@ -156,14 +154,6 @@ export function createWebpackAliases({
     [DOT_NEXT_ALIAS]: distDir,
     ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),
     ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
-
-    // For Node server, we need to re-alias the package imports to prefer to
-    // resolve to the ESM export.
-    ...(isNodeServer
-      ? getBarrelOptimizationAliases(
-          config.experimental.optimizePackageImports || []
-        )
-      : {}),
 
     [RSC_ACTION_VALIDATE_ALIAS]:
       'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
@@ -397,30 +387,6 @@ export function getOptimizedModuleAliases(): CompilerAliases {
   }
 }
 
-// Alias these modules to be resolved with "module" if possible.
-function getBarrelOptimizationAliases(packages: string[]): CompilerAliases {
-  const aliases: { [pkg: string]: string } = {}
-  const mainFields = ['module', 'main']
-
-  for (const pkg of packages) {
-    try {
-      const descriptionFileData = require(`${pkg}/package.json`)
-      const descriptionFilePath = require.resolve(`${pkg}/package.json`)
-
-      for (const field of mainFields) {
-        if (descriptionFileData.hasOwnProperty(field)) {
-          aliases[pkg + '$'] = path.join(
-            path.dirname(descriptionFilePath),
-            descriptionFileData[field]
-          )
-          break
-        }
-      }
-    } catch {}
-  }
-
-  return aliases
-}
 function getReactProfilingInProduction(): CompilerAliases {
   return {
     'react-dom/client$': 'react-dom/profiling',

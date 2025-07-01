@@ -15,7 +15,6 @@ import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
 import GearIcon from '../../../icons/gear-icon'
 import { UserPreferences } from './dev-tools-info/user-preferences'
-import { SegmentsExplorer } from '../../overview/segment-explorer'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
@@ -84,7 +83,6 @@ const OVERLAYS = {
   Turbo: 'turbo',
   Route: 'route',
   Preferences: 'preferences',
-  SegmentExplorer: 'segment-explorer',
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
@@ -130,7 +128,6 @@ function DevToolsPopover({
   const isTurbopackInfoOpen = open === OVERLAYS.Turbo
   const isRouteInfoOpen = open === OVERLAYS.Route
   const isPreferencesOpen = open === OVERLAYS.Preferences
-  const isSegmentExplorerOpen = open === OVERLAYS.SegmentExplorer
 
   const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
     isMenuOpen,
@@ -220,7 +217,9 @@ function DevToolsPopover({
   }
 
   function toggleErrorOverlay() {
-    dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
+    if (!process.env.__NEXT_DEVTOOL_NEW_PANEL_UI) {
+      dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
+    }
   }
 
   function closeToRootMenu() {
@@ -336,16 +335,6 @@ function DevToolsPopover({
         setScale={setScale}
       />
 
-      {/* Page Segment Explorer */}
-      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
-        <SegmentsExplorer
-          isOpen={isSegmentExplorerOpen}
-          close={closeToRootMenu}
-          triggerRef={triggerRef}
-          style={popover}
-        />
-      ) : null}
-
       {/* Dropdown Menu */}
       {menuMounted && (
         <div
@@ -411,15 +400,6 @@ function DevToolsPopover({
                 onClick={() => setOpen(OVERLAYS.Preferences)}
                 index={isTurbopack ? 2 : 3}
               />
-              {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
-                <MenuItem
-                  data-segment-explorer
-                  label="Segment Explorer"
-                  value={<ChevronRight />}
-                  onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
-                  index={isTurbopack ? 3 : 4}
-                />
-              ) : null}
             </div>
           </Context.Provider>
         </div>

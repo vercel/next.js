@@ -20,11 +20,13 @@ type ChunkRunner = {
 let BACKEND: RuntimeBackend
 
 type ExternalRequire = (
-  id: ModuleId,
+  id: DependencySpecifier,
   thunk: () => any,
   esm?: boolean
 ) => Exports | EsmNamespaceObject
-type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>
+type ExternalImport = (
+  id: DependencySpecifier
+) => Promise<Exports | EsmNamespaceObject>
 
 interface TurbopackEdgeContext extends TurbopackBaseContext<Module> {
   x: ExternalRequire

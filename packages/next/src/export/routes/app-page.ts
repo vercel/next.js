@@ -29,6 +29,7 @@ import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
+import { stringifyResumeDataCache } from '../../server/resume-data-cache/resume-data-cache'
 
 /**
  * Renders & exports a page associated with the /app directory
@@ -92,6 +93,7 @@ export async function exportAppPage(
       fetchTags,
       fetchMetrics,
       segmentData,
+      renderResumeDataCache,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -220,6 +222,9 @@ export async function exportAppPage(
       hasPostponed: Boolean(postponed),
       cacheControl,
       fetchMetrics,
+      renderResumeDataCache: renderResumeDataCache
+        ? await stringifyResumeDataCache(renderResumeDataCache)
+        : undefined,
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {

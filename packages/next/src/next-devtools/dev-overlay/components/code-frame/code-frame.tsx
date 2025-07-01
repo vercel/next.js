@@ -108,7 +108,6 @@ export const CODE_FRAME_STYLES = `
     --code-frame-padding: 12px;
     --code-frame-line-height: var(--size-16);
     background-color: var(--color-background-200);
-    overflow: hidden;
     color: var(--color-gray-1000);
     text-overflow: ellipsis;
     border: 1px solid var(--color-gray-400);

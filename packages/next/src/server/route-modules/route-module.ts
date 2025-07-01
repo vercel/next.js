@@ -425,11 +425,17 @@ export abstract class RouteModule<
     // if we want to share the normalizing logic here
     // we will need to allow passing in the i18n and similar info
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { join } = require('node:path') as typeof import('node:path')
+      const { join, relative } =
+        require('node:path') as typeof import('node:path')
       const projectDir =
         getRequestMeta(req, 'projectDir') ||
         join(process.cwd(), this.projectDir)
 
+      const absoluteDistDir = getRequestMeta(req, 'distDir')
+
+      if (absoluteDistDir) {
+        this.distDir = relative(projectDir, absoluteDistDir)
+      }
       const { ensureInstrumentationRegistered } = await import(
         '../lib/router-utils/instrumentation-globals.external'
       )

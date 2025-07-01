@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
@@ -179,9 +179,9 @@ pub async fn get_app_client_references_chunks(
 
                 let base_ident = server_component.ident();
 
-                let server_path = server_component.server_path();
-                let is_layout = server_path.file_stem().await?.as_deref() == Some("layout");
-                let server_component_path = server_path.to_string().await?;
+                let server_path = server_component.server_path().await?.clone_value();
+                let is_layout = server_path.file_stem() == Some("layout");
+                let server_component_path = server_path.value_to_string().await?;
 
                 let ssr_modules = client_reference_types
                     .iter()

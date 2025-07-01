@@ -3,7 +3,7 @@ use std::{io::Write, iter::once};
 use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -148,13 +148,13 @@ impl EcmascriptClientReferenceModule {
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            self.server_ident.path().join(
+            self.server_ident.path().await?.join(
                 // Depending on the original format, we call the file `proxy.mjs` or `proxy.cjs`.
                 // This is because we're placing the virtual module next to the original code, so
                 // its parsing will be affected by `type` fields in package.json --
                 // a bare `proxy.js` may end up being unexpectedly parsed as the wrong format.
-                format!("proxy.{}", if is_esm { "mjs" } else { "cjs" }).into(),
-            ),
+                &format!("proxy.{}", if is_esm { "mjs" } else { "cjs" }),
+            )?,
             proxy_module_content,
         );
 
@@ -187,7 +187,7 @@ impl Module for EcmascriptClientReferenceModule {
         Ok(self
             .server_ident
             .with_modifier(rcstr!("client reference proxy"))
-            .with_layer(self.server_asset_context.layer().owned().await?))
+            .with_layer(self.server_asset_context.into_trait_ref().await?.layer()))
     }
 
     #[turbo_tasks::function]

@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 describe('app dir - css - experimental inline css', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -17,7 +18,7 @@ describe('app dir - css - experimental inline css', () => {
 
     it('should not return rsc payload with inlined style as a dynamic client nav', async () => {
       const rscPayload = await (
-        await next.fetch('/a', {
+        await next.fetch(`/a?${NEXT_RSC_UNION_QUERY}`, {
           method: 'GET',
           headers: {
             rsc: '1',
@@ -32,7 +33,7 @@ describe('app dir - css - experimental inline css', () => {
 
       expect(
         await (
-          await next.fetch('/a', {
+          await next.fetch(`/a?${NEXT_RSC_UNION_QUERY}`, {
             method: 'GET',
           })
         ).text()

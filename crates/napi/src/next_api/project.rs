@@ -35,6 +35,7 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity, TimingEvent},
     trace::TraceRawVcs,
 };
+use turbo_tasks_backend::db_invalidation::invalidation_reasons;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
     util::uri_from_file,
@@ -78,6 +79,13 @@ static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
 pub struct NapiEnvVar {
     pub name: RcStr,
     pub value: RcStr,
+}
+
+#[napi(object)]
+#[derive(Clone, Debug)]
+pub struct NapiOptionEnvVar {
+    pub name: RcStr,
+    pub value: Option<RcStr>,
 }
 
 #[napi(object)]
@@ -155,6 +163,9 @@ pub struct NapiProjectOptions {
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
     pub no_mangling: bool,
+
+    /// The version of Node.js that is available/currently running.
+    pub current_node_js_version: RcStr,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -211,9 +222,9 @@ pub struct NapiPartialProjectOptions {
 #[napi(object)]
 #[derive(Clone, Debug)]
 pub struct NapiDefineEnv {
-    pub client: Vec<NapiEnvVar>,
-    pub edge: Vec<NapiEnvVar>,
-    pub nodejs: Vec<NapiEnvVar>,
+    pub client: Vec<NapiOptionEnvVar>,
+    pub edge: Vec<NapiOptionEnvVar>,
+    pub nodejs: Vec<NapiOptionEnvVar>,
 }
 
 #[napi(object)]
@@ -260,6 +271,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             preview_props: val.preview_props.into(),
             browserslist_query: val.browserslist_query,
             no_mangling: val.no_mangling,
+            current_node_js_version: val.current_node_js_version,
         }
     }
 }
@@ -436,9 +448,12 @@ pub async fn project_new(
 
     let tasks_ref = turbo_tasks.clone();
     turbo_tasks.spawn_once_task(async move {
-        benchmark_file_io(tasks_ref, container.project().node_root())
-            .await
-            .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
+        benchmark_file_io(
+            tasks_ref,
+            container.project().node_root().await?.clone_value(),
+        )
+        .await
+        .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
     });
     Ok(External::new_with_size_hint(
         ProjectInstance {
@@ -489,7 +504,7 @@ impl CompilationEvent for SlowFilesystemEvent {
 #[tracing::instrument(skip(turbo_tasks))]
 async fn benchmark_file_io(
     turbo_tasks: NextTurboTasks,
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
 ) -> Result<Vc<Completion>> {
     // try to get the real file path on disk so that we can use it with tokio
     let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
@@ -571,9 +586,15 @@ pub async fn project_update(
 pub async fn project_invalidate_persistent_cache(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<()> {
-    tokio::task::spawn_blocking(move || project.turbo_tasks.invalidate_persistent_cache())
-        .await
-        .context("panicked while invalidating persistent cache")??;
+    tokio::task::spawn_blocking(move || {
+        // TODO: Let the JS caller specify a reason? We need to limit the reasons to ones we know
+        // how to generate a message for on the Rust side of the FFI.
+        project
+            .turbo_tasks
+            .invalidate_persistent_cache(invalidation_reasons::USER_REQUEST)
+    })
+    .await
+    .context("panicked while invalidating persistent cache")??;
     Ok(())
 }
 
@@ -1392,12 +1413,13 @@ pub async fn get_source_map_rope(
         return Ok(OptionStringifiedSourceMap::none());
     };
 
-    let server_path = container.project().node_root().join(chunk_base.into());
+    let server_path = container.project().node_root().await?.join(chunk_base)?;
 
     let client_path = container
         .project()
         .client_relative_path()
-        .join(chunk_base.into());
+        .await?
+        .join(chunk_base)?;
 
     let mut map = container.get_source_map(server_path, module.clone());
 
@@ -1465,8 +1487,12 @@ pub async fn project_trace_source_operation(
         }
     };
 
-    let project_root_uri =
-        uri_from_file(container.project().project_root_path(), None).await? + "/";
+    let project_root_uri = uri_from_file(
+        container.project().project_root_path().await?.clone_value(),
+        None,
+    )
+    .await?
+        + "/";
     let (file, original_file, is_internal) =
         if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
             // Client code uses file://
@@ -1552,9 +1578,11 @@ pub async fn project_get_source_for_asset(
                 .container
                 .project()
                 .project_path()
+                .await?
                 .fs()
                 .root()
-                .join(file_path.clone())
+                .await?
+                .join(&file_path)?
                 .read()
                 .await?;
 

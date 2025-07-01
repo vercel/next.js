@@ -406,6 +406,8 @@ pub trait TaskGuard: Debug {
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
+    fn is_immutable(&self) -> bool;
+    fn mark_as_immutable(&mut self);
 }
 
 struct TaskGuardImpl<'a, B: BackingStorage> {
@@ -592,6 +594,16 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.task.track_modification(SpecificTaskDataCategory::Data);
             self.task.track_modification(SpecificTaskDataCategory::Meta);
         }
+    }
+
+    fn is_immutable(&self) -> bool {
+        // https://vercel.slack.com/archives/C03EWR7LGEN/p1750889741099559
+        // HACK: immutable tracking is broken, disable it for now
+        false
+        // self.task.state().is_immutable()
+    }
+    fn mark_as_immutable(&mut self) {
+        self.task.state_mut().set_is_immutable(true);
     }
 }
 

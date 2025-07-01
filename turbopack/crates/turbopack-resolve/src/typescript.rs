@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueDefault, Vc, fxindexset};
-use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath, FileSystemPathOption};
 use turbopack_core::{
     asset::Asset,
     context::AssetContext,
@@ -31,7 +31,7 @@ use crate::ecmascript::get_condition_maps;
 
 #[turbo_tasks::value(shared)]
 pub struct TsConfigIssue {
-    pub severity: ResolvedVc<IssueSeverity>,
+    pub severity: IssueSeverity,
     pub source_ident: ResolvedVc<AssetIdent>,
     pub message: RcStr,
 }
@@ -72,7 +72,7 @@ pub async fn read_tsconfigs(
                     write!(message, "{e}")?;
                 }
                 TsConfigIssue {
-                    severity: IssueSeverity::Error.resolved_cell(),
+                    severity: IssueSeverity::Error,
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: message.into(),
                 }
@@ -81,7 +81,7 @@ pub async fn read_tsconfigs(
             }
             FileJsonContent::NotFound => {
                 TsConfigIssue {
-                    severity: IssueSeverity::Error.resolved_cell(),
+                    severity: IssueSeverity::Error,
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: rcstr!("tsconfig not found"),
                 }
@@ -98,7 +98,7 @@ pub async fn read_tsconfigs(
                         continue;
                     } else {
                         TsConfigIssue {
-                            severity: IssueSeverity::Error.resolved_cell(),
+                            severity: IssueSeverity::Error,
                             source_ident: tsconfig.ident().to_resolved().await?,
                             message: format!("extends: \"{extends}\" doesn't resolve correctly")
                                 .into(),
@@ -122,7 +122,7 @@ async fn resolve_extends(
     extends: &str,
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<OptionSource>> {
-    let parent_dir = tsconfig.ident().path().parent();
+    let parent_dir = tsconfig.ident().path().await?.parent();
     let request = Request::parse_string(extends.into());
 
     // TS's resolution is weird, and has special behavior for different import
@@ -157,7 +157,7 @@ async fn resolve_extends(
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let mut result = resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
+            let mut result = resolve(parent_dir.clone(), ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
             if result.await?.is_none() {
                 let request = Request::parse_string(format!("{extends}/tsconfig").into());
                 result = resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
@@ -168,13 +168,13 @@ async fn resolve_extends(
 }
 
 async fn resolve_extends_rooted_or_relative(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     path: &str,
 ) -> Result<Vc<OptionSource>> {
     let mut result = resolve(
-        lookup_path,
+        lookup_path.clone(),
         ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
         request,
         resolve_options,
@@ -187,7 +187,7 @@ async fn resolve_extends_rooted_or_relative(
     if !path.ends_with(".json") && result.await?.is_none() {
         let request = Request::parse_string(format!("{path}.json").into());
         result = resolve(
-            lookup_path,
+            lookup_path.clone(),
             ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
             request,
             resolve_options,
@@ -215,7 +215,7 @@ pub async fn read_from_tsconfigs<T>(
 #[turbo_tasks::value]
 #[derive(Default)]
 pub struct TsConfigResolveOptions {
-    base_url: Option<ResolvedVc<FileSystemPath>>,
+    base_url: Option<FileSystemPath>,
     import_map: Option<ResolvedVc<ImportMap>>,
     is_module_resolution_nodenext: bool,
 }
@@ -228,15 +228,25 @@ impl ValueDefault for TsConfigResolveOptions {
     }
 }
 
+#[turbo_tasks::function]
+async fn try_join_base_url(
+    source: ResolvedVc<Box<dyn Source>>,
+    base_url: RcStr,
+) -> Result<Vc<FileSystemPathOption>> {
+    Ok(Vc::cell(
+        source.ident().path().await?.parent().try_join(&base_url)?,
+    ))
+}
+
 /// Returns the resolve options
 #[turbo_tasks::function]
 pub async fn tsconfig_resolve_options(
-    tsconfig: Vc<FileSystemPath>,
+    tsconfig: FileSystemPath,
 ) -> Result<Vc<TsConfigResolveOptions>> {
     let configs = read_tsconfigs(
         tsconfig.read(),
-        ResolvedVc::upcast(FileSource::new(tsconfig).to_resolved().await?),
-        node_cjs_resolve_options(tsconfig.root()),
+        ResolvedVc::upcast(FileSource::new(tsconfig.clone()).to_resolved().await?),
+        node_cjs_resolve_options(tsconfig.root().await?.clone_value()),
     )
     .await?;
 
@@ -247,11 +257,11 @@ pub async fn tsconfig_resolve_options(
     let base_url = if let Some(base_url) = read_from_tsconfigs(&configs, |json, source| {
         json["compilerOptions"]["baseUrl"]
             .as_str()
-            .map(|base_url| source.ident().path().parent().try_join(base_url.into()))
+            .map(|base_url| try_join_base_url(*source, base_url.into()))
     })
     .await?
     {
-        *base_url.await?
+        (*base_url.await?).clone()
     } else {
         None
     };
@@ -261,13 +271,13 @@ pub async fn tsconfig_resolve_options(
         if let FileJsonContent::Content(json) = &*content.await?
             && let JsonValue::Object(paths) = &json["compilerOptions"]["paths"]
         {
-            let mut context_dir = source.ident().path().parent();
+            let mut context_dir = source.ident().path().await?.parent();
             if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str()
-                && let Some(new_context) = *context_dir.try_join(base_url.into()).await?
+                && let Some(new_context) = context_dir.try_join(base_url)?
             {
-                context_dir = *new_context;
+                context_dir = new_context;
             };
-            let context_dir = context_dir.to_resolved().await?;
+            let context_dir = context_dir.clone();
             for (key, value) in paths.iter() {
                 if let JsonValue::Array(vec) = value {
                     let entries = vec
@@ -291,11 +301,11 @@ pub async fn tsconfig_resolve_options(
                         .collect();
                     all_paths.insert(
                         key.to_string(),
-                        ImportMapping::primary_alternatives(entries, Some(context_dir)),
+                        ImportMapping::primary_alternatives(entries, Some(context_dir.clone())),
                     );
                 } else {
                     TsConfigIssue {
-                        severity: IssueSeverity::Warning.resolved_cell(),
+                        severity: IssueSeverity::Warning,
                         source_ident: source.ident().to_resolved().await?,
                         message: format!(
                             "compilerOptions.paths[{key}] doesn't contains an array as \
@@ -350,13 +360,13 @@ pub async fn apply_tsconfig_resolve_options(
 ) -> Result<Vc<ResolveOptions>> {
     let tsconfig_resolve_options = tsconfig_resolve_options.await?;
     let mut resolve_options = resolve_options.owned().await?;
-    if let Some(base_url) = tsconfig_resolve_options.base_url {
+    if let Some(base_url) = &tsconfig_resolve_options.base_url {
         // We want to resolve in `compilerOptions.baseUrl` first, then in other
         // locations as a fallback.
         resolve_options.modules.insert(
             0,
             ResolveModules::Path {
-                dir: base_url,
+                dir: base_url.clone(),
                 // tsconfig basepath doesn't apply to json requests
                 excluded_extensions: ResolvedVc::cell(fxindexset![rcstr!(".json")]),
             },
@@ -384,8 +394,8 @@ pub async fn type_resolve(
     request: Vc<Request>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
-    let context_path = origin.origin_path().parent();
-    let options = origin.resolve_options(ty.clone());
+    let context_path = origin.origin_path().await?.parent();
+    let options = origin.resolve_options(ty.clone()).await?;
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -408,10 +418,9 @@ pub async fn type_resolve(
     } else {
         None
     };
-    let context_path = context_path.resolve().await?;
     let result = if let Some(types_request) = types_request {
         let result1 = resolve(
-            context_path,
+            context_path.clone(),
             ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
             request,
             options,
@@ -442,7 +451,7 @@ pub async fn type_resolve(
     handle_resolve_error(
         result,
         ty,
-        origin.origin_path(),
+        origin.origin_path().await?.clone_value(),
         request,
         options,
         false,
@@ -501,9 +510,8 @@ async fn apply_typescript_types_options(
 
 #[turbo_tasks::value_impl]
 impl Issue for TsConfigIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]

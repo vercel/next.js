@@ -58,9 +58,7 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
         expect(code).not.toBe(0)
         if (process.env.IS_TURBOPACK_TEST) {
           expect(stderr).toContain('pages/styles.module.css')
-          expect(stderr).toContain(
-            'Selector is not pure (pure selectors must contain at least one local class or id)'
-          )
+          expect(stderr).toContain('Selector "h1" is not pure')
         } else {
           expect(stderr).toContain('Failed to compile')
           expect(stderr).toContain('pages/styles.module.css')

@@ -1,14 +1,80 @@
 use anyhow::{Result, bail};
 use futures::try_join;
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, TryJoinIterExt, Vc};
+use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath, glob::Glob};
 
+#[turbo_tasks::value]
+#[derive(Default, Debug)]
+pub struct ReadGlobResult {
+    pub results: FxHashMap<String, DirectoryEntry>,
+    pub inner: FxHashMap<String, ResolvedVc<ReadGlobResult>>,
+}
+
+/// Reads matches of a glob pattern.
+///
+/// DETERMINISM: Result is in random order. Either sort result or do not depend
+/// on the order.
+#[turbo_tasks::function(fs)]
+pub async fn read_glob(directory: FileSystemPath, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
+    read_glob_internal("", directory, glob).await
+}
+
+#[turbo_tasks::function(fs)]
+async fn read_glob_inner(
+    prefix: RcStr,
+    directory: FileSystemPath,
+    glob: Vc<Glob>,
+) -> Result<Vc<ReadGlobResult>> {
+    read_glob_internal(&prefix, directory, glob).await
+}
+
+// The `prefix` represents the relative directory path where symlinks are not resolve.
+async fn read_glob_internal(
+    prefix: &str,
+    directory: FileSystemPath,
+    glob: Vc<Glob>,
+) -> Result<Vc<ReadGlobResult>> {
+    let dir = directory.read_dir().await?;
+    let mut result = ReadGlobResult::default();
+    let glob_value = glob.await?;
+    match &*dir {
+        DirectoryContent::Entries(entries) => {
+            for (segment, entry) in entries.iter() {
+                // This is redundant with logic inside of `read_dir` but here we track it separately
+                // so we don't follow symlinks.
+                let entry_path: RcStr = if prefix.is_empty() {
+                    segment.clone()
+                } else {
+                    format!("{prefix}/{segment}").into()
+                };
+                let entry = resolve_symlink_safely(entry.clone()).await?;
+                if glob_value.matches(&entry_path) {
+                    result.results.insert(entry_path.to_string(), entry.clone());
+                }
+                if let DirectoryEntry::Directory(path) = entry
+                    && glob_value.can_match_in_directory(&entry_path)
+                {
+                    result.inner.insert(
+                        entry_path.to_string(),
+                        read_glob_inner(entry_path, path.clone(), glob)
+                            .to_resolved()
+                            .await?,
+                    );
+                }
+            }
+        }
+        DirectoryContent::NotFound => {}
+    }
+    Ok(ReadGlobResult::cell(result))
+}
+
 // Resolve a symlink checking for recursion.
-async fn resolve_symlink_safely(entry: &DirectoryEntry) -> Result<DirectoryEntry> {
-    let resolved_entry = entry.resolve_symlink().await?;
-    if resolved_entry != *entry && matches!(&resolved_entry, DirectoryEntry::Directory(_)) {
+async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry> {
+    let resolved_entry = entry.clone().resolve_symlink().await?;
+    if resolved_entry != entry && matches!(&resolved_entry, DirectoryEntry::Directory(_)) {
         // We followed a symlink to a directory
         // To prevent an infinite loop, which in the case of turbo-tasks would simply
         // exhaust RAM or go into an infinite loop with the GC we need to check for a
@@ -18,13 +84,10 @@ async fn resolve_symlink_safely(entry: &DirectoryEntry) -> Result<DirectoryEntry
         // ancestor of the current path, which can be detected via a simple prefix
         // match.
         let source_path = entry.path().unwrap();
-        if *source_path
-            .is_inside_or_equal(*resolved_entry.path().unwrap())
-            .await?
-        {
+        if source_path.is_inside_or_equal(&resolved_entry.clone().path().unwrap()) {
             bail!(
                 "'{}' is a symlink causes that causes an infinite loop!",
-                source_path.await?.path.to_string()
+                source_path.path.to_string()
             )
         }
     }
@@ -38,7 +101,7 @@ async fn resolve_symlink_safely(entry: &DirectoryEntry) -> Result<DirectoryEntry
 ///  but unlike read_glob doesn't accumulate data.
 #[turbo_tasks::function(fs)]
 pub async fn track_glob(
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -48,7 +111,7 @@ pub async fn track_glob(
 #[turbo_tasks::function(fs)]
 async fn track_glob_inner(
     prefix: RcStr,
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -57,7 +120,7 @@ async fn track_glob_inner(
 
 async fn track_glob_internal(
     prefix: &str,
-    directory: Vc<FileSystemPath>,
+    directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -81,12 +144,12 @@ async fn track_glob_internal(
                     format!("{prefix}/{segment}").into()
                 };
 
-                match resolve_symlink_safely(entry).await? {
+                match resolve_symlink_safely(entry.clone()).await? {
                     DirectoryEntry::Directory(path) => {
                         if glob_value.can_match_in_directory(&entry_path) {
                             completions.push(track_glob_inner(
                                 entry_path,
-                                *path,
+                                path.clone(),
                                 glob,
                                 include_dot_files,
                             ));
@@ -94,10 +157,15 @@ async fn track_glob_internal(
                     }
                     DirectoryEntry::File(path) => {
                         if glob_value.matches(&entry_path) {
-                            reads.push(fs.read(*path))
+                            reads.push(fs.read(path.clone()))
                         }
                     }
-                    DirectoryEntry::Symlink(_) => unreachable!("we already resolved symlinks"),
+                    DirectoryEntry::Symlink(symlink_path) => unreachable!(
+                        "resolve_symlink_safely() should have resolved all symlinks, but found \
+                         unresolved symlink at path: '{}'. Found path: '{}'. Please report this \
+                         as a bug.",
+                        entry_path, symlink_path
+                    ),
                     DirectoryEntry::Other(path) => {
                         if glob_value.matches(&entry_path) {
                             types.push(path.get_type())
@@ -126,18 +194,142 @@ pub mod tests {
     };
 
     use turbo_rcstr::RcStr;
-    use turbo_tasks::{Completion, ReadRef, ResolvedVc, Vc, apply_effects};
+    use turbo_tasks::{Completion, ReadRef, Vc, apply_effects};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
-    use crate::{DiskFileSystem, FileContent, FileSystem, FileSystemPath, glob::Glob};
+    use crate::{
+        DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath, glob::Glob,
+    };
+
+    #[tokio::test]
+    async fn read_glob_basic() {
+        crate::register();
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            // Create a simple directory with 2 files, a subdirectory and a dotfile
+            let path = scratch.path();
+            File::create_new(path.join("foo"))
+                .unwrap()
+                .write_all(b"foo")
+                .unwrap();
+            create_dir(path.join("sub")).unwrap();
+            File::create_new(path.join("sub/bar"))
+                .unwrap()
+                .write_all(b"bar")
+                .unwrap();
+        }
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        tt.run_once(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
+                "temp".into(),
+                path,
+                Vec::new(),
+            ));
+            let read_dir = fs
+                .root()
+                .await?
+                .read_glob(Glob::new("**".into()))
+                .await
+                .unwrap();
+            assert_eq!(read_dir.results.len(), 2);
+            assert_eq!(
+                read_dir.results.get("foo"),
+                Some(&DirectoryEntry::File(fs.root().await?.join("foo")?))
+            );
+            assert_eq!(
+                read_dir.results.get("sub"),
+                Some(&DirectoryEntry::Directory(fs.root().await?.join("sub")?))
+            );
+            assert_eq!(read_dir.inner.len(), 1);
+            let inner = &*read_dir.inner.get("sub").unwrap().await?;
+            assert_eq!(inner.results.len(), 1);
+            assert_eq!(
+                inner.results.get("sub/bar"),
+                Some(&DirectoryEntry::File(fs.root().await?.join("sub/bar")?))
+            );
+            assert_eq!(inner.inner.len(), 0);
+
+            // Now with a more specific pattern
+            let read_dir = fs
+                .root()
+                .await?
+                .read_glob(Glob::new("**/bar".into()))
+                .await
+                .unwrap();
+            assert_eq!(read_dir.results.len(), 0);
+            assert_eq!(read_dir.inner.len(), 1);
+            let inner = &*read_dir.inner.get("sub").unwrap().await?;
+            assert_eq!(inner.results.len(), 1);
+            assert_eq!(
+                inner.results.get("sub/bar"),
+                Some(&DirectoryEntry::File(fs.root().await?.join("sub/bar")?))
+            );
+            assert_eq!(inner.inner.len(), 0);
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn read_glob_symlinks() {
+        crate::register();
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            use std::os::unix::fs::symlink;
+
+            // Create a simple directory with 1 file and a symlink pointing at at a file in a
+            // subdirectory
+            let path = scratch.path();
+            create_dir(path.join("sub")).unwrap();
+            let foo = path.join("sub/foo.js");
+            File::create_new(&foo).unwrap().write_all(b"foo").unwrap();
+            symlink(&foo, path.join("link.js")).unwrap();
+        }
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        tt.run_once(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
+                "temp".into(),
+                path,
+                Vec::new(),
+            ));
+            let read_dir = fs
+                .root()
+                .await?
+                .read_glob(Glob::new("*.js".into()))
+                .await
+                .unwrap();
+            assert_eq!(read_dir.results.len(), 1);
+            assert_eq!(
+                read_dir.results.get("link.js"),
+                Some(&DirectoryEntry::File(fs.root().await?.join("sub/foo.js")?))
+            );
+            assert_eq!(read_dir.inner.len(), 0);
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 
     #[turbo_tasks::function(operation)]
-    pub async fn delete(path: ResolvedVc<FileSystemPath>) -> anyhow::Result<()> {
+    pub async fn delete(path: FileSystemPath) -> anyhow::Result<()> {
         path.write(FileContent::NotFound.cell()).await?;
         Ok(())
     }
+
     #[turbo_tasks::function(operation)]
-    pub async fn write(path: ResolvedVc<FileSystemPath>, contents: RcStr) -> anyhow::Result<()> {
+    pub async fn write(path: FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
         path.write(
             FileContent::Content(crate::File::from_bytes(contents.to_string().into_bytes())).cell(),
         )
@@ -146,7 +338,7 @@ pub mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    pub async fn track_star_star_glob(path: ResolvedVc<FileSystemPath>) -> Vc<Completion> {
+    pub fn track_star_star_glob(path: FileSystemPath) -> Vc<Completion> {
         path.track_glob(Glob::new("**".into()), false)
     }
 
@@ -196,42 +388,42 @@ pub mod tests {
                 path,
                 Vec::new(),
             ));
-            let dir = fs.root().join("dir".into()).to_resolved().await?;
-            let read_dir = track_star_star_glob(dir).read_strongly_consistent().await?;
+            let dir = fs.root().await?.join("dir")?;
+            let read_dir = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
 
             // Delete a file that we shouldn't be tracking
-            let delete_result = delete(
-                fs.root()
-                    .join("dir/sub/.vim/.gitignore".into())
-                    .to_resolved()
-                    .await?,
-            );
+            let delete_result = delete(fs.root().await?.join("dir/sub/.vim/.gitignore")?);
             delete_result.read_strongly_consistent().await?;
             apply_effects(delete_result).await?;
 
-            let read_dir2 = track_star_star_glob(dir).read_strongly_consistent().await?;
+            let read_dir2 = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
             assert!(ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Delete a file that we should be tracking
-            let delete_result = delete(fs.root().join("dir/foo".into()).to_resolved().await?);
+            let delete_result = delete(fs.root().await?.join("dir/foo")?);
             delete_result.read_strongly_consistent().await?;
             apply_effects(delete_result).await?;
 
-            let read_dir2 = track_star_star_glob(dir).read_strongly_consistent().await?;
+            let read_dir2 = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
 
             assert!(!ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Modify a symlink target file
             let write_result = write(
-                fs.root()
-                    .join("link_target.js".into())
-                    .to_resolved()
-                    .await?,
+                fs.root().await?.join("link_target.js")?,
                 "new_contents".into(),
             );
             write_result.read_strongly_consistent().await?;
             apply_effects(write_result).await?;
-            let read_dir3 = track_star_star_glob(dir).read_strongly_consistent().await?;
+            let read_dir3 = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
 
             assert!(!ReadRef::ptr_eq(&read_dir3, &read_dir2));
 
@@ -272,6 +464,7 @@ pub mod tests {
             ));
             let err = fs
                 .root()
+                .await?
                 .track_glob(Glob::new("**".into()), false)
                 .await
                 .expect_err("Should have detected an infinite loop");
@@ -284,6 +477,67 @@ pub mod tests {
             // Same when calling track glob
             let err = fs
                 .root()
+                .await?
+                .track_glob(Glob::new("**".into()), false)
+                .await
+                .expect_err("Should have detected an infinite loop");
+
+            assert_eq!(
+                "'sub/link' is a symlink causes that causes an infinite loop!",
+                format!("{}", err.root_cause())
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn read_glob_symlinks_loop() {
+        crate::register();
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            use std::os::unix::fs::symlink;
+
+            // Create a simple directory with 1 file and a symlink pointing at at a file in a
+            // subdirectory
+            let path = scratch.path();
+            let sub = &path.join("sub");
+            create_dir(sub).unwrap();
+            let foo = sub.join("foo.js");
+            File::create_new(&foo).unwrap().write_all(b"foo").unwrap();
+            // put a link in sub that points back at its parent director
+            symlink(sub, sub.join("link")).unwrap();
+        }
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        tt.run_once(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
+                "temp".into(),
+                path,
+                Vec::new(),
+            ));
+            let err = fs
+                .root()
+                .await?
+                .read_glob(Glob::new("**".into()))
+                .await
+                .expect_err("Should have detected an infinite loop");
+
+            assert_eq!(
+                "'sub/link' is a symlink causes that causes an infinite loop!",
+                format!("{}", err.root_cause())
+            );
+
+            // Same when calling track glob
+            let err = fs
+                .root()
+                .await?
                 .track_glob(Glob::new("**".into()), false)
                 .await
                 .expect_err("Should have detected an infinite loop");

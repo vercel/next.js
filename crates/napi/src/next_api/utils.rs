@@ -11,12 +11,14 @@ use serde::Serialize;
 use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
     Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo,
-    Vc, VcValueType, get_effects, message_queue::CompilationEvent,
-    task_statistics::TaskStatisticsApi, trace::TraceRawVcs,
+    Vc, VcValueType, get_effects,
+    message_queue::{CompilationEvent, Severity},
+    task_statistics::TaskStatisticsApi,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{
-    DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, default_backing_storage,
-    noop_backing_storage,
+    BackingStorage, DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, StartupCacheState,
+    db_invalidation::invalidation_reasons, default_backing_storage, noop_backing_storage,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -150,14 +152,48 @@ impl NextTurboTasks {
         }
     }
 
-    pub fn invalidate_persistent_cache(&self) -> Result<()> {
+    pub fn invalidate_persistent_cache(&self, reason_code: &str) -> Result<()> {
         match self {
             NextTurboTasks::Memory(_) => {}
-            NextTurboTasks::PersistentCaching(turbo_tasks) => {
-                turbo_tasks.backend().invalidate_storage()?
-            }
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks
+                .backend()
+                .backing_storage()
+                .invalidate(reason_code)?,
         }
         Ok(())
+    }
+}
+
+#[derive(Serialize)]
+struct StartupCacheInvalidationEvent {
+    reason_code: Option<String>,
+}
+
+impl CompilationEvent for StartupCacheInvalidationEvent {
+    fn type_name(&self) -> &'static str {
+        "StartupCacheInvalidationEvent"
+    }
+
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
+
+    fn message(&self) -> String {
+        let reason_msg = match self.reason_code.as_deref() {
+            Some(invalidation_reasons::PANIC) => {
+                " because we previously detected an internal error in Turbopack"
+            }
+            Some(invalidation_reasons::USER_REQUEST) => " as the result of a user request",
+            _ => "", // ignore unknown reasons
+        };
+        format!(
+            "Turbopack's persistent cache has been deleted{reason_msg}. Builds or page loads may \
+             be slower as a result."
+        )
+    }
+
+    fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
     }
 }
 
@@ -174,24 +210,24 @@ pub fn create_turbo_tasks(
             dirty: option_env!("CI").is_none_or(|value| value.is_empty())
                 && env!("VERGEN_GIT_DIRTY") == "true",
         };
-        NextTurboTasks::PersistentCaching(TurboTasks::new(
-            turbo_tasks_backend::TurboTasksBackend::new(
-                turbo_tasks_backend::BackendOptions {
-                    storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
-                        turbo_tasks_backend::StorageMode::ReadOnly
-                    } else {
-                        turbo_tasks_backend::StorageMode::ReadWrite
-                    }),
-                    dependency_tracking,
-                    ..Default::default()
-                },
-                default_backing_storage(
-                    &output_path.join("cache/turbopack"),
-                    &version_info,
-                    is_ci,
-                )?,
-            ),
-        ))
+        let (backing_storage, cache_state) =
+            default_backing_storage(&output_path.join("cache/turbopack"), &version_info, is_ci)?;
+        let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
+            turbo_tasks_backend::BackendOptions {
+                storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+                    turbo_tasks_backend::StorageMode::ReadOnly
+                } else {
+                    turbo_tasks_backend::StorageMode::ReadWrite
+                }),
+                dependency_tracking,
+                ..Default::default()
+            },
+            backing_storage,
+        ));
+        if let StartupCacheState::Invalidated { reason_code } = cache_state {
+            tt.send_compilation_event(Arc::new(StartupCacheInvalidationEvent { reason_code }));
+        }
+        NextTurboTasks::PersistentCaching(tt)
     } else {
         NextTurboTasks::Memory(TurboTasks::new(
             turbo_tasks_backend::TurboTasksBackend::new(

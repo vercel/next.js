@@ -22,21 +22,26 @@ describe('app dir - Metadata API on the Edge runtime', () => {
           (file) => {
             return next
               .readFileSync(path.join('.next', file))
-              .includes('ImageResponse')
+              .includes('experimental_FigmaImageResponse')
           }
         )
+        expect(pageFilesThatHaveImageResponse).not.toBeEmpty()
 
         const uniqueAnotherFiles = [
           ...new Set<string>(
             middlewareManifest.functions['/another/page'].files
           ),
         ]
+        expect(uniqueAnotherFiles).not.toBeEmpty()
 
         const anotherFilesThatHaveImageResponse = uniqueAnotherFiles.filter(
           (file) => {
-            return next
-              .readFileSync(path.join('.next', file))
-              .includes('ImageResponse')
+            return (
+              next
+                .readFileSync(path.join('.next', file))
+                // This export is not used but it checks if the `@vercel/og` package is shared between the two routes.
+                .includes('experimental_FigmaImageResponse')
+            )
           }
         )
 

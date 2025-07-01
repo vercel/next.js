@@ -313,7 +313,7 @@ export async function buildAppStaticPaths({
   isRoutePPREnabled: boolean
   buildId: string
   rootParamKeys: readonly string[]
-}): Promise<Partial<StaticPathsResult>> {
+}): Promise<StaticPathsResult> {
   if (
     segments.some((generate) => generate.config?.dynamicParams === true) &&
     nextConfigOutput === 'export'
@@ -484,12 +484,7 @@ export async function buildAppStaticPaths({
       : undefined
     : FallbackMode.NOT_FOUND
 
-  const result: Partial<StaticPathsResult> = {
-    fallbackMode,
-    prerenderedRoutes: lastDynamicSegmentHadGenerateStaticParams
-      ? []
-      : undefined,
-  }
+  const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>()
 
   if (hadAllParamsGenerated || isRoutePPREnabled) {
     if (isRoutePPREnabled) {
@@ -499,8 +494,7 @@ export async function buildAppStaticPaths({
         ...filterUniqueRootParamsCombinations(rootParamKeys, routeParams)
       )
 
-      result.prerenderedRoutes ??= []
-      result.prerenderedRoutes.push({
+      prerenderedRoutesByPathname.set(page, {
         params: {},
         pathname: page,
         encodedPathname: page,
@@ -577,10 +571,11 @@ export async function buildAppStaticPaths({
         fallbackRouteParams.includes(param)
       )
 
-      result.prerenderedRoutes ??= []
-      result.prerenderedRoutes.push({
+      pathname = normalizePathname(pathname)
+
+      prerenderedRoutesByPathname.set(pathname, {
         params,
-        pathname: normalizePathname(pathname),
+        pathname,
         encodedPathname: normalizePathname(encodedPathname),
         fallbackRouteParams,
         fallbackMode: dynamicParams
@@ -597,10 +592,16 @@ export async function buildAppStaticPaths({
     })
   }
 
+  const prerenderedRoutes =
+    prerenderedRoutesByPathname.size > 0 ||
+    lastDynamicSegmentHadGenerateStaticParams
+      ? [...prerenderedRoutesByPathname.values()]
+      : undefined
+
   // Now we have to set the throwOnEmptyStaticShell for each of the routes.
-  if (result.prerenderedRoutes && dynamicIO) {
-    assignErrorIfEmpty(result.prerenderedRoutes, routeParamKeys)
+  if (prerenderedRoutes && dynamicIO) {
+    assignErrorIfEmpty(prerenderedRoutes, routeParamKeys)
   }
 
-  return result
+  return { fallbackMode, prerenderedRoutes }
 }

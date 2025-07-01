@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -127,7 +127,7 @@ impl Module for WebAssemblyModuleAsset {
             .source
             .ident()
             .with_modifier(rcstr!("wasm module"))
-            .with_layer(self.asset_context.layer().owned().await?))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer()))
     }
 
     #[turbo_tasks::function]

@@ -7,6 +7,7 @@ import * as ciEnvironment from '../server/ci-info'
 import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
+  PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
   PHASE_PRODUCTION_SERVER,
 } from '../shared/lib/constants'
@@ -1156,14 +1157,18 @@ export default async function loadConfig(
     customConfig,
     rawConfig,
     silent = true,
-    onLoadUserConfig,
+    reportExperimentalFeatures,
     reactProductionProfiling,
+    debugPrerender,
   }: {
     customConfig?: object | null
     rawConfig?: boolean
     silent?: boolean
-    onLoadUserConfig?: (conf: NextConfig) => void
+    reportExperimentalFeatures?: (
+      configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
+    ) => void
     reactProductionProfiling?: boolean
+    debugPrerender?: boolean
   } = {}
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
@@ -1214,14 +1219,6 @@ export default async function loadConfig(
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
 
-  if (process.env.__NEXT_TEST_MODE) {
-    if (path) {
-      Log.info(`Loading config from ${path}`)
-    } else {
-      Log.info('No config file found')
-    }
-  }
-
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
@@ -1267,10 +1264,36 @@ export default async function loadConfig(
       throw err
     }
 
-    const userConfig = (await normalizeConfig(
-      phase,
-      userConfigModule.default || userConfigModule
-    )) as NextConfig
+    const loadedConfig = Object.freeze(
+      (await normalizeConfig(
+        phase,
+        interopDefault(userConfigModule)
+      )) as NextConfig
+    )
+
+    const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
+
+    if (reportExperimentalFeatures && loadedConfig.experimental) {
+      for (const name of Object.keys(
+        loadedConfig.experimental
+      ) as (keyof ExperimentalConfig)[]) {
+        const value = loadedConfig.experimental[name]
+
+        if (name === 'turbo' && !process.env.TURBOPACK) {
+          // Ignore any Turbopack config if Turbopack is not enabled
+          continue
+        }
+
+        addConfiguredExperimentalFeature(
+          configuredExperimentalFeatures,
+          name,
+          value
+        )
+      }
+    }
+
+    // Clone a new userConfig each time to avoid mutating the original
+    const userConfig = cloneObject(loadedConfig) as NextConfig
 
     if (!process.env.NEXT_MINIMAL) {
       // We only validate the config against schema in non minimal mode
@@ -1388,7 +1411,45 @@ export default async function loadConfig(
       userConfig.htmlLimitedBots = userConfig.htmlLimitedBots.source
     }
 
-    onLoadUserConfig?.(userConfig)
+    if (
+      debugPrerender &&
+      (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
+    ) {
+      userConfig.experimental ??= {}
+
+      setExperimentalFeatureForDebugPrerender(
+        userConfig.experimental,
+        'serverSourceMaps',
+        true,
+        reportExperimentalFeatures ? configuredExperimentalFeatures : undefined
+      )
+
+      setExperimentalFeatureForDebugPrerender(
+        userConfig.experimental,
+        process.env.TURBOPACK ? 'turbopackMinify' : 'serverMinification',
+        false,
+        reportExperimentalFeatures ? configuredExperimentalFeatures : undefined
+      )
+
+      setExperimentalFeatureForDebugPrerender(
+        userConfig.experimental,
+        'enablePrerenderSourceMaps',
+        true,
+        reportExperimentalFeatures ? configuredExperimentalFeatures : undefined
+      )
+
+      setExperimentalFeatureForDebugPrerender(
+        userConfig.experimental,
+        'prerenderEarlyExit',
+        false,
+        reportExperimentalFeatures ? configuredExperimentalFeatures : undefined
+      )
+    }
+
+    if (reportExperimentalFeatures) {
+      reportExperimentalFeatures(configuredExperimentalFeatures)
+    }
+
     const completeConfig = assignDefaults(
       dir,
       {
@@ -1433,46 +1494,67 @@ export default async function loadConfig(
   return await applyModifyConfig(completeConfig, phase, silent)
 }
 
-export type ConfiguredExperimentalFeature =
-  | { name: keyof ExperimentalConfig; type: 'boolean'; value: boolean }
-  | { name: keyof ExperimentalConfig; type: 'number'; value: number }
-  | { name: keyof ExperimentalConfig; type: 'other' }
+export type ConfiguredExperimentalFeature = {
+  key: keyof ExperimentalConfig
+  value: ExperimentalConfig[keyof ExperimentalConfig]
+  reason?: string
+}
 
-export function getConfiguredExperimentalFeatures(
-  userNextConfigExperimental: NextConfig['experimental']
+export function addConfiguredExperimentalFeature<
+  KeyType extends keyof ExperimentalConfig,
+>(
+  configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
+  key: KeyType,
+  value: ExperimentalConfig[KeyType],
+  reason?: string
 ) {
-  const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
-
-  if (!userNextConfigExperimental) {
-    return configuredExperimentalFeatures
+  if (value !== (defaultConfig.experimental as Record<string, unknown>)[key]) {
+    configuredExperimentalFeatures.push({ key, value, reason })
   }
+}
 
-  // defaultConfig.experimental is predefined and will never be undefined
-  // This is only a type guard for the typescript
-  if (defaultConfig.experimental) {
-    for (const name of Object.keys(
-      userNextConfigExperimental
-    ) as (keyof ExperimentalConfig)[]) {
-      const value = userNextConfigExperimental[name]
+function setExperimentalFeatureForDebugPrerender<
+  KeyType extends keyof ExperimentalConfig,
+>(
+  experimentalConfig: ExperimentalConfig,
+  key: KeyType,
+  value: ExperimentalConfig[KeyType],
+  configuredExperimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+) {
+  if (experimentalConfig[key] !== value) {
+    experimentalConfig[key] = value
 
-      if (name === 'turbo' && !process.env.TURBOPACK) {
-        // Ignore any Turbopack config if Turbopack is not enabled
-        continue
-      }
+    if (configuredExperimentalFeatures) {
+      const action =
+        value === true ? 'enabled' : value === false ? 'disabled' : 'set'
 
-      if (
-        name in defaultConfig.experimental &&
-        value !== (defaultConfig.experimental as Record<string, unknown>)[name]
-      ) {
-        configuredExperimentalFeatures.push(
-          typeof value === 'boolean'
-            ? { name, type: 'boolean', value }
-            : typeof value === 'number'
-              ? { name, type: 'number', value }
-              : { name, type: 'other' }
-        )
-      }
+      const reason = `${action} by \`--debug-prerender\``
+
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        key,
+        value,
+        reason
+      )
     }
   }
-  return configuredExperimentalFeatures
+}
+
+function cloneObject(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    return obj
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(cloneObject)
+  }
+  const keys = Object.keys(obj)
+  if (keys.length === 0) {
+    return obj
+  }
+
+  return keys.reduce((acc, key) => {
+    ;(acc as any)[key] = cloneObject(obj[key])
+    return acc
+  }, {})
 }

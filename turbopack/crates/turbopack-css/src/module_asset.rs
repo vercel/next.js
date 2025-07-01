@@ -5,7 +5,7 @@ use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -37,6 +37,7 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Clone)]
+/// A CSS Module asset, as in `.module.css`. For a global CSS module, see [`CssModuleAsset`].
 pub struct ModuleCssAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -64,7 +65,7 @@ impl Module for ModuleCssAsset {
             .source
             .ident()
             .with_modifier(rcstr!("css module"))
-            .with_layer(self.asset_context.layer().owned().await?))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer()))
     }
 
     #[turbo_tasks::function]
@@ -328,7 +329,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 
                         let Some(resolved_module) = &*resolved_module else {
                             CssModuleComposesIssue {
-                                severity: IssueSeverity::Error.resolved_cell(),
+                                severity: IssueSeverity::Error,
                                 source: self.module.ident().to_resolved().await?,
                                 message: formatdoc! {
                                     r#"
@@ -344,7 +345,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             ResolvedVc::try_downcast_type::<ModuleCssAsset>(*resolved_module)
                         else {
                             CssModuleComposesIssue {
-                                severity: IssueSeverity::Error.resolved_cell(),
+                                severity: IssueSeverity::Error,
                                     source: self.module.ident().to_resolved().await?,
                                 message: formatdoc! {
                                     r#"
@@ -423,22 +424,21 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(sm, mappings, None, true)?;
+    let map = generate_js_source_map(&*sm, mappings, None, true, true)?;
     Ok(map)
 }
 
 #[turbo_tasks::value(shared)]
 struct CssModuleComposesIssue {
-    severity: ResolvedVc<IssueSeverity>,
+    severity: IssueSeverity,
     source: ResolvedVc<AssetIdent>,
     message: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for CssModuleComposesIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]

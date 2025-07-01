@@ -1,4 +1,4 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
@@ -14,7 +14,7 @@ use crate::{
 pub fn connect_children(
     parent_task_id: TaskId,
     parent_task: &mut impl TaskGuard,
-    new_children: FxHashSet<TaskId>,
+    new_children: FxHashMap<TaskId, bool>,
     queue: &mut AggregationUpdateQueue,
     has_active_count: bool,
     should_track_activeness: bool,
@@ -25,14 +25,14 @@ pub fn connect_children(
 
     let parent_aggregation = get_aggregation_number(parent_task);
 
-    for &new_child in new_children.iter() {
+    for &new_child in new_children.keys() {
         parent_task.add_new(CachedDataItem::Child {
             task: new_child,
             value: (),
         });
     }
 
-    let new_follower_ids: SmallVec<_> = new_children.iter().copied().collect();
+    let new_follower_ids: SmallVec<_> = new_children.keys().copied().collect();
 
     let aggregating_node = is_aggregating_node(parent_aggregation);
     let upper_ids = (!aggregating_node).then(|| get_uppers(&*parent_task));

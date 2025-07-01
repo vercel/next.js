@@ -4,6 +4,7 @@ import type {
   ExternalObject,
   RefCell,
   NapiTurboEngineOptions,
+  NapiSourceDiagnostic,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
@@ -42,6 +43,14 @@ export interface Binding {
 
   reactCompiler: {
     isReactCompilerRequired(filename: string): Promise<boolean>
+  }
+
+  rspack: {
+    getModuleNamedExports(resourcePath: string): Promise<string[]>
+    warnForEdgeRuntime(
+      source: string,
+      isProduction: boolean
+    ): Promise<NapiSourceDiagnostic[]>
   }
 }
 
@@ -229,9 +238,9 @@ export interface Project {
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 
-  compilationEventsSubscribe(): AsyncIterableIterator<
-    TurbopackResult<CompilationEvent>
-  >
+  compilationEventsSubscribe(
+    eventTypes?: string[]
+  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
   invalidatePersistentCache(): Promise<void>
 
@@ -414,15 +423,21 @@ export interface ProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+
+  /**
+   * The version of Node.js that is available/currently running.
+   */
+  currentNodeJsVersion: string
 }
 
 export interface DefineEnv {
-  client: RustifiedEnv
-  edge: RustifiedEnv
-  nodejs: RustifiedEnv
+  client: RustifiedOptionalEnv
+  edge: RustifiedOptionalEnv
+  nodejs: RustifiedOptionalEnv
 }
 
 export type RustifiedEnv = { name: string; value: string }[]
+export type RustifiedOptionalEnv = { name: string; value: string | undefined }[]
 
 export interface GlobalEntrypoints {
   app: Endpoint | undefined
