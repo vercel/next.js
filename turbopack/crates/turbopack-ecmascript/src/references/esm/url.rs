@@ -107,7 +107,7 @@ impl ModuleReference for UrlAssetReference {
             *self.origin,
             *self.request,
             ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl),
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
             self.in_try,
         )
     }

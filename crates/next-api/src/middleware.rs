@@ -86,7 +86,8 @@ impl MiddlewareEndpoint {
             userland_module,
         );
 
-        let config = parse_config_from_source(userland_module, NextRuntime::Edge).await?;
+        let config =
+            parse_config_from_source(*self.source, userland_module, NextRuntime::Edge).await?;
 
         if matches!(config.runtime, NextRuntime::NodeJs) {
             return Ok(module);
@@ -176,7 +177,9 @@ impl MiddlewareEndpoint {
 
         let userland_module = self.userland_module();
 
-        let config = parse_config_from_source(userland_module, NextRuntime::Edge).await?;
+        let config =
+            parse_config_from_source(*self.await?.source, userland_module, NextRuntime::Edge)
+                .await?;
 
         let next_config = this.project.next_config().await?;
         let has_i18n = next_config.i18n.is_some();

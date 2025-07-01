@@ -36,7 +36,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::Layer,
-    issue::{IssueExt, StyledString, module::ModuleIssue},
+    issue::{IssueExt, IssueSource, StyledString, module::ModuleIssue},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -599,14 +599,14 @@ async fn process_default_internal(
                             Some(module_type) => {
                                 ModuleIssue {
                                     ident: ident.to_resolved().await?,
-                                    title: StyledString::Text("Invalid module type".into())
+                                    title: StyledString::Text(rcstr!("Invalid module type"))
                                         .resolved_cell(),
-                                    description: StyledString::Text(
+                                    description: StyledString::Text(rcstr!(
                                         "The module type must be Ecmascript or Typescript to add \
                                          Ecmascript transforms"
-                                            .into(),
-                                    )
+                                    ))
                                     .resolved_cell(),
+                                    source: Some(IssueSource::from_source_only(current_source)),
                                 }
                                 .resolved_cell()
                                 .emit();
@@ -615,14 +615,14 @@ async fn process_default_internal(
                             None => {
                                 ModuleIssue {
                                     ident: ident.to_resolved().await?,
-                                    title: StyledString::Text("Missing module type".into())
+                                    title: StyledString::Text(rcstr!("Missing module type"))
                                         .resolved_cell(),
-                                    description: StyledString::Text(
+                                    description: StyledString::Text(rcstr!(
                                         "The module type effect must be applied before adding \
                                          Ecmascript transforms"
-                                            .into(),
-                                    )
+                                    ))
                                     .resolved_cell(),
+                                    source: Some(IssueSource::from_source_only(current_source)),
                                 }
                                 .resolved_cell()
                                 .emit();

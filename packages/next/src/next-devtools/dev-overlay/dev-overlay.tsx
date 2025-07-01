@@ -58,7 +58,7 @@ export function DevOverlay({
       <ComponentStyles />
       <DarkTheme />
 
-      <RenderError state={state} isAppDir={true}>
+      <RenderError state={state} dispatch={dispatch} isAppDir={true}>
         {({ runtimeErrors, totalErrorCount }) => {
           return (
             <>

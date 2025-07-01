@@ -82,6 +82,13 @@ pub struct NapiEnvVar {
 }
 
 #[napi(object)]
+#[derive(Clone, Debug)]
+pub struct NapiOptionEnvVar {
+    pub name: RcStr,
+    pub value: Option<RcStr>,
+}
+
+#[napi(object)]
 pub struct NapiDraftModeOptions {
     pub preview_mode_id: RcStr,
     pub preview_mode_encryption_key: RcStr,
@@ -215,9 +222,9 @@ pub struct NapiPartialProjectOptions {
 #[napi(object)]
 #[derive(Clone, Debug)]
 pub struct NapiDefineEnv {
-    pub client: Vec<NapiEnvVar>,
-    pub edge: Vec<NapiEnvVar>,
-    pub nodejs: Vec<NapiEnvVar>,
+    pub client: Vec<NapiOptionEnvVar>,
+    pub edge: Vec<NapiOptionEnvVar>,
+    pub nodejs: Vec<NapiOptionEnvVar>,
 }
 
 #[napi(object)]

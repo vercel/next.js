@@ -11,8 +11,6 @@ pub enum KeySpace {
     TaskData = 2,
     ForwardTaskCache = 3,
     ReverseTaskCache = 4,
-    StringInternMap = 5,
-    ReverseStringInternMap = 6,
 }
 
 pub trait KeyValueDatabase {

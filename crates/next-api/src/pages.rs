@@ -917,7 +917,8 @@ impl PageEndpoint {
             .process(self.source(), reference_type.clone())
             .module();
 
-        let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;
+        let config =
+            parse_config_from_source(self.source(), ssr_module, NextRuntime::default()).await?;
 
         Ok(
             // `/_app` and `/_document` never get rendered directly so they don't need to be

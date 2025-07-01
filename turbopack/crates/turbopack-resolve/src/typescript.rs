@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Write, mem::take};
+use std::{collections::HashMap, mem::take};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
@@ -9,8 +9,10 @@ use turbopack_core::{
     asset::Asset,
     context::AssetContext,
     file_source::FileSource,
-    ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
+    },
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
         AliasPattern, ModuleResolveResult, handle_resolve_error,
@@ -25,15 +27,16 @@ use turbopack_core::{
         resolve,
     },
     source::{OptionSource, Source},
+    source_pos::SourcePos,
 };
 
 use crate::ecmascript::get_condition_maps;
 
 #[turbo_tasks::value(shared)]
-pub struct TsConfigIssue {
-    pub severity: IssueSeverity,
-    pub source_ident: ResolvedVc<AssetIdent>,
-    pub message: RcStr,
+struct TsConfigIssue {
+    severity: IssueSeverity,
+    source: IssueSource,
+    message: RcStr,
 }
 
 #[turbo_tasks::function]
@@ -64,16 +67,33 @@ pub async fn read_tsconfigs(
         let parsed_data = data.parse_json_with_comments();
         match &*parsed_data.await? {
             FileJsonContent::Unparseable(e) => {
-                let mut message = "tsconfig is not parseable: invalid JSON: ".to_string();
-                if let FileContent::Content(content) = &*data.await? {
-                    let text = content.content().to_str()?;
-                    e.write_with_content(&mut message, text.as_ref())?;
-                } else {
-                    write!(message, "{e}")?;
-                }
+                let message = format!("tsconfig is not parseable: invalid JSON: {}", e.message);
+                let source = match (e.start_location, e.end_location) {
+                    (None, None) => IssueSource::from_source_only(tsconfig),
+                    (Some((line, column)), None) | (None, Some((line, column))) => {
+                        IssueSource::from_line_col(
+                            tsconfig,
+                            SourcePos { line, column },
+                            SourcePos { line, column },
+                        )
+                    }
+                    (Some((start_line, start_column)), Some((end_line, end_column))) => {
+                        IssueSource::from_line_col(
+                            tsconfig,
+                            SourcePos {
+                                line: start_line,
+                                column: start_column,
+                            },
+                            SourcePos {
+                                line: end_line,
+                                column: end_column,
+                            },
+                        )
+                    }
+                };
                 TsConfigIssue {
                     severity: IssueSeverity::Error,
-                    source_ident: tsconfig.ident().to_resolved().await?,
+                    source,
                     message: message.into(),
                 }
                 .resolved_cell()
@@ -82,7 +102,7 @@ pub async fn read_tsconfigs(
             FileJsonContent::NotFound => {
                 TsConfigIssue {
                     severity: IssueSeverity::Error,
-                    source_ident: tsconfig.ident().to_resolved().await?,
+                    source: IssueSource::from_source_only(tsconfig),
                     message: rcstr!("tsconfig not found"),
                 }
                 .resolved_cell()
@@ -99,7 +119,8 @@ pub async fn read_tsconfigs(
                     } else {
                         TsConfigIssue {
                             severity: IssueSeverity::Error,
-                            source_ident: tsconfig.ident().to_resolved().await?,
+                            // TODO: this should point at the `extends` property
+                            source: IssueSource::from_source_only(tsconfig),
                             message: format!("extends: \"{extends}\" doesn't resolve correctly")
                                 .into(),
                         }
@@ -306,7 +327,8 @@ pub async fn tsconfig_resolve_options(
                 } else {
                     TsConfigIssue {
                         severity: IssueSeverity::Warning,
-                        source_ident: source.ident().to_resolved().await?,
+                        // TODO: this should point at the invalid key
+                        source: IssueSource::from_source_only(*source),
                         message: format!(
                             "compilerOptions.paths[{key}] doesn't contains an array as \
                              expected\n{key}: {value:#}",
@@ -524,7 +546,7 @@ impl Issue for TsConfigIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source_ident.path()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -537,5 +559,10 @@ impl Issue for TsConfigIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Analysis.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }

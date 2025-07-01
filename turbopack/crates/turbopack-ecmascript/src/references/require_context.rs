@@ -196,7 +196,7 @@ impl RequireContextMap {
             let request = Request::parse(origin_relative.clone().into())
                 .to_resolved()
                 .await?;
-            let result = cjs_resolve(origin, *request, issue_source.clone(), is_optional)
+            let result = cjs_resolve(origin, *request, issue_source, is_optional)
                 .to_resolved()
                 .await?;
 
@@ -242,7 +242,7 @@ impl RequireContextAssetReference {
             origin.origin_path().await?.parent().join(&dir)?,
             include_subdirs,
             filter,
-            issue_source.clone(),
+            issue_source,
             in_try,
         )
         .to_resolved()

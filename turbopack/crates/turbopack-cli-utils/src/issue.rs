@@ -272,17 +272,15 @@ pub fn format_issue(
         }
     }
 
-    write!(
-        issue_text,
-        "{} - [{}] {}",
-        severity.style(severity_to_style(severity)),
-        stage,
-        plain_issue.file_path
-    )
-    .unwrap();
-
-    for line in styled_issue.lines() {
-        writeln!(issue_text, "  {line}").unwrap();
+    let severity = severity.style(severity_to_style(severity));
+    write!(issue_text, "{severity} - [{stage}] ").unwrap();
+    for (index, line) in styled_issue.lines().enumerate() {
+        // don't indent the first line
+        if index > 0 {
+            issue_text.push_str("  ");
+        }
+        issue_text.push_str(line);
+        issue_text.push('\n');
     }
 
     issue_text
@@ -696,6 +694,6 @@ fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
         format_source_content(source, &mut styled_issue);
         styled_issue
     } else {
-        formatted_title
+        format!("{context_path}  {formatted_title}\n")
     }
 }

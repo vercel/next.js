@@ -21,12 +21,11 @@ use parking_lot::{Mutex, RwLock};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use tracing::Span;
 
+pub use crate::compaction::selector::CompactConfig;
 use crate::{
     QueryKey,
     arc_slice::ArcSlice,
-    compaction::selector::{
-        CompactConfig, Compactable, CompactionJobs, get_compaction_jobs, total_coverage,
-    },
+    compaction::selector::{Compactable, compute_metrics, get_merge_segments},
     constants::{
         AQMF_AVG_SIZE, AQMF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
@@ -650,7 +649,15 @@ impl TurboPersistence {
     /// Runs a full compaction on the database. This will rewrite all SST files, removing all
     /// duplicate keys and separating all key ranges into unique files.
     pub fn full_compact(&self) -> Result<()> {
-        self.compact(0.0, usize::MAX, u64::MAX)?;
+        self.compact(&CompactConfig {
+            min_merge_count: 2,
+            optimal_merge_count: usize::MAX,
+            max_merge_count: usize::MAX,
+            max_merge_bytes: u64::MAX,
+            min_merge_duplication_bytes: 0,
+            optimal_merge_duplication_bytes: u64::MAX,
+            max_merge_segment_count: usize::MAX,
+        })?;
         Ok(())
     }
 
@@ -658,12 +665,7 @@ impl TurboPersistence {
     /// files is above the given threshold. The coverage is the average number of SST files that
     /// need to be read to find a key. It also limits the maximum number of SST files that are
     /// merged at once, which is the main factor for the runtime of the compaction.
-    pub fn compact(
-        &self,
-        max_coverage: f32,
-        max_merge_sequence: usize,
-        max_merge_size: u64,
-    ) -> Result<()> {
+    pub fn compact(&self, compact_config: &CompactConfig) -> Result<()> {
         if self.read_only {
             bail!("Compaction is not allowed on a read only database");
         }
@@ -697,9 +699,7 @@ impl TurboPersistence {
                 &mut sst_seq_numbers_to_delete,
                 &mut blob_seq_numbers_to_delete,
                 &mut keys_written,
-                max_coverage,
-                max_merge_sequence,
-                max_merge_size,
+                compact_config,
             )
             .context("Failed to compact database")?;
         }
@@ -732,9 +732,7 @@ impl TurboPersistence {
         sst_seq_numbers_to_delete: &mut Vec<u32>,
         blob_seq_numbers_to_delete: &mut Vec<u32>,
         keys_written: &mut u64,
-        max_coverage: f32,
-        max_merge_sequence: usize,
-        max_merge_size: u64,
+        compact_config: &CompactConfig,
     ) -> Result<()> {
         if meta_files.is_empty() {
             return Ok(());
@@ -811,8 +809,10 @@ impl TurboPersistence {
             .map(|(family, ssts_with_ranges)| {
                 let family = family as u32;
                 let _span = span.clone().entered();
-                let coverage = total_coverage(&ssts_with_ranges, (0, u64::MAX));
-                if coverage <= max_coverage {
+
+                let merge_jobs = get_merge_segments(&ssts_with_ranges, compact_config);
+
+                if merge_jobs.is_empty() {
                     return Ok(PartialResultPerFamily {
                         new_meta_file: None,
                         new_sst_files: Vec::new(),
@@ -822,24 +822,18 @@ impl TurboPersistence {
                     });
                 }
 
-                let CompactionJobs {
-                    merge_jobs,
-                    move_jobs,
-                } = get_compaction_jobs(
-                    &ssts_with_ranges,
-                    &CompactConfig {
-                        min_merge: 2,
-                        max_merge: max_merge_sequence,
-                        max_merge_size,
-                    },
-                );
-
-                if !merge_jobs.is_empty() {
+                {
+                    let metrics = compute_metrics(&ssts_with_ranges, (0, u64::MAX));
                     let guard = log_mutex.lock();
                     let mut log = self.open_log()?;
                     writeln!(
                         log,
-                        "Compaction for family {family} (coverage: {coverage}):"
+                        "Compaction for family {family} (coverage: {}, overlap: {}, duplication: \
+                         {} / {} MiB):",
+                        metrics.coverage,
+                        metrics.overlap,
+                        metrics.duplication,
+                        metrics.duplicated_size / 1024 / 1024
                     )?;
                     for job in merge_jobs.iter() {
                         writeln!(log, "  merge")?;
@@ -855,32 +849,63 @@ impl TurboPersistence {
                 // Later we will remove the merged files
                 let sst_seq_numbers_to_delete = merge_jobs
                     .iter()
+                    .filter(|l| l.len() > 1)
                     .flat_map(|l| l.iter().copied())
                     .map(|index| ssts_with_ranges[index].seq)
                     .collect::<Vec<_>>();
 
-                let meta_file_builder = Mutex::new(MetaFileBuilder::new(family));
-
                 // Merge SST files
                 let span = tracing::trace_span!("merge files");
-                struct PartialMergeResult {
-                    new_sst_files: Vec<(u32, File)>,
-                    blob_seq_numbers_to_delete: Vec<u32>,
-                    keys_written: u64,
+                enum PartialMergeResult<'l> {
+                    Merged {
+                        new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                        blob_seq_numbers_to_delete: Vec<u32>,
+                        keys_written: u64,
+                    },
+                    Move {
+                        seq: u32,
+                        meta: StaticSortedFileBuilderMeta<'l>,
+                    },
                 }
                 let merge_result = merge_jobs
                     .into_par_iter()
                     .with_min_len(1)
                     .map(|indicies| {
                         let _span = span.clone().entered();
+                        if indicies.len() == 1 {
+                            // If we only have one file, we can just move it
+                            let index = indicies[0];
+                            let meta_index = ssts_with_ranges[index].meta_index;
+                            let index_in_meta = ssts_with_ranges[index].index_in_meta;
+                            let meta_file = &meta_files[meta_index];
+                            let entry = meta_file.entry(index_in_meta);
+                            let aqmf = Cow::Borrowed(entry.raw_aqmf(meta_file.aqmf_data()));
+                            let meta = StaticSortedFileBuilderMeta {
+                                min_hash: entry.min_hash(),
+                                max_hash: entry.max_hash(),
+                                aqmf,
+                                key_compression_dictionary_length: entry
+                                    .key_compression_dictionary_length(),
+                                value_compression_dictionary_length: entry
+                                    .value_compression_dictionary_length(),
+                                block_count: entry.block_count(),
+                                size: entry.size(),
+                                entries: 0,
+                            };
+                            return Ok(PartialMergeResult::Move {
+                                seq: entry.sequence_number(),
+                                meta,
+                            });
+                        }
+
                         fn create_sst_file(
                             entries: &[LookupEntry],
                             total_key_size: usize,
                             total_value_size: usize,
                             path: &Path,
                             seq: u32,
-                            meta_file_builder: &Mutex<MetaFileBuilder>,
-                        ) -> Result<(u32, File)> {
+                        ) -> Result<(u32, File, StaticSortedFileBuilderMeta<'static>)>
+                        {
                             let _span = tracing::trace_span!("write merged sst file").entered();
                             let builder = StaticSortedFileBuilder::new(
                                 entries,
@@ -889,8 +914,7 @@ impl TurboPersistence {
                             )?;
                             let (meta, file) =
                                 builder.write(&path.join(format!("{seq:08}.sst")))?;
-                            meta_file_builder.lock().add(seq, meta);
-                            Ok((seq, file))
+                            Ok((seq, file, meta))
                         }
 
                         let mut new_sst_files = Vec::new();
@@ -958,7 +982,6 @@ impl TurboPersistence {
                                                 selected_total_value_size,
                                                 path,
                                                 seq,
-                                                &meta_file_builder,
                                             )?);
 
                                             entries.clear();
@@ -989,7 +1012,6 @@ impl TurboPersistence {
                                 total_value_size,
                                 path,
                                 seq,
-                                &meta_file_builder,
                             )?);
                         } else
                         // If we have two sets of entries left, merge them and
@@ -1014,7 +1036,6 @@ impl TurboPersistence {
                                 last_entries_total_sizes.1 / 2,
                                 path,
                                 seq1,
-                                &meta_file_builder,
                             )?);
 
                             keys_written += part2.len() as u64;
@@ -1024,10 +1045,9 @@ impl TurboPersistence {
                                 last_entries_total_sizes.1 / 2,
                                 path,
                                 seq2,
-                                &meta_file_builder,
                             )?);
                         }
-                        Ok(PartialMergeResult {
+                        Ok(PartialMergeResult::Merged {
                             new_sst_files,
                             blob_seq_numbers_to_delete,
                             keys_written,
@@ -1038,76 +1058,61 @@ impl TurboPersistence {
                         format!("Failed to merge database files for family {family}")
                     })?;
 
-                let mut meta_file_builder = meta_file_builder.into_inner();
+                let Some((sst_files_len, blob_delete_len)) = merge_result
+                    .iter()
+                    .map(|r| {
+                        if let PartialMergeResult::Merged {
+                            new_sst_files,
+                            blob_seq_numbers_to_delete,
+                            keys_written: _,
+                        } = r
+                        {
+                            (new_sst_files.len(), blob_seq_numbers_to_delete.len())
+                        } else {
+                            (0, 0)
+                        }
+                    })
+                    .reduce(|(a1, a2), (b1, b2)| (a1 + b1, a2 + b2))
+                else {
+                    unreachable!()
+                };
+
+                let mut new_sst_files = Vec::with_capacity(sst_files_len);
+                let mut blob_seq_numbers_to_delete = Vec::with_capacity(blob_delete_len);
+
+                let mut meta_file_builder = MetaFileBuilder::new(family);
+
+                let mut keys_written = 0;
+                for result in merge_result {
+                    match result {
+                        PartialMergeResult::Merged {
+                            new_sst_files: merged_new_sst_files,
+                            blob_seq_numbers_to_delete: merged_blob_seq_numbers_to_delete,
+                            keys_written: merged_keys_written,
+                        } => {
+                            for (seq, file, meta) in merged_new_sst_files {
+                                meta_file_builder.add(seq, meta);
+                                new_sst_files.push((seq, file));
+                            }
+                            blob_seq_numbers_to_delete.extend(merged_blob_seq_numbers_to_delete);
+                            keys_written += merged_keys_written;
+                        }
+                        PartialMergeResult::Move { seq, meta } => {
+                            meta_file_builder.add(seq, meta);
+                        }
+                    }
+                }
 
                 for &seq in sst_seq_numbers_to_delete.iter() {
                     meta_file_builder.add_obsolete_sst_file(seq);
                 }
 
-                // Move SST files
-                let span = tracing::trace_span!("query moved sst files").entered();
-                for index in move_jobs {
-                    let meta_index = ssts_with_ranges[index].meta_index;
-                    let index_in_meta = ssts_with_ranges[index].index_in_meta;
-                    let meta_file = &meta_files[meta_index];
-                    let entry = meta_file.entry(index_in_meta);
-                    let aqmf = Cow::Borrowed(entry.raw_aqmf(meta_file.aqmf_data()));
-                    let meta = StaticSortedFileBuilderMeta {
-                        min_hash: entry.min_hash(),
-                        max_hash: entry.max_hash(),
-                        aqmf,
-                        key_compression_dictionary_length: entry
-                            .key_compression_dictionary_length(),
-                        value_compression_dictionary_length: entry
-                            .value_compression_dictionary_length(),
-                        block_count: entry.block_count(),
-                        size: entry.size(),
-                        entries: 0,
-                    };
-                    meta_file_builder.add(entry.sequence_number(), meta);
-                }
-                drop(span);
-
-                let span = tracing::trace_span!("write meta file").entered();
                 let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                let meta_file = meta_file_builder.write(&self.path, seq)?;
-                drop(span);
+                let meta_file = {
+                    let _span = tracing::trace_span!("write meta file").entered();
+                    meta_file_builder.write(&self.path, seq)?
+                };
 
-                let mut new_sst_files = Vec::with_capacity(
-                    merge_result
-                        .iter()
-                        .map(
-                            |PartialMergeResult {
-                                 new_sst_files: v,
-                                 blob_seq_numbers_to_delete: _,
-                                 keys_written: _,
-                             }| v.len(),
-                        )
-                        .sum(),
-                );
-                let mut blob_seq_numbers_to_delete = Vec::with_capacity(
-                    merge_result
-                        .iter()
-                        .map(
-                            |PartialMergeResult {
-                                 new_sst_files: _,
-                                 blob_seq_numbers_to_delete: v,
-                                 keys_written: _,
-                             }| v.len(),
-                        )
-                        .sum(),
-                );
-                let mut keys_written = 0;
-                for PartialMergeResult {
-                    new_sst_files: merged_new_sst_files,
-                    blob_seq_numbers_to_delete: merged_blob_seq_numbers_to_delete,
-                    keys_written: merged_keys_written,
-                } in merge_result
-                {
-                    new_sst_files.extend(merged_new_sst_files);
-                    blob_seq_numbers_to_delete.extend(merged_blob_seq_numbers_to_delete);
-                    keys_written += merged_keys_written;
-                }
                 Ok(PartialResultPerFamily {
                     new_meta_file: Some((seq, meta_file)),
                     new_sst_files,

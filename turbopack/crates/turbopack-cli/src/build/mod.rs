@@ -76,6 +76,7 @@ pub struct TurbopackBuildBuilder {
     source_maps_type: SourceMapsType,
     minify_type: MinifyType,
     target: Target,
+    scope_hoist: bool,
 }
 
 impl TurbopackBuildBuilder {
@@ -96,6 +97,7 @@ impl TurbopackBuildBuilder {
                 mangle: Some(MangleType::OptimalSize),
             },
             target: Target::Node,
+            scope_hoist: true,
         }
     }
 
@@ -134,6 +136,11 @@ impl TurbopackBuildBuilder {
         self
     }
 
+    pub fn scope_hoist(mut self, scope_hoist: bool) -> Self {
+        self.scope_hoist = scope_hoist;
+        self
+    }
+
     pub fn target(mut self, target: Target) -> Self {
         self.target = target;
         self
@@ -149,6 +156,7 @@ impl TurbopackBuildBuilder {
                 self.source_maps_type,
                 self.minify_type,
                 self.target,
+                self.scope_hoist,
             );
 
             // Await the result to propagate any errors.
@@ -196,6 +204,7 @@ async fn build_internal(
     source_maps_type: SourceMapsType,
     minify_type: MinifyType,
     target: Target,
+    scope_hoist: bool,
 ) -> Result<Vc<()>> {
     let output_fs = output_fs(project_dir.clone());
     let project_fs = project_fs(root_dir.clone(), /* watch= */ false);
@@ -359,7 +368,7 @@ async fn build_internal(
                             },
                         )
                         .use_content_hashing(ContentHashing::Direct { length: 16 })
-                        .module_merging(true);
+                        .module_merging(scope_hoist);
                 }
             }
 
@@ -404,7 +413,7 @@ async fn build_internal(
                                 ..Default::default()
                             },
                         )
-                        .module_merging(true);
+                        .module_merging(scope_hoist);
                 }
             }
 
@@ -533,6 +542,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 mangle: Some(MangleType::OptimalSize),
             }
         })
+        .scope_hoist(!args.no_scope_hoist)
         .target(args.common.target.unwrap_or(Target::Node))
         .show_all(args.common.show_all);
 
