@@ -495,7 +495,7 @@ mod tests {
                     variable_axes: Some(vec![
                         ("GRAD".into(), "-50..100".into()),
                         ("opsz".into(), "8..144".into()),
-                        ("width".into(), "50..150".into()),
+                        ("wdth".into(), "50..150".into()),
                     ])
                 },
                 "optional"
@@ -537,7 +537,7 @@ mod tests {
                     variable_axes: Some(vec![
                         ("GRAD".into(), "-50..100".into()),
                         ("opsz".into(), "8..144".into()),
-                        ("width".into(), "50..150".into()),
+                        ("wdth".into(), "50..150".into()),
                     ])
                 },
                 "optional"

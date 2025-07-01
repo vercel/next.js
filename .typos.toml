@@ -5,6 +5,10 @@
 [default]
 check-filename = false
 
+[default.extend-words]
+rto = "rto"
+wdth = "wdth"
+
 [type.rust]
 check-file = true
 

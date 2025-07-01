@@ -103,7 +103,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 /// |-----------------|------------------------------------|-----------------|----------------------------|------------------------|-------------------|--------------|
 /// | [`Vc`]          | [One of many][RawVc]               | ❌ [Broken][eq] | ⚠️  After resolution        | ❌ Eventual            | ❌ No             | ❌ [No][loc] |
 /// | [`ResolvedVc`]  | [Task Id + Type Id + Cell Id][rtc] | ✅ Yes\*        | ✅ [Yes, cheaply][resolve] | ❌ Eventual            | ❌ No             | ✅ Yes       |
-/// | [`OperationVc`] | [Task Id][to]                     | ✅ Yes\*        | ⚠️  After resolution        | ✅ [Supported][strong] | ✅ [Yes][collect] | ✅ Yes       |
+/// | [`OperationVc`] | [Task Id][rto]                     | ✅ Yes\*        | ⚠️  After resolution        | ✅ [Supported][strong] | ✅ [Yes][collect] | ✅ Yes       |
 ///
 /// *\* see the type's documentation for details*
 ///
