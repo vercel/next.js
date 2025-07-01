@@ -74,7 +74,7 @@ use swc_core::{
         codegen::{Emitter, text_writer::JsWriter},
         transforms::base::rename::Renamer,
         utils::StmtLikeInjector,
-        visit::{VisitMut, VisitMutWith, VisitMutWithAstPath},
+        visit::{VisitMut, VisitMutWith, VisitMutWithAstPath, noop_visit_mut_type},
     },
     quote,
 };
@@ -1438,6 +1438,7 @@ async fn merge_modules(
             Default::default(),
             FastHygieneRenamer,
         ));
+        merged_ast.visit_mut_with(&mut HygieneRemover);
 
         anyhow::Ok((merged_ast, inserted))
     })?;
@@ -1706,6 +1707,7 @@ async fn process_parse_result(
                         },
                         FastHygieneRenamer,
                     ));
+                    program.visit_mut_with(&mut HygieneRemover);
                 }
                 program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
 
@@ -2029,6 +2031,16 @@ impl Renamer for FastHygieneRenamer {
         };
         *n += 1;
         res
+    }
+}
+
+struct HygieneRemover;
+
+impl VisitMut for HygieneRemover {
+    noop_visit_mut_type!();
+
+    fn visit_mut_ident(&mut self, i: &mut Ident) {
+        i.ctxt = Default::default();
     }
 }
 
