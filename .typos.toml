@@ -4,10 +4,15 @@
 
 [default]
 check-filename = false
+extend-ignore-identifiers-re = ["SEPARATOR.*"]
 
 [default.extend-words]
 rto = "rto"
 wdth = "wdth"
+
+[default.extend-identifiers]
+IIFE = "IIFE"
+
 
 [type.rust]
 check-file = true
