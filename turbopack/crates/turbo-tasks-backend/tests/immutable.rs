@@ -18,37 +18,29 @@ async fn hidden_mutate() {
 
         let changing_value_resolved = changing_value.resolve().await?;
         let read_input = read_input(changing_value_resolved);
-        let static_immutable = static_immutable_fn(changing_value_resolved);
-        let conditional_immutable = conditional_immutable_fn(changing_value_resolved);
+        let static_immutable = immutable_fn(changing_value_resolved);
         let read_self = changing_value_resolved.read_self();
-        let static_immutable_self = changing_value_resolved.static_immutable_self_fn();
-        let conditional_immutable_self = changing_value_resolved.conditional_immutable_self_fn();
+        let static_immutable_self = changing_value_resolved.immutable_self_fn();
         assert_eq!(*read_input.await?, 1);
         assert_eq!(*static_immutable.await?, 42);
-        assert_eq!(*conditional_immutable.await?, 42);
         assert_eq!(*read_self.await?, 1);
         assert_eq!(*static_immutable_self.await?, 42);
-        assert_eq!(*conditional_immutable_self.await?, 42);
 
         println!("changing input");
         input.await?.state.set(10);
         assert_eq!(changing_value.strongly_consistent().await?.value, 10);
         assert_eq!(*read_input.strongly_consistent().await?, 10);
         assert_eq!(*static_immutable.strongly_consistent().await?, 42);
-        assert_eq!(*conditional_immutable.strongly_consistent().await?, 42);
         assert_eq!(*read_self.strongly_consistent().await?, 10);
         assert_eq!(*static_immutable_self.strongly_consistent().await?, 42);
-        assert_eq!(*conditional_immutable_self.strongly_consistent().await?, 42);
 
         println!("changing input");
         input.await?.state.set(5);
         assert_eq!(changing_value.strongly_consistent().await?.value, 5);
         assert_eq!(*read_input.strongly_consistent().await?, 5);
         assert_eq!(*static_immutable.strongly_consistent().await?, 42);
-        assert_eq!(*conditional_immutable.strongly_consistent().await?, 42);
         assert_eq!(*read_self.strongly_consistent().await?, 5);
         assert_eq!(*static_immutable_self.strongly_consistent().await?, 42);
-        assert_eq!(*conditional_immutable_self.strongly_consistent().await?, 42);
 
         anyhow::Ok(())
     })
@@ -91,17 +83,10 @@ async fn read_input(input: Vc<Value>) -> Result<Vc<u32>> {
 }
 
 #[turbo_tasks::function]
-fn static_immutable_fn(input: Vc<Value>) -> Vc<u32> {
+fn immutable_fn(input: Vc<Value>) -> Vc<u32> {
     let _ = input;
-    println!("static_immutable_fn()");
+    println!("immutable_fn()");
     Vc::cell(42)
-}
-
-#[turbo_tasks::function]
-async fn conditional_immutable_fn(input: Vc<Value>) -> Result<Vc<u32>> {
-    let _ = input;
-    println!("conditional_immutable_fn()");
-    Ok(Vc::cell(42))
 }
 
 #[turbo_tasks::value_impl]
@@ -113,16 +98,9 @@ impl Value {
     }
 
     #[turbo_tasks::function]
-    fn static_immutable_self_fn(self: Vc<Value>) -> Vc<u32> {
+    fn immutable_self_fn(self: Vc<Value>) -> Vc<u32> {
         let _ = self;
-        println!("static_immutable_self_fn()");
+        println!("immutable_self_fn()");
         Vc::cell(42)
-    }
-
-    #[turbo_tasks::function]
-    async fn conditional_immutable_self_fn(self: Vc<Value>) -> Result<Vc<u32>> {
-        let _ = self;
-        println!("conditional_immutable_self_fn()");
-        Ok(Vc::cell(42))
     }
 }

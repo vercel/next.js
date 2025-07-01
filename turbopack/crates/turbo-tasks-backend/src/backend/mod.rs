@@ -1691,9 +1691,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let has_children = !new_children.is_empty();
         let is_immutable = task.is_immutable();
-        let task_dependencies_for_late_immutable =
-            // Task is already statically immutable or
-            // previously marked as immutable
+        let task_dependencies_for_immutable =
+            // Task was previously marked as immutable
             if !is_immutable
             // Task has no invalidator
             && !task.has_key(&CachedDataItemKey::HasInvalidator {})
@@ -1777,15 +1776,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         // Check if the task can be marked as immutable
-        let mut is_late_immutable = false;
-        if let Some(dependencies) = task_dependencies_for_late_immutable
+        let mut is_now_immutable = false;
+        if let Some(dependencies) = task_dependencies_for_immutable
             && dependencies
                 .iter()
                 .all(|&task_id| ctx.task(task_id, TaskDataCategory::Data).is_immutable())
         {
-            is_late_immutable = true;
+            is_now_immutable = true;
         }
-        span.record("immutable", is_immutable || is_late_immutable);
+        span.record("immutable", is_immutable || is_now_immutable);
 
         if !queue.is_empty() || !old_edges.is_empty() {
             #[cfg(feature = "trace_task_completion")]
@@ -1839,7 +1838,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // If the task is not stateful and has no mutable children, it does not have a way to be
         // invalidated and we can mark it as immutable.
-        if is_late_immutable {
+        if is_now_immutable {
             let _ = task.add(CachedDataItem::Immutable { value: () });
         }
 
