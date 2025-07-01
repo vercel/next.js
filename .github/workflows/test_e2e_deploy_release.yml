@@ -111,7 +111,7 @@ jobs:
       - name: Check token
         run: gh auth status
         env:
-          GITHUB_TOKEN: ${{ secrets.FRONT_TEST_TOKEN }}
+          github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
       - uses: actions/github-script@v7
         name: Trigger vercel/front sync
         id: trigger-front-sync
