@@ -16,9 +16,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
-    },
+    issue::IssueDescriptionExt,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
@@ -525,7 +523,7 @@ impl PostCssTransformedAsset {
             module_asset: postcss_executor,
             cwd: project_path.clone(),
             env: *env,
-            context_ident_for_issue: self.source.ident().to_resolved().await?,
+            context_source_for_issue: self.source,
             asset_context: evaluate_context,
             chunking_context: *chunking_context,
             resolve_options_context: None,
@@ -555,42 +553,5 @@ impl PostCssTransformedAsset {
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
         Ok(ProcessPostCssResult { content, assets }.cell())
-    }
-}
-
-#[turbo_tasks::value]
-struct PostCssTransformIssue {
-    source: FileSystemPath,
-    description: RcStr,
-    severity: IssueSeverity,
-    title: RcStr,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for PostCssTransformIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(self.title.clone()).cell()
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.description.clone()).resolved_cell(),
-        ))
-    }
-
-    fn severity(&self) -> IssueSeverity {
-        self.severity
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
     }
 }

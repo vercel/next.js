@@ -6,8 +6,10 @@ async function getSegmentExplorerContent(browser: Playwright) {
   // open the devtool button
   await openDevToolsIndicatorPopover(browser)
 
-  // open the segment explorer
-  await browser.elementByCss('[data-segment-explorer]').click()
+  // open segment explorer tab
+  await browser
+    .elementByCss('[data-nextjs-devtools-panel-header-tab="route"]')
+    .click()
 
   //  wait for the segment explorer to be visible
   await browser.waitForElementByCss('[data-nextjs-devtool-segment-explorer]')
@@ -86,6 +88,7 @@ describe('segment-explorer', () => {
     await browser.elementByCss('[href="/soft-navigation/b"]').click()
     await retry(async () => {
       expect(await browser.elementByCss('body').text()).toContain('Page B')
+      expect(await browser.url()).toBe(`${next.url}/soft-navigation/b`)
     })
 
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`

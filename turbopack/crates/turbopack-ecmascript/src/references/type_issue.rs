@@ -1,12 +1,15 @@
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
+use turbopack_core::issue::{
+    Issue, IssueSeverity, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+    StyledString,
+};
 
 use crate::SpecifiedModuleType;
 
 #[turbo_tasks::value(shared)]
 pub struct SpecifiedModuleTypeIssue {
-    pub path: FileSystemPath,
+    pub source: IssueSource,
     pub specified_type: SpecifiedModuleType,
 }
 
@@ -14,7 +17,7 @@ pub struct SpecifiedModuleTypeIssue {
 impl Issue for SpecifiedModuleTypeIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -81,5 +84,10 @@ impl Issue for SpecifiedModuleTypeIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Analysis.into()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }

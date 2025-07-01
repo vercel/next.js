@@ -484,8 +484,7 @@ export async function handler(
           deploymentId: nextConfig.deploymentId,
           enableTainting: nextConfig.experimental.taint,
           htmlLimitedBots: nextConfig.htmlLimitedBots,
-          devtoolSegmentExplorer:
-            nextConfig.experimental.devtoolSegmentExplorer,
+          devtoolNewPanelUI: nextConfig.experimental.devtoolNewPanelUI,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,

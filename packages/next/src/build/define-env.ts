@@ -298,9 +298,6 @@ export function getDefineEnv({
           ),
         }
       : {}),
-    'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
-      // Enable segment explorer in devtools
-      isDevToolPanelUIEnabled || !!config.experimental.devtoolSegmentExplorer,
     'process.env.__NEXT_DEVTOOL_NEW_PANEL_UI': isDevToolPanelUIEnabled,
 
     // The devtools need to know whether or not to show an option to clear the

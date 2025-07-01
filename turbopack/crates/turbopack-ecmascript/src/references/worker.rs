@@ -61,7 +61,7 @@ impl WorkerAssetReference {
             *self.request,
             // TODO support more worker types
             ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
             self.in_try,
         );
 

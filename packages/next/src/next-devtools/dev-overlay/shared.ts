@@ -85,6 +85,7 @@ export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
 export const STORAGE_KEY_SCALE = '__nextjs-dev-tools-scale'
+export const STORAGE_KEY_ACTIVE_TAB = '__nextjs-devtools-active-tab'
 
 export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
   'segment-explorer-update-route-state'

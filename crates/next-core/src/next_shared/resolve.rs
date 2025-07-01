@@ -45,6 +45,8 @@ static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
+    // TODO(PACK-4879): The filepath is incorrect and there should be a fine grained source
+    // location pointing at the import/require
     pub file_path: FileSystemPath,
     pub messages: Vec<RcStr>,
     pub skip_context_message: bool,

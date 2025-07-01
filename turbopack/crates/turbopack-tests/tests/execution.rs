@@ -44,7 +44,6 @@ use turbopack_core::{
         ExternalTraced, ExternalType,
         options::{ImportMap, ImportMapping},
     },
-    source::Source,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{debug::should_debug, evaluate::evaluate};
@@ -474,7 +473,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         jest_entry_asset,
         path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
-        test_source.ident(),
+        Vc::upcast(test_source),
         asset_context,
         Vc::upcast(chunking_context),
         None,

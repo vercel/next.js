@@ -68,7 +68,7 @@ impl ModuleReference for AmdDefineAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
             self.in_try,
         )
     }
@@ -178,7 +178,7 @@ impl AmdDefineWithDependenciesCodeGen {
                             cjs_resolve(
                                 *self.origin,
                                 **request,
-                                Some(self.issue_source.clone()),
+                                Some(self.issue_source),
                                 self.in_try,
                             ),
                             ResolveType::ChunkItem,

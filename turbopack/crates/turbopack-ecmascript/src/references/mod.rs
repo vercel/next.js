@@ -743,7 +743,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     .to_resolved()
                     .await?,
                 r.issue_source
-                    .clone()
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
                 r.annotations.clone(),
                 match options.tree_shaking_mode {
@@ -841,7 +840,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
             if specified_type == SpecifiedModuleType::CommonJs {
                 SpecifiedModuleTypeIssue {
-                    path: source.ident().path().await?.clone_value(),
+                    // TODO(PACK-4879): this should point at one of the exports
+                    source: IssueSource::from_source_only(source),
                     specified_type,
                 }
                 .resolved_cell()
@@ -859,7 +859,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             match detect_dynamic_export(program) {
                 DetectedDynamicExportType::CommonJs => {
                     SpecifiedModuleTypeIssue {
-                        path: source.ident().path().await?.clone_value(),
+                        // TODO(PACK-4879): this should point at the source location of the commonjs
+                        // export
+                        source: IssueSource::from_source_only(source),
                         specified_type,
                     }
                     .resolved_cell()
@@ -1380,7 +1382,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                             EsmAssetReference::new(
                                                 original_reference.origin,
                                                 original_reference.request,
-                                                original_reference.issue_source.clone(),
+                                                original_reference.issue_source,
                                                 original_reference.annotations.clone(),
                                                 Some(ModulePart::export(export.clone())),
                                                 original_reference.import_externals,

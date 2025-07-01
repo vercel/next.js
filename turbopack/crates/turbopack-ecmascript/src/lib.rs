@@ -80,7 +80,7 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
-    TransformPlugin, UnsupportedServerActionIssue,
+    TransformPlugin,
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -746,28 +746,14 @@ impl MergeableModule for EcmascriptModuleAsset {
         modules: Vc<MergeableModulesExposed>,
         entry_points: Vc<MergeableModules>,
     ) -> Result<Vc<Box<dyn ChunkableModule>>> {
-        Ok(Vc::upcast(*MergedEcmascriptModule::new(
-            modules
-                .await?
-                .iter()
-                .map(|(m, exposed)| {
-                    Ok((
-                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
-                            .context("expected EcmascriptAnalyzable")?,
-                        *exposed,
-                    ))
-                })
-                .collect::<Result<Vec<_>>>()?,
-            entry_points
-                .await?
-                .iter()
-                .map(|m| {
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
-                        .context("expected EcmascriptAnalyzable")
-                })
-                .collect::<Result<Vec<_>>>()?,
-            self.options().to_resolved().await?,
-        )))
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(
+                modules,
+                entry_points,
+                self.options().to_resolved().await?,
+            )
+            .await?,
+        ))
     }
 }
 
@@ -966,7 +952,7 @@ impl EcmascriptModuleContentOptions {
 
             let part_code_gens = part_references
                 .iter()
-                .map(|r| r.code_generation(**chunking_context))
+                .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
                 .try_join()
                 .await?;
 
