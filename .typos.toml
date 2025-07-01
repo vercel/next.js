@@ -4,14 +4,11 @@
 
 [default]
 check-filename = false
-extend-ignore-identifiers-re = ["SEPARATOR.*"]
+extend-ignore-identifiers-re = ["SEPARATORs*", "IIFEs*"]
 
 [default.extend-words]
 rto = "rto"
 wdth = "wdth"
-
-[default.extend-identifiers]
-IIFE = "IIFE"
 
 
 [type.rust]
