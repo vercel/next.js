@@ -80,11 +80,8 @@ impl Visit for CollectExportsVisitor {
                         export_info.generate_image_metadata =
                             Some(name.sym == "generateImageMetadata");
                         export_info.generate_sitemaps = Some(name.sym == "generateSitemaps");
-                        export_info.generate_static_params = if name.sym == "generateStaticParams" {
-                            Some(name.span())
-                        } else {
-                            None
-                        };
+                        export_info.generate_static_params =
+                            (name.sym == "generateStaticParams").then_some(name.span());
                     }
                 }
 
@@ -134,11 +131,8 @@ impl Visit for CollectExportsVisitor {
                 export_info.ssr = id.sym == "getServerSideProps";
                 export_info.generate_image_metadata = Some(id.sym == "generateImageMetadata");
                 export_info.generate_sitemaps = Some(id.sym == "generateSitemaps");
-                export_info.generate_static_params = if id.sym == "generateStaticParams" {
-                    Some(id.span())
-                } else {
-                    None
-                };
+                export_info.generate_static_params =
+                    (id.sym == "generateStaticParams").then_some(id.span());
             }
             _ => {}
         }
