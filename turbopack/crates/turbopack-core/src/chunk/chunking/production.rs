@@ -492,9 +492,9 @@ pub async fn make_production_chunks(
                     }
                 }
 
-                let mut remainder_size = 0;
-                let mut remainder_chunk_items = Vec::new();
-                let mut remainder_batch_groups = FxIndexSet::default();
+                let mut remained_size = 0;
+                let mut remained_chunk_items = Vec::new();
+                let mut remained_batch_groups = FxIndexSet::default();
                 for MergeCandidate {
                     size,
                     chunk_items,
@@ -510,19 +510,19 @@ pub async fn make_production_chunks(
                             chunk_groups,
                         });
                     } else {
-                        remainder_size += size;
-                        remainder_chunk_items.extend(chunk_items);
-                        remainder_batch_groups.extend(batch_groups);
+                        remained_size += size;
+                        remained_chunk_items.extend(chunk_items);
+                        remained_batch_groups.extend(batch_groups);
                     }
                 }
 
-                // Left-over chunks are merged together forming the remainder chunk, which includes
+                // Left-over chunks are merged together forming the remained chunk, which includes
                 // all modules that are not sharable
-                if !remainder_chunk_items.is_empty() {
+                if !remained_chunk_items.is_empty() {
                     heap.push(ChunkCandidate {
-                        size: remainder_size,
-                        chunk_items: remainder_chunk_items,
-                        batch_groups: remainder_batch_groups.into_iter().collect(),
+                        size: remained_size,
+                        chunk_items: remained_chunk_items,
+                        batch_groups: remained_batch_groups.into_iter().collect(),
                         chunk_groups: None,
                     });
                 }
