@@ -1,5 +1,4 @@
 use std::{
-    env,
     fs::{create_dir_all, write},
     mem::forget,
     path::{Path, PathBuf},
@@ -182,10 +181,7 @@ impl HmrBenchmark {
                 project_path: RcStr::from(project_path.clone()),
                 next_config: load_next_config(),
                 js_config: RcStr::from("{}"),
-                env: vec![(
-                    RcStr::from("PATH"),
-                    RcStr::from(env::var("PATH").unwrap_or_default()),
-                )],
+                env: vec![],
                 define_env: DefineEnv {
                     client: vec![],
                     edge: vec![],
@@ -205,6 +201,7 @@ impl HmrBenchmark {
                 },
                 browserslist_query: RcStr::from("last 2 versions"),
                 no_mangling: false,
+                current_node_js_version: RcStr::from("18.0.0"),
             };
 
             container.initialize(options).await?;

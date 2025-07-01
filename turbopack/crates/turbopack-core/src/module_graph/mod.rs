@@ -877,12 +877,9 @@ impl ModuleGraphImportTracer {
 #[turbo_tasks::value_impl]
 impl ImportTracer for ModuleGraphImportTracer {
     #[turbo_tasks::function]
-    async fn get_traces(
-        self: Vc<Self>,
-        path: ResolvedVc<FileSystemPath>,
-    ) -> Result<Vc<ImportTraces>> {
+    async fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<ImportTraces>> {
         let path_to_modules = self.path_to_modules().await?;
-        let Some(modules) = path_to_modules.map.get(&*path.await?) else {
+        let Some(modules) = path_to_modules.map.get(&path) else {
             return Ok(Vc::default()); // This isn't unusual, the file just might not be in this
             // graph.
         };

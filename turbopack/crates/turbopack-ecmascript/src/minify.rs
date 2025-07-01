@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
+use bytes_str::BytesStr;
 use swc_core::{
     base::try_with_handler,
     common::{
@@ -36,8 +37,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
         .then(|| code.generate_source_map_ref())
         .transpose()?;
 
-    let source_code = code.into_source_code().into_bytes().into();
-    let source_code = String::from_utf8(source_code)?;
+    let source_code = BytesStr::from_utf8(code.into_source_code().into_bytes())?;
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let (src, mut src_map_buf) = {

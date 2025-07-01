@@ -263,15 +263,15 @@ pub fn path_to(
 /// possible visit methods.
 #[macro_export]
 macro_rules! create_visitor {
-    (exact $ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {
-        $crate::create_visitor!(__ $ast_path.to_vec(), $name($arg: &mut $ty) $b)
+    (exact, $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
+        $crate::create_visitor!(__ $ast_path.to_vec(), $name, |$arg: &mut $ty| $b)
     };
-    ($ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {
+    ($ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
         $crate::create_visitor!(__ $crate::code_gen::path_to(&$ast_path, |n| {
             matches!(n, swc_core::ecma::visit::AstParentKind::$ty(_))
-        }), $name($arg: &mut $ty) $b)
+        }), $name, |$arg: &mut $ty| $b)
     };
-    (__ $ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {{
+    (__ $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {{
         struct Visitor<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> {
             $name: T,
         }

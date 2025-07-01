@@ -23,7 +23,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { ErrorBoundary } from './error-boundary'
-import DefaultGlobalError from '../../client/components/global-error'
+import DefaultGlobalError from './builtin/global-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'

@@ -29,7 +29,7 @@ impl IdentReplacement {
     ) -> Result<CodeGeneration> {
         let value = self.value.clone();
 
-        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let id = Expr::Ident((&*value).into());
             *expr = quote!("(\"TURBOPACK ident replacement\", $e)" as Expr, e: Expr = id);
         });

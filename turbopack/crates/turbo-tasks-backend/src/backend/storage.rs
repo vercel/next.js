@@ -7,6 +7,7 @@ use std::{
 
 use bitfield::bitfield;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use smallvec::SmallVec;
 use turbo_tasks::{FxDashMap, TaskId};
 
 use crate::{
@@ -670,7 +671,7 @@ impl Storage {
             .with_max_len(1)
             .map(|shard| {
                 let mut direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
-                let mut modified: Vec<TaskId> = Vec::new();
+                let mut modified: SmallVec<[TaskId; 4]> = SmallVec::new();
                 {
                     // Take the snapshots from the modified map
                     let guard = shard.write();
@@ -1100,7 +1101,7 @@ impl Drop for SnapshotGuard<'_> {
 
 pub struct SnapshotShard<'l, PP, P, PS> {
     direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)>,
-    modified: Vec<TaskId>,
+    modified: SmallVec<[TaskId; 4]>,
     storage: &'l Storage,
     guard: Option<Arc<SnapshotGuard<'l>>>,
     process: &'l P,

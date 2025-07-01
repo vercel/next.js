@@ -579,7 +579,7 @@ You can preload data by creating an utility function that you eagerly call above
 You can call `preload()` before `checkIsAvailable()` to eagerly initiate `<Item/>` data dependencies. By the time `<Item/>` is rendered, its data has already been fetched.
 
 ```tsx filename="app/item/[id]/page.tsx" switcher
-import { getItem } from '@/lib/data'
+import { getItem, checkIsAvailable } from '@/lib/data'
 
 export default async function Page({
   params,
@@ -607,7 +607,7 @@ export async function Item({ id }: { id: string }) {
 ```
 
 ```jsx filename="app/item/[id]/page.js" switcher
-import { getItem } from '@/lib/data'
+import { getItem, checkIsAvailable } from '@/lib/data'
 
 export default async function Page({ params }) {
   const { id } = await params

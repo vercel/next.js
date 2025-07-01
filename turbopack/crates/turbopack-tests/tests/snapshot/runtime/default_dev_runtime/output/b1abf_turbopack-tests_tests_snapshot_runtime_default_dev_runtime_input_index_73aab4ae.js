@@ -763,7 +763,7 @@ function instantiateModule(moduleId, source) {
         };
         runModuleExecutionHooks(module, (refresh)=>{
             const r = commonJsRequire.bind(null, module);
-            moduleFactory.call(module.exports, augmentContext({
+            moduleFactory(augmentContext({
                 a: asyncModule.bind(null, module),
                 e: module.exports,
                 r: commonJsRequire.bind(null, module),

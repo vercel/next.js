@@ -1439,6 +1439,10 @@ export async function getRedboxCallStack(
           stack.push('<FIXME-file-protocol>')
         } else if (frame.includes('.next/')) {
           stack.push('<FIXME-next-dist-dir>')
+        } else if (frame === 'JSON.parse <anonymous> (0:0)') {
+          // TODO(veil): These frames will be ignore-listed soon. Until then, we
+          // remove them here, because their occurrence seems to be
+          // non-deterministic. They come from React's RSC parsing.
         } else {
           stack.push(frame)
         }

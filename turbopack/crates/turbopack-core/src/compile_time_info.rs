@@ -107,6 +107,7 @@ pub enum CompileTimeDefineValue {
     Bool(bool),
     String(RcStr),
     JSON(RcStr),
+    Undefined,
 }
 
 impl From<bool> for CompileTimeDefineValue {
@@ -214,7 +215,7 @@ pub enum InputRelativeConstant {
 pub enum FreeVarReference {
     EcmaScriptModule {
         request: RcStr,
-        lookup_path: Option<ResolvedVc<FileSystemPath>>,
+        lookup_path: Option<FileSystemPath>,
         export: Option<RcStr>,
     },
     Ident(RcStr),

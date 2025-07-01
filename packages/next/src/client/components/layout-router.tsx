@@ -658,6 +658,17 @@ export default function OuterLayoutRouter({
       </TemplateContext.Provider>
     )
 
+    if (process.env.NODE_ENV !== 'production') {
+      const SegmentStateProvider = (
+        require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+      )
+        .SegmentStateProvider as typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentStateProvider as typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentStateProvider
+
+      child = (
+        <SegmentStateProvider key={stateKey}>{child}</SegmentStateProvider>
+      )
+    }
+
     if (process.env.__NEXT_ROUTER_BF_CACHE) {
       child = (
         <Activity

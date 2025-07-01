@@ -2,6 +2,7 @@ use std::mem::take;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use turbo_tasks::{RawVc, TaskId, backend::TurboTasksExecutionError};
 
 #[cfg(feature = "trace_task_dirty")]
@@ -26,12 +27,12 @@ pub enum UpdateOutputOperation {
     MakeDependentTasksDirty {
         #[cfg(feature = "trace_task_dirty")]
         task_id: TaskId,
-        dependent_tasks: Vec<TaskId>,
-        children: Vec<TaskId>,
+        dependent_tasks: SmallVec<[TaskId; 4]>,
+        children: SmallVec<[TaskId; 4]>,
         queue: AggregationUpdateQueue,
     },
     EnsureUnfinishedChildrenDirty {
-        children: Vec<TaskId>,
+        children: SmallVec<[TaskId; 4]>,
         queue: AggregationUpdateQueue,
     },
     AggregationUpdate {

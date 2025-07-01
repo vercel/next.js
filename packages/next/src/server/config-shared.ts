@@ -19,6 +19,7 @@ import type {
   ManifestRedirectRoute,
   RouteType,
 } from '../build'
+import { isStableBuild } from '../shared/lib/canary-only'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -1437,7 +1438,9 @@ export const defaultConfig = {
     viewTransition: false,
     routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
-    validateRSCRequestHeaders: false,
+    validateRSCRequestHeaders: !!(
+      process.env.__NEXT_TEST_MODE || !isStableBuild()
+    ),
     staleTimes: {
       dynamic: 0,
       static: 300,

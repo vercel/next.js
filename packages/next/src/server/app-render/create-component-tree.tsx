@@ -13,7 +13,7 @@ import { createComponentStylesAndScripts } from './create-component-styles-and-s
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { validateRevalidate } from '../lib/patch-fetch'
-import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-route-default'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/builtin/default'
 import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
@@ -26,6 +26,7 @@ import type {
   UseCachePageComponentProps,
 } from '../use-cache/use-cache-wrapper'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import { getConventionPathByType } from './segment-explorer-path'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -100,6 +101,7 @@ async function createComponentTreeInternal({
     workStore,
     componentMod: {
       SegmentViewNode,
+      SegmentViewStateNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -605,7 +607,11 @@ async function createComponentTreeInternal({
     const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
     if (loadingFilePath) {
       loadingElement = (
-        <SegmentViewNode type="loading" pagePath={loadingFilePath}>
+        <SegmentViewNode
+          key={cacheNodeKey + '-loading'}
+          type="loading"
+          pagePath={loadingFilePath}
+        >
           {loadingElement}
         </SegmentViewNode>
       )
@@ -746,10 +752,12 @@ async function createComponentTreeInternal({
     const pageFilePath =
       getConventionPathByType(tree, dir, 'page') ??
       getConventionPathByType(tree, dir, 'defaultPage')
+    const segmentType = isDefaultSegment ? 'default' : 'page'
     const wrappedPageElement =
       isSegmentViewEnabled && pageFilePath ? (
         <SegmentViewNode
-          type={isDefaultSegment ? 'default' : 'page'}
+          key={cacheNodeKey + '-' + segmentType}
+          type={segmentType}
           pagePath={pageFilePath}
         >
           {pageElement}
@@ -758,6 +766,7 @@ async function createComponentTreeInternal({
         pageElement
       )
 
+    const pagePrefix = ctx.renderOpts.page.replace(/\/page$/, '')
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
@@ -767,6 +776,7 @@ async function createComponentTreeInternal({
           <MetadataOutlet ready={getViewportReady} />
           {metadataOutlet}
         </OutletBoundary>
+        <SegmentViewStateNode page={pagePrefix} />
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
@@ -936,7 +946,7 @@ async function createComponentTreeInternal({
     const layoutFilePath = getConventionPathByType(tree, dir, 'layout')
     const wrappedSegmentNode =
       isSegmentViewEnabled && layoutFilePath ? (
-        <SegmentViewNode type="layout" pagePath={layoutFilePath}>
+        <SegmentViewNode key="layout" type="layout" pagePath={layoutFilePath}>
           {segmentNode}
         </SegmentViewNode>
       ) : (
@@ -1091,6 +1101,7 @@ async function createBoundaryConventionElement({
   const wrappedElement =
     isSegmentViewEnabled && element ? (
       <SegmentViewNode
+        key={cacheNodeKey + '-' + conventionName}
         type={conventionName}
         pagePath={getConventionPathByType(tree, dir, conventionName)!}
       >
@@ -1101,54 +1112,4 @@ async function createBoundaryConventionElement({
     )
 
   return wrappedElement
-}
-
-export function normalizeConventionFilePath(
-  projectDir: string,
-  conventionPath: string | undefined
-) {
-  const cwd = process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd()
-  const nextInternalPrefixRegex =
-    /^(.*[\\/])?next[\\/]dist[\\/]client[\\/]components[\\/]/
-
-  let relativePath = (conventionPath || '')
-    // remove turbopack [project] prefix
-    .replace(/^\[project\][\\/]/, '')
-    // remove the project root from the path
-    .replace(projectDir, '')
-    // remove cwd prefix
-    .replace(cwd, '')
-    // remove /(src/)?app/ dir prefix
-    .replace(/^([\\/])*(src[\\/])?app[\\/]/, '')
-
-  // If it's internal file only keep the filename, strip nextjs internal prefix
-  if (nextInternalPrefixRegex.test(relativePath)) {
-    relativePath = relativePath.replace(nextInternalPrefixRegex, '')
-  }
-
-  return relativePath
-}
-
-function getConventionPathByType(
-  tree: LoaderTree,
-  dir: string,
-  conventionType:
-    | 'layout'
-    | 'template'
-    | 'page'
-    | 'not-found'
-    | 'error'
-    | 'loading'
-    | 'forbidden'
-    | 'unauthorized'
-    | 'defaultPage'
-) {
-  const modules = tree[2]
-  const conventionPath = modules[conventionType]
-    ? modules[conventionType][1]
-    : undefined
-  if (conventionPath) {
-    return normalizeConventionFilePath(dir, conventionPath)
-  }
-  return undefined
 }

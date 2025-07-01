@@ -48,7 +48,7 @@ impl WorkerLoaderChunkItem {
     async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
         let this = self.await?;
         Ok(ChunkData::from_assets(
-            this.chunking_context.output_root(),
+            this.chunking_context.output_root().await?.clone_value(),
             self.chunks(),
         ))
     }

@@ -29,14 +29,7 @@ const pagesExternals = [
   'react-server-dom-webpack/static.edge',
 ]
 
-const appExternals = [
-  // Externalize the react-dom/server legacy implementation outside of the runtime.
-  // If users are using them and imported from 'react-dom/server' they will get the external asset bundled.
-  'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.development.js',
-  'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.production.js',
-  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.development.js',
-  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.production.js',
-]
+const appExternals = []
 
 function makeAppAliases({ experimental, bundler }) {
   const reactChannel = experimental ? '-experimental' : ''

@@ -8,7 +8,7 @@ use swc_core::{
     base::SwcComments,
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
-        ast::{ModuleItem, Pass, Program},
+        ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
         preset_env::{self, Targets},
         transforms::{
             base::{
@@ -18,6 +18,7 @@ use swc_core::{
             optimization::inline_globals,
             react::react,
         },
+        utils::IsDirective,
     },
     quote,
 };
@@ -119,7 +120,7 @@ pub struct TransformContext<'a> {
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
     pub query_str: RcStr,
-    pub file_path: ResolvedVc<FileSystemPath>,
+    pub file_path: FileSystemPath,
 }
 
 impl EcmascriptInputTransform {
@@ -307,9 +308,54 @@ pub fn remove_shebang(program: &mut Program) {
     }
 }
 
+pub fn remove_directives(program: &mut Program) {
+    match program {
+        Program::Module(module) => {
+            let directive_count = module
+                .body
+                .iter()
+                .take_while(|i| match i {
+                    ModuleItem::Stmt(stmt) => stmt.directive_continue(),
+                    ModuleItem::ModuleDecl(_) => false,
+                })
+                .take_while(|i| match i {
+                    ModuleItem::Stmt(stmt) => match stmt {
+                        Stmt::Expr(ExprStmt { expr, .. }) => expr
+                            .as_lit()
+                            .and_then(|lit| lit.as_str())
+                            .and_then(|str| str.raw.as_ref())
+                            .is_some_and(|raw| {
+                                raw.starts_with("\"use ") || raw.starts_with("'use ")
+                            }),
+                        _ => false,
+                    },
+                    ModuleItem::ModuleDecl(_) => false,
+                })
+                .count();
+            module.body.drain(0..directive_count);
+        }
+        Program::Script(script) => {
+            let directive_count = script
+                .body
+                .iter()
+                .take_while(|stmt| stmt.directive_continue())
+                .take_while(|stmt| match stmt {
+                    Stmt::Expr(ExprStmt { expr, .. }) => expr
+                        .as_lit()
+                        .and_then(|lit| lit.as_str())
+                        .and_then(|str| str.raw.as_ref())
+                        .is_some_and(|raw| raw.starts_with("\"use ") || raw.starts_with("'use ")),
+                    _ => false,
+                })
+                .count();
+            script.body.drain(0..directive_count);
+        }
+    }
+}
+
 #[turbo_tasks::value(shared)]
 pub struct UnsupportedServerActionIssue {
-    pub file_path: ResolvedVc<FileSystemPath>,
+    pub file_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -328,7 +374,7 @@ impl Issue for UnsupportedServerActionIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]

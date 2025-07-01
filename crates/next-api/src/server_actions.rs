@@ -59,8 +59,8 @@ pub(crate) struct ServerActionsManifest {
 #[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
     actions: Vc<AllActions>,
-    project_path: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
+    node_root: FileSystemPath,
     page_name: RcStr,
     runtime: NextRuntime,
     rsc_asset_context: Vc<Box<dyn AssetContext>>,
@@ -100,7 +100,7 @@ pub(crate) async fn create_server_actions_manifest(
 /// client and present inside the paired manifest.
 #[turbo_tasks::function]
 pub(crate) async fn build_server_actions_loader(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     page_name: RcStr,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -124,7 +124,7 @@ pub(crate) async fn build_server_actions_loader(
         )?;
     }
 
-    let path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
+    let path = project_path.join(&format!(".next-internal/server/app{page_name}/actions.js"))?;
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
         AssetIdent::from_path(path).with_modifier(rcstr!("server actions loader")),
@@ -150,7 +150,7 @@ pub(crate) async fn build_server_actions_loader(
 /// Builds a manifest containing every action's hashed id, with an internal
 /// module id which exports a function using that hashed name.
 async fn build_manifest(
-    node_root: Vc<FileSystemPath>,
+    node_root: FileSystemPath,
     page_name: RcStr,
     runtime: NextRuntime,
     actions: Vc<AllActions>,
@@ -158,8 +158,9 @@ async fn build_manifest(
     async_module_info: Vc<AsyncModulesInfo>,
 ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = &page_name;
-    let manifest_path = node_root
-        .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
+    let manifest_path = node_root.join(&format!(
+        "server/app{manifest_path_prefix}/server-reference-manifest.json",
+    ))?;
     let mut manifest = ServerReferenceManifest {
         ..Default::default()
     };
@@ -207,7 +208,13 @@ pub async fn to_rsc_context(
     // opposed to the following hack to construct the RSC module corresponding to this client
     // module.
     let source = FileSource::new_with_query(
-        client_module.ident().path().root().join(entry_path.into()),
+        client_module
+            .ident()
+            .path()
+            .await?
+            .root()
+            .await?
+            .join(entry_path)?,
         entry_query.into(),
     );
     let module = asset_context

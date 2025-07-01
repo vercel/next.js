@@ -423,6 +423,11 @@ export interface ProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+
+  /**
+   * The version of Node.js that is available/currently running.
+   */
+  currentNodeJsVersion: string
 }
 
 export interface DefineEnv {

@@ -436,30 +436,53 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 list.truncate(common_occurrence.entry);
                 let before_list = &*list;
 
-                // For all previously merged references that exist from "after" to "common"/"before"
-                // and from "common" to "before", mark the referenced modules as exposed.
-                for m in &common_list {
-                    let m = ResolvedVc::upcast(*m);
-                    if let Some(refs) = intra_group_references.get(&m) {
-                        exposed_modules_imported.extend(
-                            before_list
-                                .iter()
-                                .map(|n| ResolvedVc::upcast(*n))
-                                .filter(|n| refs.contains(n)),
-                        );
-                    }
-                }
-                for m in &after_list {
-                    let m = ResolvedVc::upcast(*m);
-                    if let Some(refs) = intra_group_references.get(&m) {
-                        exposed_modules_imported.extend(
-                            before_list
-                                .iter()
-                                .chain(common_list.iter())
-                                .map(|n| ResolvedVc::upcast(*n))
-                                .filter(|n| refs.contains(n)),
-                        );
-                    }
+                // For all previously merged references (intra_group_references) that now cross
+                // "before", "common" and "after", mark the referenced modules as
+                // exposed.
+                // Note that due to circular dependencies, there can be
+                // references that go against execution order (e.g. from "before" to
+                // "common").
+                {
+                    let before_list =
+                        FxHashSet::from_iter(before_list.iter().map(|m| ResolvedVc::upcast(*m)));
+                    let common_list =
+                        FxHashSet::from_iter(common_list.iter().map(|m| ResolvedVc::upcast(*m)));
+                    let after_list =
+                        FxHashSet::from_iter(after_list.iter().map(|m| ResolvedVc::upcast(*m)));
+
+                    let references_from_before = before_list
+                        .iter()
+                        .filter_map(|m| intra_group_references.get(m))
+                        .flatten()
+                        .copied()
+                        .filter(|m| common_list.contains(m) || after_list.contains(m))
+                        .collect::<FxHashSet<_>>();
+                    let references_from_common = common_list
+                        .iter()
+                        .filter_map(|m| intra_group_references.get(m))
+                        .flatten()
+                        .filter(|m| before_list.contains(m) || after_list.contains(m))
+                        .collect::<FxHashSet<_>>();
+                    let references_from_after = after_list
+                        .iter()
+                        .filter_map(|m| intra_group_references.get(m))
+                        .flatten()
+                        .copied()
+                        .filter(|m| before_list.contains(m) || common_list.contains(m))
+                        .collect::<FxHashSet<_>>();
+
+                    let modules_to_expose = before_list
+                        .iter()
+                        .chain(common_list.iter())
+                        .chain(after_list.iter())
+                        .copied()
+                        .filter(|m| {
+                            references_from_before.contains(m)
+                                || references_from_common.contains(m)
+                                || references_from_after.contains(m)
+                        });
+
+                    exposed_modules_imported.extend(modules_to_expose);
                 }
 
                 // The occurences for the "before" list (`list`) are still valid, need to update the

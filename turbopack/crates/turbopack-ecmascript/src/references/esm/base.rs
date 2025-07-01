@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow, bail};
 use either::Either;
 use strsim::jaro;
 use swc_core::{
-    common::{BytePos, DUMMY_SP, Span, SyntaxContext},
+    common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
     ecma::ast::{
         ComputedPropName, Decl, Expr, ExprStmt, Ident, Lit, MemberExpr, MemberProp, Number,
         SeqExpr, Stmt, Str,
@@ -315,6 +315,7 @@ pub struct EsmAssetReference {
     pub issue_source: IssueSource,
     pub export_name: Option<ModulePart>,
     pub import_externals: bool,
+    pub is_pure_import: bool,
 }
 
 impl EsmAssetReference {
@@ -343,6 +344,26 @@ impl EsmAssetReference {
             annotations,
             export_name,
             import_externals,
+            is_pure_import: false,
+        }
+    }
+
+    pub fn new_pure(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: IssueSource,
+        annotations: ImportAnnotations,
+        export_name: Option<ModulePart>,
+        import_externals: bool,
+    ) -> Self {
+        EsmAssetReference {
+            origin,
+            request,
+            issue_source,
+            annotations,
+            export_name,
+            import_externals,
+            is_pure_import: true,
         }
     }
 }
@@ -577,14 +598,21 @@ impl EsmAssetReference {
                                             DUMMY_SP,
                                             ctxt.unwrap_or_default(),
                                         );
+                                        let mut call_expr = quote!(
+                                            "$turbopack_import($id)" as Expr,
+                                            turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                                            id: Expr = module_id_to_lit(&id),
+                                        );
+                                        if this.is_pure_import {
+                                            call_expr.set_span(PURE_SP);
+                                        }
                                         result.push(CodeGenerationHoistedStmt::new(
                                             id.to_string().into(),
                                             var_decl_with_span(
                                                 quote!(
-                                                    "var $name = $turbopack_import($id);" as Stmt,
+                                                    "var $name = $call;" as Stmt,
                                                     name = name,
-                                                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
-                                                    id: Expr = module_id_to_lit(&id),
+                                                    call: Expr = call_expr
                                                 ),
                                                 span,
                                             ),
@@ -613,24 +641,30 @@ impl EsmAssetReference {
                                             DUMMY_SP,
                                             ctxt.unwrap_or_default(),
                                         );
+                                        let mut call_expr = if import_externals {
+                                            quote!(
+                                                "$turbopack_external_import($id)" as Expr,
+                                                turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
+                                                id: Expr = Expr::Lit(request.clone().to_string().into())
+                                            )
+                                        } else {
+                                            quote!(
+                                                "$turbopack_external_require($id, () => require($id), true)" as Expr,
+                                                turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                                                id: Expr = Expr::Lit(request.clone().to_string().into())
+                                            )
+                                        };
+                                        if this.is_pure_import {
+                                            call_expr.set_span(PURE_SP);
+                                        }
                                         result.push(CodeGenerationHoistedStmt::new(
                                             name.sym.as_str().into(),
                                             var_decl_with_span(
-                                                if import_externals {
-                                                    quote!(
-                                                        "var $name = $turbopack_external_import($id);" as Stmt,
-                                                        name = name,
-                                                        turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
-                                                        id: Expr = Expr::Lit(request.clone().to_string().into())
-                                                    )
-                                                } else {
-                                                    quote!(
-                                                        "var $name = $turbopack_external_require($id, () => require($id), true);" as Stmt,
-                                                        name = name,
-                                                        turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                                        id: Expr = Expr::Lit(request.clone().to_string().into())
-                                                    )
-                                                },
+                                                quote!(
+                                                    "var $name = $call;" as Stmt,
+                                                    name = name,
+                                                    call: Expr = call_expr,
+                                                ),
                                                 span,
                                             ),
                                         ));
@@ -658,14 +692,21 @@ impl EsmAssetReference {
                                             DUMMY_SP,
                                             ctxt.unwrap_or_default(),
                                         );
+                                        let mut call_expr = quote!(
+                                            "$turbopack_external_require($id, () => require($id), true)" as Expr,
+                                            turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                                            id: Expr = Expr::Lit(request.clone().to_string().into())
+                                        );
+                                        if this.is_pure_import {
+                                            call_expr.set_span(PURE_SP);
+                                        }
                                         result.push(CodeGenerationHoistedStmt::new(
                                             name.sym.as_str().into(),
                                             var_decl_with_span(
                                                 quote!(
-                                                    "var $name = $turbopack_external_require($id, () => require($id), true);" as Stmt,
+                                                    "var $name = $call;" as Stmt,
                                                     name = name,
-                                                    turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                                    id: Expr = Expr::Lit(request.clone().to_string().into())
+                                                    call: Expr = call_expr,
                                                 ),
                                                 span,
                                             ),
