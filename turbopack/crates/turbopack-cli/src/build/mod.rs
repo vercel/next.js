@@ -57,11 +57,6 @@ use crate::{
     },
 };
 
-pub fn register() {
-    turbopack::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}
-
 type Backend = TurboTasksBackend<NoopBackingStorage>;
 
 pub struct TurbopackBuildBuilder {
