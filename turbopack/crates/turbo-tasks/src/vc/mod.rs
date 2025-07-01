@@ -109,7 +109,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 ///
 /// [Non-Local]: NonLocalValue
 /// [rtc]: RawVc::TaskCell
-/// [to]: RawVc::TaskOutput
+/// [rto]: RawVc::TaskOutput
 /// [loc]: #optimization-local-outputs
 /// [eq]: #equality--hashing
 /// [resolve]: ResolvedVc::try_downcast
