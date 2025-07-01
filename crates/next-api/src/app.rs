@@ -76,7 +76,7 @@ use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::get_reduced_graphs_for_endpoint,
+    module_graph::get_global_information_for_endpoint,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -1261,15 +1261,15 @@ impl AppEndpoint {
         }
         let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
-        let reduced_graphs = get_reduced_graphs_for_endpoint(
+        let global_information = get_global_information_for_endpoint(
             *module_graphs.base,
             *project.per_page_module_graph().await?,
         );
-        let next_dynamic_imports = reduced_graphs
+        let next_dynamic_imports = global_information
             .get_next_dynamic_imports_for_endpoint(*rsc_entry)
             .await?;
 
-        let client_references = reduced_graphs
+        let client_references = global_information
             .get_client_references_for_endpoint(
                 *rsc_entry,
                 matches!(this.ty, AppEndpointType::Page { .. }),
@@ -1419,7 +1419,7 @@ impl AppEndpoint {
             }
         }
 
-        let actions = reduced_graphs.get_server_actions_for_endpoint(
+        let actions = global_information.get_server_actions_for_endpoint(
             *rsc_entry,
             match runtime {
                 NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
@@ -2044,7 +2044,7 @@ impl Endpoint for AppEndpoint {
         let rsc_entry = app_entry.rsc_entry;
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
-        let actions = get_reduced_graphs_for_endpoint(
+        let actions = get_global_information_for_endpoint(
             graph,
             *this.app_project.project().per_page_module_graph().await?,
         )
