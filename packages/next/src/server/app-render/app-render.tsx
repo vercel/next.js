@@ -2423,15 +2423,17 @@ async function spawnDynamicValidationInDev(
     }
   }
 
+  let didErrorBeforeAbort = false
   if (initialServerResult) {
-    const initialClientController = new AbortController()
+    const initialClientRenderController = new AbortController()
+    const initialClientPrerenderController = new AbortController()
     const initialClientPrerenderStore: PrerenderStore = {
       type: 'prerender-client',
       phase: 'render',
       rootParams,
       implicitTags,
-      renderSignal: initialClientController.signal,
-      controller: initialClientController,
+      renderSignal: initialClientRenderController.signal,
+      controller: initialClientPrerenderController,
       // For HTML Generation the only cache tracked activity
       // is module loading, which has it's own cache signal
       cacheSignal: null,
@@ -2461,7 +2463,7 @@ async function spawnDynamicValidationInDev(
         nonce={nonce}
       />,
       {
-        signal: initialClientController.signal,
+        signal: initialClientRenderController.signal,
         onError: (err) => {
           const digest = getDigestForWellKnownError(err)
 
@@ -2475,15 +2477,10 @@ async function spawnDynamicValidationInDev(
             return undefined
           }
 
-          if (initialClientController.signal.aborted) {
+          if (initialClientRenderController.signal.aborted) {
             // These are expected errors that might error the prerender. we ignore them.
-          } else if (
-            process.env.NEXT_DEBUG_BUILD ||
-            process.env.__NEXT_VERBOSE_LOGGING
-          ) {
-            // We don't normally log these errors because we are going to retry anyway but
-            // it can be useful for debugging Next.js itself to get visibility here when needed
-            printDebugThrownValueForProspectiveRender(err, workStore.route)
+          } else {
+            didErrorBeforeAbort = true
           }
         },
         // We don't need bootstrap scripts in this prerender
@@ -2511,7 +2508,20 @@ async function spawnDynamicValidationInDev(
     // Promises passed to client were already awaited above (assuming that they came from cached functions)
     trackPendingModules(cacheSignal)
     await cacheSignal.cacheReady()
-    initialClientController.abort()
+    initialClientRenderController.abort()
+  }
+
+  if (didErrorBeforeAbort) {
+    resolveValidation(
+      <LogSafely
+        fn={() => {
+          console.error(
+            'Next.js could not validate whether this page would produce a static shell due to an unrelated error.'
+          )
+        }}
+      />
+    )
+    return
   }
 
   const finalServerController = new AbortController()
@@ -3039,15 +3049,17 @@ async function prerenderToStream(
         }
       }
 
+      let didErrorBeforeAbort = false
       if (initialServerResult) {
-        const initialClientController = new AbortController()
+        const initialClientRenderController = new AbortController()
+        const initialClientPrerenderController = new AbortController()
         const initialClientPrerenderStore: PrerenderStore = {
           type: 'prerender-client',
           phase: 'render',
           rootParams,
           implicitTags,
-          renderSignal: initialClientController.signal,
-          controller: initialClientController,
+          renderSignal: initialClientRenderController.signal,
+          controller: initialClientPrerenderController,
           // For HTML Generation the only cache tracked activity
           // is module loading, which has it's own cache signal
           cacheSignal: null,
@@ -3077,8 +3089,8 @@ async function prerenderToStream(
             nonce={nonce}
           />,
           {
-            signal: initialClientController.signal,
-            onError: (err) => {
+            signal: initialClientRenderController.signal,
+            onError: (err, errorInfo) => {
               const digest = getDigestForWellKnownError(err)
 
               if (digest) {
@@ -3091,15 +3103,11 @@ async function prerenderToStream(
                 return undefined
               }
 
-              if (initialClientController.signal.aborted) {
+              if (initialClientRenderController.signal.aborted) {
                 // These are expected errors that might error the prerender. we ignore them.
-              } else if (
-                process.env.NEXT_DEBUG_BUILD ||
-                process.env.__NEXT_VERBOSE_LOGGING
-              ) {
-                // We don't normally log these errors because we are going to retry anyway but
-                // it can be useful for debugging Next.js itself to get visibility here when needed
-                printDebugThrownValueForProspectiveRender(err, workStore.route)
+              } else {
+                didErrorBeforeAbort = true
+                return htmlRendererErrorHandler(err, errorInfo)
               }
             },
             bootstrapScripts: [bootstrapScript],
@@ -3126,7 +3134,29 @@ async function prerenderToStream(
         // Promises passed to client were already awaited above (assuming that they came from cached functions)
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
-        initialClientController.abort()
+        initialClientRenderController.abort()
+      }
+
+      if (didErrorBeforeAbort) {
+        return {
+          digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
+          // TODO we should not be using return to model a build failing condition.
+          // We use an empty readable stream to satisfy the expected type but really
+          // this is an exceptional case
+          stream: new ReadableStream({
+            start(controller) {
+              controller.close()
+            },
+          }),
+          dynamicAccess: null,
+          // TODO: Should this include the SSR pass?
+          collectedRevalidate: initialServerPrerenderStore.revalidate,
+          collectedExpire: initialServerPrerenderStore.expire,
+          collectedStale: selectStaleTime(initialServerPrerenderStore.stale),
+          collectedTags: initialServerPrerenderStore.tags,
+          renderResumeDataCache: undefined,
+        }
       }
 
       let serverIsDynamic = false

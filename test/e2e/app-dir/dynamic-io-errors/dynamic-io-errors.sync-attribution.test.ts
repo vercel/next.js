@@ -423,4 +423,157 @@ describe.each(
       })
     }
   })
+
+  describe('Error Attribution with Sync IO - module scope Error with sync IO', () => {
+    const { next, isTurbopack, skipped } = nextTestSetup({
+      files: __dirname + '/fixtures/sync-attribution/module-error',
+      skipStart: !isNextDev,
+      skipDeployment: true,
+      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+    })
+
+    if (skipped) {
+      return
+    }
+
+    if (isNextDev) {
+      it('should show a collapsed redbox error', async () => {
+        const browser = await next.browser('/')
+
+        if (isTurbopack) {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           [
+             {
+               "description": "Next.js could not validate whether this page would produce a static shell due to an unrelated error.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "LogSafely <anonymous> (0:0)",
+               ],
+             },
+             {
+               "description": "boom",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/client.tsx (7:9) @ [project]/app/client.tsx [app-ssr] (ecmascript)
+           >  7 |   throw new Error('boom')
+                |         ^",
+               "stack": [
+                 "[project]/app/client.tsx [app-ssr] (ecmascript) app/client.tsx (7:9)",
+               ],
+             },
+           ]
+          `)
+        } else {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           [
+             {
+               "description": "Next.js could not validate whether this page would produce a static shell due to an unrelated error.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "LogSafely <anonymous> (0:0)",
+               ],
+             },
+             {
+               "description": "boom",
+               "environmentLabel": null,
+               "label": "Runtime Error",
+               "source": "app/client.tsx (7:9) @ eval
+           >  7 |   throw new Error('boom')
+                |         ^",
+               "stack": [
+                 "eval app/client.tsx (7:9)",
+                 "<FIXME-next-dist-dir>",
+                 "<FIXME-next-dist-dir>",
+               ],
+             },
+           ]
+          `)
+        }
+      })
+    } else {
+      it('should error the build with a reason to the module error', async () => {
+        try {
+          await next.build()
+        } catch {
+          // we expect the build to fail
+        }
+
+        const output = getPrerenderOutput(next.cliOutput, {
+          isMinified: !inPrerenderDebugMode,
+        })
+
+        if (isTurbopack) {
+          if (inPrerenderDebugMode) {
+            expect(output).toMatchInlineSnapshot(`
+             "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: boom
+                 at <module number> (turbopack:///[project]/app/client.tsx:7:8)
+                 at instantiateModule (<turbopack-runtime>)
+                 at getOrInstantiateModuleFromParent (<turbopack-runtime>)
+                 at commonJsRequire (<turbopack-runtime>)
+                5 |
+                6 | if (typeof window === 'undefined') {
+             >  7 |   throw new Error('boom')
+                  |        ^
+                8 | }
+                9 |
+               10 | export function ClientComponent() { {
+               digest: '<error-digest>'
+             }
+
+             > Export encountered errors on following paths:
+             	/page: /"
+            `)
+          } else {
+            expect(output).toMatchInlineSnapshot(`
+             "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: boom
+                 at a (<next-dist-dir>)
+                 at b (<next-dist-dir>)
+                 at c (<next-dist-dir>)
+                 at d (<next-dist-dir>) {
+               digest: '<error-digest>'
+             }
+             Export encountered an error on /page: /, exiting the build."
+            `)
+          }
+        } else {
+          if (inPrerenderDebugMode) {
+            expect(output).toMatchInlineSnapshot(`
+             "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: boom
+                 at <module number> (webpack:///app/client.tsx:7:8)
+                 at Object.__webpack_require__ [as require] (webpack:///webpack/bootstrap:21:0)
+                5 |
+                6 | if (typeof window === 'undefined') {
+             >  7 |   throw new Error('boom')
+                  |        ^
+                8 | }
+                9 |
+               10 | export function ClientComponent() { {
+               digest: '<error-digest>'
+             }
+
+             > Export encountered errors on following paths:
+             	/page: /"
+            `)
+          } else {
+            expect(output).toMatchInlineSnapshot(`
+             "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+             Error: boom
+                 at a (<next-dist-dir>)
+                 at Object.c [as require] (.next/server/webpack-runtime.js:1:127) {
+               digest: '<error-digest>'
+             }
+             Export encountered an error on /page: /, exiting the build."
+            `)
+          }
+        }
+      })
+    }
+  })
 })
