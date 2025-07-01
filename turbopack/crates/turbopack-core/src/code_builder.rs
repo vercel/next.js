@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::Result;
+use tracing::{Level, instrument};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 use turbo_tasks_hash::hash_xxh3_hash64;
@@ -202,6 +203,7 @@ impl Code {
 }
 
 impl Code {
+    #[instrument(name = "Code::generate_source_map", level = Level::INFO, skip_all)]
     pub fn generate_source_map_ref(&self) -> Result<Rope> {
         let mut pos = SourcePos::new();
         let mut last_byte_pos = 0;

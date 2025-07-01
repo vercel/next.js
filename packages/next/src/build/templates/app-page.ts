@@ -186,12 +186,6 @@ export async function handler(
       prerenderManifest.routes[normalizedSrcPage]
   )
 
-  // if the page is dynamicParams: false and this pathname wasn't prerender
-  // trigger the no fallback handling
-  if (isSSG && prerenderInfo?.fallback === false && !isPrerendered) {
-    throw new NoFallbackError()
-  }
-
   const userAgent = req.headers['user-agent'] || ''
   const botType = getBotType(userAgent)
   const isHtmlBot = isHtmlBotRequest(req)
@@ -315,6 +309,15 @@ export async function handler(
     !isDynamicRSCRequest
   ) {
     ssgCacheKey = resolvedPathname
+  }
+
+  // the staticPathKey differs from ssgCacheKey since
+  // ssgCacheKey is null in dev since we're always in "dynamic"
+  // mode in dev to bypass the cache, but we still need to honor
+  // dynamicParams = false in dev mode
+  let staticPathKey = ssgCacheKey
+  if (!staticPathKey && routeModule.isDev) {
+    staticPathKey = resolvedPathname
   }
 
   const ComponentMod = {
@@ -650,12 +653,24 @@ export async function handler(
       if (
         !minimalMode &&
         fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
-        ssgCacheKey &&
+        staticPathKey &&
         !didRespond &&
         !isDraftMode &&
         pageIsDynamic &&
         (isProduction || !isPrerendered)
       ) {
+        // if the page has dynamicParams: false and this pathname wasn't
+        // prerendered trigger the no fallback handling
+        if (
+          // In development, fall through to render to handle missing
+          // getStaticPaths.
+          (isProduction || prerenderInfo) &&
+          // When fallback isn't present, abort this render so we 404
+          fallbackMode === FallbackMode.NOT_FOUND
+        ) {
+          throw new NoFallbackError()
+        }
+
         let fallbackResponse: ResponseCacheEntry | null | undefined
 
         if (isRoutePPREnabled && !isRSCRequest) {

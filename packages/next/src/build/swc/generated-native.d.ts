@@ -80,6 +80,10 @@ export interface NapiEnvVar {
   name: RcStr
   value: RcStr
 }
+export interface NapiOptionEnvVar {
+  name: RcStr
+  value?: RcStr
+}
 export interface NapiDraftModeOptions {
   previewModeId: RcStr
   previewModeEncryptionKey: RcStr
@@ -136,6 +140,8 @@ export interface NapiProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+  /** The version of Node.js that is available/currently running. */
+  currentNodeJsVersion: RcStr
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -182,9 +188,9 @@ export interface NapiPartialProjectOptions {
   noMangling?: boolean
 }
 export interface NapiDefineEnv {
-  client: Array<NapiEnvVar>
-  edge: Array<NapiEnvVar>
-  nodejs: Array<NapiEnvVar>
+  client: Array<NapiOptionEnvVar>
+  edge: Array<NapiOptionEnvVar>
+  nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
   /** Use the new backend with persistent caching enabled. */

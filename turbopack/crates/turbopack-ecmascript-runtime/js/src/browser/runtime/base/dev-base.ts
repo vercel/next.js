@@ -54,9 +54,9 @@ interface DevRuntimeBackend {
 class UpdateApplyError extends Error {
   name = 'UpdateApplyError'
 
-  dependencyChain: string[]
+  dependencyChain: ModuleId[]
 
-  constructor(message: string, dependencyChain: string[]) {
+  constructor(message: string, dependencyChain: ModuleId[]) {
     super(message)
     this.dependencyChain = dependencyChain
   }
@@ -129,8 +129,10 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   })
 }
 
-// @ts-ignore Defined in `runtime-base.ts`
-function instantiateModule(id: ModuleId, source: SourceInfo): Module {
+function instantiateModule(moduleId: ModuleId, source: SourceInfo): Module {
+  // We are in development, this is always a string.
+  let id = moduleId as string
+
   const moduleFactory = moduleFactories[id]
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
@@ -180,7 +182,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     exports: {},
     error: undefined,
     loaded: false,
-    id,
+    id: id,
     parents,
     children: [],
     namespaceObject: undefined,
@@ -196,8 +198,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
 
     runModuleExecutionHooks(module, (refresh) => {
       const r = commonJsRequire.bind(null, module)
-      moduleFactory.call(
-        module.exports,
+      moduleFactory(
         augmentContext({
           a: asyncModule.bind(null, module),
           e: module.exports,
@@ -245,7 +246,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
  * refresh registry.
  */
 function runModuleExecutionHooks(
-  module: Module,
+  module: HotModule,
   executeModule: (ctx: RefreshContext) => void
 ) {
   if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
@@ -266,9 +267,9 @@ function runModuleExecutionHooks(
     // This is expected when running in a Web Worker.  It is also common in some of
     // our test environments.
     executeModule({
-      register: (type, id) => {},
-      signature: () => (type) => {},
-      registerExports: (module, helpers) => {},
+      register: (_type, _id) => {},
+      signature: () => (_type) => {},
+      registerExports: (_module, _helpers) => {},
     })
   }
 }

@@ -87,6 +87,10 @@ impl ConnectChildOperation {
             });
         }
 
+        // https://vercel.slack.com/archives/C03EWR7LGEN/p1750889741099559
+        // HACK: immutable tracking is broken, disable it for now
+        is_child_immutable = false;
+
         // Immutable tasks cannot be invalidated, meaning that we never reschedule them.
         if !is_child_immutable && ctx.should_track_activeness() {
             queue.push(AggregationUpdateJob::IncreaseActiveCount {

@@ -43,6 +43,7 @@ export async function turbopackBuild(): Promise<{
   const rewrites = NextBuildContext.rewrites!
   const appDirOnly = NextBuildContext.appDirOnly!
   const noMangling = NextBuildContext.noMangling!
+  const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
   const bindings = await loadBindings(config?.experimental?.useWasmBinary)
@@ -80,6 +81,7 @@ export async function turbopackBuild(): Promise<{
       previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling,
+      currentNodeJsVersion,
     },
     {
       persistentCaching,

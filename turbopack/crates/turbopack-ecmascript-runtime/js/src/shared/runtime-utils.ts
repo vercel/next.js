@@ -38,8 +38,8 @@ interface ModuleContext {
   resolve(moduleId: ModuleId): ModuleId
 }
 
-type GetOrInstantiateModuleFromParent<M> = (
-  moduleId: ModuleId,
+type GetOrInstantiateModuleFromParent<M extends Module> = (
+  moduleId: M['id'],
   parentModule: M
 ) => M
 

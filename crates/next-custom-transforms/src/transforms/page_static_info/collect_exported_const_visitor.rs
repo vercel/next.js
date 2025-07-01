@@ -1,7 +1,7 @@
 use serde_json::{Map, Number, Value};
 use swc_core::{
     atoms::Atom,
-    common::{Mark, SyntaxContext},
+    common::{Mark, Span, Spanned, SyntaxContext},
     ecma::{
         ast::{
             BindingIdent, Decl, ExportDecl, Expr, Lit, Module, ModuleDecl, ModuleItem, Pat,
@@ -15,8 +15,8 @@ use swc_core::{
 /// refer extract_expored_const_values for the supported value types.
 /// Undefined / null is treated as None.
 pub enum Const {
-    Value(Value),
-    Unsupported(String),
+    Value(Value, Span),
+    Unsupported(String, Span),
 }
 
 pub(crate) struct CollectExportedConstVisitor<'a, M>
@@ -82,23 +82,32 @@ pub trait GetMut<K, V> {
 /// Coerece the actual value of the given ast node.
 fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
     match init {
-        init if init.is_undefined(ctx) => Some(Const::Value(Value::Null)),
-        Expr::Ident(ident) => Some(Const::Unsupported(format!(
-            "Unknown identifier \"{}\" at \"{}\".",
-            ident.sym, id
-        ))),
+        init if init.is_undefined(ctx) => Some(Const::Value(Value::Null, init.span())),
+        Expr::Ident(ident) => Some(Const::Unsupported(
+            format!("Unknown identifier \"{}\" at \"{}\".", ident.sym, id),
+            init.span(),
+        )),
         Expr::Lit(lit) => match lit {
-            Lit::Num(num) => Some(Const::Value(Value::Number(
-                Number::from_f64(num.value).expect("Should able to convert f64 to Number"),
-            ))),
-            Lit::Null(_) => Some(Const::Value(Value::Null)),
-            Lit::Str(s) => Some(Const::Value(Value::String(s.value.to_string()))),
-            Lit::Bool(b) => Some(Const::Value(Value::Bool(b.value))),
-            Lit::Regex(r) => Some(Const::Value(Value::String(format!(
-                "/{}/{}",
-                r.exp, r.flags
-            )))),
-            _ => Some(Const::Unsupported("Unsupported Literal".to_string())),
+            Lit::Num(num) => Some(Const::Value(
+                Value::Number(
+                    Number::from_f64(num.value).expect("Should able to convert f64 to Number"),
+                ),
+                init.span(),
+            )),
+            Lit::Null(_) => Some(Const::Value(Value::Null, init.span())),
+            Lit::Str(s) => Some(Const::Value(
+                Value::String(s.value.to_string()),
+                init.span(),
+            )),
+            Lit::Bool(b) => Some(Const::Value(Value::Bool(b.value), init.span())),
+            Lit::Regex(r) => Some(Const::Value(
+                Value::String(format!("/{}/{}", r.exp, r.flags)),
+                init.span(),
+            )),
+            _ => Some(Const::Unsupported(
+                "Unsupported Literal".to_string(),
+                init.span(),
+            )),
         },
         Expr::Array(arr) => {
             let mut a = vec![];
@@ -107,22 +116,28 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                 match elem {
                     Some(elem) => {
                         if elem.spread.is_some() {
-                            return Some(Const::Unsupported(format!(
-                                "Unsupported spread operator in the Array Expression at \"{id}\""
-                            )));
+                            return Some(Const::Unsupported(
+                                format!(
+                                    "Unsupported spread operator in the Array Expression at \
+                                     \"{id}\""
+                                ),
+                                init.span(),
+                            ));
                         }
 
                         match extract_value(ctx, &elem.expr, id.clone()) {
-                            Some(Const::Value(value)) => a.push(value),
-                            Some(Const::Unsupported(message)) => {
-                                return Some(Const::Unsupported(format!(
-                                    "Unsupported value in the Array Expression: {message}"
-                                )))
+                            Some(Const::Value(value, _)) => a.push(value),
+                            Some(Const::Unsupported(message, loc)) => {
+                                return Some(Const::Unsupported(
+                                    format!("Unsupported value in the Array Expression: {message}"),
+                                    loc,
+                                ));
                             }
                             _ => {
                                 return Some(Const::Unsupported(
                                     "Unsupported value in the Array Expression".to_string(),
-                                ))
+                                    elem.expr.span(),
+                                ));
                             }
                         }
                     }
@@ -132,7 +147,7 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                 }
             }
 
-            Some(Const::Value(Value::Array(a)))
+            Some(Const::Value(Value::Array(a), arr.span()))
         }
         Expr::Object(obj) => {
             let mut o = Map::new();
@@ -144,37 +159,44 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                             PropName::Ident(i) => i.sym.as_ref(),
                             PropName::Str(s) => s.value.as_ref(),
                             _ => {
-                                return Some(Const::Unsupported(format!(
-                                    "Unsupported key type in the Object Expression at \"{id}\""
-                                )))
+                                return Some(Const::Unsupported(
+                                    format!(
+                                        "Unsupported key type in the Object Expression at \"{id}\""
+                                    ),
+                                    kv.key.span(),
+                                ));
                             }
                         },
                         &kv.value,
                     ),
                     _ => {
-                        return Some(Const::Unsupported(format!(
-                            "Unsupported spread operator in the Object Expression at \"{id}\""
-                        )))
+                        return Some(Const::Unsupported(
+                            format!(
+                                "Unsupported spread operator in the Object Expression at \"{id}\""
+                            ),
+                            prop.span(),
+                        ));
                     }
                 };
                 let new_value = extract_value(ctx, value, format!("{id}.{key}"));
-                if let Some(Const::Unsupported(msg)) = new_value {
-                    return Some(Const::Unsupported(msg));
+                if let Some(Const::Unsupported(_, _)) = new_value {
+                    return new_value;
                 }
 
-                if let Some(Const::Value(value)) = new_value {
+                if let Some(Const::Value(value, _)) = new_value {
                     o.insert(key.to_string(), value);
                 }
             }
 
-            Some(Const::Value(Value::Object(o)))
+            Some(Const::Value(Value::Object(o), obj.span()))
         }
         Expr::Tpl(tpl) => {
             // [TODO] should we add support for `${'e'}d${'g'}'e'`?
             if !tpl.exprs.is_empty() {
-                Some(Const::Unsupported(format!(
-                    "Unsupported template literal with expressions at \"{id}\"."
-                )))
+                Some(Const::Unsupported(
+                    format!("Unsupported template literal with expressions at \"{id}\"."),
+                    tpl.span(),
+                ))
             } else {
                 Some(
                     tpl.quasis
@@ -194,18 +216,23 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                             let cooked = q.cooked.as_ref();
                             let raw = q.raw.as_ref();
 
-                            Const::Value(Value::String(
-                                cooked.map(|c| c.to_string()).unwrap_or(raw.to_string()),
-                            ))
+                            Const::Value(
+                                Value::String(
+                                    cooked.map(|c| c.to_string()).unwrap_or(raw.to_string()),
+                                ),
+                                tpl.span(),
+                            )
                         })
-                        .unwrap_or(Const::Unsupported(format!(
-                            "Unsupported node type at \"{id}\""
-                        ))),
+                        .unwrap_or(Const::Unsupported(
+                            format!("Unsupported node type at \"{id}\""),
+                            tpl.span(),
+                        )),
                 )
             }
         }
-        _ => Some(Const::Unsupported(format!(
-            "Unsupported node type at \"{id}\""
-        ))),
+        _ => Some(Const::Unsupported(
+            format!("Unsupported node type at \"{id}\""),
+            init.span(),
+        )),
     }
 }

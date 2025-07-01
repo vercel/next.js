@@ -344,6 +344,8 @@ function DevToolsPopover({
           triggerRef={triggerRef}
           style={popover}
           routerType={routerType}
+          // dummy page for legacy segment explorer, will be removed in the future
+          page={''}
         />
       ) : null}
 

@@ -833,8 +833,8 @@ Finally, add the CSS variable to your [Tailwind CSS config](/docs/app/guides/tai
 
 As of [Tailwind v4](https://tailwindcss.com/blog/tailwindcss-v4), there is zero configuration required by default. If you do need to configure Tailwind, you can follow the [official documentation](https://tailwindcss.com/blog/tailwindcss-v4#css-first-configuration) for configuring the global CSS file.
 
-```js filename="global.css"
-@import "tailwindcss";
+```css filename="global.css"
+@import 'tailwindcss';
 
 @theme inline {
   --font-sans: var(--font-inter);
@@ -866,7 +866,7 @@ module.exports = {
 
 You can now use the `font-sans` and `font-mono` utility classes to apply the font to your elements.
 
-```
+```html
 <p class="font-sans ...">The quick brown fox ...</p>
 <p class="font-mono ...">The quick brown fox ...</p>
 ```

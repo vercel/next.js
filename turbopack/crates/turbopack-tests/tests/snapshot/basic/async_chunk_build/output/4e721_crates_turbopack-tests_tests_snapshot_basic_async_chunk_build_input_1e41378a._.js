@@ -1,6 +1,6 @@
 module.exports = {
 
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/shared.js [test] (ecmascript)": (function(__turbopack_context__) {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/shared.js [test] (ecmascript)": ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
 {

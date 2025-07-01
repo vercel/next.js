@@ -11,6 +11,7 @@ members = [
   "crates/next-core",
   "crates/next-custom-transforms",
   "turbopack/crates/*",
+  "turbopack/crates/*/fuzz",
   "turbopack/xtask",
 ]
 
@@ -20,7 +21,7 @@ exclude = ["crates/next-error-code-swc-plugin"]
 too_many_arguments = "allow"
 
 [workspace.lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(rust_analyzer)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(rust_analyzer)', 'cfg(fuzzing)'] }
 
 # This crate is particularly sensitive to compiler optimizations
 [profile.dev.package.turbo-persistence]
@@ -28,8 +29,6 @@ opt-level = 1
 
 # Set the options for dependencies (not crates in the workspace), this mostly impacts cold builds
 [profile.dev.package."*"]
-# This is a workaround for wasm timeout issue
-debug-assertions = false
 opt-level = 1
 
 # Set the settings for build scripts and proc-macros.
@@ -299,7 +298,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "29.1.4", features = [
+swc_core = { version = "29.4.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
@@ -311,7 +310,7 @@ browserslist-rs = { version = "0.18.0" }
 mdxjs = "1.0.3"
 modularize_imports = { version = "0.89.0" }
 styled_components = { version = "0.117.0" }
-styled_jsx = { version = "0.93.2" }
+styled_jsx = { version = "0.93.3" }
 swc_emotion = { version = "0.93.0" }
 swc_relay = { version = "0.63.0" }
 
@@ -335,7 +334,7 @@ async-compression = { version = "0.3.13", default-features = false, features = [
 async-trait = "0.1.64"
 bitfield = "0.18.0"
 bytes = "1.1.0"
-bytes-str = "0.2.6"
+bytes-str = "0.2.7"
 chrono = "0.4.23"
 clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"

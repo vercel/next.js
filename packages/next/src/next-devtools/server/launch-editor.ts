@@ -24,6 +24,7 @@
 import { cyan, green, red } from '../../lib/picocolors'
 import child_process from 'child_process'
 import fs from 'fs'
+import fsp from 'fs/promises'
 import os from 'os'
 import path from 'path'
 import shellQuote from 'next/dist/compiled/shell-quote'
@@ -427,4 +428,29 @@ export function launchEditor(
       printInstructions(fileName, error.message)
     })
   }
+}
+
+// Open the file in editor if exists, otherwise return an error
+export async function openFileInEditor(
+  filePath: string,
+  line: number,
+  col: number
+) {
+  const result = {
+    found: false,
+    error: null as Error | null,
+  }
+  const existed = await fsp.access(filePath, fs.constants.F_OK).then(
+    () => true,
+    () => false
+  )
+  if (existed) {
+    try {
+      launchEditor(filePath, line, col)
+      result.found = true
+    } catch (err) {
+      result.error = err as Error
+    }
+  }
+  return result
 }

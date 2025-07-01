@@ -224,4 +224,76 @@ export const runtimeErrors: ReadyRuntimeError[] = [
       ]),
     type: 'recoverable',
   },
+  {
+    id: 7,
+    runtime: true,
+    error: new Error('Seventh error message'),
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Sixth error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Sixth error message'),
+        },
+      ]),
+    type: 'runtime',
+  },
+  {
+    id: 8,
+    runtime: true,
+    error: new Error('Eighth error message'),
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Eighth error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Eighth error message'),
+        },
+      ]),
+    type: 'runtime',
+  },
+  {
+    id: 9,
+    runtime: true,
+    error: new Error('Ninth error message'),
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Ninth error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Ninth error message'),
+        },
+      ]),
+    type: 'runtime',
+  },
+  {
+    id: 10,
+    runtime: true,
+    error: new Error('Tenth error message'),
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Tenth error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Tenth error message'),
+        },
+      ]),
+    type: 'runtime',
+  },
 ]

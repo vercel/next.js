@@ -654,6 +654,30 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/flight-data-helpers.test.ts": {
+    "passed": [
+      "prepareFlightRouterStateForRequest HMR refresh handling should preserve complete state for HMR refresh requests",
+      "prepareFlightRouterStateForRequest URL stripping should always set URL (index 2) to null",
+      "prepareFlightRouterStateForRequest __PAGE__ segment handling should preserve dynamic segments",
+      "prepareFlightRouterStateForRequest __PAGE__ segment handling should preserve non-page segments",
+      "prepareFlightRouterStateForRequest __PAGE__ segment handling should strip search params from __PAGE__ segments",
+      "prepareFlightRouterStateForRequest optional fields preservation should handle minimal FlightRouterState (only segment and parallelRoutes)",
+      "prepareFlightRouterStateForRequest optional fields preservation should preserve hasLoadingBoundary",
+      "prepareFlightRouterStateForRequest optional fields preservation should preserve isRootLayout when false",
+      "prepareFlightRouterStateForRequest optional fields preservation should preserve isRootLayout when true",
+      "prepareFlightRouterStateForRequest real-world scenarios should handle complex FlightRouterState with all features",
+      "prepareFlightRouterStateForRequest recursive processing of parallel routes should handle deeply nested parallel routes",
+      "prepareFlightRouterStateForRequest recursive processing of parallel routes should recursively process nested parallel routes",
+      "prepareFlightRouterStateForRequest refresh marker handling should preserve \"inside-shared-layout\" marker",
+      "prepareFlightRouterStateForRequest refresh marker handling should preserve \"refetch\" marker",
+      "prepareFlightRouterStateForRequest refresh marker handling should strip \"refresh\" marker (client-only)",
+      "prepareFlightRouterStateForRequest refresh marker handling should strip null refresh marker"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/diagnostics/build-diagnostics.test.ts": {
     "passed": [
       "build-diagnostics records build diagnostics to a file correctly",
@@ -830,7 +854,9 @@
     "passed": [
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should prefer branch url in preview deployment if presents",
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return local url in local build mode",
+      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return localhost url in local build mode with experimental https",
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return localhost url in local dev mode",
+      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return localhost url in local dev mode with experimental https",
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return project production url in production deployment",
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return vercel url in preview deployment if only it presents",
       "metadata: resolveUrl should compose with metadataBase when url is relative or absolute",
@@ -2129,12 +2155,13 @@
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
-      "ReactRefreshLogBox _app _document _app syntax error shows logbox",
       "ReactRefreshLogBox _app _document _document syntax error shows logbox",
       "ReactRefreshLogBox _app _document empty _app shows logbox",
       "ReactRefreshLogBox _app _document empty _document shows logbox"
     ],
-    "failed": [],
+    "failed": [
+      "ReactRefreshLogBox _app _document _app syntax error shows logbox"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2660,9 +2687,17 @@
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
     "passed": [
       "segment-explorer should cleanup on soft navigation",
+      "segment-explorer should display parallel routes default page when present",
       "segment-explorer should handle show file segments in order",
+      "segment-explorer should handle special built-in not-found segments",
+      "segment-explorer should indicate segment explorer is not available for pages router",
       "segment-explorer should render the segment explorer for nested routes",
-      "segment-explorer should render the segment explorer for parallel routes"
+      "segment-explorer should render the segment explorer for parallel routes",
+      "segment-explorer should render the segment explorer for parallel routes in edge runtime",
+      "segment-explorer should show global-error segment",
+      "segment-explorer should show navigation boundaries of the segment",
+      "segment-explorer should show the custom error boundary when present",
+      "segment-explorer should show the loading boundary when it is present"
     ],
     "failed": [],
     "pending": [],
@@ -2793,17 +2828,25 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-hmr/hmr-env.test.ts": {
+    "passed": [
+      "app-dir hmr-env should update server components pages when env files is changed (edge)",
+      "app-dir hmr-env should update server components pages when env files is changed (edge-module-var)",
+      "app-dir hmr-env should update server components pages when env files is changed (node)",
+      "app-dir hmr-env should update server components pages when env files is changed (node-module-var)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
-      "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge-module-var)",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (node)",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (node-module-var)"
+      "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
     ],
     "failed": [],
     "pending": [],
@@ -3406,7 +3449,8 @@
       "client-dev-overlay should be able to minimize the fullscreen overlay",
       "client-dev-overlay should be possible to hide the minimized overlay when there are no errors",
       "client-dev-overlay should have a role of \"dialog\" if the page is focused",
-      "client-dev-overlay should keep the error indicator visible when there are errors"
+      "client-dev-overlay should keep the error indicator visible when there are errors",
+      "client-dev-overlay should nudge to use Turbopack unless Turbopack is disabled"
     ],
     "failed": [],
     "pending": [],
@@ -3475,6 +3519,15 @@
       "DevErrorOverlay can get error code from RSC error thrown by framework",
       "DevErrorOverlay can get error code from client side error thrown by framework",
       "DevErrorOverlay loads fonts successfully"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/experimental-https-server/https-server-opengraph-image.test.ts": {
+    "passed": [
+      "experimental-https-server OpenGraph image should generate https:// URLs for OpenGraph images when experimental HTTPS is enabled"
     ],
     "failed": [],
     "pending": [],
@@ -4092,20 +4145,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/actions-deployment-skew/actions-deployment-skew.test.ts": {
-    "passed": [
-      "actions-deployment-skew in the edge runtime with a form action and JavaScript disabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the edge runtime with a form action and JavaScript enabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the edge runtime with a normal action should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the node runtime with a form action and JavaScript disabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the node runtime with a form action and JavaScript enabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the node runtime with a normal action should respond with a 404 for an unknown server action"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/actions-navigation/index.test.ts": {
     "passed": [
       "app-dir action handling should handle actions correctly after following a relative link",
@@ -4119,6 +4158,26 @@
   "test/e2e/app-dir/actions-revalidate-remount/actions-revalidate-remount.test.ts": {
     "passed": [
       "actions-revalidate-remount should not remount the page + loading component when revalidating"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-unrecognized/actions-unrecognized.test.ts": {
+    "passed": [
+      "unrecognized server actions should 404 when POSTing a non-server-action request to a nonexistent page",
+      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: form-data/multipart",
+      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: plaintext",
+      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: urlencoded",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with complex argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with simple argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js disabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js enabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with complex argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with simple argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js disabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js enabled"
     ],
     "failed": [],
     "pending": [],
@@ -4191,13 +4250,12 @@
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when route handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when route handler redirects with a 308 status code",
-      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
-      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `redirect`",
       "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
-      "app-dir action handling should 404 when POSTing an invalid server action",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
@@ -4208,7 +4266,6 @@
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
       "app-dir action handling should keep action instances identical",
-      "app-dir action handling should log a warning when a server action is not found but an id is provided",
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should not block router.back() while a server action is in flight",
       "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
@@ -4321,13 +4378,12 @@
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when route handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when route handler redirects with a 308 status code",
-      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
-      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `redirect`",
       "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
-      "app-dir action handling should 404 when POSTing an invalid server action",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
@@ -4338,7 +4394,6 @@
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
       "app-dir action handling should keep action instances identical",
-      "app-dir action handling should log a warning when a server action is not found but an id is provided",
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should not block router.back() while a server action is in flight",
       "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
@@ -6707,7 +6762,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/instrumentation-order/instrumentation-order.test.ts": {
-    "passed": ["instrumentation-order should work using cheerio"],
+    "passed": ["instrumentation-order should work"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6905,6 +6960,18 @@
       "app-dir - fetch warnings force-cache and revalidate: 0 should not log when not overriding cache within the Request object",
       "app-dir - fetch warnings no-store and revalidate > 0 should log when request input is a Request instance",
       "app-dir - fetch warnings no-store and revalidate > 0 should log when request input is a string"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/mdx-no-mdx-components/mdx.test.ts": {
+    "passed": [
+      "mdx app directory should allow importing client components",
+      "mdx app directory should work in initial html",
+      "mdx app directory should work using browser",
+      "mdx pages directory should work in initial html"
     ],
     "failed": [],
     "pending": [],
@@ -7214,6 +7281,7 @@
       "app dir - metadata opengraph should support opengraph with article type",
       "app dir - metadata react cache should have same title and page value on initial load",
       "app dir - metadata react cache should have same title and page value when navigating",
+      "app dir - metadata regression: renders a large shell",
       "app dir - metadata should not effect metadata images convention like files under pages directory",
       "app dir - metadata static routes should have /favicon.ico as route",
       "app dir - metadata static routes should have icons as route",
@@ -9577,6 +9645,13 @@
       "unstable-rethrow should correctly trigger the not found page as not found",
       "unstable-rethrow should handle an internal error that gets propagated to the `cause` field"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/upward-distdir/upward-distdir.test.ts": {
+    "passed": ["upward-distdir should work"],
     "failed": [],
     "pending": [],
     "flakey": [],

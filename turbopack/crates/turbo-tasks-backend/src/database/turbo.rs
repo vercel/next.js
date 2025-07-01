@@ -1,21 +1,31 @@
 use std::{
+    cmp::max,
     path::PathBuf,
     sync::Arc,
-    thread::{JoinHandle, spawn},
+    thread::{JoinHandle, available_parallelism, spawn},
 };
 
 use anyhow::Result;
 use parking_lot::Mutex;
-use turbo_persistence::{ArcSlice, KeyBase, StoreKey, TurboPersistence, ValueBuffer};
+use turbo_persistence::{
+    ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
+};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
     write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
 };
 
-const COMPACT_MAX_COVERAGE: f32 = 20.0;
-const COMPACT_MAX_MERGE_SEQUENCE: usize = 64;
-const COMPACT_MAX_MERGE_SIZE: u64 = 512 * 1024 * 1024; // 512 MiB
+const MB: u64 = 1024 * 1024;
+const COMPACT_CONFIG: CompactConfig = CompactConfig {
+    min_merge_count: 3,
+    optimal_merge_count: 8,
+    max_merge_count: 64,
+    max_merge_bytes: 512 * MB,
+    min_merge_duplication_bytes: MB,
+    optimal_merge_duplication_bytes: 100 * MB,
+    max_merge_segment_count: 16,
+};
 
 pub struct TurboKeyValueDatabase {
     db: Arc<TurboPersistence>,
@@ -32,11 +42,11 @@ impl TurboKeyValueDatabase {
         // start compaction in background if the database is not empty
         if !db.is_empty() {
             let handle = spawn(move || {
-                db.compact(
-                    COMPACT_MAX_COVERAGE,
-                    COMPACT_MAX_MERGE_SEQUENCE,
-                    COMPACT_MAX_MERGE_SIZE,
-                )
+                db.compact(&CompactConfig {
+                    max_merge_segment_count: available_parallelism()
+                        .map_or(4, |c| max(4, c.get() / 4)),
+                    ..COMPACT_CONFIG
+                })
             });
             this.compact_join_handle.get_mut().replace(handle);
         }
@@ -140,11 +150,11 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
             // Start a new compaction in the background
             let db = self.db.clone();
             let handle = spawn(move || {
-                db.compact(
-                    COMPACT_MAX_COVERAGE,
-                    COMPACT_MAX_MERGE_SEQUENCE,
-                    COMPACT_MAX_MERGE_SIZE,
-                )
+                db.compact(&CompactConfig {
+                    max_merge_segment_count: available_parallelism()
+                        .map_or(4, |c| max(4, c.get() / 2)),
+                    ..COMPACT_CONFIG
+                })
             });
             self.compact_join_handle.lock().replace(handle);
         }

@@ -197,9 +197,7 @@ describe('next.rs api', () => {
       '.next'
     )
     project = await bindings.turbo.createProject({
-      env: {
-        PATH: process.env.PATH,
-      },
+      env: {},
       jsConfig: {
         compilerOptions: {},
       },
@@ -233,6 +231,7 @@ describe('next.rs api', () => {
       },
       browserslistQuery: 'last 2 versions',
       noMangling: false,
+      currentNodeJsVersion: '18.0.0',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),

@@ -30,7 +30,7 @@ pub struct EcmascriptChunkItemContent {
     pub source_map: Option<Rope>,
     pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
     pub options: EcmascriptChunkItemOptions,
-    pub rewrite_source_path: Option<ResolvedVc<FileSystemPath>>,
+    pub rewrite_source_path: Option<FileSystemPath>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -51,10 +51,11 @@ impl EcmascriptChunkItemContent {
 
         let content = content.await?;
         let async_module = async_module_options.owned().await?;
+        let strict = content.strict;
 
         Ok(EcmascriptChunkItemContent {
             rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
-                Some(chunking_context.root_path().to_resolved().await?)
+                Some(chunking_context.root_path().await?.clone_value())
             } else {
                 None
             },
@@ -76,12 +77,12 @@ impl EcmascriptChunkItemContent {
                 }
 
                 EcmascriptChunkItemOptions {
+                    strict,
                     refresh,
                     externals,
                     // These things are not available in ESM
                     module: true,
                     exports: true,
-                    this: true,
                     ..Default::default()
                 }
             },
@@ -115,11 +116,7 @@ impl EcmascriptChunkItemContent {
         if !additional_ids.is_empty() {
             code += "["
         }
-        if self.options.this {
-            code += "(function(__turbopack_context__) {\n";
-        } else {
-            code += "((__turbopack_context__) => {\n";
-        }
+        code += "((__turbopack_context__) => {\n";
         if self.options.strict {
             code += "\"use strict\";\n\n";
         } else {
@@ -137,8 +134,8 @@ impl EcmascriptChunkItemContent {
             code += "{\n";
         }
 
-        let source_map = if let Some(rewrite_source_path) = self.rewrite_source_path {
-            fileify_source_map(self.source_map.as_ref(), *rewrite_source_path).await?
+        let source_map = if let Some(rewrite_source_path) = &self.rewrite_source_path {
+            fileify_source_map(self.source_map.as_ref(), rewrite_source_path.clone()).await?
         } else {
             self.source_map.clone()
         };
@@ -189,7 +186,6 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module is async (either has a top level await
     /// or is importing async modules).
     pub async_module: Option<AsyncModuleOptions>,
-    pub this: bool,
     /// Whether this chunk item's module factory should include
     /// `__turbopack_wasm__` to load WebAssembly.
     pub wasm: bool,
@@ -283,7 +279,7 @@ async fn module_factory_with_code_generation_issue(
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error,
-                    path: chunk_item.asset_ident().path().to_resolved().await?,
+                    path: chunk_item.asset_ident().path().await?.clone_value(),
                     title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                         .resolved_cell(),
                     message: StyledString::Text(error_message).resolved_cell(),

@@ -86,3 +86,73 @@ jobs:
           if [ -d ./test/test-junit-report ]; then
             DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
           fi
+
+  front-sync:
+    needs: test-deploy
+    if: ${{ always() && github.repository_owner == 'vercel' && github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: nextPackageInfo
+        name: Get `next` package info
+        run: |
+          cd packages/next 
+          {
+            echo 'value<<EOF'
+            cat package.json
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - id: version
+        name: Extract `next` version
+        run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
+      - id: test-result
+        name: Set test result variable
+        run: echo 'immediately-close=${{ needs.test-deploy.result != 'success' && 'true' || 'false' }}' >> "$GITHUB_OUTPUT"
+      - name: Check token
+        run: gh auth status
+        env:
+          github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
+      - uses: actions/github-script@v7
+        name: Trigger vercel/front sync
+        id: trigger-front-sync
+        with:
+          retries: 3
+          retry-exempt-status-codes: 400,401,404
+          # Default github token cannot dispatch events to the remote repo, it should be
+          # a PAT with Actions write access (https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28#create-a-workflow-dispatch-event)
+          github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
+          # Note `workflow_id` and `inputs` are contract between vercel/front,
+          # if these need to be changed both side should be updated accordingly.
+          script: |
+            const immediatelyClose = '${{ steps.test-result.outputs.immediately-close }}';
+            const inputs = {
+              version: "${{ steps.version.outputs.value }}",
+            };
+
+            if (immediatelyClose === 'true') {
+              inputs['immediately-close'] = 'true';
+            }
+
+            await github.request(
+              "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+              {
+                owner: "vercel",
+                repo: "front",
+                workflow_id: "cron-update-next.yml",
+                ref: "main",
+                inputs: inputs,
+              }
+            );
+            // Ideally we'd include a URL to this specific sync.
+            // However, creating a workflow_dispatch event does not produce an ID: https://github.com/orgs/community/discussions/9752
+            console.info(
+              "Sync started in https://github.com/vercel/front/actions/workflows/cron-update-next.yml?query=event%3Aworkflow_dispatch"
+            );
+            console.info(
+              "This may not start a new sync if one is already in progress. Check the logs of the cron-update-next Workflow run."
+            );
+            if (immediatelyClose === 'true') {
+              console.info(
+                "Sync triggered with immediately-close=true due to test failure."
+              );
+            }

@@ -597,7 +597,10 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn is_immutable(&self) -> bool {
-        self.task.state().is_immutable()
+        // https://vercel.slack.com/archives/C03EWR7LGEN/p1750889741099559
+        // HACK: immutable tracking is broken, disable it for now
+        false
+        // self.task.state().is_immutable()
     }
     fn mark_as_immutable(&mut self) {
         self.task.state_mut().set_is_immutable(true);

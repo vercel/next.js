@@ -3,21 +3,17 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_esregex::EsRegex;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbo_tasks_env::EnvMap;
-use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     ConditionItem, ConditionPath, LoaderRuleItem, OptionWebpackRules,
     module_options_context::{MdxTransformOptions, OptionWebpackConditions},
 };
-use turbopack_core::{
-    issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-    resolve::ResolveAliasMap,
-};
+use turbopack_core::resolve::ResolveAliasMap;
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -60,8 +56,8 @@ impl Default for CacheKinds {
     }
 }
 
-#[turbo_tasks::value(serialization = "custom", eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, OperationValue)]
+#[turbo_tasks::value(eq = "manual")]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct NextConfig {
     // TODO all fields should be private and access should be wrapped within a turbo-tasks function
@@ -98,6 +94,10 @@ pub struct NextConfig {
     pub output: Option<OutputType>,
     pub turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
+    output_file_tracing_includes: Option<serde_json::Value>,
+    output_file_tracing_excludes: Option<serde_json::Value>,
+    // TODO: This option is not respected, it uses Turbopack's root instead.
+    output_file_tracing_root: Option<RcStr>,
 
     /// Enables the bundling of node_modules packages (externals) for pages
     /// server-side bundles.
@@ -763,9 +763,6 @@ pub struct ExperimentalConfig {
     /// Automatically apply the "modularize_imports" optimization to imports of
     /// the specified packages.
     optimize_package_imports: Option<Vec<RcStr>>,
-    output_file_tracing_ignores: Option<Vec<RcStr>>,
-    output_file_tracing_includes: Option<serde_json::Value>,
-    output_file_tracing_root: Option<RcStr>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
@@ -1111,6 +1108,9 @@ pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionServerActions(Option<ServerActions>);
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionJsonValue(pub Option<serde_json::Value>);
 
 #[turbo_tasks::value_impl]
 impl NextConfig {
@@ -1627,6 +1627,16 @@ impl NextConfig {
                 .map(|path| path.to_owned().into()),
         ))
     }
+
+    #[turbo_tasks::function]
+    pub fn output_file_tracing_includes(&self) -> Vc<OptionJsonValue> {
+        Vc::cell(self.output_file_tracing_includes.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_file_tracing_excludes(&self) -> Vc<OptionJsonValue> {
+        Vc::cell(self.output_file_tracing_excludes.clone())
+    }
 }
 
 /// A subset of ts/jsconfig that next.js implicitly
@@ -1652,47 +1662,5 @@ impl JsConfig {
     #[turbo_tasks::function]
     pub fn compiler_options(&self) -> Vc<serde_json::Value> {
         Vc::cell(self.compiler_options.clone().unwrap_or_default())
-    }
-}
-
-#[turbo_tasks::value]
-struct OutdatedConfigIssue {
-    path: ResolvedVc<FileSystemPath>,
-    old_name: RcStr,
-    new_name: RcStr,
-    description: RcStr,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for OutdatedConfigIssue {
-    fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Error
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.into()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
-            StyledString::Code(self.old_name.clone()),
-            StyledString::Text(rcstr!(" has been replaced by ")),
-            StyledString::Code(self.new_name.clone()),
-        ])
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.description.clone()).resolved_cell(),
-        ))
     }
 }

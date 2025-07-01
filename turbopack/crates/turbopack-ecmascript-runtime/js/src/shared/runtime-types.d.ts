@@ -13,8 +13,10 @@ type ChunkListScript = CurrentScript & { readonly brand: unique symbol }
 type ChunkPath = string & { readonly brand: unique symbol }
 type ChunkScript = CurrentScript & { readonly brand: unique symbol }
 type ChunkUrl = string & { readonly brand: unique symbol }
-// TODO this should actually be `string | number`
-type ModuleId = string
+// The dependency specifier when importing externals
+type DependencySpecifier = string
+// This is a string in development and a number in production (both arbitrary, implementation defined)
+type ModuleId = string | number
 
 interface Exports {
   __esModule?: boolean
