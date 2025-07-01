@@ -191,7 +191,7 @@ impl<'a> SerialWriteBatch<'a> for LmbdWriteBatch<'a> {
     }
 
     fn flush(&mut self, _key_space: KeySpace) -> Result<()> {
-        // this is an unimplemented optimization, this LMDB implemenation is only used in testing
+        // this is an unimplemented optimization, this LMDB implementation is only used in testing
         Ok(())
     }
 }

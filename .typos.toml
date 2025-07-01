@@ -5,9 +5,6 @@
 [default]
 check-filename = false
 
-[default.extend-identifiers]
-strat = "strate"
-
 [type.rust]
 check-file = true
 

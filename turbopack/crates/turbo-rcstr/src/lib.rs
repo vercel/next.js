@@ -38,7 +38,7 @@ mod tagged_value;
 ///
 /// ## Conversion
 ///
-/// Converting a `String` or `&str` to an `RcStr` can be perfomed using `.into()`,
+/// Converting a `String` or `&str` to an `RcStr` can be performed using `.into()`,
 /// `RcStr::from(...)`, or the `rcstr!` macro.
 ///
 /// ```

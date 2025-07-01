@@ -50,7 +50,7 @@ impl DotenvProcessEnv {
 
                 restore_env(&initial, &prior, &lock);
 
-                // from_read will load parse and evalute the Read, and set variables
+                // from_read will load parse and evaluate the Read, and set variables
                 // into the global env. If a later dotenv defines an already defined
                 // var, it'll be ignored.
                 res = dotenv::from_read(f.read()).map(|e| e.load());

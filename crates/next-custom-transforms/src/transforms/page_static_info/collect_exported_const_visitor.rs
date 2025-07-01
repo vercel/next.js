@@ -185,7 +185,7 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                             // TemplateLiteral, the parser yields the first quasi,
                             // then the first expression, then the next quasi, then the next
                             // expression, etc., until the last quasi.
-                            // Thus if there is no expression, the parser ends at the frst and also
+                            // Thus if there is no expression, the parser ends at the first and also
                             // last quasis
                             //
                             // A "cooked" interpretation where backslashes have special meaning,

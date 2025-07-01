@@ -62,7 +62,7 @@ pub enum ParseResult {
         #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<swc_core::common::SourceMap>,
     },
-    Unparseable {
+    Unparsable {
         messages: Option<Vec<RcStr>>,
     },
     NotFound,
@@ -230,7 +230,7 @@ async fn parse_internal(
             .resolved_cell()
             .emit();
 
-            return Ok(ParseResult::Unparseable {
+            return Ok(ParseResult::Unparsable {
                 messages: Some(vec![error]),
             }
             .cell());
@@ -277,7 +277,7 @@ async fn parse_internal(
                         }
                         .resolved_cell()
                         .emit();
-                        ParseResult::Unparseable {
+                        ParseResult::Unparsable {
                             messages: Some(vec![error]),
                         }
                         .cell()
@@ -285,7 +285,7 @@ async fn parse_internal(
                 }
             }
         },
-        AssetContent::Redirect { .. } => ParseResult::Unparseable { messages: None }.cell(),
+        AssetContent::Redirect { .. } => ParseResult::Unparsable { messages: None }.cell(),
     })
 }
 
@@ -376,7 +376,7 @@ async fn parse_file_content(
                 }
 
                 if !has_errors.is_empty() {
-                    return Ok(ParseResult::Unparseable {
+                    return Ok(ParseResult::Unparsable {
                         messages: Some(has_errors),
                     });
                 }
@@ -389,7 +389,7 @@ async fn parse_file_content(
 
                         e.emit();
 
-                        return Ok(ParseResult::Unparseable {
+                        return Ok(ParseResult::Unparsable {
                             messages: Some(messages),
                         });
                     }
@@ -479,7 +479,7 @@ async fn parse_file_content(
                 };
                 let messages =
                     Some(messages.unwrap_or_else(|| vec![fm.src.clone().into()]));
-                return Ok(ParseResult::Unparseable { messages });
+                return Ok(ParseResult::Unparsable { messages });
             }
 
             let helpers = Helpers::from_data(helpers);

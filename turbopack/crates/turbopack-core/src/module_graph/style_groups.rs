@@ -45,7 +45,7 @@ pub struct StyleGroups {
 struct ModuleInfo {
     style_type: StyleType,
     ident: RcStr,
-    chunk_group_indicies: FxHashMap<usize, usize>,
+    chunk_group_indices: FxHashMap<usize, usize>,
     index_sum: usize,
     size: usize,
     chunk_item: Option<ChunkItemWithAsyncModuleInfo>,
@@ -56,7 +56,7 @@ impl ModuleInfo {
         Self {
             style_type,
             ident,
-            chunk_group_indicies: Default::default(),
+            chunk_group_indices: Default::default(),
             index_sum: 0,
             size: 0,
             chunk_item: None,
@@ -123,7 +123,7 @@ pub async fn compute_style_groups(
             match module_info_map.entry(module) {
                 Entry::Occupied(mut e) => {
                     if let Some(info) = e.get_mut() {
-                        info.chunk_group_indicies.insert(idx, styles.len());
+                        info.chunk_group_indices.insert(idx, styles.len());
                         info.index_sum += styles.len();
                         styles.insert(module);
                     }
@@ -133,7 +133,7 @@ pub async fn compute_style_groups(
                     if let Some(style_type) = style_type {
                         let mut info =
                             ModuleInfo::new(style_type, module.ident().to_string().owned().await?);
-                        info.chunk_group_indicies.insert(idx, styles.len());
+                        info.chunk_group_indices.insert(idx, styles.len());
                         info.index_sum += styles.len();
                         styles.insert(module);
                         e.insert(Some(info));
@@ -186,7 +186,7 @@ pub async fn compute_style_groups(
         let info = info.as_ref().unwrap();
         // Find the shortest chunk group as it's most efficient to iterate
         let (&idx, &start_pos) = info
-            .chunk_group_indicies
+            .chunk_group_indices
             .iter()
             .min_by_key(|&(&idx, _)| chunk_group_state[idx].styles.len())
             .unwrap();
@@ -201,12 +201,12 @@ pub async fn compute_style_groups(
 
                 // module is a dependency of dependent when it's included in all chunk groups of
                 // dependent with an index lower than the index of the dependent
-                info.chunk_group_indicies.len() >= dependent_info.chunk_group_indicies.len()
+                info.chunk_group_indices.len() >= dependent_info.chunk_group_indices.len()
                     && dependent_info
-                        .chunk_group_indicies
+                        .chunk_group_indices
                         .iter()
                         .all(|(idx, &dependent_pos)| {
-                            info.chunk_group_indicies
+                            info.chunk_group_indices
                                 .get(idx)
                                 .is_some_and(|&module_pos| module_pos < dependent_pos)
                         })
@@ -264,7 +264,7 @@ pub async fn compute_style_groups(
         let mut global_mode = info.style_type == StyleType::GlobalStyle;
 
         // The current position of processing in all selected chunk groups
-        let mut all_chunk_states = info.chunk_group_indicies.clone();
+        let mut all_chunk_states = info.chunk_group_indices.clone();
 
         // The list of modules and chunk items that go into the new chunk
         let mut new_chunk_modules = [module].into_iter().collect::<FxHashSet<_>>();
@@ -296,7 +296,7 @@ pub async fn compute_style_groups(
                 .map(|module| {
                     let info = module_info_map.get(&module).unwrap().as_ref().unwrap();
                     let requests = info
-                        .chunk_group_indicies
+                        .chunk_group_indices
                         .keys()
                         .filter(|idx| all_chunk_states.contains_key(idx))
                         .map(|&idx| chunk_group_state[idx].requests)
@@ -327,14 +327,14 @@ pub async fn compute_style_groups(
                 let is_global = info.style_type == StyleType::GlobalStyle;
                 if is_global
                     && global_mode
-                    && all_chunk_states.len() != info.chunk_group_indicies.len()
+                    && all_chunk_states.len() != info.chunk_group_indices.len()
                 {
                     // Fast check: chunk groups need to be identical
                     continue;
                 }
                 if global_mode
                     && info
-                        .chunk_group_indicies
+                        .chunk_group_indices
                         .keys()
                         .any(|idx| !all_chunk_states.contains_key(idx))
                 {
@@ -344,7 +344,7 @@ pub async fn compute_style_groups(
                 if is_global
                     && all_chunk_states
                         .keys()
-                        .any(|idx| !info.chunk_group_indicies.contains_key(idx))
+                        .any(|idx| !info.chunk_group_indices.contains_key(idx))
                 {
                     // Global CSS would leak into existing chunk_group
                     continue;
@@ -354,7 +354,7 @@ pub async fn compute_style_groups(
                 if is_global {
                     global_mode = true;
                 }
-                for &idx in info.chunk_group_indicies.keys() {
+                for &idx in info.chunk_group_indices.keys() {
                     if all_chunk_states.contains_key(&idx) {
                         // This reduces the request count of the chunk group
                         chunk_group_state[idx].requests -= 1;
