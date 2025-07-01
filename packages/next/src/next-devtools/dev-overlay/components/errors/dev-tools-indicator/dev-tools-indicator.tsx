@@ -271,7 +271,6 @@ function DevToolsPopover({
           '--animate-out-duration-ms': `${MENU_DURATION_MS}ms`,
           '--animate-out-timing-function': MENU_CURVE,
           boxShadow: 'none',
-          zIndex: 2147483647,
           [vertical]: `${INDICATOR_PADDING}px`,
           [horizontal]: `${INDICATOR_PADDING}px`,
         } as CSSProperties

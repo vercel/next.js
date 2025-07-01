@@ -1,10 +1,5 @@
-import {
-  useCallback,
-  useState,
-  useRef,
-  useLayoutEffect,
-  useEffect,
-} from 'react'
+import { useCallback, useState, useRef } from 'react'
+import { Menu } from '@base-ui-components/react/menu'
 import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
 
 export function SegmentBoundaryTrigger({
@@ -14,81 +9,12 @@ export function SegmentBoundaryTrigger({
   onSelectBoundary: SegmentNodeState['setBoundaryType']
   offset: number
 }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
   const [shadowRoot] = useState<ShadowRoot>(() => {
     const ownerDocument = document
     const portalNode = ownerDocument.querySelector('nextjs-portal')!
     return portalNode.shadowRoot! as ShadowRoot
   })
-
-  const updateDropdownPosition = useCallback(() => {
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect()
-      setDropdownPosition({
-        top: rect.bottom + offset,
-        right: window.innerWidth - rect.right,
-      })
-    }
-  }, [offset])
-
-  useLayoutEffect(() => {
-    if (isOpen) {
-      updateDropdownPosition()
-    }
-  }, [isOpen, updateDropdownPosition])
-
-  const handleClickOutside = useCallback(
-    (e: Event) => {
-      const target = e.target as HTMLElement
-      if (!target || !isOpen) return
-      if (
-        target.closest(
-          '[data-nextjs-dev-overlay-segment-boundary-dropdown-backdrop]'
-        ) ||
-        target.closest(
-          '[data-nextjs-dev-overlay-segment-boundary-trigger-button]'
-        )
-      ) {
-        return
-      }
-      setIsOpen(false)
-    },
-    [isOpen]
-  )
-
-  // click outside of the trigger button or dropdown menu, in shadow root
-  useEffect(() => {
-    shadowRoot.addEventListener('click', handleClickOutside)
-    return () => {
-      shadowRoot.removeEventListener('click', handleClickOutside)
-    }
-  }, [handleClickOutside, isOpen, shadowRoot])
-
-  // close itself when unfocus: click outside of shadow root or clicking other triggers
-  const handleFocusOut = useCallback((e: Event) => {
-    const triggerRootNode = rootRef.current
-    if (
-      e.target instanceof HTMLElement &&
-      triggerRootNode &&
-      !triggerRootNode.contains(e.target)
-    ) {
-      setIsOpen(false)
-    }
-  }, [])
-  useEffect(() => {
-    shadowRoot.addEventListener('focusout', handleFocusOut)
-    return () => {
-      shadowRoot.removeEventListener('focusout', handleFocusOut)
-    }
-  }, [handleFocusOut, shadowRoot])
-
-  const handleToggleMenu = useCallback(() => {
-    setIsOpen((prev) => !prev)
-    updateDropdownPosition()
-  }, [updateDropdownPosition])
+  const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
 
   const triggerOptions = [
     { label: 'Trigger Loading', value: 'loading', icon: <LoadingIcon /> },
@@ -102,63 +28,72 @@ export function SegmentBoundaryTrigger({
     icon: <ResetIcon />,
   }
 
-  const handleSelect = (value: string) => {
-    if (value === 'not-found') {
-      onSelectBoundary('not-found')
-    } else if (value === 'loading') {
-      onSelectBoundary('loading')
-    } else if (value === 'error') {
-      onSelectBoundary('error')
-    } else if (value === 'reset') {
-      onSelectBoundary(null)
-    }
-    setIsOpen(false)
-  }
+  const handleSelect = useCallback(
+    (value: string) => {
+      switch (value) {
+        case 'not-found':
+        case 'loading':
+        case 'error':
+          onSelectBoundary(value)
+          break
+        case 'reset':
+          onSelectBoundary(null)
+          break
+        default:
+          break
+      }
+    },
+    [onSelectBoundary]
+  )
 
   return (
-    <div className="segment-boundary-trigger" ref={rootRef}>
-      <button
-        ref={triggerRef}
-        className="segment-boundary-trigger-button"
-        data-nextjs-dev-overlay-segment-boundary-trigger-button
-        onClick={handleToggleMenu}
-        type="button"
-      >
-        <DropdownIcon />
-      </button>
-      {isOpen && (
-        <div
-          className="segment-boundary-dropdown-backdrop"
-          data-nextjs-dev-overlay-segment-boundary-dropdown-backdrop
-          style={{
-            top: dropdownPosition.top - offset, // Extend upward to cover the gap
-            right: dropdownPosition.right,
-            paddingTop: offset, // Visual spacing while backdrop covers the gap
-          }}
-        >
-          <div className="segment-boundary-dropdown">
-            {triggerOptions.map((option) => (
-              <div
-                key={option.value}
+    <div className="segment-boundary-trigger">
+      <Menu.Root delay={0}>
+        <Menu.Trigger
+          className="segment-boundary-trigger-button"
+          data-nextjs-dev-overlay-segment-boundary-trigger-button
+          render={(triggerProps) => (
+            <button {...triggerProps} type="button">
+              <DropdownIcon />
+            </button>
+          )}
+        />
+
+        {/* @ts-expect-error remove this expect-error once shadowRoot is supported as container */}
+        <Menu.Portal container={shadowRootRef}>
+          <Menu.Positioner
+            className="segment-boundary-dropdown-positioner"
+            side="bottom"
+            align="center"
+            sideOffset={offset}
+            arrowPadding={8}
+          >
+            <Menu.Popup className="segment-boundary-dropdown">
+              {triggerOptions.map((option) => (
+                <Menu.Item
+                  key={option.value}
+                  className="segment-boundary-dropdown-item"
+                  onClick={() => handleSelect(option.value)}
+                >
+                  {option.icon}
+                  {option.label}
+                </Menu.Item>
+              ))}
+
+              <div className="segment-boundary-dropdown-divider" />
+
+              <Menu.Item
+                key={resetOption.value}
                 className="segment-boundary-dropdown-item"
-                onClick={() => handleSelect(option.value)}
+                onClick={() => handleSelect(resetOption.value)}
               >
-                {option.icon}
-                {option.label}
-              </div>
-            ))}
-            <div className="segment-boundary-dropdown-divider" />
-            <div
-              key={resetOption.value}
-              className="segment-boundary-dropdown-item"
-              onClick={() => handleSelect(resetOption.value)}
-            >
-              {resetOption.icon}
-              {resetOption.label}
-            </div>
-          </div>
-        </div>
-      )}
+                {resetOption.icon}
+                {resetOption.label}
+              </Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
     </div>
   )
 }
@@ -284,8 +219,6 @@ function ResetIcon() {
 
 export const styles = `
   .segment-boundary-trigger {
-    position: relative;
-    display: inline-flex;
     margin-left: auto;
     gap: 8px;
   }
@@ -299,22 +232,18 @@ export const styles = `
     font-weight: 500;
     color: var(--color-gray-1000);
     border-radius: 6px;
-  }
-  .segment-boundary-trigger-button--reset {
     background: transparent;
     border: none;
   }
+
   .segment-boundary-trigger-button svg {
     width: 20px;
     height: 20px;
   }
+
   .segment-boundary-trigger-button:hover {
     background: var(--color-gray-400);
     color: var(--color-gray-1000);
-  }
-  .segment-boundary-dropdown-backdrop {
-    position: fixed;
-    z-index: 3;
   }
 
   .segment-boundary-dropdown {
@@ -326,6 +255,10 @@ export const styles = `
     min-width: 120px;
   }
 
+  .segment-boundary-dropdown-positioner {
+    z-index: 2147483648;
+  }
+
   .segment-boundary-dropdown-item {
     display: flex;
     align-items: center;
@@ -335,6 +268,10 @@ export const styles = `
     border-radius: 6px;
     color: var(--color-gray-1000);
     cursor: pointer;
+    min-width: 220px;
+    border: none;
+    background: none;
+    width: 100%;
   }
 
   .segment-boundary-dropdown-item svg {
