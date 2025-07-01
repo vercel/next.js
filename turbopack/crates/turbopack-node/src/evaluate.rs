@@ -15,8 +15,8 @@ use serde_json::Value as JsonValue;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
     Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc, TaskInput,
-    TryJoinIterExt, Vc, apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc,
-    trace::TraceRawVcs, util::SharedError,
+    TryJoinIterExt, Vc, VcValueType, apply_effects, duration_span, fxindexmap, mark_finished,
+    prevent_gc, trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -371,7 +371,9 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
 
     // We create a new cell in this task, which will be updated from the
     // [compute_evaluate_stream] task.
-    let cell = turbo_tasks::macro_helpers::find_cell_by_type(*JAVASCRIPTEVALUATION_VALUE_TYPE_ID);
+    let cell = turbo_tasks::macro_helpers::find_cell_by_type(
+        <JavaScriptEvaluation as VcValueType>::get_value_type_id(),
+    );
 
     // We initialize the cell with a stream that is open, but has no values.
     // The first [compute_evaluate_stream] pipe call will pick up that stream.

@@ -12,8 +12,7 @@ use syn::{
     spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
-    get_register_value_type_ident, get_value_type_id_ident, get_value_type_ident,
-    get_value_type_init_ident,
+    get_register_value_type_ident, get_value_type_ident, get_value_type_init_ident,
 };
 
 enum IntoMode {
@@ -458,7 +457,6 @@ pub fn value_type_and_register(
 ) -> proc_macro2::TokenStream {
     let value_type_init_ident = get_value_type_init_ident(ident);
     let value_type_ident = get_value_type_ident(ident);
-    let value_type_id_ident = get_value_type_id_ident(ident);
     let register_value_type_ident = get_register_value_type_ident(ident);
 
     let (impl_generics, where_clause) = if let Some(generics) = generics {
@@ -485,11 +483,6 @@ pub fn value_type_and_register(
                     )
                 })
             });
-        #[doc(hidden)]
-        static #value_type_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
-            turbo_tasks::macro_helpers::Lazy::new(|| {
-                turbo_tasks::registry::get_value_type_id(*#value_type_ident)
-            });
 
 
         #[doc(hidden)]
@@ -511,7 +504,12 @@ pub fn value_type_and_register(
             type CellMode = #cell_mode;
 
             fn get_value_type_id() -> turbo_tasks::ValueTypeId {
-                *#value_type_id_ident
+                static ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
+                turbo_tasks::macro_helpers::Lazy::new(|| {
+                    turbo_tasks::registry::get_value_type_id(*#value_type_ident)
+                });
+
+                *ident
             }
         }
     }
