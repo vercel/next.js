@@ -28,7 +28,7 @@ async function main() {
   await exec(`node ${SCRIPT}`)
 
   await exec(`git config user.name "nextjs-bot"`)
-  await exec(`git config user.email "infra+release@vercel.com"`)
+  await exec(`git config user.email "it+nextjs-bot@vercel.com"`)
   await exec(`git checkout -b ${branchName}`)
   await exec(`git add -A`)
   await exec(`git commit --message ${branchName}`)
