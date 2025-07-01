@@ -144,55 +144,62 @@ where
             )
         });
 
-        // defer removals to avoid multiple simultaneous mutable borrows
+        // defer insertions and removals to avoid multiple simultaneous mutable borrows
+        let mut updated_start_value = None;
         let mut remove_list = Vec::new();
 
+        // N.B. `prev_value` can be `None` if `start_bound` is `B::bound_min()`
+        // this value must be cloned because we mutably borrow `interval_starts` below
+        let prev_value = self
+            .upper_bound(Bound::Excluded(&start_bound))
+            .map(|(_, v)| v.clone());
+
+        let mut starts_iter = self
+            .interval_starts
+            .range_mut((Bound::Included(start_bound), Bound::Included(end_bound)))
+            .peekable();
+
         // insert or update an interval starting at `start_bound`
-        let mut prev_value = if let Some(cur_value) = self.interval_starts.get_mut(&start_bound) {
-            update(cur_value);
-            let cur_value = cur_value.clone();
-            // N.B. `prev_value` can be `None` if `start_bound` is `B::bound_min()`
-            let prev_value = self
-                .upper_bound(Bound::Excluded(&start_bound))
-                .map(|(_, v)| v);
-            if Some(&cur_value) == prev_value {
-                // merge identical adjacent intervals
-                remove_list.push(start_bound);
-            }
-            cur_value
-        } else {
-            let prev_value = self
-                .upper_bound(Bound::Excluded(&start_bound))
-                .expect(
+        let mut prev_value_inner;
+        let mut prev_value =
+            if let Some((_, cur_value)) = starts_iter.next_if(|(b, _)| *b == &start_bound) {
+                update(cur_value);
+
+                if Some(&*cur_value) == prev_value.as_ref() {
+                    // merge identical adjacent intervals
+                    remove_list.push(start_bound);
+                }
+
+                cur_value
+            } else {
+                prev_value_inner = prev_value.expect(
                     "there's no interval starting at `start_bound`, so there must be one before it",
-                )
-                .1;
-            let mut cur_value = prev_value.clone();
-            update(&mut cur_value);
-            if &cur_value != prev_value {
-                // only start a new interval if it's different
-                self.interval_starts.insert(start_bound, cur_value.clone());
-            }
-            cur_value
-        };
+                );
+
+                let mut cur_value = prev_value_inner.clone();
+                update(&mut cur_value);
+                if cur_value != prev_value_inner {
+                    // only start a new interval if it's different
+                    updated_start_value.get_or_insert(cur_value)
+                } else {
+                    &mut prev_value_inner
+                }
+            };
 
         // update existing intervals from start_bound (exclusive) to end_bound (inclusive)
         if start_bound < end_bound {
-            for (cur_bound, cur_value) in self
-                .interval_starts
-                .range_mut((Bound::Excluded(start_bound), Bound::Included(end_bound)))
-            {
+            for (cur_bound, cur_value) in starts_iter {
                 update(cur_value);
-                if cur_value == &prev_value {
+                if cur_value == prev_value {
                     remove_list.push(*cur_bound);
                 }
-                prev_value = cur_value.clone();
+                prev_value = cur_value;
             }
         }
 
         // don't modify any intervals following the ones we updated
         if let Some((tail_bound, tail_value)) = tail {
-            if prev_value != tail_value {
+            if prev_value != &tail_value {
                 self.interval_starts.insert(tail_bound, tail_value);
             } else {
                 // there *might* be a no-longer-needed interval start here, try to remove it
@@ -200,8 +207,12 @@ where
             }
         }
 
+        // apply deferred insertions and removals
         for pos in remove_list {
             self.interval_starts.remove(&pos);
+        }
+        if let Some(start_value) = updated_start_value {
+            self.interval_starts.insert(start_bound, start_value);
         }
     }
 
