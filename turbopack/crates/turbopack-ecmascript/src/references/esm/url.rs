@@ -61,7 +61,7 @@ pub enum UrlRewriteBehavior {
 }
 
 /// URL Asset References are injected during code analysis when we find a
-/// (staticly analyzable) `new URL("path", import.meta.url)`.
+/// (statically analyzable) `new URL("path", import.meta.url)`.
 ///
 /// It's responsible rewriting the `URL` constructor's arguments to allow the
 /// referenced file to be imported/fetched/etc.
@@ -248,7 +248,7 @@ impl UrlAssetReferenceCodeGen {
                 // be a location.origin because it allows us to access files from the root of
                 // the dev server.
                 //
-                // By default for the remaining environments, turbopack's runtime have overriden
+                // By default for the remaining environments, turbopack's runtime have overridden
                 // `import.meta.url`.
                 let rewrite_url_base = match reference.rendering {
                     Rendering::Client => Some(quote!("location.origin" as Expr)),
@@ -266,7 +266,7 @@ impl UrlAssetReferenceCodeGen {
                         // (asset_url) from the base. Wrap the module id
                         // with __turbopack_require__ which returns the asset_url.
                         //
-                        // Otherwise, the envioronment should provide an absolute path to the actual
+                        // Otherwise, the environment should provide an absolute path to the actual
                         // output asset; delegate those calculation to the
                         // runtime fn __turbopack_resolve_module_id_path__.
                         let url_segment_resolver = if rewrite_url_base.is_some() {

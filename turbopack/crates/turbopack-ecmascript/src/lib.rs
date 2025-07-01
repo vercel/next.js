@@ -1770,7 +1770,7 @@ async fn process_parse_result(
         async |parse_result| -> Result<CodeGenResult> {
             Ok(match parse_result {
                 ParseResult::Ok { .. } => unreachable!(),
-                ParseResult::Unparseable { messages } => {
+                ParseResult::Unparsable { messages } => {
                     let path = ident.path().to_string().await?;
                     let error_messages = messages
                         .as_ref()
@@ -1782,7 +1782,7 @@ async fn process_parse_result(
                             "const e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
-                        quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
+                        quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
                         quote!("throw e;" as Stmt),
                     ];
 
@@ -1810,7 +1810,7 @@ async fn process_parse_result(
                             "const e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
-                        quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
+                        quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
                         quote!("throw e;" as Stmt),
                     ];
                     CodeGenResult {

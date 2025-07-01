@@ -62,7 +62,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 ///   re-executed.
 ///
 /// - `Vc` types are always [`Copy`]. Most [`Future`]s are not. This works because `Vc`s are
-///   represented as a few ids or indicies into data structures managed by the `turbo-tasks`
+///   represented as a few ids or indices into data structures managed by the `turbo-tasks`
 ///   framework. `Vc` types are not reference counted, but do support [tracing] for a hypothetical
 ///   (unimplemented) garbage collector.
 ///
@@ -103,13 +103,13 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 /// |-----------------|------------------------------------|-----------------|----------------------------|------------------------|-------------------|--------------|
 /// | [`Vc`]          | [One of many][RawVc]               | ❌ [Broken][eq] | ⚠️  After resolution        | ❌ Eventual            | ❌ No             | ❌ [No][loc] |
 /// | [`ResolvedVc`]  | [Task Id + Type Id + Cell Id][rtc] | ✅ Yes\*        | ✅ [Yes, cheaply][resolve] | ❌ Eventual            | ❌ No             | ✅ Yes       |
-/// | [`OperationVc`] | [Task Id][rto]                     | ✅ Yes\*        | ⚠️  After resolution        | ✅ [Supported][strong] | ✅ [Yes][collect] | ✅ Yes       |
+/// | [`OperationVc`] | [Task Id][to]                     | ✅ Yes\*        | ⚠️  After resolution        | ✅ [Supported][strong] | ✅ [Yes][collect] | ✅ Yes       |
 ///
 /// *\* see the type's documentation for details*
 ///
 /// [Non-Local]: NonLocalValue
 /// [rtc]: RawVc::TaskCell
-/// [rto]: RawVc::TaskOutput
+/// [to]: RawVc::TaskOutput
 /// [loc]: #optimization-local-outputs
 /// [eq]: #equality--hashing
 /// [resolve]: ResolvedVc::try_downcast

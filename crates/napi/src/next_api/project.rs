@@ -124,7 +124,7 @@ pub struct NapiProjectOptions {
     /// A path inside the root_path which contains the app/pages directories.
     pub project_path: RcStr,
 
-    /// next.config's distDir. Project initialization occurs eariler than
+    /// next.config's distDir. Project initialization occurs earlier than
     /// deserializing next.config, so passing it as separate option.
     pub dist_dir: RcStr,
 
@@ -178,7 +178,7 @@ pub struct NapiPartialProjectOptions {
     /// A path inside the root_path which contains the app/pages directories.
     pub project_path: Option<RcStr>,
 
-    /// next.config's distDir. Project initialization occurs eariler than
+    /// next.config's distDir. Project initialization occurs earlier than
     /// deserializing next.config, so passing it as separate option.
     pub dist_dir: Option<Option<RcStr>>,
 

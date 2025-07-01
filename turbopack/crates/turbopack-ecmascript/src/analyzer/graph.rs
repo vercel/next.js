@@ -1416,7 +1416,7 @@ impl VisitAstPath for Analyzer<'_> {
             return;
         }
 
-        // special behavior of IIFEs
+        // special behavior of IFEs
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CallExpr(n, CallExprField::Callee));
