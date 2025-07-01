@@ -7,7 +7,7 @@ import { openDevToolsIndicatorPopover, retry } from 'next-test-utils'
 describe('client-dev-overlay', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: {
-      pages: new FileRef(join(__dirname, 'app/pages')),
+      pages: new FileRef(join(__dirname, 'pages')),
     },
     env: {
       // Disable the cooldown period for the dev indicator so that hiding the indicator in a test doesn't
