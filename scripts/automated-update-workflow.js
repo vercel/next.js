@@ -27,7 +27,7 @@ async function main() {
 
   await exec(`node ${SCRIPT}`)
 
-  await exec(`git config user.name "vercel-release-bot"`)
+  await exec(`git config user.name "nextjs-bot"`)
   await exec(`git config user.email "infra+release@vercel.com"`)
   await exec(`git checkout -b ${branchName}`)
   await exec(`git add -A`)
@@ -76,7 +76,7 @@ async function main() {
   console.log('Created pull request', pullRequest.url)
 
   const previousPullRequests = pullRequests.filter(({ title, user }) => {
-    return title.includes(PR_TITLE) && user.login === 'vercel-release-bot'
+    return title.includes(PR_TITLE) && user.login === 'nextjs-bot'
   })
 
   if (previousPullRequests.length) {

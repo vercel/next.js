@@ -30,7 +30,7 @@ jobs:
 
       - name: Set Git author
         run: |
-          git config user.name "vercel-release-bot"
+          git config user.name "nextjs-bot"
           git config user.email "infra+release@vercel.com"
 
       - name: Setup node
