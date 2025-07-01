@@ -42,9 +42,10 @@ rayon = { workspace = true }
 ringmap = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
+serde_bytes = { workspace = true }
 serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
-smallvec = { workspace = true }
+smallvec = { workspace = true, features = ["write"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
 thread_local = { workspace = true }

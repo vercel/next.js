@@ -71,7 +71,7 @@ Set the cache lifetime of a resource (in seconds). [Data Cache](/docs/app/guides
 >
 > - If an individual `fetch()` request sets a `revalidate` number lower than the [default `revalidate`](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) of a route, the whole route revalidation interval will be decreased.
 > - If two fetch requests with the same URL in the same route have different `revalidate` values, the lower value will be used.
-> - Conflicting options such as `{ revalidate: 3600, cache: 'no-store' }` will cause an error.
+> - Conflicting options such as `{ revalidate: 3600, cache: 'no-store' }` are not allowed, both will be ignored, and in development mode a warning will be printed to the terminal.
 
 ### `options.next.tags`
 

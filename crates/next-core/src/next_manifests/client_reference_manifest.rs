@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    Vc, trace::TraceRawVcs,
+    FxIndexSet, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -32,8 +32,8 @@ use crate::{
 
 #[derive(TaskInput, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub struct ClientReferenceManifestOptions {
-    pub node_root: ResolvedVc<FileSystemPath>,
-    pub client_relative_path: ResolvedVc<FileSystemPath>,
+    pub node_root: FileSystemPath,
+    pub client_relative_path: FileSystemPath,
     pub entry_name: RcStr,
     pub client_references: ResolvedVc<ClientReferenceGraphResult>,
     pub client_references_chunks: ResolvedVc<ClientReferencesChunks>,
@@ -96,8 +96,8 @@ impl ClientReferenceManifest {
                 layout_segment_client_chunks,
                 client_component_ssr_chunks,
             } = &*client_references_chunks.await?;
-            let client_relative_path = &*client_relative_path.await?;
-            let node_root_ref = &*node_root.await?;
+            let client_relative_path = client_relative_path.clone();
+            let node_root_ref = node_root.clone();
 
             let client_references_ecmascript = client_references
                 .await?
@@ -128,11 +128,10 @@ impl ClientReferenceManifest {
                 .await?;
 
             async fn cached_chunk_paths(
-                cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, ReadRef<FileSystemPath>>,
+                cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath>,
                 chunks: impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
-            ) -> Result<
-                impl Iterator<Item = (ResolvedVc<Box<dyn OutputAsset>>, ReadRef<FileSystemPath>)>,
-            > {
+            ) -> Result<impl Iterator<Item = (ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath)>>
+            {
                 let results = chunks
                     .into_iter()
                     .map(|chunk| (chunk, cache.get(&chunk).cloned()))
@@ -140,7 +139,7 @@ impl ClientReferenceManifest {
                         Ok(if let Some(path) = path {
                             (chunk, Either::Left(path))
                         } else {
-                            (chunk, Either::Right(chunk.path().await?))
+                            (chunk, Either::Right(chunk.path().await?.clone_value()))
                         })
                     })
                     .try_join()
@@ -158,11 +157,11 @@ impl ClientReferenceManifest {
             }
             let mut client_chunk_path_cache: FxHashMap<
                 ResolvedVc<Box<dyn OutputAsset>>,
-                ReadRef<FileSystemPath>,
+                FileSystemPath,
             > = FxHashMap::default();
             let mut ssr_chunk_path_cache: FxHashMap<
                 ResolvedVc<Box<dyn OutputAsset>>,
-                ReadRef<FileSystemPath>,
+                FileSystemPath,
             > = FxHashMap::default();
 
             for (client_reference_module, client_reference_module_ref) in
@@ -327,8 +326,9 @@ impl ClientReferenceManifest {
             for (server_component, client_chunks) in layout_segment_client_chunks.iter() {
                 let server_component_name = server_component
                     .server_path()
-                    .with_extension("".into())
-                    .to_string()
+                    .await?
+                    .with_extension("")
+                    .value_to_string()
                     .owned()
                     .await?;
                 let mut entry_css_files_with_chunk = Vec::new();
@@ -396,10 +396,9 @@ impl ClientReferenceManifest {
             // path still (same as webpack does)
             let normalized_manifest_entry = entry_name.replace("%5F", "_");
             Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
-                node_root.join(
-                    format!("server/app{normalized_manifest_entry}_client-reference-manifest.js",)
-                        .into(),
-                ),
+                node_root.join(&format!(
+                    "server/app{normalized_manifest_entry}_client-reference-manifest.js",
+                ))?,
                 AssetContent::file(
                     File::from(formatdoc! {
                         r#"

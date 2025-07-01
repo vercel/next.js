@@ -797,11 +797,13 @@ pub fn is_in_try(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
         .iter()
         .rev()
         .find_map(|ast_ref| match ast_ref.kind() {
-            AstParentKind::ArrowExpr(ArrowExprField::Body) => Some(false),
-            AstParentKind::Function(FunctionField::Body) => Some(false),
-            AstParentKind::Constructor(ConstructorField::Body) => Some(false),
-            AstParentKind::ClassMethod(ClassMethodField::Function) => Some(false),
-            AstParentKind::MethodProp(MethodPropField::Function) => Some(false),
+            AstParentKind::ArrowExpr(ArrowExprField::Body)
+            | AstParentKind::Function(FunctionField::Body)
+            | AstParentKind::Constructor(ConstructorField::Body)
+            | AstParentKind::ClassMethod(ClassMethodField::Function)
+            | AstParentKind::GetterProp(GetterPropField::Body)
+            | AstParentKind::SetterProp(SetterPropField::Body)
+            | AstParentKind::MethodProp(MethodPropField::Function) => Some(false),
             AstParentKind::TryStmt(TryStmtField::Block) => Some(true),
             _ => None,
         })
@@ -1928,6 +1930,8 @@ impl VisitAstPath for Analyzer<'_> {
             matches!(
                 node.kind(),
                 AstParentKind::MethodProp(MethodPropField::Function)
+                    | AstParentKind::GetterProp(GetterPropField::Body)
+                    | AstParentKind::SetterProp(SetterPropField::Body)
                     | AstParentKind::Constructor(ConstructorField::Body)
                     | AstParentKind::ClassMethod(ClassMethodField::Function)
                     | AstParentKind::ClassDecl(ClassDeclField::Class)

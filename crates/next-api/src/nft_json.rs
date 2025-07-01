@@ -60,7 +60,9 @@ impl OutputAsset for NftJsonAsset {
         Ok(path
             .fs
             .root()
-            .join(format!("{}.nft.json", path.path).into()))
+            .await?
+            .join(&format!("{}.nft.json", path.path))?
+            .cell())
     }
 }
 
@@ -100,7 +102,7 @@ fn get_output_specifier(
 
 /// Apply outputFileTracingIncludes patterns to find additional files
 async fn apply_includes(
-    project_root_path: Vc<FileSystemPath>,
+    project_root_path: FileSystemPath,
     glob: Vc<Glob>,
     ident_folder: &FileSystemPath,
 ) -> Result<BTreeSet<RcStr>> {
@@ -118,9 +120,9 @@ async fn apply_includes(
                 continue;
             };
 
-            let file_path_ref = file_path.await?;
+            let file_path_ref = file_path;
             // Convert to relative path from ident_folder to the file
-            if let Some(relative_path) = ident_folder.get_relative_path_to(&file_path_ref) {
+            if let Some(relative_path) = ident_folder.get_relative_path_to(file_path_ref) {
                 result.insert(relative_path);
             }
         }
@@ -150,14 +152,13 @@ impl Asset for NftJsonAsset {
 
         let client_root = this.project.client_fs().root();
         let client_root_ref = client_root.await?;
-        let project_root_path = this.project.project_root_path(); // Example: [project]
+        let project_root_path = this.project.project_root_path().await?.clone_value(); // Example: [project]
 
         // Example: [output]/apps/my-website/.next/server/app -- without the `.nft.json`
-        let ident_folder = self.path().parent().await?;
+        let ident_folder = self.path().await?.parent();
         // Example: [project]/apps/my-website/.next/server/app -- without the `.nft.json`
-        let ident_folder_in_project_fs = project_root_path
-            .join(ident_folder.path.clone()) // apps/my-website/.next/server/app
-            .await?;
+        // apps/my-website/.next/server/app
+        let ident_folder_in_project_fs = project_root_path.join(&ident_folder.path)?;
 
         let chunk = this.chunk;
         let entries = this
@@ -244,7 +245,7 @@ impl Asset for NftJsonAsset {
         // Apply outputFileTracingIncludes and outputFileTracingExcludes
         // Extract route from chunk path for pattern matching
         if let Some(route) = &this.page_name {
-            let project_path = this.project.project_path();
+            let project_path = this.project.project_path().await?.clone_value();
             let mut combined_includes = BTreeSet::new();
 
             // Process includes

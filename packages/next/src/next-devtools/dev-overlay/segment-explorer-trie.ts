@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import type { SegmentNodeState } from '../userspace/app/segment-explorer-node'
 
 /**
  * Trie data structure for storing and searching paths
@@ -61,7 +62,7 @@ function createTrie<Value = string>({
   getCharacters?: (item: Value) => string[]
   compare?: (a: Value | undefined, b: Value | undefined) => boolean
 }): Trie<Value> {
-  const root: TrieNode<Value> = {
+  let root: TrieNode<Value> = {
     value: undefined,
     children: {},
   }
@@ -89,6 +90,7 @@ function createTrie<Value = string>({
 
     currentNode.value = value
 
+    root = { ...root }
     markUpdated()
   }
 
@@ -118,6 +120,7 @@ function createTrie<Value = string>({
       }
     }
 
+    root = { ...root }
     markUpdated()
   }
 
@@ -128,18 +131,17 @@ function createTrie<Value = string>({
   return { insert, remove, getRoot }
 }
 
-export type SegmentNode = {
-  type: string
-  pagePath: string
-}
-
-export type SegmentTrie = Trie<SegmentNode>
-export type SegmentTrieNode = TrieNode<SegmentNode>
+export type SegmentTrie = Trie<SegmentNodeState>
+export type SegmentTrieNode = TrieNode<SegmentNodeState>
 
 const trie: SegmentTrie = createTrie({
   compare: (a, b) => {
     if (!a || !b) return false
-    return a.pagePath === b.pagePath && a.type === b.type
+    return (
+      a.pagePath === b.pagePath &&
+      a.type === b.type &&
+      a.boundaryType === b.boundaryType
+    )
   },
   getCharacters: (item) => item.pagePath.split('/'),
 })

@@ -2,13 +2,16 @@ import type { OverlayState } from '../../shared'
 
 import { DevToolsPanelVersionInfo } from './devtools-panel-version-info'
 import { css } from '../../utils/css'
+import { RestartServerButton } from '../errors/error-overlay-toolbar/restart-server-button'
 
 export function DevToolsPanelFooter({
   versionInfo,
   isDraggable,
+  showRestartServerButton,
 }: {
   versionInfo: OverlayState['versionInfo']
   isDraggable: boolean
+  showRestartServerButton: boolean
 }) {
   const bundlerName = (
     process.env.__NEXT_BUNDLER || 'WEBPACK'
@@ -32,6 +35,11 @@ export function DevToolsPanelFooter({
           </span>
         </div>
       </div>
+      {showRestartServerButton && (
+        <div data-nextjs-devtools-panel-footer-tab-group>
+          <RestartServerButton showButton={true} />
+        </div>
+      )}
     </div>
   )
 }
