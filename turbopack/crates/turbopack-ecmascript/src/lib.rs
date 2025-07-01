@@ -2029,7 +2029,7 @@ fn hygiene_rename_only(
     // Copied from `hygiene_with_config`'s HygieneRenamer, but added an `preserved_exports`
     impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer<'_> {
         const MANGLE: bool = false;
-        const RESET_N: bool = true;
+        const RESET_N: bool = false;
 
         fn new_name_for(&self, orig: &Id, n: &mut usize) -> Atom {
             let res = if *n == 0 {
