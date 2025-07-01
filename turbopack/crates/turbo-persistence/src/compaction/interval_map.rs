@@ -1,10 +1,8 @@
 use std::{
     collections::{BTreeMap, btree_map},
-    iter::{self, Peekable},
+    iter::Peekable,
     ops::{Bound, RangeBounds, RangeInclusive},
 };
-
-use either::Either;
 
 /// Values that can be used as the bound of an interval.
 ///
@@ -54,7 +52,7 @@ where
 /// B::bound_max()]`), where entries are deduplicated using a variation on [run-length
 /// encoding][rle].
 ///
-/// Ranges can be split by [`IntervalMap::update`], but are never merged.
+/// Ranges can be split or merged by [`IntervalMap::update`] and [`IntervalMap::replace`].
 ///
 /// [rle]: https://en.wikipedia.org/wiki/Run-length_encoding
 pub struct IntervalMap<T, B = u64> {
@@ -123,94 +121,83 @@ where
 impl<T, B> IntervalMap<T, B>
 where
     B: IntervalBound,
-    T: Clone,
+    T: Clone + Eq,
 {
-    /// Helper for inserting a new interval start.
-    ///
-    /// Splits any existing intervals by inserting a new interval start with the current value of
-    /// that position. If there's already a point at that position, this is a no-op.
-    ///
-    /// Returns a mutable reference to the value at the interval start.
-    fn ensure_split_interval(&mut self, position: B) {
-        let closest_start = self.upper_bound(Bound::Included(&position));
-
-        if *closest_start.0 == position {
-            // there's already a point there, bail
-            return;
-        }
-
-        self.interval_starts
-            .insert(position, (*closest_start.1).clone());
-    }
-
     /// Applies the update function to all values in the specified range. It doesn't iterate over
     /// every value one-by-one, but instead it iterates over intersecting ranges.
     ///
-    /// This always splits intervals in case the value is modified. Split intervals are never
-    /// merged. On average, `n` calls to `update` with unique ranges will create `n` intervals.
-    pub fn update(&mut self, bounds: impl RangeBounds<B>, mut update: impl FnMut(&mut T)) {
-        fn get_iter_mut<T, B>(
-            this: &mut IntervalMap<T, B>,
-            range: RangeInclusive<B>,
-        ) -> impl Iterator<Item = (&B, &mut T)>
-        where
-            B: IntervalBound,
-            T: Clone,
-        {
-            let start = *range.start();
-            let end = *range.end();
-            if start > end {
-                return Either::Left(iter::empty());
-            }
-
-            // split at start/end points, ideally these methods would return cursors
-            this.ensure_split_interval(start);
-            if let Some(end_plus_one) = end.checked_increment() {
-                this.ensure_split_interval(end_plus_one);
-            }
-
-            Either::Right(this.interval_starts.range_mut(range))
+    /// Newly equal intervals are merged.
+    pub fn update(&mut self, range: impl RangeBounds<B>, mut update: impl FnMut(&mut T)) {
+        let range = into_range_inclusive(range);
+        let start_bound = *range.start();
+        let end_bound = *range.end();
+        if start_bound > end_bound {
+            return;
         }
 
-        get_iter_mut(self, into_range_inclusive(bounds)).for_each(|(_, value)| update(value));
+        let tail = end_bound
+            .checked_increment()
+            .map(|tb| (tb, self.upper_bound(Bound::Included(&tb)).1.clone()));
+
+        // defer removals to avoid multiple simultaneous mutable borrows
+        let mut remove_list = Vec::new();
+
+        // insert or update an interval starting at `start_bound`
+        let mut prev_value = if let Some(cur_value) = self.interval_starts.get_mut(&start_bound) {
+            update(cur_value);
+            let cur_value = cur_value.clone();
+            let prev_value = start_bound
+                .checked_decrement()
+                .map(|sb| self.upper_bound(Bound::Included(&sb)).1);
+            if Some(&cur_value) == prev_value {
+                // merge identical adjacent intervals
+                remove_list.push(start_bound);
+            }
+            cur_value
+        } else {
+            let prev_value = self.upper_bound(Bound::Excluded(&start_bound)).1;
+            let mut cur_value = prev_value.clone();
+            update(&mut cur_value);
+            if &cur_value != prev_value {
+                // only start a new interval if it's different
+                self.interval_starts.insert(start_bound, cur_value.clone());
+            }
+            cur_value
+        };
+
+        // update existing intervals from start_bound (exclusive) to end_bound (inclusive)
+        if start_bound < end_bound {
+            for (cur_bound, cur_value) in self
+                .interval_starts
+                .range_mut((Bound::Excluded(start_bound), Bound::Included(end_bound)))
+            {
+                update(cur_value);
+                if cur_value == &prev_value {
+                    remove_list.push(*cur_bound);
+                }
+                prev_value = cur_value.clone();
+            }
+        }
+
+        // don't modify any intervals following the ones we updated
+        if let Some((tail_bound, tail_value)) = tail {
+            if prev_value != tail_value {
+                self.interval_starts.insert(tail_bound, tail_value);
+            } else {
+                // there *might* be a no-longer-needed interval start here, try to remove it
+                remove_list.push(tail_bound);
+            }
+        }
+
+        for pos in remove_list {
+            self.interval_starts.remove(&pos);
+        }
     }
 
-    pub fn insert(&mut self, bounds: impl RangeBounds<B>, value: T)
-    where
-        T: Clone,
-    {
-        fn inner<T, B>(this: &mut IntervalMap<T, B>, range: RangeInclusive<B>, value: T)
-        where
-            B: IntervalBound,
-            T: Clone,
-        {
-            let start = *range.start();
-            let end = *range.end();
-            if start > end {
-                return;
-            }
-
-            // add the `end` first, in case adding the `start` changes the value at that point
-            if let Some(end_plus_one) = end.checked_increment() {
-                this.ensure_split_interval(end_plus_one);
-            }
-
-            // don't use `ensure_split_interval`, we just want to set a value, not update one
-            this.interval_starts.insert(start, value);
-
-            // drop any `interval_starts`s in the middle of this new range
-            if start != end {
-                let middle_positions: Vec<_> = this
-                    .interval_starts
-                    .range((Bound::Excluded(start), Bound::Excluded(end)))
-                    .map(|(pos, _)| *pos)
-                    .collect();
-                for pos in middle_positions {
-                    this.interval_starts.remove(&pos);
-                }
-            }
-        }
-        inner(self, into_range_inclusive(bounds), value)
+    pub fn replace(&mut self, bounds: impl RangeBounds<B>, value: T) {
+        // it would be more efficient to implement this directly, but this is good enough for our
+        // current use-cases
+        self.update(bounds, |v| *v = value.clone());
     }
 }
 
@@ -240,7 +227,7 @@ where
         inner(self, into_range_inclusive(range))
     }
 
-    /// Returns an iterator over the non-`None` intervals and their associated values.
+    /// Returns an iterator over all the intervals and their associated values.
     pub fn iter(&self) -> IntervalMapIterator<'_, T, B> {
         IntervalMapIterator {
             starts_iter: self.interval_starts.range(..).peekable(),
@@ -272,48 +259,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /*
-    use std::fmt::{self, Display};
-
-    /// An integer with a very limited range to allow for exhaustive unit tests of
-    /// all possible values.
-    #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-    pub struct TinyInt(pub u8);
-
-    impl TinyInt {
-        pub const MIN: TinyInt = TinyInt(0);
-        pub const MAX: TinyInt = TinyInt(6);
-    }
-
-    impl IntervalBound for TinyInt {
-        fn bound_min() -> Self {
-            Self::MIN
-        }
-        fn bound_max() -> Self {
-            Self::MAX
-        }
-        fn checked_increment(&self) -> Option<Self> {
-            if self < &Self::bound_max() {
-                Some(Self(self.0 + 1))
-            } else {
-                None
-            }
-        }
-        fn checked_decrement(&self) -> Option<Self> {
-            if self > &Self::bound_min() {
-                Some(Self(self.0 - 1))
-            } else {
-                None
-            }
-        }
-    }
-
-    impl Display for TinyInt {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{}", self.0)
-        }
-    }*/
+    use crate::compaction::naive_interval_map::{NaiveIntervalMap, TinyInt};
 
     #[test]
     fn test_interval_map() {
@@ -364,10 +310,63 @@ mod tests {
     #[test]
     fn test_interval_map_single_point() {
         let mut map: IntervalMap<u32> = IntervalMap::new();
-        map.insert(10..=10, 1);
+        map.replace(10..=10, 1);
 
         let expected = vec![(0..=9, &0), (10..=10, &1), (11..=u64::MAX, &0)];
         let result: Vec<_> = map.iter().collect();
         assert_eq!(result, expected);
+    }
+
+    fn for_all_tiny_int_ranges<T: Copy>(
+        values: impl IntoIterator<Item = T>,
+        mut cb: impl FnMut((RangeInclusive<TinyInt>, T)),
+    ) {
+        for value in values {
+            for start in 0..=TinyInt::MAX.0 {
+                for end in start..=TinyInt::MAX.0 {
+                    cb((TinyInt(start)..=TinyInt(end), value));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_exhaustive_replace_versus_naive() {
+        for_all_tiny_int_ranges([0, 1], |a| {
+            for_all_tiny_int_ranges([1, 2], |b| {
+                for_all_tiny_int_ranges([2, 3], |c| {
+                    let mut real_map = IntervalMap::<u32, TinyInt>::new();
+                    let mut naive_map = NaiveIntervalMap::<u32, TinyInt>::new();
+                    for (range, value) in [&a, &b, &c] {
+                        real_map.replace(range.clone(), *value);
+                        naive_map.replace(range.clone(), *value);
+                    }
+                    assert_eq!(
+                        real_map.iter().collect::<Vec<_>>(),
+                        naive_map.iter().collect::<Vec<_>>(),
+                    )
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_exhaustive_update_versus_naive() {
+        for_all_tiny_int_ranges([1, 2], |a| {
+            for_all_tiny_int_ranges([2, 4], |b| {
+                for_all_tiny_int_ranges([4, 8], |c| {
+                    let mut real_map = IntervalMap::<u32, TinyInt>::new();
+                    let mut naive_map = NaiveIntervalMap::<u32, TinyInt>::new();
+                    for (range, flag) in [&a, &b, &c] {
+                        real_map.update(range.clone(), |v| *v |= flag);
+                        naive_map.update(range.clone(), |v| *v |= flag);
+                    }
+                    assert_eq!(
+                        real_map.iter().collect::<Vec<_>>(),
+                        naive_map.iter().collect::<Vec<_>>(),
+                    )
+                });
+            });
+        });
     }
 }

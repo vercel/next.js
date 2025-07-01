@@ -142,7 +142,7 @@ impl Default for CompactConfig {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Eq, PartialEq)]
 struct DuplicationInfo {
     /// The sum of all encountered scaled sizes.
     total_size: u64,
@@ -355,7 +355,7 @@ pub fn get_merge_segments<T: Compactable>(
         // Mark the ranges of the segment as used.
         for i in segment {
             let range = compactables[*i].range();
-            used_ranges.insert(range, true);
+            used_ranges.replace(range, true);
         }
         true
     });
