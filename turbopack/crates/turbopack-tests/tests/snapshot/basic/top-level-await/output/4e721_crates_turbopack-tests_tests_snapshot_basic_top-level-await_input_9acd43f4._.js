@@ -5,19 +5,19 @@
 
 // import() doesn't care about whether a module is an async module or not
 __turbopack_context__.s({
-    "AlternativeCreateUserAction": ()=>AlternativeCreateUserAction,
-    "CreateUserAction": ()=>CreateUserAction
+    "AlternativeCreateUserAction": ()=>AlternativeCreateUserAction2,
+    "CreateUserAction": ()=>CreateUserAction1
 });
 const UserApi = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript, async loader)")(__turbopack_context__.i);
-const CreateUserAction = async (name)=>{
+const CreateUserAction1 = async (name)=>{
     console.log('Creating user', name);
     // These are normal awaits, because they are in an async function
-    const { createUser } = await UserApi;
-    await createUser(name);
+    const { createUser: createUser1 } = await UserApi;
+    await createUser1(name);
 };
-const AlternativeCreateUserAction = async (name)=>{
-    const { createUser } = await __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript, async loader)")(__turbopack_context__.i);
-    await createUser(name);
+const AlternativeCreateUserAction2 = async (name)=>{
+    const { createUser: createUser1 } = await __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript, async loader)")(__turbopack_context__.i);
+    await createUser1(name);
 } // Note: Using await import() at top-level doesn't make much sense
  //       except in rare cases. It will import modules sequentially.
 ;

@@ -4,24 +4,24 @@
 
 var { m: module, e: exports } = __turbopack_context__;
 {
-function toFixed(value, maxDecimals, roundingFunction, optionals) {
-    var splitValue = value.toString().split('.'), minDecimals = maxDecimals - (optionals || 0), optionalsRegExp, power, output;
-    var boundedPrecisions;
+function toFixed(value, maxDecimals1, roundingFunction2, optionals3) {
+    var splitValue4 = value.toString().split('.'), minDecimals5 = maxDecimals1 - (optionals3 || 0), optionalsRegExp6, power7, output8;
+    var boundedPrecisions9;
     // var unused = 'xxxx';
     // Use the smallest precision value possible to avoid errors from floating point representation
-    if (splitValue.length === 2) {
-        boundedPrecisions = Math.min(Math.max(splitValue[1].length, minDecimals), maxDecimals);
+    if (splitValue4.length === 2) {
+        boundedPrecisions9 = Math.min(Math.max(splitValue4[1].length, minDecimals5), maxDecimals1);
     } else {
-        boundedPrecisions = minDecimals;
+        boundedPrecisions9 = minDecimals5;
     }
-    power = Math.pow(10, boundedPrecisions);
+    power7 = Math.pow(10, boundedPrecisions9);
     // Multiply up by precision, round accurately, then divide and use native toFixed():
-    output = (roundingFunction(value + 'e+' + boundedPrecisions) / power).toFixed(boundedPrecisions);
-    if (optionals > maxDecimals - boundedPrecisions) {
-        optionalsRegExp = new RegExp('\\.?0{1,' + (optionals - (maxDecimals - boundedPrecisions)) + '}$');
-        output = output.replace(optionalsRegExp, '');
+    output8 = (roundingFunction2(value + 'e+' + boundedPrecisions9) / power7).toFixed(boundedPrecisions9);
+    if (optionals3 > maxDecimals1 - boundedPrecisions9) {
+        optionalsRegExp6 = new RegExp('\\.?0{1,' + (optionals3 - (maxDecimals1 - boundedPrecisions9)) + '}$');
+        output8 = output8.replace(optionalsRegExp6, '');
     }
-    return output;
+    return output8;
 }
 toFixed(1.2345, 2, Math.round, 1);
 }}),

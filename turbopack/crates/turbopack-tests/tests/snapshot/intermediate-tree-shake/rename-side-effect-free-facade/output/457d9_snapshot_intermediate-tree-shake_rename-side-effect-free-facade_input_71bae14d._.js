@@ -15,7 +15,7 @@ __turbopack_context__.s({
     "a": ()=>a
 });
 const a = 'a';
-const a_unused = 'a_unused';
+const a_unused1 = 'a_unused';
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/rename-side-effect-free-facade/input/node_modules/lib/a.js [test] (ecmascript) <export a as a0>": ((__turbopack_context__) => {
 "use strict";

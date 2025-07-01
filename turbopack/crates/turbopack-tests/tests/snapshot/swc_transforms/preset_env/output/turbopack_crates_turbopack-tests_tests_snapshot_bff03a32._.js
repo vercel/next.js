@@ -5,11 +5,11 @@
 var { m: module, e: exports } = __turbopack_context__;
 {
 var _class_call_check = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@swc/helpers/_/_class_call_check.js [test] (ecmascript)");
-var Foo = function Foo() {
+var Foo1 = function Foo() {
     "use strict";
     _class_call_check._(this, Foo);
 };
-console.log(Foo, [].includes('foo'));
+console.log(Foo1, [].includes('foo'));
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@swc/helpers/_/_class_call_check.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

@@ -9,14 +9,14 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-multiple/input/mod.mjs")}`;
     }
 };
-function foo() {
+function foo1() {
     console.log(__TURBOPACK__import$2e$meta__.url);
 }
-function bar() {
+function bar2() {
     console.log(__TURBOPACK__import$2e$meta__.url);
 }
-foo();
-bar();
+foo1();
+bar2();
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-multiple/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

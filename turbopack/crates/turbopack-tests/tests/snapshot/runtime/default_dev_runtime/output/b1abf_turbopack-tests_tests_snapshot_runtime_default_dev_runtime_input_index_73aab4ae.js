@@ -19,46 +19,46 @@ const RUNTIME_PUBLIC_PATH = "";
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
 const REEXPORTED_OBJECTS = Symbol('reexported objects');
-const hasOwnProperty = Object.prototype.hasOwnProperty;
-const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
-function defineProp(obj, name, options) {
-    if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
+const hasOwnProperty1 = Object.prototype.hasOwnProperty;
+const toStringTag2 = typeof Symbol !== 'undefined' && Symbol.toStringTag;
+function defineProp3(obj, name1, options2) {
+    if (!hasOwnProperty1.call(obj, name1)) Object.defineProperty(obj, name1, options2);
 }
-function getOverwrittenModule(moduleCache, id) {
-    let module = moduleCache[id];
-    if (!module) {
+function getOverwrittenModule4(moduleCache, id1) {
+    let module2 = moduleCache[id1];
+    if (!module2) {
         // This is invoked when a module is merged into another module, thus it wasn't invoked via
         // instantiateModule and the cache entry wasn't created yet.
-        module = {
+        module2 = {
             exports: {},
             error: undefined,
             loaded: false,
-            id,
+            id: id1,
             namespaceObject: undefined
         };
-        moduleCache[id] = module;
+        moduleCache[id1] = module2;
     }
-    return module;
+    return module2;
 }
 /**
  * Adds the getters to the exports object.
- */ function esm(exports, getters) {
-    defineProp(exports, '__esModule', {
+ */ function esm5(exports, getters1) {
+    defineProp3(exports, '__esModule', {
         value: true
     });
-    if (toStringTag) defineProp(exports, toStringTag, {
+    if (toStringTag2) defineProp3(exports, toStringTag2, {
         value: 'Module'
     });
-    for(const key in getters){
-        const item = getters[key];
+    for(const key in getters1){
+        const item = getters1[key];
         if (Array.isArray(item)) {
-            defineProp(exports, key, {
+            defineProp3(exports, key, {
                 get: item[0],
                 set: item[1],
                 enumerable: true
             });
         } else {
-            defineProp(exports, key, {
+            defineProp3(exports, key, {
                 get: item,
                 enumerable: true
             });
@@ -68,76 +68,76 @@ function getOverwrittenModule(moduleCache, id) {
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(module, exports, moduleCache, getters, id) {
-    if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
-        exports = module.exports;
+ */ function esmExport6(module, exports1, moduleCache2, getters3, id4) {
+    if (id4 != null) {
+        module = getOverwrittenModule4(moduleCache2, id4);
+        exports1 = module.exports;
     }
     module.namespaceObject = module.exports;
-    esm(exports, getters);
+    esm5(exports1, getters3);
 }
-function ensureDynamicExports(module, exports) {
-    let reexportedObjects = module[REEXPORTED_OBJECTS];
-    if (!reexportedObjects) {
-        reexportedObjects = module[REEXPORTED_OBJECTS] = [];
-        module.exports = module.namespaceObject = new Proxy(exports, {
-            get (target, prop) {
-                if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
-                    return Reflect.get(target, prop);
+function ensureDynamicExports7(module, exports1) {
+    let reexportedObjects2 = module[REEXPORTED_OBJECTS];
+    if (!reexportedObjects2) {
+        reexportedObjects2 = module[REEXPORTED_OBJECTS] = [];
+        module.exports = module.namespaceObject = new Proxy(exports1, {
+            get (target, prop1) {
+                if (hasOwnProperty1.call(target, prop1) || prop1 === 'default' || prop1 === '__esModule') {
+                    return Reflect.get(target, prop1);
                 }
-                for (const obj of reexportedObjects){
-                    const value = Reflect.get(obj, prop);
+                for (const obj of reexportedObjects2){
+                    const value = Reflect.get(obj, prop1);
                     if (value !== undefined) return value;
                 }
                 return undefined;
             },
             ownKeys (target) {
-                const keys = Reflect.ownKeys(target);
-                for (const obj of reexportedObjects){
+                const keys1 = Reflect.ownKeys(target);
+                for (const obj of reexportedObjects2){
                     for (const key of Reflect.ownKeys(obj)){
-                        if (key !== 'default' && !keys.includes(key)) keys.push(key);
+                        if (key !== 'default' && !keys1.includes(key)) keys1.push(key);
                     }
                 }
-                return keys;
+                return keys1;
             }
         });
     }
 }
 /**
  * Dynamically exports properties from an object
- */ function dynamicExport(module, exports, moduleCache, object, id) {
-    if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
-        exports = module.exports;
+ */ function dynamicExport8(module, exports1, moduleCache2, object3, id4) {
+    if (id4 != null) {
+        module = getOverwrittenModule4(moduleCache2, id4);
+        exports1 = module.exports;
     }
-    ensureDynamicExports(module, exports);
-    if (typeof object === 'object' && object !== null) {
-        module[REEXPORTED_OBJECTS].push(object);
+    ensureDynamicExports7(module, exports1);
+    if (typeof object3 === 'object' && object3 !== null) {
+        module[REEXPORTED_OBJECTS].push(object3);
     }
 }
-function exportValue(module, moduleCache, value, id) {
-    if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+function exportValue9(module, moduleCache1, value2, id3) {
+    if (id3 != null) {
+        module = getOverwrittenModule4(moduleCache1, id3);
     }
-    module.exports = value;
+    module.exports = value2;
 }
-function exportNamespace(module, moduleCache, namespace, id) {
-    if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+function exportNamespace10(module, moduleCache1, namespace2, id3) {
+    if (id3 != null) {
+        module = getOverwrittenModule4(moduleCache1, id3);
     }
-    module.exports = module.namespaceObject = namespace;
+    module.exports = module.namespaceObject = namespace2;
 }
-function createGetter(obj, key) {
-    return ()=>obj[key];
+function createGetter11(obj, key1) {
+    return ()=>obj[key1];
 }
 /**
  * @returns prototype of the object
- */ const getProto = Object.getPrototypeOf ? (obj)=>Object.getPrototypeOf(obj) : (obj)=>obj.__proto__;
-/** Prototypes that are not expanded for exports */ const LEAF_PROTOTYPES = [
+ */ const getProto12 = Object.getPrototypeOf ? (obj)=>Object.getPrototypeOf(obj) : (obj)=>obj.__proto__;
+/** Prototypes that are not expanded for exports */ const LEAF_PROTOTYPES13 = [
     null,
-    getProto({}),
-    getProto([]),
-    getProto(getProto)
+    getProto12({}),
+    getProto12([]),
+    getProto12(getProto12)
 ];
 /**
  * @param raw
@@ -145,22 +145,22 @@ function createGetter(obj, key) {
  * @param allowExportDefault
  *   * `false`: will have the raw module as default export
  *   * `true`: will have the default property as default export
- */ function interopEsm(raw, ns, allowExportDefault) {
-    const getters = Object.create(null);
-    for(let current = raw; (typeof current === 'object' || typeof current === 'function') && !LEAF_PROTOTYPES.includes(current); current = getProto(current)){
+ */ function interopEsm14(raw, ns1, allowExportDefault2) {
+    const getters3 = Object.create(null);
+    for(let current = raw; (typeof current === 'object' || typeof current === 'function') && !LEAF_PROTOTYPES13.includes(current); current = getProto12(current)){
         for (const key of Object.getOwnPropertyNames(current)){
-            getters[key] = createGetter(raw, key);
+            getters3[key] = createGetter11(raw, key);
         }
     }
     // this is not really correct
     // we should set the `default` getter if the imported module is a `.cjs file`
-    if (!(allowExportDefault && 'default' in getters)) {
-        getters['default'] = ()=>raw;
+    if (!(allowExportDefault2 && 'default' in getters3)) {
+        getters3['default'] = ()=>raw;
     }
-    esm(ns, getters);
-    return ns;
+    esm5(ns1, getters3);
+    return ns1;
 }
-function createNS(raw) {
+function createNS15(raw) {
     if (typeof raw === 'function') {
         return function(...args) {
             return raw.apply(this, args);
@@ -169,177 +169,177 @@ function createNS(raw) {
         return Object.create(null);
     }
 }
-function esmImport(sourceModule, id) {
-    const module = getOrInstantiateModuleFromParent(id, sourceModule);
-    if (module.error) throw module.error;
+function esmImport16(sourceModule, id1) {
+    const module2 = getOrInstantiateModuleFromParent(id1, sourceModule);
+    if (module2.error) throw module2.error;
     // any ES module has to have `module.namespaceObject` defined.
-    if (module.namespaceObject) return module.namespaceObject;
+    if (module2.namespaceObject) return module2.namespaceObject;
     // only ESM can be an async module, so we don't need to worry about exports being a promise here.
-    const raw = module.exports;
-    return module.namespaceObject = interopEsm(raw, createNS(raw), raw && raw.__esModule);
+    const raw3 = module2.exports;
+    return module2.namespaceObject = interopEsm14(raw3, createNS15(raw3), raw3 && raw3.__esModule);
 }
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
-const runtimeRequire = // @ts-ignore
+const runtimeRequire17 = // @ts-ignore
 typeof require === 'function' ? require : function require1() {
     throw new Error('Unexpected use of runtime require');
 };
-function commonJsRequire(sourceModule, id) {
-    const module = getOrInstantiateModuleFromParent(id, sourceModule);
-    if (module.error) throw module.error;
-    return module.exports;
+function commonJsRequire18(sourceModule, id1) {
+    const module2 = getOrInstantiateModuleFromParent(id1, sourceModule);
+    if (module2.error) throw module2.error;
+    return module2.exports;
 }
 /**
  * `require.context` and require/import expression runtime.
- */ function moduleContext(map) {
-    function moduleContext(id) {
-        if (hasOwnProperty.call(map, id)) {
+ */ function moduleContext19(map) {
+    function moduleContext1(id) {
+        if (hasOwnProperty1.call(map, id)) {
             return map[id].module();
         }
-        const e = new Error(`Cannot find module '${id}'`);
-        e.code = 'MODULE_NOT_FOUND';
-        throw e;
+        const e1 = new Error(`Cannot find module '${id}'`);
+        e1.code = 'MODULE_NOT_FOUND';
+        throw e1;
     }
-    moduleContext.keys = ()=>{
+    moduleContext1.keys = ()=>{
         return Object.keys(map);
     };
-    moduleContext.resolve = (id)=>{
-        if (hasOwnProperty.call(map, id)) {
+    moduleContext1.resolve = (id)=>{
+        if (hasOwnProperty1.call(map, id)) {
             return map[id].id();
         }
-        const e = new Error(`Cannot find module '${id}'`);
-        e.code = 'MODULE_NOT_FOUND';
-        throw e;
+        const e1 = new Error(`Cannot find module '${id}'`);
+        e1.code = 'MODULE_NOT_FOUND';
+        throw e1;
     };
-    moduleContext.import = async (id)=>{
-        return await moduleContext(id);
+    moduleContext1.import = async (id)=>{
+        return await moduleContext1(id);
     };
-    return moduleContext;
+    return moduleContext1;
 }
 /**
  * Returns the path of a chunk defined by its data.
- */ function getChunkPath(chunkData) {
+ */ function getChunkPath20(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-function isPromise(maybePromise) {
+function isPromise21(maybePromise) {
     return maybePromise != null && typeof maybePromise === 'object' && 'then' in maybePromise && typeof maybePromise.then === 'function';
 }
-function isAsyncModuleExt(obj) {
-    return turbopackQueues in obj;
+function isAsyncModuleExt22(obj) {
+    return turbopackQueues24 in obj;
 }
-function createPromise() {
+function createPromise23() {
     let resolve;
-    let reject;
-    const promise = new Promise((res, rej)=>{
-        reject = rej;
+    let reject1;
+    const promise2 = new Promise((res, rej1)=>{
+        reject1 = rej1;
         resolve = res;
     });
     return {
-        promise,
+        promise: promise2,
         resolve: resolve,
-        reject: reject
+        reject: reject1
     };
 }
 // everything below is adapted from webpack
 // https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
-const turbopackQueues = Symbol('turbopack queues');
-const turbopackExports = Symbol('turbopack exports');
-const turbopackError = Symbol('turbopack error');
-function resolveQueue(queue) {
+const turbopackQueues24 = Symbol('turbopack queues');
+const turbopackExports25 = Symbol('turbopack exports');
+const turbopackError26 = Symbol('turbopack error');
+function resolveQueue27(queue) {
     if (queue && queue.status !== 1) {
         queue.status = 1;
         queue.forEach((fn)=>fn.queueCount--);
         queue.forEach((fn)=>fn.queueCount-- ? fn.queueCount++ : fn());
     }
 }
-function wrapDeps(deps) {
+function wrapDeps28(deps) {
     return deps.map((dep)=>{
         if (dep !== null && typeof dep === 'object') {
-            if (isAsyncModuleExt(dep)) return dep;
-            if (isPromise(dep)) {
+            if (isAsyncModuleExt22(dep)) return dep;
+            if (isPromise21(dep)) {
                 const queue = Object.assign([], {
                     status: 0
                 });
-                const obj = {
-                    [turbopackExports]: {},
-                    [turbopackQueues]: (fn)=>fn(queue)
+                const obj1 = {
+                    [turbopackExports25]: {},
+                    [turbopackQueues24]: (fn)=>fn(queue)
                 };
                 dep.then((res)=>{
-                    obj[turbopackExports] = res;
-                    resolveQueue(queue);
+                    obj1[turbopackExports25] = res;
+                    resolveQueue27(queue);
                 }, (err)=>{
-                    obj[turbopackError] = err;
-                    resolveQueue(queue);
+                    obj1[turbopackError26] = err;
+                    resolveQueue27(queue);
                 });
-                return obj;
+                return obj1;
             }
         }
         return {
-            [turbopackExports]: dep,
-            [turbopackQueues]: ()=>{}
+            [turbopackExports25]: dep,
+            [turbopackQueues24]: ()=>{}
         };
     });
 }
-function asyncModule(module, body, hasAwait) {
-    const queue = hasAwait ? Object.assign([], {
+function asyncModule29(module, body1, hasAwait2) {
+    const queue3 = hasAwait2 ? Object.assign([], {
         status: -1
     }) : undefined;
-    const depQueues = new Set();
-    const { resolve, reject, promise: rawPromise } = createPromise();
-    const promise = Object.assign(rawPromise, {
-        [turbopackExports]: module.exports,
-        [turbopackQueues]: (fn)=>{
-            queue && fn(queue);
-            depQueues.forEach(fn);
-            promise['catch'](()=>{});
+    const depQueues4 = new Set();
+    const { resolve: resolve5, reject: reject6, promise: rawPromise7 } = createPromise23();
+    const promise8 = Object.assign(rawPromise7, {
+        [turbopackExports25]: module.exports,
+        [turbopackQueues24]: (fn)=>{
+            queue3 && fn(queue3);
+            depQueues4.forEach(fn);
+            promise8['catch'](()=>{});
         }
     });
-    const attributes = {
+    const attributes9 = {
         get () {
-            return promise;
+            return promise8;
         },
         set (v) {
             // Calling `esmExport` leads to this.
-            if (v !== promise) {
-                promise[turbopackExports] = v;
+            if (v !== promise8) {
+                promise8[turbopackExports25] = v;
             }
         }
     };
-    Object.defineProperty(module, 'exports', attributes);
-    Object.defineProperty(module, 'namespaceObject', attributes);
-    function handleAsyncDependencies(deps) {
-        const currentDeps = wrapDeps(deps);
-        const getResult = ()=>currentDeps.map((d)=>{
-                if (d[turbopackError]) throw d[turbopackError];
-                return d[turbopackExports];
+    Object.defineProperty(module, 'exports', attributes9);
+    Object.defineProperty(module, 'namespaceObject', attributes9);
+    function handleAsyncDependencies10(deps) {
+        const currentDeps1 = wrapDeps28(deps);
+        const getResult2 = ()=>currentDeps1.map((d)=>{
+                if (d[turbopackError26]) throw d[turbopackError26];
+                return d[turbopackExports25];
             });
-        const { promise, resolve } = createPromise();
-        const fn = Object.assign(()=>resolve(getResult), {
+        const { promise: promise3, resolve: resolve4 } = createPromise23();
+        const fn5 = Object.assign(()=>resolve4(getResult2), {
             queueCount: 0
         });
-        function fnQueue(q) {
-            if (q !== queue && !depQueues.has(q)) {
-                depQueues.add(q);
+        function fnQueue6(q) {
+            if (q !== queue3 && !depQueues4.has(q)) {
+                depQueues4.add(q);
                 if (q && q.status === 0) {
-                    fn.queueCount++;
-                    q.push(fn);
+                    fn5.queueCount++;
+                    q.push(fn5);
                 }
             }
         }
-        currentDeps.map((dep)=>dep[turbopackQueues](fnQueue));
-        return fn.queueCount ? promise : getResult();
+        currentDeps1.map((dep)=>dep[turbopackQueues24](fnQueue6));
+        return fn5.queueCount ? promise3 : getResult2();
     }
-    function asyncResult(err) {
+    function asyncResult11(err) {
         if (err) {
-            reject(promise[turbopackError] = err);
+            reject6(promise8[turbopackError26] = err);
         } else {
-            resolve(promise[turbopackExports]);
+            resolve5(promise8[turbopackExports25]);
         }
-        resolveQueue(queue);
+        resolveQueue27(queue3);
     }
-    body(handleAsyncDependencies, asyncResult);
-    if (queue && queue.status === -1) {
-        queue.status = 0;
+    body1(handleAsyncDependencies10, asyncResult11);
+    if (queue3 && queue3.status === -1) {
+        queue3.status = 0;
     }
 }
 /**
@@ -351,29 +351,29 @@ function asyncModule(module, body, hasAwait) {
  *
  * This is based on webpack's existing implementation:
  * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
- */ const relativeURL = function relativeURL(inputUrl) {
-    const realUrl = new URL(inputUrl, 'x:/');
-    const values = {};
-    for(const key in realUrl)values[key] = realUrl[key];
-    values.href = inputUrl;
-    values.pathname = inputUrl.replace(/[?#].*/, '');
-    values.origin = values.protocol = '';
-    values.toString = values.toJSON = (..._args)=>inputUrl;
-    for(const key in values)Object.defineProperty(this, key, {
+ */ const relativeURL30 = function relativeURL(inputUrl) {
+    const realUrl1 = new URL(inputUrl, 'x:/');
+    const values2 = {};
+    for(const key in realUrl1)values2[key] = realUrl1[key];
+    values2.href = inputUrl;
+    values2.pathname = inputUrl.replace(/[?#].*/, '');
+    values2.origin = values2.protocol = '';
+    values2.toString = values2.toJSON = (..._args)=>inputUrl;
+    for(const key in values2)Object.defineProperty(this, key, {
         enumerable: true,
         configurable: true,
-        value: values[key]
+        value: values2[key]
     });
 };
-relativeURL.prototype = URL.prototype;
+relativeURL30.prototype = URL.prototype;
 /**
  * Utility function to ensure all variants of an enum are handled.
- */ function invariant(never, computeMessage) {
-    throw new Error(`Invariant: ${computeMessage(never)}`);
+ */ function invariant31(never, computeMessage1) {
+    throw new Error(`Invariant: ${computeMessage1(never)}`);
 }
 /**
  * A stub function to make `require` available but non-functional in ESM.
- */ function requireStub(_moduleId) {
+ */ function requireStub32(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
 }
 /**
@@ -399,93 +399,93 @@ var SourceType = /*#__PURE__*/ function(SourceType) {
    */ SourceType[SourceType["Update"] = 2] = "Update";
     return SourceType;
 }(SourceType || {});
-const moduleFactories = Object.create(null);
+const moduleFactories1 = Object.create(null);
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
- */ const runtimeModules = new Set();
+ */ const runtimeModules2 = new Set();
 /**
  * Map from module ID to the chunks that contain this module.
  *
  * In HMR, we need to keep track of which modules are contained in which so
  * chunks. This is so we don't eagerly dispose of a module when it is removed
  * from chunk A, but still exists in chunk B.
- */ const moduleChunksMap = new Map();
+ */ const moduleChunksMap3 = new Map();
 /**
  * Map from a chunk path to all modules it contains.
- */ const chunkModulesMap = new Map();
+ */ const chunkModulesMap4 = new Map();
 /**
  * Chunk lists that contain a runtime. When these chunk lists receive an update
  * that can't be reconciled with the current state of the page, we need to
  * reload the runtime entirely.
- */ const runtimeChunkLists = new Set();
+ */ const runtimeChunkLists5 = new Set();
 /**
  * Map from a chunk list to the chunk paths it contains.
- */ const chunkListChunksMap = new Map();
+ */ const chunkListChunksMap6 = new Map();
 /**
  * Map from a chunk path to the chunk lists it belongs to.
- */ const chunkChunkListsMap = new Map();
-const availableModules = new Map();
-const availableModuleChunks = new Map();
-async function loadChunk(source, chunkData) {
-    if (typeof chunkData === 'string') {
-        return loadChunkPath(source, chunkData);
+ */ const chunkChunkListsMap7 = new Map();
+const availableModules8 = new Map();
+const availableModuleChunks9 = new Map();
+async function loadChunk10(source, chunkData1) {
+    if (typeof chunkData1 === 'string') {
+        return loadChunkPath12(source, chunkData1);
     }
-    const includedList = chunkData.included || [];
-    const modulesPromises = includedList.map((included)=>{
-        if (moduleFactories[included]) return true;
-        return availableModules.get(included);
+    const includedList2 = chunkData1.included || [];
+    const modulesPromises3 = includedList2.map((included)=>{
+        if (moduleFactories1[included]) return true;
+        return availableModules8.get(included);
     });
-    if (modulesPromises.length > 0 && modulesPromises.every((p)=>p)) {
+    if (modulesPromises3.length > 0 && modulesPromises3.every((p)=>p)) {
         // When all included items are already loaded or loading, we can skip loading ourselves
-        return Promise.all(modulesPromises);
+        return Promise.all(modulesPromises3);
     }
-    const includedModuleChunksList = chunkData.moduleChunks || [];
-    const moduleChunksPromises = includedModuleChunksList.map((included)=>{
+    const includedModuleChunksList4 = chunkData1.moduleChunks || [];
+    const moduleChunksPromises5 = includedModuleChunksList4.map((included)=>{
         // TODO(alexkirsz) Do we need this check?
         // if (moduleFactories[included]) return true;
-        return availableModuleChunks.get(included);
+        return availableModuleChunks9.get(included);
     }).filter((p)=>p);
-    let promise;
-    if (moduleChunksPromises.length > 0) {
+    let promise6;
+    if (moduleChunksPromises5.length > 0) {
         // Some module chunks are already loaded or loading.
-        if (moduleChunksPromises.length === includedModuleChunksList.length) {
+        if (moduleChunksPromises5.length === includedModuleChunksList4.length) {
             // When all included module chunks are already loaded or loading, we can skip loading ourselves
-            return Promise.all(moduleChunksPromises);
+            return Promise.all(moduleChunksPromises5);
         }
         const moduleChunksToLoad = new Set();
-        for (const moduleChunk of includedModuleChunksList){
-            if (!availableModuleChunks.has(moduleChunk)) {
+        for (const moduleChunk of includedModuleChunksList4){
+            if (!availableModuleChunks9.has(moduleChunk)) {
                 moduleChunksToLoad.add(moduleChunk);
             }
         }
         for (const moduleChunkToLoad of moduleChunksToLoad){
-            const promise = loadChunkPath(source, moduleChunkToLoad);
-            availableModuleChunks.set(moduleChunkToLoad, promise);
-            moduleChunksPromises.push(promise);
+            const promise = loadChunkPath12(source, moduleChunkToLoad);
+            availableModuleChunks9.set(moduleChunkToLoad, promise);
+            moduleChunksPromises5.push(promise);
         }
-        promise = Promise.all(moduleChunksPromises);
+        promise6 = Promise.all(moduleChunksPromises5);
     } else {
-        promise = loadChunkPath(source, chunkData.path);
+        promise6 = loadChunkPath12(source, chunkData1.path);
         // Mark all included module chunks as loading if they are not already loaded or loading.
-        for (const includedModuleChunk of includedModuleChunksList){
-            if (!availableModuleChunks.has(includedModuleChunk)) {
-                availableModuleChunks.set(includedModuleChunk, promise);
+        for (const includedModuleChunk of includedModuleChunksList4){
+            if (!availableModuleChunks9.has(includedModuleChunk)) {
+                availableModuleChunks9.set(includedModuleChunk, promise6);
             }
         }
     }
-    for (const included of includedList){
-        if (!availableModules.has(included)) {
+    for (const included of includedList2){
+        if (!availableModules8.has(included)) {
             // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
             // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
-            availableModules.set(included, promise);
+            availableModules8.set(included, promise6);
         }
     }
-    return promise;
+    return promise6;
 }
-async function loadChunkByUrl(source, chunkUrl) {
+async function loadChunkByUrl11(source, chunkUrl1) {
     try {
-        await BACKEND.loadChunk(chunkUrl, source);
-    } catch (error) {
+        await BACKEND.loadChunk(chunkUrl1, source);
+    } catch (error1) {
         let loadReason;
         switch(source.type){
             case 0:
@@ -500,136 +500,136 @@ async function loadChunkByUrl(source, chunkUrl) {
             default:
                 invariant(source, (source)=>`Unknown source type: ${source?.type}`);
         }
-        throw new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${error ? `: ${error}` : ''}`, error ? {
-            cause: error
+        throw new Error(`Failed to load chunk ${chunkUrl1} ${loadReason}${error1 ? `: ${error1}` : ''}`, error1 ? {
+            cause: error1
         } : undefined);
     }
 }
-async function loadChunkPath(source, chunkPath) {
-    const url = getChunkRelativeUrl(chunkPath);
-    return loadChunkByUrl(source, url);
+async function loadChunkPath12(source, chunkPath1) {
+    const url2 = getChunkRelativeUrl19(chunkPath1);
+    return loadChunkByUrl11(source, url2);
 }
 /**
  * Returns an absolute url to an asset.
- */ function createResolvePathFromModule(resolver) {
+ */ function createResolvePathFromModule13(resolver) {
     return function resolvePathFromModule(moduleId) {
-        const exported = resolver(moduleId);
-        return exported?.default ?? exported;
+        const exported1 = resolver(moduleId);
+        return exported1?.default ?? exported1;
     };
 }
 /**
  * no-op for browser
  * @param modulePath
- */ function resolveAbsolutePath(modulePath) {
+ */ function resolveAbsolutePath14(modulePath) {
     return `/ROOT/${modulePath ?? ''}`;
 }
 /**
  * Returns a blob URL for the worker.
  * @param chunks list of chunks to load
- */ function getWorkerBlobURL(chunks) {
+ */ function getWorkerBlobURL15(chunks) {
     // It is important to reverse the array so when bootstrapping we can infer what chunk is being
     // evaluated by poping urls off of this array.  See `getPathFromScript`
-    let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
-self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
+    let bootstrap1 = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
+self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl19), null, 2)};
 importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
-    let blob = new Blob([
-        bootstrap
+    let blob2 = new Blob([
+        bootstrap1
     ], {
         type: 'text/javascript'
     });
-    return URL.createObjectURL(blob);
+    return URL.createObjectURL(blob2);
 }
 /**
  * Adds a module to a chunk.
- */ function addModuleToChunk(moduleId, chunkPath) {
-    let moduleChunks = moduleChunksMap.get(moduleId);
-    if (!moduleChunks) {
-        moduleChunks = new Set([
-            chunkPath
+ */ function addModuleToChunk16(moduleId, chunkPath1) {
+    let moduleChunks2 = moduleChunksMap3.get(moduleId);
+    if (!moduleChunks2) {
+        moduleChunks2 = new Set([
+            chunkPath1
         ]);
-        moduleChunksMap.set(moduleId, moduleChunks);
+        moduleChunksMap3.set(moduleId, moduleChunks2);
     } else {
-        moduleChunks.add(chunkPath);
+        moduleChunks2.add(chunkPath1);
     }
-    let chunkModules = chunkModulesMap.get(chunkPath);
-    if (!chunkModules) {
-        chunkModules = new Set([
+    let chunkModules3 = chunkModulesMap4.get(chunkPath1);
+    if (!chunkModules3) {
+        chunkModules3 = new Set([
             moduleId
         ]);
-        chunkModulesMap.set(chunkPath, chunkModules);
+        chunkModulesMap4.set(chunkPath1, chunkModules3);
     } else {
-        chunkModules.add(moduleId);
+        chunkModules3.add(moduleId);
     }
 }
 /**
  * Returns the first chunk that included a module.
  * This is used by the Node.js backend, hence why it's marked as unused in this
  * file.
- */ function getFirstModuleChunk(moduleId) {
-    const moduleChunkPaths = moduleChunksMap.get(moduleId);
-    if (moduleChunkPaths == null) {
+ */ function getFirstModuleChunk17(moduleId) {
+    const moduleChunkPaths1 = moduleChunksMap3.get(moduleId);
+    if (moduleChunkPaths1 == null) {
         return null;
     }
-    return moduleChunkPaths.values().next().value;
+    return moduleChunkPaths1.values().next().value;
 }
 /**
  * Instantiates a runtime module.
- */ function instantiateRuntimeModule(moduleId, chunkPath) {
+ */ function instantiateRuntimeModule18(moduleId, chunkPath1) {
     return instantiateModule(moduleId, {
         type: 0,
-        chunkPath
+        chunkPath: chunkPath1
     });
 }
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
- */ function getChunkRelativeUrl(chunkPath) {
+ */ function getChunkRelativeUrl19(chunkPath) {
     return `${CHUNK_BASE_PATH}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${CHUNK_SUFFIX_PATH}`;
 }
-function getPathFromScript(chunkScript) {
+function getPathFromScript20(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    const chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
-    const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
-    const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
-    return path;
+    const chunkUrl1 = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
+    const src2 = decodeURIComponent(chunkUrl1.replace(/[?#].*$/, ''));
+    const path3 = src2.startsWith(CHUNK_BASE_PATH) ? src2.slice(CHUNK_BASE_PATH.length) : src2;
+    return path3;
 }
 /**
  * Marks a chunk list as a runtime chunk list. There can be more than one
  * runtime chunk list. For instance, integration tests can have multiple chunk
  * groups loaded at runtime, each with its own chunk list.
- */ function markChunkListAsRuntime(chunkListPath) {
-    runtimeChunkLists.add(chunkListPath);
+ */ function markChunkListAsRuntime21(chunkListPath) {
+    runtimeChunkLists5.add(chunkListPath);
 }
-function registerChunk([chunkScript, chunkModules, runtimeParams]) {
-    const chunkPath = getPathFromScript(chunkScript);
-    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
-        if (!moduleFactories[moduleId]) {
-            if (Array.isArray(moduleFactory)) {
-                let [moduleFactoryFn, otherIds] = moduleFactory;
-                moduleFactories[moduleId] = moduleFactoryFn;
-                for (const otherModuleId of otherIds){
-                    moduleFactories[otherModuleId] = moduleFactoryFn;
+function registerChunk22([chunkScript, chunkModules1, runtimeParams2]) {
+    const chunkPath3 = getPathFromScript20(chunkScript);
+    for (const [moduleId, moduleFactory1] of Object.entries(chunkModules1)){
+        if (!moduleFactories1[moduleId]) {
+            if (Array.isArray(moduleFactory1)) {
+                let [moduleFactoryFn, otherIds1] = moduleFactory1;
+                moduleFactories1[moduleId] = moduleFactoryFn;
+                for (const otherModuleId of otherIds1){
+                    moduleFactories1[otherModuleId] = moduleFactoryFn;
                 }
             } else {
-                moduleFactories[moduleId] = moduleFactory;
+                moduleFactories1[moduleId] = moduleFactory1;
             }
         }
-        addModuleToChunk(moduleId, chunkPath);
+        addModuleToChunk16(moduleId, chunkPath3);
     }
-    return BACKEND.registerChunk(chunkPath, runtimeParams);
+    return BACKEND.registerChunk(chunkPath3, runtimeParams2);
 }
-const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+const regexJsUrl23 = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
- */ function isJs(chunkUrlOrPath) {
-    return regexJsUrl.test(chunkUrlOrPath);
+ */ function isJs24(chunkUrlOrPath) {
+    return regexJsUrl23.test(chunkUrlOrPath);
 }
-const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/;
+const regexCssUrl25 = /\.css(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
- */ function isCss(chunkUrl) {
-    return regexCssUrl.test(chunkUrl);
+ */ function isCss26(chunkUrl) {
+    return regexCssUrl25.test(chunkUrl);
 }
 /// <reference path="./dev-globals.d.ts" />
 /// <reference path="./dev-protocol.d.ts" />
@@ -641,140 +641,140 @@ const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/;
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ const devModuleCache = Object.create(null);
-class UpdateApplyError extends Error {
+class UpdateApplyError1 extends Error {
     name = 'UpdateApplyError';
     dependencyChain;
-    constructor(message, dependencyChain){
+    constructor(message, dependencyChain1){
         super(message);
-        this.dependencyChain = dependencyChain;
+        this.dependencyChain = dependencyChain1;
     }
 }
 /**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
- */ const moduleHotData = new Map();
+ */ const moduleHotData2 = new Map();
 /**
  * Maps module instances to their hot module state.
- */ const moduleHotState = new Map();
+ */ const moduleHotState3 = new Map();
 /**
  * Modules that call `module.hot.invalidate()` (while being updated).
- */ const queuedInvalidatedModules = new Set();
+ */ const queuedInvalidatedModules4 = new Set();
 /**
  * Gets or instantiates a runtime module.
  */ // @ts-ignore
-function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
-    const module = devModuleCache[moduleId];
-    if (module) {
-        if (module.error) {
-            throw module.error;
+function getOrInstantiateRuntimeModule5(moduleId, chunkPath1) {
+    const module2 = devModuleCache[moduleId];
+    if (module2) {
+        if (module2.error) {
+            throw module2.error;
         }
-        return module;
+        return module2;
     }
     // @ts-ignore
-    return instantiateModule(moduleId, {
+    return instantiateModule7(moduleId, {
         type: SourceType.Runtime,
-        chunkPath
+        chunkPath: chunkPath1
     });
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */ // @ts-ignore Defined in `runtime-utils.ts`
-const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
-    if (!sourceModule.hot.active) {
-        console.warn(`Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`);
+const getOrInstantiateModuleFromParent6 = (id, sourceModule1)=>{
+    if (!sourceModule1.hot.active) {
+        console.warn(`Unexpected import of module ${id} from module ${sourceModule1.id}, which was deleted by an HMR update`);
     }
-    const module = devModuleCache[id];
-    if (sourceModule.children.indexOf(id) === -1) {
-        sourceModule.children.push(id);
+    const module2 = devModuleCache[id];
+    if (sourceModule1.children.indexOf(id) === -1) {
+        sourceModule1.children.push(id);
     }
-    if (module) {
-        if (module.parents.indexOf(sourceModule.id) === -1) {
-            module.parents.push(sourceModule.id);
+    if (module2) {
+        if (module2.parents.indexOf(sourceModule1.id) === -1) {
+            module2.parents.push(sourceModule1.id);
         }
-        return module;
+        return module2;
     }
-    return instantiateModule(id, {
+    return instantiateModule7(id, {
         type: SourceType.Parent,
-        parentId: sourceModule.id
+        parentId: sourceModule1.id
     });
 };
-function instantiateModule(moduleId, source) {
+function instantiateModule7(moduleId, source1) {
     // We are in development, this is always a string.
-    let id = moduleId;
-    const moduleFactory = moduleFactories[id];
-    if (typeof moduleFactory !== 'function') {
+    let id2 = moduleId;
+    const moduleFactory3 = moduleFactories[id2];
+    if (typeof moduleFactory3 !== 'function') {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
         let instantiationReason;
-        switch(source.type){
+        switch(source1.type){
             case SourceType.Runtime:
-                instantiationReason = `as a runtime entry of chunk ${source.chunkPath}`;
+                instantiationReason = `as a runtime entry of chunk ${source1.chunkPath}`;
                 break;
             case SourceType.Parent:
-                instantiationReason = `because it was required from module ${source.parentId}`;
+                instantiationReason = `because it was required from module ${source1.parentId}`;
                 break;
             case SourceType.Update:
                 instantiationReason = 'because of an HMR update';
                 break;
             default:
-                invariant(source, (source)=>`Unknown source type: ${source?.type}`);
+                invariant(source1, (source)=>`Unknown source type: ${source?.type}`);
         }
-        throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
+        throw new Error(`Module ${id2} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
     }
-    const hotData = moduleHotData.get(id);
-    const { hot, hotState } = createModuleHot(id, hotData);
-    let parents;
-    switch(source.type){
+    const hotData4 = moduleHotData2.get(id2);
+    const { hot: hot5, hotState: hotState6 } = createModuleHot26(id2, hotData4);
+    let parents7;
+    switch(source1.type){
         case SourceType.Runtime:
-            runtimeModules.add(id);
-            parents = [];
+            runtimeModules.add(id2);
+            parents7 = [];
             break;
         case SourceType.Parent:
             // No need to add this module as a child of the parent module here, this
             // has already been taken care of in `getOrInstantiateModuleFromParent`.
-            parents = [
-                source.parentId
+            parents7 = [
+                source1.parentId
             ];
             break;
         case SourceType.Update:
-            parents = source.parents || [];
+            parents7 = source1.parents || [];
             break;
         default:
-            invariant(source, (source)=>`Unknown source type: ${source?.type}`);
+            invariant(source1, (source)=>`Unknown source type: ${source?.type}`);
     }
-    const module = {
+    const module8 = {
         exports: {},
         error: undefined,
         loaded: false,
-        id: id,
-        parents,
+        id: id2,
+        parents: parents7,
         children: [],
         namespaceObject: undefined,
-        hot
+        hot: hot5
     };
-    devModuleCache[id] = module;
-    moduleHotState.set(module, hotState);
+    devModuleCache[id2] = module8;
+    moduleHotState3.set(module8, hotState6);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
         const sourceInfo = {
             type: SourceType.Parent,
-            parentId: id
+            parentId: id2
         };
-        runModuleExecutionHooks(module, (refresh)=>{
-            const r = commonJsRequire.bind(null, module);
-            moduleFactory(augmentContext({
-                a: asyncModule.bind(null, module),
-                e: module.exports,
-                r: commonJsRequire.bind(null, module),
+        runModuleExecutionHooks8(module8, (refresh)=>{
+            const r1 = commonJsRequire.bind(null, module8);
+            moduleFactory3(augmentContext({
+                a: asyncModule.bind(null, module8),
+                e: module8.exports,
+                r: commonJsRequire.bind(null, module8),
                 t: runtimeRequire,
                 f: moduleContext,
-                i: esmImport.bind(null, module),
-                s: esmExport.bind(null, module, module.exports, devModuleCache),
-                j: dynamicExport.bind(null, module, module.exports, devModuleCache),
-                v: exportValue.bind(null, module, devModuleCache),
-                n: exportNamespace.bind(null, module, devModuleCache),
-                m: module,
+                i: esmImport.bind(null, module8),
+                s: esmExport.bind(null, module8, module8.exports, devModuleCache),
+                j: dynamicExport.bind(null, module8, module8.exports, devModuleCache),
+                v: exportValue.bind(null, module8, devModuleCache),
+                n: exportNamespace.bind(null, module8, devModuleCache),
+                m: module8,
                 c: devModuleCache,
                 M: moduleFactories,
                 l: loadChunk.bind(null, sourceInfo),
@@ -784,34 +784,34 @@ function instantiateModule(moduleId, source) {
                 P: resolveAbsolutePath,
                 U: relativeURL,
                 k: refresh,
-                R: createResolvePathFromModule(r),
+                R: createResolvePathFromModule(r1),
                 b: getWorkerBlobURL,
                 z: requireStub
             }));
         });
     } catch (error) {
-        module.error = error;
+        module8.error = error;
         throw error;
     }
-    module.loaded = true;
-    if (module.namespaceObject && module.exports !== module.namespaceObject) {
+    module8.loaded = true;
+    if (module8.namespaceObject && module8.exports !== module8.namespaceObject) {
         // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-        interopEsm(module.exports, module.namespaceObject);
+        interopEsm(module8.exports, module8.namespaceObject);
     }
-    return module;
+    return module8;
 }
 /**
  * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
  * Next.js' React Refresh runtime hooks into to add module context to the
  * refresh registry.
- */ function runModuleExecutionHooks(module, executeModule) {
+ */ function runModuleExecutionHooks8(module, executeModule1) {
     if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
         const cleanupReactRefreshIntercept = globalThis.$RefreshInterceptModuleExecution$(module.id);
         try {
-            executeModule({
+            executeModule1({
                 register: globalThis.$RefreshReg$,
                 signature: globalThis.$RefreshSig$,
-                registerExports: registerExportsAndSetupBoundaryForReactRefresh
+                registerExports: registerExportsAndSetupBoundaryForReactRefresh9
             });
         } finally{
             // Always cleanup the intercept, even if module execution failed.
@@ -821,26 +821,26 @@ function instantiateModule(moduleId, source) {
         // If the react refresh hooks are not installed we need to bind dummy functions.
         // This is expected when running in a Web Worker.  It is also common in some of
         // our test environments.
-        executeModule({
-            register: (_type, _id)=>{},
+        executeModule1({
+            register: (_type, _id1)=>{},
             signature: ()=>(_type)=>{},
-            registerExports: (_module, _helpers)=>{}
+            registerExports: (_module, _helpers1)=>{}
         });
     }
 }
 /**
  * This is adapted from https://github.com/vercel/next.js/blob/3466862d9dc9c8bb3131712134d38757b918d1c0/packages/react-refresh-utils/internal/ReactRefreshModule.runtime.ts
- */ function registerExportsAndSetupBoundaryForReactRefresh(module, helpers) {
-    const currentExports = module.exports;
-    const prevExports = module.hot.data.prevExports ?? null;
-    helpers.registerExportsForReactRefresh(currentExports, module.id);
+ */ function registerExportsAndSetupBoundaryForReactRefresh9(module, helpers1) {
+    const currentExports2 = module.exports;
+    const prevExports3 = module.hot.data.prevExports ?? null;
+    helpers1.registerExportsForReactRefresh(currentExports2, module.id);
     // A module can be accepted automatically based on its exports, e.g. when
     // it is a Refresh Boundary.
-    if (helpers.isReactRefreshBoundary(currentExports)) {
+    if (helpers1.isReactRefreshBoundary(currentExports2)) {
         // Save the previous exports on update, so we can compare the boundary
         // signatures.
         module.hot.dispose((data)=>{
-            data.prevExports = currentExports;
+            data.prevExports = currentExports2;
         });
         // Unconditionally accept an update to this module, we'll check if it's
         // still a Refresh Boundary later.
@@ -848,7 +848,7 @@ function instantiateModule(moduleId, source) {
         // This field is set when the previous version of this module was a
         // Refresh Boundary, letting us know we need to check for invalidation or
         // enqueue an update.
-        if (prevExports !== null) {
+        if (prevExports3 !== null) {
             // A boundary can become ineligible if its exports are incompatible
             // with the previous exports.
             //
@@ -856,10 +856,10 @@ function instantiateModule(moduleId, source) {
             // re-execute the importing modules, and force those components to
             // re-render. Similarly, if you convert a class component to a
             // function, we want to invalidate the boundary.
-            if (helpers.shouldInvalidateReactRefreshBoundary(helpers.getRefreshBoundarySignature(prevExports), helpers.getRefreshBoundarySignature(currentExports))) {
+            if (helpers1.shouldInvalidateReactRefreshBoundary(helpers1.getRefreshBoundarySignature(prevExports3), helpers1.getRefreshBoundarySignature(currentExports2))) {
                 module.hot.invalidate();
             } else {
-                helpers.scheduleUpdate();
+                helpers1.scheduleUpdate();
             }
         }
     } else {
@@ -867,43 +867,43 @@ function instantiateModule(moduleId, source) {
         // new exports made it ineligible for being a boundary.
         // We only care about the case when we were _previously_ a boundary,
         // because we already accepted this update (accidental side effect).
-        const isNoLongerABoundary = prevExports !== null;
+        const isNoLongerABoundary = prevExports3 !== null;
         if (isNoLongerABoundary) {
             module.hot.invalidate();
         }
     }
 }
-function formatDependencyChain(dependencyChain) {
+function formatDependencyChain10(dependencyChain) {
     return `Dependency chain: ${dependencyChain.join(' -> ')}`;
 }
-function computeOutdatedModules(added, modified) {
-    const newModuleFactories = new Map();
-    for (const [moduleId, entry] of added){
-        if (entry != null) {
-            newModuleFactories.set(moduleId, _eval(entry));
+function computeOutdatedModules11(added, modified1) {
+    const newModuleFactories2 = new Map();
+    for (const [moduleId, entry1] of added){
+        if (entry1 != null) {
+            newModuleFactories2.set(moduleId, _eval(entry1));
         }
     }
-    const outdatedModules = computedInvalidatedModules(modified.keys());
-    for (const [moduleId, entry] of modified){
-        newModuleFactories.set(moduleId, _eval(entry));
+    const outdatedModules3 = computedInvalidatedModules12(modified1.keys());
+    for (const [moduleId, entry1] of modified1){
+        newModuleFactories2.set(moduleId, _eval(entry1));
     }
     return {
-        outdatedModules,
-        newModuleFactories
+        outdatedModules: outdatedModules3,
+        newModuleFactories: newModuleFactories2
     };
 }
-function computedInvalidatedModules(invalidated) {
-    const outdatedModules = new Set();
+function computedInvalidatedModules12(invalidated) {
+    const outdatedModules1 = new Set();
     for (const moduleId of invalidated){
-        const effect = getAffectedModuleEffects(moduleId);
+        const effect = getAffectedModuleEffects24(moduleId);
         switch(effect.type){
             case 'unaccepted':
-                throw new UpdateApplyError(`cannot apply update: unaccepted module. ${formatDependencyChain(effect.dependencyChain)}.`, effect.dependencyChain);
+                throw new UpdateApplyError1(`cannot apply update: unaccepted module. ${formatDependencyChain10(effect.dependencyChain)}.`, effect.dependencyChain);
             case 'self-declined':
-                throw new UpdateApplyError(`cannot apply update: self-declined module. ${formatDependencyChain(effect.dependencyChain)}.`, effect.dependencyChain);
+                throw new UpdateApplyError1(`cannot apply update: self-declined module. ${formatDependencyChain10(effect.dependencyChain)}.`, effect.dependencyChain);
             case 'accepted':
                 for (const outdatedModuleId of effect.outdatedModules){
-                    outdatedModules.add(outdatedModuleId);
+                    outdatedModules1.add(outdatedModuleId);
                 }
                 break;
             // TODO(alexkirsz) Dependencies: handle dependencies effects.
@@ -911,63 +911,63 @@ function computedInvalidatedModules(invalidated) {
                 invariant(effect, (effect)=>`Unknown effect type: ${effect?.type}`);
         }
     }
-    return outdatedModules;
+    return outdatedModules1;
 }
-function computeOutdatedSelfAcceptedModules(outdatedModules) {
-    const outdatedSelfAcceptedModules = [];
+function computeOutdatedSelfAcceptedModules13(outdatedModules) {
+    const outdatedSelfAcceptedModules1 = [];
     for (const moduleId of outdatedModules){
         const module = devModuleCache[moduleId];
-        const hotState = moduleHotState.get(module);
-        if (module && hotState.selfAccepted && !hotState.selfInvalidated) {
-            outdatedSelfAcceptedModules.push({
+        const hotState1 = moduleHotState3.get(module);
+        if (module && hotState1.selfAccepted && !hotState1.selfInvalidated) {
+            outdatedSelfAcceptedModules1.push({
                 moduleId,
-                errorHandler: hotState.selfAccepted
+                errorHandler: hotState1.selfAccepted
             });
         }
     }
-    return outdatedSelfAcceptedModules;
+    return outdatedSelfAcceptedModules1;
 }
 /**
  * Adds, deletes, and moves modules between chunks. This must happen before the
  * dispose phase as it needs to know which modules were removed from all chunks,
  * which we can only compute *after* taking care of added and moved modules.
- */ function updateChunksPhase(chunksAddedModules, chunksDeletedModules) {
-    for (const [chunkPath, addedModuleIds] of chunksAddedModules){
-        for (const moduleId of addedModuleIds){
+ */ function updateChunksPhase14(chunksAddedModules, chunksDeletedModules1) {
+    for (const [chunkPath, addedModuleIds1] of chunksAddedModules){
+        for (const moduleId of addedModuleIds1){
             addModuleToChunk(moduleId, chunkPath);
         }
     }
-    const disposedModules = new Set();
-    for (const [chunkPath, addedModuleIds] of chunksDeletedModules){
-        for (const moduleId of addedModuleIds){
-            if (removeModuleFromChunk(moduleId, chunkPath)) {
-                disposedModules.add(moduleId);
+    const disposedModules2 = new Set();
+    for (const [chunkPath, addedModuleIds1] of chunksDeletedModules1){
+        for (const moduleId of addedModuleIds1){
+            if (removeModuleFromChunk27(moduleId, chunkPath)) {
+                disposedModules2.add(moduleId);
             }
         }
     }
     return {
-        disposedModules
+        disposedModules: disposedModules2
     };
 }
-function disposePhase(outdatedModules, disposedModules) {
+function disposePhase15(outdatedModules, disposedModules1) {
     for (const moduleId of outdatedModules){
-        disposeModule(moduleId, 'replace');
+        disposeModule16(moduleId, 'replace');
     }
-    for (const moduleId of disposedModules){
-        disposeModule(moduleId, 'clear');
+    for (const moduleId of disposedModules1){
+        disposeModule16(moduleId, 'clear');
     }
     // Removing modules from the module cache is a separate step.
     // We also want to keep track of previous parents of the outdated modules.
-    const outdatedModuleParents = new Map();
+    const outdatedModuleParents2 = new Map();
     for (const moduleId of outdatedModules){
         const oldModule = devModuleCache[moduleId];
-        outdatedModuleParents.set(moduleId, oldModule?.parents);
+        outdatedModuleParents2.set(moduleId, oldModule?.parents);
         delete devModuleCache[moduleId];
     }
     // TODO(alexkirsz) Dependencies: remove outdated dependency from module
     // children.
     return {
-        outdatedModuleParents
+        outdatedModuleParents: outdatedModuleParents2
     };
 }
 /**
@@ -982,94 +982,94 @@ function disposePhase(outdatedModules, disposedModules) {
  * parent/child relationships before they are actually removed from the devModuleCache.
  * If this was done in this method, the following disposeModule calls won't find
  * the module from the module id in the cache.
- */ function disposeModule(moduleId, mode) {
-    const module = devModuleCache[moduleId];
-    if (!module) {
+ */ function disposeModule16(moduleId, mode1) {
+    const module2 = devModuleCache[moduleId];
+    if (!module2) {
         return;
     }
-    const hotState = moduleHotState.get(module);
-    const data = {};
+    const hotState3 = moduleHotState3.get(module2);
+    const data4 = {};
     // Run the `hot.dispose` handler, if any, passing in the persistent
     // `hot.data` object.
-    for (const disposeHandler of hotState.disposeHandlers){
-        disposeHandler(data);
+    for (const disposeHandler of hotState3.disposeHandlers){
+        disposeHandler(data4);
     }
     // This used to warn in `getOrInstantiateModuleFromParent` when a disposed
     // module is still importing other modules.
-    module.hot.active = false;
-    moduleHotState.delete(module);
+    module2.hot.active = false;
+    moduleHotState3.delete(module2);
     // TODO(alexkirsz) Dependencies: delete the module from outdated deps.
     // Remove the disposed module from its children's parent list.
     // It will be added back once the module re-instantiates and imports its
     // children again.
-    for (const childId of module.children){
+    for (const childId of module2.children){
         const child = devModuleCache[childId];
         if (!child) {
             continue;
         }
-        const idx = child.parents.indexOf(module.id);
-        if (idx >= 0) {
-            child.parents.splice(idx, 1);
+        const idx1 = child.parents.indexOf(module2.id);
+        if (idx1 >= 0) {
+            child.parents.splice(idx1, 1);
         }
     }
-    switch(mode){
+    switch(mode1){
         case 'clear':
-            delete devModuleCache[module.id];
-            moduleHotData.delete(module.id);
+            delete devModuleCache[module2.id];
+            moduleHotData2.delete(module2.id);
             break;
         case 'replace':
-            moduleHotData.set(module.id, data);
+            moduleHotData2.set(module2.id, data4);
             break;
         default:
-            invariant(mode, (mode)=>`invalid mode: ${mode}`);
+            invariant(mode1, (mode)=>`invalid mode: ${mode}`);
     }
 }
-function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, reportError) {
+function applyPhase17(outdatedSelfAcceptedModules, newModuleFactories1, outdatedModuleParents2, reportError3) {
     // Update module factories.
-    for (const [moduleId, factory] of newModuleFactories.entries()){
-        moduleFactories[moduleId] = factory;
+    for (const [moduleId, factory1] of newModuleFactories1.entries()){
+        moduleFactories[moduleId] = factory1;
     }
     // TODO(alexkirsz) Run new runtime entries here.
     // TODO(alexkirsz) Dependencies: call accept handlers for outdated deps.
     // Re-instantiate all outdated self-accepted modules.
-    for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules){
+    for (const { moduleId, errorHandler: errorHandler1 } of outdatedSelfAcceptedModules){
         try {
-            instantiateModule(moduleId, {
+            instantiateModule7(moduleId, {
                 type: SourceType.Update,
-                parents: outdatedModuleParents.get(moduleId)
+                parents: outdatedModuleParents2.get(moduleId)
             });
         } catch (err) {
-            if (typeof errorHandler === 'function') {
+            if (typeof errorHandler1 === 'function') {
                 try {
-                    errorHandler(err, {
+                    errorHandler1(err, {
                         moduleId,
                         module: devModuleCache[moduleId]
                     });
                 } catch (err2) {
-                    reportError(err2);
-                    reportError(err);
+                    reportError3(err2);
+                    reportError3(err);
                 }
             } else {
-                reportError(err);
+                reportError3(err);
             }
         }
     }
 }
-function applyUpdate(update) {
+function applyUpdate18(update) {
     switch(update.type){
         case 'ChunkListUpdate':
-            applyChunkListUpdate(update);
+            applyChunkListUpdate19(update);
             break;
         default:
             invariant(update, (update)=>`Unknown update type: ${update.type}`);
     }
 }
-function applyChunkListUpdate(update) {
+function applyChunkListUpdate19(update) {
     if (update.merged != null) {
         for (const merged of update.merged){
             switch(merged.type){
                 case 'EcmascriptMergedUpdate':
-                    applyEcmascriptMergedUpdate(merged);
+                    applyEcmascriptMergedUpdate20(merged);
                     break;
                 default:
                     invariant(merged, (merged)=>`Unknown merged type: ${merged.type}`);
@@ -1077,9 +1077,9 @@ function applyChunkListUpdate(update) {
         }
     }
     if (update.chunks != null) {
-        for (const [chunkPath, chunkUpdate] of Object.entries(update.chunks)){
+        for (const [chunkPath, chunkUpdate1] of Object.entries(update.chunks)){
             const chunkUrl = getChunkRelativeUrl(chunkPath);
-            switch(chunkUpdate.type){
+            switch(chunkUpdate1.type){
                 case 'added':
                     BACKEND.loadChunk(chunkUrl, {
                         type: SourceType.Update
@@ -1092,62 +1092,62 @@ function applyChunkListUpdate(update) {
                     DEV_BACKEND.unloadChunk?.(chunkUrl);
                     break;
                 case 'partial':
-                    invariant(chunkUpdate.instruction, (instruction)=>`Unknown partial instruction: ${JSON.stringify(instruction)}.`);
+                    invariant(chunkUpdate1.instruction, (instruction)=>`Unknown partial instruction: ${JSON.stringify(instruction)}.`);
                     break;
                 default:
-                    invariant(chunkUpdate, (chunkUpdate)=>`Unknown chunk update type: ${chunkUpdate.type}`);
+                    invariant(chunkUpdate1, (chunkUpdate)=>`Unknown chunk update type: ${chunkUpdate.type}`);
             }
         }
     }
 }
-function applyEcmascriptMergedUpdate(update) {
-    const { entries = {}, chunks = {} } = update;
-    const { added, modified, chunksAdded, chunksDeleted } = computeChangedModules(entries, chunks);
-    const { outdatedModules, newModuleFactories } = computeOutdatedModules(added, modified);
-    const { disposedModules } = updateChunksPhase(chunksAdded, chunksDeleted);
-    applyInternal(outdatedModules, disposedModules, newModuleFactories);
+function applyEcmascriptMergedUpdate20(update) {
+    const { entries: entries1 = {}, chunks: chunks2 = {} } = update;
+    const { added: added3, modified: modified4, chunksAdded: chunksAdded5, chunksDeleted: chunksDeleted6 } = computeChangedModules23(entries1, chunks2);
+    const { outdatedModules: outdatedModules7, newModuleFactories: newModuleFactories8 } = computeOutdatedModules11(added3, modified4);
+    const { disposedModules: disposedModules9 } = updateChunksPhase14(chunksAdded5, chunksDeleted6);
+    applyInternal22(outdatedModules7, disposedModules9, newModuleFactories8);
 }
-function applyInvalidatedModules(outdatedModules) {
-    if (queuedInvalidatedModules.size > 0) {
-        computedInvalidatedModules(queuedInvalidatedModules).forEach((moduleId)=>{
+function applyInvalidatedModules21(outdatedModules) {
+    if (queuedInvalidatedModules4.size > 0) {
+        computedInvalidatedModules12(queuedInvalidatedModules4).forEach((moduleId)=>{
             outdatedModules.add(moduleId);
         });
-        queuedInvalidatedModules.clear();
+        queuedInvalidatedModules4.clear();
     }
     return outdatedModules;
 }
-function applyInternal(outdatedModules, disposedModules, newModuleFactories) {
-    outdatedModules = applyInvalidatedModules(outdatedModules);
-    const outdatedSelfAcceptedModules = computeOutdatedSelfAcceptedModules(outdatedModules);
-    const { outdatedModuleParents } = disposePhase(outdatedModules, disposedModules);
+function applyInternal22(outdatedModules, disposedModules1, newModuleFactories2) {
+    outdatedModules = applyInvalidatedModules21(outdatedModules);
+    const outdatedSelfAcceptedModules3 = computeOutdatedSelfAcceptedModules13(outdatedModules);
+    const { outdatedModuleParents: outdatedModuleParents4 } = disposePhase15(outdatedModules, disposedModules1);
     // we want to continue on error and only throw the error after we tried applying all updates
-    let error;
-    function reportError(err) {
-        if (!error) error = err;
+    let error5;
+    function reportError6(err) {
+        if (!error5) error5 = err;
     }
-    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, reportError);
-    if (error) {
-        throw error;
+    applyPhase17(outdatedSelfAcceptedModules3, newModuleFactories2, outdatedModuleParents4, reportError6);
+    if (error5) {
+        throw error5;
     }
-    if (queuedInvalidatedModules.size > 0) {
-        applyInternal(new Set(), [], new Map());
+    if (queuedInvalidatedModules4.size > 0) {
+        applyInternal22(new Set(), [], new Map());
     }
 }
-function computeChangedModules(entries, updates) {
-    const chunksAdded = new Map();
-    const chunksDeleted = new Map();
-    const added = new Map();
-    const modified = new Map();
-    const deleted = new Set();
-    for (const [chunkPath, mergedChunkUpdate] of Object.entries(updates)){
-        switch(mergedChunkUpdate.type){
+function computeChangedModules23(entries, updates1) {
+    const chunksAdded2 = new Map();
+    const chunksDeleted3 = new Map();
+    const added4 = new Map();
+    const modified5 = new Map();
+    const deleted6 = new Set();
+    for (const [chunkPath, mergedChunkUpdate1] of Object.entries(updates1)){
+        switch(mergedChunkUpdate1.type){
             case 'added':
                 {
-                    const updateAdded = new Set(mergedChunkUpdate.modules);
+                    const updateAdded = new Set(mergedChunkUpdate1.modules);
                     for (const moduleId of updateAdded){
-                        added.set(moduleId, entries[moduleId]);
+                        added4.set(moduleId, entries[moduleId]);
                     }
-                    chunksAdded.set(chunkPath, updateAdded);
+                    chunksAdded2.set(chunkPath, updateAdded);
                     break;
                 }
             case 'deleted':
@@ -1155,115 +1155,115 @@ function computeChangedModules(entries, updates) {
                     // We could also use `mergedChunkUpdate.modules` here.
                     const updateDeleted = new Set(chunkModulesMap.get(chunkPath));
                     for (const moduleId of updateDeleted){
-                        deleted.add(moduleId);
+                        deleted6.add(moduleId);
                     }
-                    chunksDeleted.set(chunkPath, updateDeleted);
+                    chunksDeleted3.set(chunkPath, updateDeleted);
                     break;
                 }
             case 'partial':
                 {
-                    const updateAdded = new Set(mergedChunkUpdate.added);
-                    const updateDeleted = new Set(mergedChunkUpdate.deleted);
+                    const updateAdded = new Set(mergedChunkUpdate1.added);
+                    const updateDeleted1 = new Set(mergedChunkUpdate1.deleted);
                     for (const moduleId of updateAdded){
-                        added.set(moduleId, entries[moduleId]);
+                        added4.set(moduleId, entries[moduleId]);
                     }
-                    for (const moduleId of updateDeleted){
-                        deleted.add(moduleId);
+                    for (const moduleId of updateDeleted1){
+                        deleted6.add(moduleId);
                     }
-                    chunksAdded.set(chunkPath, updateAdded);
-                    chunksDeleted.set(chunkPath, updateDeleted);
+                    chunksAdded2.set(chunkPath, updateAdded);
+                    chunksDeleted3.set(chunkPath, updateDeleted1);
                     break;
                 }
             default:
-                invariant(mergedChunkUpdate, (mergedChunkUpdate)=>`Unknown merged chunk update type: ${mergedChunkUpdate.type}`);
+                invariant(mergedChunkUpdate1, (mergedChunkUpdate)=>`Unknown merged chunk update type: ${mergedChunkUpdate.type}`);
         }
     }
     // If a module was added from one chunk and deleted from another in the same update,
     // consider it to be modified, as it means the module was moved from one chunk to another
     // AND has new code in a single update.
-    for (const moduleId of added.keys()){
-        if (deleted.has(moduleId)) {
-            added.delete(moduleId);
-            deleted.delete(moduleId);
+    for (const moduleId of added4.keys()){
+        if (deleted6.has(moduleId)) {
+            added4.delete(moduleId);
+            deleted6.delete(moduleId);
         }
     }
-    for (const [moduleId, entry] of Object.entries(entries)){
+    for (const [moduleId, entry1] of Object.entries(entries)){
         // Modules that haven't been added to any chunk but have new code are considered
         // to be modified.
         // This needs to be under the previous loop, as we need it to get rid of modules
         // that were added and deleted in the same update.
-        if (!added.has(moduleId)) {
-            modified.set(moduleId, entry);
+        if (!added4.has(moduleId)) {
+            modified5.set(moduleId, entry1);
         }
     }
     return {
-        added,
-        deleted,
-        modified,
-        chunksAdded,
-        chunksDeleted
+        added: added4,
+        deleted: deleted6,
+        modified: modified5,
+        chunksAdded: chunksAdded2,
+        chunksDeleted: chunksDeleted3
     };
 }
-function getAffectedModuleEffects(moduleId) {
-    const outdatedModules = new Set();
-    const queue = [
+function getAffectedModuleEffects24(moduleId) {
+    const outdatedModules1 = new Set();
+    const queue2 = [
         {
             moduleId,
             dependencyChain: []
         }
     ];
-    let nextItem;
-    while(nextItem = queue.shift()){
-        const { moduleId, dependencyChain } = nextItem;
+    let nextItem3;
+    while(nextItem3 = queue2.shift()){
+        const { moduleId, dependencyChain: dependencyChain1 } = nextItem3;
         if (moduleId != null) {
-            if (outdatedModules.has(moduleId)) {
+            if (outdatedModules1.has(moduleId)) {
                 continue;
             }
-            outdatedModules.add(moduleId);
+            outdatedModules1.add(moduleId);
         }
         // We've arrived at the runtime of the chunk, which means that nothing
         // else above can accept this update.
         if (moduleId === undefined) {
             return {
                 type: 'unaccepted',
-                dependencyChain
+                dependencyChain: dependencyChain1
             };
         }
-        const module = devModuleCache[moduleId];
-        const hotState = moduleHotState.get(module);
+        const module2 = devModuleCache[moduleId];
+        const hotState3 = moduleHotState3.get(module2);
         if (// The module is not in the cache. Since this is a "modified" update,
         // it means that the module was never instantiated before.
-        !module || hotState.selfAccepted && !hotState.selfInvalidated) {
+        !module2 || hotState3.selfAccepted && !hotState3.selfInvalidated) {
             continue;
         }
-        if (hotState.selfDeclined) {
+        if (hotState3.selfDeclined) {
             return {
                 type: 'self-declined',
-                dependencyChain,
+                dependencyChain: dependencyChain1,
                 moduleId
             };
         }
         if (runtimeModules.has(moduleId)) {
-            queue.push({
+            queue2.push({
                 moduleId: undefined,
                 dependencyChain: [
-                    ...dependencyChain,
+                    ...dependencyChain1,
                     moduleId
                 ]
             });
             continue;
         }
-        for (const parentId of module.parents){
+        for (const parentId of module2.parents){
             const parent = devModuleCache[parentId];
             if (!parent) {
                 continue;
             }
             // TODO(alexkirsz) Dependencies: check accepted and declined
             // dependencies here.
-            queue.push({
+            queue2.push({
                 moduleId: parentId,
                 dependencyChain: [
-                    ...dependencyChain,
+                    ...dependencyChain1,
                     moduleId
                 ]
             });
@@ -1272,15 +1272,15 @@ function getAffectedModuleEffects(moduleId) {
     return {
         type: 'accepted',
         moduleId,
-        outdatedModules
+        outdatedModules: outdatedModules1
     };
 }
-function handleApply(chunkListPath, update) {
-    switch(update.type){
+function handleApply25(chunkListPath, update1) {
+    switch(update1.type){
         case 'partial':
             {
                 // This indicates that the update is can be applied to the current state of the application.
-                applyUpdate(update.instruction);
+                applyUpdate18(update1.instruction);
                 break;
             }
         case 'restart':
@@ -1300,59 +1300,59 @@ function handleApply(chunkListPath, update) {
                 if (runtimeChunkLists.has(chunkListPath)) {
                     DEV_BACKEND.restart();
                 } else {
-                    disposeChunkList(chunkListPath);
+                    disposeChunkList28(chunkListPath);
                 }
                 break;
             }
         default:
-            throw new Error(`Unknown update type: ${update.type}`);
+            throw new Error(`Unknown update type: ${update1.type}`);
     }
 }
-function createModuleHot(moduleId, hotData) {
-    const hotState = {
+function createModuleHot26(moduleId, hotData1) {
+    const hotState2 = {
         selfAccepted: false,
         selfDeclined: false,
         selfInvalidated: false,
         disposeHandlers: []
     };
-    const hot = {
+    const hot3 = {
         // TODO(alexkirsz) This is not defined in the HMR API. It was used to
         // decide whether to warn whenever an HMR-disposed module required other
         // modules. We might want to remove it.
         active: true,
-        data: hotData ?? {},
+        data: hotData1 ?? {},
         // TODO(alexkirsz) Support full (dep, callback, errorHandler) form.
-        accept: (modules, _callback, _errorHandler)=>{
+        accept: (modules, _callback1, _errorHandler2)=>{
             if (modules === undefined) {
-                hotState.selfAccepted = true;
+                hotState2.selfAccepted = true;
             } else if (typeof modules === 'function') {
-                hotState.selfAccepted = modules;
+                hotState2.selfAccepted = modules;
             } else {
                 throw new Error('unsupported `accept` signature');
             }
         },
         decline: (dep)=>{
             if (dep === undefined) {
-                hotState.selfDeclined = true;
+                hotState2.selfDeclined = true;
             } else {
                 throw new Error('unsupported `decline` signature');
             }
         },
         dispose: (callback)=>{
-            hotState.disposeHandlers.push(callback);
+            hotState2.disposeHandlers.push(callback);
         },
         addDisposeHandler: (callback)=>{
-            hotState.disposeHandlers.push(callback);
+            hotState2.disposeHandlers.push(callback);
         },
         removeDisposeHandler: (callback)=>{
-            const idx = hotState.disposeHandlers.indexOf(callback);
-            if (idx >= 0) {
-                hotState.disposeHandlers.splice(idx, 1);
+            const idx1 = hotState2.disposeHandlers.indexOf(callback);
+            if (idx1 >= 0) {
+                hotState2.disposeHandlers.splice(idx1, 1);
             }
         },
         invalidate: ()=>{
-            hotState.selfInvalidated = true;
-            queuedInvalidatedModules.add(moduleId);
+            hotState2.selfInvalidated = true;
+            queuedInvalidatedModules4.add(moduleId);
         },
         // NOTE(alexkirsz) This is part of the management API, which we don't
         // implement, but the Next.js React Refresh runtime uses this to decide
@@ -1367,71 +1367,71 @@ function createModuleHot(moduleId, hotData) {
         check: ()=>Promise.resolve(null)
     };
     return {
-        hot,
-        hotState
+        hot: hot3,
+        hotState: hotState2
     };
 }
 /**
  * Removes a module from a chunk.
  * Returns `true` if there are no remaining chunks including this module.
- */ function removeModuleFromChunk(moduleId, chunkPath) {
-    const moduleChunks = moduleChunksMap.get(moduleId);
-    moduleChunks.delete(chunkPath);
-    const chunkModules = chunkModulesMap.get(chunkPath);
-    chunkModules.delete(moduleId);
-    const noRemainingModules = chunkModules.size === 0;
-    if (noRemainingModules) {
-        chunkModulesMap.delete(chunkPath);
+ */ function removeModuleFromChunk27(moduleId, chunkPath1) {
+    const moduleChunks2 = moduleChunksMap.get(moduleId);
+    moduleChunks2.delete(chunkPath1);
+    const chunkModules3 = chunkModulesMap.get(chunkPath1);
+    chunkModules3.delete(moduleId);
+    const noRemainingModules4 = chunkModules3.size === 0;
+    if (noRemainingModules4) {
+        chunkModulesMap.delete(chunkPath1);
     }
-    const noRemainingChunks = moduleChunks.size === 0;
-    if (noRemainingChunks) {
+    const noRemainingChunks5 = moduleChunks2.size === 0;
+    if (noRemainingChunks5) {
         moduleChunksMap.delete(moduleId);
     }
-    return noRemainingChunks;
+    return noRemainingChunks5;
 }
 /**
  * Disposes of a chunk list and its corresponding exclusive chunks.
- */ function disposeChunkList(chunkListPath) {
-    const chunkPaths = chunkListChunksMap.get(chunkListPath);
-    if (chunkPaths == null) {
+ */ function disposeChunkList28(chunkListPath) {
+    const chunkPaths1 = chunkListChunksMap.get(chunkListPath);
+    if (chunkPaths1 == null) {
         return false;
     }
     chunkListChunksMap.delete(chunkListPath);
-    for (const chunkPath of chunkPaths){
+    for (const chunkPath of chunkPaths1){
         const chunkChunkLists = chunkChunkListsMap.get(chunkPath);
         chunkChunkLists.delete(chunkListPath);
         if (chunkChunkLists.size === 0) {
             chunkChunkListsMap.delete(chunkPath);
-            disposeChunk(chunkPath);
+            disposeChunk29(chunkPath);
         }
     }
     // We must also dispose of the chunk list's chunk itself to ensure it may
     // be reloaded properly in the future.
-    const chunkListUrl = getChunkRelativeUrl(chunkListPath);
-    DEV_BACKEND.unloadChunk?.(chunkListUrl);
+    const chunkListUrl2 = getChunkRelativeUrl(chunkListPath);
+    DEV_BACKEND.unloadChunk?.(chunkListUrl2);
     return true;
 }
 /**
  * Disposes of a chunk and its corresponding exclusive modules.
  *
  * @returns Whether the chunk was disposed of.
- */ function disposeChunk(chunkPath) {
-    const chunkUrl = getChunkRelativeUrl(chunkPath);
+ */ function disposeChunk29(chunkPath) {
+    const chunkUrl1 = getChunkRelativeUrl(chunkPath);
     // This should happen whether the chunk has any modules in it or not.
     // For instance, CSS chunks have no modules in them, but they still need to be unloaded.
-    DEV_BACKEND.unloadChunk?.(chunkUrl);
-    const chunkModules = chunkModulesMap.get(chunkPath);
-    if (chunkModules == null) {
+    DEV_BACKEND.unloadChunk?.(chunkUrl1);
+    const chunkModules2 = chunkModulesMap.get(chunkPath);
+    if (chunkModules2 == null) {
         return false;
     }
-    chunkModules.delete(chunkPath);
-    for (const moduleId of chunkModules){
+    chunkModules2.delete(chunkPath);
+    for (const moduleId of chunkModules2){
         const moduleChunks = moduleChunksMap.get(moduleId);
         moduleChunks.delete(chunkPath);
-        const noRemainingChunks = moduleChunks.size === 0;
-        if (noRemainingChunks) {
+        const noRemainingChunks1 = moduleChunks.size === 0;
+        if (noRemainingChunks1) {
             moduleChunksMap.delete(moduleId);
-            disposeModule(moduleId, 'clear');
+            disposeModule16(moduleId, 'clear');
             availableModules.delete(moduleId);
         }
     }
@@ -1439,31 +1439,31 @@ function createModuleHot(moduleId, hotData) {
 }
 /**
  * Subscribes to chunk list updates from the update server and applies them.
- */ function registerChunkList(chunkList) {
-    const chunkListScript = chunkList.script;
-    const chunkListPath = getPathFromScript(chunkListScript);
+ */ function registerChunkList30(chunkList) {
+    const chunkListScript1 = chunkList.script;
+    const chunkListPath2 = getPathFromScript(chunkListScript1);
     // The "chunk" is also registered to finish the loading in the backend
-    BACKEND.registerChunk(chunkListPath);
+    BACKEND.registerChunk(chunkListPath2);
     globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS.push([
-        chunkListPath,
-        handleApply.bind(null, chunkListPath)
+        chunkListPath2,
+        handleApply25.bind(null, chunkListPath2)
     ]);
     // Adding chunks to chunk lists and vice versa.
-    const chunkPaths = new Set(chunkList.chunks.map(getChunkPath));
-    chunkListChunksMap.set(chunkListPath, chunkPaths);
-    for (const chunkPath of chunkPaths){
+    const chunkPaths3 = new Set(chunkList.chunks.map(getChunkPath));
+    chunkListChunksMap.set(chunkListPath2, chunkPaths3);
+    for (const chunkPath of chunkPaths3){
         let chunkChunkLists = chunkChunkListsMap.get(chunkPath);
         if (!chunkChunkLists) {
             chunkChunkLists = new Set([
-                chunkListPath
+                chunkListPath2
             ]);
             chunkChunkListsMap.set(chunkPath, chunkChunkLists);
         } else {
-            chunkChunkLists.add(chunkListPath);
+            chunkChunkLists.add(chunkListPath2);
         }
     }
     if (chunkList.source === 'entry') {
-        markChunkListAsRuntime(chunkListPath);
+        markChunkListAsRuntime(chunkListPath2);
     }
 }
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
@@ -1475,46 +1475,46 @@ globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime-types.d.ts" />
 let BACKEND;
-function augmentContext(context) {
+function augmentContext1(context) {
     return context;
 }
-function fetchWebAssembly(wasmChunkPath) {
+function fetchWebAssembly2(wasmChunkPath) {
     return fetch(getChunkRelativeUrl(wasmChunkPath));
 }
-async function loadWebAssembly(_source, wasmChunkPath, _edgeModule, importsObj) {
-    const req = fetchWebAssembly(wasmChunkPath);
-    const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
-    return instance.exports;
+async function loadWebAssembly3(_source, wasmChunkPath1, _edgeModule2, importsObj3) {
+    const req4 = fetchWebAssembly2(wasmChunkPath1);
+    const { instance: instance5 } = await WebAssembly.instantiateStreaming(req4, importsObj3);
+    return instance5.exports;
 }
-async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
-    const req = fetchWebAssembly(wasmChunkPath);
-    return await WebAssembly.compileStreaming(req);
+async function loadWebAssemblyModule4(_source, wasmChunkPath1, _edgeModule2) {
+    const req3 = fetchWebAssembly2(wasmChunkPath1);
+    return await WebAssembly.compileStreaming(req3);
 }
 /**
  * Maps chunk paths to the corresponding resolver.
- */ const chunkResolvers = new Map();
+ */ const chunkResolvers5 = new Map();
 (()=>{
     BACKEND = {
-        async registerChunk (chunkPath, params) {
-            const chunkUrl = getChunkRelativeUrl(chunkPath);
-            const resolver = getOrCreateResolver(chunkUrl);
-            resolver.resolve();
-            if (params == null) {
+        async registerChunk (chunkPath, params1) {
+            const chunkUrl2 = getChunkRelativeUrl(chunkPath);
+            const resolver3 = getOrCreateResolver(chunkUrl2);
+            resolver3.resolve();
+            if (params1 == null) {
                 return;
             }
-            for (const otherChunkData of params.otherChunks){
+            for (const otherChunkData of params1.otherChunks){
                 const otherChunkPath = getChunkPath(otherChunkData);
-                const otherChunkUrl = getChunkRelativeUrl(otherChunkPath);
+                const otherChunkUrl1 = getChunkRelativeUrl(otherChunkPath);
                 // Chunk might have started loading, so we want to avoid triggering another load.
-                getOrCreateResolver(otherChunkUrl);
+                getOrCreateResolver(otherChunkUrl1);
             }
             // This waits for chunks to be loaded, but also marks included items as available.
-            await Promise.all(params.otherChunks.map((otherChunkData)=>loadChunk({
+            await Promise.all(params1.otherChunks.map((otherChunkData)=>loadChunk({
                     type: SourceType.Runtime,
                     chunkPath
                 }, otherChunkData)));
-            if (params.runtimeModuleIds.length > 0) {
-                for (const moduleId of params.runtimeModuleIds){
+            if (params1.runtimeModuleIds.length > 0) {
+                for (const moduleId of params1.runtimeModuleIds){
                     getOrInstantiateRuntimeModule(moduleId, chunkPath);
                 }
             }
@@ -1522,54 +1522,54 @@ async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
         /**
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
-     */ loadChunk (chunkUrl, source) {
-            return doLoadChunk(chunkUrl, source);
+     */ loadChunk (chunkUrl, source1) {
+            return doLoadChunk1(chunkUrl, source1);
         }
     };
     function getOrCreateResolver(chunkUrl) {
-        let resolver = chunkResolvers.get(chunkUrl);
-        if (!resolver) {
+        let resolver1 = chunkResolvers5.get(chunkUrl);
+        if (!resolver1) {
             let resolve;
-            let reject;
-            const promise = new Promise((innerResolve, innerReject)=>{
+            let reject1;
+            const promise2 = new Promise((innerResolve, innerReject1)=>{
                 resolve = innerResolve;
-                reject = innerReject;
+                reject1 = innerReject1;
             });
-            resolver = {
+            resolver1 = {
                 resolved: false,
                 loadingStarted: false,
-                promise,
+                promise: promise2,
                 resolve: ()=>{
-                    resolver.resolved = true;
+                    resolver1.resolved = true;
                     resolve();
                 },
-                reject: reject
+                reject: reject1
             };
-            chunkResolvers.set(chunkUrl, resolver);
+            chunkResolvers5.set(chunkUrl, resolver1);
         }
-        return resolver;
+        return resolver1;
     }
     /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
-   */ function doLoadChunk(chunkUrl, source) {
-        const resolver = getOrCreateResolver(chunkUrl);
-        if (resolver.loadingStarted) {
-            return resolver.promise;
+   */ function doLoadChunk1(chunkUrl, source1) {
+        const resolver2 = getOrCreateResolver(chunkUrl);
+        if (resolver2.loadingStarted) {
+            return resolver2.promise;
         }
-        if (source.type === SourceType.Runtime) {
+        if (source1.type === SourceType.Runtime) {
             // We don't need to load chunks references from runtime code, as they're already
             // present in the DOM.
-            resolver.loadingStarted = true;
+            resolver2.loadingStarted = true;
             if (isCss(chunkUrl)) {
                 // CSS chunks do not register themselves, and as such must be marked as
                 // loaded instantly.
-                resolver.resolve();
+                resolver2.resolve();
             }
             // We need to wait for JS chunks to register themselves within `registerChunk`
             // before we can start instantiating runtime modules, hence the absence of
             // `resolver.resolve()` in this branch.
-            return resolver.promise;
+            return resolver2.promise;
         }
         if (typeof importScripts === 'function') {
             // We're in a web worker
@@ -1589,18 +1589,18 @@ async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
                 if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
-                    resolver.resolve();
+                    resolver2.resolve();
                 } else {
                     const link = document.createElement('link');
                     link.rel = 'stylesheet';
                     link.href = chunkUrl;
                     link.onerror = ()=>{
-                        resolver.reject();
+                        resolver2.reject();
                     };
                     link.onload = ()=>{
                         // CSS chunks do not register themselves, and as such must be marked as
                         // loaded instantly.
-                        resolver.resolve();
+                        resolver2.resolve();
                     };
                     document.body.appendChild(link);
                 }
@@ -1611,7 +1611,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
                     // can't detect that. The Promise will never resolve in this case.
                     for (const script of Array.from(previousScripts)){
                         script.addEventListener('error', ()=>{
-                            resolver.reject();
+                            resolver2.reject();
                         });
                     }
                 } else {
@@ -1621,7 +1621,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
                     // this branch.
                     script.onerror = ()=>{
-                        resolver.reject();
+                        resolver2.reject();
                     };
                     document.body.appendChild(script);
                 }
@@ -1629,8 +1629,8 @@ async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
             }
         }
-        resolver.loadingStarted = true;
-        return resolver.promise;
+        resolver2.loadingStarted = true;
+        return resolver2.promise;
     }
 })();
 /**
@@ -1648,9 +1648,9 @@ let DEV_BACKEND;
         unloadChunk (chunkUrl) {
             deleteResolver(chunkUrl);
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-            const decodedChunkUrl = decodeURI(chunkUrl);
+            const decodedChunkUrl1 = decodeURI(chunkUrl);
             if (isCss(chunkUrl)) {
-                const links = document.querySelectorAll(`link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`);
+                const links = document.querySelectorAll(`link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl1}"],link[href^="${decodedChunkUrl1}?"]`);
                 for (const link of Array.from(links)){
                     link.remove();
                 }
@@ -1659,7 +1659,7 @@ let DEV_BACKEND;
                 // runtime once evaluated.
                 // However, we still want to remove the script tag from the DOM to keep
                 // the HTML somewhat consistent from the user's perspective.
-                const scripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                const scripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl1}"],script[src^="${decodedChunkUrl1}?"]`);
                 for (const script of Array.from(scripts)){
                     script.remove();
                 }
@@ -1668,19 +1668,19 @@ let DEV_BACKEND;
             }
         },
         reloadChunk (chunkUrl) {
-            return new Promise((resolve, reject)=>{
+            return new Promise((resolve, reject1)=>{
                 if (!isCss(chunkUrl)) {
-                    reject(new Error('The DOM backend can only reload CSS chunks'));
+                    reject1(new Error('The DOM backend can only reload CSS chunks'));
                     return;
                 }
-                const decodedChunkUrl = decodeURI(chunkUrl);
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
-                if (previousLinks.length === 0) {
-                    reject(new Error(`No link element found for chunk ${chunkUrl}`));
+                const decodedChunkUrl2 = decodeURI(chunkUrl);
+                const previousLinks3 = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl2}"],link[rel=stylesheet][href^="${decodedChunkUrl2}?"]`);
+                if (previousLinks3.length === 0) {
+                    reject1(new Error(`No link element found for chunk ${chunkUrl}`));
                     return;
                 }
-                const link = document.createElement('link');
-                link.rel = 'stylesheet';
+                const link4 = document.createElement('link');
+                link4.rel = 'stylesheet';
                 if (navigator.userAgent.includes('Firefox')) {
                     // Firefox won't reload CSS files that were previously loaded on the current page,
                     // we need to add a query param to make sure CSS is actually reloaded from the server.
@@ -1689,25 +1689,25 @@ let DEV_BACKEND;
                     //
                     // Safari has a similar issue, but only if you have a `<link rel=preload ... />` tag
                     // pointing to the same URL as the stylesheet: https://bugs.webkit.org/show_bug.cgi?id=187726
-                    link.href = `${chunkUrl}?ts=${Date.now()}`;
+                    link4.href = `${chunkUrl}?ts=${Date.now()}`;
                 } else {
-                    link.href = chunkUrl;
+                    link4.href = chunkUrl;
                 }
-                link.onerror = ()=>{
-                    reject();
+                link4.onerror = ()=>{
+                    reject1();
                 };
-                link.onload = ()=>{
+                link4.onload = ()=>{
                     // First load the new CSS, then remove the old ones. This prevents visible
                     // flickering that would happen in-between removing the previous CSS and
                     // loading the new one.
-                    for (const previousLink of Array.from(previousLinks))previousLink.remove();
+                    for (const previousLink of Array.from(previousLinks3))previousLink.remove();
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
                     resolve();
                 };
                 // Make sure to insert the new CSS right after the previous one, so that
                 // its precedence is higher.
-                previousLinks[0].parentElement.insertBefore(link, previousLinks[0].nextSibling);
+                previousLinks3[0].parentElement.insertBefore(link4, previousLinks3[0].nextSibling);
             });
         },
         restart: ()=>self.location.reload()

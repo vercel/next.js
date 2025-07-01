@@ -23,7 +23,7 @@ __turbopack_context__.v("/static/ignore-worker.c7cb9893.cjs");}),
 "use strict";
 
 __turbopack_context__.s({
-    "foo": ()=>foo
+    "foo": ()=>foo1
 });
 const __TURBOPACK__import$2e$meta__ = {
     get url () {
@@ -42,7 +42,7 @@ require(/* webpackIgnore: true */ './ignore.cjs');
 require(/* turbopackIgnore: true */ './ignore.cjs');
 new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
 new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
-function foo(plugin) {
+function foo1(plugin) {
     return require(/* turbopackIgnore: true */ plugin);
 }
 }),

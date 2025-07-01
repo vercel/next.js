@@ -12,18 +12,18 @@ console.log(`I like ${(0, __TURBOPACK__imported__module__$5b$project$5d2f$turbop
 "use strict";
 
 __turbopack_context__.s({
-    "getCat": ()=>getCat
+    "getCat": ()=>getCat3
 });
 let cat = "cat";
-let dog = "dog";
-function getChimera() {
-    return cat + dog;
+let dog1 = "dog";
+function getChimera2() {
+    return cat + dog1;
 }
-function getCat() {
+function getCat3() {
     return cat;
 }
-function getDog() {
-    return dog;
+function getDog4() {
+    return dog1;
 }
 }),
 }]);

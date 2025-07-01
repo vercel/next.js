@@ -5,15 +5,15 @@
 
 /** @jsxImportSource @emotion/react */ __turbopack_context__.s({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/jsx-dev-runtime.js [test] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$react$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/index.js [test] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js [test] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$react$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__1 = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/index.js [test] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__2 = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js [test] (ecmascript)");
 ;
 ;
 ;
-const StyledButton = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__["default"])("button", {
+const StyledButton3 = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__2["default"])("button", {
     target: "e14dbx1z0"
 })("background:blue;");
-function ClassNameButton({ children }) {
+function ClassNameButton4({ children }) {
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$test$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
         className: css`
         background: blue;
@@ -25,7 +25,7 @@ function ClassNameButton({ children }) {
         columnNumber: 5
     }, this);
 }
-console.log(StyledButton, ClassNameButton);
+console.log(StyledButton3, ClassNameButton4);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/jsx-dev-runtime.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

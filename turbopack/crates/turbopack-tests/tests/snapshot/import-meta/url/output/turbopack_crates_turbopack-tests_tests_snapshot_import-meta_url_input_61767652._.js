@@ -12,9 +12,9 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs")}`;
     }
 };
-const assetUrl = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static in ecmascript)"));
-console.log(assetUrl);
-fetch(assetUrl).then((res)=>res.text()).then(console.log);
+const assetUrl1 = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static in ecmascript)"));
+console.log(assetUrl1);
+fetch(assetUrl1).then((res)=>res.text()).then(console.log);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
