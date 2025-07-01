@@ -16,7 +16,9 @@ declare const incrementalCacheHandler: any
 // TODO: re-enable this once we've refactored to use implicit matches
 // const renderToHTML = undefined
 
-import RouteModule from '../../server/route-modules/pages/module'
+import RouteModule, {
+  type PagesRouteHandlerContext,
+} from '../../server/route-modules/pages/module'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 
 import type { RequestData } from '../../server/web/types'
@@ -24,6 +26,8 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
+import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import { BaseServerSpan } from '../../server/lib/trace/constants'
 
 // injected by the loader afterwards.
 declare const nextConfig: NextConfigComplete
@@ -88,6 +92,7 @@ async function requestHandler(
 ): Promise<Response> {
   let srcPage = 'VAR_PAGE'
 
+  const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
   const baseReq = new WebNextRequest(req)
   const pageRouteModule = pageMod.routeModule as RouteModule
   const prepareResult = await pageRouteModule.prepare(baseReq, null, {
@@ -113,14 +118,15 @@ async function requestHandler(
     dynamicCssManifest,
   } = prepareResult
 
-  const renderContext = {
+  const renderContext: PagesRouteHandlerContext = {
     page: srcPage,
     query,
+    params,
 
     sharedContext: {
       buildId,
       deploymentId: process.env.NEXT_DEPLOYMENT_ID,
-      customServer: false,
+      customServer: undefined,
     },
 
     renderContext: {
@@ -130,15 +136,15 @@ async function requestHandler(
     },
 
     renderOpts: {
-      dir: '',
       params,
+      page: srcPage,
       supportsDynamicResponse: true,
-      trailingSlash: nextConfig.trailingSlash,
-      deploymentId: nextConfig.deploymentId,
+      Component: pageMod.Component,
+      ComponentMod: pageMod,
+      pageConfig: pageMod.pageConfig,
+      routeModule: pageMod.routeModule,
       strictNextHead: nextConfig.experimental.strictNextHead ?? true,
-      poweredByHeader: nextConfig.poweredByHeader,
       canonicalBase: nextConfig.amp.canonicalBase || '',
-      generateEtags: nextConfig.generateEtags,
       previewProps: prerenderManifest.preview,
       ampOptimizerConfig: nextConfig.experimental.amp?.optimizer,
       basePath: nextConfig.basePath,
@@ -150,8 +156,6 @@ async function requestHandler(
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
       domainLocales: nextConfig.i18n?.domains,
       distDir: '',
-      cacheLifeProfiles: nextConfig.experimental.cacheLife,
-      enableTainting: nextConfig.experimental.taint,
       crossOrigin: nextConfig.crossOrigin ? nextConfig.crossOrigin : undefined,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -163,24 +167,9 @@ async function requestHandler(
 
       isExperimentalCompile: nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
-      htmlLimitedBots: nextConfig.htmlLimitedBots,
       experimental: {
-        expireTime: nextConfig.expireTime,
-        staleTimes: nextConfig.experimental.staleTimes,
         clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
-        dynamicIO: nextConfig.experimental.dynamicIO ?? false,
-        clientSegmentCache:
-          nextConfig.experimental.clientSegmentCache === 'client-only'
-            ? 'client-only'
-            : Boolean(nextConfig.experimental.clientSegmentCache),
-        dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
-        inlineCss: nextConfig.experimental.inlineCss ?? false,
-        authInterrupts: !!nextConfig.experimental.authInterrupts,
       },
-      onInstrumentationRequestError:
-        pageRouteModule.instrumentationOnRequestError.bind(pageRouteModule),
-      reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
-      devtoolSegmentExplorer: nextConfig.experimental.devtoolSegmentExplorer,
 
       buildManifest,
       subresourceIntegrityManifest,
@@ -189,18 +178,20 @@ async function requestHandler(
       dynamicCssManifest,
     },
   }
+  let finalStatus = 200
 
   const renderResultToResponse = (
     result: RenderResult<RenderResultMetadata>
   ): Response => {
     // Handle null responses
     if (result.isNull) {
+      finalStatus = 500
       return new Response(null, { status: 500 })
     }
 
     // Extract metadata
     const { metadata } = result
-    const statusCode = metadata.statusCode || 200
+    finalStatus = metadata.statusCode || 200
     const headers = new Headers()
 
     // Set content type
@@ -231,7 +222,7 @@ async function requestHandler(
         String(new TextEncoder().encode(body).length)
       )
       return new Response(body, {
-        status: statusCode,
+        status: finalStatus,
         headers,
       })
     }
@@ -247,64 +238,127 @@ async function requestHandler(
     })
 
     return new Response(readable, {
-      status: statusCode,
+      status: finalStatus,
       headers,
     })
   }
 
-  try {
-    const result = await pageRouteModule.render(
-      // @ts-expect-error we don't type this for edge
-      baseReq,
-      new WebNextResponse(undefined),
-      {
-        ...renderContext,
-        renderOpts: {
-          ...renderContext.renderOpts,
-          getServerSideProps: pageMod.getServerSideProps,
-          Component: pageMod.default || pageMod,
-          ComponentMod: pageMod,
-          pageConfig: pageMod.config,
-          isNextDataRequest,
-        },
+  const invokeRender = async (span?: Span): Promise<Response> => {
+    try {
+      const result = await pageRouteModule
+        .render(
+          // @ts-expect-error we don't type this for edge
+          baseReq,
+          new WebNextResponse(undefined),
+          {
+            ...renderContext,
+            renderOpts: {
+              ...renderContext.renderOpts,
+              getServerSideProps: pageMod.getServerSideProps,
+              Component: pageMod.default || pageMod,
+              ComponentMod: pageMod,
+              pageConfig: pageMod.config,
+              isNextDataRequest,
+            },
+          }
+        )
+        .finally(() => {
+          if (!span) return
+
+          span.setAttributes({
+            'http.status_code': finalStatus,
+            'next.rsc': false,
+          })
+
+          const rootSpanAttributes = tracer.getRootSpanAttributes()
+          // We were unable to get attributes, probably OTEL is not enabled
+          if (!rootSpanAttributes) {
+            return
+          }
+
+          if (
+            rootSpanAttributes.get('next.span_type') !==
+            BaseServerSpan.handleRequest
+          ) {
+            console.warn(
+              `Unexpected root span type '${rootSpanAttributes.get(
+                'next.span_type'
+              )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+            )
+            return
+          }
+
+          const route = rootSpanAttributes.get('next.route')
+          if (route) {
+            const name = `${req.method} ${route}`
+
+            span.setAttributes({
+              'next.route': route,
+              'http.route': route,
+              'next.span_name': name,
+            })
+            span.updateName(name)
+          } else {
+            span.updateName(`${req.method} ${relativeUrl}`)
+          }
+        })
+
+      return renderResultToResponse(result)
+    } catch (err) {
+      const errModule = error500Mod || errorMod
+      const errRouteModule = errModule.routeModule as RouteModule
+
+      await errRouteModule.onRequestError(baseReq, err, {
+        routerKind: 'Pages Router',
+        routePath: srcPage,
+        routeType: 'render',
+        revalidateReason: undefined,
+      })
+
+      if (errRouteModule.isDev) {
+        throw err
       }
-    )
 
-    return renderResultToResponse(result)
-  } catch (err) {
-    const errModule = error500Mod || errorMod
-    const errRouteModule = errModule.routeModule as RouteModule
+      const errResult = await errRouteModule.render(
+        // @ts-expect-error we don't type this for edge
+        baseReq,
+        new WebNextResponse(undefined),
+        {
+          ...renderContext,
+          page: error500Mod ? '/500' : '/_error',
+          renderOpts: {
+            ...renderContext.renderOpts,
+            getServerSideProps: errModule.getServerSideProps,
+            Component: errModule.default || errModule,
+            ComponentMod: errModule,
+            pageConfig: errModule.config,
+          },
+        }
+      )
 
-    await errRouteModule.onRequestError(baseReq, err, {
-      routerKind: 'Pages Router',
-      routePath: srcPage,
-      routeType: 'render',
-      revalidateReason: undefined,
-    })
-
-    if (errModule.isDev) {
-      throw err
+      return renderResultToResponse(errResult)
     }
-
-    const errResult = await errRouteModule.render(
-      // @ts-expect-error we don't type this for edge
-      baseReq,
-      new WebNextResponse(undefined),
-      {
-        ...renderContext,
-        page: error500Mod ? '/500' : '/_error',
-        renderOpts: {
-          ...renderContext.renderOpts,
-          getServerSideProps: errModule.getServerSideProps,
-          Component: errModule.default || errModule,
-          ComponentMod: errModule,
-          pageConfig: errModule.config,
-        },
-      }
-    )
-
-    return renderResultToResponse(errResult)
   }
+
+  const tracer = getTracer()
+
+  // TODO: activeSpan code path is for when wrapped by
+  // next-server can be removed when this is no longer used
+  return tracer.withPropagatedContext(req.headers, () =>
+    tracer.trace(
+      BaseServerSpan.handleRequest,
+      {
+        spanName: `${req.method} ${relativeUrl}`,
+        kind: SpanKind.SERVER,
+        attributes: {
+          'http.method': req.method,
+          'http.target': relativeUrl,
+          'http.route': srcPage,
+        },
+      },
+      invokeRender
+    )
+  )
 }
 
 export default function nHandler(opts: { page: string; request: RequestData }) {
