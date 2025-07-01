@@ -10,7 +10,6 @@ extend-ignore-identifiers-re = ["SEPARATORs*", "IIFEs*"]
 rto = "rto"
 wdth = "wdth"
 
-
 [type.rust]
 check-file = true
 
