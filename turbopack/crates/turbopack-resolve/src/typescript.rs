@@ -63,7 +63,7 @@ pub async fn read_tsconfigs(
 
         let parsed_data = data.parse_json_with_comments();
         match &*parsed_data.await? {
-            FileJsonContent::Unparsable(e) => {
+            FileJsonContent::Unparseable(e) => {
                 let mut message = "tsconfig is not parseable: invalid JSON: ".to_string();
                 if let FileContent::Content(content) = &*data.await? {
                     let text = content.content().to_str()?;

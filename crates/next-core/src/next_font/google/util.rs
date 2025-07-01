@@ -61,12 +61,12 @@ pub(super) fn get_font_axes(
 
     match weights {
         FontWeights::Variable => {
-            let Some(definable_axes) = all_axes else {
+            let Some(defineable_axes) = all_axes else {
                 bail!("Font {} has no definable `axes`", font_family);
             };
 
             if let Some(selected_variable_axes) = selected_variable_axes {
-                let definable_axes_tags = definable_axes
+                let definable_axes_tags = defineable_axes
                     .iter()
                     .map(|axis| axis.tag.to_owned())
                     .collect::<Vec<RcStr>>();
@@ -85,7 +85,7 @@ pub(super) fn get_font_axes(
 
             let mut weight_axis = None;
             let mut variable_axes = vec![];
-            for axis in definable_axes {
+            for axis in defineable_axes {
                 if axis.tag == "wght" {
                     weight_axis = Some(format!("{}..{}", axis.min, axis.max).into());
                 } else if let Some(selected_variable_axes) = selected_variable_axes
@@ -495,7 +495,7 @@ mod tests {
                     variable_axes: Some(vec![
                         ("GRAD".into(), "-50..100".into()),
                         ("opsz".into(), "8..144".into()),
-                        ("width".into(), "50..150".into()),
+                        ("wdth".into(), "50..150".into()),
                     ])
                 },
                 "optional"
@@ -537,7 +537,7 @@ mod tests {
                     variable_axes: Some(vec![
                         ("GRAD".into(), "-50..100".into()),
                         ("opsz".into(), "8..144".into()),
-                        ("width".into(), "50..150".into()),
+                        ("wdth".into(), "50..150".into()),
                     ])
                 },
                 "optional"

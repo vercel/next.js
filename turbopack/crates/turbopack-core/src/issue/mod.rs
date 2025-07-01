@@ -94,7 +94,7 @@ pub enum StyledString {
     /// Some prose text.
     Text(RcStr),
     /// Code snippet.
-    // TODO add language to support syntax highlighting
+    // TODO add language to support syntax hightlighting
     Code(RcStr),
     /// Some important text.
     Strong(RcStr),

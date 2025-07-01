@@ -61,7 +61,7 @@ impl EcmascriptChunk {
 
     #[turbo_tasks::function]
     pub fn entry_ids(self: Vc<Self>) -> Vc<ModuleIds> {
-        // TODO return something useful
+        // TODO return something usefull
         Vc::cell(Default::default())
     }
 }

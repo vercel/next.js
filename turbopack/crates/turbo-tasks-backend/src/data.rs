@@ -164,7 +164,7 @@ fn add_with_diff(v: &mut i32, u: i32) -> i32 {
     }
 }
 
-/// Represents a count of dirty containers. Since dirtiness can be session dependent, there might be
+/// Represents a count of dirty containers. Since dirtyness can be session dependent, there might be
 /// a different count for a specific session. It only need to store the highest session count, since
 /// old sessions can't be visited again, so we can ignore their counts.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]

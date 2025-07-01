@@ -20,7 +20,7 @@ use super::available_modules::{AvailableModules, AvailableModulesSet};
 pub enum AvailabilityInfo {
     /// Availability of modules is not tracked
     Untracked,
-    /// Availability of modules is tracked, but no modules are available
+    /// Availablility of modules is tracked, but no modules are available
     Root,
     /// There are modules already available.
     Complete {

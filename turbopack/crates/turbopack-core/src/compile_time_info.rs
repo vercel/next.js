@@ -12,7 +12,7 @@ macro_rules! definable_name_map_pattern_internal {
         [stringify!($name).into()]
     };
     ($name:ident typeof) => {
-        [stringify!($name).into(), $crate::compile_time_info::DefinableNameSegment::TypeOf]
+        [stringify!($name).into(), $crate::compile_time_info::DefineableNameSegment::TypeOf]
     };
     // Entry point for non-recursive calls
     ($name:ident . $($more:ident).+ typeof) => {
@@ -29,7 +29,7 @@ macro_rules! definable_name_map_pattern_internal {
         $crate::definable_name_map_pattern_internal!($($more).+, [$($array),+, stringify!($name).into()])
     };
     ($name:ident typeof, [$($array:expr),+]) => {
-        [$($array),+, stringify!($name).into(), $crate::compile_time_info::DefinableNameSegment::TypeOf]
+        [$($array),+, stringify!($name).into(), $crate::compile_time_info::DefineableNameSegment::TypeOf]
     };
     ($name:ident . $($more:ident).+ typeof, [$($array:expr),+]) => {
         $crate::definable_name_map_pattern_internal!($($more).+ typeof, [$($array),+, stringify!($name).into()])
@@ -142,42 +142,42 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
 
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
-pub enum DefinableNameSegment {
+pub enum DefineableNameSegment {
     Name(RcStr),
     TypeOf,
 }
 
-impl From<RcStr> for DefinableNameSegment {
+impl From<RcStr> for DefineableNameSegment {
     fn from(value: RcStr) -> Self {
-        DefinableNameSegment::Name(value)
+        DefineableNameSegment::Name(value)
     }
 }
 
-impl From<&str> for DefinableNameSegment {
+impl From<&str> for DefineableNameSegment {
     fn from(value: &str) -> Self {
-        DefinableNameSegment::Name(value.into())
+        DefineableNameSegment::Name(value.into())
     }
 }
 
-impl From<String> for DefinableNameSegment {
+impl From<String> for DefineableNameSegment {
     fn from(value: String) -> Self {
-        DefinableNameSegment::Name(value.into())
+        DefineableNameSegment::Name(value.into())
     }
 }
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct CompileTimeDefines(pub FxIndexMap<Vec<DefinableNameSegment>, CompileTimeDefineValue>);
+pub struct CompileTimeDefines(pub FxIndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct CompileTimeDefinesIndividual(
-    pub FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<CompileTimeDefineValue>>,
+    pub FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<CompileTimeDefineValue>>,
 );
 
 impl IntoIterator for CompileTimeDefines {
-    type Item = (Vec<DefinableNameSegment>, CompileTimeDefineValue);
-    type IntoIter = indexmap::map::IntoIter<Vec<DefinableNameSegment>, CompileTimeDefineValue>;
+    type Item = (Vec<DefineableNameSegment>, CompileTimeDefineValue);
+    type IntoIter = indexmap::map::IntoIter<Vec<DefineableNameSegment>, CompileTimeDefineValue>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -251,15 +251,15 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct FreeVarReferences(pub FxIndexMap<Vec<DefinableNameSegment>, FreeVarReference>);
+pub struct FreeVarReferences(pub FxIndexMap<Vec<DefineableNameSegment>, FreeVarReference>);
 
 /// A map from the last element (the member prop) to a map of the rest of the name to the value.
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferencesIndividual(
     pub  FxIndexMap<
-        DefinableNameSegment,
-        FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
+        DefineableNameSegment,
+        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
     >,
 );
 
@@ -273,8 +273,8 @@ impl FreeVarReferences {
     #[turbo_tasks::function]
     pub fn individual(&self) -> Vc<FreeVarReferencesIndividual> {
         let mut result: FxIndexMap<
-            DefinableNameSegment,
-            FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
+            DefineableNameSegment,
+            FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
         > = FxIndexMap::default();
 
         for (key, value) in &self.0 {
@@ -368,7 +368,7 @@ impl CompileTimeInfoBuilder {
 mod test {
     use turbo_tasks::FxIndexMap;
 
-    use crate::compile_time_info::{DefinableNameSegment, FreeVarReference, FreeVarReferences};
+    use crate::compile_time_info::{DefineableNameSegment, FreeVarReference, FreeVarReferences};
 
     #[test]
     fn macro_parser() {
@@ -407,11 +407,11 @@ mod test {
             ),
             FreeVarReferences(FxIndexMap::from_iter(vec![
                 (
-                    vec!["x".into(), DefinableNameSegment::TypeOf],
+                    vec!["x".into(), DefineableNameSegment::TypeOf],
                     FreeVarReference::Value("a".into())
                 ),
                 (
-                    vec!["x".into(), "y".into(), DefinableNameSegment::TypeOf],
+                    vec!["x".into(), "y".into(), DefineableNameSegment::TypeOf],
                     FreeVarReference::Value("b".into())
                 ),
                 (
@@ -419,7 +419,7 @@ mod test {
                         "x".into(),
                         "y".into(),
                         "z".into(),
-                        DefinableNameSegment::TypeOf
+                        DefineableNameSegment::TypeOf
                     ],
                     FreeVarReference::Value("c".into())
                 )

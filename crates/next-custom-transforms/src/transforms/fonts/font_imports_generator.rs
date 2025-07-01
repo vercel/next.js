@@ -1,10 +1,10 @@
 use serde_json::Value;
 use swc_core::{
-    common::{DUMMY_SP, Spanned, errors::HANDLER},
+    common::{errors::HANDLER, Spanned, DUMMY_SP},
     ecma::{
         ast::*,
         atoms::Atom,
-        visit::{Visit, noop_visit_type},
+        visit::{noop_visit_type, Visit},
     },
 };
 
@@ -152,14 +152,14 @@ impl Visit for FontImportsGenerator<'_> {
         match item {
             ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
                 if self.check_var_decl(var_decl).is_some() {
-                    self.state.removable_module_items.insert(var_decl.span.lo);
+                    self.state.removeable_module_items.insert(var_decl.span.lo);
                 }
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
                 if let Decl::Var(var_decl) = &export_decl.decl {
                     if let Some(ident) = self.check_var_decl(var_decl) {
                         self.state
-                            .removable_module_items
+                            .removeable_module_items
                             .insert(export_decl.span.lo);
 
                         self.state.font_exports.push(ModuleItem::ModuleDecl(

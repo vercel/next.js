@@ -848,7 +848,7 @@ impl StorageWriteGuard<'_> {
                     }
                 }
                 (false, true) => {
-                    // Not in snapshot mode and item is already modified
+                    // Not in snapshot mode and item is already modfied
                     // Do nothing
                 }
                 (true, false) => {

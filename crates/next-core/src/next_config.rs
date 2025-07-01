@@ -515,7 +515,7 @@ pub enum ImageFormat {
 pub struct RemotePattern {
     pub hostname: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub protocol: Option<RemotePatternProtocol>,
+    pub protocol: Option<RemotePatternProtocal>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -526,7 +526,7 @@ pub struct RemotePattern {
     Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "kebab-case")]
-pub enum RemotePatternProtocol {
+pub enum RemotePatternProtocal {
     Http,
     Https,
 }

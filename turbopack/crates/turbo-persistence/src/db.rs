@@ -870,11 +870,11 @@ impl TurboPersistence {
                 let merge_result = merge_jobs
                     .into_par_iter()
                     .with_min_len(1)
-                    .map(|indices| {
+                    .map(|indicies| {
                         let _span = span.clone().entered();
-                        if indices.len() == 1 {
+                        if indicies.len() == 1 {
                             // If we only have one file, we can just move it
-                            let index = indices[0];
+                            let index = indicies[0];
                             let meta_index = ssts_with_ranges[index].meta_index;
                             let index_in_meta = ssts_with_ranges[index].index_in_meta;
                             let meta_file = &meta_files[meta_index];
@@ -920,7 +920,7 @@ impl TurboPersistence {
                         let mut new_sst_files = Vec::new();
 
                         // Iterate all SST files
-                        let iters = indices
+                        let iters = indicies
                             .iter()
                             .map(|&index| {
                                 let meta_index = ssts_with_ranges[index].meta_index;

@@ -466,17 +466,17 @@ impl Pattern {
                 Pattern::Dynamic => Some(()),
                 Pattern::Concatenation(list) => {
                     let mut segments = Vec::new();
-                    for segment in list.iter() {
-                        match segment {
+                    for seqment in list.iter() {
+                        match seqment {
                             Pattern::Constant(str) => {
-                                for segment in str.split('/') {
-                                    match segment {
+                                for seqment in str.split('/') {
+                                    match seqment {
                                         "." | "" => {}
                                         ".." => {
                                             segments.pop()?;
                                         }
-                                        segment => {
-                                            segments.push(vec![Pattern::Constant(segment.into())]);
+                                        seqment => {
+                                            segments.push(vec![Pattern::Constant(seqment.into())]);
                                         }
                                     }
                                 }

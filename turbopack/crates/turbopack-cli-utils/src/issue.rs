@@ -544,20 +544,21 @@ impl IssueReporter for ConsoleUi {
                         println!("{indent}[{category}]");
                         format!("{indent}  ")
                     };
-                    let (mut contexts, mut vendor_contexts): (Vec<_>, Vec<_>) = category_issues
+                    let (mut contextes, mut vendor_contextes): (Vec<_>, Vec<_>) = category_issues
                         .iter_mut()
                         .partition(|(context, _)| !context.contains("node_modules"));
-                    contexts.sort_by_key(|(c, _)| *c);
+                    contextes.sort_by_key(|(c, _)| *c);
                     if show_all {
-                        vendor_contexts.sort_by_key(|(c, _)| *c);
-                        contexts.extend(vendor_contexts);
+                        vendor_contextes.sort_by_key(|(c, _)| *c);
+                        contextes.extend(vendor_contextes);
                     }
                     let category_issues_take_count = if show_all {
                         category_issues_size
                     } else {
-                        min(contexts.len(), DEFAULT_SHOW_COUNT)
+                        min(contextes.len(), DEFAULT_SHOW_COUNT)
                     };
-                    for (context, issues) in contexts.into_iter().take(category_issues_take_count) {
+                    for (context, issues) in contextes.into_iter().take(category_issues_take_count)
+                    {
                         issues.sort();
                         println!("{indent}{}", context.bright_blue());
                         let issues_size = issues.len();

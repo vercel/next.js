@@ -51,7 +51,7 @@ pub struct DiagnosticPayload(pub FxIndexMap<RcStr, RcStr>);
 /// Turbopack's behavior.
 #[turbo_tasks::value_trait]
 pub trait Diagnostic {
-    /// [NOTE]: Pseudo-reserved; this is not being used currently.
+    /// [NOTE]: Psuedo-reserved; this is not being used currently.
     /// The `type` of the diagnostics that can be used selectively filtered by
     /// consumers. For example, this could be `telemetry`, or
     /// `slow_perf_event`, or something else. This is not strongly typed
@@ -62,7 +62,7 @@ pub trait Diagnostic {
     /// Name of the specific diagnostic event.
     #[turbo_tasks::function]
     fn name(&self) -> Vc<RcStr>;
-    /// Arbitrary payload included in the diagnostic event.
+    /// Arbitarary payload included in the diagnostic event.
     #[turbo_tasks::function]
     fn payload(&self) -> Vc<DiagnosticPayload>;
 

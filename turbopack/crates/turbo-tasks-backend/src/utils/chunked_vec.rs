@@ -17,7 +17,7 @@ impl<T> ChunkedVec<T> {
         for (i, chunk) in self.chunks.iter().enumerate().rev() {
             if !chunk.is_empty() {
                 let free = chunk.capacity() - chunk.len();
-                return cumulative_chunk_size(i) - free;
+                return cummulative_chunk_size(i) - free;
             }
         }
         0
@@ -78,7 +78,7 @@ fn chunk_size(chunk_index: usize) -> usize {
     8 << chunk_index
 }
 
-fn cumulative_chunk_size(chunk_index: usize) -> usize {
+fn cummulative_chunk_size(chunk_index: usize) -> usize {
     (8 << (chunk_index + 1)) - 8
 }
 

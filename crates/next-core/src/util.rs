@@ -17,7 +17,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::AssetContent,
-    compile_time_info::{CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment},
+    compile_time_info::{CompileTimeDefineValue, CompileTimeDefines, DefineableNameSegment},
     condition::ContextCondition,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -53,7 +53,7 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
         defines
             .entry(
                 k.split('.')
-                    .map(|s| DefinableNameSegment::Name(s.into()))
+                    .map(|s| DefineableNameSegment::Name(s.into()))
                     .collect::<Vec<_>>(),
             )
             .or_insert_with(|| {

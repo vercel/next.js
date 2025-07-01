@@ -117,12 +117,12 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                             Some(Const::Unsupported(message)) => {
                                 return Some(Const::Unsupported(format!(
                                     "Unsupported value in the Array Expression: {message}"
-                                )));
+                                )))
                             }
                             _ => {
                                 return Some(Const::Unsupported(
                                     "Unsupported value in the Array Expression".to_string(),
-                                ));
+                                ))
                             }
                         }
                     }
@@ -146,7 +146,7 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                             _ => {
                                 return Some(Const::Unsupported(format!(
                                     "Unsupported key type in the Object Expression at \"{id}\""
-                                )));
+                                )))
                             }
                         },
                         &kv.value,
@@ -154,7 +154,7 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                     _ => {
                         return Some(Const::Unsupported(format!(
                             "Unsupported spread operator in the Object Expression at \"{id}\""
-                        )));
+                        )))
                     }
                 };
                 let new_value = extract_value(ctx, value, format!("{id}.{key}"));
@@ -185,7 +185,7 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                             // TemplateLiteral, the parser yields the first quasi,
                             // then the first expression, then the next quasi, then the next
                             // expression, etc., until the last quasi.
-                            // Thus if there is no expression, the parser ends at the first and also
+                            // Thus if there is no expression, the parser ends at the frst and also
                             // last quasis
                             //
                             // A "cooked" interpretation where backslashes have special meaning,

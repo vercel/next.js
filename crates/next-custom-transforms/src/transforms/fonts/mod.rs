@@ -5,7 +5,7 @@ use swc_core::{
     ecma::{
         ast::{Id, ModuleItem, Pass},
         atoms::Atom,
-        visit::{VisitMut, VisitWith, noop_visit_mut_type, visit_mut_pass},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitWith},
     },
 };
 
@@ -37,7 +37,7 @@ pub struct FontFunction {
 #[derive(Debug, Default)]
 pub struct State {
     font_functions: FxHashMap<Id, FontFunction>,
-    removable_module_items: FxHashSet<BytePos>,
+    removeable_module_items: FxHashSet<BytePos>,
     font_imports: Vec<ModuleItem>,
     font_exports: Vec<ModuleItem>,
     font_functions_in_allowed_scope: FxHashSet<BytePos>,
@@ -59,7 +59,7 @@ impl VisitMut for NextFontLoaders {
         };
         items.visit_with(&mut functions_collector);
 
-        if !self.state.removable_module_items.is_empty() {
+        if !self.state.removeable_module_items.is_empty() {
             // Generate imports from font function calls
             let mut import_generator = font_imports_generator::FontImportsGenerator {
                 state: &mut self.state,
@@ -75,7 +75,7 @@ impl VisitMut for NextFontLoaders {
             items.visit_with(&mut wrong_scope);
 
             fn is_removable(ctx: &NextFontLoaders, item: &ModuleItem) -> bool {
-                ctx.state.removable_module_items.contains(&item.span_lo())
+                ctx.state.removeable_module_items.contains(&item.span_lo())
             }
 
             let first_removable_index = items
