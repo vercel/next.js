@@ -75,7 +75,6 @@ urlencoding = { workspace = true }
 once_cell = { workspace = true }
 
 swc_core = { workspace = true, features = [
-    "base_concurrent",
     "base_node",
     "common_concurrent",
     "ecma_ast",

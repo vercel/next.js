@@ -17,6 +17,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::AssetContent,
+    compile_time_info::{CompileTimeDefineValue, CompileTimeDefines, DefineableNameSegment},
     condition::ContextCondition,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -39,6 +40,40 @@ use crate::{
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
+
+/// As opposed to [`EnvMap`], this map allows for `None` values, which means that the variables
+/// should be replace with undefined.
+#[turbo_tasks::value(transparent)]
+pub struct OptionEnvMap(#[turbo_tasks(trace_ignore)] FxIndexMap<RcStr, Option<RcStr>>);
+
+pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefines {
+    let mut defines = FxIndexMap::default();
+
+    for (k, v) in define_env {
+        defines
+            .entry(
+                k.split('.')
+                    .map(|s| DefineableNameSegment::Name(s.into()))
+                    .collect::<Vec<_>>(),
+            )
+            .or_insert_with(|| {
+                if let Some(v) = v {
+                    let val = serde_json::from_str(v);
+                    match val {
+                        Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
+                        Ok(serde_json::Value::String(v)) => {
+                            CompileTimeDefineValue::String(v.into())
+                        }
+                        _ => CompileTimeDefineValue::JSON(v.clone()),
+                    }
+                } else {
+                    CompileTimeDefineValue::Undefined
+                }
+            });
+    }
+
+    CompileTimeDefines(defines)
+}
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, TraceRawVcs,

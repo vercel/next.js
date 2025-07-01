@@ -29,11 +29,6 @@ export {
 export * as serverHooks from '../../client/components/hooks-server-context'
 export { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
 export { createMetadataComponents } from '../../lib/metadata/metadata'
-// Not being directly used but should be included in the client manifest for /_not-found
-// * ErrorBoundary -> client/components/error-boundary
-// * GlobalError -> client/components/global-error
-import '../../client/components/error-boundary'
-import '../../client/components/builtin/global-error'
 export {
   MetadataBoundary,
   ViewportBoundary,

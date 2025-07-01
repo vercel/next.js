@@ -2,8 +2,7 @@ use std::iter::once;
 
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, Vc};
-use turbo_tasks_env::EnvMap;
+use turbo_tasks::{ResolvedVc, TaskInput, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
@@ -19,10 +18,7 @@ use turbopack_core::{
         ChunkingConfig, MangleType, MinifyType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
-    compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
-        FreeVarReferences,
-    },
+    compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{
         Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
     },
@@ -73,8 +69,8 @@ use crate::{
         get_typescript_transform_options,
     },
     util::{
-        NextRuntime, foreign_code_context_condition, get_transpiled_packages,
-        internal_assets_conditions, load_next_js_templateon,
+        NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
+        get_transpiled_packages, internal_assets_conditions, load_next_js_templateon,
     },
 };
 
@@ -346,43 +342,20 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
-    let mut defines = FxIndexMap::default();
-
-    for (k, v) in define_env {
-        defines
-            .entry(
-                k.split('.')
-                    .map(|s| DefineableNameSegment::Name(s.into()))
-                    .collect::<Vec<_>>(),
-            )
-            .or_insert_with(|| {
-                let val = serde_json::from_str(v);
-                match val {
-                    Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
-                    _ => CompileTimeDefineValue::JSON(v.clone()),
-                }
-            });
-    }
-
-    CompileTimeDefines(defines)
-}
-
 #[turbo_tasks::function]
-async fn next_server_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefines>> {
+async fn next_server_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileTimeDefines>> {
     Ok(defines(&*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarReferences>> {
+async fn next_server_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(..defines(&*define_env.await?).into_iter()).cell())
 }
 
 #[turbo_tasks::function]
 pub async fn get_server_compile_time_info(
     cwd: RcStr,
-    define_env: Vc<EnvMap>,
+    define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(

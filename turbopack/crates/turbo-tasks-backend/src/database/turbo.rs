@@ -122,7 +122,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
 }
 
 pub struct TurboWriteBatch<'a> {
-    batch: turbo_persistence::WriteBatch<WriteBuffer<'static>, 7>,
+    batch: turbo_persistence::WriteBatch<WriteBuffer<'static>, 5>,
     db: &'a Arc<TurboPersistence>,
     compact_join_handle: &'a Mutex<Option<JoinHandle<Result<()>>>>,
     initial_write: bool,

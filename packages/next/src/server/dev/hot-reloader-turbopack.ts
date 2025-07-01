@@ -99,7 +99,7 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-// import { getSupportedBrowsers } from '../../build/utils'
+import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -205,11 +205,7 @@ export async function createHotReloaderTurbopack(
     // TODO this need to be set correctly for persistent caching to work
   }
 
-  // const supportedBrowsers = await getSupportedBrowsers(dir, dev)
-  const supportedBrowsers = [
-    'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
-  ]
-
+  const supportedBrowsers = await getSupportedBrowsers(projectPath, dev)
   const currentNodeJsVersion = process.versions.node
 
   const project = await bindings.turbo.createProject(
