@@ -348,7 +348,7 @@ pub fn get_merge_segments<T: Compactable>(
         // Remove a single element segments which doesn't overlap with previous used ranges.
         if segment.len() == 1 {
             let range = compactables[segment[0]].range();
-            if !used_ranges.iter_itersecting(range).any(|(_, v)| *v) {
+            if !used_ranges.iter_intersecting(range).any(|(_, v)| *v) {
                 return false;
             }
         }

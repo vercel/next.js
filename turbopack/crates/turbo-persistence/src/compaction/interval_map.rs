@@ -207,20 +207,19 @@ where
 {
     /// Returns an iterator over all the intervals intersecting with the given range and their
     /// associated values.
-    pub fn iter_itersecting(&self, range: impl RangeBounds<B>) -> IntervalMapIterator<'_, T, B> {
+    pub fn iter_intersecting(&self, range: impl RangeBounds<B>) -> IntervalMapIterator<'_, T, B> {
         fn inner<T, B>(
             this: &IntervalMap<T, B>,
             range: RangeInclusive<B>,
         ) -> IntervalMapIterator<'_, T, B>
         where
-            B: Ord,
+            B: IntervalBound,
         {
+            // the first intersecting range may begin before `range.start()`
             let (start_position, _) = this.upper_bound(Bound::Included(range.start()));
             IntervalMapIterator {
-                starts_iter: this
-                    .interval_starts
-                    .range(start_position..=range.end())
-                    .peekable(),
+                starts_iter: this.interval_starts.range(start_position..).peekable(),
+                end_bound: *range.end(),
             }
         }
         // slightly reduce monomorphization
@@ -231,12 +230,15 @@ where
     pub fn iter(&self) -> IntervalMapIterator<'_, T, B> {
         IntervalMapIterator {
             starts_iter: self.interval_starts.range(..).peekable(),
+            end_bound: B::bound_max(),
         }
     }
 }
 
 pub struct IntervalMapIterator<'a, T, B> {
+    /// An iterator of `interval_starts` with an unbounded end.
     starts_iter: Peekable<btree_map::Range<'a, B, T>>,
+    end_bound: B,
 }
 
 impl<'a, T, B> Iterator for IntervalMapIterator<'a, T, B>
@@ -247,6 +249,9 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let entry = self.starts_iter.next()?;
+        if entry.0 > &self.end_bound {
+            return None;
+        }
         let bound_end = self
             .starts_iter
             .peek()
@@ -271,6 +276,7 @@ mod tests {
         map.update(15..=20, |v| *v |= 16);
         map.update(25..=30, |v| *v |= 32);
 
+        let result: Vec<_> = map.iter().collect();
         let expected = vec![
             (0..=4, &8),
             (5..=9, &(1 | 8)),
@@ -281,21 +287,41 @@ mod tests {
             (25..=30, &(8 | 32)),
             (31..=u64::MAX, &8),
         ];
-        let result: Vec<_> = map.iter().collect();
         assert_eq!(result, expected);
 
-        assert!(map.iter_itersecting(0..=10).any(|(_, v)| *v & 1 != 0));
-        assert!(map.iter_itersecting(0..=10).any(|(_, v)| *v & 2 != 0));
-        assert!(!map.iter_itersecting(0..10).any(|(_, v)| *v & 2 != 0));
-        assert!(map.iter_itersecting(0..=50).any(|(_, v)| *v & 4 != 0));
-        /*assert!(map.test(&(15, 15), |v| *v & 16 != 0));
-        assert!(map.test(&(0, 15), |v| *v & 16 != 0));
-        assert!(map.test(&(20, 20), |v| *v & 16 != 0));
-        assert!(map.test(&(20, u64::MAX), |v| *v & 16 != 0));
-        assert!(map.test(&(0, u64::MAX), |v| *v & 8 != 0));
-        assert!(map.test(&(0, 0), |v| *v & 8 != 0));
-        assert!(map.test(&(u64::MAX, u64::MAX), |v| *v & 8 != 0));
-        assert!(map.test(&(123, 1234), |v| *v & 8 != 0));*/
+        // re-use expecting from above
+        let result: Vec<_> = map.iter_intersecting(..).collect();
+        assert_eq!(result, expected);
+
+        let result: Vec<_> = map.iter_intersecting(14..=20).collect();
+        let expected = vec![
+            (10..=14, &(1 | 2 | 4 | 8)),
+            (15..=15, &(1 | 2 | 4 | 8 | 16)),
+            (16..=20, &(4 | 8 | 16)),
+        ];
+        assert_eq!(result, expected);
+
+        let result: Vec<_> = map.iter_intersecting(..=0).collect();
+        let expected = vec![(0..=4, &8)];
+        assert_eq!(result, expected);
+
+        let result: Vec<_> = map.iter_intersecting(u64::MAX..).collect();
+        let expected = vec![(31..=u64::MAX, &8)];
+        assert_eq!(result, expected);
+
+        assert!(map.iter_intersecting(0..=10).any(|(_, v)| *v & 1 != 0));
+        assert!(map.iter_intersecting(0..=10).any(|(_, v)| *v & 2 != 0));
+        assert!(!map.iter_intersecting(0..10).any(|(_, v)| *v & 2 != 0));
+        assert!(map.iter_intersecting(0..=50).any(|(_, v)| *v & 4 != 0));
+        assert!(map.iter_intersecting(15..=15).all(|(_, v)| *v & 16 != 0));
+        assert!(!map.iter_intersecting(0..=15).all(|(_, v)| *v & 16 != 0));
+        assert!(map.iter_intersecting(0..=15).any(|(_, v)| *v & 16 != 0));
+        assert!(map.iter_intersecting(20..=20).all(|(_, v)| *v & 16 != 0));
+        assert!(map.iter_intersecting(20..).any(|(_, v)| *v & 16 != 0));
+        assert!(map.iter_intersecting(..).all(|(_, v)| *v & 8 != 0));
+        assert!(map.iter_intersecting(0..=0).all(|(_, v)| *v & 8 != 0));
+        assert!(map.iter_intersecting(u64::MAX..).all(|(_, v)| *v & 8 != 0));
+        assert!(map.iter_intersecting(123..=1234).all(|(_, v)| *v & 8 != 0));
     }
 
     #[test]
