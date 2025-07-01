@@ -969,12 +969,10 @@ export async function openDevToolsIndicatorPopover(
 
 export async function hasDevToolsPanel(browser: Playwright) {
   const result = await browser.eval(() => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-overlay]'))
-
-    const root = portal?.shadowRoot
-    return root?.querySelector('[data-nextjs-dialog-overlay]') != null
+    const portal = document.querySelector('nextjs-portal')
+    return (
+      portal?.shadowRoot?.querySelector('[data-nextjs-dialog-overlay]') != null
+    )
   })
   return result
 }
