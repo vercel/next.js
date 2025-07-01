@@ -72,6 +72,7 @@ use swc_core::{
             Program, Script, SourceMapperExt, Stmt,
         },
         codegen::{Emitter, text_writer::JsWriter},
+        transforms::base::rename::Renamer,
         utils::StmtLikeInjector,
         visit::{VisitMut, VisitMutWith, VisitMutWithAstPath},
     },
@@ -1433,7 +1434,10 @@ async fn merge_modules(
             span: DUMMY_SP,
             shebang: None,
         });
-        merged_ast.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
+        merged_ast.visit_mut_with(&mut swc_core::ecma::transforms::base::rename::renamer(
+            Default::default(),
+            FastHygieneRenamer,
+        ));
 
         anyhow::Ok((merged_ast, inserted))
     })?;
@@ -1695,14 +1699,13 @@ async fn process_parse_result(
                         preserved_exports,
                     ));
                 } else {
-                    program.visit_mut_with(
-                        &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
-                            swc_core::ecma::transforms::base::hygiene::Config {
-                                top_level_mark,
-                                ..Default::default()
-                            },
-                        ),
-                    );
+                    program.visit_mut_with(&mut swc_core::ecma::transforms::base::rename::renamer(
+                        swc_core::ecma::transforms::base::hygiene::Config {
+                            top_level_mark,
+                            ..Default::default()
+                        },
+                        FastHygieneRenamer,
+                    ));
                 }
                 program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
 
@@ -2011,6 +2014,24 @@ fn process_content_with_code_gens(
     };
 }
 
+struct FastHygieneRenamer;
+
+impl Renamer for FastHygieneRenamer {
+    const MANGLE: bool = false;
+    // `false` is much faster than `true` because `true` produces lots of collisions
+    const RESET_N: bool = false;
+
+    fn new_name_for(&self, orig: &Id, n: &mut usize) -> Atom {
+        let res = if *n == 0 {
+            orig.0.clone()
+        } else {
+            format!("{}{}", orig.0, n).into()
+        };
+        *n += 1;
+        res
+    }
+}
+
 /// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts
 ///
 /// Don't rename idents marked with `is_import_mark` (i.e. a reference to a value which is imported
@@ -2027,7 +2048,7 @@ fn hygiene_rename_only(
         is_import_mark: Mark,
     }
     // Copied from `hygiene_with_config`'s HygieneRenamer, but added an `preserved_exports`
-    impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer<'_> {
+    impl Renamer for HygieneRenamer<'_> {
         const MANGLE: bool = false;
         const RESET_N: bool = false;
 
