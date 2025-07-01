@@ -22,8 +22,8 @@ __turbopack_context__.s({}, "[project]/turbopack/crates/turbopack-tests/tests/sn
 // for example while `ಠ_ಠ` is a valid identifier it's ok to print `searchParams['ಠ_ಠ']`
 // even if this would have been fine too `searchParams.ಠ_ಠ`
 const isDefinitelyAValidIdentifier = /s/;
-function describeStringPropertyAccess(target, prop) {}
-function describeHasCheckingStringProperty(target, prop) {}
+function describeStringPropertyAccess(target, prop1) {}
+function describeHasCheckingStringProperty(target, prop1) {}
 const wellKnownProperties = new Set([]);
 ;
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/collect-segment-data.js [test] (ecmascript)
@@ -31,11 +31,11 @@ const wellKnownProperties = new Set([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$source_maps$2f$merged$2d$unicode$2f$input$2f$jsx$2d$runtime$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/jsx-runtime.js [test] (ecmascript)");
 ;
 // eslint-disable-next-line import/no-extraneous-dependencies
-const createFromReadableStream = 123; //import { createFromReadableStream } from 'react-server-dom-webpack/client.edge';
+const createFromReadableStream1 = 123; //import { createFromReadableStream } from 'react-server-dom-webpack/client.edge';
 // eslint-disable-next-line import/no-extraneous-dependencies
-const prerender = 123; // import { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge';
-const streamFromBuffer = 1, streamToBuffer = 1; // import { streamFromBuffer, streamToBuffer } from '../stream-utils/node-web-streams-helper';
-const waitAtLeastOneReactRenderTask = 1; //import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler';
+const prerender2 = 123; // import { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge';
+const streamFromBuffer3 = 1, streamToBuffer4 = 1; // import { streamFromBuffer, streamToBuffer } from '../stream-utils/node-web-streams-helper';
+const waitAtLeastOneReactRenderTask5 = 1; //import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler';
  // import  './segment-value-encoding';
 ;
 ;
