@@ -45,7 +45,7 @@ pub async fn read_package_json(path: ResolvedVc<Box<dyn Source>>) -> Result<Vc<O
     match &*read {
         FileJsonContent::Content(_) => Ok(OptionPackageJson(Some(PackageJson(read))).cell()),
         FileJsonContent::NotFound => Ok(OptionPackageJson(None).cell()),
-        FileJsonContent::Unparseable(e) => {
+        FileJsonContent::Unparsable(e) => {
             let error_message = RcStr::from(format!(
                 "package.json is not parseable: invalid JSON: {}",
                 e.message
