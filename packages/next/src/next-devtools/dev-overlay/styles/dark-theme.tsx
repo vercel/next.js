@@ -3,7 +3,7 @@ import { css } from '../utils/css'
 const colors = `
   /* Background Dark */
   --color-background-100: #0a0a0a;
-  --color-background-200: #000000;
+  --color-background-200: #1f1f1f;
 
   /* Syntax Dark */
   --color-syntax-comment: #a0a0a0;
