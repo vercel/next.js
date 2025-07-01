@@ -7131,9 +7131,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "29.4.0"
+version = "29.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "991fb5308ade9fb838316d0f1790bf2df25b0cafa6ac2515450e8003107201ae"
+checksum = "09ac3e1a8ead74c190396c066998edd40ab2b2f93f61e90c033ff67deaf22d5f"
 dependencies = [
  "binding_macros",
  "par-core",
@@ -8022,9 +8022,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_usage_analyzer"
-version = "19.0.0"
+version = "19.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c357c7ff7ae2bf50adbe89c04ed94c9b99d34563df69386aba15a05e4560fc9a"
+checksum = "209cc62665a5a6f7cded15c198a27b5aed49f8f4bc2b1c14ebec61c02889b2e6"
 dependencies = [
  "bitflags 2.9.1",
  "indexmap 2.9.0",
