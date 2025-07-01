@@ -830,14 +830,14 @@ fn run_strip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) 
 fn next_transform_strip_page_exports_fixture_data(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_sttip_page_exports_test(&input, &output, ExportFilter::StripDefaultExport);
+    run_strip_page_exports_test(&input, &output, ExportFilter::StripDefaultExport);
 }
 
 #[fixture("tests/fixture/strip-page-exports/**/output-default.js")]
 fn next_transform_strip_page_exports_fixture_default(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_sttip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
+    run_strip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
 }
 
 #[fixture("tests/fixture/debug-fn-name/**/input.js")]
