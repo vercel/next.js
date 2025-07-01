@@ -31,7 +31,7 @@ jobs:
       - name: Set Git author
         run: |
           git config user.name "nextjs-bot"
-          git config user.email "infra+release@vercel.com"
+          git config user.email "it+nextjs-bot@vercel.com"
 
       - name: Setup node
         uses: actions/setup-node@v4

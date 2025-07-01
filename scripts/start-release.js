@@ -53,7 +53,7 @@ async function main() {
     stdio: 'inherit',
     shell: true,
   })
-  await execa(`git config user.email "infra+release@vercel.com"`, {
+  await execa(`git config user.email "it+nextjs-bot@vercel.com"`, {
     stdio: 'inherit',
     shell: true,
   })
