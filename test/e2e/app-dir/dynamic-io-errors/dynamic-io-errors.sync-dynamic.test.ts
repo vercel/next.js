@@ -596,23 +596,27 @@ describe.each(
     }
 
     if (isNextDev) {
-      // We don't error the build, but we do show a dev-only error so that users
-      // migrate to the async usage.
-      it('should show a collapsed redbox error', async () => {
+      it('should return `undefined` for `draftMode().isEnabled`', async () => {
+        const browser = await next.browser('/')
+
+        expect(await browser.elementById('draft-mode').text()).toBe('undefined')
+      })
+
+      it('should show a collapsed redbox with a sync access error', async () => {
         const browser = await next.browser('/')
 
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "description": "Route "/" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
+             "environmentLabel": "Prerender",
              "label": "Console Error",
-             "source": "app/page.tsx (25:31) @ DraftModeReadingComponent
-           > 25 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+             "source": "app/page.tsx (18:31) @ DraftModeReadingComponent
+           > 18 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
                 |                               ^",
              "stack": [
-               "DraftModeReadingComponent app/page.tsx (25:31)",
-               "Page app/page.tsx (16:11)",
+               "DraftModeReadingComponent app/page.tsx (18:31)",
+               "Page app/page.tsx (11:7)",
              ],
            }
           `)
@@ -620,45 +624,30 @@ describe.each(
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "description": "Route "/" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
+             "environmentLabel": "Prerender",
              "label": "Console Error",
-             "source": "app/page.tsx (25:21) @ DraftModeReadingComponent
-           > 25 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+             "source": "app/page.tsx (18:21) @ DraftModeReadingComponent
+           > 18 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
                 |                     ^",
              "stack": [
-               "DraftModeReadingComponent app/page.tsx (25:21)",
-               "Page app/page.tsx (16:11)",
+               "DraftModeReadingComponent app/page.tsx (18:21)",
+               "Page app/page.tsx (11:7)",
              ],
            }
           `)
         }
       })
-
-      // TODO: We should not change the `prerenderPhase` flag in this case.
-      it.failing(
-        'should prefix a log after sync `draftMode().isEnabled` access with "Prerender"',
-        async () => {
-          const browser = await next.browser('/')
-          const logs = await browser.log()
-
-          assertLog(
-            logs,
-            'Prerender',
-            'This log should be prefixed with the "Prerender" environment, because the sync access above does not lead to an abort.'
-          )
-        }
-      )
     } else {
-      it('should not error the build when synchronously reading draftMode ', async () => {
+      it('should not error the build when synchronously reading `draftMode().isEnabled`', async () => {
         try {
           await next.start()
         } catch {
-          throw new Error('expected build not to fail for fully static project')
+          throw new Error('expected build not to fail')
         }
 
         expect(next.cliOutput).toContain('○ / ')
         const $ = await next.render$('/')
-        expect($('#draft-mode').text()).toBe('false')
+        expect($('#draft-mode').text()).toBe('undefined')
       })
     }
   })
