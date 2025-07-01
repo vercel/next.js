@@ -262,6 +262,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
+  private isSrcDir: boolean
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -274,6 +275,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     dir: string,
     {
       config,
+      isSrcDir,
       pagesDir,
       distDir,
       buildId,
@@ -285,6 +287,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch,
     }: {
       config: NextConfigComplete
+      isSrcDir: boolean
       pagesDir?: string
       distDir: string
       buildId: string
@@ -302,6 +305,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dir = dir
+    this.isSrcDir = isSrcDir
     this.middlewares = []
     this.pagesDir = pagesDir
     this.appDir = appDir
@@ -1567,6 +1571,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.middlewares = [
       getOverlayMiddleware({
         rootDirectory: this.dir,
+        isSrcDir: this.isSrcDir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,

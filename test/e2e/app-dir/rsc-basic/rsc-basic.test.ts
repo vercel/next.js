@@ -2,6 +2,10 @@ import path from 'path'
 import { check } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
+import {
+  NEXT_RSC_UNION_QUERY,
+  RSC_HEADER,
+} from 'next/dist/client/components/app-router-headers'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
@@ -380,8 +384,10 @@ describe('app dir - rsc basics', () => {
 
   it('should support streaming for flight response', async () => {
     await next
-      .fetch('/', {
-        headers: { RSC: '1' },
+      .fetch(`/?${NEXT_RSC_UNION_QUERY}`, {
+        headers: {
+          [RSC_HEADER]: '1',
+        },
       })
       .then(async (response) => {
         const result = await resolveStreamResponse(response)

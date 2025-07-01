@@ -5,10 +5,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString};
+use super::{Issue, IssueSource, IssueStage, OptionStyledString, StyledString};
 use crate::{
     error::PrettyPrintError,
-    issue::IssueSeverity,
+    issue::{IssueSeverity, OptionIssueSource},
     resolve::{
         options::{ImportMap, ImportMapResult, ResolveOptions},
         parse::Request,
@@ -20,7 +20,7 @@ pub struct ResolvingIssue {
     pub severity: IssueSeverity,
     pub request_type: String,
     pub request: ResolvedVc<Request>,
-    pub file_path: ResolvedVc<FileSystemPath>,
+    pub file_path: FileSystemPath,
     pub resolve_options: ResolvedVc<ResolveOptions>,
     pub error_message: Option<String>,
     pub source: Option<IssueSource>,
@@ -50,7 +50,7 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]
@@ -67,7 +67,7 @@ impl Issue for ResolvingIssue {
 
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             for request in request_parts {
-                match lookup_import_map(**import_map, *self.file_path, **request).await {
+                match lookup_import_map(**import_map, self.file_path.clone(), **request).await {
                     Ok(None) => {}
                     Ok(Some(str)) => writeln!(description, "Import map: {str}")?,
                     Err(err) => {
@@ -102,7 +102,7 @@ impl Issue for ResolvingIssue {
         writeln!(
             detail,
             "Path where resolving has started: {context}",
-            context = self.file_path.to_string().await?
+            context = self.file_path.value_to_string().await?
         )?;
         writeln!(
             detail,
@@ -115,11 +115,8 @@ impl Issue for ResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(match &self.source {
-            Some(source) => Some(source.resolve_source_map().await?.into_owned()),
-            None => None,
-        }))
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(self.source)
     }
 
     // TODO add sub_issue for a description of resolve_options
@@ -128,7 +125,7 @@ impl Issue for ResolvingIssue {
 
 async fn lookup_import_map(
     import_map: Vc<ImportMap>,
-    file_path: Vc<FileSystemPath>,
+    file_path: FileSystemPath,
     request: Vc<Request>,
 ) -> Result<Option<ReadRef<RcStr>>> {
     let result = import_map.await?.lookup(file_path, request).await?;

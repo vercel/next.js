@@ -9,13 +9,14 @@ export function parseLoaderTree(tree: LoaderTree) {
   // segments in the route, so we should use the default page
   page = segment === DEFAULT_SEGMENT_KEY ? modules.defaultPage : page
 
-  const layoutOrPagePath = layout?.[1] || template?.[1] || page?.[1]
+  const conventionPath = layout?.[1] || template?.[1] || page?.[1]
 
   return {
     page,
     segment,
     modules,
-    layoutOrPagePath,
+    /* it can be either layout / template / page */
+    conventionPath,
     parallelRoutes,
   }
 }

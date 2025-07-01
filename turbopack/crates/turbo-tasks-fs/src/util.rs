@@ -138,7 +138,7 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
 }
 
 #[cfg(not(target_os = "windows"))]
-pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Result<String> {
+pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
     let root_fs = root.fs();
     let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
         .await?
@@ -150,7 +150,7 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
         &sys_to_unix(
             &root_fs
                 .to_sys_path(match path {
-                    Some(path) => root.join(path.into()),
+                    Some(path) => root.join(path)?,
                     None => root,
                 })
                 .await?
@@ -164,7 +164,7 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
 }
 
 #[cfg(target_os = "windows")]
-pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Result<String> {
+pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
     let root_fs = root.fs();
     let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
         .await?
@@ -173,7 +173,7 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
 
     let sys_path = root_fs
         .to_sys_path(match path {
-            Some(path) => root.join(path.into()),
+            Some(path) => root.join(path.into())?,
             None => root,
         })
         .await?;

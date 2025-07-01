@@ -113,7 +113,7 @@ Since the memoization is not shared across server requests and only applies duri
 
 Memoization only applies to the `GET` method in `fetch` requests, other methods, such as `POST` and `DELETE`, are not memoized. This default behavior is a React optimization and we do not recommend opting out of it.
 
-To manage individual requests, you can use the [`signal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/signal) property from [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController). However, this will not opt requests out of memoization, rather, abort in-flight requests.
+To manage individual requests, you can use the [`signal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/signal) property from [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController).
 
 ```js filename="app/example.js"
 const { signal } = new AbortController()
@@ -318,7 +318,7 @@ You can opt out of the Full Route Cache, or in other words, dynamically render c
 
 Next.js has an in-memory client-side router cache that stores the RSC payload of route segments, split by layouts, loading states, and pages.
 
-When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/getting-started/linking-and-navigating#prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
+When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/getting-started/linking-and-navigating#prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of browser state and React state in shared layouts.
 
 With the Router Cache:
 

@@ -1,7 +1,11 @@
 import { useState, type HTMLProps } from 'react'
 import { css } from '../../../../utils/css'
 import EyeIcon from '../../../../icons/eye-icon'
-import { STORAGE_KEY_POSITION, STORAGE_KEY_THEME } from '../../../../shared'
+import {
+  NEXT_DEV_TOOLS_SCALE,
+  STORAGE_KEY_POSITION,
+  STORAGE_KEY_THEME,
+} from '../../../../shared'
 import LightIcon from '../../../../icons/light-icon'
 import DarkIcon from '../../../../icons/dark-icon'
 import SystemIcon from '../../../../icons/system-icon'
@@ -9,7 +13,6 @@ import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
 import {
   getInitialTheme,
-  NEXT_DEV_TOOLS_SCALE,
   type DevToolsIndicatorPosition,
   type DevToolsScale,
 } from './preferences'

@@ -31,6 +31,7 @@
   "eslint",
   "express",
   "firebase-admin",
+  "htmlrewriter",
   "import-in-the-middle",
   "isolated-vm",
   "jest",

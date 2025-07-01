@@ -67,8 +67,8 @@ turbopack-ecmascript-plugins = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
 urlencoding = { workspace = true }
 
-react_remove_properties = "0.41.0"
-remove_console = "0.42.0"
+react_remove_properties = "0.43.0"
+remove_console = "0.44.0"
 preset_env_base = "3.0.2"
 
 [dev-dependencies]

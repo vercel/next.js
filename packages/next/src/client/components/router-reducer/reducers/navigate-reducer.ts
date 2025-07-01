@@ -237,11 +237,18 @@ export function navigateReducer(
       }
 
       if (prefetchValues.aliased) {
+        // When alias is enabled, search param may not be included in the canonicalUrl.
+        // But we want to set url to canonicalUrl so that we use redirected path for fetching dynamic data.
+        const urlWithCanonicalPathname = new URL(url.href)
+        if (canonicalUrlOverride) {
+          urlWithCanonicalPathname.pathname = canonicalUrlOverride.pathname
+        }
+
         const result = handleAliasedPrefetchEntry(
           navigatedAt,
           state,
           flightData,
-          url,
+          urlWithCanonicalPathname,
           mutable
         )
 
@@ -376,10 +383,13 @@ export function navigateReducer(
                 // root multiple times per navigation, like if the server sends us
                 // a different response than we expected. For now, we revert back
                 // to the lazy fetching mechanism in that case.)
-                const dynamicRequest = fetchServerResponse(url, {
-                  flightRouterState: dynamicRequestTree,
-                  nextUrl: state.nextUrl,
-                })
+                const dynamicRequest = fetchServerResponse(
+                  new URL(updatedCanonicalUrl, url.origin),
+                  {
+                    flightRouterState: dynamicRequestTree,
+                    nextUrl: state.nextUrl,
+                  }
+                )
 
                 listenForDynamicRequest(task, dynamicRequest)
                 // We store the dynamic request on the `lazyData` property of the CacheNode

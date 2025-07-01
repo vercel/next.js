@@ -72,6 +72,68 @@
         "unexpected-error should set response status to 500 for unexpected errors in ssr app route",
         "unexpected-error should set response status to 500 for unexpected errors in isr app route"
       ]
+    },
+    "test/e2e/next-form/default/app-dir.test.ts": {
+      "failed": [
+        "next-form - app dir should soft-navigate on submit and show the prefetched loading state"
+      ]
+    },
+    "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
+      "failed": [
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation server action revalidation should not trigger a refresh for the page that is being redirected to"
+      ]
+    },
+    "test/e2e/app-dir/router-autoscroll/router-autoscroll.test.ts": {
+      "failed": [
+        "router autoscrolling on navigation bugs Should apply scroll when loading.js is used"
+      ]
+    },
+    "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
+      "failed": [
+        "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+        "app-dir action handling should only submit action once when resubmitting an action after navigation",
+        "app-dir action handling should reset the form state when the action redirects to itself"
+      ]
+    },
+    "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "failed": [
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route"
+      ]
+    },
+    "test/production/app-dir/browser-chunks/browser-chunks.test.ts": {
+      "failed": [
+        "browser-chunks must not bundle any server modules into browser chunks"
+      ]
+    },
+    "test/e2e/next-form/default/next-form-prefetch.test.ts": {
+      "failed": [
+        "app dir - form prefetching should not prefetch when prefetch is set to false`",
+        "app dir - form prefetching should prefetch a loading state for the form's target"
+      ]
+    },
+    "test/e2e/app-dir/actions/app-action.test.ts": {
+      "failed": [
+        "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+        "app-dir action handling should only submit action once when resubmitting an action after navigation",
+        "app-dir action handling should reset the form state when the action redirects to itself"
+      ]
+    },
+    "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
+      "failed": [
+        "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes",
+        "parallel-routes-and-interception parallel routes should handle a loading state"
+      ]
     }
   },
   "rules": {

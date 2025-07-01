@@ -13,7 +13,8 @@ on:
       - '**/Cargo.lock'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.sha }}
+  # Limit concurrent runs to 1 per PR, but allow concurrent runs on canary branch
+  group: ${{ github.event_name == 'pull_request' && format('{0}-{1}', github.workflow, github.event.pull_request.number) || format('{0}-{1}-{2}', github.workflow, github.ref_name, github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:

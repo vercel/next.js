@@ -1,11 +1,10 @@
-import { useState, useMemo, useRef, Suspense } from 'react'
+import { useMemo, useRef, Suspense } from 'react'
 import type { DebugInfo } from '../../shared/types'
-import { Overlay } from '../components/overlay'
+import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
-import { extractNextErrorCode } from '../../../lib/error-telemetry-utils'
 import {
   ErrorOverlayLayout,
   type ErrorOverlayLayoutProps,
@@ -18,6 +17,7 @@ import {
 import type { ReadyRuntimeError } from '../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 import type { HydrationErrorState } from '../../shared/hydration-error'
+import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 
 export interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
@@ -26,17 +26,15 @@ export interface ErrorsProps extends ErrorBaseProps {
   onClose: () => void
 }
 
-type ReadyErrorEvent = ReadyRuntimeError
-
 function isNextjsLink(text: string): boolean {
   return text.startsWith('https://nextjs.org')
 }
 
-function HydrationErrorDescription({ message }: { message: string }) {
+export function HydrationErrorDescription({ message }: { message: string }) {
   return <HotlinkedText text={message} matcher={isNextjsLink} />
 }
 
-function GenericErrorDescription({ error }: { error: Error }) {
+export function GenericErrorDescription({ error }: { error: Error }) {
   const environmentName =
     'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
@@ -55,7 +53,7 @@ function GenericErrorDescription({ error }: { error: Error }) {
   )
 }
 
-function getErrorTypeLabel(
+export function getErrorTypeLabel(
   error: Error,
   type: ReadyRuntimeError['type']
 ): ErrorOverlayLayoutProps['errorType'] {
@@ -73,7 +71,7 @@ const noErrorDetails = {
   notes: null,
   reactOutputComponentDiff: null,
 }
-function useErrorDetails(
+export function useErrorDetails(
   error: Error | undefined,
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
 ): {
@@ -122,24 +120,25 @@ export function Errors({
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
 
-  const isLoading = useMemo<boolean>(() => {
-    return runtimeErrors.length < 1
-  }, [runtimeErrors.length])
-
-  const [activeIdx, setActiveIndex] = useState<number>(0)
-
-  const activeError = useMemo<ReadyErrorEvent | null>(
-    () => runtimeErrors[activeIdx] ?? null,
-    [activeIdx, runtimeErrors]
-  )
-  const errorDetails = useErrorDetails(
-    activeError?.error,
-    getSquashedHydrationErrorDetails
-  )
+  const {
+    isLoading,
+    errorCode,
+    errorType,
+    notes,
+    hydrationWarning,
+    activeIdx,
+    errorDetails,
+    activeError,
+    setActiveIndex,
+  } = useActiveRuntimeError({ runtimeErrors, getSquashedHydrationErrorDetails })
 
   if (isLoading) {
     // TODO: better loading state
-    return <Overlay />
+    return (
+      <Overlay>
+        <OverlayBackdrop />
+      </Overlay>
+    )
   }
 
   if (!activeError) {
@@ -150,12 +149,6 @@ export function Errors({
   const isServerError = ['server', 'edge-server'].includes(
     getErrorSource(error) || ''
   )
-  const errorType = getErrorTypeLabel(error, activeError.type)
-  // TOOD: May be better to always treat everything past the first blank line as notes
-  // We're currently only special casing hydration error messages.
-  const notes = errorDetails.notes
-  const hydrationWarning = errorDetails.hydrationWarning
-  const errorCode = extractNextErrorCode(error)
 
   return (
     <ErrorOverlayLayout

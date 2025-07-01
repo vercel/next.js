@@ -1,6 +1,5 @@
 import type { CSSProperties } from 'react'
 import type { OverlayState, OverlayDispatch } from '../../shared'
-import type { DevToolsScale } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
 
 import { useState } from 'react'
 import { NextLogo } from './next-logo'
@@ -9,35 +8,41 @@ import {
   MENU_CURVE,
   MENU_DURATION_MS,
 } from '../errors/dev-tools-indicator/utils'
-import { ACTION_ERROR_OVERLAY_TOGGLE, STORAGE_KEY_POSITION } from '../../shared'
-import { getInitialPosition } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
+import {
+  ACTION_DEVTOOLS_PANEL_TOGGLE,
+  STORAGE_KEY_POSITION,
+  ACTION_DEVTOOLS_POSITION,
+  ACTION_DEVTOOLS_PANEL_OPEN,
+  ACTION_ERROR_OVERLAY_OPEN,
+} from '../../shared'
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
 
-const INDICATOR_PADDING = 20
+export const INDICATOR_PADDING = 20
 
 export function DevToolsIndicator({
   state,
   dispatch,
   errorCount,
   isBuildError,
-  scale,
 }: {
   state: OverlayState
   dispatch: OverlayDispatch
   errorCount: number
   isBuildError: boolean
-  scale: DevToolsScale
 }) {
   const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState(getInitialPosition())
 
-  const [vertical, horizontal] = position.split('-', 2)
+  const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
 
-  const toggleErrorOverlay = () => {
-    dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
+  const enableErrorOverlayMode = () => {
+    dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+    // Open the DevTools panel to view as error overlay mode.
+    dispatch({ type: ACTION_DEVTOOLS_PANEL_OPEN })
   }
 
-  const onTriggerClick = () => {}
+  const toggleDevToolsPanel = () => {
+    dispatch({ type: ACTION_DEVTOOLS_PANEL_TOGGLE })
+  }
 
   return (
     <Toast
@@ -50,16 +55,23 @@ export function DevToolsIndicator({
           zIndex: 2147483647,
           [vertical]: `${INDICATOR_PADDING}px`,
           [horizontal]: `${INDICATOR_PADDING}px`,
+          visibility:
+            state.isDevToolsPanelOpen || state.isErrorOverlayOpen
+              ? 'hidden'
+              : 'visible',
         } as CSSProperties
       }
     >
       <Draggable
         padding={INDICATOR_PADDING}
         onDragStart={() => setOpen(false)}
-        position={position}
+        position={state.devToolsPosition}
         setPosition={(p) => {
+          dispatch({
+            type: ACTION_DEVTOOLS_POSITION,
+            devToolsPosition: p,
+          })
           localStorage.setItem(STORAGE_KEY_POSITION, p)
-          setPosition(p)
         }}
       >
         {/* Trigger */}
@@ -71,12 +83,12 @@ export function DevToolsIndicator({
           data-nextjs-dev-tools-button
           disabled={state.disableDevIndicator}
           issueCount={errorCount}
-          onTriggerClick={onTriggerClick}
-          toggleErrorOverlay={toggleErrorOverlay}
+          onTriggerClick={toggleDevToolsPanel}
+          toggleErrorOverlay={enableErrorOverlayMode}
           isDevBuilding={state.buildingIndicator}
           isDevRendering={state.renderingIndicator}
           isBuildError={isBuildError}
-          scale={scale}
+          scale={state.scale}
         />
       </Draggable>
     </Toast>

@@ -27,6 +27,7 @@ import type {
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
 import type { FlightRouterState } from '../../server/app-render/types'
 import type { ClientInstrumentationHooks } from '../app-index'
+import type { GlobalErrorComponent } from './builtin/global-error'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -43,6 +44,11 @@ export type AppRouterActionQueue = {
   needsRefresh?: boolean
   last: ActionQueueNode | null
 }
+
+export type GlobalErrorState = [
+  GlobalError: GlobalErrorComponent,
+  styles: React.ReactNode,
+]
 
 export type ActionQueueNode = {
   payload: ReducerActions

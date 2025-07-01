@@ -1,7 +1,6 @@
 'use client'
 
 import React, {
-  use,
   useEffect,
   useMemo,
   startTransition,
@@ -24,9 +23,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { ErrorBoundary } from './error-boundary'
-import DefaultGlobalError, {
-  type GlobalErrorComponent,
-} from '../../client/components/global-error'
+import DefaultGlobalError from './builtin/global-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -42,6 +39,7 @@ import {
   dispatchTraverseAction,
   publicAppRouterInstance,
   type AppRouterActionQueue,
+  type GlobalErrorState,
 } from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
@@ -202,7 +200,7 @@ function Router({
 }: {
   actionQueue: AppRouterActionQueue
   assetPrefix: string
-  globalError: [GlobalErrorComponent, React.ReactNode]
+  globalError: GlobalErrorState
   gracefullyDegrade: boolean
 }) {
   const state = useActionQueue(actionQueue)
@@ -329,7 +327,10 @@ function Router({
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
     // should interrupt an MPA one?
-    use(unresolvedThenable)
+    // NOTE: This is intentionally using `throw` instead of `use` because we're
+    // inside an externally mutable condition (pushRef.mpaNavigation), which
+    // violates the rules of hooks.
+    throw unresolvedThenable
   }
 
   useEffect(() => {
@@ -562,12 +563,12 @@ function Router({
 
 export default function AppRouter({
   actionQueue,
-  globalErrorComponentAndStyles: [globalErrorComponent, globalErrorStyles],
+  globalErrorState,
   assetPrefix,
   gracefullyDegrade,
 }: {
   actionQueue: AppRouterActionQueue
-  globalErrorComponentAndStyles: [GlobalErrorComponent, React.ReactNode]
+  globalErrorState: GlobalErrorState
   assetPrefix: string
   gracefullyDegrade: boolean
 }) {
@@ -577,7 +578,7 @@ export default function AppRouter({
     <Router
       actionQueue={actionQueue}
       assetPrefix={assetPrefix}
-      globalError={[globalErrorComponent, globalErrorStyles]}
+      globalError={globalErrorState}
       gracefullyDegrade={gracefullyDegrade}
     />
   )

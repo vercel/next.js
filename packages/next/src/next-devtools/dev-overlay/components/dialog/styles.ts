@@ -1,4 +1,6 @@
-const styles = `
+import { css } from '../../utils/css'
+
+export const styles = css`
   [data-nextjs-dialog-root] {
     --next-dialog-radius: var(--rounded-xl);
     --next-dialog-max-width: 960px;
@@ -25,9 +27,11 @@ const styles = `
       scale: 1;
     }
 
-    [data-nextjs-scroll-fader][data-side="top"] {
+    [data-nextjs-scroll-fader][data-side='top'] {
       left: 1px;
-      top: calc(var(--next-dialog-notch-height) + var(--next-dialog-border-width));
+      top: calc(
+        var(--next-dialog-notch-height) + var(--next-dialog-border-width)
+      );
       width: calc(100% - var(--next-dialog-padding));
       opacity: 0;
     }
@@ -37,7 +41,8 @@ const styles = `
     outline: 0;
   }
 
-  [data-nextjs-dialog], [data-nextjs-dialog] * {
+  [data-nextjs-dialog],
+  [data-nextjs-dialog] * {
     &::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -53,7 +58,7 @@ const styles = `
       border-radius: 0 0 1rem 1rem;
       background-color: var(--color-background-100);
     }
-      
+
     &::-webkit-scrollbar-thumb {
       border-radius: 1rem;
       background-color: var(--color-gray-500);
@@ -123,5 +128,3 @@ const styles = `
     }
   }
 `
-
-export { styles }

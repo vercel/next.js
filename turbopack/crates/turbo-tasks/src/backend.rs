@@ -18,9 +18,10 @@ use turbo_rcstr::RcStr;
 
 pub use crate::id::BackendJobId;
 use crate::{
-    FunctionId, RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef,
-    TraitTypeId, TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
+    TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
     event::EventListener,
+    macro_helpers::NativeFunction,
     magic_any::MagicAny,
     manager::{ReadConsistency, TurboTasksBackendApi},
     raw_vc::CellId,
@@ -66,7 +67,7 @@ impl Debug for TransientTaskType {
 /// backend either to execute a function or to look up a cached result.
 #[derive(Debug, Eq)]
 pub struct CachedTaskType {
-    pub fn_type: FunctionId,
+    pub native_fn: &'static NativeFunction,
     pub this: Option<RawVc>,
     pub arg: Box<dyn MagicAny>,
 }
@@ -75,7 +76,7 @@ impl CachedTaskType {
     /// Get the name of the function from the registry. Equivalent to the
     /// [`Display`]/[`ToString::to_string`] implementation, but does not allocate a [`String`].
     pub fn get_name(&self) -> &'static str {
-        &registry::get_function(self.fn_type).name
+        self.native_fn.name
     }
 }
 
@@ -84,7 +85,7 @@ impl CachedTaskType {
 impl PartialEq for CachedTaskType {
     #[expect(clippy::op_ref)]
     fn eq(&self, other: &Self) -> bool {
-        self.fn_type == other.fn_type && self.this == other.this && &self.arg == &other.arg
+        self.native_fn == other.native_fn && self.this == other.this && &self.arg == &other.arg
     }
 }
 
@@ -92,7 +93,7 @@ impl PartialEq for CachedTaskType {
 // complains if we have a derived `Hash` impl, but manual `PartialEq` impl.
 impl Hash for CachedTaskType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.fn_type.hash(state);
+        self.native_fn.hash(state);
         self.this.hash(state);
         self.arg.hash(state);
     }
@@ -194,11 +195,11 @@ mod ser {
 
     enum FunctionAndArg<'a> {
         Owned {
-            fn_type: FunctionId,
+            native_fn: &'static NativeFunction,
             arg: Box<dyn MagicAny>,
         },
         Borrowed {
-            fn_type: FunctionId,
+            native_fn: &'static NativeFunction,
             arg: &'a dyn MagicAny,
         },
     }
@@ -208,13 +209,13 @@ mod ser {
         where
             S: Serializer,
         {
-            let FunctionAndArg::Borrowed { fn_type, arg } = self else {
+            let FunctionAndArg::Borrowed { native_fn, arg } = self else {
                 unreachable!();
             };
             let mut state = serializer.serialize_seq(Some(2))?;
-            state.serialize_element(&fn_type)?;
+            state.serialize_element(&registry::get_function_global_name(native_fn))?;
             let arg = *arg;
-            let arg = registry::get_function(*fn_type).arg_meta.as_serialize(arg);
+            let arg = native_fn.arg_meta.as_serialize(arg);
             state.serialize_element(arg)?;
             state.end()
         }
@@ -234,16 +235,15 @@ mod ser {
                 where
                     A: serde::de::SeqAccess<'de>,
                 {
-                    let fn_type = seq
+                    let fn_name = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                    let seed = registry::get_function(fn_type)
-                        .arg_meta
-                        .deserialization_seed();
+                    let native_fn = registry::get_function_by_global_name(fn_name);
+                    let seed = native_fn.arg_meta.deserialization_seed();
                     let arg = seq
                         .next_element_seed(seed)?
                         .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                    Ok(FunctionAndArg::Owned { fn_type, arg })
+                    Ok(FunctionAndArg::Owned { native_fn, arg })
                 }
             }
             deserializer.deserialize_seq(Visitor)
@@ -255,10 +255,14 @@ mod ser {
         where
             S: ser::Serializer,
         {
-            let CachedTaskType { fn_type, this, arg } = self;
+            let CachedTaskType {
+                native_fn,
+                this,
+                arg,
+            } = self;
             let mut s = serializer.serialize_tuple(2)?;
             s.serialize_element(&FunctionAndArg::Borrowed {
-                fn_type: *fn_type,
+                native_fn,
                 arg: &**arg,
             })?;
             s.serialize_element(this)?;
@@ -280,7 +284,7 @@ mod ser {
                 where
                     A: serde::de::SeqAccess<'de>,
                 {
-                    let FunctionAndArg::Owned { fn_type, arg } = seq
+                    let FunctionAndArg::Owned { native_fn, arg } = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?
                     else {
@@ -289,7 +293,11 @@ mod ser {
                     let this = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                    Ok(CachedTaskType { fn_type, this, arg })
+                    Ok(CachedTaskType {
+                        native_fn,
+                        this,
+                        arg,
+                    })
                 }
             }
             deserializer.deserialize_tuple(2, Visitor)
@@ -678,10 +686,6 @@ pub trait Backend: Sync + Send {
         is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
-
-    /// For persistent tasks with associated
-    /// [`NativeFunction`][crate::native_function::NativeFunction]s, return the [`FunctionId`].
-    fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId>;
 
     fn connect_task(
         &self,

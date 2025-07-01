@@ -129,7 +129,7 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
                 .await?
                 .layer
                 .as_ref()
-                .is_some_and(|layer| *layer == "app-client" || *layer == "client")
+                .is_some_and(|layer| layer.name() == "app-client" || layer.name() == "client")
                 && let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module)
             {

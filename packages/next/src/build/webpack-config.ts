@@ -771,7 +771,6 @@ export default async function getBaseWebpackConfig(
       distDir,
       isClient,
       isEdgeServer,
-      isNodeServer,
       dev,
       config,
       pagesDir,
@@ -2456,7 +2455,7 @@ export default async function getBaseWebpackConfig(
       config,
       defaultLoaders,
       totalPages: Object.keys(entrypoints).length,
-      webpack,
+      webpack: bundler,
       ...(isNodeOrEdgeCompilation
         ? {
             nextRuntime: isEdgeServer ? 'edge' : 'nodejs',
