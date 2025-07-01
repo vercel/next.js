@@ -11,7 +11,6 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{
     chunk::ChunkingType, module::Module, reference::primary_chunkable_referenced_modules,
@@ -143,12 +142,11 @@ pub async fn find_server_entries(
     include_traced: bool,
 ) -> Result<Vc<ServerEntries>> {
     async move {
-        let entry_path = entry.ident().path().await?.clone_value();
         let graph = AdjacencyMap::new()
             .skip_duplicates()
             .visit(
                 vec![FindServerEntriesNode {
-                    state: { FindServerEntriesNodeState::Entry { entry_path } },
+                    state: { FindServerEntriesNodeState::Entry },
                     ty: FindServerEntriesNodeType::Internal(
                         entry,
                         entry.ident().to_string().await?,
@@ -171,7 +169,7 @@ pub async fn find_server_entries(
                     server_component_entries.push(*server_component);
                 }
                 FindServerEntriesNodeType::Internal(_, _)
-                | FindServerEntriesNodeType::ClientReference(_, _) => {}
+                | FindServerEntriesNodeType::ClientReference => {}
             }
         }
 
@@ -209,6 +207,7 @@ struct FindServerEntriesNode {
 
 #[derive(
     Clone,
+    Copy,
     Eq,
     PartialEq,
     Hash,
@@ -220,24 +219,9 @@ struct FindServerEntriesNode {
     NonLocalValue,
 )]
 enum FindServerEntriesNodeState {
-    Entry {
-        entry_path: FileSystemPath,
-    },
-    InServerComponent {
-        server_component: ResolvedVc<NextServerComponentModule>,
-    },
+    Entry,
+    InServerComponent,
     InServerUtil,
-}
-impl FindServerEntriesNodeState {
-    fn server_component(&self) -> Option<ResolvedVc<NextServerComponentModule>> {
-        match self {
-            FindServerEntriesNodeState::Entry { .. } => None,
-            FindServerEntriesNodeState::InServerComponent { server_component } => {
-                Some(*server_component)
-            }
-            FindServerEntriesNodeState::InServerUtil => None,
-        }
-    }
 }
 
 #[derive(
@@ -253,7 +237,7 @@ impl FindServerEntriesNodeState {
     NonLocalValue,
 )]
 enum FindServerEntriesNodeType {
-    ClientReference(ClientReference, ReadRef<RcStr>),
+    ClientReference,
     ServerComponentEntry(ResolvedVc<NextServerComponentModule>, ReadRef<RcStr>),
     ServerUtilEntry(ResolvedVc<NextServerUtilityModule>, ReadRef<RcStr>),
     Internal(ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>),
@@ -267,7 +251,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<FindServerEntriesNode> {
         match edge.ty {
             FindServerEntriesNodeType::Internal(..) => VisitControlFlow::Continue(edge),
-            FindServerEntriesNodeType::ClientReference(..)
+            FindServerEntriesNodeType::ClientReference
             | FindServerEntriesNodeType::ServerUtilEntry(..)
             | FindServerEntriesNodeType::ServerComponentEntry(..) => VisitControlFlow::Skip(edge),
         }
@@ -280,7 +264,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
             let parent_module = match node.ty {
                 // This should never occur since we always skip visiting these
                 // nodes' edges.
-                FindServerEntriesNodeType::ClientReference(..) => return Ok(vec![]),
+                FindServerEntriesNodeType::ClientReference => return Ok(vec![]),
                 FindServerEntriesNodeType::Internal(module, _) => module,
                 FindServerEntriesNodeType::ServerUtilEntry(module, _) => ResolvedVc::upcast(module),
                 FindServerEntriesNodeType::ServerComponentEntry(module, _) => {
@@ -288,6 +272,8 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                 }
             };
 
+            // Pass include_traced to reuse the same cached task result, but they will be filtered
+            // out again immedately again.
             let referenced_modules =
                 primary_chunkable_referenced_modules(*parent_module, include_traced).await?;
 
@@ -299,41 +285,16 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                 })
                 .flatten()
                 .map(|module| {
-                    let node_state = node.state.clone();
-
+                    let node_state = node.state;
                     async move {
-                        if let Some(client_reference_module) = ResolvedVc::try_downcast_type::<
-                            EcmascriptClientReferenceModule,
-                        >(*module)
+                        if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
+                            .is_some()
+                            || ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module)
+                                .is_some()
                         {
                             return Ok(FindServerEntriesNode {
-                                state: node_state.clone(),
-                                ty: FindServerEntriesNodeType::ClientReference(
-                                    ClientReference {
-                                        server_component: node_state.clone().server_component(),
-                                        ty: ClientReferenceType::EcmascriptClientReference(
-                                            client_reference_module,
-                                        ),
-                                    },
-                                    client_reference_module.ident().to_string().await?,
-                                ),
-                            });
-                        }
-
-                        if let Some(client_reference_module) =
-                            ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module)
-                        {
-                            return Ok(FindServerEntriesNode {
-                                state: node_state.clone(),
-                                ty: FindServerEntriesNodeType::ClientReference(
-                                    ClientReference {
-                                        server_component: node_state.clone().server_component(),
-                                        ty: ClientReferenceType::CssClientReference(
-                                            client_reference_module.await?.client_module,
-                                        ),
-                                    },
-                                    client_reference_module.ident().to_string().await?,
-                                ),
+                                state: node_state,
+                                ty: FindServerEntriesNodeType::ClientReference,
                             });
                         }
 
@@ -341,9 +302,7 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                             ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
                         {
                             return Ok(FindServerEntriesNode {
-                                state: FindServerEntriesNodeState::InServerComponent {
-                                    server_component: server_component_asset,
-                                },
+                                state: FindServerEntriesNodeState::InServerComponent,
                                 ty: FindServerEntriesNodeType::ServerComponentEntry(
                                     server_component_asset,
                                     server_component_asset.ident().to_string().await?,
@@ -381,8 +340,8 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
 
     fn span(&mut self, node: &FindServerEntriesNode) -> tracing::Span {
         match &node.ty {
-            FindServerEntriesNodeType::ClientReference(_, name) => {
-                tracing::info_span!("client reference", name = name.to_string())
+            FindServerEntriesNodeType::ClientReference => {
+                tracing::info_span!("client reference")
             }
             FindServerEntriesNodeType::Internal(_, name) => {
                 tracing::info_span!("module", name = name.to_string())
