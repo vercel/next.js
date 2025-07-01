@@ -308,16 +308,16 @@ async function requestHandler(
       const errModule = error500Mod || errorMod
       const errRouteModule = errModule.routeModule as RouteModule
 
+      if (errRouteModule.isDev) {
+        throw err
+      }
+
       await errRouteModule.onRequestError(baseReq, err, {
         routerKind: 'Pages Router',
         routePath: srcPage,
         routeType: 'render',
         revalidateReason: undefined,
       })
-
-      if (errRouteModule.isDev) {
-        throw err
-      }
 
       const errResult = await errRouteModule.render(
         // @ts-expect-error we don't type this for edge
