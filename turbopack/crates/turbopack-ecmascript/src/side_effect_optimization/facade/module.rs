@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, glob::Glob};
@@ -465,27 +465,13 @@ impl MergeableModule for EcmascriptModuleFacadeModule {
         modules: Vc<MergeableModulesExposed>,
         entry_points: Vc<MergeableModules>,
     ) -> Result<Vc<Box<dyn ChunkableModule>>> {
-        Ok(Vc::upcast(*MergedEcmascriptModule::new(
-            modules
-                .await?
-                .iter()
-                .map(|(m, exposed)| {
-                    Ok((
-                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
-                            .context("expected EcmascriptAnalyzable")?,
-                        *exposed,
-                    ))
-                })
-                .collect::<Result<Vec<_>>>()?,
-            entry_points
-                .await?
-                .iter()
-                .map(|m| {
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
-                        .context("expected EcmascriptAnalyzable")
-                })
-                .collect::<Result<Vec<_>>>()?,
-            EcmascriptOptions::default().resolved_cell(),
-        )))
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(
+                modules,
+                entry_points,
+                EcmascriptOptions::default().resolved_cell(),
+            )
+            .await?,
+        ))
     }
 }

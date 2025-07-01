@@ -746,28 +746,14 @@ impl MergeableModule for EcmascriptModuleAsset {
         modules: Vc<MergeableModulesExposed>,
         entry_points: Vc<MergeableModules>,
     ) -> Result<Vc<Box<dyn ChunkableModule>>> {
-        Ok(Vc::upcast(*MergedEcmascriptModule::new(
-            modules
-                .await?
-                .iter()
-                .map(|(m, exposed)| {
-                    Ok((
-                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
-                            .context("expected EcmascriptAnalyzable")?,
-                        *exposed,
-                    ))
-                })
-                .collect::<Result<Vec<_>>>()?,
-            entry_points
-                .await?
-                .iter()
-                .map(|m| {
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
-                        .context("expected EcmascriptAnalyzable")
-                })
-                .collect::<Result<Vec<_>>>()?,
-            self.options().to_resolved().await?,
-        )))
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(
+                modules,
+                entry_points,
+                self.options().to_resolved().await?,
+            )
+            .await?,
+        ))
     }
 }
 
