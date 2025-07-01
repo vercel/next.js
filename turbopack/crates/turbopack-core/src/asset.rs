@@ -16,7 +16,7 @@ pub trait Asset {
 
     /// The content of the [Asset] alongside its version.
     #[turbo_tasks::function]
-    async fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {
+    fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
     }
 }
@@ -34,7 +34,7 @@ pub enum AssetContent {
 #[turbo_tasks::value_impl]
 impl AssetContent {
     #[turbo_tasks::function]
-    pub async fn file(file: ResolvedVc<FileContent>) -> Result<Vc<Self>> {
+    pub fn file(file: ResolvedVc<FileContent>) -> Result<Vc<Self>> {
         Ok(AssetContent::File(file).cell())
     }
 
@@ -44,7 +44,7 @@ impl AssetContent {
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json()),
             AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparseable("a redirect can't be parsed as json").cell())
+                Ok(FileJsonContent::unparsable("a redirect can't be parsed as json").cell())
             }
         }
     }
@@ -63,7 +63,7 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.lines()),
-            AssetContent::Redirect { .. } => Ok(FileLinesContent::Unparseable.cell()),
+            AssetContent::Redirect { .. } => Ok(FileLinesContent::Unparsable.cell()),
         }
     }
 
@@ -82,13 +82,13 @@ impl AssetContent {
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json_with_comments()),
             AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparseable("a redirect can't be parsed as json").cell())
+                Ok(FileJsonContent::unparsable("a redirect can't be parsed as json").cell())
             }
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn write(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<()> {
+    pub async fn write(self: Vc<Self>, path: FileSystemPath) -> Result<()> {
         let this = self.await?;
         match &*this {
             AssetContent::File(file) => {

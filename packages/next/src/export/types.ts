@@ -105,6 +105,7 @@ export interface ExportAppOptions {
   enabledDirectories: NextEnabledDirectories
   silent?: boolean
   debugOutput?: boolean
+  debugPrerender?: boolean
   pages?: string[]
   buildExport: boolean
   statusMessage?: string

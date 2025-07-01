@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 const browserConfigWithFixedTime = {
   beforePageLoad: (page) => {
@@ -294,14 +295,26 @@ describe('app dir - prefetching', () => {
         true,
       ])
     )
-    const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
-      headers: {
-        RSC: '1',
-        'Next-Router-Prefetch': '1',
-        'Next-Router-State-Tree': stateTree,
-        'Next-Url': '/prefetch-auto/vercel',
-      },
-    })
+
+    const headers = {
+      RSC: '1',
+      'Next-Router-Prefetch': '1',
+      'Next-Router-State-Tree': stateTree,
+      'Next-Url': '/prefetch-auto/vercel',
+    }
+
+    const url = new URL('/prefetch-auto/justputit', 'http://localhost')
+    const cacheBustingParam = computeCacheBustingSearchParam(
+      headers['Next-Router-Prefetch'],
+      undefined,
+      headers['Next-Router-State-Tree'],
+      headers['Next-Url']
+    )
+    if (cacheBustingParam) {
+      url.searchParams.set('_rsc', cacheBustingParam)
+    }
+
+    const response = await next.fetch(url.toString(), { headers })
 
     const prefetchResponse = await response.text()
     expect(prefetchResponse).not.toContain('Page Data!')

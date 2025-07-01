@@ -24,7 +24,7 @@ import {
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
-import { SharedCacheControls } from './shared-cache-controls'
+import { SharedCacheControls } from './shared-cache-controls.external'
 import {
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,

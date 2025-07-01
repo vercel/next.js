@@ -42,11 +42,7 @@ function SearchParamsReadingComponent({
   const fooParams = (
     searchParams as unknown as UnsafeUnwrappedSearchParams<typeof searchParams>
   ).foo
-  return (
-    <div>
-      this component read the accessed the `foo` search param: {fooParams}
-    </div>
-  )
+  return <div>this component read the `foo` search param: {fooParams}</div>
 }
 
 function LongRunningComponent() {

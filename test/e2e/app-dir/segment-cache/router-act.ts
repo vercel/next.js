@@ -275,6 +275,19 @@ ${fulfilled.body}
 
               throw error
             }
+            if (fulfilled.status >= 400) {
+              error.message = `
+Received a response with an error status code.
+
+Status: ${fulfilled.status}
+URL: ${request.url()}
+Headers: ${JSON.stringify(fulfilled.headers)}
+
+Response:
+${fulfilled.body}
+`
+              throw error
+            }
             if (expectedResponses !== null) {
               let alreadyMatchedByThisResponse: string | null = null
               for (const expectedResponse of expectedResponses) {

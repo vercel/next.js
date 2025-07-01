@@ -1,9 +1,7 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{ItemFn, parse_macro_input, parse_quote};
-use turbo_tasks_macros_shared::{
-    get_native_function_id_ident, get_native_function_ident, is_self_used,
-};
+use turbo_tasks_macros_shared::{get_native_function_ident, is_self_used};
 
 use crate::func::{
     DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
@@ -67,18 +65,14 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         filter_trait_call_args: None, // not a trait method
         local,
         invalidator,
-        immutable: sig.asyncness.is_none() && !invalidator,
+        immutable: is_immutable(&sig) && !invalidator,
     };
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();
     let native_function_def = native_fn.definition();
 
-    let native_function_id_ident = get_native_function_id_ident(ident);
-    let native_function_id_ty = native_fn.id_ty();
-    let native_function_id_def = native_fn.id_definition(&native_function_ident.clone().into());
-
     let exposed_signature = turbo_fn.signature();
-    let exposed_block = turbo_fn.static_block(&native_function_id_ident);
+    let exposed_block = turbo_fn.static_block(&native_function_ident);
 
     quote! {
         #(#attrs)*
@@ -93,12 +87,19 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                 turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
 
-        #[doc(hidden)]
-        pub(crate) static #native_function_id_ident:
-            turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
-                turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
-
         #(#errors)*
     }
     .into()
+}
+
+/// Computes whether the task is statically immutable based on the signature.
+/// - if the task is `async` we assume it is reading some other task.
+/// - if a task accepts `&self` then we know it read `Vc<Self>` in the generated calling code. See
+///   also: turbopack/crates/turbo-tasks/src/task/function.rs for the binding code.
+pub(crate) fn is_immutable(sig: &syn::Signature) -> bool {
+    sig.asyncness.is_none()
+        && match sig.receiver() {
+            Some(recv) => recv.reference.is_none(),
+            _ => true,
+        }
 }

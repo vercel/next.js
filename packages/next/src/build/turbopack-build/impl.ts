@@ -19,8 +19,9 @@ import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
-import * as Log from '../output/log'
 import { isCI } from '../../server/ci-info'
+import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
+import { getSupportedBrowsers } from '../utils'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -42,15 +43,13 @@ export async function turbopackBuild(): Promise<{
   const rewrites = NextBuildContext.rewrites!
   const appDirOnly = NextBuildContext.appDirOnly!
   const noMangling = NextBuildContext.noMangling!
+  const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
   const bindings = await loadBindings(config?.experimental?.useWasmBinary)
   const dev = false
 
-  // const supportedBrowsers = await getSupportedBrowsers(dir, dev)
-  const supportedBrowsers = [
-    'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
-  ]
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
 
   const persistentCaching = isPersistentCachingEnabled(config)
   const project = await bindings.turbo.createProject(
@@ -82,6 +81,7 @@ export async function turbopackBuild(): Promise<{
       previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling,
+      currentNodeJsVersion,
     },
     {
       persistentCaching,
@@ -91,32 +91,7 @@ export async function turbopackBuild(): Promise<{
     }
   )
   try {
-    ;(async function logCompilationEvents() {
-      for await (const event of project.compilationEventsSubscribe()) {
-        switch (event.severity) {
-          case 'EVENT':
-            Log.event(event.message)
-            break
-          case 'TRACE':
-            Log.trace(event.message)
-            break
-          case 'INFO':
-            Log.info(event.message)
-            break
-          case 'WARNING':
-            Log.warn(event.message)
-            break
-          case 'ERROR':
-            Log.error(event.message)
-            break
-          case 'FATAL':
-            Log.error(event.message)
-            break
-          default:
-            break
-        }
-      }
-    })()
+    backgroundLogCompilationEvents(project)
 
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
@@ -249,7 +224,8 @@ export async function workerMain(workerData: {
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!
+    NextBuildContext.dir!,
+    { debugPrerender: NextBuildContext.debugPrerender }
   )
 
   // Matches handling in build/index.ts

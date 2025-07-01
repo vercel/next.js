@@ -109,6 +109,14 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
 
   readonly rootParams: Params
 
+  /**
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
+   */
+  readonly allowEmptyStaticShell: boolean
+
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   expire: number // server expiration time

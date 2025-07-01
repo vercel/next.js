@@ -709,5 +709,10 @@
   "708": "Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload.",
   "709": "`rspack.getModuleNamedExports` is not supported by the wasm bindings.",
   "710": "Unable to remove an invalidated webpack cache. If this issue persists you can work around it by deleting %s",
-  "711": "Can't resolve %s"
+  "711": "Can't resolve %s",
+  "712": "`rspack.warnForEdgeRuntime` is not supported by the wasm bindings.",
+  "713": "Unexpected error during process lookup",
+  "714": "cannot run loadNative when `NEXT_TEST_WASM` is set",
+  "715": "Server Action \"%s\" was not found on the server. \\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "716": "NEXT_DEVTOOLS_SIMULATED_ERROR"
 }

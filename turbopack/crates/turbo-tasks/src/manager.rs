@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    borrow::Cow,
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -17,6 +16,7 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use tokio::{runtime::Handle, select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
 use tracing::{Instrument, Level, Span, info_span, instrument, trace_span};
@@ -24,25 +24,25 @@ use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ResolvedVc, SharedReference, TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait,
-    VcValueType,
+    ResolvedVc, SharedReference, TaskId, TaskIdSet, TraitMethod, ValueTypeId, Vc, VcRead,
+    VcValueTrait, VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
-    id::{BackendJobId, ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
+    id::{BackendJobId, ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
     id_factory::IdFactoryWithReuse,
+    macro_helpers::NativeFunction,
     magic_any::MagicAny,
     message_queue::{CompilationEvent, CompilationEventQueue},
     raw_vc::{CellId, RawVc},
     registry,
     serialization_invalidation::SerializationInvalidator,
-    task::local_task::{LocalTask, LocalTaskType},
+    task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
-    trait_helpers::get_trait_method,
     util::{IdFactory, StaticOrArc},
     vc::ReadVcFuture,
 };
@@ -54,7 +54,7 @@ pub trait TurboTasksCallApi: Sync + Send {
     /// with a wrapper task.
     fn dynamic_call(
         &self,
-        func: FunctionId,
+        native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
@@ -63,7 +63,7 @@ pub trait TurboTasksCallApi: Sync + Send {
     /// All inputs must be resolved.
     fn native_call(
         &self,
-        func: FunctionId,
+        native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
@@ -72,8 +72,7 @@ pub trait TurboTasksCallApi: Sync + Send {
     /// Uses a wrapper task to resolve
     fn trait_call(
         &self,
-        trait_type: TraitTypeId,
-        trait_fn_name: Cow<'static, str>,
+        trait_method: &'static TraitMethod,
         this: RawVc,
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
@@ -100,8 +99,6 @@ pub trait TurboTasksCallApi: Sync + Send {
 /// This trait is needed because thread locals cannot contain an unresolved [`Backend`] type
 /// parameter.
 pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
-    fn pin(&self) -> Arc<dyn TurboTasksApi>;
-
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
@@ -403,7 +400,7 @@ struct CurrentTaskState {
     /// Affected tasks, that are tracked during task execution. These tasks will
     /// be invalidated when the execution finishes or before reading a cell
     /// value.
-    tasks_to_notify: Vec<TaskId>,
+    tasks_to_notify: SmallVec<[TaskId; 4]>,
 
     /// True if the current task has state in cells
     stateful: bool,
@@ -433,7 +430,7 @@ impl CurrentTaskState {
         Self {
             task_id,
             execution_id,
-            tasks_to_notify: Vec::new(),
+            tasks_to_notify: SmallVec::new(),
             stateful: false,
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
@@ -592,19 +589,27 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     pub(crate) fn native_call(
         &self,
-        fn_type: FunctionId,
+        native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
         match persistence {
             TaskPersistence::Local => {
-                let task_type = LocalTaskType::Native { fn_type, this, arg };
+                let task_type = LocalTaskSpec {
+                    task_type: LocalTaskType::Native { native_fn },
+                    this,
+                    arg,
+                };
                 self.schedule_local_task(task_type, persistence)
             }
             TaskPersistence::Transient => {
-                let immutable = registry::get_function(fn_type).function_meta.immutable;
-                let task_type = CachedTaskType { fn_type, this, arg };
+                let immutable = native_fn.function_meta.immutable;
+                let task_type = CachedTaskType {
+                    native_fn,
+                    this,
+                    arg,
+                };
 
                 RawVc::TaskOutput(self.backend.get_or_create_transient_task(
                     task_type,
@@ -614,8 +619,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 ))
             }
             TaskPersistence::Persistent => {
-                let immutable = registry::get_function(fn_type).function_meta.immutable;
-                let task_type = CachedTaskType { fn_type, this, arg };
+                let immutable = native_fn.function_meta.immutable;
+                let task_type = CachedTaskType {
+                    native_fn,
+                    this,
+                    arg,
+                };
 
                 RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
                     task_type,
@@ -629,24 +638,25 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     pub fn dynamic_call(
         &self,
-        fn_type: FunctionId,
+        native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        if this.is_none_or(|this| this.is_resolved())
-            && registry::get_function(fn_type).arg_meta.is_resolved(&*arg)
-        {
-            return self.native_call(fn_type, this, arg, persistence);
+        if this.is_none_or(|this| this.is_resolved()) && native_fn.arg_meta.is_resolved(&*arg) {
+            return self.native_call(native_fn, this, arg, persistence);
         }
-        let task_type = LocalTaskType::ResolveNative { fn_type, this, arg };
+        let task_type = LocalTaskSpec {
+            task_type: LocalTaskType::ResolveNative { native_fn },
+            this,
+            arg,
+        };
         self.schedule_local_task(task_type, persistence)
     }
 
     pub fn trait_call(
         &self,
-        trait_type: TraitTypeId,
-        mut trait_fn_name: Cow<'static, str>,
+        trait_method: &'static TraitMethod,
         this: RawVc,
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
@@ -655,22 +665,23 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // for resolved cells we already know the value type so we can lookup the
         // function
         if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
-            match get_trait_method(trait_type, type_id, trait_fn_name) {
-                Ok(native_fn) => {
-                    let arg = registry::get_function(native_fn).arg_meta.filter_owned(arg);
+            match registry::get_value_type(type_id).get_trait_method(trait_method) {
+                Some(native_fn) => {
+                    let arg = native_fn.arg_meta.filter_owned(arg);
                     return self.dynamic_call(native_fn, Some(this), arg, persistence);
                 }
-                Err(name) => {
-                    trait_fn_name = name;
+                None => {
+                    // We are destined to fail at this point, but we just retry resolution in the
+                    // local task since we cannot report an error from here.
+                    // TODO: A panic seems appropriate since the immediate caller is to blame
                 }
             }
         }
 
         // create a wrapper task to resolve all inputs
-        let task_type = LocalTaskType::ResolveTrait {
-            trait_type,
-            method_name: trait_fn_name,
-            this,
+        let task_type = LocalTaskSpec {
+            task_type: LocalTaskType::ResolveTrait { trait_method },
+            this: Some(this),
             arg,
         };
 
@@ -764,7 +775,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     fn schedule_local_task(
         &self,
-        ty: LocalTaskType,
+        ty: LocalTaskSpec,
         // if this is a `LocalTaskType::Resolve*`, we may spawn another task with this persistence,
         // if this is a `LocalTaskType::Native`, persistence is unused.
         //
@@ -774,14 +785,13 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // don't end up owning any cells.
         persistence: TaskPersistence,
     ) -> RawVc {
-        let ty = Arc::new(ty);
+        let task_type = ty.task_type;
         let (global_task_state, parent_task_id, execution_id, local_task_id) = CURRENT_TASK_STATE
             .with(|gts| {
                 let mut gts_write = gts.write().unwrap();
                 let local_task_id = gts_write.create_local_task(LocalTask::Scheduled {
                     done_event: Event::new({
-                        let ty = Arc::clone(&ty);
-                        move || format!("LocalTask({ty})::done_event")
+                        move || format!("LocalTask({task_type})::done_event")
                     }),
                 });
                 (
@@ -805,7 +815,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let future = async move {
             let TaskExecutionSpec { future, span } =
                 crate::task::local_task::get_local_task_execution_spec(&*this, &ty, persistence);
-            let ty = ty.clone();
             async move {
                 let (result, _duration, _memory_usage) = CaptureFuture::new(future).await;
 
@@ -818,7 +827,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let local_task = LocalTask::Done {
                     output: match result {
                         Ok(raw_vc) => OutputContent::Link(raw_vc),
-                        Err(err) => OutputContent::Error(err.task_context(ty)),
+                        Err(err) => OutputContent::Error(err.task_context(task_type)),
                     },
                 };
 
@@ -952,27 +961,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // INVALIDATION: This doesn't return a value, only waits for it to be ready.
         read_task_output_untracked(self, id, consistency).await?;
         Ok(())
-    }
-
-    #[deprecated(note = "Use get_or_wait_aggregated_update_info instead")]
-    pub async fn get_or_wait_update_info(&self, aggregation: Duration) -> (Duration, usize) {
-        let UpdateInfo {
-            duration, tasks, ..
-        } = self.get_or_wait_aggregated_update_info(aggregation).await;
-        (duration, tasks)
-    }
-
-    #[deprecated(note = "Use aggregated_update_info instead")]
-    pub async fn update_info(
-        &self,
-        aggregation: Duration,
-        timeout: Duration,
-    ) -> Option<(Duration, usize)> {
-        self.aggregated_update_info(aggregation, timeout).await.map(
-            |UpdateInfo {
-                 duration, tasks, ..
-             }| (duration, tasks),
-        )
     }
 
     /// Returns [UpdateInfo] with all updates aggregated over a given duration
@@ -1173,31 +1161,30 @@ impl<B: Backend + 'static> TurboTasks<B> {
 impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     fn dynamic_call(
         &self,
-        func: FunctionId,
+        native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        self.dynamic_call(func, this, arg, persistence)
+        self.dynamic_call(native_fn, this, arg, persistence)
     }
     fn native_call(
         &self,
-        func: FunctionId,
+        native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        self.native_call(func, this, arg, persistence)
+        self.native_call(native_fn, this, arg, persistence)
     }
     fn trait_call(
         &self,
-        trait_type: TraitTypeId,
-        trait_fn_name: Cow<'static, str>,
+        trait_method: &'static TraitMethod,
         this: RawVc,
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        self.trait_call(trait_type, trait_fn_name, this, arg, persistence)
+        self.trait_call(trait_method, this, arg, persistence)
     }
 
     #[track_caller]
@@ -1243,10 +1230,6 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
 }
 
 impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
-    fn pin(&self) -> Arc<dyn TurboTasksApi> {
-        self.pin()
-    }
-
     #[instrument(level = Level::INFO, skip_all, name = "invalidate")]
     fn invalidate(&self, task: TaskId) {
         self.backend.invalidate_task(task, self);
@@ -1532,7 +1515,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             let CurrentTaskState {
                 tasks_to_notify, ..
             } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter());
+            tasks_to_notify.extend(tasks.iter().copied());
         });
         if result.is_err() {
             let _guard = trace_span!("schedule_notify_tasks", count = tasks.len()).entered();
@@ -1547,7 +1530,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             let CurrentTaskState {
                 tasks_to_notify, ..
             } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter());
+            tasks_to_notify.extend(tasks.iter().copied());
         });
         if result.is_err() {
             let _guard = trace_span!("schedule_notify_tasks_set", count = tasks.len()).entered();
@@ -1654,7 +1637,7 @@ pub async fn run_once_with_reason<T: Send + 'static>(
 
 /// Calls [`TurboTasks::dynamic_call`] for the current turbo tasks instance.
 pub fn dynamic_call(
-    func: FunctionId,
+    func: &'static NativeFunction,
     this: Option<RawVc>,
     arg: Box<dyn MagicAny>,
     persistence: TaskPersistence,
@@ -1664,13 +1647,12 @@ pub fn dynamic_call(
 
 /// Calls [`TurboTasks::trait_call`] for the current turbo tasks instance.
 pub fn trait_call(
-    trait_type: TraitTypeId,
-    trait_fn_name: Cow<'static, str>,
+    trait_method: &'static TraitMethod,
     this: RawVc,
     arg: Box<dyn MagicAny>,
     persistence: TaskPersistence,
 ) -> RawVc {
-    with_turbo_tasks(|tt| tt.trait_call(trait_type, trait_fn_name, this, arg, persistence))
+    with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, persistence))
 }
 
 pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {

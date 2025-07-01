@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::Result;
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
@@ -16,7 +16,7 @@ use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::emb
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
-    environment: Vc<Environment>,
+    environment: ResolvedVc<Environment>,
     chunk_base_path: Option<RcStr>,
     chunk_suffix_path: Option<RcStr>,
     runtime_type: RuntimeType,

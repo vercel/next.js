@@ -2,20 +2,22 @@ import type { DebugInfo } from '../../../../shared/types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { CopyStackTraceButton } from './copy-stack-trace-button'
 import { DocsLinkButton } from './docs-link-button'
-import { RestartServerButton } from './restart-server-button'
 
 type ErrorOverlayToolbarProps = {
   error: Error
   debugInfo: DebugInfo | undefined
+  feedbackButton?: React.ReactNode
 }
 
 export function ErrorOverlayToolbar({
   error,
   debugInfo,
+  feedbackButton,
 }: ErrorOverlayToolbarProps) {
   return (
     <span className="error-overlay-toolbar">
-      <RestartServerButton error={error} />
+      {/* TODO: Move the button inside and remove the feedback on the footer of the error overlay.  */}
+      {feedbackButton}
       <CopyStackTraceButton error={error} />
       <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton

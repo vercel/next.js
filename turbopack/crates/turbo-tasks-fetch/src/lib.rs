@@ -139,26 +139,25 @@ impl FetchError {
 #[turbo_tasks::value_impl]
 impl FetchError {
     #[turbo_tasks::function]
-    pub async fn to_issue(
-        self: Vc<Self>,
+    pub fn to_issue(
+        &self,
         severity: IssueSeverity,
-        issue_context: ResolvedVc<FileSystemPath>,
-    ) -> Result<Vc<FetchIssue>> {
-        let this = &*self.await?;
-        Ok(FetchIssue {
+        issue_context: FileSystemPath,
+    ) -> Vc<FetchIssue> {
+        FetchIssue {
             issue_context,
             severity,
-            url: this.url,
-            kind: this.kind,
-            detail: this.detail,
+            url: self.url,
+            kind: self.kind,
+            detail: self.detail,
         }
-        .cell())
+        .cell()
     }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct FetchIssue {
-    pub issue_context: ResolvedVc<FileSystemPath>,
+    pub issue_context: FileSystemPath,
     pub severity: IssueSeverity,
     pub url: ResolvedVc<RcStr>,
     pub kind: ResolvedVc<FetchErrorKind>,
@@ -169,7 +168,7 @@ pub struct FetchIssue {
 impl Issue for FetchIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.issue_context
+        self.issue_context.clone().cell()
     }
 
     fn severity(&self) -> IssueSeverity {

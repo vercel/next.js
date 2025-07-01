@@ -107,7 +107,7 @@ impl Introspectable for ConditionalContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<RcStr>> {
+    fn title(&self) -> Result<Vc<RcStr>> {
         if let Some(activator) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
         {
             Ok(activator.title())
@@ -117,7 +117,7 @@ impl Introspectable for ConditionalContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(Vc::cell(
             [
                 ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)

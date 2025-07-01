@@ -231,6 +231,7 @@ describe('next.rs api', () => {
       },
       browserslistQuery: 'last 2 versions',
       noMangling: false,
+      currentNodeJsVersion: '18.0.0',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),

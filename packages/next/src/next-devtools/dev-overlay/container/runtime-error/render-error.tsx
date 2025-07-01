@@ -1,4 +1,5 @@
 import type { OverlayState } from '../../shared'
+import type { OverlayDispatch } from '../../shared'
 
 import { useMemo, useState, useEffect } from 'react'
 import {
@@ -7,6 +8,7 @@ import {
 } from '../../utils/get-error-by-type'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { ComponentStackFrame } from '../../utils/parse-component-stack'
+import { usePersistentCacheErrorDetection } from '../../components/errors/error-overlay-toolbar/restart-server-button'
 
 export type SupportedErrorEvent = {
   id: number
@@ -23,6 +25,7 @@ type Props = {
   }) => React.ReactNode
   state: OverlayState
   isAppDir: boolean
+  dispatch: OverlayDispatch
 }
 
 export const RenderError = (props: Props) => {
@@ -36,7 +39,7 @@ export const RenderError = (props: Props) => {
   }
 }
 
-const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
+const RenderRuntimeError = ({ children, state, isAppDir, dispatch }: Props) => {
   const { errors } = state
 
   const [lookups, setLookups] = useState<{
@@ -64,6 +67,8 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
 
     return [ready, next]
   }, [errors, lookups])
+
+  usePersistentCacheErrorDetection({ errors, dispatch })
 
   useEffect(() => {
     if (nextError == null) {

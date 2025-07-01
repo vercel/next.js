@@ -3,11 +3,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{
-    Issue, IssueSeverity, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-    StyledString,
-};
-use crate::ident::AssetIdent;
+use super::{Issue, IssueSeverity, IssueSource, IssueStage, OptionStyledString, StyledString};
+use crate::{ident::AssetIdent, issue::OptionIssueSource};
 
 #[turbo_tasks::value(shared)]
 pub struct AnalyzeIssue {
@@ -79,10 +76,7 @@ impl Issue for AnalyzeIssue {
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(match &self.source {
-            Some(source) => Some(source.resolve_source_map().await?.into_owned()),
-            None => None,
-        }))
+    async fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(self.source)
     }
 }

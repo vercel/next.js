@@ -29,13 +29,6 @@ pub fn get_native_function_ident(ident: &Ident) -> Ident {
     )
 }
 
-pub fn get_native_function_id_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("{}_FUNCTION_ID", ident.to_string().to_uppercase()),
-        ident.span(),
-    )
-}
-
 pub fn get_trait_type_ident(ident: &Ident) -> Ident {
     Ident::new(
         &format!("{}_TRAIT_TYPE", ident.to_string().to_uppercase()),

@@ -60,7 +60,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/blog/page.js" switcher
+```jsx filename="app/layout.js" switcher
 import Link from 'next/link'
 
 export default function Layout() {
@@ -227,7 +227,7 @@ On slow or unstable networks, prefetching may not finish before the user clicks 
 
 To improve perceived performance, you can use the [`useLinkStatus` hook](/docs/app/api-reference/functions/use-link-status) to show inline visual feedback to the user (like spinners or text glimmers on the link) while a transition is in progress.
 
-```tsx
+```tsx filename="app/ui/loading-indicator.tsx" switcher
 'use client'
 
 import { useLinkStatus } from 'next/link'
@@ -240,7 +240,7 @@ export default function LoadingIndicator() {
 }
 ```
 
-```tsx
+```jsx filename="app/ui/loading-indicator.js" switcher
 'use client'
 
 import { useLinkStatus } from 'next/link'

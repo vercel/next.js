@@ -328,7 +328,7 @@ impl<C: Comments> ServerActions<C> {
                 }
             }
         } else {
-            // If we can't determine the arguments (e.g. not staticaly analyzable),
+            // If we can't determine the arguments (e.g. not statically analyzable),
             // we assume all arguments are used.
             arg_mask = 0b111111;
             rest_args = 0b1;

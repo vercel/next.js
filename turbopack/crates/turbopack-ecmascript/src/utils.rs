@@ -1,12 +1,15 @@
+use std::ops::Deref;
+
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::DUMMY_SP,
+    common::{DUMMY_SP, SyntaxContext},
     ecma::{
         ast::{Expr, Lit, Str},
         visit::AstParentKind,
     },
 };
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
@@ -24,26 +27,42 @@ pub fn unparen(expr: &Expr) -> &Expr {
     expr
 }
 
+/// Converts a js-value into a Pattern for matching resources.
 pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
-    let mut result = match value {
+    match value {
         JsValue::Constant(v) => Pattern::Constant(match v {
-            ConstantValue::Str(str) => str.as_str().into(),
-            ConstantValue::True => "true".into(),
-            ConstantValue::False => "false".into(),
-            ConstantValue::Null => "null".into(),
+            ConstantValue::Str(str) => {
+                // Normalize windows file paths when constructing the pattern.
+                // See PACK-3279
+                if str.as_str().contains("\\") {
+                    RcStr::from(str.to_string().replace('\\', "/"))
+                } else {
+                    str.as_rcstr()
+                }
+            }
+            ConstantValue::True => rcstr!("true"),
+            ConstantValue::False => rcstr!("false"),
+            ConstantValue::Null => rcstr!("null"),
             ConstantValue::Num(ConstantNumber(n)) => n.to_string().into(),
             ConstantValue::BigInt(n) => n.to_string().into(),
             ConstantValue::Regex(box (exp, flags)) => format!("/{exp}/{flags}").into(),
-            ConstantValue::Undefined => "undefined".into(),
+            ConstantValue::Undefined => rcstr!("undefined"),
         }),
-        JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_str().into()),
+        JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_rcstr()),
         JsValue::Alternatives {
             total_nodes: _,
             values,
             logical_property: _,
-        } => Pattern::Alternatives(values.iter().map(js_value_to_pattern).collect()),
+        } => {
+            let mut alts = Pattern::Alternatives(values.iter().map(js_value_to_pattern).collect());
+            alts.normalize();
+            alts
+        }
         JsValue::Concat(_, parts) => {
-            Pattern::Concatenation(parts.iter().map(js_value_to_pattern).collect())
+            let mut concats =
+                Pattern::Concatenation(parts.iter().map(js_value_to_pattern).collect());
+            concats.normalize();
+            concats
         }
         JsValue::Add(..) => {
             // TODO do we need to handle that here
@@ -51,9 +70,7 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             Pattern::Dynamic
         }
         _ => Pattern::Dynamic,
-    };
-    result.normalize();
-    result
+    }
 }
 
 const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
@@ -199,4 +216,57 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
         "@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
         _ => return None,
     })
+}
+
+#[derive(Hash, Debug, Clone, Copy, Eq, Serialize, Deserialize, PartialEq, TraceRawVcs)]
+pub struct AstSyntaxContext(#[turbo_tasks(trace_ignore)] SyntaxContext);
+
+impl TaskInput for AstSyntaxContext {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
+unsafe impl NonLocalValue for AstSyntaxContext {}
+
+impl Deref for AstSyntaxContext {
+    type Target = SyntaxContext;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<SyntaxContext> for AstSyntaxContext {
+    fn from(v: SyntaxContext) -> Self {
+        Self(v)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::rcstr;
+    use turbopack_core::resolve::pattern::Pattern;
+
+    use crate::{
+        analyzer::{ConstantString, ConstantValue, JsValue},
+        utils::js_value_to_pattern,
+    };
+
+    #[test]
+    fn test_path_normalization_in_pattern() {
+        assert_eq!(
+            Pattern::Constant(rcstr!("hello/world")),
+            js_value_to_pattern(&JsValue::Constant(ConstantValue::Str(
+                ConstantString::RcStr(rcstr!("hello\\world"))
+            )))
+        );
+
+        assert_eq!(
+            Pattern::Constant(rcstr!("hello/world")),
+            js_value_to_pattern(&JsValue::Concat(
+                1,
+                vec!["hello".into(), "\\".into(), "world".into()]
+            ))
+        );
+    }
 }

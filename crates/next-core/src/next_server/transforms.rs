@@ -100,7 +100,7 @@ pub async fn get_next_server_transforms_rules(
             if !foreign_code {
                 rules.push(get_next_disallow_export_all_in_page_rule(
                     mdx_rs,
-                    pages_dir.await?,
+                    pages_dir.clone(),
                 ));
             }
             false
@@ -109,7 +109,7 @@ pub async fn get_next_server_transforms_rules(
             if !foreign_code {
                 rules.push(
                     get_next_pages_transforms_rule(
-                        **pages_dir,
+                        pages_dir.clone(),
                         ExportFilter::StripDefaultExport,
                         mdx_rs,
                     )
@@ -117,7 +117,7 @@ pub async fn get_next_server_transforms_rules(
                 );
                 rules.push(get_next_disallow_export_all_in_page_rule(
                     mdx_rs,
-                    pages_dir.await?,
+                    pages_dir.clone(),
                 ));
             }
             false

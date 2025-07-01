@@ -40,6 +40,11 @@ async function SearchParamsReadingComponent({
   const fooParams = (
     searchParams as unknown as UnsafeUnwrappedSearchParams<typeof searchParams>
   ).foo
+
+  console.log(
+    'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
+  )
+
   return (
     <div>
       this component read the accessed the `foo` search param: {fooParams}

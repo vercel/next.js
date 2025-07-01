@@ -16,7 +16,9 @@ const nextConfigWithCacheHandler: NextConfig = {
   experimental: {
     dynamicIO: true,
     cacheHandlers: {
-      custom: require.resolve('next/dist/server/lib/cache-handlers/default'),
+      custom: require.resolve(
+        'next/dist/server/lib/cache-handlers/default.external'
+      ),
     },
   },
 }

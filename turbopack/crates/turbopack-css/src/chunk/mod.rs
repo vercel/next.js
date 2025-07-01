@@ -102,7 +102,7 @@ impl CssChunk {
             {
                 fileify_source_map(
                     content.source_map.as_ref(),
-                    self.chunking_context().root_path(),
+                    self.chunking_context().root_path().await?.clone_value(),
                 )
                 .await?
             } else {
@@ -152,8 +152,8 @@ impl CssChunk {
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let CssChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
-            let path = chunk_item.asset_ident().path().to_resolved().await?;
-            Some((path, path.await?))
+            let path = chunk_item.asset_ident().path().await?.clone_value();
+            Some((path.clone(), path))
         } else {
             None
         };
@@ -164,13 +164,13 @@ impl CssChunk {
             if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
                 let path = chunk_item.asset_ident().path().await?;
                 while !path.is_inside_or_equal_ref(common_path_ref) {
-                    let parent = common_path_vc.parent().to_resolved().await?;
+                    let parent = common_path_vc.parent();
                     if parent == *common_path_vc {
                         common_path = None;
                         break;
                     }
                     *common_path_vc = parent;
-                    *common_path_ref = (*common_path_vc).await?;
+                    *common_path_ref = common_path_vc.clone();
                 }
             }
         }
@@ -189,7 +189,7 @@ impl CssChunk {
             path: if let Some((common_path, _)) = common_path {
                 common_path
             } else {
-                ServerFileSystem::new().root().to_resolved().await?
+                ServerFileSystem::new().root().await?.clone_value()
             },
             query: RcStr::default(),
             fragment: RcStr::default(),
@@ -240,8 +240,8 @@ pub struct CssChunkContent {
 #[turbo_tasks::value_impl]
 impl Chunk for CssChunk {
     #[turbo_tasks::function]
-    fn ident(self: Vc<Self>) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path())
+    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
+        Ok(AssetIdent::from_path(self.path().await?.clone_value()))
     }
 
     #[turbo_tasks::function]

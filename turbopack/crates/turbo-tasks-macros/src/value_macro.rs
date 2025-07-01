@@ -234,7 +234,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             let inner_type_string = inner_type.to_token_stream().to_string();
 
             // HACK: proc_macro2 inserts whitespace between every token. It's ugly, so
-            // remove it, assuming these whitespace aren't syntatically important. Using
+            // remove it, assuming these whitespace aren't syntactically important. Using
             // prettyplease (or similar) would be more correct, but slower and add another
             // dependency.
             static WHITESPACE_RE: OnceLock<Regex> = OnceLock::new();

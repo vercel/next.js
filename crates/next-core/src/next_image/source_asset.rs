@@ -55,7 +55,7 @@ impl Asset for StructuredImageFileSource {
         let blur_options = blur_options();
         match self.blur_placeholder_mode {
             BlurPlaceholderMode::NextImageUrl => {
-                let info = get_meta_data(self.image.ident(), *content, None).await?;
+                let info = get_meta_data(*self.image, *content, None).await?;
                 let width = info.width;
                 let height = info.height;
                 let blur_options = blur_options.await?;
@@ -83,7 +83,7 @@ impl Asset for StructuredImageFileSource {
                 )?;
             }
             BlurPlaceholderMode::DataUrl => {
-                let info = get_meta_data(self.image.ident(), *content, Some(blur_options)).await?;
+                let info = get_meta_data(*self.image, *content, Some(blur_options)).await?;
                 writeln!(
                     result,
                     "export default {{ src, width: {width}, height: {height}, blurDataURL: \
@@ -99,7 +99,7 @@ impl Asset for StructuredImageFileSource {
                 )?;
             }
             BlurPlaceholderMode::None => {
-                let info = get_meta_data(self.image.ident(), *content, None).await?;
+                let info = get_meta_data(*self.image, *content, None).await?;
                 writeln!(
                     result,
                     "export default {{ src, width: {width}, height: {height} }}",

@@ -3,7 +3,8 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
+use browserslist::Distrib;
 use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc};
@@ -11,7 +12,7 @@ use turbo_tasks_env::ProcessEnv;
 
 use crate::target::CompileTarget;
 
-static DEFAULT_NODEJS_VERSION: &str = "16.0.0";
+static DEFAULT_NODEJS_VERSION: &str = "18.0.0";
 
 #[turbo_tasks::value]
 #[derive(Clone, Copy, Default, Hash, TaskInput, Debug)]
@@ -62,6 +63,16 @@ pub enum ExecutionEnvironment {
     Custom(u8),
 }
 
+async fn resolve_browserslist(browser_env: ResolvedVc<BrowserEnvironment>) -> Result<Vec<Distrib>> {
+    Ok(browserslist::resolve(
+        browser_env.await?.browserslist_query.split(','),
+        &browserslist::Opts {
+            ignore_unknown_versions: true,
+            ..Default::default()
+        },
+    )?)
+}
+
 #[turbo_tasks::value_impl]
 impl Environment {
     #[turbo_tasks::function]
@@ -81,12 +92,31 @@ impl Environment {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.runtime_versions(),
             ExecutionEnvironment::Browser(browser_env) => {
-                Vc::cell(Versions::parse_versions(browserslist::resolve(
-                    browser_env.await?.browserslist_query.split(','),
-                    &browserslist::Opts::default(),
-                )?)?)
+                let distribs = resolve_browserslist(browser_env).await?;
+                Vc::cell(Versions::parse_versions(distribs)?)
             }
-            ExecutionEnvironment::EdgeWorker(_) => todo!(),
+            ExecutionEnvironment::EdgeWorker(edge_env) => edge_env.runtime_versions(),
+            ExecutionEnvironment::Custom(_) => todo!(),
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn browserslist_query(&self) -> Result<Vc<RcStr>> {
+        Ok(match self.execution {
+            ExecutionEnvironment::NodeJsBuildTime(_)
+            | ExecutionEnvironment::NodeJsLambda(_)
+            | ExecutionEnvironment::EdgeWorker(_) =>
+            // TODO: This is a hack, browserslist_query is only used by CSS processing for
+            // LightningCSS However, there is an issue where the CSS is not transitioned
+            // to the client which we still have to solve. It does apply the
+            // browserslist correctly because CSS Modules in client components is double-processed,
+            // once for server once for browser.
+            {
+                Vc::cell("".into())
+            }
+            ExecutionEnvironment::Browser(browser_env) => {
+                Vc::cell(browser_env.await?.browserslist_query.clone())
+            }
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
@@ -253,7 +283,8 @@ impl NodeJsEnvironment {
 
         Ok(Vc::cell(Versions {
             node: Some(
-                Version::from_str(&str).map_err(|_| anyhow!("Node.js version parse error"))?,
+                Version::from_str(&str)
+                    .map_err(|_| anyhow!("Failed to parse Node.js version: '{}'", str))?,
             ),
             ..Default::default()
         }))
@@ -273,7 +304,9 @@ impl NodeJsEnvironment {
 
 #[turbo_tasks::value(shared)]
 pub enum NodeJsVersion {
+    /// Use the version of Node.js that is available from the environment (via `node --version`)
     Current(ResolvedVc<Box<dyn ProcessEnv>>),
+    /// Use the specified version of Node.js.
     Static(ResolvedVc<RcStr>),
 }
 
@@ -292,7 +325,31 @@ pub struct BrowserEnvironment {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct EdgeWorkerEnvironment {}
+pub struct EdgeWorkerEnvironment {
+    // This isn't actually the Edge's worker environment, but we have to use some kind of version
+    // for transpiling ECMAScript features. No tool supports Edge Workers as a separate
+    // environment.
+    pub node_version: ResolvedVc<NodeJsVersion>,
+}
+
+#[turbo_tasks::value_impl]
+impl EdgeWorkerEnvironment {
+    #[turbo_tasks::function]
+    pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
+        let str = match *self.node_version.await? {
+            NodeJsVersion::Current(process_env) => get_current_nodejs_version(*process_env),
+            NodeJsVersion::Static(version) => *version,
+        }
+        .await?;
+
+        Ok(Vc::cell(Versions {
+            node: Some(
+                Version::from_str(&str).map_err(|_| anyhow!("Node.js version parse error"))?,
+            ),
+            ..Default::default()
+        }))
+    }
+}
 
 // TODO preset_env_base::Version implements Serialize/Deserialize incorrectly
 #[turbo_tasks::value(transparent, serialization = "none")]
@@ -309,12 +366,30 @@ pub async fn get_current_nodejs_version(env: Vc<Box<dyn ProcessEnv>>) -> Result<
     cmd.stdin(Stdio::piped());
     cmd.stdout(Stdio::piped());
 
-    Ok(Vc::cell(
-        String::from_utf8(cmd.output()?.stdout)?
-            .strip_prefix('v')
-            .context("Version must begin with v")?
-            .strip_suffix('\n')
-            .context("Version must end with \\n")?
-            .into(),
-    ))
+    let output = cmd.output()?;
+
+    if !output.status.success() {
+        bail!(
+            "'node --version' command failed{}{}",
+            output
+                .status
+                .code()
+                .map(|c| format!(" with exit code {c}"))
+                .unwrap_or_default(),
+            String::from_utf8(output.stderr)
+                .map(|stderr| format!(": {stderr}"))
+                .unwrap_or_default()
+        );
+    }
+
+    let version = String::from_utf8(output.stdout)
+        .context("failed to parse 'node --version' output as utf8")?;
+    if let Some(version_number) = version.strip_prefix("v") {
+        Ok(Vc::cell(version_number.trim().into()))
+    } else {
+        bail!(
+            "Expected 'node --version' to return a version starting with 'v', but received: '{}'",
+            version
+        )
+    }
 }

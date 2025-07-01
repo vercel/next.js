@@ -104,7 +104,7 @@ impl EsRegex {
                 // flags format so we can pass the original flags value.
                 match regress::Regex::with_flags(&pattern, regress::Flags::from(flags)) {
                     Ok(reg) => Ok(EsRegexImpl::Regress(reg)),
-                    // Propogate the error as is, regress has useful error messages.
+                    // Propagate the error as is, regress has useful error messages.
                     Err(e) => Err(e),
                 }
             }

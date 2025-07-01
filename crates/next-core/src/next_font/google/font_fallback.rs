@@ -4,7 +4,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
@@ -44,7 +44,7 @@ struct Fallback {
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallback(
-    lookup_path: ResolvedVc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     options_vc: Vc<NextFontGoogleOptions>,
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
@@ -52,7 +52,7 @@ pub(super) async fn get_font_fallback(
         Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
         None => {
             let metrics_json = load_next_js_templateon(
-                lookup_path,
+                lookup_path.clone(),
                 rcstr!("dist/server/capsize-font-metrics.json"),
             )
             .await?;
@@ -74,7 +74,7 @@ pub(super) async fn get_font_fallback(
                 .cell(),
                 Err(_) => {
                     NextFontIssue {
-                        path: lookup_path,
+                        path: lookup_path.clone(),
                         title: StyledString::Text(
                             format!(
                                 "Failed to find font override values for font `{}`",

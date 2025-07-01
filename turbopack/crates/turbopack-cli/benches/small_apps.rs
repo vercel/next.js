@@ -1,6 +1,7 @@
 #![cfg_attr(not(codspeed), allow(unused))]
 
-extern crate turbo_tasks_malloc;
+#[global_allocator]
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 use std::{
     path::{Path, PathBuf},
@@ -82,6 +83,7 @@ fn bench_small_apps(c: &mut Criterion) {
                             no_sourcemap: false,
                             no_minify: false,
                             force_memory_cleanup: true,
+                            no_scope_hoist: false,
                         })
                         .await
                     })
