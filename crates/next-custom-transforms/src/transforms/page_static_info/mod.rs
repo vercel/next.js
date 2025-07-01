@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::Atom,
     base::SwcComments,
-    common::{GLOBALS, Span},
+    common::{Span, GLOBALS},
     ecma::{ast::Program, visit::VisitWith},
 };
 
@@ -229,18 +229,17 @@ mod tests {
     use anyhow::Result;
     use swc_core::{
         base::{
-            Compiler, HandlerOpts, SwcComments,
             config::{IsModule, ParseOptions},
-            try_with_handler,
+            try_with_handler, Compiler, HandlerOpts, SwcComments,
         },
-        common::{FilePathMapping, GLOBALS, SourceMap, errors::ColorConfig},
+        common::{errors::ColorConfig, FilePathMapping, SourceMap, GLOBALS},
         ecma::{
             ast::Program,
             parser::{EsSyntax, Syntax, TsSyntax},
         },
     };
 
-    use super::{RscModuleInfo, collect_rsc_module_info};
+    use super::{collect_rsc_module_info, RscModuleInfo};
 
     fn build_ast_from_source(contents: &str, file_path: &str) -> Result<(Program, SwcComments)> {
         GLOBALS.set(&Default::default(), || {
