@@ -20,9 +20,9 @@ describe.each(
         },
       ]
 )('Dynamic IO Errors - $name', ({ inPrerenderDebugMode }) => {
-  describe('Sync Dynamic - With Fallback - client searchParams', () => {
+  describe('Sync Dynamic - client searchParams', () => {
     const { next, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/sync-client-search-with-fallback',
+      files: __dirname + '/fixtures/sync-client-search',
       skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
@@ -33,219 +33,48 @@ describe.each(
     }
 
     if (isNextDev) {
-      // We don't error the build, but we do show a dev-only error so that users
-      // migrate to the async usage.
-      it('should show a collapsed redbox error', async () => {
-        const browser = await next.browser('/')
+      it('should return `undefined` for `searchParams.foo`', async () => {
+        const browser = await next.browser('/?foo=test')
+
+        expect(await browser.elementById('foo-param').text()).toBe('undefined')
+      })
+
+      it('should show a collapsed redbox with a sync access error', async () => {
+        const browser = await next.browser('/?foo=test')
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/page.tsx (44:5) @ SearchParamsReadingComponent
-         > 44 |   ).foo
+           "source": "app/page.tsx (26:5) @ SearchParamsReadingComponent
+         > 26 |   ).foo
               |     ^",
            "stack": [
-             "SearchParamsReadingComponent app/page.tsx (44:5)",
-             "Page app/page.tsx (19:11)",
+             "SearchParamsReadingComponent app/page.tsx (26:5)",
+             "Page app/page.tsx (14:7)",
            ],
          }
         `)
       })
     } else {
-      it('should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary', async () => {
+      it('should not error the build when synchronously reading `searchParams.foo`', async () => {
         try {
           await next.start()
         } catch {
-          throw new Error('expected build not to fail for fully static project')
+          throw new Error('expected build not to fail')
         }
 
         expect(next.cliOutput).toContain('◐ / ')
-        const $ = await next.render$('/')
-        expect($('[data-fallback]').length).toBe(2)
+        const browser = await next.browser('/?foo=test')
+        expect(await browser.elementById('foo-param').text()).toBe('undefined')
       })
     }
   })
 
-  describe('Sync Dynamic - Without Fallback - client searchParams', () => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/sync-client-search-without-fallback',
-      skipStart: !isNextDev,
-      skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
-    })
-
-    if (skipped) {
-      return
-    }
-
-    if (isNextDev) {
-      it('should show a collapsed redbox with two errors', async () => {
-        const browser = await next.browser('/')
-
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/page.tsx (48:8) @ LongRunningComponent
-         > 48 |     use(
-              |        ^",
-             "stack": [
-               "LongRunningComponent app/page.tsx (48:8)",
-               "IndirectionTwo app/indirection.tsx (7:34)",
-               "Page app/page.tsx (19:61)",
-               "main <anonymous> (1:13)",
-               "body <anonymous> (1:13)",
-               "html <anonymous> (1:13)",
-               "Root [Server] <anonymous> (1:22)",
-               "LogSafely <anonymous> (0:0)",
-             ],
-           },
-           {
-             "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/page.tsx (42:5) @ SearchParamsReadingComponent
-         > 42 |   ).foo
-              |     ^",
-             "stack": [
-               "SearchParamsReadingComponent app/page.tsx (42:5)",
-               "Page app/page.tsx (19:11)",
-             ],
-           },
-         ]
-        `)
-      })
-    } else {
-      it('should error the build if dynamic IO happens in the root (outside a Suspense)', async () => {
-        try {
-          await next.build()
-        } catch {
-          // we expect the build to fail
-        }
-
-        const output = getPrerenderOutput(next.cliOutput, {
-          isMinified: !inPrerenderDebugMode,
-        })
-
-        if (isTurbopack) {
-          if (inPrerenderDebugMode) {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                 at LongRunningComponent (<anonymous>)
-                 at IndirectionTwo (turbopack:///[project]/app/indirection.tsx:7:33)
-                 at Page (turbopack:///[project]/app/page.tsx:19:60)
-                 at RenderFromTemplateContext (<anonymous>)
-                 at main (<anonymous>)
-                 at body (<anonymous>)
-                 at html (<anonymous>)
-                5 | }
-                6 |
-             >  7 | export function IndirectionTwo({ children }) {
-                  |                                 ^
-                8 |   return children
-                9 | }
-               10 |
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-
-             > Export encountered errors on following paths:
-             	/page: /"
-            `)
-          } else {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                 at a (<anonymous>)
-                 at b (<next-dist-dir>)
-                 at c (<next-dist-dir>)
-                 at d (<next-dist-dir>)
-                 at e (<next-dist-dir>)
-                 at f (<next-dist-dir>)
-                 at g (<next-dist-dir>)
-                 at h (<next-dist-dir>)
-                 at i (<next-dist-dir>)
-                 at j (<next-dist-dir>)
-                 at k (<next-dist-dir>)
-                 at l (<next-dist-dir>)
-                 at m (<next-dist-dir>)
-                 at n (<anonymous>)
-                 at o (<next-dist-dir>)
-                 at main (<anonymous>)
-                 at body (<anonymous>)
-                 at html (<anonymous>)
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /page: /, exiting the build."
-            `)
-          }
-        } else {
-          if (inPrerenderDebugMode) {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                 at LongRunningComponent (<anonymous>)
-                 at IndirectionTwo (webpack:///app/indirection.tsx:7:33)
-                 at Page (webpack:///app/page.tsx:19:60)
-                 at ClientPageRoot (webpack://<next-src>)
-                 at InnerLayoutRouter (webpack://<next-src>)
-                 at RedirectErrorBoundary (webpack://<next-src>)
-                 at RedirectBoundary (webpack://<next-src>)
-                 at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                 at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                 at LoadingBoundary (webpack://<next-src>)
-                 at ErrorBoundary (webpack://<next-src>)
-                 at InnerScrollAndFocusHandler (webpack://<next-src>)
-                 at ScrollAndFocusHandler (webpack://<next-src>)
-                 at RenderFromTemplateContext (<anonymous>)
-                 at OuterLayoutRouter (webpack://<next-src>)
-                 at main (<anonymous>)
-                 at body (<anonymous>)
-                 at html (<anonymous>)
-                5 | }
-                6 |
-             >  7 | export function IndirectionTwo({ children }) {
-                  |                                 ^
-                8 |   return children
-                9 | }
-               10 |
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-
-             > Export encountered errors on following paths:
-             	/page: /"
-            `)
-          } else {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                 at a (<anonymous>)
-                 at b (<next-dist-dir>)
-                 at c (<next-dist-dir>)
-                 at d (<next-dist-dir>)
-                 at e (<next-dist-dir>)
-                 at f (<next-dist-dir>)
-                 at g (<next-dist-dir>)
-                 at h (<next-dist-dir>)
-                 at i (<next-dist-dir>)
-                 at j (<next-dist-dir>)
-                 at k (<next-dist-dir>)
-                 at l (<next-dist-dir>)
-                 at m (<next-dist-dir>)
-                 at n (<anonymous>)
-                 at o (<next-dist-dir>)
-                 at main (<anonymous>)
-                 at body (<anonymous>)
-                 at html (<anonymous>)
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /page: /, exiting the build."
-            `)
-          }
-        }
-      })
-    }
-  })
-
-  describe('Sync Dynamic - With Fallback - server searchParams', () => {
+  describe('Sync Dynamic - server searchParams', () => {
     const { next, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/sync-server-search-with-fallback',
+      files: __dirname + '/fixtures/sync-server-search',
       skipStart: !isNextDev,
       skipDeployment: true,
       buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
@@ -256,176 +85,41 @@ describe.each(
     }
 
     if (isNextDev) {
-      // We don't error the build, but we do show a dev-only error so that users
-      // migrate to the async usage.
-      it('should show a collapsed redbox error', async () => {
-        const browser = await next.browser('/')
+      it('should return `undefined` for `searchParams.foo`', async () => {
+        const browser = await next.browser('/?foo=test')
+
+        expect(await browser.elementById('foo-param').text()).toBe('undefined')
+      })
+
+      it('should show a collapsed redbox with a sync access error', async () => {
+        const browser = await next.browser('/?foo=test')
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
            "environmentLabel": "Prerender",
            "label": "Console Error",
-           "source": "app/page.tsx (42:5) @ SearchParamsReadingComponent
-         > 42 |   ).foo
+           "source": "app/page.tsx (26:5) @ SearchParamsReadingComponent
+         > 26 |   ).foo
               |     ^",
            "stack": [
-             "SearchParamsReadingComponent app/page.tsx (42:5)",
-             "Page app/page.tsx (19:11)",
+             "SearchParamsReadingComponent app/page.tsx (26:5)",
+             "Page app/page.tsx (14:7)",
            ],
          }
         `)
       })
-
-      it('should prefix a log after sync dynamic IO with "Server"', async () => {
-        const browser = await next.browser('/')
-        const logs = await browser.log()
-
-        assertLog(
-          logs,
-          'Server',
-          'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-        )
-      })
     } else {
-      it('should not error the build when synchronously reading search params in a server component if all dynamic access is inside a Suspense boundary', async () => {
+      it('should not error the build when synchronously reading `searchParams.foo`', async () => {
         try {
           await next.start()
         } catch {
-          throw new Error('expected build not to fail for fully static project')
+          throw new Error('expected build not to fail')
         }
 
         expect(next.cliOutput).toContain('◐ / ')
-        const $ = await next.render$('/')
-        expect($('[data-fallback]').length).toBe(2)
-      })
-    }
-  })
-
-  describe('Sync Dynamic - Without Fallback - server searchParams', () => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/sync-server-search-without-fallback',
-      skipStart: !isNextDev,
-      skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
-    })
-
-    if (skipped) {
-      return
-    }
-
-    if (isNextDev) {
-      // TODO: Ideally we'd only show the error once.
-      it('should show a collapsed redbox error', async () => {
-        const browser = await next.browser('/')
-
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Prerender",
-             "label": "Console Error",
-             "source": "app/page.tsx (41:5) @ SearchParamsReadingComponent
-         > 41 |   ).foo
-              |     ^",
-             "stack": [
-               "SearchParamsReadingComponent app/page.tsx (41:5)",
-               "Page app/page.tsx (20:11)",
-             ],
-           },
-           {
-             "description": "Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/page.tsx (41:5) @ SearchParamsReadingComponent
-         > 41 |   ).foo
-              |     ^",
-             "stack": [
-               "SearchParamsReadingComponent app/page.tsx (41:5)",
-               "LogSafely <anonymous> (0:0)",
-             ],
-           },
-         ]
-        `)
-      })
-
-      it('should prefix a log after sync dynamic IO with "Server"', async () => {
-        const browser = await next.browser('/')
-        const logs = await browser.log()
-
-        assertLog(
-          logs,
-          'Server',
-          'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-        )
-      })
-    } else {
-      it('should error the build if dynamic IO happens in the root (outside a Suspense)', async () => {
-        try {
-          await next.build()
-        } catch {
-          // we expect the build to fail
-        }
-
-        const output = getPrerenderOutput(next.cliOutput, {
-          isMinified: !inPrerenderDebugMode,
-        })
-
-        if (isTurbopack) {
-          if (inPrerenderDebugMode) {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at SearchParamsReadingComponent (turbopack:///[project]/app/page.tsx:41:4)
-               39 |   const fooParams = (
-               40 |     searchParams as unknown as UnsafeUnwrappedSearchParams<typeof searchParams>
-             > 41 |   ).foo
-                  |    ^
-               42 |
-               43 |   console.log(
-               44 |     'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-
-             > Export encountered errors on following paths:
-             	/page: /"
-            `)
-          } else {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at c (<next-dist-dir>)
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /page: /, exiting the build."
-            `)
-          }
-        } else {
-          if (inPrerenderDebugMode) {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at SearchParamsReadingComponent (webpack:///app/page.tsx:41:4)
-               39 |   const fooParams = (
-               40 |     searchParams as unknown as UnsafeUnwrappedSearchParams<typeof searchParams>
-             > 41 |   ).foo
-                  |    ^
-               42 |
-               43 |   console.log(
-               44 |     'This log should be prefixed with the "Server" environment, because the sync IO access above advanced the rendering out of the "Prerender" environment.'
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-
-             > Export encountered errors on following paths:
-             	/page: /"
-            `)
-          } else {
-            expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-                 at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at c (<next-dist-dir>)
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /page: /, exiting the build."
-            `)
-          }
-        }
+        const browser = await next.browser('/?foo=test')
+        expect(await browser.elementById('foo-param').text()).toBe('undefined')
       })
     }
   })
