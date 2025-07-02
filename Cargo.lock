@@ -715,23 +715,6 @@ dependencies = [
 
 [[package]]
 name = "browserslist-rs"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f95aff901882c66e4b642f3f788ceee152ef44f8a5ef12cb1ddee5479c483be"
-dependencies = [
- "ahash 0.8.12",
- "chrono",
- "either",
- "indexmap 2.9.0",
- "itertools 0.13.0",
- "nom 7.1.3",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "browserslist-rs"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8dd48a6ca358df4f7000e3fb5f08738b1b91a0e5d5f862e2f77b2b14647547f5"
@@ -3661,12 +3644,11 @@ dependencies = [
 [[package]]
 name = "lightningcss"
 version = "1.0.0-alpha.67"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "798fba4e1205eed356b8ed7754cc3f7f04914e27855ca641409f4a532e992149"
+source = "git+https://github.com/parcel-bundler/lightningcss.git?branch=mischnic%2Fbump-browserslist#24188e69450b12aa16e67ef2cf3f298cf9e0eb72"
 dependencies = [
  "ahash 0.8.12",
  "bitflags 2.9.1",
- "browserslist-rs 0.18.1",
+ "browserslist-rs",
  "const-str",
  "cssparser",
  "cssparser-color",
@@ -3690,8 +3672,7 @@ dependencies = [
 [[package]]
 name = "lightningcss-derive"
 version = "1.0.0-alpha.43"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84c12744d1279367caed41739ef094c325d53fb0ffcd4f9b84a368796f870252"
+source = "git+https://github.com/parcel-bundler/lightningcss.git?branch=mischnic%2Fbump-browserslist#24188e69450b12aa16e67ef2cf3f298cf9e0eb72"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -4858,8 +4839,7 @@ dependencies = [
 [[package]]
 name = "parcel_selectors"
 version = "0.28.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54fd03f1ad26cb6b3ec1b7414fa78a3bd639e7dbb421b1a60513c96ce886a196"
+source = "git+https://github.com/parcel-bundler/lightningcss.git?branch=mischnic%2Fbump-browserslist#24188e69450b12aa16e67ef2cf3f298cf9e0eb72"
 dependencies = [
  "bitflags 2.9.1",
  "cssparser",
@@ -5235,7 +5215,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7592384c098e7cdb7e31d0ce7294d922f5cd381f170f0eb9e545e50fb87d613"
 dependencies = [
  "anyhow",
- "browserslist-rs 0.19.0",
+ "browserslist-rs",
  "dashmap 5.5.3",
  "from_variant",
  "once_cell",
@@ -6836,8 +6816,7 @@ dependencies = [
 [[package]]
 name = "static-self"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6635404b73efc136af3a7956e53c53d4f34b2f16c95a15c438929add0f69412"
+source = "git+https://github.com/parcel-bundler/lightningcss.git?branch=mischnic%2Fbump-browserslist#24188e69450b12aa16e67ef2cf3f298cf9e0eb72"
 dependencies = [
  "indexmap 2.9.0",
  "smallvec",
@@ -6847,8 +6826,7 @@ dependencies = [
 [[package]]
 name = "static-self-derive"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5268c96d4b907c558a9a52d8492522d6c7b559651a5e1d8f2d551e461b9425d5"
+source = "git+https://github.com/parcel-bundler/lightningcss.git?branch=mischnic%2Fbump-browserslist#24188e69450b12aa16e67ef2cf3f298cf9e0eb72"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9640,7 +9618,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto-hash-map",
- "browserslist-rs 0.19.0",
+ "browserslist-rs",
  "bytes-str",
  "const_format",
  "data-encoding",
