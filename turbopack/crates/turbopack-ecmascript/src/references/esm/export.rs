@@ -31,10 +31,10 @@ use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    export_usage::ModuleExportUsageInfo,
     magic_identifier,
     parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
-    simple_tree_shake::ModuleExportUsageInfo,
     tree_shake::asset::EcmascriptModulePartAsset,
     utils::module_id_to_lit,
 };

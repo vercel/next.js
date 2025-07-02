@@ -14,6 +14,7 @@ pub mod async_chunk;
 pub mod chunk;
 pub mod code_gen;
 mod errors;
+pub mod export_usage;
 pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
@@ -23,7 +24,6 @@ mod path_visitor;
 pub mod references;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
-pub mod simple_tree_shake;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
 mod swc_comments;
@@ -117,6 +117,7 @@ use crate::{
     analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
     code_gen::{CodeGens, ModifiableAst},
+    export_usage::{ModuleExportUsageInfo, get_module_export_usages},
     merged_module::MergedEcmascriptModule,
     parse::generate_js_source_map,
     references::{
@@ -125,7 +126,6 @@ use crate::{
         esm::{base::EsmAssetReferences, export},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
-    simple_tree_shake::{ModuleExportUsageInfo, get_module_export_usages},
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
 };
