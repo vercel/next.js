@@ -11,6 +11,9 @@ export default async function Page() {
         error for the sync access though.
       </p>
       <DraftModeReadingComponent />
+      <Suspense>
+        <Dynamic />
+      </Suspense>
     </>
   )
 }
@@ -23,9 +26,6 @@ async function DraftModeReadingComponent() {
     <div>
       this component read the draftMode isEnabled status synchronously:{' '}
       <span id="draft-mode">{String(isEnabled)}</span>
-      <Suspense>
-        <Dynamic />
-      </Suspense>
     </div>
   )
 }

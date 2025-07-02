@@ -13,6 +13,9 @@ export default async function Page(props: {
         for the sync access though.
       </p>
       <SearchParamsReadingComponent searchParams={props.searchParams} />
+      <Suspense>
+        <Dynamic />
+      </Suspense>
     </>
   )
 }
@@ -29,9 +32,6 @@ async function SearchParamsReadingComponent({
     <div>
       this component reads the `foo` search param:{' '}
       <span id="foo-param">{String(fooParam)}</span>
-      <Suspense>
-        <Dynamic />
-      </Suspense>
     </div>
   )
 }

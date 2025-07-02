@@ -10,6 +10,9 @@ export default async function Page({ params }) {
         sync access though.
       </p>
       <ParamsReadingComponent params={params} />
+      <Suspense>
+        <Dynamic />
+      </Suspense>
     </>
   )
 }
@@ -19,9 +22,6 @@ async function ParamsReadingComponent({ params }) {
     <div>
       this component read the `slug` param synchronously:{' '}
       <span id="param">{String(params.slug)}</span>
-      <Suspense>
-        <Dynamic />
-      </Suspense>
     </div>
   )
 }
