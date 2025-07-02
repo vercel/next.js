@@ -49,7 +49,7 @@ fn bench_small_apps(c: &mut Criterion) {
     let (apps_dir, apps) = list_apps();
     let mut g = c.benchmark_group("turbopack/build/apps");
 
-    let num_cpus = num_cpus::get().expect("failed to get available parallelism");
+    let num_cpus = num_cpus::get();
     let thread_count = num_cpus * 3 / 2;
 
     eprintln!("num_cpus: {num_cpus}");
