@@ -9640,7 +9640,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto-hash-map",
- "browserslist-rs 0.18.1",
+ "browserslist-rs 0.19.0",
  "bytes-str",
  "const_format",
  "data-encoding",
