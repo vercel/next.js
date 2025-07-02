@@ -1,12 +1,24 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use arbitrary::Arbitrary;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{self, NonLocalValue, TurboTasks, Vc, trace::TraceRawVcs};
+use turbo_tasks::{self, NonLocalValue, TaskInput, TurboTasks, Vc, trace::TraceRawVcs};
 use turbo_tasks_malloc::TurboMalloc;
 
 #[derive(
-    Arbitrary, Clone, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+    Arbitrary,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
 )]
 pub struct TaskReferenceSpec {
     task: u16,
@@ -16,7 +28,17 @@ pub struct TaskReferenceSpec {
 }
 
 #[derive(
-    Arbitrary, Clone, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+    Arbitrary,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
 )]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
@@ -63,10 +85,10 @@ pub fn run(data: Vec<TaskSpec>) {
     if !referenced.iter().skip(1).all(|&x| x) {
         return;
     }
-    actual_operation(data);
+    actual_operation(Arc::new(data));
 }
 
-fn actual_operation(data: Vec<TaskSpec>) {
+fn actual_operation(spec: Arc<Vec<TaskSpec>>) {
     let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
         turbo_tasks_backend::BackendOptions {
             storage_mode: None,
@@ -78,7 +100,6 @@ fn actual_operation(data: Vec<TaskSpec>) {
     RUNTIME
         .block_on(async {
             tt.run_once(async move {
-                let spec: Vc<TasksSpec> = Vc::cell(data);
                 run_task(spec, 0).strongly_consistent().await?;
                 Ok(())
             })
@@ -87,12 +108,9 @@ fn actual_operation(data: Vec<TaskSpec>) {
         .unwrap();
 }
 
-#[turbo_tasks::value(transparent)]
-struct TasksSpec(Vec<TaskSpec>);
-
 #[turbo_tasks::function]
 async fn run_task_chain(
-    spec: Vc<TasksSpec>,
+    spec: Arc<Vec<TaskSpec>>,
     from: u16,
     ref_index: usize,
     to: u16,
@@ -107,17 +125,16 @@ async fn run_task_chain(
 }
 
 #[turbo_tasks::function]
-async fn run_task(spec: Vc<TasksSpec>, task_index: u16) -> Result<Vc<()>> {
-    let spec_ref = spec.await?;
-    let task = &spec_ref[task_index as usize];
+async fn run_task(spec: Arc<Vec<TaskSpec>>, task_index: u16) -> Result<Vc<()>> {
+    let task = &spec[task_index as usize];
     for i in 0..task.children {
         run_task_child(task_index, i).await?;
     }
     for (i, reference) in task.references.iter().enumerate() {
         let call = if reference.chain > 0 {
-            run_task_chain(spec, task_index, i, reference.task, reference.chain)
+            run_task_chain(spec.clone(), task_index, i, reference.task, reference.chain)
         } else {
-            run_task(spec, reference.task)
+            run_task(spec.clone(), reference.task)
         };
         if reference.read {
             call.await?;
