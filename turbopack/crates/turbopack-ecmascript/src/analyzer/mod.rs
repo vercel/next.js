@@ -28,7 +28,7 @@ use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
-    CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
+    CompileTimeDefineValue, DefinableNameSegment, FreeVarReference,
 };
 
 use self::imports::ImportAnnotations;
@@ -865,7 +865,7 @@ impl JsValue {
         }
     }
 
-    pub fn alternatives_with_addtional_property(
+    pub fn alternatives_with_additional_property(
         list: Vec<JsValue>,
         logical_property: LogicalProperty,
     ) -> Self {
@@ -1959,43 +1959,43 @@ impl JsValue {
     }
 }
 
-// Defineable name management
+// Definable name management
 impl JsValue {
-    /// When the value has a user-defineable name, return the length of it (in segments). Otherwise
+    /// When the value has a user-definable name, return the length of it (in segments). Otherwise
     /// returns None.
-    /// - any free var has itself as user-defineable name: ["foo"]
+    /// - any free var has itself as user-definable name: ["foo"]
     /// - any member access adds the identifier as segment after the object: ["foo", "prop"]
-    /// - some well-known objects/functions have a user-defineable names: ["import"]
-    /// - member calls without arguments also have a user-defineable name which is the property with
+    /// - some well-known objects/functions have a user-definable names: ["import"]
+    /// - member calls without arguments also have a user-definable name which is the property with
     ///   `()` appended: ["foo", "prop()"]
     /// - typeof expressions add `typeof` after the argument's segments: ["foo", "typeof"]
-    pub fn get_defineable_name_len(&self) -> Option<usize> {
+    pub fn get_definable_name_len(&self) -> Option<usize> {
         match self {
             JsValue::FreeVar(_) => Some(1),
             JsValue::Member(_, obj, prop) if prop.as_str().is_some() => {
-                Some(obj.get_defineable_name_len()? + 1)
+                Some(obj.get_definable_name_len()? + 1)
             }
             JsValue::WellKnownObject(obj) => obj.as_define_name().map(|d| d.len()),
             JsValue::WellKnownFunction(func) => func.as_define_name().map(|d| d.len()),
             JsValue::MemberCall(_, callee, prop, args)
                 if args.is_empty() && prop.as_str().is_some() =>
             {
-                Some(callee.get_defineable_name_len()? + 1)
+                Some(callee.get_definable_name_len()? + 1)
             }
-            JsValue::TypeOf(_, arg) => Some(arg.get_defineable_name_len()? + 1),
+            JsValue::TypeOf(_, arg) => Some(arg.get_definable_name_len()? + 1),
 
             _ => None,
         }
     }
 
-    /// Returns a reverse iterator over the segments of the user-defineable
+    /// Returns a reverse iterator over the segments of the user-definable
     /// name. e. g. `foo.bar().baz` would yield `baz`, `bar()`, `foo`.
     /// `(1+2).foo.baz` would also yield `baz`, `foo` even while the value is
-    /// not a complete user-defineable name. Before calling this method you must
-    /// use [JsValue::get_defineable_name_len] to determine if the value has a
-    /// user-defineable name at all.
-    pub fn iter_defineable_name_rev(&self) -> DefineableNameIter<'_> {
-        DefineableNameIter {
+    /// not a complete user-definable name. Before calling this method you must
+    /// use [JsValue::get_definable_name_len] to determine if the value has a
+    /// user-definable name at all.
+    pub fn iter_definable_name_rev(&self) -> DefinableNameIter<'_> {
+        DefinableNameIter {
             next: Some(self),
             index: 0,
         }
@@ -2010,12 +2010,12 @@ impl JsValue {
         &self,
         var_graph: Option<&VarGraph>,
         free_var_references: &'a FxIndexMap<
-            DefineableNameSegment,
-            FxIndexMap<Vec<DefineableNameSegment>, T>,
+            DefinableNameSegment,
+            FxIndexMap<Vec<DefinableNameSegment>, T>,
         >,
-        prop: &DefineableNameSegment,
+        prop: &DefinableNameSegment,
     ) -> Option<&'a T> {
-        if let Some(def_name_len) = self.get_defineable_name_len()
+        if let Some(def_name_len) = self.get_definable_name_len()
             && let Some(references) = free_var_references.get(prop)
         {
             for (name, value) in references {
@@ -2024,9 +2024,9 @@ impl JsValue {
                 }
 
                 let name_rev_it = name.iter().map(Cow::Borrowed).rev();
-                if name_rev_it.eq(self.iter_defineable_name_rev()) {
+                if name_rev_it.eq(self.iter_definable_name_rev()) {
                     if let Some(var_graph) = var_graph
-                        && let DefineableNameSegment::Name(first_str) = name.first().unwrap()
+                        && let DefinableNameSegment::Name(first_str) = name.first().unwrap()
                     {
                         let first_str: &str = first_str;
                         if var_graph
@@ -2050,9 +2050,9 @@ impl JsValue {
     /// Returns any matching defined replacement that matches this value.
     pub fn match_define<'a, T>(
         &self,
-        defines: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
+        defines: &'a FxIndexMap<Vec<DefinableNameSegment>, T>,
     ) -> Option<&'a T> {
-        if let Some(def_name_len) = self.get_defineable_name_len() {
+        if let Some(def_name_len) = self.get_definable_name_len() {
             for (name, value) in defines.iter() {
                 if name.len() != def_name_len {
                     continue;
@@ -2062,7 +2062,7 @@ impl JsValue {
                     .iter()
                     .map(Cow::Borrowed)
                     .rev()
-                    .eq(self.iter_defineable_name_rev())
+                    .eq(self.iter_definable_name_rev())
                 {
                     return Some(value);
                 }
@@ -2073,13 +2073,13 @@ impl JsValue {
     }
 }
 
-pub struct DefineableNameIter<'a> {
+pub struct DefinableNameIter<'a> {
     next: Option<&'a JsValue>,
     index: usize,
 }
 
-impl<'a> Iterator for DefineableNameIter<'a> {
-    type Item = Cow<'a, DefineableNameSegment>;
+impl<'a> Iterator for DefinableNameIter<'a> {
+    type Item = Cow<'a, DefinableNameSegment>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let value = self.next.take()?;
@@ -2113,7 +2113,7 @@ impl<'a> Iterator for DefineableNameIter<'a> {
             }
             JsValue::TypeOf(_, arg) => {
                 self.next = Some(arg);
-                DefineableNameSegment::TypeOf
+                DefinableNameSegment::TypeOf
             }
 
             _ => return None,

@@ -4406,6 +4406,7 @@ dependencies = [
  "anyhow",
  "console-subscriber",
  "dhat",
+ "either",
  "getrandom 0.2.15",
  "iana-time-zone",
  "lightningcss-napi",
@@ -7131,9 +7132,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "29.4.0"
+version = "29.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "991fb5308ade9fb838316d0f1790bf2df25b0cafa6ac2515450e8003107201ae"
+checksum = "b41f837258f84d0d6d0a1dd8bbd277bbab34de9fa2180b6bc6e838f652b304c9"
 dependencies = [
  "binding_macros",
  "par-core",
@@ -8018,9 +8019,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_usage_analyzer"
-version = "19.0.0"
+version = "19.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c357c7ff7ae2bf50adbe89c04ed94c9b99d34563df69386aba15a05e4560fc9a"
+checksum = "209cc62665a5a6f7cded15c198a27b5aed49f8f4bc2b1c14ebec61c02889b2e6"
 dependencies = [
  "bitflags 2.9.1",
  "indexmap 2.9.0",
@@ -8036,9 +8037,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_utils"
-version = "18.0.1"
+version = "18.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "938751c806f23256256e6839914ab33e4ac6e79a3fa2e717d004469881d2e3df"
+checksum = "f9d4bc1a89ef29769cf3e16c79a79836f21a7a3975fa34a9b748d0a9d3771daf"
 dependencies = [
  "indexmap 2.9.0",
  "num_cpus",

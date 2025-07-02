@@ -12,7 +12,7 @@ import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
-  isWebpackServerOnlyLayer,
+  shouldUseReactServerCondition,
   isWebpackDefaultLayer,
   RSPACK_DEFAULT_LAYERS_REGEX,
 } from './utils'
@@ -80,7 +80,7 @@ import { OptionalPeerDependencyResolverPlugin } from './webpack/plugins/optional
 import {
   createWebpackAliases,
   createServerOnlyClientOnlyAliases,
-  createRSCAliases,
+  createVendoredReactAliases,
   createNextApiEsmAliases,
   createAppRouterApiAliases,
 } from './create-compiler-aliases'
@@ -1484,7 +1484,7 @@ export default async function getBaseWebpackConfig(
                 },
               },
               {
-                issuerLayer: isWebpackServerOnlyLayer,
+                issuerLayer: shouldUseReactServerCondition,
                 resolve: {
                   alias: createAppRouterApiAliases(true),
                 },
@@ -1500,7 +1500,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackServerOnlyLayer,
+                issuerLayer: shouldUseReactServerCondition,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1528,10 +1528,11 @@ export default async function getBaseWebpackConfig(
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
                   // will be ignored completely.
-                  alias: createRSCAliases(bundledReactChannel, {
+                  alias: createVendoredReactAliases(bundledReactChannel, {
                     // No server components profiling
                     reactProductionProfiling,
                     layer: WEBPACK_LAYERS.reactServerComponents,
+                    isBrowser: isClient,
                     isEdgeServer,
                   }),
                 },
@@ -1571,7 +1572,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    issuerLayer: isWebpackServerOnlyLayer,
+                    issuerLayer: shouldUseReactServerCondition,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1585,9 +1586,10 @@ export default async function getBaseWebpackConfig(
                     resolve: {
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
-                      alias: createRSCAliases(bundledReactChannel, {
+                      alias: createVendoredReactAliases(bundledReactChannel, {
                         reactProductionProfiling,
                         layer: WEBPACK_LAYERS.reactServerComponents,
+                        isBrowser: isClient,
                         isEdgeServer,
                       }),
                     },
@@ -1596,9 +1598,10 @@ export default async function getBaseWebpackConfig(
                     test: aliasCodeConditionTest,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
-                      alias: createRSCAliases(bundledReactChannel, {
+                      alias: createVendoredReactAliases(bundledReactChannel, {
                         reactProductionProfiling,
                         layer: WEBPACK_LAYERS.serverSideRendering,
+                        isBrowser: isClient,
                         isEdgeServer,
                       }),
                     },
@@ -1609,9 +1612,10 @@ export default async function getBaseWebpackConfig(
                 test: aliasCodeConditionTest,
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
-                  alias: createRSCAliases(bundledReactChannel, {
+                  alias: createVendoredReactAliases(bundledReactChannel, {
                     reactProductionProfiling,
                     layer: WEBPACK_LAYERS.appPagesBrowser,
+                    isBrowser: isClient,
                     isEdgeServer,
                   }),
                 },
@@ -1663,9 +1667,10 @@ export default async function getBaseWebpackConfig(
               resolve: {
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
-                alias: createRSCAliases(bundledReactChannel, {
+                alias: createVendoredReactAliases(bundledReactChannel, {
                   reactProductionProfiling,
                   layer: WEBPACK_LAYERS.middleware,
+                  isBrowser: isClient,
                   isEdgeServer,
                 }),
               },
@@ -1677,9 +1682,10 @@ export default async function getBaseWebpackConfig(
               resolve: {
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
-                alias: createRSCAliases(bundledReactChannel, {
+                alias: createVendoredReactAliases(bundledReactChannel, {
                   reactProductionProfiling,
                   layer: WEBPACK_LAYERS.instrument,
+                  isBrowser: isClient,
                   isEdgeServer,
                 }),
               },
@@ -1688,7 +1694,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: isWebpackServerOnlyLayer,
+                    issuerLayer: shouldUseReactServerCondition,
                     exclude: asyncStoragesRegex,
                     use: appServerLayerLoaders,
                   },
@@ -2530,9 +2536,10 @@ export default async function getBaseWebpackConfig(
       ].map((layer) => ({
         issuerLayer: layer,
         resolve: {
-          alias: createRSCAliases(bundledReactChannel, {
+          alias: createVendoredReactAliases(bundledReactChannel, {
             reactProductionProfiling,
             layer,
+            isBrowser: isClient,
             isEdgeServer,
           }),
         },

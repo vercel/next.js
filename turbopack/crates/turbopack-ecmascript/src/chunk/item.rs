@@ -233,7 +233,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
         self.content()
     }
 
-    /// Specifies which availablility information the chunk item needs for code
+    /// Specifies which availability information the chunk item needs for code
     /// generation
     #[turbo_tasks::function]
     fn need_async_module_info(self: Vc<Self>) -> Vc<bool> {

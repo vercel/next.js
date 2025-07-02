@@ -31,11 +31,12 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, UpdateInfo, Vc, get_effects,
+    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, UpdateInfo, Vc,
+    get_effects,
     message_queue::{CompilationEvent, Severity, TimingEvent},
     trace::TraceRawVcs,
 };
-use turbo_tasks_backend::db_invalidation::invalidation_reasons;
+use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
     util::uri_from_file,
@@ -124,7 +125,7 @@ pub struct NapiProjectOptions {
     /// A path inside the root_path which contains the app/pages directories.
     pub project_path: RcStr,
 
-    /// next.config's distDir. Project initialization occurs eariler than
+    /// next.config's distDir. Project initialization occurs earlier than
     /// deserializing next.config, so passing it as separate option.
     pub dist_dir: RcStr,
 
@@ -178,7 +179,7 @@ pub struct NapiPartialProjectOptions {
     /// A path inside the root_path which contains the app/pages directories.
     pub project_path: Option<RcStr>,
 
-    /// next.config's distDir. Project initialization occurs eariler than
+    /// next.config's distDir. Project initialization occurs earlier than
     /// deserializing next.config, so passing it as separate option.
     pub dist_dir: Option<Option<RcStr>>,
 
@@ -591,7 +592,9 @@ pub async fn project_invalidate_persistent_cache(
         // how to generate a message for on the Rust side of the FFI.
         project
             .turbo_tasks
-            .invalidate_persistent_cache(invalidation_reasons::USER_REQUEST)
+            .backend()
+            .backing_storage()
+            .invalidate(invalidation_reasons::USER_REQUEST)
     })
     .await
     .context("panicked while invalidating persistent cache")??;
@@ -1336,7 +1339,7 @@ pub fn project_compilation_events_subscribe(
         })?;
 
     tokio::spawn(async move {
-        let mut receiver = turbo_tasks.get_compilation_events_stream(event_types);
+        let mut receiver = turbo_tasks.subscribe_to_compilation_events(event_types);
         while let Some(msg) = receiver.recv().await {
             let status = tsfn.call(Ok(msg), ThreadsafeFunctionCallMode::Blocking);
 

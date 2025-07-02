@@ -21,7 +21,7 @@ export function getPrerenderOutput(
     return `at ${deterministicName} (<anonymous>)`
   }
 
-  for (const line of cliOutput.split('\n')) {
+  for (let line of cliOutput.split('\n')) {
     if (line.includes('Collecting page data')) {
       foundPrerenderingLine = true
       continue
@@ -32,16 +32,27 @@ export function getPrerenderOutput(
     }
 
     if (foundPrerenderingLine && !line.includes('Generating static pages')) {
-      lines.push(
-        isMinified
-          ? line
-              .replace(/at \S+ \(.next[^)]+\)/, replaceNextDistStackFrame)
-              .replace(/at (\S+) \(<anonymous>\)/, replaceAnonymousStackFrame)
-          : line.replace(
-              /at (\S+) \((webpack:\/\/)\/src[^)]+\)/,
-              `at $1 ($2<next-src>)`
-            )
-      )
+      if (isMinified) {
+        line = line
+          .replace(/at \S+ \(.next[^)]+\)/, replaceNextDistStackFrame)
+          .replace(/at (\S+) \(<anonymous>\)/, replaceAnonymousStackFrame)
+      } else {
+        line = line.replace(
+          /at (\S+) \((webpack:\/\/)\/src[^)]+\)/,
+          `at $1 ($2<next-src>)`
+        )
+      }
+
+      line = line
+        .replace(/digest: '\d+'/, "digest: '<error-digest>'")
+        // Convert a module function sequence expression, e.g.:
+        // - (0 , __TURBOPACK__imported__module__1836__.cookies)(...)
+        // - (0 , c.cookies)(...)
+        // - (0 , cookies.U)(...)
+        // - (0 , e.U)(...)
+        .replace(/\(0 , \w+\.(\w+)\)\(\.\.\.\)/, '<module-function>()')
+
+      lines.push(line)
     }
   }
 

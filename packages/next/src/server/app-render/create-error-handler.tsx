@@ -7,6 +7,7 @@ import { isAbortError } from '../pipe-readable'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
+import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import { isReactLargeShellError } from './react-large-shell-error'
@@ -40,6 +41,9 @@ export function getDigestForWellKnownError(error: unknown): string | undefined {
   // which causes the whole page to be marked as dynamic. We don't need to
   // tell the user about this error, as it's not actionable.
   if (isDynamicServerError(error)) return error.digest
+
+  // If this is a prerender interrupted error, we don't need to log the error.
+  if (isPrerenderInterruptedError(error)) return error.digest
 
   return undefined
 }

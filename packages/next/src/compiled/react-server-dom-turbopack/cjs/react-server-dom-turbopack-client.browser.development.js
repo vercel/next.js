@@ -2590,6 +2590,7 @@
         if ("object" === typeof value && null !== value) {
           if (value[0] === REACT_ELEMENT_TYPE)
             b: {
+              var owner = value[4];
               key = value[5];
               var validated = value[6];
               value = {
@@ -2597,7 +2598,7 @@
                 type: value[1],
                 key: value[2],
                 props: value[3],
-                _owner: value[4]
+                _owner: void 0 === owner ? null : owner
               };
               Object.defineProperty(value, "ref", {
                 enumerable: !1,
@@ -2620,7 +2621,7 @@
                 configurable: !1,
                 enumerable: !1,
                 writable: !0,
-                value: key
+                value: void 0 === key ? null : key
               });
               Object.defineProperty(value, "_debugTask", {
                 configurable: !1,
@@ -2976,10 +2977,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-65c4decb-20250630",
+      version: "19.2.0-canary-7216c0f0-20250630",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-65c4decb-20250630",
+      reconcilerVersion: "19.2.0-canary-7216c0f0-20250630",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

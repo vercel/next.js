@@ -76,10 +76,8 @@ impl ModuleOptions {
         } = *module_options_context.await?;
 
         if !rules.is_empty() {
-            let path_value = path.clone();
-
             for (condition, new_context) in rules.iter() {
-                if condition.matches(&path_value).await? {
+                if condition.matches(&path) {
                     return Ok(ModuleOptions::new(
                         path,
                         **new_context,

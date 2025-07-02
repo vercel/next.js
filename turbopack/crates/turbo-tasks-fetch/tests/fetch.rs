@@ -116,7 +116,7 @@ async fn errors_on_failed_connection() {
     run(&REGISTRATION, || async {
         // Try to connect to port 0 on localhost, which is never valid and immediately returns
         // `ECONNREFUSED`.
-        // Other values (e.g. domain name, reservered IP address block) may result in long timeouts.
+        // Other values (e.g. domain name, reserved IP address block) may result in long timeouts.
         let url = rcstr!("http://127.0.0.1:0/foo.woff");
         let response_vc = fetch(url.clone(), None, Vc::cell(None));
         let err_vc = &*response_vc.await?.unwrap_err();

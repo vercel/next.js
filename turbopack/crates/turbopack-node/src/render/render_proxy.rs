@@ -9,8 +9,8 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    RawVc, ResolvedVc, TaskInput, ValueToString, Vc, duration_span, mark_finished, prevent_gc,
-    trace::TraceRawVcs, util::SharedError,
+    RawVc, ResolvedVc, TaskInput, ValueToString, Vc, VcValueType, duration_span, mark_finished,
+    prevent_gc, trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -177,7 +177,9 @@ fn render_stream(options: RenderStreamOptions) -> Vc<RenderStream> {
 
     // We create a new cell in this task, which will be updated from the
     // [render_stream_internal] task.
-    let cell = turbo_tasks::macro_helpers::find_cell_by_type(*RENDERSTREAM_VALUE_TYPE_ID);
+    let cell = turbo_tasks::macro_helpers::find_cell_by_type(
+        <RenderStream as VcValueType>::get_value_type_id(),
+    );
 
     // We initialize the cell with a stream that is open, but has no values.
     // The first [render_stream_internal] pipe call will pick up that stream.
