@@ -32,7 +32,7 @@ pub struct ClientReferencesChunks {
 
 /// Computes all client references chunks.
 ///
-/// This returns a map from client reference type to the chunks that reference
+/// This returns a map from client reference type to the chunks that the reference
 /// type needs to load.
 #[turbo_tasks::function]
 pub async fn get_app_client_references_chunks(
