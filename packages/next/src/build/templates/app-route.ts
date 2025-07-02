@@ -21,7 +21,6 @@ import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
 } from '../../server/web/utils'
-import { decodePathParams } from '../../server/lib/router-utils/decode-path-params'
 import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
@@ -114,29 +113,15 @@ export async function handler(
     buildId,
     params,
     nextConfig,
-    parsedUrl,
     isDraftMode,
     prerenderManifest,
     routerServerContext,
     isOnDemandRevalidate,
     revalidateOnlyGenerated,
+    resolvedPathname,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
-
-  // TODO: rework this to not be necessary as a middleware
-  // rewrite should not need to pass this context like this
-  // maybe we rely on rewrite header instead
-  let resolvedPathname = getRequestMeta(req, 'rewroteURL')
-
-  if (!resolvedPathname) {
-    resolvedPathname = parsedUrl.pathname || '/'
-  }
-
-  if (resolvedPathname === '/index') {
-    resolvedPathname = '/'
-  }
-  resolvedPathname = decodePathParams(resolvedPathname)
 
   let isIsr = Boolean(
     prerenderManifest.dynamicRoutes[normalizedSrcPage] ||

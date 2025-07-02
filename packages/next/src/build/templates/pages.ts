@@ -34,15 +34,12 @@ import { getRedirectStatus } from '../../lib/redirect-status'
 import { CACHE_ONE_YEAR } from '../../lib/constants'
 import { sendRenderResult } from '../../server/send-payload'
 import RenderResult from '../../server/render-result'
-import { decodePathParams } from '../../server/lib/router-utils/decode-path-params'
 import { toResponseCacheEntry } from '../../server/response-cache/utils'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
-import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
-import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 
 // Re-export the component (should be the default export).
 export default hoist(userland, 'default')
@@ -149,6 +146,7 @@ export async function handler(
     defaultLocale,
     routerServerContext,
     nextConfig,
+    resolvedPathname,
   } = prepareResult
 
   const isExperimentalCompile =
@@ -169,31 +167,6 @@ export async function handler(
   const is404Page = srcPage === '/404'
   const is500Page = srcPage === '/500'
   const isErrorPage = srcPage === '/_error'
-  const pathname = parsedUrl.pathname || '/'
-
-  // TODO: rework this to not be necessary as a middleware
-  // rewrite should not need to pass this context like this
-  // maybe we rely on rewrite header instead
-  let resolvedPathname = getRequestMeta(req, 'rewroteURL')
-
-  if (resolvedPathname) {
-    if (pathHasPrefix(resolvedPathname, '/_next/data/')) {
-      resolvedPathname = normalizeDataPath(resolvedPathname)
-    }
-
-    if (locale) {
-      resolvedPathname = normalizeLocalePath(
-        resolvedPathname,
-        nextConfig.i18n?.locales || []
-      ).pathname
-    }
-  } else {
-    resolvedPathname = pathname
-  }
-
-  if (resolvedPathname === '/index') {
-    resolvedPathname = '/'
-  }
 
   if (!routeModule.isDev && !isDraftMode && hasStaticProps) {
     cacheKey = `${locale ? `/${locale}` : ''}${
@@ -206,19 +179,13 @@ export async function handler(
       cacheKey = `${locale ? `/${locale}` : ''}${srcPage}${isAmp ? '.amp' : ''}`
     }
 
-    cacheKey = decodePathParams(cacheKey)
-
     // ensure /index and / is normalized to one key
     cacheKey = cacheKey === '/index' ? '/' : cacheKey
   }
 
   if (hasStaticPaths && !isDraftMode) {
     const decodedPathname = removeTrailingSlash(
-      decodePathParams(
-        locale
-          ? addPathPrefix(resolvedPathname, `/${locale}`)
-          : resolvedPathname
-      )
+      locale ? addPathPrefix(resolvedPathname, `/${locale}`) : resolvedPathname
     )
     const isPrerendered =
       Boolean(prerenderManifest.routes[decodedPathname]) ||
