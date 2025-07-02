@@ -84,8 +84,8 @@ pub use transform::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -1077,37 +1077,33 @@ impl EcmascriptModuleContent {
                 .iter()
                 .zip(modules.keys().copied())
                 .map(async |(options, module)| {
-                    async {
-                        let options = options.await?;
-                        let EcmascriptModuleContentOptions {
-                            chunking_context,
-                            parsed,
-                            ident,
-                            specified_module_type,
-                            generate_source_map,
-                            original_source_map,
-                            ..
-                        } = &*options;
+                    let options = options.await?;
+                    let EcmascriptModuleContentOptions {
+                        chunking_context,
+                        parsed,
+                        ident,
+                        specified_module_type,
+                        generate_source_map,
+                        original_source_map,
+                        ..
+                    } = &*options;
 
-                        let result = process_parse_result(
-                            *parsed,
-                            **ident,
-                            *specified_module_type,
-                            *generate_source_map,
-                            *original_source_map,
-                            *chunking_context.minify_type().await?,
-                            Some(&*options),
-                            Some(ScopeHoistingOptions {
-                                module,
-                                modules: &modules,
-                            }),
-                        )
-                        .await?;
+                    let result = process_parse_result(
+                        *parsed,
+                        **ident,
+                        *specified_module_type,
+                        *generate_source_map,
+                        *original_source_map,
+                        *chunking_context.minify_type().await?,
+                        Some(&*options),
+                        Some(ScopeHoistingOptions {
+                            module,
+                            modules: &modules,
+                        }),
+                    )
+                    .await?;
 
-                        Ok((module, result))
-                    }
-                    .instrument(tracing::trace_span!("process individual module"))
-                    .await
+                    Ok((module, result))
                 })
                 .try_join()
                 .await?;
@@ -1196,7 +1192,7 @@ async fn merge_modules(
         current_module_idx: u32,
         /// The export syntax contexts in the current AST, which will be mapped to merged_ctxts
         reverse_module_contexts:
-            FxIndexMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+            FxHashMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
         /// For a given module, the `eval_context.imports.exports`. So for a given export, this
         /// allows looking up the corresponding local binding's name and context.
         export_contexts:
@@ -1322,7 +1318,9 @@ async fn merge_modules(
             FxHashMap::with_capacity_and_hasher(contents.len() * 5, Default::default());
 
         let mut prepare_module =
-            |(module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
+            |module_count: usize,
+             current_module_idx: usize,
+             (module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
              program: &mut Program| {
                 let _ = tracing::trace_span!("prepare module").entered();
                 if let CodeGenResult {
@@ -1330,20 +1328,15 @@ async fn merge_modules(
                     ..
                 } = content
                 {
+                    let modules_header_width = module_count.next_power_of_two().trailing_zeros();
                     GLOBALS.set(globals_merged, || {
                         program.visit_mut_with(&mut SetSyntaxContextVisitor {
-                            modules_header_width: module_contexts
-                                .len()
-                                .next_power_of_two()
-                                .trailing_zeros(),
+                            modules_header_width,
                             current_module: *module,
-                            current_module_idx: module_contexts
-                                .get_index_of(module)
-                                .context("expected module in module_contexts")?
-                                as u32,
+                            current_module_idx: current_module_idx as u32,
                             reverse_module_contexts: module_contexts
                                 .iter()
-                                .map(|(m, ctxt)| (*ctxt, *m))
+                                .map(|e| (*e.value(), *e.key()))
                                 .collect(),
                             export_contexts: &export_contexts,
                             unique_contexts_cache: &mut unique_contexts_cache,
@@ -1375,7 +1368,7 @@ async fn merge_modules(
         // ith-module.
         let mut queue = entry_points
             .iter()
-            .map(|(_, i)| prepare_module(&contents[*i], &mut programs[*i]))
+            .map(|(_, i)| prepare_module(contents.len(), *i, &contents[*i], &mut programs[*i]))
             .flatten_ok()
             .rev()
             .collect::<Result<Vec<_>>>()?;
@@ -1397,9 +1390,14 @@ async fn merge_modules(
                             // Only insert once, otherwise the module was already executed
                             if inserted.insert(index) {
                                 queue.extend(
-                                    prepare_module(&contents[index], &mut programs[index])?
-                                        .into_iter()
-                                        .rev(),
+                                    prepare_module(
+                                        contents.len(),
+                                        index,
+                                        &contents[index],
+                                        &mut programs[index],
+                                    )?
+                                    .into_iter()
+                                    .rev(),
                                 );
                             }
                             continue;
@@ -1493,6 +1491,9 @@ async fn merge_modules(
 }
 
 /// Provides information about the other modules in the current scope hoisting group.
+///
+/// Note that this object contains interior mutability to lazily create syntax contexts in
+/// `get_module_syntax_context`.
 #[derive(Clone, Copy)]
 pub enum ScopeHoistingContext<'a> {
     Some {
@@ -1501,9 +1502,12 @@ pub enum ScopeHoistingContext<'a> {
         /// All modules in the current group, and whether they should expose their exports
         modules:
             &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, MergeableModuleExposure>,
-        /// To import a specifier from another module, apply this context to the Ident
-        module_syntax_contexts:
-            &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+
+        is_import_mark: Mark,
+        globals: &'a Arc<Globals>,
+        // Interior mutability!
+        module_syntax_contexts_cache:
+            &'a FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
     },
     None,
 }
@@ -1530,15 +1534,38 @@ impl<'a> ScopeHoistingContext<'a> {
         }
     }
 
+    /// To import a specifier from another module, apply this context to the Ident
     pub fn get_module_syntax_context(
         &self,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Option<SyntaxContext> {
         match self {
             ScopeHoistingContext::Some {
-                module_syntax_contexts,
+                modules,
+                module_syntax_contexts_cache,
+                globals,
+                is_import_mark,
                 ..
-            } => module_syntax_contexts.get(&module).copied(),
+            } => {
+                if !modules.contains_key(&module) {
+                    return None;
+                }
+
+                Some(match module_syntax_contexts_cache.entry(module) {
+                    dashmap::Entry::Occupied(e) => *e.get(),
+                    dashmap::Entry::Vacant(e) => {
+                        let ctxt = GLOBALS.set(globals, || {
+                            let mark = Mark::fresh(*is_import_mark);
+                            SyntaxContext::empty()
+                                .apply_mark(*is_import_mark)
+                                .apply_mark(mark)
+                        });
+
+                        e.insert(ctxt);
+                        ctxt
+                    }
+                })
+            }
             ScopeHoistingContext::None => None,
         }
     }
@@ -1565,7 +1592,7 @@ struct CodeGenResult {
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
     scope_hoisting_syntax_contexts:
-        Option<FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>>,
+        Option<FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>>,
 }
 
 struct ScopeHoistingOptions<'a> {
@@ -1573,6 +1600,7 @@ struct ScopeHoistingOptions<'a> {
     modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, MergeableModuleExposure>,
 }
 
+#[instrument(level = Level::TRACE, skip_all, name = "process module")]
 async fn process_parse_result(
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
@@ -1609,28 +1637,15 @@ async fn process_parse_result(
 
             let (mut code_gens, retain_syntax_context, prepend_ident_comment) =
                 if let Some(scope_hoisting_options) = scope_hoisting_options {
-                    let (is_import_mark, module_syntax_contexts) = GLOBALS.set(globals, || {
-                        let is_import_mark = Mark::new();
-                        let module_syntax_contexts: FxIndexMap<_, _> = scope_hoisting_options
-                            .modules
-                            .keys()
-                            .map(|m| {
-                                let mark = Mark::fresh(is_import_mark);
-                                (
-                                    *m,
-                                    SyntaxContext::empty()
-                                        .apply_mark(is_import_mark)
-                                        .apply_mark(mark),
-                                )
-                            })
-                            .collect();
-                        (is_import_mark, module_syntax_contexts)
-                    });
+                    let is_import_mark = GLOBALS.set(globals, || Mark::new());
 
+                    let module_syntax_contexts_cache = FxDashMap::default();
                     let ctx = ScopeHoistingContext::Some {
                         module: scope_hoisting_options.module,
                         modules: scope_hoisting_options.modules,
-                        module_syntax_contexts: &module_syntax_contexts,
+                        module_syntax_contexts_cache: &module_syntax_contexts_cache,
+                        is_import_mark,
+                        globals,
                     };
                     let code_gens = options.unwrap().merged_code_gens(ctx).await?;
                     let preserved_exports =
@@ -1663,7 +1678,11 @@ async fn process_parse_result(
 
                     (
                         code_gens,
-                        Some((is_import_mark, module_syntax_contexts, preserved_exports)),
+                        Some((
+                            is_import_mark,
+                            module_syntax_contexts_cache,
+                            preserved_exports,
+                        )),
                         prepend_ident_comment,
                     )
                 } else if let Some(options) = options {
@@ -1971,6 +1990,7 @@ async fn emit_content(
     .cell())
 }
 
+#[instrument(level = Level::TRACE, skip_all, name = "apply code generation")]
 fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
