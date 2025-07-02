@@ -589,7 +589,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             if self.should_track_dependencies()
                 && let Some(reader) = reader
-                && !(task.is_immutable() && !cfg!(feature = "verify_immutable"))
+                && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
                 let _ = task.add(CachedDataItem::OutputDependent {
                     task: reader,
@@ -660,7 +660,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // We never want to have a dependency on ourselves, otherwise we end up in a
                 // loop of re-executing the same task.
                 && reader != task_id
-                && !(task.is_immutable() && !cfg!(feature = "verify_immutable"))
+                && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
                 let _ = task.add(CachedDataItem::CellDependent {
                     cell,
