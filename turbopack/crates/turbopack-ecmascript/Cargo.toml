@@ -56,7 +56,6 @@ swc_core = { workspace = true, features = [
   "ecma_codegen",
   "ecma_lints",
   "ecma_minifier",
-  "ecma_minifier_concurrent",
   "ecma_parser",
   "ecma_preset_env",
   "ecma_transforms",

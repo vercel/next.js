@@ -1490,8 +1490,11 @@ function renderModelDestructive(
       return request;
     }
     if (void 0 !== writtenObjects)
-      if (modelRoot === value) modelRoot = null;
-      else return writtenObjects;
+      if (modelRoot === value) {
+        if (writtenObjects !== serializeByValueID(task.id))
+          return writtenObjects;
+        modelRoot = null;
+      } else return writtenObjects;
     else if (
       -1 === parentPropertyName.indexOf(":") &&
       ((writtenObjects = elementReference.get(parent)),
@@ -2084,7 +2087,7 @@ function abort(request, reason) {
           errorId$27 = request.nextChunkId++;
         request.fatalError = errorId$27;
         request.pendingChunks++;
-        emitErrorChunk(request, errorId$27, digest, error);
+        emitErrorChunk(request, errorId$27, digest, error, !1);
         abortableTasks.forEach(function (task) {
           return abortTask(task, request, errorId$27);
         });
@@ -2973,12 +2976,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_254 = [];
+    var JSCompiler_object_inline_chunks_255 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_254.push(chunk);
+      JSCompiler_object_inline_chunks_255.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_254, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_255, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);

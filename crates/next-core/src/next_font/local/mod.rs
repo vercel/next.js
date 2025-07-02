@@ -316,6 +316,8 @@ fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontLocalFontFi
 #[turbo_tasks::value(shared)]
 struct FontResolvingIssue {
     font_path: ResolvedVc<RcStr>,
+    // TODO(PACK-4879): The filepath is incorrect and there should be a fine grained source
+    // location pointing at the import/require
     origin_path: FileSystemPath,
 }
 

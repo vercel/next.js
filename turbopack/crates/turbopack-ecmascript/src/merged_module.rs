@@ -1,10 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
-        MergeableModuleExposure,
+        MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
     },
     ident::AssetIdent,
     module::Module,
@@ -28,20 +28,34 @@ pub(crate) struct MergedEcmascriptModule {
 }
 
 impl MergedEcmascriptModule {
-    pub fn new(
-        modules: Vec<(
-            ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
-            MergeableModuleExposure,
-        )>,
-        entry_points: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+    pub async fn new(
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
         options: ResolvedVc<EcmascriptOptions>,
-    ) -> ResolvedVc<Self> {
-        MergedEcmascriptModule {
-            modules,
-            entry_points,
+    ) -> Result<ResolvedVc<Self>> {
+        Ok(MergedEcmascriptModule {
+            modules: modules
+                .await?
+                .iter()
+                .map(|(m, exposed)| {
+                    Ok((
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
+                            .context("expected EcmascriptAnalyzable")?,
+                        *exposed,
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?,
+            entry_points: entry_points
+                .await?
+                .iter()
+                .map(|m| {
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
+                        .context("expected EcmascriptAnalyzable")
+                })
+                .collect::<Result<Vec<_>>>()?,
             options,
         }
-        .resolved_cell()
+        .resolved_cell())
     }
 }
 

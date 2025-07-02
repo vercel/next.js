@@ -1,6 +1,7 @@
-use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
+use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
+use either::Either;
 use napi::{
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
     bindgen_prelude::{External, ToNapiValue},
@@ -8,17 +9,15 @@ use napi::{
 };
 use rustc_hash::FxHashMap;
 use serde::Serialize;
-use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
-    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo,
-    Vc, VcValueType, get_effects,
+    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, Vc,
+    VcValueType, get_effects,
     message_queue::{CompilationEvent, Severity},
-    task_statistics::TaskStatisticsApi,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{
-    BackingStorage, DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, StartupCacheState,
-    db_invalidation::invalidation_reasons, default_backing_storage, noop_backing_storage,
+    DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, StartupCacheState,
+    TurboTasksBackend, db_invalidation::invalidation_reasons, default_backing_storage,
+    noop_backing_storage,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -32,137 +31,8 @@ use turbopack_core::{
 
 use crate::util::log_internal_error_and_inform;
 
-#[derive(Clone)]
-pub enum NextTurboTasks {
-    Memory(Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<NoopBackingStorage>>>),
-    PersistentCaching(
-        Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<DefaultBackingStorage>>>,
-    ),
-}
-
-impl NextTurboTasks {
-    pub fn dispose_root_task(&self, task: TaskId) {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.dispose_root_task(task),
-            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.dispose_root_task(task),
-        }
-    }
-
-    pub fn spawn_root_task<T, F, Fut>(&self, functor: F) -> TaskId
-    where
-        T: Send,
-        F: Fn() -> Fut + Send + Sync + Clone + 'static,
-        Fut: Future<Output = Result<Vc<T>>> + Send,
-    {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.spawn_root_task(functor),
-            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.spawn_root_task(functor),
-        }
-    }
-
-    pub async fn run_once<T: TraceRawVcs + Send + 'static>(
-        &self,
-        future: impl Future<Output = Result<T>> + Send + 'static,
-    ) -> Result<T> {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.run_once(future).await,
-            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.run_once(future).await,
-        }
-    }
-
-    pub fn spawn_once_task<T, Fut>(&self, future: Fut) -> TaskId
-    where
-        T: Send,
-        Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
-    {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.spawn_once_task(future),
-            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.spawn_once_task(future),
-        }
-    }
-
-    pub async fn aggregated_update_info(
-        &self,
-        aggregation: Duration,
-        timeout: Duration,
-    ) -> Option<UpdateInfo> {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => {
-                turbo_tasks
-                    .aggregated_update_info(aggregation, timeout)
-                    .await
-            }
-            NextTurboTasks::PersistentCaching(turbo_tasks) => {
-                turbo_tasks
-                    .aggregated_update_info(aggregation, timeout)
-                    .await
-            }
-        }
-    }
-
-    pub async fn get_or_wait_aggregated_update_info(&self, aggregation: Duration) -> UpdateInfo {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => {
-                turbo_tasks
-                    .get_or_wait_aggregated_update_info(aggregation)
-                    .await
-            }
-            NextTurboTasks::PersistentCaching(turbo_tasks) => {
-                turbo_tasks
-                    .get_or_wait_aggregated_update_info(aggregation)
-                    .await
-            }
-        }
-    }
-
-    pub async fn stop_and_wait(&self) {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.stop_and_wait().await,
-            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.stop_and_wait().await,
-        }
-    }
-
-    pub fn task_statistics(&self) -> &TaskStatisticsApi {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.task_statistics(),
-            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.task_statistics(),
-        }
-    }
-
-    pub fn get_compilation_events_stream(
-        &self,
-        event_types: Option<Vec<String>>,
-    ) -> Receiver<Arc<dyn CompilationEvent>> {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => {
-                turbo_tasks.subscribe_to_compilation_events(event_types)
-            }
-            NextTurboTasks::PersistentCaching(turbo_tasks) => {
-                turbo_tasks.subscribe_to_compilation_events(event_types)
-            }
-        }
-    }
-
-    pub fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>) {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.send_compilation_event(event),
-            NextTurboTasks::PersistentCaching(turbo_tasks) => {
-                turbo_tasks.send_compilation_event(event)
-            }
-        }
-    }
-
-    pub fn invalidate_persistent_cache(&self, reason_code: &str) -> Result<()> {
-        match self {
-            NextTurboTasks::Memory(_) => {}
-            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks
-                .backend()
-                .backing_storage()
-                .invalidate(reason_code)?,
-        }
-        Ok(())
-    }
-}
+pub type NextTurboTasks =
+    Arc<TurboTasks<TurboTasksBackend<Either<DefaultBackingStorage, NoopBackingStorage>>>>;
 
 #[derive(Serialize)]
 struct StartupCacheInvalidationEvent {
@@ -212,7 +82,7 @@ pub fn create_turbo_tasks(
         };
         let (backing_storage, cache_state) =
             default_backing_storage(&output_path.join("cache/turbopack"), &version_info, is_ci)?;
-        let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
+        let tt = TurboTasks::new(TurboTasksBackend::new(
             turbo_tasks_backend::BackendOptions {
                 storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
                     turbo_tasks_backend::StorageMode::ReadOnly
@@ -222,22 +92,20 @@ pub fn create_turbo_tasks(
                 dependency_tracking,
                 ..Default::default()
             },
-            backing_storage,
+            Either::Left(backing_storage),
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             tt.send_compilation_event(Arc::new(StartupCacheInvalidationEvent { reason_code }));
         }
-        NextTurboTasks::PersistentCaching(tt)
+        tt
     } else {
-        NextTurboTasks::Memory(TurboTasks::new(
-            turbo_tasks_backend::TurboTasksBackend::new(
-                turbo_tasks_backend::BackendOptions {
-                    storage_mode: None,
-                    dependency_tracking,
-                    ..Default::default()
-                },
-                noop_backing_storage(),
-            ),
+        TurboTasks::new(TurboTasksBackend::new(
+            turbo_tasks_backend::BackendOptions {
+                storage_mode: None,
+                dependency_tracking,
+                ..Default::default()
+            },
+            Either::Right(noop_backing_storage()),
         ))
     })
 }

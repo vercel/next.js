@@ -73,7 +73,7 @@ pub enum SourceMapsType {
     /// Extracts source maps from input files and writes source maps for output files.
     #[default]
     Full,
-    /// Ignores the existance of source maps and does not write source maps for output files.
+    /// Ignores the existence of source maps and does not write source maps for output files.
     None,
 }
 
@@ -225,7 +225,7 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
-    /// Whether to use `MergableModule` to merge modules if possible.
+    /// Whether to use `MergeableModule` to merge modules if possible.
     #[turbo_tasks::function]
     fn is_module_merging_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)

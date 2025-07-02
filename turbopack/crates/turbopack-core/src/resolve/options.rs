@@ -88,7 +88,7 @@ pub enum ResolveIntoPackage {
     MainField { field: RcStr },
 }
 
-// The different ways to resolve a request withing a package
+// The different ways to resolve a request within a package
 #[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, NonLocalValue)]
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests

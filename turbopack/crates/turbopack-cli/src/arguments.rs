@@ -136,6 +136,10 @@ pub struct BuildArguments {
     #[clap(long)]
     pub no_minify: bool,
 
+    /// Don't perform scope hoisting.
+    #[clap(long)]
+    pub no_scope_hoist: bool,
+
     /// Drop the `TurboTasks` object upon exit. By default we intentionally leak this memory, as
     /// we're about to exit the process anyways, but that can cause issues with valgrind or other
     /// leak detectors.

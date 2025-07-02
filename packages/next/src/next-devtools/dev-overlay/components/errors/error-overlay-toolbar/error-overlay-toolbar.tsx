@@ -2,7 +2,6 @@ import type { DebugInfo } from '../../../../shared/types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { CopyStackTraceButton } from './copy-stack-trace-button'
 import { DocsLinkButton } from './docs-link-button'
-import { RestartServerButton } from './restart-server-button'
 
 type ErrorOverlayToolbarProps = {
   error: Error
@@ -19,9 +18,6 @@ export function ErrorOverlayToolbar({
     <span className="error-overlay-toolbar">
       {/* TODO: Move the button inside and remove the feedback on the footer of the error overlay.  */}
       {feedbackButton}
-      {process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE && (
-        <RestartServerButton error={error} />
-      )}
       <CopyStackTraceButton error={error} />
       <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton

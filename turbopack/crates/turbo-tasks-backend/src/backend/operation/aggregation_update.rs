@@ -2230,7 +2230,7 @@ impl AggregationUpdateQueue {
         let aggregation_number = if is_aggregating_node(base_aggregation_number) {
             base_aggregation_number.saturating_add(distance)
         } else {
-            // The new target effecive aggregation number is base + distance
+            // The new target effective aggregation number is base + distance
             let aggregation_number = base_aggregation_number.saturating_add(distance);
             if is_aggregating_node(aggregation_number) {
                 base_aggregation_number = LEAF_NUMBER;
@@ -2464,7 +2464,7 @@ const MAX_RETRIES: u16 = 10000;
 /// unable to remove the things it wants to remove (because they have not been added by the "add"
 /// update yet). So we will retry (with this method) removals until the thing is there. So this is
 /// basically a busy loop that waits for the "add" update to complete. If the busy loop is not
-/// sucessful, the update is added to the end of the queue again. This is important as the "add"
+/// successful, the update is added to the end of the queue again. This is important as the "add"
 /// update might even be in the current thread and in the same queue. If that's the case yielding
 /// won't help and the update need to be requeued.
 fn retry_loop(mut f: impl FnMut() -> ControlFlow<()>) -> Result<(), RetryTimeout> {

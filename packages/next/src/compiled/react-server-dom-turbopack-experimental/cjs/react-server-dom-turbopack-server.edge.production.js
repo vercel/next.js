@@ -1479,8 +1479,11 @@ function renderModelDestructive(
       return request;
     }
     if (void 0 !== writtenObjects)
-      if (modelRoot === value) modelRoot = null;
-      else return writtenObjects;
+      if (modelRoot === value) {
+        if (writtenObjects !== serializeByValueID(task.id))
+          return writtenObjects;
+        modelRoot = null;
+      } else return writtenObjects;
     else if (
       -1 === parentPropertyName.indexOf(":") &&
       ((writtenObjects = elementReference.get(parent)),
@@ -2067,7 +2070,7 @@ function abort(request, reason) {
           errorId$27 = request.nextChunkId++;
         request.fatalError = errorId$27;
         request.pendingChunks++;
-        emitErrorChunk(request, errorId$27, digest, error);
+        emitErrorChunk(request, errorId$27, digest, error, !1);
         abortableTasks.forEach(function (task) {
           return abortTask(task, request, errorId$27);
         });

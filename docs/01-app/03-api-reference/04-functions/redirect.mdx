@@ -47,9 +47,9 @@ The `type` parameter has no effect when used in Server Components.
 
 ## Behavior
 
-- In Server Actions and Route Handlers, `redirect` should be called after the `try/catch` block.
+- In Server Actions and Route Handlers, redirect should be called **outside** the `try` block when using `try/catch` statements.
 - If you prefer to return a 308 (Permanent) HTTP redirect instead of 307 (Temporary), you can use the [`permanentRedirect` function](/docs/app/api-reference/functions/permanentRedirect) instead.
-- `redirect` internally throws an error so it should be called outside of `try/catch` blocks.
+- `redirect` throws an error so it should be called **outside** the `try` block when using `try/catch` statements.
 - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](/docs/app/api-reference/functions/use-router) instead.
 - `redirect` also accepts absolute URLs and can be used to redirect to external links.
 - If you'd like to redirect before the render process, use [`next.config.js`](/docs/app/guides/redirecting#redirects-in-nextconfigjs) or [Middleware](/docs/app/guides/redirecting#nextresponseredirect-in-middleware).

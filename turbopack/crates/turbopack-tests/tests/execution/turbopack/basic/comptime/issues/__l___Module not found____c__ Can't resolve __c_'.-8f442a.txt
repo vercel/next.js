@@ -1,4 +1,4 @@
-error - [resolve] [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js  /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js:4:4  Module not found: Can't resolve './not-existing-file'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js:4:4  Module not found: Can't resolve './not-existing-file'
   
        1 | it('importing a not existing file should throw', () => {
        2 |   // This is a check to make sure that the following tests would fail if they require("fail")

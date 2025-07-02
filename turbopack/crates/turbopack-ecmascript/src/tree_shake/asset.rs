@@ -130,7 +130,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModulePartAsset {
-    /// Create a new instance of [Vc<EcmascriptModulePartAsset>], whcih consists
+    /// Create a new instance of [Vc<EcmascriptModulePartAsset>], which consists
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
     #[turbo_tasks::function]

@@ -186,15 +186,6 @@ pub fn get_type_ident(ty: &Type) -> Option<Ident> {
         }
     }
 }
-
-pub fn get_read_ref_ident(ident: &Ident) -> Ident {
-    Ident::new(&(ident.to_string() + "ReadRef"), ident.span())
-}
-
-pub fn get_trait_ref_ident(ident: &Ident) -> Ident {
-    Ident::new(&(ident.to_string() + "TraitRef"), ident.span())
-}
-
 pub fn get_trait_default_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
         &format!(
@@ -206,43 +197,9 @@ pub fn get_trait_default_impl_function_ident(trait_ident: &Ident, ident: &Ident)
     )
 }
 
-pub fn get_trait_type_id_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("{}_TRAIT_TYPE_ID", ident.to_string().to_uppercase()),
-        ident.span(),
-    )
-}
-pub fn get_trait_type_vtable_registry(ident: &Ident) -> Ident {
-    Ident::new(
-        &format!(
-            "{}_TRAIT_TYPE_VTABLE_REGISTRY",
-            ident.to_string().to_uppercase()
-        ),
-        ident.span(),
-    )
-}
-
-pub fn get_trait_default_impl_function_id_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
-    Ident::new(
-        &format!(
-            "{}_DEFAULT_IMPL_{}_FUNCTION_ID",
-            trait_ident.to_string().to_uppercase(),
-            ident.to_string().to_uppercase()
-        ),
-        ident.span(),
-    )
-}
-
 pub fn get_value_type_ident(ident: &Ident) -> Ident {
     Ident::new(
         &format!("{}_VALUE_TYPE", ident.to_string().to_uppercase()),
-        ident.span(),
-    )
-}
-
-pub fn get_value_type_id_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("{}_VALUE_TYPE_ID", ident.to_string().to_uppercase()),
         ident.span(),
     )
 }

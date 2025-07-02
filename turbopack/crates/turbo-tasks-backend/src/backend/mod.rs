@@ -62,7 +62,6 @@ use crate::{
         CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef, DirtyState,
         InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
     },
-    interning_serde::RcStrToLocalId,
     utils::{
         bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
     },
@@ -895,8 +894,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
             (
                 task_id,
-                meta.map(|d| B::serialize(task_id, &d)),
-                data.map(|d| B::serialize(task_id, &d)),
+                meta.map(|d| self.backing_storage.serialize(task_id, &d)),
+                data.map(|d| self.backing_storage.serialize(task_id, &d)),
             )
         };
         let process_snapshot = |task_id: TaskId, inner: Box<InnerStorageSnapshot>| {
@@ -925,8 +924,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             (
                 task_id,
-                meta.map(|meta| B::serialize(task_id, &meta)),
-                data.map(|data| B::serialize(task_id, &data)),
+                meta.map(|meta| self.backing_storage.serialize(task_id, &meta)),
+                data.map(|data| self.backing_storage.serialize(task_id, &data)),
             )
         };
 
@@ -963,14 +962,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let task_snapshots = snapshot
             .into_iter()
             .filter_map(|iter| {
-                type SerializedData = (SmallVec<[u8; 16]>, RcStrToLocalId);
-
                 let mut iter = iter
                     .filter_map(
                         |(task_id, meta, data): (
                             _,
-                            Option<Result<SerializedData>>,
-                            Option<Result<SerializedData>>,
+                            Option<Result<SmallVec<_>>>,
+                            Option<Result<SmallVec<_>>>,
                         )| {
                             let meta = match meta {
                                 Some(Ok(meta)) => {
@@ -1172,8 +1169,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             .flatten();
         let task_id = {
             // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-            if let Some((task_id, _rcstr_map)) = unsafe {
-                // We can ignore rcstr_map because those are all already stored in the database.
+            if let Some(task_id) = unsafe {
                 self.backing_storage
                     .forward_lookup_task_cache(tx.as_ref(), &task_type)
                     .expect("Failed to lookup task id")
@@ -1557,7 +1553,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 )
             }
             TaskType::Transient(task_type) => {
-                let task_type = task_type.clone();
                 let span = tracing::trace_span!("turbo_tasks::root_task");
                 let future = match &*task_type {
                     TransientTask::Root(f) => f(),
@@ -1594,7 +1589,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // 3. Remove dirty flag (and propagate that to uppers) and remove the in-progress state.
         // 4. Shrink the task memory to reduce footprint of the task.
 
-        // Due to persistance it is possible that the process is cancelled after any step. This is
+        // Due to persistence it is possible that the process is cancelled after any step. This is
         // ok, since the dirty flag won't be removed until step 3 and step 4 is only affecting the
         // in-memory representation.
 

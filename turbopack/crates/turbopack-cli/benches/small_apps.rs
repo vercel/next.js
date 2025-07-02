@@ -83,6 +83,7 @@ fn bench_small_apps(c: &mut Criterion) {
                             no_sourcemap: false,
                             no_minify: false,
                             force_memory_cleanup: true,
+                            no_scope_hoist: false,
                         })
                         .await
                     })

@@ -82,7 +82,7 @@ impl ModuleReference for EsmAsyncAssetReference {
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
             self.in_try,
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
         )
         .await
     }

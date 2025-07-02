@@ -22,8 +22,10 @@ fn main() -> Result<()> {
         .context("Failed to retrieve meta information")?;
     for meta_file in meta_info {
         println!(
-            "META {:08}.meta: family = {}, ",
-            meta_file.sequence_number, meta_file.family
+            "META {:08}.meta: family = {}, sst_size = {} MiB",
+            meta_file.sequence_number,
+            meta_file.family,
+            meta_file.entries.iter().map(|e| e.sst_size).sum::<u64>() / 1024 / 1024,
         );
         for MetaFileEntryInfo {
             sequence_number,

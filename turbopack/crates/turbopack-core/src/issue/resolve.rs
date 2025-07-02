@@ -5,10 +5,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString};
+use super::{Issue, IssueSource, IssueStage, OptionStyledString, StyledString};
 use crate::{
     error::PrettyPrintError,
-    issue::IssueSeverity,
+    issue::{IssueSeverity, OptionIssueSource},
     resolve::{
         options::{ImportMap, ImportMapResult, ResolveOptions},
         parse::Request,
@@ -115,11 +115,8 @@ impl Issue for ResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(match &self.source {
-            Some(source) => Some(source.resolve_source_map().await?.into_owned()),
-            None => None,
-        }))
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(self.source)
     }
 
     // TODO add sub_issue for a description of resolve_options

@@ -1,7 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
-use turbo_tasks_env::EnvMap;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOptionsContext};
 use turbopack_browser::BrowserChunkingContext;
@@ -10,10 +9,7 @@ use turbopack_core::{
         ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
-    compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
-        FreeVarReference, FreeVarReferences,
-    },
+    compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
 };
@@ -30,34 +26,11 @@ use crate::{
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
         get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
     },
-    util::{NextRuntime, foreign_code_context_condition},
+    util::{NextRuntime, OptionEnvMap, defines, foreign_code_context_condition},
 };
 
-fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
-    let mut defines = FxIndexMap::default();
-
-    for (k, v) in define_env {
-        defines
-            .entry(
-                k.split('.')
-                    .map(|s| DefineableNameSegment::Name(s.into()))
-                    .collect::<Vec<_>>(),
-            )
-            .or_insert_with(|| {
-                let val = serde_json::from_str(v);
-                match val {
-                    Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
-                    _ => CompileTimeDefineValue::JSON(v.clone()),
-                }
-            });
-    }
-
-    CompileTimeDefines(defines)
-}
-
 #[turbo_tasks::function]
-async fn next_edge_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefines>> {
+async fn next_edge_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileTimeDefines>> {
     Ok(defines(&*define_env.await?).cell())
 }
 
@@ -66,7 +39,7 @@ async fn next_edge_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefin
 #[turbo_tasks::function]
 async fn next_edge_free_vars(
     project_path: FileSystemPath,
-    define_env: Vc<EnvMap>,
+    define_env: Vc<OptionEnvMap>,
 ) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
@@ -82,7 +55,7 @@ async fn next_edge_free_vars(
 #[turbo_tasks::function]
 pub async fn get_edge_compile_time_info(
     project_path: FileSystemPath,
-    define_env: Vc<EnvMap>,
+    define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(

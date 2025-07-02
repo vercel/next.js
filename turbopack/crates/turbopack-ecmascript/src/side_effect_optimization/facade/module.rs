@@ -6,7 +6,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, MergeableModule,
+        MergeableModules, MergeableModulesExposed,
+    },
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -17,7 +20,7 @@ use turbopack_core::{
 use super::chunk_item::EcmascriptModuleFacadeChunkItem;
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleContent,
-    EcmascriptModuleContentOptions, SpecifiedModuleType,
+    EcmascriptModuleContentOptions, EcmascriptOptions, MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGens,
     parse::ParseResult,
@@ -258,6 +261,9 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
             part_references,
             code_generation: CodeGens::empty().to_resolved().await?,
             async_module: ResolvedVc::cell(Some(self.async_module().to_resolved().await?)),
+            // The facade module cannot generate source maps, because the inserted references
+            // contain spans from the original module, but the facade module itself doesn't have the
+            // original module's swc_common::SourceMap in `parsed`.
             generate_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
@@ -450,3 +456,22 @@ impl ChunkableModule for EcmascriptModuleFacadeModule {
 
 #[turbo_tasks::value_impl]
 impl EvaluatableAsset for EcmascriptModuleFacadeModule {}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModuleFacadeModule {
+    #[turbo_tasks::function]
+    async fn merge(
+        self: Vc<Self>,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(
+                modules,
+                entry_points,
+                EcmascriptOptions::default().resolved_cell(),
+            )
+            .await?,
+        ))
+    }
+}

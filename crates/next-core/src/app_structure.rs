@@ -65,7 +65,7 @@ pub struct AppDirModules {
 }
 
 impl AppDirModules {
-    fn without_leafs(&self) -> Self {
+    fn without_leaves(&self) -> Self {
         Self {
             page: None,
             layout: self.layout.clone(),
@@ -921,7 +921,7 @@ async fn directory_tree_to_loader_tree_internal(
         page: app_page.clone(),
         segment: directory_name.clone(),
         parallel_routes: FxIndexMap::default(),
-        modules: modules.without_leafs(),
+        modules: modules.without_leaves(),
         global_metadata: global_metadata.to_resolved().await?,
     };
 
@@ -1289,7 +1289,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         let use_global_not_found =
             is_global_not_found_enabled || modules.global_not_found.is_some();
 
-        let not_found_root_modules = modules.without_leafs();
+        let not_found_root_modules = modules.without_leaves();
         let not_found_tree = AppPageLoaderTree {
             page: app_page.clone(),
             segment: directory_name.clone(),
