@@ -50,7 +50,7 @@ fn bench_small_apps(c: &mut Criterion) {
     let mut g = c.benchmark_group("turbopack/build/apps");
 
     let num_cpus = num_cpus::get();
-    let thread_count = num_cpus * 3 / 2;
+    let thread_count = num_cpus * 12 / 10;
 
     eprintln!("num_cpus: {num_cpus}");
     eprintln!("thread_count: {thread_count}");
