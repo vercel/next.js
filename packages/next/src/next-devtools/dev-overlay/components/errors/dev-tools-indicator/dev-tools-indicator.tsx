@@ -64,6 +64,7 @@ export function DevToolsIndicator({
       isTurbopack={!!process.env.TURBOPACK}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
+      page={state.page}
       {...props}
     />
   )
@@ -104,6 +105,7 @@ function DevToolsPopover({
   dispatch,
   scale,
   setScale,
+  page,
 }: {
   routerType: 'pages' | 'app'
   disabled: boolean
@@ -118,6 +120,7 @@ function DevToolsPopover({
   dispatch: OverlayDispatch
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
+  page: string
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -343,8 +346,7 @@ function DevToolsPopover({
           triggerRef={triggerRef}
           style={popover}
           routerType={routerType}
-          // dummy page for legacy segment explorer, will be removed in the future
-          page={''}
+          page={page}
         />
       ) : null}
 
