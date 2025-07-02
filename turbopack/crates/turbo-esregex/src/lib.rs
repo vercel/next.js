@@ -124,46 +124,20 @@ impl EsRegex {
         }
     }
 
-    pub fn captures(&self, haystack: &str) -> Option<Vec<String>> {
+    pub fn captures<'h>(&self, haystack: &'h str) -> Option<impl Iterator<Item = &'h str>> {
         match &self.delegate {
             EsRegexImpl::Regex(r) => r.captures(haystack).map(|caps| {
                 caps.iter()
-                    .map(|m| m.map(|m| m.as_str().to_string()).unwrap_or_default())
-                    .collect()
+                    .map(|m| m.map(|m| m.as_str()).unwrap_or(""))
+                    .collect::<Vec<_>>()
+                    .into_iter()
             }),
-            EsRegexImpl::Regress(r) => {
-                r.find(haystack).map(|m| {
-                    let mut captures = Vec::new();
-                    captures.push(haystack[m.range()].to_string());
-
-                    let mut group_index = 1;
-                    loop {
-                        // Use panic catching to safely check if the group exists
-                        let group_result =
-                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                m.group(group_index)
-                            }));
-
-                        match group_result {
-                            Ok(Some(group_range)) => {
-                                captures.push(haystack[group_range].to_string());
-                                group_index += 1;
-                            }
-                            Ok(None) => {
-                                // Group exists but has no value
-                                captures.push(String::new());
-                                group_index += 1;
-                            }
-                            Err(_) => {
-                                // Panicked, which means this group doesn't exist
-                                break;
-                            }
-                        }
-                    }
-
-                    captures
-                })
-            }
+            EsRegexImpl::Regress(r) => r.find(haystack).map(|m| {
+                m.groups()
+                    .map(|range_opt| range_opt.map(|range| &haystack[range]).unwrap_or(""))
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            }),
         }
     }
 }
@@ -211,7 +185,7 @@ mod tests {
 
         let captures = regex.captures("Today is 2024-01-15");
         assert!(captures.is_some());
-        let caps = captures.unwrap();
+        let caps: Vec<&str> = captures.unwrap().collect();
         assert_eq!(caps.len(), 4); // full match + 3 groups
         assert_eq!(caps[0], "2024-01-15"); // full match
         assert_eq!(caps[1], "2024"); // year
@@ -229,7 +203,7 @@ mod tests {
 
         let captures = regex.captures("foobaz");
         assert!(captures.is_some());
-        let caps = captures.unwrap();
+        let caps: Vec<&str> = captures.unwrap().collect();
         assert_eq!(caps.len(), 2); // full match + 1 group
         assert_eq!(caps[0], "foo"); // full match
         assert_eq!(caps[1], "foo"); // captured group
