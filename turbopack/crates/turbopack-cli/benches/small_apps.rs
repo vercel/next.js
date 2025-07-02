@@ -55,6 +55,8 @@ fn bench_small_apps(c: &mut Criterion) {
         * 3
         / 2;
 
+    eprintln!("thread_count: {}", thread_count);
+
     for app in apps {
         g.bench_function(
             BenchmarkId::new("build", app.file_name().unwrap().to_string_lossy()),
