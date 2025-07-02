@@ -1617,6 +1617,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         // If the task is stale, reschedule it
+        #[cfg(not(feature = "no_fast_stale"))]
         if stale {
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 done_event,
@@ -1650,9 +1651,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return true;
         }
 
-        // mark the task as completed, so dependent tasks can continue working
-        *done = true;
-        done_event.notify(usize::MAX);
+        if cfg!(not(feature = "no_fast_stale")) || !stale {
+            // mark the task as completed, so dependent tasks can continue working
+            *done = true;
+            done_event.notify(usize::MAX);
+        }
 
         // take the children from the task to process them
         let mut new_children = take(new_children);
@@ -1815,12 +1818,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let Some(in_progress) = get!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
-        let InProgressState::InProgress(box InProgressStateInner { stale, .. }) = in_progress
+        let InProgressState::InProgress(box InProgressStateInner {
+            #[cfg(not(feature = "no_fast_stale"))]
+            stale,
+            ..
+        }) = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
 
         // If the task is stale, reschedule it
+        #[cfg(not(feature = "no_fast_stale"))]
         if *stale {
             let Some(InProgressState::InProgress(box InProgressStateInner { done_event, .. })) =
                 remove!(task, InProgress)
