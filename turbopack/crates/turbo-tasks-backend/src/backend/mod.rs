@@ -23,6 +23,7 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
+use tracing::field::Empty;
 use turbo_tasks::{
     CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency, SessionId,
     TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
@@ -52,7 +53,7 @@ use crate::{
             is_root_node, prepare_new_children,
         },
         storage::{
-            InnerStorageSnapshot, Storage, get, get_many, get_mut, get_mut_or_insert_with,
+            InnerStorageSnapshot, Storage, count, get, get_many, get_mut, get_mut_or_insert_with,
             iter_many, remove,
         },
     },
@@ -413,10 +414,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         tx: Option<&'l B::ReadTransaction<'tx>>,
         parent_task: TaskId,
         child_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &'l dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
-        operation::ConnectChildOperation::run(parent_task, child_task, is_immutable, unsafe {
+        operation::ConnectChildOperation::run(parent_task, child_task, unsafe {
             self.execute_context_with_tx(tx, turbo_tasks)
         });
     }
@@ -425,13 +425,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         parent_task: TaskId,
         child_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::ConnectChildOperation::run(
             parent_task,
             child_task,
-            is_immutable,
             self.execute_context(turbo_tasks),
         );
     }
@@ -591,6 +589,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             if self.should_track_dependencies()
                 && let Some(reader) = reader
+                && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
                 let _ = task.add(CachedDataItem::OutputDependent {
                     task: reader,
@@ -656,15 +655,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_id: TaskId,
             ctx: &mut impl ExecuteContext<'_>,
         ) {
-            if !backend.should_track_dependencies() {
-                return;
-            }
-            if let Some(reader) = reader {
-                if reader == task_id {
-                    // We never want to have a dependency on ourselves, otherwise we end up in a
-                    // loop of re-executing the same task.
-                    return;
-                }
+            if backend.should_track_dependencies()
+                && let Some(reader) = reader
+                // We never want to have a dependency on ourselves, otherwise we end up in a
+                // loop of re-executing the same task.
+                && reader != task_id
+                && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
+            {
                 let _ = task.add(CachedDataItem::CellDependent {
                     cell,
                     task: reader,
@@ -1153,12 +1150,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
             self.track_cache_hit(&task_type);
-            self.connect_child(parent_task, task_id, is_immutable, turbo_tasks);
+            self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
 
@@ -1198,9 +1194,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        unsafe {
-            self.connect_child_with_tx(tx.as_ref(), parent_task, task_id, is_immutable, turbo_tasks)
-        };
+        unsafe { self.connect_child_with_tx(tx.as_ref(), parent_task, task_id, turbo_tasks) };
 
         task_id
     }
@@ -1209,7 +1203,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if !parent_task.is_transient() {
@@ -1221,7 +1214,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
             self.track_cache_hit(&task_type);
-            self.connect_child(parent_task, task_id, is_immutable, turbo_tasks);
+            self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
 
@@ -1233,11 +1226,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             unsafe {
                 self.transient_task_id_factory.reuse(task_id);
             }
-            self.connect_child(parent_task, existing_task_id, is_immutable, turbo_tasks);
+            self.connect_child(parent_task, existing_task_id, turbo_tasks);
             return existing_task_id;
         }
 
-        self.connect_child(parent_task, task_id, is_immutable, turbo_tasks);
+        self.connect_child(parent_task, task_id, turbo_tasks);
 
         task_id
     }
@@ -1580,6 +1573,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         _memory_usage: usize,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
+        has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> bool {
         // Task completion is a 4 step process:
@@ -1596,7 +1590,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // The task might be invalidated during this process, so we need to change the stale flag
         // at the start of every step.
 
-        let _span = tracing::trace_span!("task execution completed").entered();
+        let span = tracing::trace_span!("task execution completed", immutable = Empty).entered();
         let mut ctx = self.execute_context(turbo_tasks);
 
         //// STEP 1 ////
@@ -1610,6 +1604,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ref mut done,
             ref done_event,
             ref mut new_children,
+            session_dependent,
             ..
         }) = in_progress
         else {
@@ -1643,7 +1638,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // new_children list now.
             AggregationUpdateQueue::run(
                 AggregationUpdateJob::DecreaseActiveCounts {
-                    task_ids: new_children.into_keys().collect(),
+                    task_ids: new_children.into_iter().collect(),
                 },
                 &mut ctx,
             );
@@ -1660,6 +1655,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // handle stateful
         if stateful {
             let _ = task.add(CachedDataItem::Stateful { value: () });
+        }
+
+        // handle has_invalidator
+        if has_invalidator {
+            let _ = task.add(CachedDataItem::HasInvalidator { value: () });
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
@@ -1691,14 +1691,28 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut old_edges = Vec::new();
 
         let has_children = !new_children.is_empty();
-        let has_mutable_children =
-            has_children && new_children.values().any(|is_immutable| !*is_immutable);
-
-        // If the task is not stateful and has no mutable children, it does not have a way to be
-        // invalidated and we can mark it as immutable.
-        if !stateful && !has_mutable_children {
-            task.mark_as_immutable();
-        }
+        let is_immutable = task.is_immutable();
+        let task_dependencies_for_immutable =
+            // Task was previously marked as immutable
+            if !is_immutable
+            // Task is not session dependent (session dependent tasks can change between sessions)
+            && !session_dependent
+            // Task has no invalidator
+            && !task.has_key(&CachedDataItemKey::HasInvalidator {})
+            // This is a hack for the streaming hack.
+            && !task.has_key(&CachedDataItemKey::Stateful {})
+            // Task has no dependencies on collectibles
+            && count!(task, CollectiblesDependency) == 0
+        {
+            Some(
+                // Collect all dependencies on tasks to check if all dependencies are immutable
+                iter_many!(task, OutputDependency { target } => target)
+                    .chain(iter_many!(task, CellDependency { target } => target.task))
+                    .collect::<FxHashSet<_>>(),
+            )
+        } else {
+            None
+        };
 
         // Prepare all new children
         if has_children {
@@ -1709,7 +1723,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if has_children {
             old_edges.extend(
                 iter_many!(task, Child { task } => task)
-                    .filter(|task| new_children.remove(task).is_none())
+                    .filter(|task| !new_children.remove(task))
                     .map(OutdatedEdge::Child),
             );
         } else {
@@ -1740,7 +1754,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }),
             );
         }
-        if !task.is_immutable() && self.should_track_dependencies() {
+        if self.should_track_dependencies() {
             old_edges.extend(iter_many!(task, OutdatedCellDependency { target } => OutdatedEdge::CellDependency(target)));
             old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
             old_edges.extend(
@@ -1765,6 +1779,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         drop(task);
+
+        // Check if the task can be marked as immutable
+        let mut is_now_immutable = false;
+        if let Some(dependencies) = task_dependencies_for_immutable
+            && dependencies
+                .iter()
+                .all(|&task_id| ctx.task(task_id, TaskDataCategory::Data).is_immutable())
+        {
+            is_now_immutable = true;
+        }
+        span.record("immutable", is_immutable || is_now_immutable);
 
         if !queue.is_empty() || !old_edges.is_empty() {
             #[cfg(feature = "trace_task_completion")]
@@ -1809,19 +1834,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // that. (We already filtered out the old children from that list)
             AggregationUpdateQueue::run(
                 AggregationUpdateJob::DecreaseActiveCounts {
-                    task_ids: new_children.into_keys().collect(),
+                    task_ids: new_children.into_iter().collect(),
                 },
                 &mut ctx,
             );
             return true;
         }
 
+        // If the task is not stateful and has no mutable children, it does not have a way to be
+        // invalidated and we can mark it as immutable.
+        if is_now_immutable {
+            let _ = task.add(CachedDataItem::Immutable { value: () });
+        }
+
         let mut queue = AggregationUpdateQueue::new();
 
         if has_children {
-            let is_immutable = task.is_immutable();
-            let has_active_count = !is_immutable
-                && ctx.should_track_activeness()
+            let has_active_count = ctx.should_track_activeness()
                 && get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
             connect_children(
                 task_id,
@@ -1829,7 +1858,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 new_children,
                 &mut queue,
                 has_active_count,
-                !is_immutable && ctx.should_track_activeness(),
+                ctx.should_track_activeness(),
             );
         }
 
@@ -2130,8 +2159,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task: task_id,
                 collectible_type,
             };
-            if reader.add(CachedDataItem::CollectiblesDependency { target, value: () }) {
-                reader.remove(&CachedDataItemKey::OutdatedCollectiblesDependency { target });
+            if reader
+                .remove(&CachedDataItemKey::OutdatedCollectiblesDependency { target })
+                .is_none()
+            {
+                let _ = reader.add(CachedDataItem::CollectiblesDependency { target, value: () });
             }
         }
         collectibles
@@ -2293,7 +2325,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task, None);
-        ConnectChildOperation::run(parent_task, task, false, self.execute_context(turbo_tasks));
+        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
     }
 
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {
@@ -2318,7 +2350,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     effective: u32::MAX,
                 },
             });
-            if !task.state().is_immutable() && self.should_track_activeness() {
+            if self.should_track_activeness() {
                 task.add(CachedDataItem::Activeness {
                     value: ActivenessState::new_root(root_type, task_id),
                 });
@@ -2631,22 +2663,20 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
-            .get_or_create_persistent_task(task_type, parent_task, is_immutable, turbo_tasks)
+            .get_or_create_persistent_task(task_type, parent_task, turbo_tasks)
     }
 
     fn get_or_create_transient_task(
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
-            .get_or_create_transient_task(task_type, parent_task, is_immutable, turbo_tasks)
+            .get_or_create_transient_task(task_type, parent_task, turbo_tasks)
     }
 
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
@@ -2708,6 +2738,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         _memory_usage: usize,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
+        has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool {
         self.0.task_execution_completed(
@@ -2716,6 +2747,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
             _memory_usage,
             cell_counters,
             stateful,
+            has_invalidator,
             turbo_tasks,
         )
     }

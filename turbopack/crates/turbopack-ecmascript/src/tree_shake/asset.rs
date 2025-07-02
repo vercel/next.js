@@ -22,12 +22,12 @@ use crate::{
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
     EcmascriptParsable,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    export_usage::get_module_export_usages,
     parse::ParseResult,
     references::{
         FollowExportsResult, analyse_ecmascript_module, esm::FoundExportType, follow_reexports,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    simple_tree_shake::get_module_export_usages,
     tree_shake::{Key, side_effect_module::SideEffectsModule},
 };
 

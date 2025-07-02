@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     CellId, KeyValuePair, SessionId, TaskExecutionReason, TaskId, TraitTypeId,
@@ -316,9 +316,7 @@ pub struct InProgressStateInner {
     pub done_event: Event,
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
-    ///
-    /// The bool value is `is_immutable` of the child task.
-    pub new_children: FxHashMap<TaskId, bool>,
+    pub new_children: FxHashSet<TaskId>,
 }
 
 #[derive(Debug)]
@@ -454,6 +452,12 @@ pub enum CachedDataItem {
     Stateful {
         value: (),
     },
+    HasInvalidator {
+        value: (),
+    },
+    Immutable {
+        value: (),
+    },
 
     // Transient Root Type
     #[serde(skip)]
@@ -519,6 +523,8 @@ impl CachedDataItem {
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItem::Stateful { .. } => true,
+            CachedDataItem::HasInvalidator { .. } => true,
+            CachedDataItem::Immutable { .. } => true,
             CachedDataItem::Activeness { .. } => false,
             CachedDataItem::InProgress { .. } => false,
             CachedDataItem::InProgressCell { .. } => false,
@@ -577,6 +583,8 @@ impl CachedDataItem {
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
             | Self::Stateful { .. }
+            | Self::HasInvalidator { .. }
+            | Self::Immutable { .. }
             | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
@@ -620,6 +628,8 @@ impl CachedDataItemKey {
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItemKey::Stateful { .. } => true,
+            CachedDataItemKey::HasInvalidator { .. } => true,
+            CachedDataItemKey::Immutable { .. } => true,
             CachedDataItemKey::Activeness { .. } => false,
             CachedDataItemKey::InProgress { .. } => false,
             CachedDataItemKey::InProgressCell { .. } => false,
@@ -657,6 +667,8 @@ impl CachedDataItemType {
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
             | Self::Stateful { .. }
+            | Self::HasInvalidator { .. }
+            | Self::Immutable { .. }
             | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
@@ -689,7 +701,9 @@ impl CachedDataItemType {
             | Self::AggregatedDirtyContainer
             | Self::AggregatedCollectible
             | Self::AggregatedDirtyContainerCount
-            | Self::Stateful => true,
+            | Self::Stateful
+            | Self::HasInvalidator
+            | Self::Immutable => true,
 
             Self::Activeness
             | Self::InProgress

@@ -23,17 +23,9 @@ pub enum ConnectChildOperation {
 }
 
 impl ConnectChildOperation {
-    pub fn run(
-        parent_task_id: TaskId,
-        child_task_id: TaskId,
-        mut is_child_immutable: bool,
-        mut ctx: impl ExecuteContext,
-    ) {
+    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
         if !ctx.should_track_children() {
             let mut task = ctx.task(child_task_id, TaskDataCategory::All);
-            if is_child_immutable {
-                task.mark_as_immutable();
-            }
             if !task.has_key(&CachedDataItemKey::Output {}) {
                 let description = ctx.get_task_desc_fn(child_task_id);
                 let should_schedule = task.add(CachedDataItem::new_scheduled(
@@ -48,11 +40,6 @@ impl ConnectChildOperation {
             return;
         }
 
-        if !is_child_immutable {
-            let task = ctx.task(child_task_id, TaskDataCategory::All);
-            is_child_immutable = task.is_immutable();
-        }
-
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
         let Some(InProgressState::InProgress(box InProgressStateInner { new_children, .. })) =
             get_mut!(parent_task, InProgress)
@@ -61,10 +48,7 @@ impl ConnectChildOperation {
         };
 
         // Quick skip if the child was already connected before
-        if new_children
-            .insert(child_task_id, is_child_immutable)
-            .is_some()
-        {
+        if !new_children.insert(child_task_id) {
             return;
         }
 
@@ -87,20 +71,13 @@ impl ConnectChildOperation {
             });
         }
 
-        // https://vercel.slack.com/archives/C03EWR7LGEN/p1750889741099559
-        // HACK: immutable tracking is broken, disable it for now
-        is_child_immutable = false;
-
         // Immutable tasks cannot be invalidated, meaning that we never reschedule them.
-        if !is_child_immutable && ctx.should_track_activeness() {
+        if ctx.should_track_activeness() {
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
             });
         } else {
             let mut task = ctx.task(child_task_id, TaskDataCategory::All);
-            if is_child_immutable {
-                task.mark_as_immutable();
-            }
 
             if !task.has_key(&CachedDataItemKey::Output {}) {
                 let description = ctx.get_task_desc_fn(child_task_id);

@@ -5,13 +5,13 @@ import {
   decodeReply,
   decodeReplyFromAsyncIterable,
   createTemporaryReferenceSet as createServerTemporaryReferenceSet,
-} from 'react-server-dom-webpack/server.edge'
+} from 'react-server-dom-webpack/server'
 import {
   createFromReadableStream,
   encodeReply,
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
-} from 'react-server-dom-webpack/client.edge'
-import { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
+} from 'react-server-dom-webpack/client'
+import { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
 /* eslint-enable import/no-extraneous-dependencies */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'

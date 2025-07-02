@@ -23,13 +23,13 @@ use crate::{
     EcmascriptModuleContentOptions, EcmascriptOptions, MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGens,
+    export_usage::get_module_export_usages,
     parse::ParseResult,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         esm::{EsmExport, EsmExports, base::EsmAssetReferences},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
-    simple_tree_shake::get_module_export_usages,
 };
 
 /// A module derived from an original ecmascript module that only contains all
