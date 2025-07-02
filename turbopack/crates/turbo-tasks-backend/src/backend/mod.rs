@@ -1604,6 +1604,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ref mut done,
             ref done_event,
             ref mut new_children,
+            session_dependent,
             ..
         }) = in_progress
         else {
@@ -1694,6 +1695,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let task_dependencies_for_immutable =
             // Task was previously marked as immutable
             if !is_immutable
+            // Task is not session dependent (session dependent tasks can change between sessions)
+            && !session_dependent
             // Task has no invalidator
             && !task.has_key(&CachedDataItemKey::HasInvalidator {})
             // This is a hack for the streaming hack.
