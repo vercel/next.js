@@ -49,12 +49,10 @@ fn bench_small_apps(c: &mut Criterion) {
     let (apps_dir, apps) = list_apps();
     let mut g = c.benchmark_group("turbopack/build/apps");
 
-    let thread_count = std::thread::available_parallelism()
-        .expect("failed to get available parallelism")
-        .get()
-        * 3
-        / 2;
+    let num_cpus = num_cpus::get().expect("failed to get available parallelism");
+    let thread_count = num_cpus * 3 / 2;
 
+    eprintln!("num_cpus: {num_cpus}");
     eprintln!("thread_count: {thread_count}");
 
     for app in apps {

@@ -72,6 +72,7 @@ webbrowser = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+num_cpus = "1.17.0"
 regex = { workspace = true }
 turbopack-bench = { workspace = true }
 turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
