@@ -99,7 +99,7 @@ impl Issue for InvalidImportModuleIssue {
 
 /// A resolver plugin emits an error when specific context imports
 /// specified import requests. It doesn't detect if the import is correctly
-/// alised or not unlike webpack-config does; Instead it should be correctly
+/// aliased or not unlike webpack-config does; Instead it should be correctly
 /// configured when each context sets up its resolve options.
 #[turbo_tasks::value]
 pub(crate) struct InvalidImportResolvePlugin {
@@ -151,7 +151,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
 }
 
 /// Returns a resolve plugin if context have imports to `client-only`.
-/// Only the contexts that alises `client-only` to
+/// Only the contexts that aliases `client-only` to
 /// `next/dist/compiled/client-only/error` should use this.
 pub(crate) fn get_invalid_client_only_resolve_plugin(
     root: FileSystemPath,
@@ -168,7 +168,7 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 }
 
 /// Returns a resolve plugin if context have imports to `server-only`.
-/// Only the contexts that alises `server-only` to
+/// Only the contexts that aliases `server-only` to
 /// `next/dist/compiled/server-only/index` should use this.
 pub(crate) fn get_invalid_server_only_resolve_plugin(
     root: FileSystemPath,

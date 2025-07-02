@@ -37,7 +37,7 @@ impl Deref for PackageJson {
 #[turbo_tasks::value(transparent, serialization = "none")]
 pub struct OptionPackageJson(Option<PackageJson>);
 
-/// Reads a package.json file (if it exists). If the file is unparseable, it
+/// Reads a package.json file (if it exists). If the file is unparsable, it
 /// emits a useful [Issue] pointing to the invalid location.
 #[turbo_tasks::function]
 pub async fn read_package_json(path: ResolvedVc<Box<dyn Source>>) -> Result<Vc<OptionPackageJson>> {
@@ -45,7 +45,7 @@ pub async fn read_package_json(path: ResolvedVc<Box<dyn Source>>) -> Result<Vc<O
     match &*read {
         FileJsonContent::Content(_) => Ok(OptionPackageJson(Some(PackageJson(read))).cell()),
         FileJsonContent::NotFound => Ok(OptionPackageJson(None).cell()),
-        FileJsonContent::Unparseable(e) => {
+        FileJsonContent::Unparsable(e) => {
             let error_message = RcStr::from(format!(
                 "package.json is not parseable: invalid JSON: {}",
                 e.message

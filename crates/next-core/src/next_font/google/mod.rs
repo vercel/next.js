@@ -270,7 +270,7 @@ impl NextFontGoogleCssModuleReplacer {
                         .resolved_cell()
                         .emit();
                     }
-                    // Inform the user of the failure to retreive the stylesheet / font, but don't
+                    // Inform the user of the failure to retrieve the stylesheet / font, but don't
                     // propagate this error. We don't want e.g. offline connections to prevent page
                     // renders during development.
                     NextMode::Development => {

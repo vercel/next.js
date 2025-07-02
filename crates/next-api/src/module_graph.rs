@@ -5,7 +5,7 @@ use either::Either;
 use next_core::{
     next_client_reference::{
         ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
-        VisitedClientReferenceGraphNodes, find_server_entries,
+        find_server_entries,
     },
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
@@ -56,30 +56,6 @@ impl NextDynamicGraph {
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
         let mapped = map_next_dynamic(*graph);
-
-        // TODO shrink graph here, using the information from
-        //  - `mapped` (which lists the relevant nodes)
-        //  - `graph.entries` (which lists the page/route/... entries we need to keep)
-
-        // This would clone the graph and allow changing the node weights. We can probably get away
-        // with keeping the sidecar information separate from the graph itself, though.
-        //
-        // let mut reduced_modules: FxHashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> =
-        // FxHashMap::default(); let mut reduced_graph = DiGraph::new();
-        // for idx in graph.node_indices() {
-        //     let weight = *graph.node_weight(idx).unwrap();
-        //     let new_idx = reduced_graph.add_node(weight);
-        //     reduced_modules.insert(weight, new_idx);
-        //     for e in graph.edges_directed(idx, petgraph::Direction::Outgoing) {
-        //         let target_weight = *graph.node_weight(e.target()).context("Missing
-        // target")?;         if let Some(new_target_idx) =
-        // reduced_modules.get(&target_weight) {
-        // reduced_graph.add_edge(new_idx, *new_target_idx, ());         } else {
-        //             let new_idx = reduced_graph.add_node(target_weight);
-        //             reduced_modules.insert(target_weight, new_idx);
-        //         }
-        //     }
-        // }
 
         Ok(NextDynamicGraph {
             is_single_page,
@@ -185,8 +161,6 @@ impl ServerActionsGraph {
     ) -> Result<Vc<Self>> {
         let mapped = map_server_actions(*graph);
 
-        // TODO shrink graph here
-
         Ok(ServerActionsGraph {
             is_single_page,
             graph,
@@ -282,8 +256,6 @@ impl ClientReferencesGraph {
         // TODO if is_single_page, then perform the graph traversal below in map_client_references
         // already, which saves us a traversal.
         let mapped = map_client_references(*graph);
-
-        // TODO shrink graph here
 
         Ok(Self {
             is_single_page,
@@ -390,10 +362,6 @@ impl ClientReferencesGraph {
                 client_references_by_server_component,
                 server_utils: vec![],
                 server_component_entries: vec![],
-                // TODO remove
-                visited_nodes: VisitedClientReferenceGraphNodes::empty()
-                    .to_resolved()
-                    .await?,
             }
             .cell())
         }
@@ -564,20 +532,19 @@ async fn validate_pages_css_imports(
 /// The consumers of this shouldn't need to care about the exact contents since it's abstracted away
 /// by the accessor functions, but
 /// - In dev, contains information about the modules of the current endpoint only
-/// - In prod, there is a single `ReducedGraphs` for the whole app, containing all pages
+/// - In prod, there is a single `GlobalBuildInformation` for the whole app, containing all pages
 #[turbo_tasks::value]
-pub struct ReducedGraphs {
+pub struct GlobalBuildInformation {
     next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
     server_actions: Vec<ResolvedVc<ServerActionsGraph>>,
     client_references: Vec<ResolvedVc<ClientReferencesGraph>>,
     // Data for some more ad-hoc operations
     bare_graphs: ResolvedVc<ModuleGraph>,
     is_single_page: bool,
-    // TODO add other graphs
 }
 
 #[turbo_tasks::value_impl]
-impl ReducedGraphs {
+impl GlobalBuildInformation {
     #[turbo_tasks::function]
     pub async fn new(graphs: Vc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         let graphs_ref = &graphs.await?.graphs;
@@ -809,24 +776,25 @@ impl ReducedGraphs {
 }
 
 #[turbo_tasks::function(operation)]
-fn get_reduced_graphs_for_endpoint_inner_operation(
+fn get_global_information_for_endpoint_inner_operation(
     module_graph: ResolvedVc<ModuleGraph>,
     is_single_page: bool,
-) -> Vc<ReducedGraphs> {
-    ReducedGraphs::new(*module_graph, is_single_page)
+) -> Vc<GlobalBuildInformation> {
+    GlobalBuildInformation::new(*module_graph, is_single_page)
 }
 
-/// Generates a [ReducedGraph] for the given project and endpoint containing information that is
-/// either global (module ids, chunking) or computed globally as a performance optimization (client
-/// references, etc).
+/// Generates a [GlobalBuildInformation] for the given project and endpoint containing information
+/// that is either global (module ids, chunking) or computed globally as a performance optimization
+/// (client references, etc).
 #[turbo_tasks::function]
-pub async fn get_reduced_graphs_for_endpoint(
+pub async fn get_global_information_for_endpoint(
     module_graph: ResolvedVc<ModuleGraph>,
     is_single_page: bool,
-) -> Result<Vc<ReducedGraphs>> {
+) -> Result<Vc<GlobalBuildInformation>> {
     // TODO get rid of this function once everything inside of
-    // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
-    let result_op = get_reduced_graphs_for_endpoint_inner_operation(module_graph, is_single_page);
+    // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
+    let result_op =
+        get_global_information_for_endpoint_inner_operation(module_graph, is_single_page);
     let result_vc = if !is_single_page {
         let result_vc = result_op.resolve_strongly_consistent().await?;
         let _issues = result_op.take_collectibles::<Box<dyn Issue>>();

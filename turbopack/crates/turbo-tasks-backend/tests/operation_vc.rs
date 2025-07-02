@@ -22,8 +22,8 @@ async fn multiply(value: OperationVc<i32>, coefficient: ResolvedVc<i32>) -> Resu
 #[turbo_tasks::function]
 fn use_operations() -> Vc<i32> {
     let twenty_one: OperationVc<i32> = bare_op_fn();
-    let fourty_two: OperationVc<i32> = multiply(twenty_one, ResolvedVc::cell(2));
-    fourty_two.connect()
+    let forty_two: OperationVc<i32> = multiply(twenty_one, ResolvedVc::cell(2));
+    forty_two.connect()
 }
 
 #[tokio::test]

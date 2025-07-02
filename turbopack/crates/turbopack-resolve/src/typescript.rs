@@ -66,7 +66,7 @@ pub async fn read_tsconfigs(
 
         let parsed_data = data.parse_json_with_comments();
         match &*parsed_data.await? {
-            FileJsonContent::Unparseable(e) => {
+            FileJsonContent::Unparsable(e) => {
                 let message = format!("tsconfig is not parseable: invalid JSON: {}", e.message);
                 let source = match (e.start_location, e.end_location) {
                     (None, None) => IssueSource::from_source_only(tsconfig),

@@ -1,12 +1,3 @@
-// This is a patch added by Next.js
-const setTimeoutOrImmediate =
-  typeof globalThis["set" + "Immediate"] === "function" &&
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // but it's made non-enumerable, so we can detect it
-  globalThis.propertyIsEnumerable("setImmediate")
-    ? globalThis["set" + "Immediate"]
-    : (callback, ...args) => setTimeout(callback, 0, ...args);
 /**
  * @license React
  * react-server-dom-webpack-server.edge.production.js
@@ -41,7 +32,7 @@ function getIteratorFn(maybeIterable) {
 }
 var ASYNC_ITERATOR = Symbol.asyncIterator;
 function handleErrorInNextTick(error) {
-  setTimeoutOrImmediate(function () {
+  setTimeout(function () {
     throw error;
   });
 }
@@ -1135,9 +1126,9 @@ function pingTask(request, task) {
       ? scheduleMicrotask(function () {
           return performWork(request);
         })
-      : setTimeoutOrImmediate(function () {
+      : setTimeout(function () {
           return performWork(request);
-        }));
+        }, 0));
 }
 function createTask(request, model, keyPath, implicitSlot, abortSet) {
   request.pendingChunks++;
@@ -1896,20 +1887,20 @@ function startWork(request) {
     : scheduleMicrotask(function () {
         return performWork(request);
       });
-  setTimeoutOrImmediate(function () {
+  setTimeout(function () {
     10 === request.status && (request.status = 11);
-  });
+  }, 0);
 }
 function enqueueFlush(request) {
   !1 === request.flushScheduled &&
     0 === request.pingedTasks.length &&
     null !== request.destination &&
     ((request.flushScheduled = !0),
-    setTimeoutOrImmediate(function () {
+    setTimeout(function () {
       request.flushScheduled = !1;
       var destination = request.destination;
       destination && flushCompletedChunks(request, destination);
-    }));
+    }, 0));
 }
 function callOnAllReadyIfReady(request) {
   0 === request.abortableTasks.size &&

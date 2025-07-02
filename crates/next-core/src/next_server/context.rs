@@ -109,7 +109,7 @@ pub enum ServerContextType {
 }
 
 impl ServerContextType {
-    pub fn supports_react_server(&self) -> bool {
+    pub fn should_use_react_server_condition(&self) -> bool {
         matches!(
             self,
             ServerContextType::AppRSC { .. }
@@ -208,7 +208,7 @@ pub async fn get_server_resolve_options_context(
             .map(RcStr::from),
     );
 
-    if ty.supports_react_server() {
+    if ty.should_use_react_server_condition() {
         custom_conditions.push(rcstr!("react-server"));
     };
 

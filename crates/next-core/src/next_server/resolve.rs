@@ -237,7 +237,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     && package_subpath != "/"
                     && !request_str.ends_with(".js")
                 {
-                    // We have a fallback solution for convinience: If user doesn't
+                    // We have a fallback solution for convenience: If user doesn't
                     // have an extension in the request we try to append ".js"
                     // automatically
                     request_str.push_str(".js");

@@ -5,7 +5,7 @@ import { wellKnownProperties } from '../../shared/lib/utils/reflect-utils'
 interface CacheLifetime {}
 const CachedSearchParams = new WeakMap<CacheLifetime, Promise<SearchParams>>()
 
-export function makeUntrackedExoticSearchParams(
+function makeUntrackedExoticSearchParams(
   underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
@@ -29,4 +29,28 @@ export function makeUntrackedExoticSearchParams(
   })
 
   return promise
+}
+
+function makeUntrackedSearchParams(
+  underlyingSearchParams: SearchParams
+): Promise<SearchParams> {
+  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+  if (cachedSearchParams) {
+    return cachedSearchParams
+  }
+
+  const promise = Promise.resolve(underlyingSearchParams)
+  CachedSearchParams.set(underlyingSearchParams, promise)
+
+  return promise
+}
+
+export function createRenderSearchParamsFromClient(
+  underlyingSearchParams: SearchParams
+): Promise<SearchParams> {
+  if (process.env.__NEXT_DYNAMIC_IO) {
+    return makeUntrackedSearchParams(underlyingSearchParams)
+  }
+
+  return makeUntrackedExoticSearchParams(underlyingSearchParams)
 }

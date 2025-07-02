@@ -65,7 +65,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeInfo, DefineableNameSegment, FreeVarReference,
+        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
         FreeVarReferences, FreeVarReferencesIndividual, InputRelativeConstant,
     },
     environment::Rendering,
@@ -528,7 +528,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new();
     let path = origin.origin_path().await?.clone_value();
 
-    // Is this a typescript file that requires analzying type references?
+    // Is this a typescript file that requires analyzing type references?
     let analyze_types = match &ty {
         EcmascriptModuleAssetType::Typescript { analyze_types, .. } => *analyze_types,
         EcmascriptModuleAssetType::TypescriptDeclaration => true,
@@ -1336,7 +1336,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     span,
                     in_try: _,
                 } => {
-                    // Intentionally not awaited because `handle_member` reads this only when neeed.
+                    // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj = analysis_state.link_value(*obj, ImportAttributes::empty_ref());
 
                     let prop = analysis_state
@@ -1465,42 +1465,42 @@ async fn compile_time_info_for_module_type(
     };
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(rcstr!("import")),
-            DefineableNameSegment::Name(rcstr!("meta")),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(rcstr!("import")),
+            DefinableNameSegment::Name(rcstr!("meta")),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("object".into());
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(rcstr!("exports")),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(rcstr!("exports")),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert(typeof_exports.into());
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(rcstr!("module")),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(rcstr!("module")),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert(typeof_module.into());
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(rcstr!("require")),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(rcstr!("require")),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("function".into());
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(rcstr!("require"))])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("require"))])
         .or_insert(require.into());
 
     let dir_name: RcStr = rcstr!("__dirname");
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(dir_name.clone()),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(dir_name.clone()),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("string".into());
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(dir_name)])
+        .entry(vec![DefinableNameSegment::Name(dir_name)])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::DirName,
         ));
@@ -1508,12 +1508,12 @@ async fn compile_time_info_for_module_type(
 
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(file_name.clone()),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(file_name.clone()),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("string".into());
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(file_name)])
+        .entry(vec![DefinableNameSegment::Name(file_name)])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::FileName,
         ));
@@ -1522,18 +1522,18 @@ async fn compile_time_info_for_module_type(
     let global: RcStr = rcstr!("global");
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(global.clone()),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(global.clone()),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("object".into());
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(global)])
+        .entry(vec![DefinableNameSegment::Name(global)])
         .or_insert(FreeVarReference::Ident("globalThis".into()));
 
     free_var_references.extend(TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
             (
-                vec![DefineableNameSegment::Name(name.into())],
+                vec![DefinableNameSegment::Name(name.into())],
                 shortcut.into(),
             )
         },
@@ -1544,7 +1544,7 @@ async fn compile_time_info_for_module_type(
     // here.
     let this = rcstr!("this");
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(this.clone())])
+        .entry(vec![DefinableNameSegment::Name(this.clone())])
         .or_insert(if is_esm {
             FreeVarReference::Value(CompileTimeDefineValue::Undefined)
         } else {
@@ -1554,8 +1554,8 @@ async fn compile_time_info_for_module_type(
         });
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(this),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(this),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert(if is_esm {
             "undefined".into()
@@ -2446,7 +2446,7 @@ async fn handle_member(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
-        let prop_seg = DefineableNameSegment::Name(prop.into());
+        let prop_seg = DefinableNameSegment::Name(prop.into());
 
         let references = state.free_var_references.get(&prop_seg);
         let is_prop_cache = prop == "cache";
@@ -2460,14 +2460,14 @@ async fn handle_member(
 
         if let Some(references) = references {
             let obj = obj.as_ref().unwrap();
-            if let Some(def_name_len) = obj.get_defineable_name_len() {
+            if let Some(def_name_len) = obj.get_definable_name_len() {
                 for (name, value) in references {
                     if name.len() != def_name_len {
                         continue;
                     }
 
                     let it = name.iter().map(Cow::Borrowed).rev();
-                    if it.eq(obj.iter_defineable_name_rev())
+                    if it.eq(obj.iter_definable_name_rev())
                         && handle_free_var_reference(
                             ast_path,
                             &*value.await?,
@@ -2504,7 +2504,7 @@ async fn handle_typeof(
     if let Some(value) = arg.match_free_var_reference(
         Some(state.var_graph),
         &*state.free_var_references,
-        &DefineableNameSegment::TypeOf,
+        &DefinableNameSegment::TypeOf,
     ) {
         handle_free_var_reference(ast_path, &*value.await?, span, state, analysis).await?;
     }
@@ -2519,8 +2519,8 @@ async fn handle_free_var(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some(def_name_len) = var.get_defineable_name_len() {
-        let first = var.iter_defineable_name_rev().next().unwrap();
+    if let Some(def_name_len) = var.get_definable_name_len() {
+        let first = var.iter_definable_name_rev().next().unwrap();
         if let Some(references) = state.free_var_references.get(&*first) {
             for (name, value) in references {
                 if name.len() + 1 != def_name_len {
@@ -2528,7 +2528,7 @@ async fn handle_free_var(
                 }
 
                 let it = name.iter().map(Cow::Borrowed).rev();
-                if it.eq(var.iter_defineable_name_rev().skip(1)) {
+                if it.eq(var.iter_definable_name_rev().skip(1)) {
                     handle_free_var_reference(ast_path, &*value.await?, span, state, analysis)
                         .await?;
                     return Ok(());
@@ -2868,8 +2868,8 @@ async fn value_visitor(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     free_var_references: &FxIndexMap<
-        DefineableNameSegment,
-        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+        DefinableNameSegment,
+        FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
@@ -2892,21 +2892,21 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     free_var_references: &FxIndexMap<
-        DefineableNameSegment,
-        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+        DefinableNameSegment,
+        FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
     // This check is just an optimization
-    if v.get_defineable_name_len().is_some() {
+    if v.get_definable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
         if let JsValue::TypeOf(_, arg) = &v
             && let Some(value) = arg.match_free_var_reference(
                 Some(var_graph),
                 free_var_references,
-                &DefineableNameSegment::TypeOf,
+                &DefinableNameSegment::TypeOf,
             )
         {
             return Ok(((&*value.await?).into(), true));

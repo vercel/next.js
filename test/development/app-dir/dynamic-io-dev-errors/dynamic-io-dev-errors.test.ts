@@ -79,39 +79,74 @@ describe('Dynamic IO Dev Errors', () => {
       )
     })
 
-    expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
-      `\nError: Route "/no-accessed-data": ` +
-        `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
-        `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
-        `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
-        '\n    at Page [Server] (<anonymous>)' +
-        (isTurbopack
-          ? '\n    at main (<anonymous>)' +
-            '\n    at body (<anonymous>)' +
-            '\n    at html (<anonymous>)' +
-            '\n    at Root [Server] (<anonymous>)' +
-            // Just need some string to assert that this is the whole stack
-            '\n GET /no-accessed-data 200'
-          : // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
-            '\n    at InnerLayoutRouter (..')
-    )
+    if (isTurbopack) {
+      const normalizedCliOutput = stripAnsi(
+        next.cliOutput.slice(outputIndex)
+      ).replaceAll(`file:` + next.testDir, '<FIXME-file-protocol>')
 
-    await expect(browser).toDisplayCollapsedRedbox(`
-     {
-       "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-       "environmentLabel": "Server",
-       "label": "Console Error",
-       "source": null,
-       "stack": [
-         "Page [Server] <anonymous> (1:22)",
-         "main <anonymous> (1:13)",
-         "body <anonymous> (1:13)",
-         "html <anonymous> (1:13)",
-         "Root [Server] <anonymous> (1:22)",
-         "LogSafely <anonymous> (0:0)",
-       ],
-     }
-    `)
+      expect(normalizedCliOutput).toContain(
+        `\nError: Route "/no-accessed-data": ` +
+          `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
+          `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
+          `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
+          (isTurbopack
+            ? '\n    at Page (<FIXME-file-protocol>/app/no-accessed-data/page.js:1:30)' +
+              '\n    at main (<anonymous>)' +
+              '\n    at body (<anonymous>)' +
+              '\n    at html (<anonymous>)' +
+              '\n    at Root [Server] (<anonymous>)' +
+              '\n> 1 | export default async function Page() {' +
+              '\n    |                              ^' +
+              '\n  2 |   await new Promise((r) => setTimeout(r, 200))'
+            : '\n    at Page (app/no-accessed-data/page.js:1:30)' +
+              // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
+              '\n    at InnerLayoutRouter (..')
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+         "environmentLabel": "Server",
+         "label": "Console Error",
+         "source": null,
+         "stack": [
+           "<FIXME-file-protocol>",
+           "main <anonymous> (1:13)",
+           "body <anonymous> (1:13)",
+           "html <anonymous> (1:13)",
+           "Root [Server] <anonymous> (1:22)",
+           "LogSafely <anonymous> (0:0)",
+         ],
+       }
+      `)
+    } else {
+      expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
+        `\nError: Route "/no-accessed-data": ` +
+          `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
+          `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
+          `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
+          '\n    at Page (app/no-accessed-data/page.js:1:30)' +
+          // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
+          '\n    at InnerLayoutRouter (..'
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+         "environmentLabel": "Server",
+         "label": "Console Error",
+         "source": "app/no-accessed-data/page.js (1:31) @ Page
+       > 1 | export default async function Page() {
+           |                               ^",
+         "stack": [
+           "Page app/no-accessed-data/page.js (1:31)",
+           "main <anonymous> (1:13)",
+           "body <anonymous> (1:13)",
+           "html <anonymous> (1:13)",
+           "Root [Server] <anonymous> (1:22)",
+           "LogSafely <anonymous> (0:0)",
+         ],
+       }
+      `)
+    }
   })
 
   it('should clear segment errors after correcting them', async () => {

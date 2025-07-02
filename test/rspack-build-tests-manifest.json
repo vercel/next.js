@@ -2134,10 +2134,10 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.platform-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete"
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete"
     ],
     "failed": [],
     "pending": [],
@@ -2170,14 +2170,14 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access"
+      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access"
     ],
     "failed": [],
     "pending": [],
@@ -2186,18 +2186,18 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)"
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)"
     ],
     "failed": [],
     "pending": [],
@@ -2206,24 +2206,24 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Dynamic IO Errors - With Minification Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
-      "Dynamic IO Errors - With Minification Static Route should not error the build when all routes are static",
-      "Dynamic IO Errors - Without Minification Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Dynamic IO Errors - Without Minification Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
-      "Dynamic IO Errors - Without Minification Static Route should not error the build when all routes are static"
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
+      "Dynamic IO Errors - Build With --prerender-debug Static Route should not error the build when all routes are static",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
+      "Dynamic IO Errors - Build Without --prerender-debug Static Route should not error the build when all routes are static"
     ],
     "failed": [],
     "pending": [],
@@ -4149,6 +4149,7 @@
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with prerendered dynamic routes  should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
@@ -5296,16 +5297,14 @@
   },
   "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
     "passed": [],
-    "failed": [
-      "Invalid Global CSS with Custom App production only should fail to build"
-    ],
+    "failed": ["Invalid Global CSS with Custom App should fail to build"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
     "passed": [],
-    "failed": ["Invalid Global CSS production only should fail to build"],
+    "failed": ["Invalid Global CSS should fail to build"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5529,7 +5528,7 @@
   "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
     "passed": [],
     "failed": [
-      "Valid and Invalid Global CSS with Custom App production only should fail to build"
+      "Valid and Invalid Global CSS with Custom App should fail to build"
     ],
     "pending": [],
     "flakey": [],
@@ -5603,6 +5602,7 @@
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
+      "segment cache (basic tests) prefetch interception route with params",
       "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
@@ -5616,7 +5616,7 @@
     "passed": [
       "segment cache (CDN cache busting) perform fully prefetched navigation when a third-party proxy performs a redirect",
       "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
-      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
+      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with a redirect to correct cache busting query param if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
     "failed": [],
     "pending": [],
@@ -7245,6 +7245,8 @@
       "react version App Router page headers with nodejs runtime",
       "react version App Router page with edge runtime",
       "react version App Router page with nodejs runtime",
+      "react version Pages Router API route with edge runtime",
+      "react version Pages Router API route with nodejs runtime",
       "react version Pages Router page headers with edge runtime",
       "react version Pages Router page headers with nodejs runtime",
       "react version Pages Router page with edge runtime",
@@ -19636,11 +19638,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

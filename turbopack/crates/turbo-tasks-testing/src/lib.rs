@@ -154,7 +154,7 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn invalidate_serialization(&self, _task: TaskId) {
-        // ingore
+        // ignore
     }
 
     fn notify_scheduled_tasks(&self) {

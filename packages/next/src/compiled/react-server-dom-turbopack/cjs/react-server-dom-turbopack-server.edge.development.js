@@ -11,15 +11,6 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
-    // This is a patch added by Next.js
-    const setTimeoutOrImmediate =
-      typeof globalThis["set" + "Immediate"] === "function" &&
-      // edge runtime sandbox defines a stub for setImmediate
-      // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-      // but it's made non-enumerable, so we can detect it
-      globalThis.propertyIsEnumerable("setImmediate")
-        ? globalThis["set" + "Immediate"]
-        : (callback, ...args) => setTimeout(callback, 0, ...args);
     function voidHandler() {}
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
@@ -51,7 +42,7 @@
       return obj;
     }
     function handleErrorInNextTick(error) {
-      setTimeoutOrImmediate(function () {
+      setTimeout(function () {
         throw error;
       });
     }
@@ -1664,9 +1655,9 @@
           ? scheduleMicrotask(function () {
               return performWork(request);
             })
-          : setTimeoutOrImmediate(function () {
+          : setTimeout(function () {
               return performWork(request);
-            }));
+            }, 0));
     }
     function createTask(
       request,
@@ -3233,20 +3224,20 @@
         : scheduleMicrotask(function () {
             return performWork(request);
           });
-      setTimeoutOrImmediate(function () {
+      setTimeout(function () {
         10 === request.status && (request.status = 11);
-      });
+      }, 0);
     }
     function enqueueFlush(request) {
       !1 === request.flushScheduled &&
         0 === request.pingedTasks.length &&
         null !== request.destination &&
         ((request.flushScheduled = !0),
-        setTimeoutOrImmediate(function () {
+        setTimeout(function () {
           request.flushScheduled = !1;
           var destination = request.destination;
           destination && flushCompletedChunks(request, destination);
-        }));
+        }, 0));
     }
     function callOnAllReadyIfReady(request) {
       0 === request.abortableTasks.size &&

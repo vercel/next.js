@@ -12,7 +12,7 @@ use swc_core::{
 };
 
 /// The values extracted for the corresponding AST node.
-/// refer extract_expored_const_values for the supported value types.
+/// refer extract_exported_const_values for the supported value types.
 /// Undefined / null is treated as None.
 pub enum Const {
     Value(Value, Span),
@@ -207,7 +207,7 @@ fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
                             // TemplateLiteral, the parser yields the first quasi,
                             // then the first expression, then the next quasi, then the next
                             // expression, etc., until the last quasi.
-                            // Thus if there is no expression, the parser ends at the frst and also
+                            // Thus if there is no expression, the parser ends at the first and also
                             // last quasis
                             //
                             // A "cooked" interpretation where backslashes have special meaning,

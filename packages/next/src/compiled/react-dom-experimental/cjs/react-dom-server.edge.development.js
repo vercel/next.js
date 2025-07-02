@@ -35,15 +35,6 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
-    // This is a patch added by Next.js
-    const setTimeoutOrImmediate =
-      typeof globalThis["set" + "Immediate"] === "function" &&
-      // edge runtime sandbox defines a stub for setImmediate
-      // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-      // but it's made non-enumerable, so we can detect it
-      globalThis.propertyIsEnumerable("setImmediate")
-        ? globalThis["set" + "Immediate"]
-        : (callback, ...args) => setTimeout(callback, 0, ...args);
     function styleReplacer(match, prefix, s, suffix) {
       return "" + prefix + ("s" === s ? "\\73 " : "\\53 ") + suffix;
     }
@@ -277,7 +268,7 @@
       return (h1 ^ (h1 >>> 16)) >>> 0;
     }
     function handleErrorInNextTick(error) {
-      setTimeoutOrImmediate(function () {
+      setTimeout(function () {
         throw error;
       });
     }
@@ -5140,9 +5131,9 @@
           ? scheduleMicrotask(function () {
               return performWork(request);
             })
-          : setTimeoutOrImmediate(function () {
+          : setTimeout(function () {
               return performWork(request);
-            }));
+            }, 0));
     }
     function createSuspenseBoundary(
       request,
@@ -9374,7 +9365,7 @@
         : scheduleMicrotask(function () {
             return performWork(request);
           });
-      setTimeoutOrImmediate(function () {
+      setTimeout(function () {
         10 === request.status && (request.status = 11);
         null === request.trackedPostpones &&
           (supportsRequestStorage
@@ -9384,7 +9375,7 @@
                 request
               )
             : enqueueEarlyPreloadsAfterInitialWork(request));
-      });
+      }, 0);
     }
     function enqueueEarlyPreloadsAfterInitialWork(request) {
       safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -9394,12 +9385,12 @@
         0 === request.pingedTasks.length &&
         null !== request.destination &&
         ((request.flushScheduled = !0),
-        setTimeoutOrImmediate(function () {
+        setTimeout(function () {
           var destination = request.destination;
           destination
             ? flushCompletedQueues(request, destination)
             : (request.flushScheduled = !1);
-        }));
+        }, 0));
     }
     function startFlowing(request, destination) {
       if (13 === request.status)
@@ -9511,11 +9502,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-65c4decb-20250630" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-7216c0f0-20250630" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-65c4decb-20250630\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-7216c0f0-20250630\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11330,5 +11321,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-experimental-65c4decb-20250630";
+    exports.version = "19.2.0-experimental-7216c0f0-20250630";
   })();

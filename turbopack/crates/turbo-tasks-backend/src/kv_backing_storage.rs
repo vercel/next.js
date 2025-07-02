@@ -262,12 +262,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 {
     type ReadTransaction<'l> = T::ReadTransaction<'l>;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        T::lower_read_transaction(tx)
-    }
-
     fn next_free_task_id(&self) -> Result<TaskId> {
         Ok(TaskId::try_from(
             self.inner
@@ -304,7 +298,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
-    fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
+    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
         serialize(task, data)
     }
 
