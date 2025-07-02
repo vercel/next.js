@@ -124,19 +124,17 @@ impl EsRegex {
         }
     }
 
-    pub fn captures<'h>(&self, haystack: &'h str) -> Option<impl Iterator<Item = &'h str>> {
+    pub fn captures<'h>(&self, haystack: &'h str) -> Option<Vec<&'h str>> {
         match &self.delegate {
             EsRegexImpl::Regex(r) => r.captures(haystack).map(|caps| {
                 caps.iter()
                     .map(|m| m.map(|m| m.as_str()).unwrap_or(""))
                     .collect::<Vec<_>>()
-                    .into_iter()
             }),
             EsRegexImpl::Regress(r) => r.find(haystack).map(|m| {
                 m.groups()
                     .map(|range_opt| range_opt.map(|range| &haystack[range]).unwrap_or(""))
                     .collect::<Vec<_>>()
-                    .into_iter()
             }),
         }
     }
@@ -185,7 +183,7 @@ mod tests {
 
         let captures = regex.captures("Today is 2024-01-15");
         assert!(captures.is_some());
-        let caps: Vec<&str> = captures.unwrap().collect();
+        let caps: Vec<&str> = captures.unwrap();
         assert_eq!(caps.len(), 4); // full match + 3 groups
         assert_eq!(caps[0], "2024-01-15"); // full match
         assert_eq!(caps[1], "2024"); // year
@@ -203,7 +201,7 @@ mod tests {
 
         let captures = regex.captures("foobaz");
         assert!(captures.is_some());
-        let caps: Vec<&str> = captures.unwrap().collect();
+        let caps: Vec<&str> = captures.unwrap();
         assert_eq!(caps.len(), 2); // full match + 1 group
         assert_eq!(caps[0], "foo"); // full match
         assert_eq!(caps[1], "foo"); // captured group
