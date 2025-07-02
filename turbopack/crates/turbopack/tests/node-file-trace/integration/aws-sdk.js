@@ -1,3 +1,3 @@
-const { S3 } = require('@aws-sdk/client-s3')
+const aws = require('aws-sdk')
 
-new S3()
+new aws.S3()
