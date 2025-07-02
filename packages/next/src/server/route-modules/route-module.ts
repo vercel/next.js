@@ -56,6 +56,7 @@ import {
   type RouterServerContext,
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -672,7 +673,9 @@ export abstract class RouteModule<
       const nextConfig =
         routerServerContext?.nextConfig || serverFilesManifest.config
 
-      let resolvedPathname = getRequestMeta(req, 'rewroteURL') || srcPage
+      const normalizedSrcPage = normalizeAppPath(srcPage)
+      let resolvedPathname =
+        getRequestMeta(req, 'rewroteURL') || normalizedSrcPage
 
       if (isDynamicRoute(resolvedPathname) && params) {
         resolvedPathname = serverUtils.interpolateDynamicPath(
