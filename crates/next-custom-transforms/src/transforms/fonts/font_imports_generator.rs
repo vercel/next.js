@@ -1,10 +1,10 @@
 use serde_json::Value;
 use swc_core::{
-    common::{DUMMY_SP, Spanned, errors::HANDLER},
+    common::{errors::HANDLER, Spanned, DUMMY_SP},
     ecma::{
         ast::*,
         atoms::Atom,
-        visit::{Visit, noop_visit_type},
+        visit::{noop_visit_type, Visit},
     },
 };
 

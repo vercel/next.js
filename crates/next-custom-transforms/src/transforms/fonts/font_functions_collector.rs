@@ -3,7 +3,7 @@ use swc_core::{
     ecma::{
         ast::*,
         atoms::Atom,
-        visit::{Visit, noop_visit_type},
+        visit::{noop_visit_type, Visit},
     },
 };
 
