@@ -27,7 +27,7 @@ async function ParamsReadingComponent({ params }) {
 }
 
 // This component ensures that we're creating a partially prerendered page, so
-// that we also test that there are no sync search params defined during the
+// that we also test that there are no sync params defined during the
 // resume.
 async function Dynamic() {
   await connection()

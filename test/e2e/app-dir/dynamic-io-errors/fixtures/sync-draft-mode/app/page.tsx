@@ -1,4 +1,6 @@
 import { draftMode, UnsafeUnwrappedDraftMode } from 'next/headers'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 
 export default async function Page() {
   return (
@@ -21,6 +23,17 @@ async function DraftModeReadingComponent() {
     <div>
       this component read the draftMode isEnabled status synchronously:{' '}
       <span id="draft-mode">{String(isEnabled)}</span>
+      <Suspense>
+        <Dynamic />
+      </Suspense>
     </div>
   )
+}
+
+// This component ensures that we're creating a partially prerendered page, so
+// that we also test that there is no sync draftMode defined during the resume.
+async function Dynamic() {
+  await connection()
+
+  return null
 }

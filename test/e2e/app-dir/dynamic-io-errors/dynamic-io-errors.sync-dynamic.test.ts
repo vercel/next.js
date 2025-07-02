@@ -339,9 +339,9 @@ describe.each(
           throw new Error('expected build not to fail')
         }
 
-        expect(next.cliOutput).toContain('○ / ')
-        const $ = await next.render$('/')
-        expect($('#draft-mode').text()).toBe('undefined')
+        expect(next.cliOutput).toContain('◐ / ')
+        const browser = await next.browser('/')
+        expect(await browser.elementById('draft-mode').text()).toBe('undefined')
       })
     }
   })
