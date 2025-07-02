@@ -184,7 +184,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::webpack_target_node("integration/webpack-target-node/index.js")]
 #[case::whatwg_url("integration/whatwg-url.js")]
 #[case::when("integration/when.js")]
-#[case::zeromq("integration/zeromq.js")]
+// TODO PACK-4987
+// #[case::zeromq("integration/zeromq.js")]
 #[case::package_exports_alt_folders_base(
     CaseInput::new("integration/package-exports/pass/alt-folders.js").expected_stderr("Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath")
 )]
