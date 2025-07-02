@@ -2817,6 +2817,7 @@
         if ("object" === typeof value && null !== value) {
           if (value[0] === REACT_ELEMENT_TYPE)
             b: {
+              var owner = value[4];
               key = value[5];
               var validated = value[6];
               value = {
@@ -2824,7 +2825,7 @@
                 type: value[1],
                 key: value[2],
                 props: value[3],
-                _owner: value[4]
+                _owner: void 0 === owner ? null : owner
               };
               Object.defineProperty(value, "ref", {
                 enumerable: !1,
@@ -2847,7 +2848,7 @@
                 configurable: !1,
                 enumerable: !1,
                 writable: !0,
-                value: key
+                value: void 0 === key ? null : key
               });
               Object.defineProperty(value, "_debugTask", {
                 configurable: !1,

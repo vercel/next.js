@@ -17,8 +17,8 @@ fn decide(remaining: usize, min_remaining_decisions: usize) -> bool {
     } else if min_remaining_decisions <= remaining {
         true
     } else {
-        let urgentness = min_remaining_decisions / remaining;
-        (min_remaining_decisions * 11 * 7 * 5) % urgentness == 0
+        let urgency = min_remaining_decisions / remaining;
+        (min_remaining_decisions * 11 * 7 * 5) % urgency == 0
     }
 }
 
@@ -28,8 +28,8 @@ fn decide_early(remaining: usize, min_remaining_decisions: usize) -> bool {
     } else if min_remaining_decisions <= remaining {
         true
     } else {
-        let urgentness = min_remaining_decisions / remaining / remaining;
-        (min_remaining_decisions * 11 * 7 * 5) % urgentness == 0
+        let urgency = min_remaining_decisions / remaining / remaining;
+        (min_remaining_decisions * 11 * 7 * 5) % urgency == 0
     }
 }
 

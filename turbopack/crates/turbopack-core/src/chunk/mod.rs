@@ -389,7 +389,7 @@ pub trait ChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(self: Vc<Self>) -> Vc<AssetIdent>;
     /// A [AssetIdent] that uniquely identifies the content of this [ChunkItem].
-    /// It is unusally identical to [ChunkItem::asset_ident] but can be
+    /// It is usually identical to [ChunkItem::asset_ident] but can be
     /// different when the chunk item content depends on available modules e. g.
     /// for chunk loaders.
     #[turbo_tasks::function]

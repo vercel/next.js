@@ -108,10 +108,6 @@ jobs:
       - id: test-result
         name: Set test result variable
         run: echo 'immediately-close=${{ needs.test-deploy.result != 'success' && 'true' || 'false' }}' >> "$GITHUB_OUTPUT"
-      - name: Check token
-        run: gh auth status
-        env:
-          github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
       - uses: actions/github-script@v7
         name: Trigger vercel/front sync
         id: trigger-front-sync

@@ -164,7 +164,7 @@ fn add_with_diff(v: &mut i32, u: i32) -> i32 {
     }
 }
 
-/// Represents a count of dirty containers. Since dirtyness can be session dependent, there might be
+/// Represents a count of dirty containers. Since dirtiness can be session dependent, there might be
 /// a different count for a specific session. It only need to store the highest session count, since
 /// old sessions can't be visited again, so we can ignore their counts.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -280,7 +280,7 @@ impl DirtyContainerCount {
         diff
     }
 
-    /// Returns true if the count is zero and appling it would have no effect
+    /// Returns true if the count is zero and applying it would have no effect
     pub fn is_zero(&self) -> bool {
         self.count == 0 && self.count_in_session.map(|(_, c)| c == 0).unwrap_or(true)
     }

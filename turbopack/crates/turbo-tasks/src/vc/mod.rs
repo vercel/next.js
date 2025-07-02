@@ -62,7 +62,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 ///   re-executed.
 ///
 /// - `Vc` types are always [`Copy`]. Most [`Future`]s are not. This works because `Vc`s are
-///   represented as a few ids or indicies into data structures managed by the `turbo-tasks`
+///   represented as a few ids or indices into data structures managed by the `turbo-tasks`
 ///   framework. `Vc` types are not reference counted, but do support [tracing] for a hypothetical
 ///   (unimplemented) garbage collector.
 ///

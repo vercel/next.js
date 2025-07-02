@@ -493,6 +493,10 @@ function assignDefaults(
     }
   }
 
+  if (result.experimental.devtoolNewPanelUI) {
+    result.experimental.devtoolSegmentExplorer = true
+  }
+
   warnCustomizedOption(
     result,
     'experimental.esmExternals',

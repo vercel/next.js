@@ -70,7 +70,7 @@ use crate::{
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::get_reduced_graphs_for_endpoint,
+    module_graph::get_global_information_for_endpoint,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -1012,7 +1012,7 @@ impl PageEndpoint {
 
                 let client_module_graph = self.client_module_graph();
 
-                let reduced_graphs = get_reduced_graphs_for_endpoint(
+                let global_information = get_global_information_for_endpoint(
                     client_module_graph,
                     *project.per_page_module_graph().await?,
                 );
@@ -1043,12 +1043,12 @@ impl PageEndpoint {
                         .await?
                         .module();
 
-                    reduced_graphs
+                    global_information
                         .validate_pages_css_imports(self.client_module(), app_module)
                         .await?;
                 }
 
-                let next_dynamic_imports = reduced_graphs
+                let next_dynamic_imports = global_information
                     .get_next_dynamic_imports_for_endpoint(self.client_module())
                     .await?;
                 Some((next_dynamic_imports, client_availability_info))

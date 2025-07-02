@@ -1,7 +1,14 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useState, createContext, useContext, use, useMemo } from 'react'
+import {
+  useState,
+  createContext,
+  useContext,
+  use,
+  useMemo,
+  useCallback,
+} from 'react'
 import { useLayoutEffect } from 'react'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
 import { notFound } from '../../../client/components/not-found'
@@ -117,8 +124,27 @@ export function SegmentStateProvider({ children }: { children: ReactNode }) {
     'not-found' | 'error' | 'loading' | null
   >(null)
 
+  const [errorBoundaryKey, setErrorBoundaryKey] = useState(0)
+  const reloadBoundary = useCallback(
+    () => setErrorBoundaryKey((prev) => prev + 1),
+    []
+  )
+
+  const setBoundaryTypeAndReload = useCallback(
+    (type: 'not-found' | 'error' | 'loading' | null) => {
+      if (type === null) {
+        reloadBoundary()
+      }
+      setBoundaryType(type)
+    },
+    [reloadBoundary]
+  )
+
   return (
-    <SegmentStateContext.Provider value={{ boundaryType, setBoundaryType }}>
+    <SegmentStateContext.Provider
+      key={errorBoundaryKey}
+      value={{ boundaryType, setBoundaryType: setBoundaryTypeAndReload }}
+    >
       {children}
     </SegmentStateContext.Provider>
   )

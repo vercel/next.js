@@ -57,6 +57,7 @@ ignored = [
 anyhow = "1.0.66"
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
+either = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
 napi-derive = "2"

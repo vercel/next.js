@@ -169,7 +169,7 @@ pub enum ParseCssResult {
         #[turbo_tasks(trace_ignore)]
         options: ParserOptions<'static, 'static>,
     },
-    Unparseable,
+    Unparsable,
     NotFound,
 }
 
@@ -188,7 +188,7 @@ pub enum CssWithPlaceholderResult {
         #[turbo_tasks(trace_ignore)]
         placeholders: FxHashMap<String, Url<'static>>,
     },
-    Unparseable,
+    Unparsable,
     NotFound,
 }
 
@@ -203,7 +203,7 @@ pub enum FinalCssResult {
 
         source_map: ResolvedVc<OptionStringifiedSourceMap>,
     },
-    Unparseable,
+    Unparsable,
     NotFound,
 }
 
@@ -257,7 +257,7 @@ pub async fn process_css_with_placeholder(
             }
             .cell())
         }
-        ParseCssResult::Unparseable => Ok(CssWithPlaceholderResult::Unparseable.cell()),
+        ParseCssResult::Unparsable => Ok(CssWithPlaceholderResult::Unparsable.cell()),
         ParseCssResult::NotFound => Ok(CssWithPlaceholderResult::NotFound.cell()),
     }
 }
@@ -284,7 +284,7 @@ pub async fn finalize_css(
                     code,
                     ..
                 } => (stylesheet.to_static(options.clone()), *code),
-                ParseCssResult::Unparseable => return Ok(FinalCssResult::Unparseable.into()),
+                ParseCssResult::Unparsable => return Ok(FinalCssResult::Unparsable.into()),
                 ParseCssResult::NotFound => return Ok(FinalCssResult::NotFound.into()),
             };
 
@@ -331,7 +331,7 @@ pub async fn finalize_css(
             }
             .into())
         }
-        CssWithPlaceholderResult::Unparseable => Ok(FinalCssResult::Unparseable.into()),
+        CssWithPlaceholderResult::Unparsable => Ok(FinalCssResult::Unparsable.into()),
         CssWithPlaceholderResult::NotFound => Ok(FinalCssResult::NotFound.into()),
     }
 }
@@ -371,11 +371,11 @@ pub async fn parse_css(
         let content = source.content();
         let ident_str = &*source.ident().to_string().await?;
         Ok(match &*content.await? {
-            AssetContent::Redirect { .. } => ParseCssResult::Unparseable.cell(),
+            AssetContent::Redirect { .. } => ParseCssResult::Unparsable.cell(),
             AssetContent::File(file_content) => match &*file_content.await? {
                 FileContent::NotFound => ParseCssResult::NotFound.cell(),
                 FileContent::Content(file) => match file.content().to_str() {
-                    Err(_err) => ParseCssResult::Unparseable.cell(),
+                    Err(_err) => ParseCssResult::Unparsable.cell(),
                     Ok(string) => {
                         process_content(
                             *file_content,
@@ -490,7 +490,7 @@ async fn process_content(
                             }
                             .resolved_cell()
                             .emit();
-                            return Ok(ParseCssResult::Unparseable.cell());
+                            return Ok(ParseCssResult::Unparsable.cell());
                         }
 
                         _ => {
@@ -533,7 +533,7 @@ async fn process_content(
                 }
                 .resolved_cell()
                 .emit();
-                return Ok(ParseCssResult::Unparseable.cell());
+                return Ok(ParseCssResult::Unparsable.cell());
             }
         }
     });

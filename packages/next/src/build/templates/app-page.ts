@@ -41,7 +41,6 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache'
-import { decodePathParams } from '../../server/lib/router-utils/decode-path-params'
 import { FallbackMode, parseFallbackField } from '../../lib/fallback'
 import RenderResult from '../../server/render-result'
 import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
@@ -156,7 +155,7 @@ export async function handler(
     subresourceIntegrityManifest,
     prerenderManifest,
     isDraftMode,
-
+    resolvedPathname,
     revalidateOnlyGenerated,
     routerServerContext,
     nextConfig,
@@ -166,16 +165,6 @@ export async function handler(
   const normalizedSrcPage = normalizeAppPath(srcPage)
 
   let { isOnDemandRevalidate } = prepareResult
-
-  // TODO: rework this to not be necessary as a middleware
-  // rewrite should not need to pass this context like this
-  // maybe we rely on rewrite header instead
-  let resolvedPathname = getRequestMeta(req, 'rewroteURL') || pathname
-
-  if (resolvedPathname === '/index') {
-    resolvedPathname = '/'
-  }
-  resolvedPathname = decodePathParams(resolvedPathname)
 
   const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
   const isPrerendered = prerenderManifest.routes[resolvedPathname]

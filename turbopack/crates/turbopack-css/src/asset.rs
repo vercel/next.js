@@ -147,7 +147,7 @@ impl Module for CssModuleAsset {
 
         match &*result {
             ParseCssResult::Ok { references, .. } => Ok(**references),
-            ParseCssResult::Unparseable => Ok(ModuleReferences::empty()),
+            ParseCssResult::Unparsable => Ok(ModuleReferences::empty()),
             ParseCssResult::NotFound => Ok(ModuleReferences::empty()),
         }
     }
@@ -316,7 +316,7 @@ impl CssChunkItem for CssModuleChunkItem {
         // need to keep that around to allow references into that
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
-        // TOOD use interval tree with references into "code_gens"
+        // TODO use interval tree with references into "code_gens"
         for code_gen in code_gens {
             for import in &code_gen.imports {
                 imports.push(import.clone());
@@ -344,7 +344,7 @@ impl CssChunkItem for CssModuleChunkItem {
         } else {
             Ok(CssChunkItemContent {
                 inner_code: format!(
-                    "/* unparseable {} */",
+                    "/* unparsable {} */",
                     self.module.ident().to_string().await?
                 )
                 .into(),

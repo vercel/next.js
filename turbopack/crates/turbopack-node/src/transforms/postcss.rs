@@ -460,7 +460,7 @@ impl PostCssTransformedAsset {
             env,
         } = &*self.execution_context.await?;
 
-        // For this postcss transform, there is no gaurantee that looking up for the
+        // For this postcss transform, there is no guarantee that looking up for the
         // source path will arrives specific project config for the postcss.
         // i.e, this is possible
         // - root

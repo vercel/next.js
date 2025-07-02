@@ -1,15 +1,8 @@
 'use client'
 
-// @ts-ignore
+// TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromReadableStream } from 'react-server-dom-webpack/client'
-const { createFromReadableStream } = (
-  !!process.env.NEXT_RUNTIME
-    ? // eslint-disable-next-line import/no-extraneous-dependencies
-      (require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge'))
-    : // eslint-disable-next-line import/no-extraneous-dependencies
-      (require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client'))
-) as typeof import('react-server-dom-webpack/client')
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
 
 import type {
   FlightRouterState,
@@ -38,6 +31,9 @@ import {
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState

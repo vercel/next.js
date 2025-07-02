@@ -5,8 +5,9 @@ import '../next-devtools/userspace/app/app-dev-overlay-setup'
 
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
+// TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream } from 'react-server-dom-webpack/client'
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import {
@@ -27,6 +28,9 @@ import { setAppBuildId } from './app-build-id'
 import { isBot } from '../shared/lib/router/utils/is-bot'
 
 /// <reference types="react-dom/experimental" />
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 const appElement: HTMLElement | Document = document
 

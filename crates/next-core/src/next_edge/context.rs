@@ -147,7 +147,7 @@ pub async fn get_edge_resolve_options_context(
             .map(RcStr::from),
     );
 
-    if ty.supports_react_server() {
+    if ty.should_use_react_server_condition() {
         custom_conditions.push(rcstr!("react-server"));
     };
 

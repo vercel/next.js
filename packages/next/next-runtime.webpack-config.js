@@ -23,10 +23,9 @@ const pagesExternals = [
   'react-dom/server.browser',
   'react-dom/server.edge',
   'react-server-dom-webpack/client',
-  'react-server-dom-webpack/client.edge',
-  'react-server-dom-webpack/server.edge',
+  'react-server-dom-webpack/server',
   'react-server-dom-webpack/server.node',
-  'react-server-dom-webpack/static.edge',
+  'react-server-dom-webpack/static',
 ]
 
 const appExternals = []
@@ -42,23 +41,18 @@ function makeAppAliases({ experimental, bundler }) {
     'react/jsx-dev-runtime$': `next/dist/compiled/react${reactChannel}/jsx-dev-runtime`,
     'react/compiler-runtime$': `next/dist/compiled/react${reactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,
-    'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom${reactChannel}/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom${reactChannel}/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom${reactChannel}/static.browser`,
-    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
+    // optimizations to ignore the legacy APIs in react-dom/server
+    'react-dom/server$': `next/dist/build/webpack/alias/react-dom-server${reactChannel}.js`,
+    'react-dom/static$': `next/dist/compiled/react-dom${reactChannel}/static.node`,
     // react-server-dom-webpack alias
-    'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
-    'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
-    'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
+    'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.node`,
+    'react-server-dom-turbopack/server$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
     'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
-    'react-server-dom-turbopack/static.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/static.edge`,
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.edge`,
+    'react-server-dom-turbopack/static$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/static.node`,
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client.node`,
+    'react-server-dom-webpack/server$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.node`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.node`,
-    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/static.edge`,
+    'react-server-dom-webpack/static$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/static.node`,
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts':
       'next/dist/client/dev/noop-turbopack-hmr',
   }
@@ -167,6 +161,14 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
 
   const bundledReactChannel = experimental ? '-experimental' : ''
 
+  const alias =
+    bundleType === 'app'
+      ? makeAppAliases({
+          experimental,
+          bundler: turbo ? 'turbopack' : 'webpack',
+        })
+      : {}
+
   return {
     entry: bundleTypes[bundleType],
     target: 'node',
@@ -238,13 +240,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       optimizationBailout: true,
     },
     resolve: {
-      alias:
-        bundleType === 'app'
-          ? makeAppAliases({
-              experimental,
-              bundler: turbo ? 'turbopack' : 'webpack',
-            })
-          : {},
+      alias,
     },
     module: {
       rules: [
