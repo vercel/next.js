@@ -357,9 +357,14 @@ function parseAndSourceMap(
   // doesn't implement the name computation correctly.
   const errorName = computeErrorName(error)
 
-  let idx = unparsedStack.indexOf('react-stack-bottom-frame')
+  let idx = unparsedStack.indexOf('react_stack_bottom_frame')
   if (idx !== -1) {
     idx = unparsedStack.lastIndexOf('\n', idx)
+  } else {
+    idx = unparsedStack.indexOf('react-stack-bottom-frame')
+    if (idx !== -1) {
+      idx = unparsedStack.lastIndexOf('\n', idx)
+    }
   }
   if (idx !== -1 && !showIgnoreListed) {
     // Cut off everything after the bottom frame since it'll be React internals.
