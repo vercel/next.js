@@ -272,8 +272,8 @@ where
     type Item = (RangeInclusive<B>, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let entry = self.starts_iter.next()?;
-        if entry.0 > &self.end_bound {
+        let (start_bound, value) = self.starts_iter.next()?;
+        if start_bound > &self.end_bound {
             return None;
         }
         let bound_end = self
@@ -281,7 +281,7 @@ where
             .peek()
             .map(|entry| entry.0.checked_decrement().unwrap_or_else(B::bound_min))
             .unwrap_or_else(|| B::bound_max());
-        Some(((*entry.0)..=bound_end, entry.1))
+        Some(((*start_bound)..=bound_end, value))
     }
 }
 
