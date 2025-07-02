@@ -153,7 +153,10 @@ fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
                 }
                 Ok(())
             })
-            .await
+            .await?;
+            tt.stop_and_wait().await;
+            drop(tt);
+            anyhow::Ok(())
         })
         .unwrap();
 }
