@@ -5,10 +5,10 @@ export {
   decodeReply,
   decodeAction,
   decodeFormState,
-} from 'react-server-dom-webpack/server.edge'
+} from 'react-server-dom-webpack/server'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-export { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
+export { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
 
 export { default as LayoutRouter } from '../../client/components/layout-router'
 export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'

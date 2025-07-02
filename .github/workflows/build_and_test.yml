@@ -244,7 +244,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
         export NEXT_TEST_MODE=dev
@@ -276,7 +275,6 @@ jobs:
     with:
       nodeVersion: 18.18.2
       afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
@@ -310,7 +308,6 @@ jobs:
     with:
       nodeVersion: 18.18.2
       afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
         export NEXT_TEST_MODE=start
@@ -335,7 +332,6 @@ jobs:
     with:
       nodeVersion: 18.18.2
       afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 

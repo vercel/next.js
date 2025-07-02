@@ -8,6 +8,8 @@ import {
   SegmentBoundaryTrigger,
   styles as segmentBoundaryTriggerStyles,
 } from './segment-boundary-trigger'
+import { Tooltip, styles as tooltipStyles } from '../../../components/tooltip'
+import { useRef, useState } from 'react'
 
 const BUILTIN_PREFIX = '__next_builtin__'
 
@@ -59,6 +61,13 @@ function PageSegmentTreeLayerPresentation({
   node: SegmentTrieNode
   level: number
 }) {
+  const [shadowRoot] = useState<ShadowRoot | null>(() => {
+    const portal = document.querySelector('nextjs-portal')
+    if (!portal) return null
+    return portal.shadowRoot as ShadowRoot
+  })
+  // This is a workaround as base-ui popup container only accepts shadowRoot when it's in a ref.
+  const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
   const childrenKeys = Object.keys(node.children)
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
@@ -166,6 +175,7 @@ function PageSegmentTreeLayerPresentation({
                       <span
                         key={fileChildSegment}
                         onClick={() => {
+                          if (isBuiltin) return
                           openInEditor({ filePath })
                         }}
                         className={cx(
@@ -176,11 +186,18 @@ function PageSegmentTreeLayerPresentation({
                       >
                         {fileName}
                         {isBuiltin && (
-                          <TooltipSpan
+                          <Tooltip
+                            direction="right"
                             title={`The default Next.js not found is being shown. You can customize this page by adding your own ${fileName} file to the app/ directory.`}
+                            // x-ref: https://github.com/mui/base-ui/issues/2224
+                            // @ts-expect-error remove this expect-error once shadowRoot is supported as container
+                            container={shadowRootRef}
+                            offset={12}
+                            bgcolor="var(--color-gray-1000)"
+                            color="var(--color-gray-100)"
                           >
                             <InfoIcon />
-                          </TooltipSpan>
+                          </Tooltip>
                         )}
                       </span>
                     )
@@ -351,6 +368,8 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   }
 
   ${segmentBoundaryTriggerStyles}
+
+  ${tooltipStyles}
 `
 
 function openInEditor({ filePath }: { filePath: string }) {
@@ -401,14 +420,4 @@ function BackArrowIcon() {
       <path d="M4.5 11.25C4.5 11.3881 4.61193 11.5 4.75 11.5H14.4395L11.9395 9L13 7.93945L16.7803 11.7197L16.832 11.7764C17.0723 12.0709 17.0549 12.5057 16.7803 12.7803L13 16.5605L11.9395 15.5L14.4395 13H4.75C3.7835 13 3 12.2165 3 11.25V4.25H4.5V11.25Z" />
     </svg>
   )
-}
-
-function TooltipSpan({
-  children,
-  title,
-}: {
-  children: React.ReactNode
-  title: string
-}) {
-  return <span title={title}>{children}</span>
 }

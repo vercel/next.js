@@ -62,7 +62,7 @@ impl UpdateOutputOperation {
             return;
         }
         let children = if ctx.should_track_children() {
-            new_children.keys().copied().collect()
+            new_children.iter().copied().collect()
         } else {
             Default::default()
         };
