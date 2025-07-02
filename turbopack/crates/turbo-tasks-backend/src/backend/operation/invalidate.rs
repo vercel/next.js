@@ -199,7 +199,7 @@ pub fn make_task_dirty_internal(
 ) {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
-    #[cfg(debug_assertions)]
+    #[cfg(any(debug_assertions, feature = "verify_immutable"))]
     if task.is_immutable() {
         #[cfg(feature = "trace_task_dirty")]
         let extra_info = format!(
