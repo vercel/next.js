@@ -1255,7 +1255,7 @@ impl AppEndpoint {
             client_assets.insert(chunk);
 
             let chunk_path = chunk.path().await?;
-            if chunk_path.extension_ref() == Some("js") {
+            if chunk_path.has_extension(".js") {
                 client_shared_chunks.push(chunk);
             }
         }
