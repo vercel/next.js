@@ -107,7 +107,7 @@ export interface NapiProjectOptions {
   /** A path inside the root_path which contains the app/pages directories. */
   projectPath: RcStr
   /**
-   * next.config's distDir. Project initialization occurs eariler than
+   * next.config's distDir. Project initialization occurs earlier than
    * deserializing next.config, so passing it as separate option.
    */
   distDir: RcStr
@@ -153,7 +153,7 @@ export interface NapiPartialProjectOptions {
   /** A path inside the root_path which contains the app/pages directories. */
   projectPath?: RcStr
   /**
-   * next.config's distDir. Project initialization occurs eariler than
+   * next.config's distDir. Project initialization occurs earlier than
    * deserializing next.config, so passing it as separate option.
    */
   distDir?: RcStr | undefined | null
