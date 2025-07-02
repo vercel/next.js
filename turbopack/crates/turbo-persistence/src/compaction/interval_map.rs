@@ -108,7 +108,7 @@ where
     /// This is an approximation of the nightly-only `BTreeMap::upper_bound` API, but it returns a
     /// key-value pair instead of a cursor.
     ///
-    /// Panics if `bound` is `Bound::Exclusive(IntervalBound::bound_min())`, as that would imply an
+    /// Panics if `bound` is `Bound::Excluded(IntervalBound::bound_min())`, as that would imply an
     /// empty range.
     fn upper_bound(&self, bound: Bound<&B>) -> Option<(&B, &T)> {
         self.interval_starts
