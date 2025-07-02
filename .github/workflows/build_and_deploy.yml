@@ -8,6 +8,10 @@ on:
     types: [opened, synchronize]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.3.3
