@@ -320,12 +320,12 @@ describe.each(
              "description": "Route "/" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
              "environmentLabel": "Prerender",
              "label": "Console Error",
-             "source": "app/page.tsx (18:21) @ DraftModeReadingComponent
-           > 18 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+             "source": "app/page.tsx (23:21) @ DraftModeReadingComponent
+           > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
                 |                     ^",
              "stack": [
-               "DraftModeReadingComponent app/page.tsx (18:21)",
-               "Page app/page.tsx (11:7)",
+               "DraftModeReadingComponent app/page.tsx (23:21)",
+               "Page app/page.tsx (13:7)",
              ],
            }
           `)
@@ -615,7 +615,7 @@ describe.each(
              "label": "Console Error",
              "source": null,
              "stack": [
-               "ParamsReadingComponent rsc:/Prerender/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (40:41)",
+               "ParamsReadingComponent rsc:/Prerender/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (51:41)",
                "Page rsc:/Prerender/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (23:88)",
              ],
            }
