@@ -178,25 +178,6 @@ pub fn make_task_dirty(
 
     let mut task = ctx.task(task_id, TaskDataCategory::Meta);
 
-    // There must be no way to invalidate immutable tasks. If there would be a way the task is not
-    // immutable.
-    #[cfg(debug_assertions)]
-    if task.is_immutable() {
-        #[cfg(feature = "trace_task_dirty")]
-        let extra_info = format!(
-            " Invalidation cause: {}",
-            TaskDirtyCauseInContext::new(&cause, ctx)
-        );
-        #[cfg(not(feature = "trace_task_dirty"))]
-        let extra_info = "";
-
-        panic!(
-            "Task {} is immutable, but was made dirty. This should not happen and is a \
-             bug.{extra_info}",
-            ctx.get_task_description(task_id),
-        );
-    }
-
     make_task_dirty_internal(
         &mut task,
         task_id,
@@ -216,6 +197,25 @@ pub fn make_task_dirty_internal(
     queue: &mut AggregationUpdateQueue,
     ctx: &impl ExecuteContext,
 ) {
+    // There must be no way to invalidate immutable tasks. If there would be a way the task is not
+    // immutable.
+    #[cfg(debug_assertions)]
+    if task.is_immutable() {
+        #[cfg(feature = "trace_task_dirty")]
+        let extra_info = format!(
+            " Invalidation cause: {}",
+            TaskDirtyCauseInContext::new(&cause, ctx)
+        );
+        #[cfg(not(feature = "trace_task_dirty"))]
+        let extra_info = "";
+
+        panic!(
+            "Task {} is immutable, but was made dirty. This should not happen and is a \
+             bug.{extra_info}",
+            ctx.get_task_description(task_id),
+        );
+    }
+
     if make_stale
         && let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
             get_mut!(task, InProgress)
