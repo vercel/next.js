@@ -18,11 +18,10 @@ const isFileNode = (node: SegmentTrieNode) => {
 }
 
 function PageRouteBar({ page }: { page: string }) {
-  const pagePath = `/app${page}`
   return (
     <div className="segment-explorer-page-route-bar">
       <BackArrowIcon />
-      <span className="segment-explorer-page-route-bar-path">{pagePath}</span>
+      <span className="segment-explorer-page-route-bar-path">{page}</span>
     </div>
   )
 }
