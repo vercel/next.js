@@ -1110,6 +1110,16 @@ impl FileSystemPath {
         file_name
     }
 
+    /// Returns true if this path has the given extension
+    ///
+    /// slightly faster than `self.extension_ref() == Some(extension)` as we can simply match a
+    /// suffix
+    pub fn has_extension(&self, extension: &str) -> bool {
+        debug_assert!(!extension.contains('/') && extension.starts_with('.'));
+        self.path.ends_with(extension)
+    }
+
+    /// Returns the extension (without a leading `.`)
     pub fn extension_ref(&self) -> Option<&str> {
         let (_, extension) = self.split_extension();
         extension
