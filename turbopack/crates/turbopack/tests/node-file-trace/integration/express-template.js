@@ -1,13 +1,20 @@
+const assert = require('assert')
 const express = require('express')
 const path = require('path')
 
 const app = express()
 
+app.engine('pug', require('pug').__express)
 app.set('view engine', 'pug')
-app.set('views', path.join(__dirname, 'views'))
+app.set('views', './fixtures/pug')
 
-app.get('*', (req, res) => {
-  res.render('index')
-})
-
-module.exports = app
+app.render(
+  'index',
+  {
+    title: 'Consolidate.js',
+  },
+  function (err, rendered) {
+    if (err) throw err
+    assert.ok(rendered.includes('<h1>Consolidate.js</h1>'))
+  }
+)

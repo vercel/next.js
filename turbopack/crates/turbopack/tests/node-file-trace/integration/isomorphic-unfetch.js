@@ -1,8 +1,9 @@
 const fetch = require('isomorphic-unfetch')
 
 ;(async () => {
-  const { status } = await fetch('https://example.vercel.sh')
-  if (status !== 200) {
-    throw new Error(`Unexpected status: ${status}`)
+  const res = await fetch('https://dog.ceo/api/breeds/image/random')
+  const data = await res.json()
+  if (data.status !== 'success') {
+    throw new Error('Unexpected response: ' + JSON.stringify(data))
   }
 })()
