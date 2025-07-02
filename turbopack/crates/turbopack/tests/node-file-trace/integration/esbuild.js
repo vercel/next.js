@@ -1,7 +1,7 @@
 const { buildSync } = require('esbuild')
 const { join } = require('path')
 
-const entry = join(__dirname, '..', 'package.json')
+const entry = join(__dirname, '..', '..', 'package.json')
 
 const result = buildSync({
   entryPoints: [entry],
