@@ -861,14 +861,13 @@ impl AppProject {
         client_shared_entries: Vc<EvaluatableAssets>,
         has_layout_segments: bool,
     ) -> Result<Vc<ModuleGraphs>> {
-        let client_shared_entries = client_shared_entries
-            .await?
-            .into_iter()
-            .map(|m| ResolvedVc::upcast(*m))
-            .collect();
-
-        let should_trace = self.project.next_mode().await?.is_production();
         if *self.project.per_page_module_graph().await? {
+            let should_trace = self.project.next_mode().await?.is_production();
+            let client_shared_entries = client_shared_entries
+                .await?
+                .into_iter()
+                .map(|m| ResolvedVc::upcast(*m))
+                .collect();
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
             async move {
