@@ -1,6 +1,5 @@
 import { prepareFlightRouterStateForRequest } from './flight-data-helpers'
 import type { FlightRouterState } from '../server/app-render/types'
-import { HasLoadingBoundary } from '../server/app-render/types'
 
 describe('prepareFlightRouterStateForRequest', () => {
   describe('HMR refresh handling', () => {
@@ -11,7 +10,6 @@ describe('prepareFlightRouterStateForRequest', () => {
         '/some/url',
         'refresh',
         true,
-        1,
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState, true)
@@ -154,22 +152,6 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(decoded[4]).toBe(false)
     })
 
-    it('should preserve hasLoadingBoundary', () => {
-      const flightRouterState: FlightRouterState = [
-        'segment',
-        {},
-        null,
-        null,
-        undefined,
-        1, // HasLoadingBoundary value
-      ]
-
-      const result = prepareFlightRouterStateForRequest(flightRouterState)
-      const decoded = JSON.parse(decodeURIComponent(result))
-
-      expect(decoded[5]).toBe(1)
-    })
-
     it('should handle minimal FlightRouterState (only segment and parallelRoutes)', () => {
       const flightRouterState: FlightRouterState = ['segment', {}]
 
@@ -267,20 +249,17 @@ describe('prepareFlightRouterStateForRequest', () => {
                 '/modal/path',
                 'refresh',
                 false,
-                HasLoadingBoundary.SegmentHasLoadingBoundary,
               ],
             },
             '/dashboard/url',
             'refetch',
             true,
-            1,
           ],
           sidebar: [['slug', 'user-123', 'd'], {}, '/sidebar/url', null],
         },
         '/main/url',
         'inside-shared-layout',
         true,
-        1,
       ]
 
       const result = prepareFlightRouterStateForRequest(complexState)
@@ -291,7 +270,6 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(decoded[2]).toBeNull() // URL stripped
       expect(decoded[3]).toBe('inside-shared-layout') // server marker preserved
       expect(decoded[4]).toBe(true) // isRootLayout preserved
-      expect(decoded[5]).toBe(1) // hasLoadingBoundary preserved
 
       // Children route checks
       const childrenRoute = decoded[1].children
@@ -305,7 +283,6 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(modalRoute[2]).toBeNull() // URL stripped
       expect(modalRoute[3]).toBeNull() // 'refresh' marker stripped
       expect(modalRoute[4]).toBe(false) // isRootLayout preserved
-      expect(modalRoute[5]).toBe(HasLoadingBoundary.SegmentHasLoadingBoundary) // hasLoadingBoundary preserved
 
       // Sidebar route (dynamic segment) checks
       const sidebarRoute = decoded[1].sidebar

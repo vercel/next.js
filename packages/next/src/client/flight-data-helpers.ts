@@ -113,7 +113,6 @@ function stripClientOnlyDataFromFlightRouterState(
     _url, // Intentionally unused - URLs are client-only
     refreshMarker,
     isRootLayout,
-    hasLoadingBoundary,
   ] = flightRouterState
 
   // __PAGE__ segments are always fetched from the server, so there's
@@ -137,9 +136,6 @@ function stripClientOnlyDataFromFlightRouterState(
   // Append optional fields if present
   if (isRootLayout !== undefined) {
     result[4] = isRootLayout
-  }
-  if (hasLoadingBoundary !== undefined) {
-    result[5] = hasLoadingBoundary
   }
 
   return result
