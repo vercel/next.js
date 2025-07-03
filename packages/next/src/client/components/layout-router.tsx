@@ -507,6 +507,7 @@ export default function OuterLayoutRouter({
   forbidden,
   unauthorized,
   gracefullyDegrade,
+  segmentViewBoundaries,
 }: {
   parallelRouterKey: string
   error: ErrorComponent | undefined
@@ -519,6 +520,7 @@ export default function OuterLayoutRouter({
   forbidden: React.ReactNode | undefined
   unauthorized: React.ReactNode | undefined
   gracefullyDegrade?: boolean
+  segmentViewBoundaries?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -659,13 +661,14 @@ export default function OuterLayoutRouter({
     )
 
     if (process.env.NODE_ENV !== 'production') {
-      const SegmentStateProvider = (
+      const { SegmentStateProvider } =
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
-      )
-        .SegmentStateProvider as typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentStateProvider as typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentStateProvider
 
       child = (
-        <SegmentStateProvider key={stateKey}>{child}</SegmentStateProvider>
+        <SegmentStateProvider key={stateKey}>
+          {child}
+          {segmentViewBoundaries}
+        </SegmentStateProvider>
       )
     }
 

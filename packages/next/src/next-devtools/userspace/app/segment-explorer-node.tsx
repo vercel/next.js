@@ -31,15 +31,14 @@ function SegmentTrieNode({
   pagePath: string
 }): React.ReactNode {
   const { boundaryType, setBoundaryType } = useSegmentState()
-  const nodeState: SegmentNodeState = useMemo(
-    () => ({
+  const nodeState: SegmentNodeState = useMemo(() => {
+    return {
       type,
       pagePath,
       boundaryType,
       setBoundaryType,
-    }),
-    [type, pagePath, boundaryType, setBoundaryType]
-  )
+    }
+  }, [type, pagePath, boundaryType, setBoundaryType])
 
   // Use `useLayoutEffect` to ensure the state is updated during suspense.
   // `useEffect` won't work as the state is preserved during suspense.
@@ -143,7 +142,10 @@ export function SegmentStateProvider({ children }: { children: ReactNode }) {
   return (
     <SegmentStateContext.Provider
       key={errorBoundaryKey}
-      value={{ boundaryType, setBoundaryType: setBoundaryTypeAndReload }}
+      value={{
+        boundaryType,
+        setBoundaryType: setBoundaryTypeAndReload,
+      }}
     >
       {children}
     </SegmentStateContext.Provider>

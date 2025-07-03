@@ -410,15 +410,16 @@ async function createComponentTreeInternal({
     <MetadataOutlet ready={getMetadataReady} />
   )
 
-  const notFoundElement = await createBoundaryConventionElement({
-    ctx,
-    conventionName: 'not-found',
-    Component: NotFound,
-    styles: notFoundStyles,
-    tree,
-  })
+  const [notFoundElement, notFoundFilePath] =
+    await createBoundaryConventionElement({
+      ctx,
+      conventionName: 'not-found',
+      Component: NotFound,
+      styles: notFoundStyles,
+      tree,
+    })
 
-  const forbiddenElement = await createBoundaryConventionElement({
+  const [forbiddenElement] = await createBoundaryConventionElement({
     ctx,
     conventionName: 'forbidden',
     Component: Forbidden,
@@ -426,7 +427,7 @@ async function createComponentTreeInternal({
     tree,
   })
 
-  const unauthorizedElement = await createBoundaryConventionElement({
+  const [unauthorizedElement] = await createBoundaryConventionElement({
     ctx,
     conventionName: 'unauthorized',
     Component: Unauthorized,
@@ -546,8 +547,8 @@ async function createComponentTreeInternal({
         )
 
         const templateFilePath = getConventionPathByType(tree, dir, 'template')
-
         const errorFilePath = getConventionPathByType(tree, dir, 'error')
+        const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
 
         const wrappedErrorStyles =
           isSegmentViewEnabled && errorFilePath ? (
@@ -557,6 +558,34 @@ async function createComponentTreeInternal({
           ) : (
             errorStyles
           )
+
+        // Add a suffix to avoid conflict with the segment view node representing rendered file.
+        // existence: not-found.tsx@boundary
+        // rendered: not-found.tsx
+        const fileNameSuffix = '@boundary'
+        const segmentViewBoundaries = isSegmentViewEnabled ? (
+          <>
+            {notFoundFilePath && (
+              <SegmentViewNode
+                type={'boundary:not-found'}
+                pagePath={notFoundFilePath + fileNameSuffix}
+              />
+            )}
+            {loadingFilePath && (
+              <SegmentViewNode
+                type={'boundary:loading'}
+                pagePath={loadingFilePath + fileNameSuffix}
+              />
+            )}
+            {errorFilePath && (
+              <SegmentViewNode
+                type={'boundary:error'}
+                pagePath={errorFilePath + fileNameSuffix}
+              />
+            )}
+            {/* do not surface forbidden and unauthorized boundaries yet as they're unstable */}
+          </>
+        ) : null
 
         return [
           parallelRouteKey,
@@ -581,6 +610,7 @@ async function createComponentTreeInternal({
             notFound={notFoundComponent}
             forbidden={forbiddenComponent}
             unauthorized={unauthorizedComponent}
+            {...(isSegmentViewEnabled && { segmentViewBoundaries })}
             // Since gracefullyDegrade only applies to bots, only
             // pass it when we're in a bot context to avoid extra bytes.
             {...(gracefullyDegrade && { gracefullyDegrade })}
@@ -603,8 +633,8 @@ async function createComponentTreeInternal({
   }
 
   let loadingElement = Loading ? <Loading key="l" /> : null
+  const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
   if (isSegmentViewEnabled && loadingElement) {
-    const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
     if (loadingFilePath) {
       loadingElement = (
         <SegmentViewNode
@@ -1098,12 +1128,14 @@ async function createBoundaryConventionElement({
     </>
   ) : undefined
 
+  const pagePath = getConventionPathByType(tree, dir, conventionName)
+
   const wrappedElement =
     isSegmentViewEnabled && element ? (
       <SegmentViewNode
         key={cacheNodeKey + '-' + conventionName}
         type={conventionName}
-        pagePath={getConventionPathByType(tree, dir, conventionName)!}
+        pagePath={pagePath!}
       >
         {element}
       </SegmentViewNode>
@@ -1111,5 +1143,5 @@ async function createBoundaryConventionElement({
       element
     )
 
-  return wrappedElement
+  return [wrappedElement, pagePath] as const
 }

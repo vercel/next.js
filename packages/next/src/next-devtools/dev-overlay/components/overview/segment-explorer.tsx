@@ -133,6 +133,23 @@ function PageSegmentTreeLayerPresentation({
   }
 
   const hasFilesChildren = filesChildrenKeys.length > 0
+  const boundaries: Record<'not-found' | 'loading' | 'error', string | null> = {
+    'not-found': null,
+    loading: null,
+    error: null,
+  }
+
+  filesChildrenKeys.forEach((childKey) => {
+    const childNode = node.children[childKey]
+    if (!childNode || !childNode.value) return
+    if (childNode.value.type.startsWith('boundary:')) {
+      const boundaryType = childNode.value.type.split(':')[1] as
+        | 'not-found'
+        | 'loading'
+        | 'error'
+      boundaries[boundaryType] = childNode.value.pagePath || null
+    }
+  })
 
   return (
     <>
@@ -163,6 +180,11 @@ function PageSegmentTreeLayerPresentation({
                   {filesChildrenKeys.map((fileChildSegment) => {
                     const childNode = node.children[fileChildSegment]
                     if (!childNode || !childNode.value) {
+                      return null
+                    }
+                    // If it's boundary node, which marks the existence of the boundary not the rendered status,
+                    // we don't need to present in the rendered files.
+                    if (childNode.value.type.startsWith('boundary:')) {
                       return null
                     }
                     const filePath = childNode.value.pagePath
@@ -208,6 +230,7 @@ function PageSegmentTreeLayerPresentation({
                 <SegmentBoundaryTrigger
                   offset={6}
                   onSelectBoundary={pageChild.value.setBoundaryType}
+                  boundaries={boundaries}
                 />
               )}
             </div>

@@ -5,9 +5,11 @@ import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-n
 export function SegmentBoundaryTrigger({
   onSelectBoundary,
   offset,
+  boundaries,
 }: {
   onSelectBoundary: SegmentNodeState['setBoundaryType']
   offset: number
+  boundaries: Record<'not-found' | 'loading' | 'error', string | null>
 }) {
   const [shadowRoot] = useState<ShadowRoot>(() => {
     const ownerDocument = document
@@ -17,9 +19,24 @@ export function SegmentBoundaryTrigger({
   const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
 
   const triggerOptions = [
-    { label: 'Trigger Loading', value: 'loading', icon: <LoadingIcon /> },
-    { label: 'Trigger Error', value: 'error', icon: <ErrorIcon /> },
-    { label: 'Trigger Not Found', value: 'not-found', icon: <NotFoundIcon /> },
+    {
+      label: 'Trigger Loading',
+      value: 'loading',
+      icon: <LoadingIcon />,
+      disabled: !boundaries.loading,
+    },
+    {
+      label: 'Trigger Error',
+      value: 'error',
+      icon: <ErrorIcon />,
+      disabled: !boundaries.error,
+    },
+    {
+      label: 'Trigger Not Found',
+      value: 'not-found',
+      icon: <NotFoundIcon />,
+      disabled: !boundaries['not-found'],
+    },
   ]
 
   const resetOption = {
@@ -74,6 +91,7 @@ export function SegmentBoundaryTrigger({
                   key={option.value}
                   className="segment-boundary-dropdown-item"
                   onClick={() => handleSelect(option.value)}
+                  disabled={option.disabled}
                 >
                   {option.icon}
                   {option.label}
@@ -274,9 +292,14 @@ export const styles = `
     width: 100%;
   }
 
+  .segment-boundary-dropdown-item[data-disabled] {
+    color: var(--color-gray-400);
+    cursor: not-allowed;
+  }
+
   .segment-boundary-dropdown-item svg {
     margin-right: 12px;
-    color: var(--color-gray-900);
+    color: currentColor;
   }
 
   .segment-boundary-dropdown-item:hover {
