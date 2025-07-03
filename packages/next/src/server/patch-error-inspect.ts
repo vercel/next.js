@@ -173,6 +173,19 @@ function createUnsourcemappedFrame(
   }
 }
 
+function sourceMapIgnoreListsEverything(
+  sourceMap: ModernSourceMapPayload
+): boolean {
+  if ('sections' in sourceMap) {
+    // If sections are present, the ignoreList is not used.
+    // This is because sections are used to ignore-list everything.
+    return sourceMap.sections.every((section) => {
+      return sourceMapIgnoreListsEverything(section.map)
+    })
+  }
+  return sourceMap.sources.length === sourceMap.ignoreList?.length
+}
+
 /**
  * @param frame
  * @param sourceMapCache
@@ -261,6 +274,7 @@ function getSourcemappedFrameIfPossible(
     line: frame.lineNumber ?? 1,
   })
 
+  let ignored = sourceMapIgnoreListsEverything(sourceMapPayload)
   if (sourcePosition.source === null) {
     return {
       stack: {
@@ -269,7 +283,7 @@ function getSourcemappedFrameIfPossible(
         file: frame.file,
         lineNumber: frame.lineNumber,
         methodName: frame.methodName,
-        ignored: shouldIgnoreListGeneratedFrame(frame.file),
+        ignored: ignored || shouldIgnoreListGeneratedFrame(frame.file),
       },
       code: null,
     }
@@ -280,10 +294,9 @@ function getSourcemappedFrameIfPossible(
     sourceMapPayload
   )
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
-  let ignored = false
   if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
-  } else if (shouldIgnoreListOriginalFrame(sourcePosition.source)) {
+  } else if (!ignored && shouldIgnoreListOriginalFrame(sourcePosition.source)) {
     // Externals may be libraries that don't ship ignoreLists.
     // This is really taking control away from libraries.
     // They should still ship `ignoreList` so that attached debuggers ignore-list their frames.
@@ -291,7 +304,7 @@ function getSourcemappedFrameIfPossible(
     // Though keep in mind that Turbopack omits empty `ignoreList`.
     // So if we establish this convention, we should communicate it to the ecosystem.
     ignored = true
-  } else {
+  } else if (!ignored) {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
     const sourceIndex = applicableSourceMap.sources.indexOf(
       sourcePosition.source

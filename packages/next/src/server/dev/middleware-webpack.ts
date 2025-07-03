@@ -94,10 +94,13 @@ async function findOriginalSourcePositionAndContent(
   try {
     consumer = await new SourceMapConsumer(sourceMap)
   } catch (cause) {
-    throw new Error(
-      `${sourceMap.file}: Invalid source map. Only conformant source maps can be used to find the original code.`,
-      { cause }
+    console.error(
+      new Error(
+        `${sourceMap.file}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+        { cause }
+      )
     )
+    return null
   }
 
   try {
@@ -178,11 +181,14 @@ function findOriginalSourcePositionAndContentFromCompilation(
 }
 
 export async function createOriginalStackFrame({
+  ignoredByDefault,
   source,
   rootDirectory,
   frame,
   errorMessage,
 }: {
+  /** setting this to true will not consult ignoreList */
+  ignoredByDefault: boolean
   source: Source
   rootDirectory: string
   frame: StackFrame
@@ -214,6 +220,7 @@ export async function createOriginalStackFrame({
   }
 
   const ignored =
+    ignoredByDefault ||
     isIgnoredSource(source, sourcePosition) ||
     // If the source file is externals, should be excluded even it's not ignored source.
     // e.g. webpack://next/dist/.. needs to be ignored
@@ -404,6 +411,12 @@ function getOriginalStackFrames({
   )
 }
 
+function sourceMapIgnoreListsEverything(
+  sourceMap: RawSourceMap & { ignoreList?: number[] }
+): boolean {
+  return sourceMap.sources.length === sourceMap.ignoreList?.length
+}
+
 async function getOriginalStackFrame({
   isServer,
   isEdgeServer,
@@ -494,8 +507,10 @@ async function getOriginalStackFrame({
       originalCodeFrame: null,
     }
   }
+  defaultStackFrame.ignored ||= sourceMapIgnoreListsEverything(source.sourceMap)
 
   const originalStackFrameResponse = await createOriginalStackFrame({
+    ignoredByDefault: defaultStackFrame.ignored,
     frame,
     source,
     rootDirectory,
