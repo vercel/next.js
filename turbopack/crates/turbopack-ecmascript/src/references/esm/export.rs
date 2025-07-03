@@ -30,10 +30,10 @@ use turbopack_core::{
 use super::base::ReferencedAsset;
 use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext,
+    analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
-    parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     tree_shake::asset::EcmascriptModulePartAsset,
     utils::module_id_to_lit,
@@ -555,7 +555,7 @@ impl EsmExports {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
-        parsed: Option<Vc<ParseResult>>,
+        eval_context: &EvalContext,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Result<CodeGeneration> {
         let export_usage_info = chunking_context.module_export_usage(*ResolvedVc::upcast(module));
@@ -569,12 +569,6 @@ impl EsmExports {
             // be handled at runtime via property access, e.g. `export * from "./some-dynamic-cjs"`
             return Ok(CodeGeneration::empty());
         }
-
-        let parsed = if let Some(parsed) = parsed {
-            Some(parsed.await?)
-        } else {
-            None
-        };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
         {
@@ -620,24 +614,16 @@ impl EsmExports {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding = if let Some(parsed) = &parsed {
-                        if let ParseResult::Ok { eval_context, .. } = &**parsed {
-                            if let Some((local, ctxt)) = eval_context.imports.exports.get(exported)
-                            {
-                                Some((Cow::Borrowed(local.as_str()), *ctxt))
-                            } else {
-                                bail!(
-                                    "Expected export to be in eval context {:?} {:?}",
-                                    exported,
-                                    eval_context.imports,
-                                )
-                            }
+                    let binding =
+                        if let Some((local, ctxt)) = eval_context.imports.exports.get(exported) {
+                            Some((Cow::Borrowed(local.as_str()), *ctxt))
                         } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
+                            bail!(
+                                "Expected export to be in eval context {:?} {:?}",
+                                exported,
+                                eval_context.imports,
+                            )
+                        };
                     let (local, ctxt) = binding.unwrap_or_else(|| {
                         // Fallback, shouldn't happen in practice
                         (
