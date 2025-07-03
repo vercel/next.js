@@ -59,6 +59,7 @@ import {
   type RouterServerContext,
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
+import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -781,6 +782,8 @@ export abstract class RouteModule<
     try {
       resolvedPathname = decodePathParams(resolvedPathname)
     } catch (_) {}
+
+    resolvedPathname = removeTrailingSlash(resolvedPathname)
 
     return {
       query,
