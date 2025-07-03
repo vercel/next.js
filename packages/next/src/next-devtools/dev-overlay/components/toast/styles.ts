@@ -1,3 +1,0 @@
-const styles = ``
-
-export { styles }
