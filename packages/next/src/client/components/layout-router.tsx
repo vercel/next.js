@@ -615,6 +615,21 @@ export default function OuterLayoutRouter({
       ? RenderChildren
       : ErrorBoundary
 
+    let segmentBoundaryTriggerNode: React.ReactNode = null
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
+    ) {
+      const { SegmentBoundaryTriggerNode } =
+        require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+
+      segmentBoundaryTriggerNode = (
+        <>
+          <SegmentBoundaryTriggerNode />
+        </>
+      )
+    }
+
     // TODO: The loading module data for a segment is stored on the parent, then
     // applied to each of that parent segment's parallel route slots. In the
     // simple case where there's only one parallel route (the `children` slot),
@@ -647,6 +662,7 @@ export default function OuterLayoutRouter({
                       cacheNode={cacheNode}
                       segmentPath={segmentPath}
                     />
+                    {segmentBoundaryTriggerNode}
                   </RedirectBoundary>
                 </HTTPAccessFallbackBoundary>
               </LoadingBoundary>
