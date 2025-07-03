@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
 
@@ -24,7 +24,7 @@ pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<
 #[turbo_tasks::function]
 pub async fn get_middleware_module(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     userland_module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_MIDDLEWARE_MODULE";
@@ -49,7 +49,7 @@ pub async fn get_middleware_module(
     let module = asset_context
         .process(
             source,
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 

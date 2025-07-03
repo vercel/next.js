@@ -77,14 +77,15 @@ export interface CacheHandler {
 
 export interface CacheHandlerV2 {
   /**
-   * Retrieve a cache entry for the given cache key, if available.
+   * Retrieve a cache entry for the given cache key, if available. Will return
+   * undefined if there's no valid entry, or if the given soft tags are stale.
    */
-  get(cacheKey: string): Promise<undefined | CacheEntry>
+  get(cacheKey: string, softTags: string[]): Promise<undefined | CacheEntry>
 
   /**
    * Store a cache entry for the given cache key. When this is called, the entry
    * may still be pending, i.e. its value stream may still be written to. So it
-   * needs to be awaited first. If a `get` for the same cache key is called
+   * needs to be awaited first. If a `get` for the same cache key is called,
    * before the pending entry is complete, the cache handler must wait for the
    * `set` operation to finish, before returning the entry, instead of returning
    * undefined.
@@ -92,24 +93,24 @@ export interface CacheHandlerV2 {
   set(cacheKey: string, pendingEntry: Promise<CacheEntry>): Promise<void>
 
   /**
-   * Next.js will call this method periodically, but always before starting a
-   * new request. When working with a remote tags service, this method should
-   * communicate with the tags service to refresh the local tags manifest
-   * accordingly.
+   * This function may be called periodically, but always before starting a new
+   * request. If applicable, it should communicate with the tags service to
+   * refresh the local tags manifest accordingly.
    */
   refreshTags(): Promise<void>
 
   /**
-   * Next.js will call this method for each set of soft tags that are relevant
-   * at the start of a request. The result is the maximum timestamp of a
-   * revalidate event for the tags. Returns `0` if none of the tags were ever
-   * revalidated.
+   * This function is called for each set of soft tags that are relevant at the
+   * start of a request. The result is the maximum timestamp of a revalidate
+   * event for the tags. Returns `0` if none of the tags were ever revalidated.
+   * Returns `Infinity` if the soft tags are supposed to be passed into the
+   * `get` method instead to be checked for expiration.
    */
   getExpiration(...tags: string[]): Promise<Timestamp>
 
   /**
-   * Next.js will call this method when `revalidateTag` or `revalidatePath()` is
-   * called. It should update the tags manifest accordingly.
+   * This function is called when tags are revalidated/expired. If applicable,
+   * it should update the tags manifest accordingly.
    */
   expireTags(...tags: string[]): Promise<void>
 }

@@ -12,10 +12,12 @@ export function getDomainLocale(
   domainLocales?: readonly DomainLocale[]
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    const normalizeLocalePath: typeof NormalizeFn =
-      require('./normalize-locale-path').normalizeLocalePath
-    const detectDomainLocale: typeof DetectFn =
-      require('./detect-domain-locale').detectDomainLocale
+    const normalizeLocalePath: typeof NormalizeFn = (
+      require('./normalize-locale-path') as typeof import('./normalize-locale-path')
+    ).normalizeLocalePath
+    const detectDomainLocale: typeof DetectFn = (
+      require('./detect-domain-locale') as typeof import('./detect-domain-locale')
+    ).detectDomainLocale
 
     const target = locale || normalizeLocalePath(path, locales).detectedLocale
     const domain = detectDomainLocale(domainLocales, undefined, target)

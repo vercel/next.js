@@ -4,7 +4,7 @@ title: Failed to find Server Action
 
 ## Why This Message Occurred
 
-For security purposes, Next.js creates encrypted, non-deterministic keys (IDs) to allow for the client to reference and call the [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations). These keys are periodically recalculated between builds for enhanced security.
+For security purposes, Next.js creates encrypted, non-deterministic keys (IDs) to allow for the client to reference and call the [Server Action](/docs/app/getting-started/updating-data). These keys are periodically recalculated between builds for enhanced security.
 
 When self-hosting your Next.js application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
 
@@ -16,5 +16,5 @@ If you are deploying your Next.js application to Vercel, you can use the feature
 
 ## Useful Links
 
-- [Server Actions - Security](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#security)
-- [Overwriting encryption keys (advanced)](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#overwriting-encryption-keys-advanced)
+- [Server Actions - Security](/docs/app/guides/data-security)
+- [Overwriting encryption keys (advanced)](/docs/app/guides/data-security#overwriting-encryption-keys-advanced)

@@ -851,8 +851,11 @@ export async function assertHasRedbox(browser: Playwright) {
   }
 }
 
-export async function assertNoRedbox(browser: Playwright) {
-  await waitFor(5000)
+export async function assertNoRedbox(
+  browser: Playwright,
+  { waitInMs = 5000 }: { waitInMs?: number } = {}
+) {
+  await waitFor(waitInMs)
   const redbox = browser.locateRedbox()
 
   if (await redbox.isVisible()) {
@@ -870,6 +873,26 @@ export async function assertNoRedbox(browser: Playwright) {
     )
     Error.captureStackTrace(error, assertNoRedbox)
     throw error
+  }
+}
+
+export async function assertNoErrorToast(browser: Playwright): Promise<void> {
+  let didOpenRedbox = false
+
+  try {
+    await browser.waitForElementByCss('[data-issues]').click()
+    didOpenRedbox = true
+  } catch {
+    // We expect this to fail.
+  }
+
+  if (didOpenRedbox) {
+    // If a redbox was opened unexpectedly, we use the `assertNoRedbox` helper
+    // to print a useful error message containing the redbox contents.
+    await assertNoRedbox(browser, {
+      // We already know the redbox is open, so we can skip waiting for it.
+      waitInMs: 0,
+    })
   }
 }
 
@@ -937,6 +960,16 @@ export async function openDevToolsIndicatorPopover(
     Error.captureStackTrace(error, openDevToolsIndicatorPopover)
     throw error
   }
+}
+
+export async function hasDevToolsPanel(browser: Playwright) {
+  const result = await browser.eval(() => {
+    const portal = document.querySelector('nextjs-portal')
+    return (
+      portal?.shadowRoot?.querySelector('[data-nextjs-dialog-overlay]') != null
+    )
+  })
+  return result
 }
 
 export async function assertHasDevToolsIndicator(browser: Playwright) {
@@ -1416,6 +1449,10 @@ export async function getRedboxCallStack(
           stack.push('<FIXME-file-protocol>')
         } else if (frame.includes('.next/')) {
           stack.push('<FIXME-next-dist-dir>')
+        } else if (frame === 'JSON.parse <anonymous> (0:0)') {
+          // TODO(veil): These frames will be ignore-listed soon. Until then, we
+          // remove them here, because their occurrence seems to be
+          // non-deterministic. They come from React's RSC parsing.
         } else {
           stack.push(frame)
         }
@@ -1655,12 +1692,18 @@ export async function getStackFramesContent(browser) {
 }
 
 export async function toggleCollapseCallStackFrames(browser: Playwright) {
-  const button = await browser.elementByCss('[data-expand-ignore-button]')
-  const lastExpanded = await button.getAttribute('data-expand-ignore-button')
+  const button = await browser.elementByCss(
+    '[data-nextjs-call-stack-ignored-list-toggle-button]'
+  )
+  const lastExpanded = await button.getAttribute(
+    'data-nextjs-call-stack-ignored-list-toggle-button'
+  )
   await button.click()
 
   await retry(async () => {
-    const currExpanded = await button.getAttribute('data-expand-ignore-button')
+    const currExpanded = await button.getAttribute(
+      'data-nextjs-call-stack-ignored-list-toggle-button'
+    )
     expect(currExpanded).not.toBe(lastExpanded)
   })
 }

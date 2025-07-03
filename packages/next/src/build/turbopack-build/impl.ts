@@ -19,6 +19,9 @@ import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
+import { isCI } from '../../server/ci-info'
+import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
+import { getSupportedBrowsers } from '../utils'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -40,15 +43,13 @@ export async function turbopackBuild(): Promise<{
   const rewrites = NextBuildContext.rewrites!
   const appDirOnly = NextBuildContext.appDirOnly!
   const noMangling = NextBuildContext.noMangling!
+  const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
   const bindings = await loadBindings(config?.experimental?.useWasmBinary)
   const dev = false
 
-  // const supportedBrowsers = await getSupportedBrowsers(dir, dev)
-  const supportedBrowsers = [
-    'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
-  ]
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
 
   const persistentCaching = isPersistentCachingEnabled(config)
   const project = await bindings.turbo.createProject(
@@ -69,24 +70,30 @@ export async function turbopackBuild(): Promise<{
         config,
         dev,
         distDir,
+        projectPath: dir,
         fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
         hasRewrites,
         // Implemented separately in Turbopack, doesn't have to be passed here.
         middlewareMatchers: undefined,
+        rewrites,
       }),
       buildId,
       encryptionKey,
       previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling,
+      currentNodeJsVersion,
     },
     {
       persistentCaching,
       memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
+      isCi: isCI,
     }
   )
   try {
+    backgroundLogCompilationEvents(project)
+
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
@@ -218,7 +225,8 @@ export async function workerMain(workerData: {
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!
+    NextBuildContext.dir!,
+    { debugPrerender: NextBuildContext.debugPrerender }
   )
 
   // Matches handling in build/index.ts

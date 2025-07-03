@@ -1,6 +1,6 @@
 #![feature(arbitrary_self_types_pointers)]
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub fn register() {
     turbo_tasks::register();
@@ -18,8 +18,8 @@ pub struct EsRegex {
     delegate: EsRegexImpl,
     // Store the original arguments used to construct
     // this regex to support equality and serialization.
-    pattern: String,
-    flags: String,
+    pub pattern: String,
+    pub flags: String,
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ impl TryFrom<RegexForm> for EsRegex {
     type Error = anyhow::Error;
 
     fn try_from(value: RegexForm) -> std::result::Result<Self, Self::Error> {
-        EsRegex::new(&value.pattern, &value.pattern)
+        EsRegex::new(&value.pattern, &value.flags)
     }
 }
 
@@ -87,12 +87,12 @@ impl EsRegex {
                 'u' => applied_flags.push('u'),
                 // sticky search: not relevant for the regex itself
                 'y' => {}
-                _ => bail!("unsupported flag `{}` in regex", flag),
+                _ => bail!("unsupported flag `{flag}` in regex: `{pattern}` with flags: `{flags}`"),
             }
         }
 
         let regex = if !applied_flags.is_empty() {
-            regex::Regex::new(&format!("(?{}){}", applied_flags, pattern))
+            regex::Regex::new(&format!("(?{applied_flags}){pattern}"))
         } else {
             regex::Regex::new(&pattern)
         };
@@ -104,7 +104,7 @@ impl EsRegex {
                 // flags format so we can pass the original flags value.
                 match regress::Regex::with_flags(&pattern, regress::Flags::from(flags)) {
                     Ok(reg) => Ok(EsRegexImpl::Regress(reg)),
-                    // Propogate the error as is, regress has useful error messages.
+                    // Propagate the error as is, regress has useful error messages.
                     Err(e) => Err(e),
                 }
             }
@@ -123,11 +123,34 @@ impl EsRegex {
             EsRegexImpl::Regress(r) => r.find(haystack).is_some(),
         }
     }
+
+    pub fn captures<'h>(&self, haystack: &'h str) -> Option<Vec<&'h str>> {
+        match &self.delegate {
+            EsRegexImpl::Regex(r) => r.captures(haystack).map(|caps| {
+                caps.iter()
+                    .map(|m| m.map(|m| m.as_str()).unwrap_or(""))
+                    .collect::<Vec<_>>()
+            }),
+            EsRegexImpl::Regress(r) => r.find(haystack).map(|m| {
+                m.groups()
+                    .map(|range_opt| range_opt.map(|range| &haystack[range]).unwrap_or(""))
+                    .collect::<Vec<_>>()
+            }),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{EsRegex, EsRegexImpl};
+
+    #[test]
+    fn round_trip_serialize() {
+        let regex = EsRegex::new("[a-z]", "i").unwrap();
+        let serialized = serde_json::to_string(&regex).unwrap();
+        let parsed = serde_json::from_str::<EsRegex>(&serialized).unwrap();
+        assert_eq!(regex, parsed);
+    }
 
     #[test]
     fn es_regex_matches_simple() {
@@ -151,5 +174,36 @@ mod tests {
         // Don't bother asserting on the message since we delegate
         // that to the underlying implementations.
         assert!(matches!(EsRegex::new("*", ""), Err { .. }))
+    }
+
+    #[test]
+    fn captures_with_regex() {
+        let regex = EsRegex::new(r"(\d{4})-(\d{2})-(\d{2})", "").unwrap();
+        assert!(matches!(regex.delegate, EsRegexImpl::Regex { .. }));
+
+        let captures = regex.captures("Today is 2024-01-15");
+        assert!(captures.is_some());
+        let caps: Vec<&str> = captures.unwrap();
+        assert_eq!(caps.len(), 4); // full match + 3 groups
+        assert_eq!(caps[0], "2024-01-15"); // full match
+        assert_eq!(caps[1], "2024"); // year
+        assert_eq!(caps[2], "01"); // month
+        assert_eq!(caps[3], "15"); // day
+    }
+
+    #[test]
+    fn captures_with_regress() {
+        let regex = EsRegex::new(r"(\w+)(?=baz)", "").unwrap();
+        assert!(matches!(regex.delegate, EsRegexImpl::Regress { .. }));
+
+        let captures = regex.captures("foobar");
+        assert!(captures.is_none());
+
+        let captures = regex.captures("foobaz");
+        assert!(captures.is_some());
+        let caps: Vec<&str> = captures.unwrap();
+        assert_eq!(caps.len(), 2); // full match + 1 group
+        assert_eq!(caps[0], "foo"); // full match
+        assert_eq!(caps[1], "foo"); // captured group
     }
 }

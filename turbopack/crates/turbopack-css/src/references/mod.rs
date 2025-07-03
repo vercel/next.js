@@ -8,22 +8,22 @@ use lightningcss::{
     visitor::{Visit, Visitor},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext, ReferenceType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
     source::Source,
     source_pos::SourcePos,
 };
 
 use crate::{
+    StyleSheetLike,
     references::{
         import::{ImportAssetReference, ImportAttributes},
         url::UrlAssetReference,
     },
-    StyleSheetLike,
 };
 
 pub(crate) mod compose;
@@ -102,7 +102,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
 
                 self.references.push(Vc::upcast(ImportAssetReference::new(
                     *self.origin,
-                    Request::parse(Value::new(RcStr::from(src).into())),
+                    Request::parse(RcStr::from(src).into()),
                     ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).into(),
                     self.import_context.map(|ctx| *ctx),
                     IssueSource::from_line_col(
@@ -139,7 +139,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
 
             let vc = UrlAssetReference::new(
                 *self.origin,
-                Request::parse(Value::new(RcStr::from(src).into())),
+                Request::parse(RcStr::from(src).into()),
                 IssueSource::from_line_col(
                     ResolvedVc::upcast(self.source),
                     SourcePos {
@@ -177,14 +177,8 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
 pub fn css_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    ty: Value<CssReferenceSubType>,
+    ty: CssReferenceSubType,
     issue_source: Option<IssueSource>,
 ) -> Vc<ModuleResolveResult> {
-    url_resolve(
-        origin,
-        request,
-        Value::new(ReferenceType::Css(ty.into_value())),
-        issue_source,
-        false,
-    )
+    url_resolve(origin, request, ReferenceType::Css(ty), issue_source, false)
 }

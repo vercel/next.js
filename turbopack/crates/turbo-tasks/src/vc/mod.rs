@@ -28,13 +28,13 @@ pub use self::{
     operation::{OperationValue, OperationVc},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
-    traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
+    traits::{Dynamic, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
+    CellId, RawVc, ResolveTypeError,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, RawVc, ResolveTypeError,
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -62,7 +62,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 ///   re-executed.
 ///
 /// - `Vc` types are always [`Copy`]. Most [`Future`]s are not. This works because `Vc`s are
-///   represented as a few ids or indicies into data structures managed by the `turbo-tasks`
+///   represented as a few ids or indices into data structures managed by the `turbo-tasks`
 ///   framework. `Vc` types are not reference counted, but do support [tracing] for a hypothetical
 ///   (unimplemented) garbage collector.
 ///
@@ -281,7 +281,7 @@ where
     type Target = *const *mut *const T;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }
@@ -307,7 +307,7 @@ where
     type Target = VcDeref<T>;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }

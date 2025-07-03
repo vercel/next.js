@@ -3,7 +3,7 @@ name = "turbo-tasks-fuzz"
 version = "0.0.0"
 description = "A collection of fuzzers for `turbo-tasks`"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 
 [lints]
 workspace = true

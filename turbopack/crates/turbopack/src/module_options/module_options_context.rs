@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{MinifyType, SourceMapsType},
@@ -11,7 +11,7 @@ use turbopack_core::{
     environment::Environment,
     resolve::options::ImportMapping,
 };
-use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
+use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -71,7 +71,7 @@ pub enum DecoratorsKind {
 }
 
 /// The types when replacing `typeof window` with a constant.
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -147,7 +147,7 @@ pub struct ModuleOptionsContext {
     pub enable_mdx: bool,
     pub enable_mdx_rs: Option<ResolvedVc<MdxTransformOptions>>,
 
-    pub preset_env_versions: Option<ResolvedVc<Environment>>,
+    pub environment: Option<ResolvedVc<Environment>>,
     pub execution_context: Option<ResolvedVc<ExecutionContext>>,
     pub side_effect_free_packages: Vec<RcStr>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
@@ -157,7 +157,7 @@ pub struct ModuleOptionsContext {
     ///
     /// The filepath is the directory from which the bundled files will require the externals at
     /// runtime.
-    pub enable_externals_tracing: Option<ResolvedVc<FileSystemPath>>,
+    pub enable_externals_tracing: Option<FileSystemPath>,
 
     /// If true, it stores the last successful parse result in state and keeps using it when
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
@@ -169,6 +169,11 @@ pub struct ModuleOptionsContext {
     /// A list of rules to use a different module option context for certain
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ResolvedVc<ModuleOptionsContext>)>,
+
+    /// `matches!(tree_shaking_mode, Some(TreeShakingMode::Intermediate))` is not enough because we
+    /// use different tree shaking modes for user code and foreign code while intermediate tree
+    /// shaking is a global option.
+    pub remove_unused_exports: bool,
     pub placeholder_for_future_extensions: (),
 }
 

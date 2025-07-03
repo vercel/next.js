@@ -1,8 +1,8 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystem, FileSystemPath};
 use turbopack_core::{
@@ -95,12 +95,13 @@ impl EcmascriptBuildNodeRuntimeChunk {
     }
 
     #[turbo_tasks::function]
-    fn ident_for_path(self: Vc<Self>) -> Vc<AssetIdent> {
-        AssetIdent::from_path(
+    async fn ident_for_path(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
+        Ok(AssetIdent::from_path(
             turbopack_ecmascript_runtime::embed_fs()
                 .root()
-                .join("runtime.js".into()),
-        )
+                .await?
+                .join("runtime.js")?,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -118,7 +119,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
 impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("Ecmascript Build Node Runtime Chunk".into())
+        Vc::cell(rcstr!("Ecmascript Build Node Runtime Chunk"))
     }
 }
 
@@ -131,7 +132,7 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
 
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
+            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
     }
 
     #[turbo_tasks::function]

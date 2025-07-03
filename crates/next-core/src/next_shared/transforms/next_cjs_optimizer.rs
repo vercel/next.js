@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::cjs_optimizer::{cjs_optimizer, Config, PackageConfig};
+use next_custom_transforms::transforms::cjs_optimizer::{Config, PackageConfig, cjs_optimizer};
 use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::atom,

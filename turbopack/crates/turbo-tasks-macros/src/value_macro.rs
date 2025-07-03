@@ -2,18 +2,17 @@ use std::sync::OnceLock;
 
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use regex::Regex;
 use syn::{
+    Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
+    Meta, MetaNameValue, Result, Token,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
-    Meta, MetaNameValue, Result, Token,
 };
 use turbo_tasks_macros_shared::{
-    get_register_value_type_ident, get_value_type_id_ident, get_value_type_ident,
-    get_value_type_init_ident,
+    get_register_value_type_ident, get_value_type_ident, get_value_type_init_ident,
 };
 
 enum IntoMode {
@@ -72,9 +71,7 @@ impl TryFrom<LitStr> for CellMode {
 enum SerializationMode {
     None,
     Auto,
-    AutoForInput,
     Custom,
-    CustomForInput,
 }
 
 impl Parse for SerializationMode {
@@ -91,13 +88,10 @@ impl TryFrom<LitStr> for SerializationMode {
         match lit.value().as_str() {
             "none" => Ok(SerializationMode::None),
             "auto" => Ok(SerializationMode::Auto),
-            "auto_for_input" => Ok(SerializationMode::AutoForInput),
             "custom" => Ok(SerializationMode::Custom),
-            "custom_for_input" => Ok(SerializationMode::CustomForInput),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"none\", \"auto\", \"auto_for_input\", \"custom\" or \
-                 \"custom_for_input\"",
+                "expected \"none\", \"auto\", or \"custom\"",
             )),
         }
     }
@@ -199,11 +193,11 @@ impl Parse for ValueArguments {
                     return Err(Error::new_spanned(
                         &meta,
                         format!(
-                            "unexpected {:?}, expected \"shared\", \"into\", \"serialization\", \
-                             \"cell\", \"eq\", \"transparent\", or \"operation\"",
-                            meta
+                            "unexpected {meta:?}, expected \"shared\", \"into\", \
+                             \"serialization\", \"cell\", \"eq\", \"transparent\", or \
+                             \"operation\""
                         ),
-                    ))
+                    ));
                 }
             }
         }
@@ -230,39 +224,36 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
             ..
         }) = &mut item
+            && unnamed.len() == 1
         {
-            if unnamed.len() == 1 {
-                let field = unnamed.iter().next().unwrap();
-                inner_type = Some(field.ty.clone());
+            let field = unnamed.iter().next().unwrap();
+            inner_type = Some(field.ty.clone());
 
-                // generate a type string to add to the docs
-                let inner_type_string = inner_type.to_token_stream().to_string();
+            // generate a type string to add to the docs
+            let inner_type_string = inner_type.to_token_stream().to_string();
 
-                // HACK: proc_macro2 inserts whitespace between every token. It's ugly, so
-                // remove it, assuming these whitespace aren't syntatically important. Using
-                // prettyplease (or similar) would be more correct, but slower and add another
-                // dependency.
-                static WHITESPACE_RE: OnceLock<Regex> = OnceLock::new();
-                // Remove whitespace, as long as there is a non-word character (e.g. `>` or `,`)
-                // on either side. Try not to remove whitespace between `dyn Trait`.
-                let whitespace_re = WHITESPACE_RE.get_or_init(|| {
-                    Regex::new(r"\b \B|\B \b|\B \B").expect("WHITESPACE_RE is valid")
-                });
-                let inner_type_string = whitespace_re.replace_all(&inner_type_string, "");
+            // HACK: proc_macro2 inserts whitespace between every token. It's ugly, so
+            // remove it, assuming these whitespace aren't syntactically important. Using
+            // prettyplease (or similar) would be more correct, but slower and add another
+            // dependency.
+            static WHITESPACE_RE: OnceLock<Regex> = OnceLock::new();
+            // Remove whitespace, as long as there is a non-word character (e.g. `>` or `,`)
+            // on either side. Try not to remove whitespace between `dyn Trait`.
+            let whitespace_re = WHITESPACE_RE
+                .get_or_init(|| Regex::new(r"\b \B|\B \b|\B \B").expect("WHITESPACE_RE is valid"));
+            let inner_type_string = whitespace_re.replace_all(&inner_type_string, "");
 
-                // Add a couple blank lines in case there's already a doc comment we're
-                // effectively appending to. If there's not, rustdoc will strip
-                // the leading whitespace.
-                let doc_str = format!(
-                    "\n\nThis is a [transparent value type][turbo_tasks::value#transparent] \
-                     wrapping [`{}`].",
-                    inner_type_string,
-                );
+            // Add a couple blank lines in case there's already a doc comment we're
+            // effectively appending to. If there's not, rustdoc will strip
+            // the leading whitespace.
+            let doc_str = format!(
+                "\n\nThis is a [transparent value type][turbo_tasks::value#transparent] wrapping \
+                 [`{inner_type_string}`].",
+            );
 
-                attrs.push(parse_quote! {
-                    #[doc = #doc_str]
-                });
-            }
+            attrs.push(parse_quote! {
+                #[doc = #doc_str]
+            });
         }
         if inner_type.is_none() {
             item.span()
@@ -361,17 +352,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
     }];
     match serialization_mode {
-        SerializationMode::Auto | SerializationMode::AutoForInput => {
-            struct_attributes.push(quote! {
-                #[derive(
-                    turbo_tasks::macro_helpers::serde::Serialize,
-                    turbo_tasks::macro_helpers::serde::Deserialize,
-                )]
-                #[serde(crate = "turbo_tasks::macro_helpers::serde")]
-            })
-        }
-        SerializationMode::None | SerializationMode::Custom | SerializationMode::CustomForInput => {
-        }
+        SerializationMode::Auto => struct_attributes.push(quote! {
+            #[derive(
+                turbo_tasks::macro_helpers::serde::Serialize,
+                turbo_tasks::macro_helpers::serde::Deserialize,
+            )]
+            #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+        }),
+        SerializationMode::None | SerializationMode::Custom => {}
     };
     if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
@@ -407,18 +395,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 turbo_tasks::ValueType::new_with_any_serialization::<#ident>()
             }
         }
-        SerializationMode::AutoForInput | SerializationMode::CustomForInput => {
-            quote! {
-                turbo_tasks::ValueType::new_with_magic_serialization::<#ident>()
-            }
-        }
-    };
-
-    let for_input_marker = match serialization_mode {
-        SerializationMode::None | SerializationMode::Auto | SerializationMode::Custom => quote! {},
-        SerializationMode::AutoForInput | SerializationMode::CustomForInput => quote! {
-            impl turbo_tasks::TypedForInput for #ident {}
-        },
     };
 
     let value_debug_impl = if inner_type.is_some() {
@@ -465,8 +441,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
         #value_type_and_register_code
 
-        #for_input_marker
-
         #value_debug_impl
     };
 
@@ -483,7 +457,6 @@ pub fn value_type_and_register(
 ) -> proc_macro2::TokenStream {
     let value_type_init_ident = get_value_type_init_ident(ident);
     let value_type_ident = get_value_type_ident(ident);
-    let value_type_id_ident = get_value_type_id_ident(ident);
     let register_value_type_ident = get_register_value_type_ident(ident);
 
     let (impl_generics, where_clause) = if let Some(generics) = generics {
@@ -510,24 +483,20 @@ pub fn value_type_and_register(
                     )
                 })
             });
-        #[doc(hidden)]
-        static #value_type_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
-            turbo_tasks::macro_helpers::Lazy::new(|| {
-                turbo_tasks::registry::get_value_type_id(*#value_type_ident)
-            });
 
 
         #[doc(hidden)]
         #[allow(non_snake_case)]
         pub(crate) fn #register_value_type_ident(
             global_name: &'static str,
-            f: impl FnOnce(&mut turbo_tasks::ValueType),
+            init: impl FnOnce(&mut turbo_tasks::ValueType),
+            register_traits: impl FnOnce(turbo_tasks::ValueTypeId),
         ) {
             #value_type_init_ident.get_or_init(|| {
                 let mut value = #new_value_type;
-                f(&mut value);
+                init(&mut value);
                 value
-            }).register(global_name);
+            }).register(global_name, register_traits);
         }
 
         unsafe impl #impl_generics turbo_tasks::VcValueType for #ty #where_clause {
@@ -535,7 +504,12 @@ pub fn value_type_and_register(
             type CellMode = #cell_mode;
 
             fn get_value_type_id() -> turbo_tasks::ValueTypeId {
-                *#value_type_id_ident
+                static ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
+                turbo_tasks::macro_helpers::Lazy::new(|| {
+                    turbo_tasks::registry::get_value_type_id(*#value_type_ident)
+                });
+
+                *ident
             }
         }
     }

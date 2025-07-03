@@ -10,6 +10,7 @@ import {
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
+import { InvariantError } from '../../../shared/lib/invariant-error'
 
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
@@ -107,41 +108,49 @@ function revalidate(tags: string[], expression: string) {
       )
     }
 
-    if (workUnitStore.type === 'prerender') {
-      // dynamicIO Prerender
-      const error = new Error(
-        `Route ${store.route} used ${expression} without first calling \`await connection()\`.`
-      )
-      abortAndThrowOnSynchronousRequestDataAccess(
-        store.route,
-        expression,
-        error,
-        workUnitStore
-      )
-    } else if (workUnitStore.type === 'prerender-ppr') {
-      // PPR Prerender
-      postponeWithTracking(
-        store.route,
-        expression,
-        workUnitStore.dynamicTracking
-      )
-    } else if (workUnitStore.type === 'prerender-legacy') {
-      // legacy Prerender
-      workUnitStore.revalidate = 0
+    switch (workUnitStore.type) {
+      case 'prerender':
+        // dynamicIO Prerender
+        const error = new Error(
+          `Route ${store.route} used ${expression} without first calling \`await connection()\`.`
+        )
+        abortAndThrowOnSynchronousRequestDataAccess(
+          store.route,
+          expression,
+          error,
+          workUnitStore
+        )
+        break
+      case 'prerender-client':
+        throw new InvariantError(
+          `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
+        )
+      case 'prerender-ppr':
+        // PPR Prerender
+        postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
+        break
+      case 'prerender-legacy':
+        // legacy Prerender
+        workUnitStore.revalidate = 0
 
-      const err = new DynamicServerError(
-        `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-      )
-      store.dynamicUsageDescription = expression
-      store.dynamicUsageStack = err.stack
+        const err = new DynamicServerError(
+          `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        )
+        store.dynamicUsageDescription = expression
+        store.dynamicUsageStack = err.stack
 
-      throw err
-    } else if (
-      process.env.NODE_ENV === 'development' &&
-      workUnitStore &&
-      workUnitStore.type === 'request'
-    ) {
-      workUnitStore.usedDynamic = true
+        throw err
+      case 'request':
+        if (process.env.NODE_ENV === 'development') {
+          workUnitStore.usedDynamic = true
+        }
+        break
+      default:
+      // fallthrough
     }
   }
 

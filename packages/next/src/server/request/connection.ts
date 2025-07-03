@@ -53,7 +53,10 @@ export function connection(): Promise<void> {
     }
 
     if (workUnitStore) {
-      if (workUnitStore.type === 'prerender') {
+      if (
+        workUnitStore.type === 'prerender' ||
+        workUnitStore.type === 'prerender-client'
+      ) {
         // dynamicIO Prerender
         // We return a promise that never resolves to allow the prender to stall at this point
         return makeHangingPromise(workUnitStore.renderSignal, '`connection()`')

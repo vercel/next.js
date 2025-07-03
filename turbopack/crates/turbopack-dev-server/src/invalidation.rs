@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use hyper::{Method, Uri};
-use turbo_tasks::{util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind};
+use turbo_tasks::{FxIndexSet, InvalidationReason, InvalidationReasonKind, util::StaticOrArc};
 
 /// Computation was caused by a request to the server.
 #[derive(PartialEq, Eq, Hash)]

@@ -28,7 +28,7 @@ describe('use-cache-custom-handler', () => {
     expect(cliOutput).toContain('ModernCustomCacheHandler::refreshTags')
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
+      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/' \]/
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(

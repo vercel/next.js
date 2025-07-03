@@ -9,11 +9,11 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
+    SharedReference, Vc, VcRead, VcValueType,
     debug::{ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     triomphe_utils::unchecked_sidecast_triomphe_arc,
     vc::VcCellMode,
-    SharedReference, Vc, VcRead, VcValueType,
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -39,6 +39,15 @@ where
 
     fn deref(&self) -> &Self::Target {
         T::Read::value_to_target_ref(&self.0)
+    }
+}
+
+impl<T> ReadRef<T>
+where
+    T: VcValueType + Clone,
+{
+    pub fn clone_value(&self) -> VcReadTarget<T> {
+        T::Read::value_to_target((*self.0).clone())
     }
 }
 

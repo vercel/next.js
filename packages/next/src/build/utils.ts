@@ -69,7 +69,6 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 import { RouteKind } from '../server/route-kind'
 import type { PageExtensions } from './page-extensions-type'
-import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { FallbackMode } from '../lib/fallback'
 import type { OutgoingHttpHeaders } from 'http'
@@ -1080,9 +1079,9 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
-      require('../shared/lib/runtime-config.external').setConfig(
-        runtimeEnvConfig
-      )
+      ;(
+        require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
+      ).setConfig(runtimeEnvConfig)
       setHttpClientAndAgentOptions({
         httpAgentOptions,
       })
@@ -1175,7 +1174,6 @@ export async function isPageStatic({
         // in incremental mode.
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE &&
-          !isInterceptionRouteAppPath(page) &&
           checkIsRoutePPREnabled(pprConfig, appConfig)
 
         // If force dynamic was set and we don't have PPR enabled, then set the
@@ -1393,7 +1391,9 @@ export async function hasCustomGetInitialProps({
   checkingApp: boolean
   sriEnabled: boolean
 }): Promise<boolean> {
-  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
+  ;(
+    require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
+  ).setConfig(runtimeEnvConfig)
 
   const components = await loadComponents({
     distDir,
@@ -1424,7 +1424,9 @@ export async function getDefinedNamedExports({
   runtimeEnvConfig: any
   sriEnabled: boolean
 }): Promise<ReadonlyArray<string>> {
-  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
+  ;(
+    require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
+  ).setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
     page: page,
@@ -1539,6 +1541,10 @@ export async function copyTracedFiles(
   staticPages: Set<string>
 ) {
   const outputPath = path.join(distDir, 'standalone')
+
+  // Clean up standalone directory first.
+  await fs.rm(outputPath, { recursive: true, force: true })
+
   let moduleType = false
   const nextConfig = {
     ...serverConfig,
@@ -1561,7 +1567,6 @@ export async function copyTracedFiles(
     await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
   const copiedFiles = new Set()
-  await fs.rm(outputPath, { recursive: true, force: true })
 
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
@@ -1751,7 +1756,7 @@ export function isReservedPage(page: string) {
 }
 
 export function isAppBuiltinNotFoundPage(page: string) {
-  return /next[\\/]dist[\\/]client[\\/]components[\\/](not-found-error|global-not-found)/.test(
+  return /next[\\/]dist[\\/]client[\\/]components[\\/]builtin[\\/](not-found|global-not-found)/.test(
     page
   )
 }
@@ -1841,7 +1846,7 @@ export function getSupportedBrowsers(
   return MODERN_BROWSERSLIST_TARGET
 }
 
-export function isWebpackServerOnlyLayer(
+export function shouldUseReactServerCondition(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(
@@ -1928,3 +1933,7 @@ export function collectMeta({
 
   return meta
 }
+
+export const RSPACK_DEFAULT_LAYERS_REGEX = new RegExp(
+  `^(|${[WEBPACK_LAYERS.pagesDirBrowser, WEBPACK_LAYERS.pagesDirEdge, WEBPACK_LAYERS.pagesDirNode].join('|')})$`
+)

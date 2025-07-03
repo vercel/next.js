@@ -4,27 +4,27 @@ pub mod retry;
 mod run;
 
 use std::{
-    borrow::Cow,
     future::Future,
     mem::replace,
     panic::AssertUnwindSafe,
     sync::{Arc, Mutex, Weak},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use futures::FutureExt;
 use rustc_hash::FxHashMap;
+use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
-    backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
-    event::{Event, EventListener},
-    registry,
-    test_helpers::with_turbo_tasks_for_testing,
-    util::{SharedError, StaticOrArc},
     CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
     ReadConsistency, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
+    event::{Event, EventListener},
+    message_queue::CompilationEvent,
+    test_helpers::with_turbo_tasks_for_testing,
+    util::{SharedError, StaticOrArc},
 };
 
-pub use crate::run::{run, run_with_tt, run_without_cache_check, Registration};
+pub use crate::run::{Registration, run, run_with_tt, run_without_cache_check};
 
 enum Task {
     Spawned(Event),
@@ -41,13 +41,13 @@ pub struct VcStorage {
 impl VcStorage {
     fn dynamic_call(
         &self,
-        func: turbo_tasks::FunctionId,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this_arg: Option<RawVc>,
         arg: Box<dyn MagicAny>,
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
         let handle = tokio::runtime::Handle::current();
-        let future = registry::get_function(func).execute(this_arg, &*arg);
+        let future = func.execute(this_arg, &*arg);
         let i = {
             let mut tasks = self.tasks.lock().unwrap();
             let i = tasks.len();
@@ -90,7 +90,7 @@ impl VcStorage {
 impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
-        func: turbo_tasks::FunctionId,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -99,7 +99,7 @@ impl TurboTasksCallApi for VcStorage {
     }
     fn native_call(
         &self,
-        _func: turbo_tasks::FunctionId,
+        _func: &'static turbo_tasks::macro_helpers::NativeFunction,
         _this: Option<RawVc>,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -109,8 +109,7 @@ impl TurboTasksCallApi for VcStorage {
 
     fn trait_call(
         &self,
-        _trait_type: turbo_tasks::TraitTypeId,
-        _trait_fn_name: Cow<'static, str>,
+        _trait_type: &'static turbo_tasks::TraitMethod,
         _this: RawVc,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -142,10 +141,6 @@ impl TurboTasksCallApi for VcStorage {
 }
 
 impl TurboTasksApi for VcStorage {
-    fn pin(&self) -> Arc<dyn TurboTasksApi> {
-        self.this.upgrade().unwrap()
-    }
-
     fn invalidate(&self, _task: TaskId) {
         unreachable!()
     }
@@ -159,7 +154,7 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn invalidate_serialization(&self, _task: TaskId) {
-        // ingore
+        // ignore
     }
 
     fn notify_scheduled_tasks(&self) {
@@ -313,6 +308,21 @@ impl TurboTasksApi for VcStorage {
 
     fn stop_and_wait(&self) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
         Box::pin(async {})
+    }
+
+    /// Should not be called on the testing VcStorage. These methods are only implemented for
+    /// structs with access to a `MessageQueue` like `TurboTasks`.
+    fn subscribe_to_compilation_events(
+        &self,
+        _event_types: Option<Vec<String>>,
+    ) -> Receiver<Arc<dyn CompilationEvent>> {
+        unimplemented!()
+    }
+
+    /// Should not be called on the testing VcStorage. These methods are only implemented for
+    /// structs with access to a `MessageQueue` like `TurboTasks`.
+    fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
+        unimplemented!()
     }
 }
 

@@ -157,8 +157,10 @@ describe('app-dir - metadata-streaming', () => {
   describe('static', () => {
     it('should render static metadata in the head', async () => {
       const $ = await next.render$('/static/full')
+      // We can't ensure if it's inserted into  head or body since it's a race condition,
+      // where sometimes the metadata can be suspended.
       expect($('title').length).toBe(1)
-      expect($('head title').text()).toBe('static page')
+      expect($('title').text()).toBe('static page')
     })
 
     it('should determine dynamic metadata in build and render in the body', async () => {
@@ -174,6 +176,21 @@ describe('app-dir - metadata-streaming', () => {
         {
           headers: {
             'user-agent': 'Twitterbot',
+          },
+        }
+      )
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('partial static page')
+    })
+
+    it('should still render blocking metadata for Google speed insights bot (special case)', async () => {
+      const $ = await next.render$(
+        '/static/partial',
+        {},
+        {
+          headers: {
+            'user-agent':
+              'UA Mozilla/5.0 (Linux; Android 7.0; Moto G (4)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4590.2 Mobile Safari/537.36 Chrome-Lighthouse',
           },
         }
       )

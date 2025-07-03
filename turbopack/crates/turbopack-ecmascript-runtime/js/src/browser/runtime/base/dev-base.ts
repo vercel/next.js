@@ -43,7 +43,7 @@ interface TurbopackDevContext extends TurbopackDevBaseContext {}
 type ModuleFactory = (
   this: Module['exports'],
   context: TurbopackDevBaseContext
-) => undefined
+) => unknown
 
 interface DevRuntimeBackend {
   reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>
@@ -54,9 +54,9 @@ interface DevRuntimeBackend {
 class UpdateApplyError extends Error {
   name = 'UpdateApplyError'
 
-  dependencyChain: string[]
+  dependencyChain: ModuleId[]
 
-  constructor(message: string, dependencyChain: string[]) {
+  constructor(message: string, dependencyChain: ModuleId[]) {
     super(message)
     this.dependencyChain = dependencyChain
   }
@@ -129,17 +129,10 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   })
 }
 
-function getDevWorkerBlobURL(chunks: ChunkPath[]) {
-  return getWorkerBlobURL(
-    chunks,
-    `// noop fns to prevent runtime errors during initialization
-self.$RefreshReg$ = function() {};
-self.$RefreshSig$ = function() {};`
-  )
-}
+function instantiateModule(moduleId: ModuleId, source: SourceInfo): Module {
+  // We are in development, this is always a string.
+  let id = moduleId as string
 
-// @ts-ignore Defined in `runtime-base.ts`
-function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   const moduleFactory = moduleFactories[id]
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
@@ -189,7 +182,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     exports: {},
     error: undefined,
     loaded: false,
-    id,
+    id: id,
     parents,
     children: [],
     namespaceObject: undefined,
@@ -205,8 +198,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
 
     runModuleExecutionHooks(module, (refresh) => {
       const r = commonJsRequire.bind(null, module)
-      moduleFactory.call(
-        module.exports,
+      moduleFactory(
         augmentContext({
           a: asyncModule.bind(null, module),
           e: module.exports,
@@ -214,10 +206,10 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           t: runtimeRequire,
           f: moduleContext,
           i: esmImport.bind(null, module),
-          s: esmExport.bind(null, module, module.exports),
-          j: dynamicExport.bind(null, module, module.exports),
-          v: exportValue.bind(null, module),
-          n: exportNamespace.bind(null, module),
+          s: esmExport.bind(null, module, module.exports, devModuleCache),
+          j: dynamicExport.bind(null, module, module.exports, devModuleCache),
+          v: exportValue.bind(null, module, devModuleCache),
+          n: exportNamespace.bind(null, module, devModuleCache),
           m: module,
           c: devModuleCache,
           M: moduleFactories,
@@ -225,12 +217,11 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           L: loadChunkByUrl.bind(null, sourceInfo),
           w: loadWebAssembly.bind(null, sourceInfo),
           u: loadWebAssemblyModule.bind(null, sourceInfo),
-          g: globalThis,
           P: resolveAbsolutePath,
           U: relativeURL,
           k: refresh,
           R: createResolvePathFromModule(r),
-          b: getDevWorkerBlobURL,
+          b: getWorkerBlobURL,
           z: requireStub,
         })
       )
@@ -255,25 +246,31 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
  * refresh registry.
  */
 function runModuleExecutionHooks(
-  module: Module,
+  module: HotModule,
   executeModule: (ctx: RefreshContext) => void
 ) {
-  const cleanupReactRefreshIntercept =
-    typeof globalThis.$RefreshInterceptModuleExecution$ === 'function'
-      ? globalThis.$RefreshInterceptModuleExecution$(module.id)
-      : () => {}
-
-  try {
+  if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
+    const cleanupReactRefreshIntercept =
+      globalThis.$RefreshInterceptModuleExecution$(module.id)
+    try {
+      executeModule({
+        register: globalThis.$RefreshReg$,
+        signature: globalThis.$RefreshSig$,
+        registerExports: registerExportsAndSetupBoundaryForReactRefresh,
+      })
+    } finally {
+      // Always cleanup the intercept, even if module execution failed.
+      cleanupReactRefreshIntercept()
+    }
+  } else {
+    // If the react refresh hooks are not installed we need to bind dummy functions.
+    // This is expected when running in a Web Worker.  It is also common in some of
+    // our test environments.
     executeModule({
-      register: globalThis.$RefreshReg$,
-      signature: globalThis.$RefreshSig$,
-      registerExports: registerExportsAndSetupBoundaryForReactRefresh,
+      register: (_type, _id) => {},
+      signature: () => (_type) => {},
+      registerExports: (_module, _helpers) => {},
     })
-  } catch (e) {
-    throw e
-  } finally {
-    // Always cleanup the intercept, even if module execution failed.
-    cleanupReactRefreshIntercept()
   }
 }
 

@@ -92,6 +92,11 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
    * whether multi-zone flag is enabled for draft mode
    */
   multiZoneDraftMode?: boolean
+
+  /**
+   * The relative project directory
+   */
+  projectDir: string
 }
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
@@ -144,6 +149,7 @@ export class PagesAPIRouteModule extends RouteModule<
         hostname: context.hostname,
         multiZoneDraftMode: context.multiZoneDraftMode,
         dev: context.dev,
+        projectDir: context.projectDir,
       },
       context.propagateError,
       context.dev,

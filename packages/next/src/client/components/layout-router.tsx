@@ -42,8 +42,8 @@ import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 
 const Activity = process.env.__NEXT_ROUTER_BF_CACHE
-  ? require('react').unstable_Activity
-  : null
+  ? (require('react') as typeof import('react')).unstable_Activity
+  : null!
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -657,6 +657,17 @@ export default function OuterLayoutRouter({
         {template}
       </TemplateContext.Provider>
     )
+
+    if (process.env.NODE_ENV !== 'production') {
+      const SegmentStateProvider = (
+        require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+      )
+        .SegmentStateProvider as typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentStateProvider as typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentStateProvider
+
+      child = (
+        <SegmentStateProvider key={stateKey}>{child}</SegmentStateProvider>
+      )
+    }
 
     if (process.env.__NEXT_ROUTER_BF_CACHE) {
       child = (

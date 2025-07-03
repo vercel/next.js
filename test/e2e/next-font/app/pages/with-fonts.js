@@ -1,5 +1,6 @@
 import CompWithFonts from '../components/CompWithFonts'
-import { openSans } from './_app'
+import { Open_Sans } from 'next/font/google'
+const openSans = Open_Sans({ variable: '--open-sans', subsets: ['latin'] })
 
 export default function WithFonts() {
   return (

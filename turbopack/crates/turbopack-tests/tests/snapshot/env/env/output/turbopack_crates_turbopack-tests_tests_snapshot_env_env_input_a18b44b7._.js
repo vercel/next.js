@@ -1,8 +1,8 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_env_env_input_a18b44b7._.js", {
 
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js [test] (ecmascript)": (function(__turbopack_context__) {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js [test] (ecmascript)": ((__turbopack_context__) => {
 
-var { g: global, m: module, e: exports } = __turbopack_context__;
+var { m: module, e: exports } = __turbopack_context__;
 {
 const env = process.env = {
     ...process.env
@@ -12,9 +12,9 @@ env["BARFOO"] = barfoo;
 env["FOO"] = foo;
 env["FOOBAR"] = foobar;
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/env/env/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/env/env/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 
-var { g: global, m: module, e: exports } = __turbopack_context__;
+var { m: module, e: exports } = __turbopack_context__;
 {
 console.log(process.env.FOOBAR);
 console.log(process.env.BARFOO);

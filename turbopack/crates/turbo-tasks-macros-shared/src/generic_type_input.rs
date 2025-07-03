@@ -1,6 +1,6 @@
 use syn::{
-    parse::{Parse, ParseStream},
     Generics, Result, Token, Type,
+    parse::{Parse, ParseStream},
 };
 
 /// The input of the `generic_type` macro.

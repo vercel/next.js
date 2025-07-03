@@ -18,7 +18,7 @@ impl Visit for FontFunctionsCollector<'_> {
     fn visit_import_decl(&mut self, import_decl: &ImportDecl) {
         if self.font_loaders.contains(&import_decl.src.value) {
             self.state
-                .removeable_module_items
+                .removable_module_items
                 .insert(import_decl.span.lo);
             for specifier in &import_decl.specifiers {
                 let (local, function_name) = match specifier {

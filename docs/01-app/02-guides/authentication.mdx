@@ -30,7 +30,7 @@ The examples on this page walk through basic username and password auth for educ
 
 ### Sign-up and login functionality
 
-You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and `useActionState` to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/getting-started/updating-data) and `useActionState` to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
 
 Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
@@ -561,7 +561,7 @@ const secretKey = process.env.SESSION_SECRET
 
 #### 2. Encrypting and decrypting sessions
 
-Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
+Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/api-reference/edge)) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
 
 ```tsx filename="app/lib/session.ts" switcher
 import 'server-only'
@@ -672,7 +672,7 @@ export async function createSession(userId) {
 }
 ```
 
-Back in your Server Action, you can invoke the `createSession()` function, and use the [`redirect()`](/docs/app/building-your-application/routing/redirecting) API to redirect the user to the appropriate page:
+Back in your Server Action, you can invoke the `createSession()` function, and use the [`redirect()`](/docs/app/guides/redirecting) API to redirect the user to the appropriate page:
 
 ```ts filename="app/actions/auth.ts" switcher
 import { createSession } from '@/app/lib/session'
@@ -1023,12 +1023,12 @@ For both cases, we recommend:
 
 ### Optimistic checks with Middleware (Optional)
 
-There are some cases where you may want to use [Middleware](/docs/app/building-your-application/routing/middleware) and redirect users based on permissions:
+There are some cases where you may want to use [Middleware](/docs/app/api-reference/file-conventions/middleware) and redirect users based on permissions:
 
 - To perform optimistic checks. Since Middleware runs on every route, it's a good way to centralize redirect logic and pre-filter unauthorized users.
 - To protect static routes that share data between users (e.g. content behind a paywall).
 
-However, since Middleware runs on every route, including [prefetched](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) routes, it's important to only read the session from the cookie (optimistic checks), and avoid database checks to prevent performance issues.
+However, since Middleware runs on every route, including [prefetched](/docs/app/getting-started/linking-and-navigating#prefetching) routes, it's important to only read the session from the cookie (optimistic checks), and avoid database checks to prevent performance issues.
 
 For example:
 
@@ -1121,7 +1121,7 @@ While Middleware can be useful for initial checks, it should not be your only li
 > **Tips**:
 >
 > - In Middleware, you can also read cookies using `req.cookies.get('session').value`.
-> - Middleware uses the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes), check if your Auth library and session management library are compatible.
+> - Middleware uses the [Edge Runtime](/docs/app/api-reference/edge), check if your Auth library and session management library are compatible.
 > - You can use the `matcher` property in the Middleware to specify which routes Middleware should run on. Although, for auth, it's recommended Middleware runs on all routes.
 
 <AppOnly>
@@ -1307,7 +1307,7 @@ By centralizing your data requests and authorization logic in a DAL and using DT
 
 ### Server Components
 
-Auth check in [Server Components](/docs/app/building-your-application/rendering/server-components) are useful for role-based access. For example, to conditionally render components based on the user's role:
+Auth check in [Server Components](/docs/app/getting-started/server-and-client-components) are useful for role-based access. For example, to conditionally render components based on the user's role:
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
@@ -1347,7 +1347,7 @@ In the example, we use the `verifySession()` function from our DAL to check for 
 
 ### Layouts and auth checks
 
-Due to [Partial Rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), be cautious when doing checks in [Layouts](/docs/app/building-your-application/routing/layouts-and-templates) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
+Due to [Partial Rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions), be cautious when doing checks in [Layouts](/docs/app/api-reference/file-conventions/layout) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
 
 Instead, you should do the checks close to your data source or the component that'll be conditionally rendered.
 
@@ -1403,7 +1403,7 @@ export const getUser = cache(async () => {
 
 ### Server Actions
 
-Treat [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to perform a mutation.
+Treat [Server Actions](/docs/app/getting-started/updating-data) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to perform a mutation.
 
 In the example below, we check the user's role before allowing the action to proceed:
 
@@ -1443,7 +1443,7 @@ export async function serverAction() {
 
 ### Route Handlers
 
-Treat [Route Handlers](/docs/app/building-your-application/routing/route-handlers) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to access the Route Handler.
+Treat [Route Handlers](/docs/app/api-reference/file-conventions/route) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to access the Route Handler.
 
 For example:
 
@@ -1497,7 +1497,7 @@ The example above demonstrates a Route Handler with a two-tier security check. I
 
 ## Context Providers
 
-Using context providers for auth works due to [interleaving](/docs/app/building-your-application/rendering/composition-patterns#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
+Using context providers for auth works due to [interleaving](/docs/app/getting-started/server-and-client-components#examples#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
 
 This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
 
@@ -1516,7 +1516,7 @@ export default function RootLayout({ children }) {
 ```
 
 ```tsx filename="app/ui/profile.ts switcher
-"use client";
+'use client';
 
 import { useSession } from "auth-lib";
 
@@ -1531,7 +1531,7 @@ export default function Profile() {
 ```
 
 ```jsx filename="app/ui/profile.js switcher
-"use client";
+'use client';
 
 import { useSession } from "auth-lib";
 

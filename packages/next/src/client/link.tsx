@@ -119,8 +119,11 @@ type InternalLinkProps = {
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
 // isn't generated yet. It will be replaced when the webpack plugin runs.
+// WARNING: This should be an interface to prevent TypeScript from inlining it
+// in declarations of libraries dependending on Next.js.
+// Not trivial to reproduce so only convert to an interface when needed.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type LinkProps<RouteInferType = any> = InternalLinkProps
+export interface LinkProps<RouteInferType = any> extends InternalLinkProps {}
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 

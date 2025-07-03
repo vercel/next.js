@@ -1,14 +1,14 @@
 pub(crate) mod data;
 
 use std::{
-    collections::{hash_map::Entry, BTreeMap},
+    collections::{BTreeMap, hash_map::Entry},
     fs::File,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
     time::{Duration, UNIX_EPOCH},
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
 use rustc_hash::{FxHashMap, FxHasher};

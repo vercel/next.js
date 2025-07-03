@@ -1,6 +1,6 @@
 use turbo_tasks::{ResolvedVc, Vc};
 
-use crate::{transition::Transition, ModuleAssetContext};
+use crate::{ModuleAssetContext, transition::Transition};
 
 /// A transition that only affects the asset context.
 #[turbo_tasks::value(shared)]

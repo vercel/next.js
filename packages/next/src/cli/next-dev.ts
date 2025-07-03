@@ -170,7 +170,7 @@ const nextDev = async (
 
   async function preflight(skipOnReboot: boolean) {
     const { getPackageVersion, getDependencies } = (await Promise.resolve(
-      require('../lib/get-package-version')
+      require('../lib/get-package-version') as typeof import('../lib/get-package-version')
     )) as typeof import('../lib/get-package-version')
 
     const [sassVersion, nodeSassVersion] = await Promise.all([

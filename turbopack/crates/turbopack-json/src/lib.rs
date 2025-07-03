@@ -11,10 +11,10 @@
 
 use std::fmt::Write;
 
-use anyhow::{bail, Error, Result};
-use turbo_rcstr::RcStr;
+use anyhow::{Error, Result, bail};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{glob::Glob, FileContent, FileJsonContent};
+use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -30,11 +30,6 @@ use turbopack_ecmascript::{
     },
     runtime_functions::TURBOPACK_EXPORT_VALUE,
 };
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("json".into())
-}
 
 #[turbo_tasks::value]
 pub struct JsonModuleAsset {
@@ -53,7 +48,7 @@ impl JsonModuleAsset {
 impl Module for JsonModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(modifier())
+        self.source.ident().with_modifier(rcstr!("json"))
     }
 }
 
@@ -143,13 +138,13 @@ impl EcmascriptChunkItem for JsonChunkItem {
                 }
                 .into())
             }
-            FileJsonContent::Unparseable(e) => {
+            FileJsonContent::Unparsable(e) => {
                 let mut message = "Unable to make a module from invalid JSON: ".to_string();
                 if let FileContent::Content(content) = &*content.await? {
                     let text = content.content().to_str()?;
                     e.write_with_content(&mut message, text.as_ref())?;
                 } else {
-                    write!(message, "{}", e)?;
+                    write!(message, "{e}")?;
                 }
 
                 Err(Error::msg(message))

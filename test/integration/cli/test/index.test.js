@@ -6,6 +6,7 @@ import {
   killApp,
   launchApp,
   nextBuild,
+  retry,
   runNextCommand,
   runNextCommandDev,
 } from 'next-test-utils'
@@ -17,6 +18,8 @@ import stripAnsi from 'strip-ansi'
 
 const dirBasic = join(__dirname, '../basic')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
+
+const itCI = process.env.NEXT_TEST_CI ? it : it.skip
 
 const runAndCaptureOutput = async ({ port }) => {
   let stdout = ''
@@ -656,6 +659,7 @@ describe('CLI Usage', () => {
       expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
+      expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
     test('Allow retry if default port is already in use', async () => {
@@ -676,7 +680,7 @@ describe('CLI Usage', () => {
       }
 
       expect(output).toMatch(
-        '⚠ Port 3000 is in use, using available port 3001 instead.'
+        '⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.'
       )
     })
 
@@ -738,16 +742,8 @@ describe('CLI Usage', () => {
       }
     })
 
-    // only runs on CI as it requires administrator privileges
-    test('--experimental-https', async () => {
-      if (!process.env.CI) {
-        console.warn(
-          '--experimental-https only runs on CI as it requires administrator privileges'
-        )
-
-        return
-      }
-
+    itCI('--experimental-https', async () => {
+      // only runs on CI as it requires administrator privileges
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
@@ -760,9 +756,11 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /Network:\s*http:\/\/\[::\]:(\d+)/)
-        await check(() => output, /https:\/\/localhost:(\d+)/)
-        await check(() => output, /Certificates created in/)
+        await retry(() => {
+          expect(output).toMatch(/Network:\s*https:\/\//)
+        })
+        expect(output).toMatch(/Local:\s*https:\/\/localhost:(\d+)/)
+        expect(output).toContain('Certificates created in')
       } finally {
         await killApp(app)
       }
@@ -901,7 +899,7 @@ Relevant Packages:
   eslint-config-next: .*
   react: .*
   react-dom: .*
-  typescript: .*
+  typescript: .*${process.env.NEXT_RSPACK ? '\n  next-rspack: .*' : ''}
 Next.js Config:
   output: ${nextConfigOutput}
 `)

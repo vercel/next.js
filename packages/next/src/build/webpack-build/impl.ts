@@ -1,7 +1,7 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
-import formatWebpackMessages from '../../client/components/react-dev-overlay/utils/format-webpack-messages'
+import formatWebpackMessages from '../../shared/lib/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
@@ -385,7 +385,8 @@ export async function workerMain(workerData: {
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!
+    NextBuildContext.dir!,
+    { debugPrerender: NextBuildContext.debugPrerender }
   )
   NextBuildContext.nextBuildSpan = trace(
     `worker-main-${workerData.compilerName}`

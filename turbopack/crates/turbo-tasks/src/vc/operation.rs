@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    marker_trait::impl_auto_marker_trait, trace::TraceRawVcs, CollectiblesSource, RawVc,
-    ReadVcFuture, ResolvedVc, TaskInput, Upcast, Vc, VcValueTrait, VcValueType,
+    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, Upcast, Vc, VcValueTrait,
+    VcValueType, marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
 };
 
 /// A "subtype" (can be converted via [`.connect()`]) of [`Vc`] that

@@ -9,11 +9,11 @@ use turbopack_core::{
 
 use super::module::EcmascriptModuleFacadeModule;
 use crate::{
+    EcmascriptAnalyzable, EcmascriptOptions,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType,
     },
-    EcmascriptAnalyzable, EcmascriptOptions,
 };
 
 /// The chunk item for [EcmascriptModuleFacadeModule].
@@ -32,7 +32,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content_with_async_module_info(
+    fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {

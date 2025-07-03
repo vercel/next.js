@@ -31,7 +31,6 @@ import {
   EVENT_BUILD_FEATURE_USAGE,
   eventCliSession,
 } from '../../../telemetry/events'
-import { getDefineEnv } from '../../../build/webpack/plugins/define-env-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   getStaticInfoIncludingLayouts,
@@ -83,6 +82,7 @@ import {
   ModuleBuildError,
   TurbopackInternalError,
 } from '../../../shared/lib/turbopack/utils'
+import { getDefineEnv } from '../../../build/define-env'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -158,7 +158,11 @@ export async function propagateServerField(
   await opts.renderServer?.instance?.propagateServerField(opts.dir, field, args)
 }
 
-async function startWatcher(opts: SetupOpts) {
+async function startWatcher(
+  opts: SetupOpts & {
+    isSrcDir: boolean
+  }
+) {
   const { nextConfig, appDir, pagesDir, dir, resetFetch } = opts
   const { useFileSystemPublicRoutes } = nextConfig
   const usingTypeScript = await verifyTypeScript(opts)
@@ -191,6 +195,7 @@ async function startWatcher(opts: SetupOpts) {
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
     : new HotReloaderWebpack(opts.dir, {
+        isSrcDir: opts.isSrcDir,
         appDir,
         pagesDir,
         distDir,
@@ -510,7 +515,12 @@ async function startWatcher(opts: SetupOpts) {
           if (!appPaths[pageName]) {
             appPaths[pageName] = []
           }
-          appPaths[pageName].push(originalPageName)
+          appPaths[pageName].push(
+            opts.turbo
+              ? // Turbopack outputs the correct path which is normalized with the `_`.
+                originalPageName.replace(/%5F/g, '_')
+              : originalPageName
+          )
 
           if (useFileSystemPublicRoutes) {
             appFiles.add(pageName)
@@ -666,6 +676,8 @@ async function startWatcher(opts: SetupOpts) {
               hasRewrites,
               // TODO: Implement
               middlewareMatchers: undefined,
+              projectPath: opts.dir,
+              rewrites: opts.fsChecker.rewrites,
             }),
           })
         }
@@ -738,9 +750,10 @@ async function startWatcher(opts: SetupOpts) {
                   hasRewrites,
                   isClient,
                   isEdgeServer,
-                  isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
+                  projectPath: opts.dir,
+                  rewrites: opts.fsChecker.rewrites,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {
@@ -1020,7 +1033,10 @@ export async function setupDevBundler(opts: SetupOpts) {
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
 
-  const result = await startWatcher(opts)
+  const result = await startWatcher({
+    ...opts,
+    isSrcDir,
+  })
 
   opts.telemetry.record(
     eventCliSession(

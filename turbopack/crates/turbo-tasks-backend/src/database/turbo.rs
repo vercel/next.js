@@ -1,21 +1,31 @@
 use std::{
+    cmp::max,
     path::PathBuf,
     sync::Arc,
-    thread::{spawn, JoinHandle},
+    thread::{JoinHandle, available_parallelism, spawn},
 };
 
 use anyhow::Result;
 use parking_lot::Mutex;
-use turbo_persistence::{ArcSlice, KeyBase, StoreKey, TurboPersistence, ValueBuffer};
+use turbo_persistence::{
+    ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
+};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
     write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
 };
 
-const COMPACT_MAX_COVERAGE: f32 = 20.0;
-const COMPACT_MAX_MERGE_SEQUENCE: usize = 64;
-const COMPACT_MAX_MERGE_SIZE: usize = 512 * 1024 * 1024; // 512 MiB
+const MB: u64 = 1024 * 1024;
+const COMPACT_CONFIG: CompactConfig = CompactConfig {
+    min_merge_count: 3,
+    optimal_merge_count: 8,
+    max_merge_count: 64,
+    max_merge_bytes: 512 * MB,
+    min_merge_duplication_bytes: MB,
+    optimal_merge_duplication_bytes: 100 * MB,
+    max_merge_segment_count: 16,
+};
 
 pub struct TurboKeyValueDatabase {
     db: Arc<TurboPersistence>,
@@ -23,8 +33,8 @@ pub struct TurboKeyValueDatabase {
 }
 
 impl TurboKeyValueDatabase {
-    pub fn new(path: PathBuf) -> Result<Self> {
-        let db = Arc::new(TurboPersistence::open(path.to_path_buf())?);
+    pub fn new(versioned_path: PathBuf) -> Result<Self> {
+        let db = Arc::new(TurboPersistence::open(versioned_path)?);
         let mut this = Self {
             db: db.clone(),
             compact_join_handle: Mutex::new(None),
@@ -32,11 +42,11 @@ impl TurboKeyValueDatabase {
         // start compaction in background if the database is not empty
         if !db.is_empty() {
             let handle = spawn(move || {
-                db.compact(
-                    COMPACT_MAX_COVERAGE,
-                    COMPACT_MAX_MERGE_SEQUENCE,
-                    COMPACT_MAX_MERGE_SIZE,
-                )
+                db.compact(&CompactConfig {
+                    max_merge_segment_count: available_parallelism()
+                        .map_or(4, |c| max(4, c.get() / 4)),
+                    ..COMPACT_CONFIG
+                })
             });
             this.compact_join_handle.get_mut().replace(handle);
         }
@@ -49,12 +59,6 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         = ()
     where
         Self: 'l;
-
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        tx
-    }
 
     fn is_empty(&self) -> bool {
         self.db.is_empty()
@@ -99,6 +103,8 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         }))
     }
 
+    fn prevent_writes(&self) {}
+
     fn shutdown(&self) -> Result<()> {
         // Wait for the compaction to finish
         if let Some(join_handle) = self.compact_join_handle.lock().take() {
@@ -138,11 +144,11 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
             // Start a new compaction in the background
             let db = self.db.clone();
             let handle = spawn(move || {
-                db.compact(
-                    COMPACT_MAX_COVERAGE,
-                    COMPACT_MAX_MERGE_SEQUENCE,
-                    COMPACT_MAX_MERGE_SIZE,
-                )
+                db.compact(&CompactConfig {
+                    max_merge_segment_count: available_parallelism()
+                        .map_or(4, |c| max(4, c.get() / 2)),
+                    ..COMPACT_CONFIG
+                })
             });
             self.compact_join_handle.lock().replace(handle);
         }
@@ -162,7 +168,7 @@ impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     }
 
     unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
-        self.batch.flush(key_space as u32)
+        unsafe { self.batch.flush(key_space as u32) }
     }
 }
 

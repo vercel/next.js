@@ -16,6 +16,15 @@ export class CacheSignal {
 
   private subscribedSignals: Set<CacheSignal> | null = null
 
+  constructor() {
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      // we rely on `process.nextTick`, which is not supported in edge
+      throw new InvariantError(
+        'CacheSignal cannot be used in the edge runtime, because `dynamicIO` does not support it.'
+      )
+    }
+  }
+
   private noMorePendingCaches() {
     if (!this.tickPending) {
       this.tickPending = true
@@ -107,7 +116,9 @@ export class CacheSignal {
 
   trackRead<T>(promise: Promise<T>) {
     this.beginRead()
-    promise.finally(this.endRead.bind(this))
+    // `promise.finally()` still rejects, so don't use it here to avoid unhandled rejections
+    const onFinally = this.endRead.bind(this)
+    promise.then(onFinally, onFinally)
     return promise
   }
 

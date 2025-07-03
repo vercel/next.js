@@ -1,8 +1,8 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/b1abf_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_032d7ee7.js", {
 
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/paren-remover/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/paren-remover/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 
-var { g: global, m: module, e: exports } = __turbopack_context__;
+var { m: module, e: exports } = __turbopack_context__;
 {
 function toFixed(value, maxDecimals, roundingFunction, optionals) {
     var splitValue = value.toString().split('.'), minDecimals = maxDecimals - (optionals || 0), optionalsRegExp, power, output;

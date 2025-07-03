@@ -6,7 +6,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
@@ -35,7 +35,7 @@ impl MemberReplacement {
         let key = self.key.clone();
         let value = self.value.clone();
 
-        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let member = Expr::Member(MemberExpr {
                 span: DUMMY_SP,
                 obj: Box::new(Expr::Ident((&*key).into())),

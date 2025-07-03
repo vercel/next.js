@@ -55,6 +55,13 @@ export async function getLoaderModuleNamedExports(
   resourcePath: string,
   context: webpack.LoaderContext<any>
 ): Promise<string[]> {
+  if (process.env.NEXT_RSPACK) {
+    // Currently, the loadModule method is not supported in Rspack.
+    // Use getModuleNamedExports (implemented by us using SWC) to extract named exports from the module.
+    const binding = require('../../swc') as typeof import('../../swc')
+    return binding.getModuleNamedExports(resourcePath)
+  }
+
   const mod = await new Promise<webpack.NormalModule>((res, rej) => {
     context.loadModule(
       resourcePath,

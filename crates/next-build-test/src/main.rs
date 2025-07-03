@@ -1,14 +1,14 @@
 use std::{convert::Infallible, str::FromStr, time::Instant};
 
 use next_api::project::{DefineEnv, ProjectOptions};
-use next_build_test::{main_inner, Strategy};
+use next_build_test::{Strategy, main_inner};
 use next_core::tracing_presets::{
-    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
-    TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_TURBOPACK_TARGETS,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
+use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_tasks::TurboTasks;
-use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_trace_utils::{
     exit::ExitGuard, filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
@@ -42,7 +42,7 @@ fn main() {
 
     match cmd {
         Cmd::Run => {
-            let strat = std::env::args()
+            let strategy = std::env::args()
                 .nth(2)
                 .map(|s| Strategy::from_str(&s))
                 .transpose()
@@ -64,7 +64,7 @@ fn main() {
                 .map(|f| f.split(',').map(ToOwned::to_owned).collect());
 
             if matches!(
-                strat,
+                strategy,
                 Strategy::Sequential { .. } | Strategy::Development { .. }
             ) {
                 factor = 1;
@@ -126,7 +126,7 @@ fn main() {
                         },
                         noop_backing_storage(),
                     ));
-                    let result = main_inner(&tt, strat, factor, limit, files).await;
+                    let result = main_inner(&tt, strategy, factor, limit, files).await;
                     let memory = TurboMalloc::memory_usage();
                     tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
                     let start = Instant::now();
@@ -166,10 +166,11 @@ fn main() {
                                      Safari versions, last 1 Edge versions"
                     .into(),
                 no_mangling: false,
+                current_node_js_version: "18.0.0".into(),
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();
-            println!("{}", json);
+            println!("{json}");
         }
     }
 }

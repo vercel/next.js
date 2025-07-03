@@ -1,16 +1,16 @@
 use std::{future::Future, ops::Deref};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
-    common::{source_map::SmallPos, Span, Spanned, GLOBALS},
+    common::{GLOBALS, Span, Spanned, source_map::SmallPos},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    trace::TraceRawVcs, util::WrapFuture, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
-    Vc,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
+    util::WrapFuture,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -23,9 +23,9 @@ use turbopack_core::{
     source::Source,
 };
 use turbopack_ecmascript::{
-    analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-    parse::{parse, ParseResult},
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    analyzer::{ConstantNumber, ConstantValue, JsValue, graph::EvalContext},
+    parse::{ParseResult, parse},
 };
 
 use crate::{app_structure::AppPageLoaderTree, util::NextRuntime};
@@ -199,14 +199,16 @@ impl NextSegmentConfigParsingIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for NextSegmentConfigParsingIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".into()).cell()
+        StyledString::Text(rcstr!(
+            "Next.js can't recognize the exported `config` field in route"
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -222,11 +224,10 @@ impl Issue for NextSegmentConfigParsingIssue {
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
-            StyledString::Text(
+            StyledString::Text(rcstr!(
                 "The exported configuration object in a source file needs to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
-                    .into(),
-            )
+            ))
             .resolved_cell(),
         ))
     }
@@ -238,17 +239,14 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(
+        Vc::cell(rcstr!(
             "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
-                .into(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(Some(
-            self.source.resolve_source_map().await?.into_owned(),
-        )))
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }
 
@@ -271,7 +269,7 @@ pub async fn parse_segment_config_from_source(
 
     let result = &*parse(
         *source,
-        turbo_tasks::Value::new(if path.path.ends_with(".ts") {
+        if path.path.ends_with(".ts") {
             EcmascriptModuleAssetType::Typescript {
                 tsx: false,
                 analyze_types: false,
@@ -283,7 +281,7 @@ pub async fn parse_segment_config_from_source(
             }
         } else {
             EcmascriptModuleAssetType::Ecmascript
-        }),
+        },
         EcmascriptInputTransforms::empty(),
     )
     .await?;
@@ -394,7 +392,7 @@ async fn parse_config_value(
                     invalid_config(
                         source,
                         span,
-                        &format!("`dynamic` has an invalid value: {}", err),
+                        &format!("`dynamic` has an invalid value: {err}"),
                         &value,
                     )
                     .await?;
@@ -455,7 +453,7 @@ async fn parse_config_value(
                     return invalid_config(
                         source,
                         span,
-                        &format!("`fetchCache` has an invalid value: {}", err),
+                        &format!("`fetchCache` has an invalid value: {err}"),
                         &value,
                     )
                     .await;
@@ -480,7 +478,7 @@ async fn parse_config_value(
                     return invalid_config(
                         source,
                         span,
-                        &format!("`runtime` has an invalid value: {}", err),
+                        &format!("`runtime` has an invalid value: {err}"),
                         &value,
                     )
                     .await;
@@ -583,11 +581,15 @@ pub async fn parse_segment_config_from_loader_tree_internal(
     }
 
     let modules = &loader_tree.modules;
-    for path in [modules.page, modules.default, modules.layout]
-        .into_iter()
-        .flatten()
+    for path in [
+        modules.page.clone(),
+        modules.default.clone(),
+        modules.layout.clone(),
+    ]
+    .into_iter()
+    .flatten()
     {
-        let source = Vc::upcast(FileSource::new(*path));
+        let source = Vc::upcast(FileSource::new(path.clone()));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 

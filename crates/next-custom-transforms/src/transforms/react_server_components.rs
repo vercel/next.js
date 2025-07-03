@@ -351,7 +351,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             vec![span],
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
-            format!("Route segment config \"{}\" is not compatible with `nextConfig.{}`. Please remove it.", segment, property),
+            format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
             vec![span],
         ),
     };
@@ -640,7 +640,7 @@ impl ReactServerComponentValidator {
             invalid_client_imports: vec![Atom::from("server-only"), Atom::from("next/headers")],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
-                ("next/server", vec!["after"]),
+                ("next/server", vec!["after", "unstable_rootParams"]),
                 (
                     "next/cache",
                     vec![

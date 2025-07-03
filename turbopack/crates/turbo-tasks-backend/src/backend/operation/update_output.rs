@@ -1,19 +1,20 @@
-use std::{borrow::Cow, mem::take};
+use std::mem::take;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{util::SharedError, RawVc, TaskId};
+use smallvec::SmallVec;
+use turbo_tasks::{RawVc, TaskId, backend::TurboTasksExecutionError};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
-            invalidate::{make_task_dirty, make_task_dirty_internal},
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
+            invalidate::{make_task_dirty, make_task_dirty_internal},
         },
         storage::{get, get_many},
-        TaskDataCategory,
     },
     data::{
         CachedDataItem, CachedDataItemKey, CellRef, InProgressState, InProgressStateInner,
@@ -26,12 +27,12 @@ pub enum UpdateOutputOperation {
     MakeDependentTasksDirty {
         #[cfg(feature = "trace_task_dirty")]
         task_id: TaskId,
-        dependent_tasks: Vec<TaskId>,
-        children: Vec<TaskId>,
+        dependent_tasks: SmallVec<[TaskId; 4]>,
+        children: SmallVec<[TaskId; 4]>,
         queue: AggregationUpdateQueue,
     },
     EnsureUnfinishedChildrenDirty {
-        children: Vec<TaskId>,
+        children: SmallVec<[TaskId; 4]>,
         queue: AggregationUpdateQueue,
     },
     AggregationUpdate {
@@ -44,7 +45,7 @@ pub enum UpdateOutputOperation {
 impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
-        output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        output: Result<RawVc, TurboTasksExecutionError>,
         mut ctx: impl ExecuteContext,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -60,68 +61,58 @@ impl UpdateOutputOperation {
             // Skip updating the output when the task is stale
             return;
         }
-        let children = ctx
-            .should_track_children()
-            .then(|| new_children.iter().copied().collect())
-            .unwrap_or_default();
+        let children = if ctx.should_track_children() {
+            new_children.iter().copied().collect()
+        } else {
+            Default::default()
+        };
 
-        let old_error = task.remove(&CachedDataItemKey::Error {});
         let current_output = get!(task, Output);
         let output_value = match output {
-            Ok(Ok(RawVc::TaskOutput(output_task_id))) => {
-                if let Some(OutputValue::Output(current_task_id)) = current_output {
-                    if *current_task_id == output_task_id {
-                        return;
-                    }
+            Ok(RawVc::TaskOutput(output_task_id)) => {
+                if let Some(OutputValue::Output(current_task_id)) = current_output
+                    && *current_task_id == output_task_id
+                {
+                    return;
                 }
                 OutputValue::Output(output_task_id)
             }
-            Ok(Ok(RawVc::TaskCell(output_task_id, cell))) => {
+            Ok(RawVc::TaskCell(output_task_id, cell)) => {
                 if let Some(OutputValue::Cell(CellRef {
                     task: current_task_id,
                     cell: current_cell,
                 })) = current_output
+                    && *current_task_id == output_task_id
+                    && *current_cell == cell
                 {
-                    if *current_task_id == output_task_id && *current_cell == cell {
-                        return;
-                    }
+                    return;
                 }
                 OutputValue::Cell(CellRef {
                     task: output_task_id,
                     cell,
                 })
             }
-            Ok(Ok(RawVc::LocalOutput(..))) => {
+            Ok(RawVc::LocalOutput(..)) => {
                 panic!("Non-local tasks must not return a local Vc");
             }
-            Ok(Err(err)) => {
-                task.insert(CachedDataItem::Error {
-                    value: SharedError::new(err.context(format!(
-                        "Execution of {} failed",
-                        ctx.get_task_description(task_id)
-                    ))),
-                });
-                OutputValue::Error
-            }
-            Err(panic) => {
-                task.insert(CachedDataItem::Error {
-                    value: SharedError::new(anyhow!(
-                        "Panic in {}: {:?}",
-                        ctx.get_task_description(task_id),
-                        panic
-                    )),
-                });
-                OutputValue::Panic
+            Err(err) => {
+                if let Some(OutputValue::Error(old_error)) = current_output
+                    && old_error == &err
+                {
+                    return;
+                }
+                OutputValue::Error(err)
             }
         };
         let old_content = task.insert(CachedDataItem::Output {
             value: output_value,
         });
 
-        let dependent_tasks = ctx
-            .should_track_dependencies()
-            .then(|| get_many!(task, OutputDependent { task } => task))
-            .unwrap_or_default();
+        let dependent_tasks = if ctx.should_track_dependencies() {
+            get_many!(task, OutputDependent { task } => task)
+        } else {
+            Default::default()
+        };
 
         let mut queue = AggregationUpdateQueue::new();
 
@@ -137,7 +128,6 @@ impl UpdateOutputOperation {
 
         drop(task);
         drop(old_content);
-        drop(old_error);
 
         UpdateOutputOperation::MakeDependentTasksDirty {
             #[cfg(feature = "trace_task_dirty")]

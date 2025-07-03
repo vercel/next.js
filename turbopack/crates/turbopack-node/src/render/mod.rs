@@ -3,7 +3,7 @@ use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef};
 
-use crate::{route_matcher::Param, ResponseHeaders, StructuredError};
+use crate::{ResponseHeaders, StructuredError, route_matcher::Param};
 
 pub(crate) mod error_page;
 pub mod issue;

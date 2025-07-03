@@ -5,12 +5,11 @@ use std::{
     ops::Deref,
 };
 
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 
 use crate::{
-    registry,
+    TaskPersistence, registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    TaskPersistence,
 };
 
 macro_rules! define_id {
@@ -114,7 +113,6 @@ macro_rules! define_id {
 }
 
 define_id!(TaskId: u32, derive(Serialize, Deserialize), serde(transparent));
-define_id!(FunctionId: u32);
 define_id!(ValueTypeId: u32);
 define_id!(TraitTypeId: u32);
 define_id!(BackendJobId: u32);
@@ -203,12 +201,6 @@ macro_rules! make_serializable {
     };
 }
 
-make_serializable!(
-    FunctionId,
-    registry::get_function_global_name,
-    registry::get_function_id_by_global_name,
-    FunctionIdVisitor
-);
 make_serializable!(
     ValueTypeId,
     registry::get_value_type_global_name,

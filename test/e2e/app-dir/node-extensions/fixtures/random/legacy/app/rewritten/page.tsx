@@ -1,3 +1,3 @@
 export default async function Page() {
-  return <section>rewritten</section>
+  return <section data-testid="content">rewritten</section>
 }

@@ -1,10 +1,10 @@
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
+use anyhow::{Result, bail};
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
-        ChunkItemOrBatchWithAsyncModuleInfo, ChunkType, ChunkingContext,
+        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
+        ChunkItemOrBatchWithAsyncModuleInfo, ChunkType, ChunkingContext, round_chunk_item_size,
     },
     output::OutputAssets,
 };
@@ -20,7 +20,7 @@ pub struct EcmascriptChunkType {}
 impl ValueToString for EcmascriptChunkType {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("ecmascript".into())
+        Vc::cell(rcstr!("ecmascript"))
     }
 }
 

@@ -352,6 +352,31 @@ describe('app dir - next/font', () => {
           }
         })
 
+        it('should preload correctly with template using fonts', async () => {
+          const $ = await next.render$('/template-with-fonts')
+
+          // Preconnect
+          expect($('link[rel="preconnect"]').length).toBe(0)
+
+          const links = getAttrs($('link[as="font"]'))
+
+          for (const link of links) {
+            expect(link.as).toBe('font')
+            expect(link.crossorigin).toBe('')
+            if (process.env.IS_TURBOPACK_TEST) {
+              expect(link.href).toMatch(
+                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
+              )
+            } else {
+              expect(link.href).toMatch(
+                /\/_next\/static\/media\/(.*)-s.p.woff2/
+              )
+            }
+            expect(link.rel).toBe('preload')
+            expect(link.type).toBe('font/woff2')
+          }
+        })
+
         it('should preload correctly with page using fonts', async () => {
           const $ = await next.render$('/page-with-fonts')
 
@@ -379,7 +404,7 @@ describe('app dir - next/font', () => {
       })
 
       describe('preconnect', () => {
-        it.each([['page'], ['layout'], ['component']])(
+        it.each([['page'], ['layout'], ['component'], ['template']])(
           'should add preconnect when preloading is disabled in %s',
           async (type: string) => {
             const $ = await next.render$(`/preconnect-${type}`)

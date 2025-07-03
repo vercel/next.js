@@ -1,8 +1,8 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::{
-    spanned::Spanned, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed,
-    FieldsUnnamed,
+    Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed, FieldsUnnamed,
+    spanned::Spanned,
 };
 
 /// Handles the expansion of a struct/enum into a match statement that accesses
@@ -157,7 +157,7 @@ pub fn generate_destructuring<'a, I: Fn(&Field) -> bool>(
         .map(|(i, field)| match &field.ident {
             Some(ident) => (quote! { #ident }, quote! { #ident }),
             None => {
-                let ident = Ident::new(&format!("field_{}", i), field.span());
+                let ident = Ident::new(&format!("field_{i}"), field.span());
                 let index = syn::Index::from(i);
                 (quote! { #index: #ident }, quote! { #ident })
             }

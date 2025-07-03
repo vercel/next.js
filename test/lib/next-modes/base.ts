@@ -13,6 +13,7 @@ import cheerio from 'cheerio'
 import { once } from 'events'
 import { Playwright } from 'next-webdriver'
 import escapeStringRegexp from 'escape-string-regexp'
+import { Page, Response } from 'playwright'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -44,6 +45,7 @@ export interface NextInstanceOpts {
   forcedPort?: string
   serverReadyPattern?: RegExp
   patchFileDelay?: number
+  startServerTimeout?: number
 }
 
 /**
@@ -84,6 +86,7 @@ export class NextInstance {
   public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
+  public startServerTimeout: number = 10_000 // 10 seconds
   public serverReadyPattern: RegExp = / ✓ Ready in /
   patchFileDelay: number = 0
 
@@ -386,7 +389,7 @@ export class NextInstance {
 
   protected setServerReadyTimeout(
     reject: (reason?: unknown) => void,
-    ms = 10_000
+    ms: number
   ): NodeJS.Timeout {
     return setTimeout(() => {
       reject(
@@ -545,6 +548,16 @@ export class NextInstance {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
 
+  public async readFileBuffer(
+    filename: string
+  ): Promise<Buffer<ArrayBufferLike>> {
+    return fs.readFile(path.join(this.testDir, filename))
+  }
+
+  public async writeFileBuffer(filename: string, data: Buffer): Promise<void> {
+    return fs.writeFile(path.join(this.testDir, filename), data)
+  }
+
   public async readFiles(
     dirname: string,
     predicate: (filename: string) => boolean
@@ -652,12 +665,55 @@ export class NextInstance {
   }
 
   /**
-   * Create new browser window for the Next.js app.
+   * Create a new browser window for the Next.js app.
    */
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
   ): Promise<Playwright> {
     return webdriver(this.url, ...args)
+  }
+
+  /**
+   * Create a new browser window for the Next.js app, and also return the page's
+   * response.
+   */
+  public async browserWithResponse(
+    ...args: Parameters<OmitFirstArgument<typeof webdriver>>
+  ): Promise<{ browser: Playwright; response: Response }> {
+    const [url, options = {}] = args
+
+    let resolveResponse: (response: Response) => void
+
+    const responsePromise = new Promise<Response>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(`Timed out waiting for the response of ${url}`)
+      }, 10_000)
+
+      resolveResponse = (response: Response) => {
+        clearTimeout(timer)
+        resolve(response)
+      }
+    })
+
+    const absoluteUrl = new URL(url, this.url).href
+
+    const [browser, response] = await Promise.all([
+      webdriver(this.url, url, {
+        ...options,
+        beforePageLoad(page: Page) {
+          options.beforePageLoad?.(page)
+
+          page.on('response', async (response) => {
+            if (response.url() === absoluteUrl) {
+              resolveResponse(response)
+            }
+          })
+        },
+      }),
+      responsePromise,
+    ])
+
+    return { browser, response }
   }
 
   /**

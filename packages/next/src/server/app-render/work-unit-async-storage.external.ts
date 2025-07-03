@@ -79,7 +79,10 @@ export interface RequestStore extends CommonWorkUnitStore {
  * to fill all caches.
  */
 export interface PrerenderStoreModern extends CommonWorkUnitStore {
-  type: 'prerender'
+  // In the future the prerender-client variant will get it's own type.
+  // prerender represents the RSC scope of the prerender.
+  // prerender-client represents the HTML scope of the prerender.
+  type: 'prerender' | 'prerender-client'
 
   /**
    * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
@@ -106,6 +109,14 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
 
   readonly rootParams: Params
 
+  /**
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
+   */
+  readonly allowEmptyStaticShell: boolean
+
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   expire: number // server expiration time
@@ -113,9 +124,17 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
   tags: null | string[]
 
   /**
-   * The resume data cache for this prerender.
+   * A mutable resume data cache for this prerender.
    */
   prerenderResumeDataCache: PrerenderResumeDataCache | null
+
+  /**
+   * An immutable resume data cache for this prerender. This may be provided
+   * instead of the `prerenderResumeDataCache` if the prerender is not supposed
+   * to fill caches, and only read from prefilled caches, e.g. when prerendering
+   * an optional fallback shell.
+   */
+  renderResumeDataCache: RenderResumeDataCache | null
 
   /**
    * The HMR refresh hash is only provided in dev mode. It is needed for the dev
@@ -163,6 +182,11 @@ export interface CommonCacheStore
    * from which implicit tags could be inherited.
    */
   readonly implicitTags: ImplicitTags | undefined
+  /**
+   * Draft mode is only available if the outer work unit store is a request
+   * store and draft mode is enabled.
+   */
+  readonly draftMode: DraftModeProvider | undefined
 }
 
 export interface UseCacheStore extends CommonCacheStore {
@@ -179,21 +203,20 @@ export interface UseCacheStore extends CommonCacheStore {
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
-  // Draft mode is only available if the outer work unit store is a request
-  // store and draft mode is enabled.
-  readonly draftMode: DraftModeProvider | undefined
 }
 
 export interface UnstableCacheStore extends CommonCacheStore {
   type: 'unstable-cache'
-  // Draft mode is only available if the outer work unit store is a request
-  // store and draft mode is enabled.
-  readonly draftMode: DraftModeProvider | undefined
 }
 
 /**
- * The Cache store is for tracking information inside a "use cache" or unstable_cache context.
- * Inside this context we should never expose any request or page specific information.
+ * The Cache store is for tracking information inside a "use cache" or
+ * unstable_cache context. A cache store shadows an outer request store (if
+ * present) as a work unit, so that we never accidentally expose any request or
+ * page specific information to cache functions, unless it's explicitly desired.
+ * For those exceptions, the data is copied over from the request store to the
+ * cache store, instead of generally making the request store available to cache
+ * functions.
  */
 export type CacheStore = UseCacheStore | UnstableCacheStore
 
@@ -217,6 +240,7 @@ export function getExpectedRequestStore(
       return workUnitStore
 
     case 'prerender':
+    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy':
       // This should not happen because we should have checked it already.
@@ -251,6 +275,8 @@ export function getPrerenderResumeDataCache(
 ): PrerenderResumeDataCache | null {
   if (
     workUnitStore.type === 'prerender' ||
+    // TODO eliminate fetch caching in client scope and stop exposing this data cache during SSR
+    workUnitStore.type === 'prerender-client' ||
     workUnitStore.type === 'prerender-ppr'
   ) {
     return workUnitStore.prerenderResumeDataCache
@@ -262,21 +288,24 @@ export function getPrerenderResumeDataCache(
 export function getRenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): RenderResumeDataCache | null {
-  if (
-    workUnitStore.type !== 'prerender-legacy' &&
-    workUnitStore.type !== 'cache' &&
-    workUnitStore.type !== 'unstable-cache'
-  ) {
-    if (workUnitStore.type === 'request') {
+  switch (workUnitStore.type) {
+    case 'request':
       return workUnitStore.renderResumeDataCache
-    }
-
-    // We return the mutable resume data cache here as an immutable version of
-    // the cache as it can also be used for reading.
-    return workUnitStore.prerenderResumeDataCache
+    case 'prerender':
+    case 'prerender-client':
+      if (workUnitStore.renderResumeDataCache) {
+        // If we are in a prerender, we might have a render resume data cache
+        // that is used to read from prefilled caches.
+        return workUnitStore.renderResumeDataCache
+      }
+    // fallthrough
+    case 'prerender-ppr':
+      // Otherwise we return the mutable resume data cache here as an immutable
+      // version of the cache as it can also be used for reading.
+      return workUnitStore.prerenderResumeDataCache
+    default:
+      return null
   }
-
-  return null
 }
 
 export function getHmrRefreshHash(

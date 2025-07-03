@@ -24,7 +24,7 @@ import {
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
-import { SharedCacheControls } from './shared-cache-controls'
+import { SharedCacheControls } from './shared-cache-controls.external'
 import {
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,
@@ -34,6 +34,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
 import type { Revalidate } from '../cache-control'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
+import { DetachedPromise } from '../../../lib/detached-promise'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -85,13 +86,14 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly hasCustomCacheHandler: boolean
   readonly prerenderManifest: DeepReadonly<PrerenderManifest>
   readonly requestHeaders: Record<string, undefined | string | string[]>
-  readonly requestProtocol?: 'http' | 'https'
   readonly allowedRevalidateHeaderKeys?: string[]
   readonly minimalMode?: boolean
   readonly fetchCacheKeyPrefix?: string
   readonly revalidatedTags?: string[]
   readonly isOnDemandRevalidate?: boolean
 
+  private static readonly debug: boolean =
+    !!process.env.NEXT_PRIVATE_DEBUG_CACHE
   private readonly locks = new Map<string, Promise<void>>()
 
   /**
@@ -107,7 +109,6 @@ export class IncrementalCache implements IncrementalCacheType {
     minimalMode,
     serverDistDir,
     requestHeaders,
-    requestProtocol,
     maxMemoryCacheSize,
     getPrerenderManifest,
     fetchCacheKeyPrefix,
@@ -119,7 +120,6 @@ export class IncrementalCache implements IncrementalCacheType {
     minimalMode?: boolean
     serverDistDir?: string
     flushToDisk?: boolean
-    requestProtocol?: 'http' | 'https'
     allowedRevalidateHeaderKeys?: string[]
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
@@ -127,7 +127,6 @@ export class IncrementalCache implements IncrementalCacheType {
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
   }) {
-    const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
 
     const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
@@ -145,13 +144,13 @@ export class IncrementalCache implements IncrementalCacheType {
         CurCacheHandler = globalCacheHandler.FetchCache
       } else {
         if (fs && serverDistDir) {
-          if (debug) {
+          if (IncrementalCache.debug) {
             console.log('using filesystem cache handler')
           }
           CurCacheHandler = FileSystemCache
         }
       }
-    } else if (debug) {
+    } else if (IncrementalCache.debug) {
       console.log('using custom cache handler', CurCacheHandler.name)
     }
 
@@ -166,7 +165,6 @@ export class IncrementalCache implements IncrementalCacheType {
     const minimalModeKey = 'minimalMode'
     this[minimalModeKey] = minimalMode
     this.requestHeaders = requestHeaders
-    this.requestProtocol = requestProtocol
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
     this.cacheControls = new SharedCacheControls(this.prerenderManifest)
@@ -238,23 +236,42 @@ export class IncrementalCache implements IncrementalCacheType {
     this.cacheHandler?.resetRequestCache?.()
   }
 
-  async lock(cacheKey: string) {
-    let unlockNext: () => Promise<void> = () => Promise.resolve()
-    const existingLock = this.locks.get(cacheKey)
+  async lock(cacheKey: string): Promise<() => Promise<void> | void> {
+    // Wait for any existing lock on this cache key to be released
+    // This implements a simple queue-based locking mechanism
+    while (true) {
+      const lock = this.locks.get(cacheKey)
 
-    if (existingLock) {
-      await existingLock
+      if (IncrementalCache.debug) {
+        console.log('lock get', cacheKey, !!lock)
+      }
+
+      // If no lock exists, we can proceed to acquire it
+      if (!lock) break
+
+      // Wait for the existing lock to be released before trying again
+      await lock
     }
 
-    const newLock = new Promise<void>((resolve) => {
-      unlockNext = async () => {
-        resolve()
-        this.locks.delete(cacheKey) // Remove the lock upon release
-      }
-    })
+    // Create a new detached promise that will represent this lock
+    // The resolve function (unlock) will be returned to the caller
+    const { resolve, promise } = new DetachedPromise<void>()
 
-    this.locks.set(cacheKey, newLock)
-    return unlockNext
+    if (IncrementalCache.debug) {
+      console.log('successfully locked', cacheKey)
+    }
+
+    // Store the lock promise in the locks map
+    this.locks.set(cacheKey, promise)
+
+    return () => {
+      // Resolve the promise to release the lock.
+      resolve()
+
+      // Remove the lock from the map once it's released so that future gets
+      // can acquire the lock.
+      this.locks.delete(cacheKey)
+    }
   }
 
   async revalidateTag(tags: string | string[]): Promise<void> {
@@ -477,7 +494,6 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     let entry: IncrementalResponseCacheEntry | null = null
-    const { isFallback } = ctx
     const cacheControl = this.cacheControls.get(toRoute(cacheKey))
 
     let isStale: boolean | -1 | undefined
@@ -506,7 +522,6 @@ export class IncrementalCache implements IncrementalCacheType {
         cacheControl,
         revalidateAfter,
         value: cacheData.value,
-        isFallback,
       }
     }
 
@@ -524,7 +539,6 @@ export class IncrementalCache implements IncrementalCacheType {
         value: null,
         cacheControl,
         revalidateAfter,
-        isFallback,
       }
       this.set(cacheKey, entry.value, { ...ctx, cacheControl })
     }
@@ -569,16 +583,20 @@ export class IncrementalCache implements IncrementalCacheType {
     const itemSize = JSON.stringify(data).length
     if (
       ctx.fetchCache &&
-      // we don't show this error/warning when a custom cache handler is being used
-      // as it might not have this limit
+      itemSize > 2 * 1024 * 1024 &&
+      // We ignore the size limit when custom cache handler is being used, as it
+      // might not have this limit
       !this.hasCustomCacheHandler &&
-      itemSize > 2 * 1024 * 1024
+      // We also ignore the size limit when it's an implicit build-time-only
+      // caching that the user isn't even aware of.
+      !ctx.isImplicitBuildTimeCache
     ) {
+      const warningText = `Failed to set Next.js data cache for ${ctx.fetchUrl || pathname}, items over 2MB can not be cached (${itemSize} bytes)`
+
       if (this.dev) {
-        throw new Error(
-          `Failed to set Next.js data cache, items over 2MB can not be cached (${itemSize} bytes)`
-        )
+        throw new Error(warningText)
       }
+      console.warn(warningText)
       return
     }
 

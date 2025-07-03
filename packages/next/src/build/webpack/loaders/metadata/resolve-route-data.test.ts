@@ -87,16 +87,16 @@ describe('resolveRouteData', () => {
           },
         ])
       ).toMatchInlineSnapshot(`
-        "<?xml version="1.0" encoding="UTF-8"?>
-        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-        <url>
-        <loc>https://example.com</loc>
-        <lastmod>2021-01-01</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.5</priority>
-        </url>
-        </urlset>
-        "
+       "<?xml version="1.0" encoding="UTF-8"?>
+       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
+       <url>
+       <loc>https://example.com</loc>
+       <lastmod>2021-01-01</lastmod>
+       <changefreq>weekly</changefreq>
+       <priority>0.5</priority>
+       </url>
+       </urlset>
+       "
       `)
     })
     it('should resolve sitemap.xml with alternates', () => {
@@ -114,16 +114,16 @@ describe('resolveRouteData', () => {
           },
         ])
       ).toMatchInlineSnapshot(`
-        "<?xml version="1.0" encoding="UTF-8"?>
-        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
-        <url>
-        <loc>https://example.com</loc>
-        <xhtml:link rel="alternate" hreflang="es" href="https://example.com/es" />
-        <xhtml:link rel="alternate" hreflang="de" href="https://example.com/de" />
-        <lastmod>2021-01-01</lastmod>
-        </url>
-        </urlset>
-        "
+       "<?xml version="1.0" encoding="UTF-8"?>
+       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="https://www.w3.org/1999/xhtml">
+       <url>
+       <loc>https://example.com</loc>
+       <xhtml:link rel="alternate" hreflang="es" href="https://example.com/es" />
+       <xhtml:link rel="alternate" hreflang="de" href="https://example.com/de" />
+       <lastmod>2021-01-01</lastmod>
+       </url>
+       </urlset>
+       "
       `)
     })
     it('should resolve sitemap.xml with images', () => {
@@ -138,19 +138,19 @@ describe('resolveRouteData', () => {
           },
         ])
       ).toMatchInlineSnapshot(`
-        "<?xml version="1.0" encoding="UTF-8"?>
-        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-        <url>
-        <loc>https://example.com</loc>
-        <image:image>
-        <image:loc>https://example.com/image.jpg</image:loc>
-        </image:image>
-        <lastmod>2021-01-01</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.5</priority>
-        </url>
-        </urlset>
-        "
+       "<?xml version="1.0" encoding="UTF-8"?>
+       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="https://www.google.com/schemas/sitemap-image/1.1">
+       <url>
+       <loc>https://example.com</loc>
+       <image:image>
+       <image:loc>https://example.com/image.jpg</image:loc>
+       </image:image>
+       <lastmod>2021-01-01</lastmod>
+       <changefreq>weekly</changefreq>
+       <priority>0.5</priority>
+       </url>
+       </urlset>
+       "
       `)
     })
     it('should resolve sitemap.xml with videos', () => {
@@ -194,35 +194,35 @@ describe('resolveRouteData', () => {
           },
         ])
       ).toMatchInlineSnapshot(`
-        "<?xml version="1.0" encoding="UTF-8"?>
-        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
-        <url>
-        <loc>https://example.com</loc>
-        <video:video>
-        <video:title>example</video:title>
-        <video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>
-        <video:description>this is the description</video:description>
-        <video:content_loc>http://streamserver.example.com/video123.mp4</video:content_loc>
-        <video:player_loc>https://www.example.com/videoplayer.php?video=123</video:player_loc>
-        <video:duration>2</video:duration>
-        <video:view_count>50</video:view_count>
-        <video:tag>summer</video:tag>
-        <video:rating>4</video:rating>
-        <video:expiration_date>2025-09-16</video:expiration_date>
-        <video:publication_date>2024-09-16</video:publication_date>
-        <video:family_friendly>yes</video:family_friendly>
-        <video:requires_subscription>no</video:requires_subscription>
-        <video:live>no</video:live>
-        <video:restriction relationship="allow">IE GB US CA</video:restriction>
-        <video:platform relationship="allow">web</video:platform>
-        <video:uploader info="https://www.example.com/users/grillymcgrillerson">GrillyMcGrillerson</video:uploader>
-        </video:video>
-        <lastmod>2021-01-01</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.5</priority>
-        </url>
-        </urlset>
-        "
+       "<?xml version="1.0" encoding="UTF-8"?>
+       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="https://www.google.com/schemas/sitemap-video/1.1">
+       <url>
+       <loc>https://example.com</loc>
+       <video:video>
+       <video:title>example</video:title>
+       <video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>
+       <video:description>this is the description</video:description>
+       <video:content_loc>http://streamserver.example.com/video123.mp4</video:content_loc>
+       <video:player_loc>https://www.example.com/videoplayer.php?video=123</video:player_loc>
+       <video:duration>2</video:duration>
+       <video:view_count>50</video:view_count>
+       <video:tag>summer</video:tag>
+       <video:rating>4</video:rating>
+       <video:expiration_date>2025-09-16</video:expiration_date>
+       <video:publication_date>2024-09-16</video:publication_date>
+       <video:family_friendly>yes</video:family_friendly>
+       <video:requires_subscription>no</video:requires_subscription>
+       <video:live>no</video:live>
+       <video:restriction relationship="allow">IE GB US CA</video:restriction>
+       <video:platform relationship="allow">web</video:platform>
+       <video:uploader info="https://www.example.com/users/grillymcgrillerson">GrillyMcGrillerson</video:uploader>
+       </video:video>
+       <lastmod>2021-01-01</lastmod>
+       <changefreq>weekly</changefreq>
+       <priority>0.5</priority>
+       </url>
+       </urlset>
+       "
       `)
     })
   })

@@ -5,10 +5,10 @@ use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    trace::{TraceRawVcs, TraceRawVcsContext},
     IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+    trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
@@ -24,7 +24,7 @@ use turbopack_core::{
     },
 };
 
-use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
+use crate::source::{ProxyResult, resolve::ResolveSourceRequestResult};
 
 struct TypedGetContentFn<C> {
     capture: C,
@@ -125,13 +125,20 @@ async fn get_update_stream_item_operation(
         Ok(content) => content,
         Err(e) => {
             plain_issues.push(
-                FatalStreamIssue {
-                    resource,
-                    description: StyledString::Text(format!("{}", PrettyPrintError(&e)).into())
-                        .resolved_cell(),
-                }
-                .cell()
-                .into_plain(OptionIssueProcessingPathItems::none())
+                PlainIssue::from_issue(
+                    Vc::upcast(
+                        FatalStreamIssue {
+                            resource,
+                            description: StyledString::Text(
+                                format!("{}", PrettyPrintError(&e)).into(),
+                            )
+                            .resolved_cell(),
+                        }
+                        .cell(),
+                    ),
+                    None,
+                    OptionIssueProcessingPathItems::none(),
+                )
                 .await?,
             );
 
@@ -181,14 +188,14 @@ async fn get_update_stream_item_operation(
             extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
 
             let from = from.get();
-            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await? {
-                if from.await? == proxy_result_value {
-                    return Ok(UpdateStreamItem::Found {
-                        update: Update::None.cell().await?,
-                        issues: plain_issues,
-                    }
-                    .cell());
+            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await?
+                && from.await? == proxy_result_value
+            {
+                return Ok(UpdateStreamItem::Found {
+                    update: Update::None.cell().await?,
+                    issues: plain_issues,
                 }
+                .cell());
             }
 
             Ok(UpdateStreamItem::Found {
@@ -372,9 +379,8 @@ struct FatalStreamIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for FatalStreamIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Fatal.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Fatal
     }
 
     #[turbo_tasks::function]
@@ -383,13 +389,17 @@ impl Issue for FatalStreamIssue {
     }
 
     #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        ServerFileSystem::new().root().join(self.resource.clone())
+    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(ServerFileSystem::new()
+            .root()
+            .await?
+            .join(&self.resource)?
+            .cell())
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Fatal error while getting content to stream".into()).cell()
+        StyledString::Text(rcstr!("Fatal error while getting content to stream")).cell()
     }
 
     #[turbo_tasks::function]
@@ -401,12 +411,12 @@ impl Issue for FatalStreamIssue {
 #[cfg(test)]
 pub mod test {
     use std::sync::{
-        atomic::{AtomicI32, Ordering},
         Arc,
+        atomic::{AtomicI32, Ordering},
     };
 
     use turbo_tasks::TurboTasks;
-    use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
 

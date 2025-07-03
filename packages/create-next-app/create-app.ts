@@ -38,6 +38,7 @@ export async function createApp({
   empty,
   api,
   turbopack,
+  rspack,
   disableGit,
 }: {
   appPath: string
@@ -54,6 +55,7 @@ export async function createApp({
   empty: boolean
   api?: boolean
   turbopack: boolean
+  rspack: boolean
   disableGit?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
@@ -237,6 +239,7 @@ export async function createApp({
       importAlias,
       skipInstall,
       turbopack,
+      rspack,
     })
   }
 

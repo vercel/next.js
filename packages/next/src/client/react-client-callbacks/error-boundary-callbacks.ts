@@ -5,14 +5,14 @@ import {
   setOwnerStackIfAvailable,
   setComponentStack,
   coerceError,
-} from '../components/errors/stitched-error'
-import { handleClientError } from '../components/errors/use-error-handler'
+} from '../../next-devtools/userspace/app/errors/stitched-error'
+import { handleClientError } from '../../next-devtools/userspace/app/errors/use-error-handler'
 import { isNextRouterError } from '../components/is-next-router-error'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'
-import { originConsoleError } from '../components/globals/intercept-console-error'
+import { originConsoleError } from '../../next-devtools/userspace/app/errors/intercept-console-error'
 import { ErrorBoundaryHandler } from '../components/error-boundary'
-import DefaultErrorBoundary from '../components/global-error'
+import DefaultErrorBoundary from '../components/builtin/global-error'
 
 export function onCaughtError(
   thrownValue: unknown,
@@ -24,7 +24,7 @@ export function onCaughtError(
 
   if (process.env.NODE_ENV !== 'production') {
     const { AppDevOverlayErrorBoundary } =
-      require('../components/react-dev-overlay/app/app-dev-overlay-error-boundary') as typeof import('../components/react-dev-overlay/app/app-dev-overlay-error-boundary')
+      require('../../next-devtools/userspace/app/app-dev-overlay-error-boundary') as typeof import('../../next-devtools/userspace/app/app-dev-overlay-error-boundary')
 
     isImplicitErrorBoundary =
       errorBoundaryComponent === AppDevOverlayErrorBoundary
@@ -35,6 +35,18 @@ export function onCaughtError(
     (errorBoundaryComponent === ErrorBoundaryHandler &&
       (errorInfo.errorBoundary! as InstanceType<typeof ErrorBoundaryHandler>)
         .props.errorComponent === DefaultErrorBoundary)
+
+  // Skip the segment explorer triggered error
+  if (process.env.NODE_ENV !== 'production') {
+    const { SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE } =
+      require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+    if (
+      thrownValue instanceof Error &&
+      thrownValue.message === SEGMENT_EXPLORER_SIMULATED_ERROR_MESSAGE
+    ) {
+      return
+    }
+  }
 
   if (isImplicitErrorBoundary) {
     // We don't consider errors caught unless they're caught by an explicit error

@@ -26,13 +26,13 @@ export class NextStartInstance extends NextInstance {
   private handleStdio = (childProcess) => {
     childProcess.stdout.on('data', (chunk) => {
       const msg = chunk.toString()
-      if (!process.env.CI) process.stdout.write(chunk)
+      process.stdout.write(chunk)
       this._cliOutput += msg
       this.emit('stdout', [msg])
     })
     childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
-      if (!process.env.CI) process.stderr.write(chunk)
+      process.stderr.write(chunk)
       this._cliOutput += msg
       this.emit('stderr', [msg])
     })
@@ -149,7 +149,10 @@ export class NextStartInstance extends NextInstance {
           }
         })
 
-        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
+        const serverReadyTimeoutId = this.setServerReadyTimeout(
+          reject,
+          this.startServerTimeout
+        )
 
         const readyCb = (msg) => {
           const colorStrippedMsg = stripAnsi(msg)

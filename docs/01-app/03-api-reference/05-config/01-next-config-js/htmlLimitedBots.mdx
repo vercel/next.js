@@ -1,0 +1,34 @@
+---
+title: htmlLimitedBots
+description: Specify a list of user agents that should receive blocking metadata.
+---
+
+The `htmlLimitedBots` config allows you to specify a list of user agents that should receive blocking metadata instead of [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const config: NextConfig = {
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
+}
+
+export default config
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
+}
+```
+
+## Default list
+
+Next.js includes [a default list of HTML limited bots](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/html-bots.ts).
+
+Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior. However, this is advanced behavior, and the default should be sufficient for most cases.
+
+## Version History
+
+| Version | Changes                              |
+| ------- | ------------------------------------ |
+| 15.2.0  | `htmlLimitedBots` option introduced. |

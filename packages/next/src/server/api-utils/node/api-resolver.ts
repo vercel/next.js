@@ -41,6 +41,7 @@ type ApiContext = __ApiPreviewProps & {
   hostname?: string
   multiZoneDraftMode?: boolean
   dev: boolean
+  projectDir: string
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -144,7 +145,7 @@ function setDraftMode<T>(
   // https://tools.ietf.org/html/rfc6265#section-4.1.1
   // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
   const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+    require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -210,7 +211,7 @@ function setPreviewData<T>(
   }
 
   const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+    require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -286,7 +287,8 @@ async function revalidate(
   }
 
   const internalRevalidate =
-    routerServerGlobal[RouterServerContextSymbol]?.revalidate
+    routerServerGlobal[RouterServerContextSymbol]?.[context.projectDir]
+      ?.revalidate
 
   try {
     // We use the revalidate in router-server if available.

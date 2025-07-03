@@ -63,7 +63,7 @@ export async function lazyPostCSS(
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
-      const postcss = require('postcss')
+      const postcss = require('postcss') as typeof import('postcss')
       // @ts-ignore backwards compat
       postcss.plugin = function postcssPlugin(name, initializer) {
         function creator(...args: any) {
@@ -596,7 +596,9 @@ export const css = curry(async function css(
     // Extract CSS as CSS file(s) in the client-side production bundle.
     const MiniCssExtractPlugin = isRspack
       ? getRspackCore().CssExtractRspackPlugin
-      : require('../../../plugins/mini-css-extract-plugin').default
+      : (
+          require('../../../plugins/mini-css-extract-plugin') as typeof import('../../../plugins/mini-css-extract-plugin')
+        ).default
 
     fns.push(
       plugin(

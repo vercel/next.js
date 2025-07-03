@@ -2,8 +2,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, get_effects, trace::TraceRawVcs, CollectiblesSource, FxIndexMap,
-    NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, Vc,
+    CollectiblesSource, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
+    TaskInput, Vc, debug::ValueDebugFormat, get_effects, trace::TraceRawVcs,
 };
 use turbopack_core::{diagnostics::Diagnostic, issue::IssueDescriptionExt};
 

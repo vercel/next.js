@@ -1,11 +1,11 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use either::Either;
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, File};
+use turbo_tasks_fs::{File, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, MinifyType, ModuleId},
@@ -21,8 +21,8 @@ use super::{
     merged::merger::EcmascriptBrowserChunkContentMerger, version::EcmascriptBrowserChunkVersion,
 };
 use crate::{
-    chunking_context::{CurrentChunkMethod, CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR},
     BrowserChunkingContext,
+    chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
 };
 
 #[turbo_tasks::value(serialization = "none")]
@@ -36,7 +36,7 @@ pub struct EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    pub(crate) async fn new(
+    pub(crate) fn new(
         chunking_context: ResolvedVc<BrowserChunkingContext>,
         chunk: ResolvedVc<EcmascriptBrowserChunk>,
         content: ResolvedVc<EcmascriptChunkContent>,
@@ -60,12 +60,12 @@ impl EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    pub(crate) fn own_version(&self) -> Vc<EcmascriptBrowserChunkVersion> {
-        EcmascriptBrowserChunkVersion::new(
-            self.chunking_context.output_root(),
-            self.chunk.path(),
+    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBrowserChunkVersion>> {
+        Ok(EcmascriptBrowserChunkVersion::new(
+            self.chunking_context.output_root().await?.clone_value(),
+            self.chunk.path().await?.clone_value(),
             *self.content,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -128,7 +128,7 @@ impl EcmascriptBrowserChunkContent {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            code = minify(&code, source_maps, mangle)?;
+            code = minify(code, source_maps, mangle)?;
         }
 
         Ok(code.cell())

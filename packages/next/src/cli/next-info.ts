@@ -8,7 +8,7 @@ import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { getRegistry } from '../lib/helpers/get-registry'
 import { parseVersionInfo } from '../server/dev/parse-version-info'
-import { getStaleness } from '../client/components/react-dev-overlay/ui/components/version-staleness-info/version-staleness-info'
+import { getStaleness } from '../next-devtools/shared/version-staleness'
 import { warn } from '../build/output/log'
 
 export type NextInfoOptions = {
@@ -179,8 +179,10 @@ async function runSharedDependencyCheck(
   skipMessage: string
 ): Promise<TaskResult> {
   const currentPlatform = os.platform()
-  const spawn = require('next/dist/compiled/cross-spawn')
-  const { getSupportedArchTriples } = require('../build/swc')
+  const spawn =
+    require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
+  const { getSupportedArchTriples } =
+    require('../build/swc') as typeof import('../build/swc')
   const triples = getSupportedArchTriples()[currentPlatform]?.[os.arch()] ?? []
   // First, check if system have a tool installed. We can't install these by our own.
 
@@ -224,10 +226,10 @@ async function runSharedDependencyCheck(
       outputs.push(`Running ${tool.bin} ------------- `)
       // Captures output, doesn't matter if it fails or not since we'll forward both to output.
       const procPromise = new Promise((resolve) => {
-        proc.stdout.on('data', function (data: string) {
+        proc.stdout!.on('data', function (data: string) {
           outputs.push(data)
         })
-        proc.stderr.on('data', function (data: string) {
+        proc.stderr!.on('data', function (data: string) {
           outputs.push(data)
         })
         proc.on('close', (c: any) => resolve(c))
@@ -250,7 +252,7 @@ async function runSharedDependencyCheck(
  * Collect additional diagnostics information.
  */
 async function printVerboseInfo() {
-  const fs = require('fs')
+  const fs = require('fs') as typeof import('fs')
   const currentPlatform = os.platform()
 
   if (
@@ -277,9 +279,12 @@ async function printVerboseInfo() {
         default: async () => {
           // Node.js diagnostic report contains basic information, i.e OS version, CPU architecture, etc.
           // Only collect few addtional details here.
-          const isWsl = require('next/dist/compiled/is-wsl')
-          const ciInfo = require('next/dist/compiled/ci-info')
-          const isDocker = require('next/dist/compiled/is-docker')
+          const isWsl =
+            require('next/dist/compiled/is-wsl') as typeof import('next/dist/compiled/is-wsl')
+          const ciInfo =
+            require('next/dist/compiled/ci-info') as typeof import('next/dist/compiled/ci-info')
+          const isDocker =
+            require('next/dist/compiled/is-docker') as typeof import('next/dist/compiled/is-docker')
 
           const output = `
   WSL: ${isWsl}
@@ -367,7 +372,8 @@ async function printVerboseInfo() {
           // First, try to load next-swc via loadBindings.
           try {
             let nextConfig = await getNextConfig()
-            const { loadBindings } = require('../build/swc')
+            const { loadBindings } =
+              require('../build/swc') as typeof import('../build/swc')
             const bindings = await loadBindings(
               nextConfig.experimental?.useWasmBinary
             )
@@ -383,9 +389,8 @@ async function printVerboseInfo() {
             output.push(`loadBindings() failed: ${(e as Error).message}`)
           }
 
-          const {
-            platformArchTriples,
-          } = require('next/dist/compiled/@napi-rs/triples')
+          const { platformArchTriples } =
+            require('next/dist/compiled/@napi-rs/triples') as typeof import('next/dist/compiled/@napi-rs/triples')
           const triples = platformArchTriples[currentPlatform]?.[os.arch()]
 
           if (!triples || triples.length === 0) {
@@ -396,7 +401,7 @@ async function printVerboseInfo() {
           }
 
           // Trying to manually resolve corresponding target triples to see if bindings are physically located.
-          const path = require('path')
+          const path = require('path') as typeof import('path')
           let fallbackBindingsDirectory
           try {
             const nextPath = path.dirname(require.resolve('next/package.json'))

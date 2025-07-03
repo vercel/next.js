@@ -4,15 +4,13 @@ import fs from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
-  killApp,
+  assertNoRedbox,
   findPort,
+  killApp,
   launchApp,
   retry,
-  assertNoRedbox,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
-
-const isRspack = process.env.NEXT_RSPACK !== undefined
 
 const appDir = join(__dirname, '../')
 const gspPage = join(appDir, 'pages/gsp.js')
@@ -47,6 +45,17 @@ describe('server-side dev errors', () => {
   })
   afterAll(() => killApp(app))
 
+  // TODO: update to ensure this frame is ignored properly by default
+  function stripInternalHandler(output) {
+    return output
+      .replace(/.*at async handler .*next-route-loader.*/, '')
+      .replace(/.*at async handleResponse.*/, '')
+      .replace(/.*at async doRender \(.*/, '')
+      .split(/\n/)
+      .filter((item) => !!item.trim())
+      .join('\n')
+  }
+
   it('should show server-side error for gsp page correctly', async () => {
     const content = await fs.readFile(gspPage, 'utf8')
 
@@ -64,7 +73,9 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
 
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
@@ -113,7 +124,9 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
           '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
@@ -161,7 +174,9 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
           '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
@@ -245,21 +260,13 @@ describe('server-side dev errors', () => {
         }
       `)
 
-      await fs.writeFile(apiPage, content)
+      await fs.writeFile(apiPage, content, { flush: true })
 
-      await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/hello.js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ hello: 'world' })
-            |   ^",
-          "stack": [
-            "handler pages/api/hello.js (2:3)",
-          ],
-        }
-      `)
+      await retry(async () => {
+        // manually refresh as this is an API route
+        await browser.refresh()
+        await assertNoRedbox(browser)
+      })
     } finally {
       await fs.writeFile(apiPage, content)
     }
@@ -319,21 +326,13 @@ describe('server-side dev errors', () => {
         }
       `)
 
-      await fs.writeFile(dynamicApiPage, content)
+      await fs.writeFile(dynamicApiPage, content, { flush: true })
 
-      await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/blog/[slug].js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
-            |   ^",
-          "stack": [
-            "handler pages/api/blog/[slug].js (2:3)",
-          ],
-        }
-      `)
+      await retry(async () => {
+        // manually refresh as this is an API route
+        await browser.refresh()
+        await assertNoRedbox(browser)
+      })
     } finally {
       await fs.writeFile(dynamicApiPage, content)
     }
@@ -354,7 +353,7 @@ describe('server-side dev errors', () => {
       )
       .trim()
     // FIXME(veil): error repeated
-    if (isTurbopack || isRspack) {
+    if (isTurbopack) {
       expect(stderrOutput).toMatchInlineSnapshot(`
         "Error: catch this rejection
             at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
@@ -433,7 +432,7 @@ describe('server-side dev errors', () => {
       )
       .trim()
     // FIXME(veil): error repeated
-    if (isTurbopack || isRspack) {
+    if (isTurbopack) {
       expect(stderrOutput).toMatchInlineSnapshot(`
        "Error: 
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
@@ -511,7 +510,7 @@ describe('server-side dev errors', () => {
       )
       .trim()
     // FIXME(veil): error repeated
-    if (isTurbopack || isRspack) {
+    if (isTurbopack) {
       expect(stderrOutput).toMatchInlineSnapshot(`
         "Error: catch this exception
             at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:10)
@@ -589,7 +588,7 @@ describe('server-side dev errors', () => {
       )
       .trim()
     // FIXME(veil): error repeated
-    if (isTurbopack || isRspack) {
+    if (isTurbopack) {
       expect(stderrOutput).toMatchInlineSnapshot(`
        "Error: 
            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)

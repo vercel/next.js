@@ -480,7 +480,7 @@ ${ENDGROUP}`)
         // tested when enabled
         CI: '',
         // But some tests need to fork based on machine? CI? behavior differences
-        // Only use read this in tests.
+        // Only use this in tests.
         // For implementation forks, use `process.env.CI` instead
         NEXT_TEST_CI: process.env.CI,
 

@@ -25,6 +25,7 @@ import {
 import {
   createFetch,
   createFromNextReadableStream,
+  type RSCResponse,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
 import {
@@ -997,6 +998,8 @@ export async function fetchRouteOnCacheMiss(
   }
 
   // In output: "export" mode, we need to add the segment path to the URL.
+  // TODO: Consider moving this to `createFetch`, where we do similar logic for
+  // manipulating the request URL to encode extra information.
   const url = new URL(href)
   const requestUrl = isOutputExportMode
     ? addSegmentPathToUrlInOutputExportMode(url, segmentPath)
@@ -1079,6 +1082,7 @@ export async function fetchRouteOnCacheMiss(
         // TODO: Consider moving the build ID to a response header so we can check
         // it before decoding the response, and so there's one way of checking
         // across all response types.
+        // TODO: We should cache the fact that this is an MPA navigation.
         rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
         return null
       }
@@ -1110,6 +1114,16 @@ export async function fetchRouteOnCacheMiss(
       const serverData = await (createFromNextReadableStream(
         prefetchStream
       ) as Promise<NavigationFlightResponse>)
+      if (serverData.b !== getAppBuildId()) {
+        // The server build does not match the client. Treat as a 404. During
+        // an actual navigation, the router will trigger an MPA navigation.
+        // TODO: Consider moving the build ID to a response header so we can check
+        // it before decoding the response, and so there's one way of checking
+        // across all response types.
+        // TODO: We should cache the fact that this is an MPA navigation.
+        rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
+        return null
+      }
 
       writeDynamicTreeResponseIntoCache(
         Date.now(),
@@ -1361,22 +1375,13 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 function writeDynamicTreeResponseIntoCache(
   now: number,
   task: PrefetchTask,
-  response: Response,
+  response: RSCResponse,
   serverData: NavigationFlightResponse,
   entry: PendingRouteCacheEntry,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   routeIsPPREnabled: boolean
 ) {
-  if (serverData.b !== getAppBuildId()) {
-    // The server build does not match the client. Treat as a 404. During
-    // an actual navigation, the router will trigger an MPA navigation.
-    // TODO: Consider moving the build ID to a response header so we can check
-    // it before decoding the response, and so there's one way of checking
-    // across all response types.
-    rejectRouteCacheEntry(entry, now + 10 * 1000)
-    return
-  }
   const normalizedFlightDataResult = normalizeFlightData(serverData.f)
   if (
     // A string result means navigating to this route will result in an
@@ -1460,7 +1465,7 @@ function rejectSegmentEntriesIfStillPending(
 function writeDynamicRenderResponseIntoCache(
   now: number,
   task: PrefetchTask,
-  response: Response,
+  response: RSCResponse,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   route: FulfilledRouteCacheEntry,
@@ -1627,7 +1632,7 @@ function writeSeedDataIntoCache(
 async function fetchPrefetchResponse(
   url: URL,
   headers: RequestHeaders
-): Promise<Response | null> {
+): Promise<RSCResponse | null> {
   const fetchPriority = 'low'
   const response = await createFetch(url, headers, fetchPriority)
   if (!response.ok) {

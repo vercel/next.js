@@ -6,6 +6,7 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+const isRspack = !!process.env.NEXT_RSPACK
 
 describe('pages/ error recovery', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -55,7 +56,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -247,8 +248,8 @@ describe('pages/ error recovery', () => {
 
     // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
-    // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
-    if (isReact18) {
+    // Somehow we end up with two in React 18 + Turbopack due to React's attempt to recover from this error.
+    if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
          {
@@ -261,8 +262,8 @@ describe('pages/ error recovery', () => {
            "stack": [
              "Child child.js (3:9)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
          {
@@ -275,8 +276,8 @@ describe('pages/ error recovery', () => {
            "stack": [
              "Child child.js (3:9)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
        ]
@@ -369,7 +370,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -454,7 +455,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -536,7 +537,7 @@ describe('pages/ error recovery', () => {
     // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
-    if (isReact18) {
+    if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
          {
@@ -549,8 +550,8 @@ describe('pages/ error recovery', () => {
            "stack": [
              "ClassDefault.render index.js (5:11)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
          {
@@ -563,14 +564,14 @@ describe('pages/ error recovery', () => {
            "stack": [
              "ClassDefault.render index.js (5:11)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
        ]
       `)
     } else {
-      if (process.env.NEXT_RSPACK) {
+      if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "nooo",
@@ -652,7 +653,7 @@ describe('pages/ error recovery', () => {
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // We get an error because Foo didn't import React. Fair.
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
-    if (isReact18) {
+    if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
          {
@@ -665,8 +666,8 @@ describe('pages/ error recovery', () => {
            "stack": [
              "Foo Foo.js (3:3)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
          {
@@ -679,8 +680,8 @@ describe('pages/ error recovery', () => {
            "stack": [
              "Foo Foo.js (3:3)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
        ]
@@ -752,17 +753,17 @@ describe('pages/ error recovery', () => {
     )
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    if (process.env.NEXT_RSPACK) {
+    if (isRspack) {
       await expect(browser).toDisplayRedbox(`
             {
               "description": "no 1",
               "environmentLabel": null,
               "label": "Runtime Error",
-              "source": "index.js (5:9) @ <unknown>
+              "source": "index.js (5:9) @ eval
             > 5 |   throw Error('no ' + i)
                 |         ^",
               "stack": [
-                "<unknown> index.js (5:9)",
+                "eval index.js (5:9)",
               ],
             }
           `)
@@ -812,7 +813,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -880,7 +881,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",

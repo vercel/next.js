@@ -109,10 +109,10 @@ describe('ReactRefreshLogBox _app _document', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./pages/_app.js (2:11)
+         "source": "./pages/_app.js (2:10)
        Parsing ecmascript source code failed
        > 2 |   return <<Component {...pageProps} />;
-           |           ^",
+           |          ^^",
          "stack": [],
        }
       `)
@@ -124,27 +124,26 @@ describe('ReactRefreshLogBox _app _document', () => {
          "label": "Build Error",
          "source": "./pages/_app.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Expression expected
-         │     │    ,-[<FIXME-project-root>/pages/_app.js:2:1]
-         │     │  1 | function MyApp({ Component, pageProps }) {
-         │     │  2 |   return <<Component {...pageProps} />;
-         │     │    :           ^
-         │     │  3 | }
-         │     │  4 | export default MyApp
-         │     │    \`----
-         │     │
-         │     │   x Expression expected
-         │     │    ,-[<FIXME-project-root>/pages/_app.js:2:1]
-         │     │  1 | function MyApp({ Component, pageProps }) {
-         │     │  2 |   return <<Component {...pageProps} />;
-         │     │    :            ^^^^^^^^^
-         │     │  3 | }
-         │     │  4 | export default MyApp
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error",
+         ╰─▶   × Error:   x Expression expected
+               │    ,-[2:1]
+               │  1 | function MyApp({ Component, pageProps }) {
+               │  2 |   return <<Component {...pageProps} />;
+               │    :           ^
+               │  3 | }
+               │  4 | export default MyApp
+               │    \`----
+               │   x Expression expected
+               │    ,-[2:1]
+               │  1 | function MyApp({ Component, pageProps }) {
+               │  2 |   return <<Component {...pageProps} />;
+               │    :            ^^^^^^^^^
+               │  3 | }
+               │  4 | export default MyApp
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error",
          "stack": [],
        }
       `)
@@ -159,15 +158,15 @@ describe('ReactRefreshLogBox _app _document', () => {
           ,-[2:1]
         1 | function MyApp({ Component, pageProps }) {
         2 |   return <<Component {...pageProps} />;
-          :           ^
+          :          ^^
         3 | }
         4 | export default MyApp
           \`----
-         x Expression expected
+         x Expected ';', got '{'
           ,-[2:1]
         1 | function MyApp({ Component, pageProps }) {
         2 |   return <<Component {...pageProps} />;
-          :            ^^^^^^^^^
+          :                      ^
         3 | }
         4 | export default MyApp
           \`----
@@ -244,21 +243,21 @@ describe('ReactRefreshLogBox _app _document', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_document.js
-         Error: × Module build failed:
-         ├─▶   ×
-         │     │   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
-         │     │    ,-[<FIXME-project-root>/pages/_document.js:3:1]
-         │     │  1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
-         │     │  2 |
-         │     │  3 | class MyDocument extends Document {{
-         │     │    :                                    ^
-         │     │  4 |   static async getInitialProps(ctx) {
-         │     │  5 |     const initialProps = await Document.getInitialProps(ctx)
-         │     │  6 |     return { ...initialProps }
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error",
+         × Module build failed:
+         ╰─▶   × Error:   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
+               │    ,-[3:1]
+               │  1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
+               │  2 |
+               │  3 | class MyDocument extends Document {{
+               │    :                                    ^
+               │  4 |   static async getInitialProps(ctx) {
+               │  5 |     const initialProps = await Document.getInitialProps(ctx)
+               │  6 |     return { ...initialProps }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error",
          "stack": [],
        }
       `)

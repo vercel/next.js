@@ -1,14 +1,16 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use async_stream::try_stream as generator;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedSender},
-    pin_mut, SinkExt, StreamExt, TryStreamExt,
+    SinkExt, StreamExt, TryStreamExt,
+    channel::mpsc::{UnboundedSender, unbounded},
+    pin_mut,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, trace::TraceRawVcs, util::SharedError, RawVc,
-    ResolvedVc, TaskInput, ValueToString, Vc,
+    RawVc, ResolvedVc, TaskInput, ValueToString, Vc, VcValueType, duration_span, mark_finished,
+    prevent_gc, trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -26,11 +28,11 @@ use turbopack_dev_server::{
 };
 
 use super::{
-    issue::RenderingIssue, RenderData, RenderStaticIncomingMessage, RenderStaticOutgoingMessage,
+    RenderData, RenderStaticIncomingMessage, RenderStaticOutgoingMessage, issue::RenderingIssue,
 };
 use crate::{
-    get_intermediate_asset, get_renderer_pool_operation, pool::NodeJsOperation,
-    render::error_page::error_html_body, source_map::trace_stack, ResponseHeaders,
+    ResponseHeaders, get_intermediate_asset, get_renderer_pool_operation, pool::NodeJsOperation,
+    render::error_page::error_html_body, source_map::trace_stack,
 };
 
 #[derive(Clone, Debug)]
@@ -74,16 +76,16 @@ impl StaticResult {
 /// Renders a module as static HTML in a node.js process.
 #[turbo_tasks::function(operation)]
 pub async fn render_static_operation(
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     fallback_page: ResolvedVc<DevHtmlAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: ResolvedVc<FileSystemPath>,
-    output_root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
+    output_root: FileSystemPath,
+    project_dir: FileSystemPath,
     data: ResolvedVc<RenderData>,
     debug: bool,
 ) -> Result<Vc<StaticResult>> {
@@ -136,7 +138,7 @@ pub async fn render_static_operation(
 }
 
 async fn static_error(
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     error: anyhow::Error,
     operation: Option<NodeJsOperation>,
     fallback_page: Vc<DevHtmlAsset>,
@@ -154,7 +156,7 @@ async fn static_error(
         .replace('<', "&lt;");
 
     if let Some(status) = status {
-        message.push_str(&format!("\n\nStatus: {}", status));
+        message.push_str(&format!("\n\nStatus: {status}"));
     }
 
     let mut body = "<script id=\"__NEXT_DATA__\" type=\"application/json\">{ \"props\": {} \
@@ -162,7 +164,7 @@ async fn static_error(
         .to_string();
 
     body.push_str(
-        error_html_body(500, "Error rendering page".into(), message.into())
+        error_html_body(500, rcstr!("Error rendering page"), message.into())
             .await?
             .as_str(),
     );
@@ -201,16 +203,16 @@ struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
 #[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Deserialize, Serialize, TraceRawVcs)]
 struct RenderStreamOptions {
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     fallback_page: ResolvedVc<DevHtmlAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: ResolvedVc<FileSystemPath>,
-    output_root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    intermediate_output_path: FileSystemPath,
+    output_root: FileSystemPath,
+    project_dir: FileSystemPath,
     data: ResolvedVc<RenderData>,
     debug: bool,
 }
@@ -226,7 +228,9 @@ fn render_stream(options: RenderStreamOptions) -> Vc<RenderStream> {
 
     // We create a new cell in this task, which will be updated from the
     // [render_stream_internal] task.
-    let cell = turbo_tasks::macro_helpers::find_cell_by_type(*RENDERSTREAM_VALUE_TYPE_ID);
+    let cell = turbo_tasks::macro_helpers::find_cell_by_type(
+        <RenderStream as VcValueType>::get_value_type_id(),
+    );
 
     // We initialize the cell with a stream that is open, but has no values.
     // The first [render_stream_internal] pipe call will pick up that stream.
@@ -293,9 +297,9 @@ async fn render_stream_internal(
             cwd,
             env,
             intermediate_asset,
-            intermediate_output_path,
+            intermediate_output_path.clone(),
             output_root,
-            project_dir,
+            project_dir.clone(),
             debug,
         );
 
@@ -344,8 +348,8 @@ async fn render_stream_internal(
                 let trace = trace_stack(
                     error,
                     *intermediate_asset,
-                    *intermediate_output_path,
-                    *project_dir,
+                    intermediate_output_path.clone(),
+                    project_dir.clone(),
                 )
                 .await?;
                 yield RenderItem::Response(
@@ -377,7 +381,7 @@ async fn render_stream_internal(
                     // headers/body to a proxy error.
                     operation.disallow_reuse();
                     let trace =
-                        trace_stack(error, *intermediate_asset, *intermediate_output_path, *project_dir).await?;
+                        trace_stack(error, *intermediate_asset, intermediate_output_path.clone(), project_dir.clone()).await?;
                         drop(guard);
                     Err(anyhow!("error during streaming render: {}", trace))?;
                     return;

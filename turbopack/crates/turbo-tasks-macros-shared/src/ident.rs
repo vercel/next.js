@@ -1,5 +1,5 @@
 use quote::ToTokens;
-use syn::{spanned::Spanned, GenericArgument, Ident, Path, PathArguments, Type, TypeParamBound};
+use syn::{GenericArgument, Ident, Path, PathArguments, Type, TypeParamBound, spanned::Spanned};
 
 pub fn get_register_value_type_ident(struct_ident: &Ident) -> Ident {
     Ident::new(
@@ -15,16 +15,16 @@ pub fn get_register_trait_methods_ident(trait_ident: &Ident, struct_ident: &Iden
     )
 }
 
-pub fn get_native_function_ident(ident: &Ident) -> Ident {
+pub fn get_register_trait_impls_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
     Ident::new(
-        &format!("{}_FUNCTION", ident.to_string().to_uppercase()),
-        ident.span(),
+        &format!("__register_{struct_ident}_{trait_ident}_trait_impls"),
+        trait_ident.span(),
     )
 }
 
-pub fn get_native_function_id_ident(ident: &Ident) -> Ident {
+pub fn get_native_function_ident(ident: &Ident) -> Ident {
     Ident::new(
-        &format!("{}_FUNCTION_ID", ident.to_string().to_uppercase()),
+        &format!("{}_FUNCTION", ident.to_string().to_uppercase()),
         ident.span(),
     )
 }
@@ -186,15 +186,6 @@ pub fn get_type_ident(ty: &Type) -> Option<Ident> {
         }
     }
 }
-
-pub fn get_read_ref_ident(ident: &Ident) -> Ident {
-    Ident::new(&(ident.to_string() + "ReadRef"), ident.span())
-}
-
-pub fn get_trait_ref_ident(ident: &Ident) -> Ident {
-    Ident::new(&(ident.to_string() + "TraitRef"), ident.span())
-}
-
 pub fn get_trait_default_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
         &format!(
@@ -206,34 +197,9 @@ pub fn get_trait_default_impl_function_ident(trait_ident: &Ident, ident: &Ident)
     )
 }
 
-pub fn get_trait_type_id_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("{}_TRAIT_TYPE_ID", ident.to_string().to_uppercase()),
-        ident.span(),
-    )
-}
-
-pub fn get_trait_default_impl_function_id_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
-    Ident::new(
-        &format!(
-            "{}_DEFAULT_IMPL_{}_FUNCTION_ID",
-            trait_ident.to_string().to_uppercase(),
-            ident.to_string().to_uppercase()
-        ),
-        ident.span(),
-    )
-}
-
 pub fn get_value_type_ident(ident: &Ident) -> Ident {
     Ident::new(
         &format!("{}_VALUE_TYPE", ident.to_string().to_uppercase()),
-        ident.span(),
-    )
-}
-
-pub fn get_value_type_id_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("{}_VALUE_TYPE_ID", ident.to_string().to_uppercase()),
         ident.span(),
     )
 }

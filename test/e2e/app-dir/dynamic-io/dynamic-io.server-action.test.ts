@@ -25,18 +25,13 @@ describe('dynamic-io', () => {
       expect(await browser.elementByCss('p').text()).toBe('result')
     })
 
-    const isExperimentalReact = Boolean(process.env.__NEXT_EXPERIMENTAL_PPR)
-    if (isExperimentalReact && isNextDev) {
-      // TODO(react-time-info): Remove this branch for experimental React in dev mode when the
-      // issue is resolved where the inclusion of server timings in the RSC
-      // payload makes the serialized bound args not suitable to be used as a
-      // cache key.
-      expect(next.cliOutput).toMatch('Error: Route "/server-action-inline"')
-    } else {
-      expect(next.cliOutput).not.toMatch('Error: Route "/server-action-inline"')
-    }
-
     if (isNextDev) {
+      // TODO(react-time-info): For experimental React in dev mode, the
+      // inclusion of server timings in the RSC payload makes the serialized
+      // bound args not suitable to be used as a cache key. When this is fixed
+      // we expect this error not to be logged anymore.
+      expect(next.cliOutput).toMatch('Error: Route "/server-action-inline"')
+
       await assertNoRedbox(browser)
     }
   })

@@ -9,8 +9,8 @@ use turbopack_core::{
 
 use super::module::EcmascriptModuleLocalsModule;
 use crate::{
-    chunk::{EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType},
     EcmascriptAnalyzable,
+    chunk::{EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType},
 };
 
 /// The chunk item for [EcmascriptModuleLocalsModule].

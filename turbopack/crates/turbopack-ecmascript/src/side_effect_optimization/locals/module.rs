@@ -1,11 +1,14 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, MergeableModule, MergeableModules,
+        MergeableModulesExposed,
+    },
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -15,13 +18,14 @@ use turbopack_core::{
 
 use super::chunk_item::EcmascriptModuleLocalsChunkItem;
 use crate::{
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, MergedEcmascriptModule,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    export_usage::get_module_export_usages,
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
-    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
-    EcmascriptModuleContent, EcmascriptModuleContentOptions,
 };
 
 /// A module derived from an original ecmascript module that only contains the
@@ -44,13 +48,11 @@ impl EcmascriptModuleLocalsModule {
 impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        let inner = self.module.ident();
-
-        inner.with_part(ModulePart::locals())
+        self.module.ident().with_part(ModulePart::locals())
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+    fn references(&self) -> Result<Vc<ModuleReferences>> {
         let result = self.module.analyze();
         Ok(result.local_references())
     }
@@ -105,10 +107,20 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
         let analyze = original_module.analyze();
         let analyze_result = analyze.await?;
 
-        let module_type_result = *original_module.determine_module_type().await?;
+        let module_type_result = original_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
             .reference_module_source_maps(Vc::upcast(self))
             .await?;
+
+        let export_usage_info = if original_module.options().await?.remove_unused_exports {
+            Some(
+                get_module_export_usages(*module_graph, Vc::upcast(self))
+                    .to_resolved()
+                    .await?,
+            )
+        } else {
+            None
+        };
 
         Ok(EcmascriptModuleContentOptions {
             parsed,
@@ -125,6 +137,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             original_source_map: analyze_result.source_map,
             exports,
             async_module_info,
+            export_usage_info,
         }
         .cell())
     }
@@ -193,5 +206,19 @@ impl ChunkableModule for EcmascriptModuleLocalsModule {
             }
             .cell(),
         )
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModuleLocalsModule {
+    #[turbo_tasks::function]
+    async fn merge(
+        &self,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(modules, entry_points, self.module.await?.options).await?,
+        ))
     }
 }

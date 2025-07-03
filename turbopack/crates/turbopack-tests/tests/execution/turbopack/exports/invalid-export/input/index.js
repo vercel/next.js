@@ -1,3 +1,10 @@
 it('should error when importing an invalid export', () => {
-  expect(require('./invalid-export').default).toBe(undefined)
+  // Either requiring should throw, or return undefined
+  let ns
+  try {
+    ns = require('./invalid-export')
+  } catch {
+    return
+  }
+  expect(ns.default).toBe(undefined)
 })

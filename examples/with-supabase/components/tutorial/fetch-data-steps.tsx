@@ -44,7 +44,7 @@ export default function Page() {
 }
 `.trim();
 
-export default function FetchDataSteps() {
+export function FetchDataSteps() {
   return (
     <ol className="flex flex-col gap-6">
       <TutorialStep title="Create some tables and insert some data">
@@ -59,7 +59,7 @@ export default function FetchDataSteps() {
             Table Editor
           </a>{" "}
           for your Supabase project to create a table and insert some example
-          data. If you're stuck for creativity, you can copy and paste the
+          data. If you&apos;re stuck for creativity, you can copy and paste the
           following into the{" "}
           <a
             href="https://supabase.com/dashboard/project/_/sql/new"
@@ -88,8 +88,27 @@ export default function FetchDataSteps() {
         <CodeBlock code={client} />
       </TutorialStep>
 
+      <TutorialStep title="Explore the Supabase UI Library">
+        <p>
+          Head over to the{" "}
+          <a
+            href="https://supabase.com/ui"
+            className="font-bold hover:underline text-foreground/80"
+          >
+            Supabase UI library
+          </a>{" "}
+          and try installing some blocks. For example, you can install a
+          Realtime Chat block by running:
+        </p>
+        <CodeBlock
+          code={
+            "npx shadcn@latest add https://supabase.com/ui/r/realtime-chat-nextjs.json"
+          }
+        />
+      </TutorialStep>
+
       <TutorialStep title="Build in a weekend and scale to millions!">
-        <p>You're ready to launch your product to the world! 🚀</p>
+        <p>You&apos;re ready to launch your product to the world! 🚀</p>
       </TutorialStep>
     </ol>
   );

@@ -2,10 +2,10 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-route-loader`
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::{formatdoc, indoc};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -18,7 +18,7 @@ use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
     next_app::{
-        app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage, PageSegment, PageType,
+        AppPage, PageSegment, PageType, app_entry::AppEntry, app_route_entry::get_app_route_entry,
     },
     next_config::NextConfig,
     parse_segment_config_from_source,
@@ -32,17 +32,17 @@ pub async fn get_app_metadata_route_source(
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     Ok(match metadata {
-        MetadataItem::Static { path } => static_route_source(mode, *path),
+        MetadataItem::Static { path } => static_route_source(mode, path),
         MetadataItem::Dynamic { path } => {
-            let stem = path.file_stem().await?;
-            let stem = stem.as_deref().unwrap_or_default();
+            let stem = path.file_stem();
+            let stem = stem.unwrap_or_default();
 
             if stem == "robots" || stem == "manifest" {
-                dynamic_text_route_source(*path)
+                dynamic_text_route_source(path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(mode, *path, is_multi_dynamic)
+                dynamic_site_map_route_source(mode, path, is_multi_dynamic)
             } else {
-                dynamic_image_route_source(*path)
+                dynamic_image_route_source(path)
             }
         }
     })
@@ -52,7 +52,7 @@ pub async fn get_app_metadata_route_source(
 pub async fn get_app_metadata_route_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     mut page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
@@ -60,9 +60,9 @@ pub async fn get_app_metadata_route_entry(
 ) -> Vc<AppEntry> {
     // Read original source's segment config before replacing source into
     // dynamic|static metadata route handler.
-    let original_path = metadata.into_path();
+    let original_path = metadata.clone().into_path();
 
-    let source = Vc::upcast(FileSource::new(*original_path));
+    let source = Vc::upcast(FileSource::new(original_path));
     let segment_config = parse_segment_config_from_source(source);
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
@@ -112,29 +112,29 @@ const CACHE_HEADER_NONE: &str = "no-cache, no-store";
 const CACHE_HEADER_LONG_CACHE: &str = "public, immutable, no-transform, max-age=31536000";
 const CACHE_HEADER_REVALIDATE: &str = "public, max-age=0, must-revalidate";
 
-async fn get_base64_file_content(path: Vc<FileSystemPath>) -> Result<String> {
+async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
     let original_file_content = path.read().await?;
 
     Ok(match &*original_file_content {
         FileContent::Content(content) => {
-            let content = content.content().to_bytes()?;
+            let content = content.content().to_bytes();
             Base64Display::new(&content, &STANDARD).to_string()
         }
         FileContent::NotFound => {
-            bail!("metadata file not found: {}", &path.to_string().await?);
+            bail!(
+                "metadata file not found: {}",
+                &path.value_to_string().await?
+            );
         }
     })
 }
 
 #[turbo_tasks::function]
-async fn static_route_source(
-    mode: NextMode,
-    path: Vc<FileSystemPath>,
-) -> Result<Vc<Box<dyn Source>>> {
-    let stem = path.file_stem().await?;
-    let stem = stem.as_deref().unwrap_or_default();
+async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
 
-    let content_type = get_content_type(path).await?;
+    let content_type = get_content_type(path.clone()).await?;
 
     let cache_control = if stem == "favicon" {
         CACHE_HEADER_REVALIDATE
@@ -144,7 +144,7 @@ async fn static_route_source(
         CACHE_HEADER_NONE
     };
 
-    let original_file_content_b64 = get_base64_file_content(path).await?;
+    let original_file_content_b64 = get_base64_file_content(path.clone()).await?;
 
     let is_twitter = stem == "twitter-image";
     let is_open_graph = stem == "opengraph-image";
@@ -191,12 +191,12 @@ async fn static_route_source(
         is_open_graph = is_open_graph,
         file_size_limit = file_size_limit,
         img_name = img_name,
-        path = StringifyJs(&path.to_string().await?),
+        path = StringifyJs(&path.value_to_string().await?),
     };
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js").into()),
+        path.parent().join(&format!("{stem}--route-entry.js"))?,
         AssetContent::file(file.into()),
     );
 
@@ -204,12 +204,12 @@ async fn static_route_source(
 }
 
 #[turbo_tasks::function]
-async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
-    let stem = path.file_stem().await?;
-    let stem = stem.as_deref().unwrap_or_default();
-    let ext = &*path.extension().await?;
+async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
+    let ext = path.extension();
 
-    let content_type = get_content_type(path).await?;
+    let content_type = get_content_type(path.clone()).await?;
 
     // refer https://github.com/vercel/next.js/blob/7b2b9823432fb1fa28ae0ac3878801d638d93311/packages/next/src/build/webpack/loaders/next-metadata-route-loader.ts#L84
     // for the original template.
@@ -239,8 +239,10 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
                 }},
               }})
             }}
+
+            export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -248,7 +250,7 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js").into()),
+        path.parent().join(&format!("{stem}--route-entry.js"))?,
         AssetContent::file(file.into()),
     );
 
@@ -258,13 +260,13 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 #[turbo_tasks::function]
 async fn dynamic_site_map_route_source(
     mode: NextMode,
-    path: Vc<FileSystemPath>,
+    path: FileSystemPath,
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let stem = path.file_stem().await?;
-    let stem = stem.as_deref().unwrap_or_default();
-    let ext = &*path.extension().await?;
-    let content_type = get_content_type(path).await?;
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
+    let ext = path.extension();
+    let content_type = get_content_type(path.clone()).await?;
     let mut static_generation_code = "";
 
     if mode.is_production() && is_multi_dynamic {
@@ -330,9 +332,11 @@ async fn dynamic_site_map_route_source(
                 }})
             }}
 
+            export * from {resource_path}
+
             {static_generation_code}
         "#,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -341,7 +345,7 @@ async fn dynamic_site_map_route_source(
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js").into()),
+        path.parent().join(&format!("{stem}--route-entry.js"))?,
         AssetContent::file(file.into()),
     );
 
@@ -349,10 +353,10 @@ async fn dynamic_site_map_route_source(
 }
 
 #[turbo_tasks::function]
-async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
-    let stem = path.file_stem().await?;
-    let stem = stem.as_deref().unwrap_or_default();
-    let ext = &*path.extension().await?;
+async fn dynamic_image_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
+    let ext = path.extension();
 
     let code = formatdoc! {
         r#"
@@ -395,13 +399,15 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
 
                 return handler({{ params: restParams, id }})
             }}
+
+            export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
     };
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js").into()),
+        path.parent().join(&format!("{stem}--route-entry.js"))?,
         AssetContent::file(file.into()),
     );
 

@@ -1,5 +1,5 @@
-use anyhow::{bail, Context, Result};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
+use anyhow::{Context, Result, bail};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -16,7 +16,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 pub fn route_bootstrap(
     asset: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: Vc<FileSystemPath>,
+    base_path: FileSystemPath,
     bootstrap_asset: Vc<Box<dyn Source>>,
     config: Vc<BootstrapConfig>,
 ) -> Vc<Box<dyn EvaluatableAsset>> {
@@ -45,25 +45,21 @@ impl BootstrapConfig {
 pub async fn bootstrap(
     asset: ResolvedVc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: Vc<FileSystemPath>,
+    base_path: FileSystemPath,
     bootstrap_asset: Vc<Box<dyn Source>>,
     inner_assets: Vc<InnerAssets>,
     config: Vc<BootstrapConfig>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
     let path = asset.ident().path().await?;
-    let Some(path) = base_path.await?.get_path_to(&path) else {
+    let Some(path) = base_path.get_path_to(&path) else {
         bail!(
             "asset {} is not in base path {}",
             asset.ident().to_string().await?,
-            base_path.to_string().await?
+            base_path.value_to_string().await?
         );
     };
     let path = if let Some((name, ext)) = path.rsplit_once('.') {
-        if !ext.contains('/') {
-            name
-        } else {
-            path
-        }
+        if !ext.contains('/') { name } else { path }
     } else {
         path
     };
@@ -77,7 +73,7 @@ pub async fn bootstrap(
     let config_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                asset.ident().path().join("bootstrap-config.ts".into()),
+                asset.ident().path().await?.join("bootstrap-config.ts")?,
                 AssetContent::file(
                     File::from(
                         config
@@ -89,9 +85,7 @@ pub async fn bootstrap(
                     .into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module()
         .to_resolved()
@@ -104,7 +98,7 @@ pub async fn bootstrap(
     let asset = asset_context
         .process(
             bootstrap_asset,
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module()
         .to_resolved()

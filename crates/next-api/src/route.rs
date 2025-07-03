@@ -2,8 +2,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue,
-    OperationVc, ResolvedVc, Vc,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph},
@@ -49,14 +49,19 @@ pub enum Route {
 
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
+    #[turbo_tasks::function]
     fn output(self: Vc<Self>) -> Vc<EndpointOutput>;
     // fn write_to_disk(self: Vc<Self>) -> Vc<EndpointOutputPaths>;
+    #[turbo_tasks::function]
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
+    #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;
     /// The entry modules for the modules graph.
+    #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
+    #[turbo_tasks::function]
     fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }

@@ -11,7 +11,7 @@ pub use deterministic_hash_macro::derive_deterministic_hash;
 pub use key_value_pair_macro::derive_key_value_pair;
 pub use non_local_value_macro::derive_non_local_value;
 pub use operation_value_macro::derive_operation_value;
-use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Meta, Token};
+use syn::{Attribute, Meta, Token, punctuated::Punctuated, spanned::Spanned};
 pub use task_input_macro::derive_task_input;
 pub use trace_raw_vcs_macro::derive_trace_raw_vcs;
 pub use value_debug_format_macro::derive_value_debug_format;

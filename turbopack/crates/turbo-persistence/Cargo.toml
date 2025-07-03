@@ -1,10 +1,11 @@
 [package]
 name = "turbo-persistence"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 
 [features]
+default = []
 verify_sst_content = []
 strict_checks = []
 stats = ["quick_cache/stats"]
@@ -12,6 +13,7 @@ print_stats = ["stats"]
 
 [dependencies]
 anyhow = { workspace = true }
+either = { workspace = true}
 pot = "3.0.0"
 byteorder = "1.5.0"
 jiff = "0.2.10"
@@ -22,7 +24,6 @@ qfilter = { version = "0.2.4", features = ["serde"] }
 quick_cache = { version = "0.6.9" }
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
-serde = { workspace = true }
 smallvec = { workspace = true}
 thread_local = { workspace = true }
 tracing = { workspace = true }
@@ -31,7 +32,7 @@ zstd = { version = "0.13.2", features = ["zdict_builder"] }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["small_rng"] }
-tempfile = "3.14.0"
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

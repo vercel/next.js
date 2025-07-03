@@ -6,6 +6,7 @@ import type {
 } from '../types/opengraph-types'
 import type {
   FieldResolverExtraArgs,
+  AsyncFieldResolverExtraArgs,
   MetadataContext,
 } from '../types/resolvers'
 import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
@@ -157,10 +158,16 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
   return ogTypeToFields[ogType].concat(OgTypeFields.basic)
 }
 
-export const resolveOpenGraph: FieldResolverExtraArgs<
+export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
   'openGraph',
-  [ResolvedMetadataBase, MetadataContext, string | null]
-> = (openGraph, metadataBase, metadataContext, titleTemplate) => {
+  [ResolvedMetadataBase, Promise<string>, MetadataContext, string | null]
+> = async (
+  openGraph,
+  metadataBase,
+  pathname,
+  metadataContext,
+  titleTemplate
+) => {
   if (!openGraph) return null
 
   function resolveProps(target: ResolvedOpenGraph, og: OpenGraph) {
@@ -191,6 +198,7 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
     ? resolveAbsoluteUrlWithPathname(
         openGraph.url,
         metadataBase,
+        await pathname,
         metadataContext
       )
     : null

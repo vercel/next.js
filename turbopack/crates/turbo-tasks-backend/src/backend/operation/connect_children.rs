@@ -4,8 +4,9 @@ use turbo_tasks::TaskId;
 
 use crate::{
     backend::operation::{
+        AggregationUpdateJob, AggregationUpdateQueue, TaskGuard,
         aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number, get_uppers,
-        is_aggregating_node, AggregationUpdateJob, AggregationUpdateQueue, TaskGuard,
+        is_aggregating_node,
     },
     data::CachedDataItem,
 };
@@ -31,7 +32,7 @@ pub fn connect_children(
         });
     }
 
-    let new_follower_ids: SmallVec<_> = new_children.iter().copied().collect();
+    let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();
 
     let aggregating_node = is_aggregating_node(parent_aggregation);
     let upper_ids = (!aggregating_node).then(|| get_uppers(&*parent_task));

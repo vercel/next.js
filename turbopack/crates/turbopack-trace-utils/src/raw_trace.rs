@@ -3,10 +3,11 @@ use std::{
 };
 
 use tracing::{
-    field::{display, Visit},
-    span, Subscriber,
+    Subscriber,
+    field::{Visit, display},
+    span,
 };
-use tracing_subscriber::{registry::LookupSpan, Layer};
+use tracing_subscriber::{Layer, registry::LookupSpan};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
@@ -176,7 +177,7 @@ impl ValuesVisitor {
 impl Visit for ValuesVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         let mut str = String::new();
-        let _ = write!(str, "{:?}", value);
+        let _ = write!(str, "{value:?}");
         self.values
             .push((field.name().into(), TraceValue::String(str.into())));
     }

@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use crate::{
@@ -17,7 +17,7 @@ pub struct DataUriSource {
     media_type: RcStr,
     encoding: RcStr,
     data: ResolvedVc<RcStr>,
-    lookup_path: ResolvedVc<FileSystemPath>,
+    lookup_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -27,7 +27,7 @@ impl DataUriSource {
         media_type: RcStr,
         encoding: RcStr,
         data: ResolvedVc<RcStr>,
-        lookup_path: ResolvedVc<FileSystemPath>,
+        lookup_path: FileSystemPath,
     ) -> Vc<Self> {
         Self::cell(DataUriSource {
             media_type,
@@ -52,7 +52,7 @@ impl Source for DataUriSource {
             )))[0..6]
         );
         Ok(
-            AssetIdent::from_path(self.lookup_path.join(filename.into()))
+            AssetIdent::from_path(self.lookup_path.join(&filename)?)
                 .with_content_type(content_type),
         )
     }

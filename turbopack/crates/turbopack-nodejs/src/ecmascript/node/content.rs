@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::writedoc;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, File};
+use turbo_tasks_fs::{File, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, MinifyType},
@@ -78,7 +78,7 @@ impl EcmascriptBuildNodeChunkContent {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            code = minify(&code, source_maps, mangle)?;
+            code = minify(code, source_maps, mangle)?;
         }
 
         Ok(code.cell())
@@ -87,8 +87,8 @@ impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
         Ok(EcmascriptBuildNodeChunkVersion::new(
-            self.chunking_context.output_root(),
-            self.chunk.path(),
+            self.chunking_context.output_root().await?.clone_value(),
+            self.chunk.path().await?.clone_value(),
             *self.content,
             self.chunking_context.await?.minify_type(),
         ))

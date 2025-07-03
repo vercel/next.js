@@ -1003,7 +1003,7 @@ export class NextTypesPlugin {
       }
     }
 
-    compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation) => {
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
       compilation.hooks.processAssets.tapAsync(
         {
           name: PLUGIN_NAME,

@@ -124,7 +124,10 @@ program
     )}`
   )
   .option('-d, --debug', 'Enables a more verbose build output.')
-
+  .option(
+    '--debug-prerender',
+    'Enables debug mode for prerendering. Not for production use!'
+  )
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')

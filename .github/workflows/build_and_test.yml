@@ -39,7 +39,8 @@ jobs:
       - name: check for release
         id: is-release
         run: |
-          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
+          RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
+          if [[ $RELEASE_CHECK == "new-release" || $RELEASE_CHECK == v* ]];
             then
               echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
             else
@@ -243,7 +244,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
         export NEXT_TEST_MODE=dev
@@ -275,7 +275,6 @@ jobs:
     with:
       nodeVersion: 18.18.2
       afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
@@ -309,11 +308,12 @@ jobs:
     with:
       nodeVersion: 18.18.2
       afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        # TODO(PACK-4578): Remove
+        export TURBOPACK_TEMP_DISABLE_DUPLICATE_MODULES_CHECK=1
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
@@ -332,7 +332,6 @@ jobs:
     with:
       nodeVersion: 18.18.2
       afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 
@@ -472,15 +471,12 @@ jobs:
       skipNativeInstall: 'yes'
       afterBuild: |
         rustup target add wasm32-unknown-unknown
-        curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
         node ./scripts/normalize-version-bump.js
         pnpm dlx turbo@${TURBO_VERSION} run build-wasm -- --target nodejs
         git checkout .
-        mv crates/wasm/pkg crates/wasm/pkg-nodejs
-        node ./scripts/setup-wasm.mjs
 
         export NEXT_TEST_MODE=start
-        export TEST_WASM=true
+        export NEXT_TEST_WASM=true
         node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
           test/e2e/streaming-ssr/index.test.ts
@@ -801,7 +797,8 @@ jobs:
 
         NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
-          test/e2e/basepath/basepath.test.ts
+          test/e2e/basepath/basepath.test.ts \
+          test/e2e/basepath/error-pages.test.ts
 
         BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js \
           test/production/prerender-prefetch/index.test.ts

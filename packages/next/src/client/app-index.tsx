@@ -1,13 +1,13 @@
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
 
-import './components/globals/patch-console'
-import './components/globals/handle-global-errors'
+import '../next-devtools/userspace/app/app-dev-overlay-setup'
 
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
+// TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream } from 'react-server-dom-webpack/client'
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import {
@@ -28,6 +28,9 @@ import { setAppBuildId } from './app-build-id'
 import { isBot } from '../shared/lib/router/utils/is-bot'
 
 /// <reference types="react-dom/experimental" />
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 const appElement: HTMLElement | Document = document
 
@@ -172,7 +175,7 @@ function ServerRoot({
     <AppRouter
       gracefullyDegrade={isBot(window.navigator.userAgent)}
       actionQueue={actionQueue}
-      globalErrorComponentAndStyles={initialRSCPayload.G}
+      globalErrorState={initialRSCPayload.G}
       assetPrefix={initialRSCPayload.p}
     />
   )
@@ -207,7 +210,15 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
+function onDefaultTransitionIndicator() {
+  // TODO: Compose default with user-configureable (e.g. nprogress)
+  // TODO: Use React's default once we figure out hanging indicators: https://codesandbox.io/p/sandbox/charming-moon-hktkp6?file=%2Fsrc%2Findex.js%3A106%2C30
+  return () => {}
+}
+
 const reactRootOptions: ReactDOMClient.RootOptions = {
+  // @ts-expect-error: Should pass on `@types/react` bump.
+  onDefaultTransitionIndicator: onDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
@@ -273,7 +284,7 @@ export function hydrate(
     // Server rendering failed, fall back to client-side rendering
     if (process.env.NODE_ENV !== 'production') {
       const { createRootLevelDevOverlayElement } =
-        require('./components/react-dev-overlay/app/client-entry') as typeof import('./components/react-dev-overlay/app/client-entry')
+        require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
 
       // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
       element = createRootLevelDevOverlayElement(element)

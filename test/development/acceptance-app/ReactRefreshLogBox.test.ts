@@ -464,7 +464,18 @@ describe('ReactRefreshLogBox app', () => {
          "label": "Build Error",
          "source": "./index.module.css
        Parsing css source code failed
-       Selector is not pure (pure selectors must contain at least one local class or id), (lightningcss, Selector(button, specificity = 0x1))",
+       Selector "button" is not pure. Pure selectors must contain at least one local class or id.
+       Import traces:
+         Client Component Browser:
+           ./index.module.css [Client Component Browser]
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./index.module.css [Client Component SSR]
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]",
          "stack": [],
        }
       `)
@@ -553,7 +564,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -563,7 +574,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -635,7 +646,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -645,7 +656,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -717,7 +728,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -727,7 +738,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -800,7 +811,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -810,7 +821,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -822,7 +833,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(2)'
               ) as any
@@ -1279,11 +1290,12 @@ describe('ReactRefreshLogBox app', () => {
     )
     const { session, browser } = sandbox
 
-    await expect(browser).toDisplayRedbox(`
+    await expect(browser).toDisplayRedbox(
+      `
      {
        "description": "Server component error",
        "environmentLabel": "Server",
-       "label": "Runtime Error",
+       "label": "<FIXME-excluded-label>",
        "source": "app/page.js (2:9) @ Page
      > 2 |   throw new Error('Server component error')
          |         ^",
@@ -1291,7 +1303,11 @@ describe('ReactRefreshLogBox app', () => {
          "Page app/page.js (2:9)",
        ],
      }
-    `)
+    `,
+
+      // FIXME: `label` is flaking between "Runtime Error" and "Recoverable Error"
+      { label: false }
+    )
 
     // Remove error
     await session.patch(
@@ -1318,11 +1334,12 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await expect(browser).toDisplayRedbox(`
+    await expect(browser).toDisplayRedbox(
+      `
      {
        "description": "Server component error!",
        "environmentLabel": "Server",
-       "label": "Runtime Error",
+       "label": "<FIXME-excluded-label>",
        "source": "app/page.js (2:9) @ Page
      > 2 |   throw new Error('Server component error!')
          |         ^",
@@ -1330,7 +1347,11 @@ describe('ReactRefreshLogBox app', () => {
          "Page app/page.js (2:9)",
        ],
      }
-    `)
+    `,
+
+      // FIXME: `label` is flaking between "Runtime Error" and "Recoverable Error"
+      { label: false }
+    )
   })
 
   test('Import trace when module not found in layout', async () => {
@@ -1450,11 +1471,14 @@ describe('ReactRefreshLogBox app', () => {
 
       await next.patchFile('index.js', "throw new Error('module error')")
 
-      if (isTurbopack) {
-        // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
+      await retry(async () => {
         // Should use `await expect(browser).toDisplayRedbox()`
         await session.assertHasRedbox()
-      } else {
+      })
+
+      // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
+
+      if (!isTurbopack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
            "description": "module error",

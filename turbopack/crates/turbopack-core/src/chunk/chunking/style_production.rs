@@ -5,10 +5,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
     chunk::{
-        chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
         ChunkItemBatchGroup, ChunkItemWithAsyncModuleInfo, ChunkingConfig, ChunkingContext,
+        chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
     },
-    module_graph::{style_groups::StyleGroupsConfig, ModuleGraph},
+    module_graph::{ModuleGraph, style_groups::StyleGroupsConfig},
 };
 
 pub async fn make_style_production_chunks(
