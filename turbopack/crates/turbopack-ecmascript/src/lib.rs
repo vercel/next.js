@@ -2498,14 +2498,17 @@ fn encode_module_into_comment_span(
 
 impl Comments for CodeGenResultCommentsConsumable<'_> {
     fn add_leading(&self, _pos: BytePos, _cmt: Comment) {
-        unimplemented!()
+        unimplemented!("add_leading")
     }
 
     fn add_leading_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
-        unimplemented!()
+        unimplemented!("add_leading_comments")
     }
 
     fn has_leading(&self, pos: BytePos) -> bool {
+        if pos.is_dummy() {
+            return false;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2524,10 +2527,13 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn move_leading(&self, _from: BytePos, _to: BytePos) {
-        unimplemented!()
+        unimplemented!("move_leading")
     }
 
     fn take_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        if pos.is_dummy() {
+            return None;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2551,6 +2557,9 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn get_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        if pos.is_dummy() {
+            return None;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2574,14 +2583,17 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn add_trailing(&self, _pos: BytePos, _cmt: Comment) {
-        unimplemented!()
+        unimplemented!("add_trailing")
     }
 
     fn add_trailing_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
-        unimplemented!()
+        unimplemented!("add_trailing_comments")
     }
 
     fn has_trailing(&self, pos: BytePos) -> bool {
+        if pos.is_dummy() {
+            return false;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2600,10 +2612,13 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn move_trailing(&self, _from: BytePos, _to: BytePos) {
-        unimplemented!()
+        unimplemented!("move_trailing")
     }
 
     fn take_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        if pos.is_dummy() {
+            return None;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2630,6 +2645,9 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn get_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        if pos.is_dummy() {
+            return None;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2653,7 +2671,7 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn add_pure_comment(&self, _pos: BytePos) {
-        unimplemented!()
+        unimplemented!("add_pure_comment")
     }
 }
 
