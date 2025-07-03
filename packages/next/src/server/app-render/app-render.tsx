@@ -2073,6 +2073,8 @@ async function renderToStream(
         formState
       ),
       isStaticGeneration: generateStaticHTML,
+      isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
+      buildId: ctx.workStore.buildId,
       getServerInsertedHTML,
       getServerInsertedMetadata,
       validateRootLayout: dev,
@@ -2219,6 +2221,8 @@ async function renderToStream(
           formState
         ),
         isStaticGeneration: generateStaticHTML,
+        isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
+        buildId: ctx.workStore.buildId,
         getServerInsertedHTML: makeGetServerInsertedHTML({
           polyfills,
           renderServerInsertedHTML,
@@ -3403,6 +3407,9 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
           }),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
@@ -3636,6 +3643,9 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3728,6 +3738,9 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
+          isBuildTimePrerendering:
+            ctx.workStore.isBuildTimePrerendering === true,
+          buildId: ctx.workStore.buildId,
           getServerInsertedHTML,
           getServerInsertedMetadata,
         }),
@@ -3906,6 +3919,9 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
+          isBuildTimePrerendering:
+            ctx.workStore.isBuildTimePrerendering === true,
+          buildId: ctx.workStore.buildId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,
