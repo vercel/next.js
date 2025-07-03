@@ -1012,11 +1012,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production());
-
-    if let Some(export_usage) = *export_usage.await? {
-        builder = builder.export_usage(export_usage);
-    }
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris();
@@ -1088,11 +1085,8 @@ pub async fn get_server_chunking_context(
         SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production());
-
-    if let Some(export_usage) = *export_usage.await? {
-        builder = builder.export_usage(export_usage);
-    }
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris()

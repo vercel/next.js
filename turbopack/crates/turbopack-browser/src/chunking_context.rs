@@ -154,8 +154,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn export_usage(mut self, export_usage: ResolvedVc<ExportUsageInfo>) -> Self {
-        self.chunking_context.export_usage = Some(export_usage);
+    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<ExportUsageInfo>>) -> Self {
+        self.chunking_context.export_usage = export_usage;
         self
     }
 

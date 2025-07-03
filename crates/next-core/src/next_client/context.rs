@@ -465,11 +465,8 @@ pub async fn get_client_chunking_context(
     })
     .asset_base_path(asset_prefix)
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
+    .export_usage(*export_usage.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?);
-
-    if let Some(export_usage) = *export_usage.await? {
-        builder = builder.export_usage(export_usage);
-    }
 
     if next_mode.is_development() {
         builder = builder.hot_module_replacement().use_file_source_map_uris();

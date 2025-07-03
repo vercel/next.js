@@ -247,11 +247,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     } else {
         SourceMapsType::None
     })
-    .module_id_strategy(module_id_strategy.to_resolved().await?);
-
-    if let Some(export_usage) = *export_usage.await? {
-        builder = builder.export_usage(export_usage);
-    }
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?);
 
     if !next_mode.is_development() {
         builder = builder
@@ -321,11 +318,8 @@ pub async fn get_edge_chunking_context(
     } else {
         SourceMapsType::None
     })
-    .module_id_strategy(module_id_strategy.to_resolved().await?);
-
-    if let Some(export_usage) = *export_usage.await? {
-        builder = builder.export_usage(export_usage);
-    }
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?);
 
     if !next_mode.is_development() {
         builder = builder
