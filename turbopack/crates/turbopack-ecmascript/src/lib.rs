@@ -201,8 +201,6 @@ pub struct EcmascriptOptions {
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
     /// are temporarily introduced.
     pub keep_last_successful_parse: bool,
-
-    pub remove_unused_exports: bool,
 }
 
 #[turbo_tasks::value]

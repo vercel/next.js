@@ -385,12 +385,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
-                    remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
-            remove_unused_exports,
             ..Default::default()
         }
         .into(),

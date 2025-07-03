@@ -318,14 +318,12 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     },
                     environment: Some(env),
                     tree_shaking_mode: options.tree_shaking_mode,
-                    remove_unused_exports: options.remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
             module_rules: vec![module_rules],
             tree_shaking_mode: options.tree_shaking_mode,
-            remove_unused_exports: options.remove_unused_exports,
             ..Default::default()
         }
         .into(),

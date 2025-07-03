@@ -319,7 +319,7 @@ pub async fn primary_chunkable_referenced_modules(
                     .primary_modules()
                     .owned()
                     .await?;
-                let export = (*reference.export_usage().await?).clone();
+                let export = reference.export_usage().owned().await?;
 
                 return Ok(Some((chunking_type.clone(), export, resolved)));
             }
