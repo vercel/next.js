@@ -61,8 +61,10 @@ A promise that resolves to an object containing the [dynamic route parameters](/
 
 ```tsx filename="app/dashboard/[team]/layout.tsx" switcher
 export default async function Layout({
+  children
   params,
 }: {
+  children: React.ReactNode
   params: Promise<{ team: string }>
 }) {
   const { team } = await params
@@ -70,7 +72,7 @@ export default async function Layout({
 ```
 
 ```jsx filename="app/dashboard/[team]/layout.js" switcher
-export default async function Layout({ params }) {
+export default async function Layout({ children, params }) {
   const { team } = await params
 }
 ```

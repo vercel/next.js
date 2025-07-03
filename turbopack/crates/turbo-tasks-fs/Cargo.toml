@@ -33,7 +33,6 @@ concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 dunce = { workspace = true }
 futures = { workspace = true }
-futures-retry = { workspace = true }
 include_dir = { version = "0.7.2", features = ["nightly"] }
 indexmap = { workspace = true }
 jsonc-parser = { version = "0.21.0", features = ["serde"] }

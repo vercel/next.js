@@ -1,1 +1,1 @@
-require("loopback");
+require('loopback')

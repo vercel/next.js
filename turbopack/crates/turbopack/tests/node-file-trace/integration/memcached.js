@@ -1,2 +1,2 @@
-const Memcached = require("memcached");
-Memcached.config.poolSize = 25;
+const Memcached = require('memcached')
+Memcached.config.poolSize = 25
