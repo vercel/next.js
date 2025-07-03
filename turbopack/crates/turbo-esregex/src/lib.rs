@@ -123,6 +123,21 @@ impl EsRegex {
             EsRegexImpl::Regress(r) => r.find(haystack).is_some(),
         }
     }
+
+    pub fn captures<'h>(&self, haystack: &'h str) -> Option<Vec<&'h str>> {
+        match &self.delegate {
+            EsRegexImpl::Regex(r) => r.captures(haystack).map(|caps| {
+                caps.iter()
+                    .map(|m| m.map(|m| m.as_str()).unwrap_or(""))
+                    .collect::<Vec<_>>()
+            }),
+            EsRegexImpl::Regress(r) => r.find(haystack).map(|m| {
+                m.groups()
+                    .map(|range_opt| range_opt.map(|range| &haystack[range]).unwrap_or(""))
+                    .collect::<Vec<_>>()
+            }),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -159,5 +174,36 @@ mod tests {
         // Don't bother asserting on the message since we delegate
         // that to the underlying implementations.
         assert!(matches!(EsRegex::new("*", ""), Err { .. }))
+    }
+
+    #[test]
+    fn captures_with_regex() {
+        let regex = EsRegex::new(r"(\d{4})-(\d{2})-(\d{2})", "").unwrap();
+        assert!(matches!(regex.delegate, EsRegexImpl::Regex { .. }));
+
+        let captures = regex.captures("Today is 2024-01-15");
+        assert!(captures.is_some());
+        let caps: Vec<&str> = captures.unwrap();
+        assert_eq!(caps.len(), 4); // full match + 3 groups
+        assert_eq!(caps[0], "2024-01-15"); // full match
+        assert_eq!(caps[1], "2024"); // year
+        assert_eq!(caps[2], "01"); // month
+        assert_eq!(caps[3], "15"); // day
+    }
+
+    #[test]
+    fn captures_with_regress() {
+        let regex = EsRegex::new(r"(\w+)(?=baz)", "").unwrap();
+        assert!(matches!(regex.delegate, EsRegexImpl::Regress { .. }));
+
+        let captures = regex.captures("foobar");
+        assert!(captures.is_none());
+
+        let captures = regex.captures("foobaz");
+        assert!(captures.is_some());
+        let caps: Vec<&str> = captures.unwrap();
+        assert_eq!(caps.len(), 2); // full match + 1 group
+        assert_eq!(caps[0], "foo"); // full match
+        assert_eq!(caps[1], "foo"); // captured group
     }
 }

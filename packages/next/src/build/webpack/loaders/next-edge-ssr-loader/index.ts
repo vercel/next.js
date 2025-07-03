@@ -182,10 +182,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_MODULE_GLOBAL_ERROR: errorPath,
         },
         {
-          pagesType: JSON.stringify(pagesType),
-          sriEnabled: JSON.stringify(sriEnabled),
           nextConfig: stringifiedConfig,
-          dev: JSON.stringify(dev),
           pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
           errorRouteModuleOptions: JSON.stringify(
             getRouteModuleOptions('/_error')

@@ -3878,7 +3878,7 @@ function describeComponentStackByType(type) {
             (location = location.slice(29)),
           (type = location.indexOf("\n")),
           -1 !== type && (location = location.slice(type + 1)),
-          (type = location.indexOf("react-stack-bottom-frame")),
+          (type = location.indexOf("react_stack_bottom_frame")),
           -1 !== type && (type = location.lastIndexOf("\n", type)),
           (type = -1 !== type ? (location = location.slice(0, type)) : ""),
           (location = type.lastIndexOf("\n")),
@@ -7255,15 +7255,15 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
     parentNode[2].push(node);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_870 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_868 = React.version;
 if (
-  "19.2.0-experimental-7216c0f0-20250630" !==
-  isomorphicReactPackageVersion$jscomp$inline_870
+  "19.2.0-experimental-73aa744b-20250702" !==
+  isomorphicReactPackageVersion$jscomp$inline_868
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_870 +
-        "\n  - react-dom:  19.2.0-experimental-7216c0f0-20250630\nLearn more: https://react.dev/warnings/version-mismatch")
+      (isomorphicReactPackageVersion$jscomp$inline_868 +
+        "\n  - react-dom:  19.2.0-experimental-73aa744b-20250702\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -7354,4 +7354,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-7216c0f0-20250630";
+exports.version = "19.2.0-experimental-73aa744b-20250702";

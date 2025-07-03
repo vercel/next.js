@@ -520,15 +520,17 @@
             return null;
           };
     TaintRegistryObjects$1 = {
-      "react-stack-bottom-frame": function (callStackForError) {
+      react_stack_bottom_frame: function (callStackForError) {
         return callStackForError();
       }
     };
     var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
-    var unknownOwnerDebugStack = TaintRegistryObjects$1[
-      "react-stack-bottom-frame"
-    ].bind(TaintRegistryObjects$1, UnknownOwner)();
+    var unknownOwnerDebugStack =
+      TaintRegistryObjects$1.react_stack_bottom_frame.bind(
+        TaintRegistryObjects$1,
+        UnknownOwner
+      )();
     var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g,
@@ -994,5 +996,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.2.0-experimental-7216c0f0-20250630";
+    exports.version = "19.2.0-experimental-73aa744b-20250702";
   })();

@@ -354,7 +354,7 @@ impl EvalContext {
         let mut values = vec![];
 
         for idx in 0..(e.quasis.len() + e.exprs.len()) {
-            if idx % 2 == 0 {
+            if idx.is_multiple_of(2) {
                 let idx = idx / 2;
                 let e = &e.quasis[idx];
 

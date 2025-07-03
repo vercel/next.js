@@ -16,6 +16,7 @@ import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
+  DYNAMIC_CSS_MANIFEST,
   NEXT_FONT_MANIFEST,
   PRERENDER_MANIFEST,
   REACT_LOADABLE_MANIFEST,
@@ -48,15 +49,16 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
 import { interopDefault } from '../app-render/interop-default'
 import type { RouteKind } from '../route-kind'
-import type { NextConfigComplete } from '../config-shared'
+import type { BaseNextRequest } from '../base-http'
+import type { I18NConfig, NextConfigComplete } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
   type RouterServerContext,
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -135,12 +137,17 @@ export abstract class RouteModule<
   }
 
   public async instrumentationOnRequestError(
-    req: IncomingMessage,
+    req: IncomingMessage | BaseNextRequest,
     ...args: Parameters<InstrumentationOnRequestError>
   ) {
-    // this is only handled here for node, for edge it
-    // is handled in the adapter/loader instead
-    if (process.env.NEXT_RUNTIME !== 'edge') {
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      const { getEdgeInstrumentationModule } = await import('../web/globals')
+      const instrumentation = await getEdgeInstrumentationModule()
+
+      if (instrumentation) {
+        await instrumentation.onRequestError?.(...args)
+      }
+    } else {
       const { join } = require('node:path') as typeof import('node:path')
       const absoluteProjectDir =
         getRequestMeta(req, 'projectDir') ||
@@ -158,8 +165,72 @@ export abstract class RouteModule<
     }
   }
 
-  private loadManifests(projectDir: string, srcPage: string) {
-    if (process.env.NEXT_RUNTIME !== 'edge') {
+  private loadManifests(
+    srcPage: string,
+    projectDir?: string
+  ): {
+    buildId: string
+    buildManifest: BuildManifest
+    routesManifest: DeepReadonly<DevRoutesManifest>
+    nextFontManifest: DeepReadonly<NextFontManifest>
+    prerenderManifest: DeepReadonly<PrerenderManifest>
+    serverFilesManifest: RequiredServerFilesManifest
+    reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
+    subresourceIntegrityManifest: any
+    clientReferenceManifest: any
+    serverActionsManifest: any
+    dynamicCssManifest: any
+  } {
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      const { getEdgePreviewProps } =
+        require('../web/get-edge-preview-props') as typeof import('../web/get-edge-preview-props')
+
+      const maybeJSONParse = (str?: string) =>
+        str ? JSON.parse(str) : undefined
+
+      return {
+        buildId: process.env.__NEXT_BUILD_ID || '',
+        buildManifest: self.__BUILD_MANIFEST as any,
+        reactLoadableManifest: maybeJSONParse(self.__REACT_LOADABLE_MANIFEST),
+        nextFontManifest: maybeJSONParse(self.__NEXT_FONT_MANIFEST),
+        prerenderManifest: {
+          routes: {},
+          dynamicRoutes: {},
+          notFoundRoutes: [],
+          version: 4,
+          preview: getEdgePreviewProps(),
+        },
+        routesManifest: {
+          version: 4,
+          caseSensitive: Boolean(process.env.__NEXT_CASE_SENSITIVE_ROUTES),
+          basePath: process.env.__NEXT_BASE_PATH || '',
+          rewrites: (process.env.__NEXT_REWRITES as any) || {
+            beforeFiles: [],
+            afterFiles: [],
+            fallback: [],
+          },
+          redirects: [],
+          headers: [],
+          i18n:
+            (process.env.__NEXT_I18N_CONFIG as any as I18NConfig) || undefined,
+          skipMiddlewareUrlNormalize: Boolean(
+            process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+          ),
+        },
+        serverFilesManifest: {
+          config: (globalThis as any).nextConfig || {},
+        } as any,
+        clientReferenceManifest: self.__RSC_MANIFEST?.[srcPage],
+        serverActionsManifest: maybeJSONParse(self.__RSC_SERVER_MANIFEST),
+        subresourceIntegrityManifest: maybeJSONParse(
+          self.__SUBRESOURCE_INTEGRITY_MANIFEST
+        ),
+        dynamicCssManifest: maybeJSONParse(self.__DYNAMIC_CSS_MANIFEST),
+      }
+    } else {
+      if (!projectDir) {
+        throw new Error('Invariant: projectDir is required for node runtime')
+      }
       const { loadManifestFromRelativePath } =
         require('../load-manifest.external') as typeof import('../load-manifest.external')
       const normalizedPagePath = normalizePagePath(srcPage)
@@ -175,6 +246,7 @@ export abstract class RouteModule<
         subresourceIntegrityManifest,
         serverFilesManifest,
         buildId,
+        dynamicCssManifest,
       ] = [
         loadManifestFromRelativePath<DevRoutesManifest>({
           projectDir,
@@ -250,6 +322,12 @@ export abstract class RouteModule<
               manifest: BUILD_ID_FILE,
               skipParse: true,
             }),
+        loadManifestFromRelativePath<any>({
+          projectDir,
+          distDir: this.distDir,
+          manifest: DYNAMIC_CSS_MANIFEST,
+          handleMissing: true,
+        }),
       ]
 
       return {
@@ -264,9 +342,9 @@ export abstract class RouteModule<
           ?.__RSC_MANIFEST?.[srcPage.replace(/%5F/g, '_')],
         serverActionsManifest,
         subresourceIntegrityManifest,
+        dynamicCssManifest,
       }
     }
-    throw new Error('Invariant: loadManifests called for edge runtime')
   }
 
   public async loadCustomCacheHandlers(
@@ -358,7 +436,7 @@ export abstract class RouteModule<
   }
 
   public async onRequestError(
-    req: IncomingMessage,
+    req: IncomingMessage | BaseNextRequest,
     err: unknown,
     errorContext: RequestErrorContext,
     routerServerContext?: RouterServerContext[string]
@@ -381,8 +459,8 @@ export abstract class RouteModule<
   }
 
   public async prepare(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: IncomingMessage | BaseNextRequest,
+    res: ServerResponse | null,
     {
       srcPage,
       multiZoneDraftMode,
@@ -416,6 +494,7 @@ export abstract class RouteModule<
         // our pre-compiled types
         clientReferenceManifest?: any
         serverActionsManifest?: any
+        dynamicCssManifest?: any
         subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
         isOnDemandRevalidate: boolean
         revalidateOnlyGenerated: boolean
@@ -424,13 +503,14 @@ export abstract class RouteModule<
       }
     | undefined
   > {
-    // "prepare" is only needed for node runtime currently
-    // if we want to share the normalizing logic here
-    // we will need to allow passing in the i18n and similar info
+    let projectDir: string | undefined
+
+    // edge runtime handles loading instrumentation at the edge adapter level
     if (process.env.NEXT_RUNTIME !== 'edge') {
       const { join, relative } =
         require('node:path') as typeof import('node:path')
-      const projectDir =
+
+      projectDir =
         getRequestMeta(req, 'projectDir') ||
         join(process.cwd(), this.projectDir)
 
@@ -445,218 +525,219 @@ export abstract class RouteModule<
       // ensure instrumentation is registered and pass
       // onRequestError below
       ensureInstrumentationRegistered(projectDir, this.distDir)
+    }
+    const manifests = await this.loadManifests(srcPage, projectDir)
+    const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
-      const manifests = await this.loadManifests(projectDir, srcPage)
-      const { routesManifest, prerenderManifest, serverFilesManifest } =
-        manifests
+    const { basePath, i18n, rewrites } = routesManifest
 
-      const { basePath, i18n, rewrites } = routesManifest
+    if (basePath) {
+      req.url = removePathPrefix(req.url || '/', basePath)
+    }
 
-      if (basePath) {
-        req.url = removePathPrefix(req.url || '/', basePath)
+    const parsedUrl = parseReqUrl(req.url || '/')
+    // if we couldn't parse the URL we can't continue
+    if (!parsedUrl) {
+      return
+    }
+    let isNextDataRequest = false
+
+    if (pathHasPrefix(parsedUrl.pathname || '/', '/_next/data')) {
+      isNextDataRequest = true
+      parsedUrl.pathname = normalizeDataPath(parsedUrl.pathname || '/')
+    }
+    let originalPathname = parsedUrl.pathname || '/'
+    const originalQuery = { ...parsedUrl.query }
+    const pageIsDynamic = isDynamicRoute(srcPage)
+
+    let localeResult: PathLocale | undefined
+    let detectedLocale: string | undefined
+
+    if (i18n) {
+      localeResult = normalizeLocalePath(
+        parsedUrl.pathname || '/',
+        i18n.locales
+      )
+
+      if (localeResult.detectedLocale) {
+        req.url = `${localeResult.pathname}${parsedUrl.search}`
+        originalPathname = localeResult.pathname
+
+        if (!detectedLocale) {
+          detectedLocale = localeResult.detectedLocale
+        }
       }
+    }
 
-      const parsedUrl = parseReqUrl(req.url || '/')
-      // if we couldn't parse the URL we can't continue
-      if (!parsedUrl) {
-        return
+    const serverUtils = getServerUtils({
+      page: srcPage,
+      i18n,
+      basePath,
+      rewrites,
+      pageIsDynamic,
+      trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
+      caseSensitive: Boolean(routesManifest.caseSensitive),
+    })
+
+    const domainLocale = detectDomainLocale(
+      i18n?.domains,
+      getHostname(parsedUrl, req.headers),
+      detectedLocale
+    )
+    addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
+
+    const defaultLocale = domainLocale?.defaultLocale || i18n?.defaultLocale
+
+    // Ensure parsedUrl.pathname includes locale before processing
+    // rewrites or they won't match correctly.
+    if (defaultLocale && !detectedLocale) {
+      parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname === '/' ? '' : parsedUrl.pathname}`
+    }
+    const locale =
+      getRequestMeta(req, 'locale') || detectedLocale || defaultLocale
+
+    const rewriteParamKeys = Object.keys(
+      serverUtils.handleRewrites(req, parsedUrl)
+    )
+
+    // after processing rewrites we want to remove locale
+    // from parsedUrl pathname
+    if (i18n) {
+      parsedUrl.pathname = normalizeLocalePath(
+        parsedUrl.pathname || '/',
+        i18n.locales
+      ).pathname
+    }
+
+    let params: Record<string, undefined | string | string[]> | undefined =
+      getRequestMeta(req, 'params')
+
+    // attempt parsing from pathname
+    if (!params && serverUtils.dynamicRouteMatcher) {
+      const paramsMatch = serverUtils.dynamicRouteMatcher(
+        normalizeDataPath(localeResult?.pathname || parsedUrl.pathname || '/')
+      )
+      const paramsResult = serverUtils.normalizeDynamicRouteParams(
+        paramsMatch || {},
+        true
+      )
+
+      if (paramsResult.hasValidParams) {
+        params = paramsResult.params
       }
-      let isNextDataRequest = false
+    }
 
-      if (pathHasPrefix(parsedUrl.pathname || '/', '/_next/data')) {
-        isNextDataRequest = true
-        parsedUrl.pathname = normalizeDataPath(parsedUrl.pathname || '/')
+    // Local "next start" expects the routing parsed query values
+    // to not be present in the URL although when deployed proxies
+    // will add query values from resolving the routes to pass to function.
+
+    // TODO: do we want to change expectations for "next start"
+    // to include these query values in the URL which affects asPath
+    // but would match deployed behavior, e.g. a rewrite from middleware
+    // that adds a query param would be in asPath as query but locally
+    // it won't be in the asPath but still available in the query object
+    const query = getRequestMeta(req, 'query') || {
+      ...parsedUrl.query,
+    }
+
+    const routeParamKeys = new Set<string>()
+    const combinedParamKeys = [...routeParamKeys]
+
+    for (const key of rewriteParamKeys) {
+      // We only want to filter rewrite param keys from the URL
+      // if they are matches from the URL e.g. the key/value matches
+      // before and after applying the rewrites /:path for /hello and
+      // { path: 'hello' } but not for { path: 'another' } and /hello
+      // TODO: we should prefix rewrite param keys the same as we do
+      // for dynamic routes so we can identify them properly
+      const originalValue = Array.isArray(originalQuery[key])
+        ? originalQuery[key].join('')
+        : originalQuery[key]
+
+      const queryValue = Array.isArray(query[key])
+        ? query[key].join('')
+        : query[key]
+
+      if (!(key in originalQuery) || originalValue === queryValue) {
+        combinedParamKeys.push(key)
       }
-      let originalPathname = parsedUrl.pathname || '/'
-      const originalQuery = { ...parsedUrl.query }
-      const pageIsDynamic = isDynamicRoute(srcPage)
+    }
 
-      let localeResult: PathLocale | undefined
-      let detectedLocale: string | undefined
+    serverUtils.normalizeCdnUrl(req, combinedParamKeys)
+    serverUtils.normalizeQueryParams(query, routeParamKeys)
+    serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
-      if (i18n) {
-        localeResult = normalizeLocalePath(
-          parsedUrl.pathname || '/',
-          i18n.locales
-        )
+    if (pageIsDynamic) {
+      const queryResult = serverUtils.normalizeDynamicRouteParams(query, true)
 
-        if (localeResult.detectedLocale) {
-          req.url = `${localeResult.pathname}${parsedUrl.search}`
-          originalPathname = localeResult.pathname
+      const paramsResult = serverUtils.normalizeDynamicRouteParams(
+        params || {},
+        true
+      )
+      const paramsToInterpolate: ParsedUrlQuery =
+        paramsResult.hasValidParams && params
+          ? params
+          : queryResult.hasValidParams
+            ? query
+            : {}
 
-          if (!detectedLocale) {
-            detectedLocale = localeResult.detectedLocale
+      req.url = serverUtils.interpolateDynamicPath(
+        req.url || '/',
+        paramsToInterpolate
+      )
+      parsedUrl.pathname = serverUtils.interpolateDynamicPath(
+        parsedUrl.pathname || '/',
+        paramsToInterpolate
+      )
+      originalPathname = serverUtils.interpolateDynamicPath(
+        originalPathname,
+        paramsToInterpolate
+      )
+
+      // try pulling from query if valid
+      if (!params) {
+        if (queryResult.hasValidParams) {
+          params = Object.assign({}, queryResult.params)
+
+          // If we pulled from query remove it so it's
+          // only in params
+          for (const key in serverUtils.defaultRouteMatches) {
+            delete query[key]
           }
-        }
-      }
-
-      const serverUtils = getServerUtils({
-        page: srcPage,
-        i18n,
-        basePath,
-        rewrites,
-        pageIsDynamic,
-        trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
-        caseSensitive: Boolean(routesManifest.caseSensitive),
-      })
-
-      const domainLocale = detectDomainLocale(
-        i18n?.domains,
-        getHostname(parsedUrl, req.headers),
-        detectedLocale
-      )
-      addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
-
-      const defaultLocale = domainLocale?.defaultLocale || i18n?.defaultLocale
-
-      // Ensure parsedUrl.pathname includes locale before processing
-      // rewrites or they won't match correctly.
-      if (defaultLocale && !detectedLocale) {
-        parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname === '/' ? '' : parsedUrl.pathname}`
-      }
-      const locale =
-        getRequestMeta(req, 'locale') || detectedLocale || defaultLocale
-
-      const rewriteParamKeys = Object.keys(
-        serverUtils.handleRewrites(req, parsedUrl)
-      )
-
-      // after processing rewrites we want to remove locale
-      // from parsedUrl pathname
-      if (i18n) {
-        parsedUrl.pathname = normalizeLocalePath(
-          parsedUrl.pathname || '/',
-          i18n.locales
-        ).pathname
-      }
-
-      let params: Record<string, undefined | string | string[]> | undefined =
-        getRequestMeta(req, 'params')
-
-      // attempt parsing from pathname
-      if (!params && serverUtils.dynamicRouteMatcher) {
-        const paramsMatch = serverUtils.dynamicRouteMatcher(
-          normalizeDataPath(localeResult?.pathname || parsedUrl.pathname || '/')
-        )
-        const paramsResult = serverUtils.normalizeDynamicRouteParams(
-          paramsMatch || {},
-          true
-        )
-
-        if (paramsResult.hasValidParams) {
-          params = paramsResult.params
-        }
-      }
-
-      // Local "next start" expects the routing parsed query values
-      // to not be present in the URL although when deployed proxies
-      // will add query values from resolving the routes to pass to function.
-
-      // TODO: do we want to change expectations for "next start"
-      // to include these query values in the URL which affects asPath
-      // but would match deployed behavior, e.g. a rewrite from middleware
-      // that adds a query param would be in asPath as query but locally
-      // it won't be in the asPath but still available in the query object
-      const query = getRequestMeta(req, 'query') || {
-        ...parsedUrl.query,
-      }
-
-      const routeParamKeys = new Set<string>()
-      const combinedParamKeys = [...routeParamKeys]
-
-      for (const key of rewriteParamKeys) {
-        // We only want to filter rewrite param keys from the URL
-        // if they are matches from the URL e.g. the key/value matches
-        // before and after applying the rewrites /:path for /hello and
-        // { path: 'hello' } but not for { path: 'another' } and /hello
-        // TODO: we should prefix rewrite param keys the same as we do
-        // for dynamic routes so we can identify them properly
-        const originalValue = Array.isArray(originalQuery[key])
-          ? originalQuery[key].join('')
-          : originalQuery[key]
-
-        const queryValue = Array.isArray(query[key])
-          ? query[key].join('')
-          : query[key]
-
-        if (!(key in originalQuery) || originalValue === queryValue) {
-          combinedParamKeys.push(key)
-        }
-      }
-
-      serverUtils.normalizeCdnUrl(req, combinedParamKeys)
-      serverUtils.normalizeQueryParams(query, routeParamKeys)
-      serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
-
-      if (pageIsDynamic) {
-        const queryResult = serverUtils.normalizeDynamicRouteParams(query, true)
-
-        const paramsResult = serverUtils.normalizeDynamicRouteParams(
-          params || {},
-          true
-        )
-        const paramsToInterpolate: ParsedUrlQuery =
-          paramsResult.hasValidParams && params
-            ? params
-            : queryResult.hasValidParams
-              ? query
-              : {}
-
-        req.url = serverUtils.interpolateDynamicPath(
-          req.url || '/',
-          paramsToInterpolate
-        )
-        parsedUrl.pathname = serverUtils.interpolateDynamicPath(
-          parsedUrl.pathname || '/',
-          paramsToInterpolate
-        )
-        originalPathname = serverUtils.interpolateDynamicPath(
-          originalPathname,
-          paramsToInterpolate
-        )
-
-        // try pulling from query if valid
-        if (!params) {
-          if (queryResult.hasValidParams) {
-            params = Object.assign({}, queryResult.params)
-
-            // If we pulled from query remove it so it's
-            // only in params
-            for (const key in serverUtils.defaultRouteMatches) {
-              delete query[key]
-            }
-          } else {
-            // use final params from URL matching
-            const paramsMatch = serverUtils.dynamicRouteMatcher?.(
-              normalizeDataPath(
-                localeResult?.pathname || parsedUrl.pathname || '/'
-              )
+        } else {
+          // use final params from URL matching
+          const paramsMatch = serverUtils.dynamicRouteMatcher?.(
+            normalizeDataPath(
+              localeResult?.pathname || parsedUrl.pathname || '/'
             )
-            // we don't normalize these as they are allowed to be
-            // the literal slug matches here e.g. /blog/[slug]
-            // actually being requested
-            if (paramsMatch) {
-              params = Object.assign({}, paramsMatch)
-            }
+          )
+          // we don't normalize these as they are allowed to be
+          // the literal slug matches here e.g. /blog/[slug]
+          // actually being requested
+          if (paramsMatch) {
+            params = Object.assign({}, paramsMatch)
           }
         }
       }
+    }
 
-      // Remove any normalized params from the query if they
-      // weren't present as non-prefixed query key e.g.
-      // ?search=1&nxtPsearch=hello we don't delete search
-      for (const key of routeParamKeys) {
-        if (!(key in originalQuery)) {
-          delete query[key]
-        }
+    // Remove any normalized params from the query if they
+    // weren't present as non-prefixed query key e.g.
+    // ?search=1&nxtPsearch=hello we don't delete search
+    for (const key of routeParamKeys) {
+      if (!(key in originalQuery)) {
+        delete query[key]
       }
+    }
 
-      const { isOnDemandRevalidate, revalidateOnlyGenerated } =
-        checkIsOnDemandRevalidate(req, prerenderManifest.preview)
+    const { isOnDemandRevalidate, revalidateOnlyGenerated } =
+      checkIsOnDemandRevalidate(req, prerenderManifest.preview)
 
-      let isDraftMode = false
-      let previewData: PreviewData
+    let isDraftMode = false
+    let previewData: PreviewData
 
+    // preview data relies on non-edge utils
+    if (process.env.NEXT_RUNTIME !== 'edge' && res) {
       const { tryGetPreviewData } =
         require('../api-utils/node/try-get-preview-data') as typeof import('../api-utils/node/try-get-preview-data')
 
@@ -667,50 +748,52 @@ export abstract class RouteModule<
         Boolean(multiZoneDraftMode)
       )
       isDraftMode = previewData !== false
+    }
 
-      const routerServerContext =
-        routerServerGlobal[RouterServerContextSymbol]?.[this.projectDir]
-      const nextConfig =
-        routerServerContext?.nextConfig || serverFilesManifest.config
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[this.projectDir]
+    const nextConfig =
+      routerServerContext?.nextConfig || serverFilesManifest.config
 
-      const normalizedSrcPage = normalizeAppPath(srcPage)
-      let resolvedPathname =
-        getRequestMeta(req, 'rewroteURL') || normalizedSrcPage
+    const normalizedSrcPage = normalizeAppPath(srcPage)
+    let resolvedPathname =
+      getRequestMeta(req, 'rewroteURL') || normalizedSrcPage
 
-      if (isDynamicRoute(resolvedPathname) && params) {
-        resolvedPathname = serverUtils.interpolateDynamicPath(
-          resolvedPathname,
-          params
-        )
-      }
-
-      if (resolvedPathname === '/index') {
-        resolvedPathname = '/'
-      }
-      resolvedPathname = decodePathParams(resolvedPathname)
-
-      return {
-        query,
-        originalQuery,
-        originalPathname,
-        params,
-        parsedUrl,
-        locale,
-        isNextDataRequest,
-        locales: i18n?.locales,
-        defaultLocale,
-        isDraftMode,
-        previewData,
-        pageIsDynamic,
+    if (isDynamicRoute(resolvedPathname) && params) {
+      resolvedPathname = serverUtils.interpolateDynamicPath(
         resolvedPathname,
-        isOnDemandRevalidate,
-        revalidateOnlyGenerated,
-        ...manifests,
-        serverActionsManifest: manifests.serverActionsManifest,
-        clientReferenceManifest: manifests.clientReferenceManifest,
-        nextConfig,
-        routerServerContext,
-      }
+        params
+      )
+    }
+
+    if (resolvedPathname === '/index') {
+      resolvedPathname = '/'
+    }
+    try {
+      resolvedPathname = decodePathParams(resolvedPathname)
+    } catch (_) {}
+
+    return {
+      query,
+      originalQuery,
+      originalPathname,
+      params,
+      parsedUrl,
+      locale,
+      isNextDataRequest,
+      locales: i18n?.locales,
+      defaultLocale,
+      isDraftMode,
+      previewData,
+      pageIsDynamic,
+      resolvedPathname,
+      isOnDemandRevalidate,
+      revalidateOnlyGenerated,
+      ...manifests,
+      serverActionsManifest: manifests.serverActionsManifest,
+      clientReferenceManifest: manifests.clientReferenceManifest,
+      nextConfig,
+      routerServerContext,
     }
   }
 

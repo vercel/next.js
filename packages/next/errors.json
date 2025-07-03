@@ -715,5 +715,6 @@
   "714": "cannot run loadNative when `NEXT_TEST_WASM` is set",
   "715": "Server Action \"%s\" was not found on the server. \\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "716": "NEXT_DEVTOOLS_SIMULATED_ERROR",
-  "717": "Unsupported environment condition \"%s\" and react condition \"%s\". This is a bug in Next.js."
+  "717": "Unsupported environment condition \"%s\" and react condition \"%s\". This is a bug in Next.js.",
+  "718": "Invariant: projectDir is required for node runtime"
 }

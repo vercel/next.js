@@ -1,2 +1,2 @@
-require("jugglingdb");
-module.exports = () => {};
+require('jugglingdb')
+module.exports = () => {}

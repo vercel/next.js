@@ -2957,7 +2957,7 @@
                   (stack = stack.slice(29));
                 var idx = stack.indexOf("\n");
                 -1 !== idx && (stack = stack.slice(idx + 1));
-                idx = stack.indexOf("react-stack-bottom-frame");
+                idx = stack.indexOf("react_stack_bottom_frame");
                 -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
                 var JSCompiler_inline_result =
                   -1 !== idx ? (stack = stack.slice(0, idx)) : "";
@@ -4004,11 +4004,7 @@
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
       createFakeJSXCallStack = {
-        "react-stack-bottom-frame": function (
-          response,
-          stack,
-          environmentName
-        ) {
+        react_stack_bottom_frame: function (response, stack, environmentName) {
           return buildFakeCallStack(
             response,
             stack,
@@ -4018,12 +4014,13 @@
           )();
         }
       },
-      createFakeJSXCallStackInDEV = createFakeJSXCallStack[
-        "react-stack-bottom-frame"
-      ].bind(createFakeJSXCallStack),
+      createFakeJSXCallStackInDEV =
+        createFakeJSXCallStack.react_stack_bottom_frame.bind(
+          createFakeJSXCallStack
+        ),
       currentOwnerInDEV = null,
       replayConsoleWithCallStack = {
-        "react-stack-bottom-frame": function (
+        react_stack_bottom_frame: function (
           response,
           methodName,
           stackTrace,
@@ -4097,9 +4094,10 @@
           }
         }
       },
-      replayConsoleWithCallStackInDEV = replayConsoleWithCallStack[
-        "react-stack-bottom-frame"
-      ].bind(replayConsoleWithCallStack);
+      replayConsoleWithCallStackInDEV =
+        replayConsoleWithCallStack.react_stack_bottom_frame.bind(
+          replayConsoleWithCallStack
+        );
     exports.createFromFetch = function (promiseForResponse, options) {
       var response = createResponseFromOptions(options);
       promiseForResponse.then(

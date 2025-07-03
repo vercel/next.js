@@ -221,6 +221,11 @@ describe('next.rs api', () => {
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
+        rewrites: {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        },
       }),
       buildId: 'development',
       encryptionKey: '12345',

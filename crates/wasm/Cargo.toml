@@ -21,7 +21,6 @@ anyhow = "1.0.66"
 console_error_panic_hook = "0.1.6"
 next-custom-transforms = { workspace = true }
 serde_json = "1"
-tracing = { version = "0.1.37" }
 wasm-bindgen = { version = "0.2", features = ["enable-interning"] }
 wasm-bindgen-futures = "0.4.8"
 getrandom = { version = "0.3", default-features = false, features = ["wasm_js"] }
@@ -53,3 +52,7 @@ wasm-opt = false
 # Workaround a bug
 [package.metadata.wasm-pack.profile.dev]
 wasm-opt = false
+
+[package.metadata.cargo-shear]
+# Needed to declare the `wasm_js` feature
+ignored = ["getrandom"]

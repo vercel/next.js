@@ -112,7 +112,7 @@ pub async fn get_next_client_import_map(
 
     insert_alias_option(
         &mut import_map,
-        project_path.clone(),
+        &project_path,
         next_config.resolve_alias_options(),
         ["browser"],
     )
@@ -311,7 +311,7 @@ pub async fn get_next_server_import_map(
 
     insert_alias_option(
         &mut import_map,
-        project_path.clone(),
+        &project_path,
         next_config.resolve_alias_options(),
         [],
     )
@@ -453,7 +453,7 @@ pub async fn get_next_edge_import_map(
 
     insert_alias_option(
         &mut import_map,
-        project_path.clone(),
+        &project_path,
         next_config.resolve_alias_options(),
         [],
     )
@@ -1149,15 +1149,13 @@ pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<Fi
 
 pub async fn insert_alias_option<const N: usize>(
     import_map: &mut ImportMap,
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
     alias_options: Vc<ResolveAliasMap>,
     conditions: [&'static str; N],
 ) -> Result<()> {
     let conditions = BTreeMap::from(conditions.map(|c| (c.into(), ConditionValue::Set)));
     for (alias, value) in &alias_options.await? {
-        if let Some(mapping) =
-            export_value_to_import_mapping(value, &conditions, project_path.clone())
-        {
+        if let Some(mapping) = export_value_to_import_mapping(value, &conditions, project_path) {
             import_map.insert_alias(alias, mapping);
         }
     }
@@ -1167,7 +1165,7 @@ pub async fn insert_alias_option<const N: usize>(
 fn export_value_to_import_mapping(
     value: &SubpathValue,
     conditions: &BTreeMap<RcStr, ConditionValue>,
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
 ) -> Option<ResolvedVc<ImportMapping>> {
     let mut result = Vec::new();
     value.add_results(
@@ -1180,7 +1178,7 @@ fn export_value_to_import_mapping(
         None
     } else {
         Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path))
+            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path.clone()))
                 .resolved_cell()
         } else {
             ImportMapping::Alternatives(

@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const Schema = mongoose.Schema;
+const mongoose = require('mongoose')
+const Schema = mongoose.Schema
 
 const blogSchema = new Schema({
   title: String,
@@ -12,4 +12,4 @@ const blogSchema = new Schema({
     votes: Number,
     favs: Number,
   },
-});
+})

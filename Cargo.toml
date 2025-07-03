@@ -352,7 +352,6 @@ erased-serde = "0.4.5"
 futures = "0.3.26"
 futures-retry = "0.6.0"
 hashbrown = "0.14.5"
-httpmock = { version = "0.6.8", default-features = false }
 image = { version = "0.25.0", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
@@ -436,3 +435,5 @@ webbrowser = "0.8.7"
 
 [patch.crates-io]
 mdxjs = { git = "https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-30" }
+lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
+parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
