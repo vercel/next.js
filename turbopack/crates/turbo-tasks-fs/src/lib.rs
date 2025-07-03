@@ -788,7 +788,7 @@ impl FileSystem for DiskFileSystem {
                         f.flush()?;
 
                         static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
-                            std::env::var_os("TURBOPACK_WRITE_VERSION")
+                            std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
                                 .is_some_and(|v| v == "1" || v == "true")
                         });
                         if *WRITE_VERSION {
