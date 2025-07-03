@@ -1680,7 +1680,6 @@ async fn process_parse_result(
                         options
                             .merged_code_gens(
                                 ScopeHoistingContext::None,
-                                // eval_context.map_either(|e| &e, |e| e).into_inner(),
                                 match &eval_context {
                                     Either::Left(e) => e,
                                     Either::Right(e) => e,
