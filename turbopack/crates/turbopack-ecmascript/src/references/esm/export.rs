@@ -67,6 +67,7 @@ pub async fn is_export_missing(
     let exports = module.get_exports().await?;
     let exports = match &*exports {
         EcmascriptExports::None => return Ok(Vc::cell(true)),
+        EcmascriptExports::Unknown => return Ok(Vc::cell(false)),
         EcmascriptExports::Value => return Ok(Vc::cell(false)),
         EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
         EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
@@ -96,7 +97,8 @@ pub async fn is_export_missing(
         match &*exports {
             EcmascriptExports::Value
             | EcmascriptExports::CommonJs
-            | EcmascriptExports::DynamicNamespace => {
+            | EcmascriptExports::DynamicNamespace
+            | EcmascriptExports::Unknown => {
                 return Ok(Vc::cell(false));
             }
             EcmascriptExports::None
@@ -442,6 +444,10 @@ pub async fn expand_star_exports(
                 .await?;
             }
             EcmascriptExports::DynamicNamespace => {
+                has_dynamic_exports = true;
+            }
+            EcmascriptExports::Unknown => {
+                // Propagate the Unknown export type to a certain extent.
                 has_dynamic_exports = true;
             }
         }
