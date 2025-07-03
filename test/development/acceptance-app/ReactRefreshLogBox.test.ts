@@ -34,7 +34,7 @@ describe('ReactRefreshLogBox app', () => {
         }
       `
     )
-    await session.evaluate(() => document.querySelector('a').click())
+    await browser.elementByCss('a').click()
 
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(
@@ -517,7 +517,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
@@ -531,8 +531,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (9:7)",
            "Page index.js (9:30)",
@@ -550,8 +548,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (9:7)",
            "Page app/page.js (4:10)",
@@ -600,7 +596,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
@@ -614,8 +610,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (9:7)",
            "Page index.js (9:30)",
@@ -633,8 +627,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (9:7)",
            "Page app/page.js (4:10)",
@@ -682,7 +674,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
@@ -696,8 +688,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (9:7)",
            "Page index.js (9:30)",
@@ -715,8 +705,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (9:7)",
            "Page app/page.js (4:10)",
@@ -764,7 +752,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
@@ -778,8 +766,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (9:7)",
            "Page index.js (9:30)",
@@ -797,8 +783,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (9:7)",
            "Page app/page.js (4:10)",

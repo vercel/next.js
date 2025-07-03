@@ -35,7 +35,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
@@ -279,7 +279,7 @@ describe('Error recovery app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('0')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
@@ -296,8 +296,6 @@ describe('Error recovery app', () => {
             |           ^",
          "stack": [
            "Index.useCallback[increment] index.js (7:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (12:7)",
            "Page index.js (10:6)",
@@ -315,8 +313,6 @@ describe('Error recovery app', () => {
             |           ^",
          "stack": [
            "Index.useCallback[increment] index.js (7:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
            "button <anonymous>",
            "Index index.js (12:7)",
            "Page app/page.js (4:10)",
@@ -349,7 +345,7 @@ describe('Error recovery app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 1')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')

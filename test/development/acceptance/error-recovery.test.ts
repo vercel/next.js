@@ -153,7 +153,7 @@ describe('pages/ error recovery', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('0')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
@@ -168,8 +168,6 @@ describe('pages/ error recovery', () => {
           |           ^",
        "stack": [
          "Index.useCallback[increment] index.js (7:11)",
-         "UtilityScript.evaluate <anonymous>",
-         "UtilityScript.<anonymous> <anonymous>",
        ],
      }
     `)
@@ -196,7 +194,7 @@ describe('pages/ error recovery', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 1')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
