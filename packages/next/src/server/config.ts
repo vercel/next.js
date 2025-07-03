@@ -1049,7 +1049,6 @@ function assignDefaults(
       '@effect/sql-sqlite-bun',
       '@effect/sql-sqlite-wasm',
       '@effect/sql-sqlite-react-native',
-      '@effect/sql-sqlite-wasm',
       '@effect/rpc',
       '@effect/rpc-http',
       '@effect/typeclass',
