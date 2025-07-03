@@ -32,7 +32,7 @@ use std::{
     io::{self, BufRead, BufReader, ErrorKind, Read},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     time::Duration,
 };
 
@@ -786,8 +786,12 @@ impl FileSystem for DiskFileSystem {
                         #[cfg(target_family = "unix")]
                         f.set_permissions(file.meta.permissions.into())?;
                         f.flush()?;
-                        #[cfg(feature = "write_version")]
-                        {
+
+                        static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
+                            std::env::var_os("TURBOPACK_WRITE_VERSION")
+                                .is_some_and(|v| v == "1" || v == "true")
+                        });
+                        if *WRITE_VERSION {
                             let mut full_path = full_path.to_owned();
                             let hash = hash_xxh3_hash64(file);
                             let ext = full_path.extension();
