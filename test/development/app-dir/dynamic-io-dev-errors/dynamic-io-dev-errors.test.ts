@@ -87,21 +87,17 @@ describe('Dynamic IO Dev Errors', () => {
       expect(normalizedCliOutput).toContain(
         `\nError: Route "/no-accessed-data": ` +
           `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
-          `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
           `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
-          (isTurbopack
-            ? '\n    at Page (<FIXME-file-protocol>/app/no-accessed-data/page.js:1:30)' +
-              '\n    at main (<anonymous>)' +
-              '\n    at body (<anonymous>)' +
-              '\n    at html (<anonymous>)' +
-              '\n    at Root [Server] (<anonymous>)' +
-              '\n> 1 | export default async function Page() {' +
-              '\n    |                              ^' +
-              '\n  2 |   await new Promise((r) => setTimeout(r, 200))'
-            : '\n    at Page (app/no-accessed-data/page.js:1:30)' +
-              // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
-              '\n    at InnerLayoutRouter (..')
+          '\n    at Page (<FIXME-file-protocol>/app/no-accessed-data/page.js:1:30)' +
+          '\n> 1 | export default async function Page() {' +
+          '\n    |                              ^' +
+          '\n  2 |   await new Promise((r) => setTimeout(r, 200))' +
+          '\n  3 |   return <p>Page</p>' +
+          '\n  4 | }'
       )
+
+      // TODO(veil): Source mapping breaks due to double-encoding of the square
+      // brackets.
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
@@ -110,10 +106,6 @@ describe('Dynamic IO Dev Errors', () => {
          "source": null,
          "stack": [
            "<FIXME-file-protocol>",
-           "main <anonymous>",
-           "body <anonymous>",
-           "html <anonymous>",
-           "Root [Server] <anonymous>",
            "LogSafely <anonymous>",
          ],
        }
@@ -122,12 +114,15 @@ describe('Dynamic IO Dev Errors', () => {
       expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
         `\nError: Route "/no-accessed-data": ` +
           `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
-          `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
           `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
           '\n    at Page (app/no-accessed-data/page.js:1:30)' +
-          // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
-          '\n    at InnerLayoutRouter (..'
+          '\n> 1 | export default async function Page() {' +
+          '\n    |                              ^' +
+          '\n  2 |   await new Promise((r) => setTimeout(r, 200))' +
+          '\n  3 |   return <p>Page</p>' +
+          '\n  4 | }'
       )
+
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
@@ -138,10 +133,6 @@ describe('Dynamic IO Dev Errors', () => {
            |                               ^",
          "stack": [
            "Page app/no-accessed-data/page.js (1:31)",
-           "main <anonymous>",
-           "body <anonymous>",
-           "html <anonymous>",
-           "Root [Server] <anonymous>",
            "LogSafely <anonymous>",
          ],
        }
