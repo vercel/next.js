@@ -2381,7 +2381,7 @@ impl CodeGenResultComments {
         std::mem::replace(self, CodeGenResultComments::Empty)
     }
 
-    fn consumable(&self) -> CodeGenResultCommentsConsumable {
+    fn consumable(&self) -> CodeGenResultCommentsConsumable<'_> {
         match self {
             CodeGenResultComments::Single {
                 comments,
