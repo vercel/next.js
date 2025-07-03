@@ -228,6 +228,7 @@ export class AppRouteRouteModule extends RouteModule<
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
     this.methods = autoImplementMethods(userland)
+    this.isAppRouter = true
 
     // Get the non-static methods for this route.
     this.hasNonStaticMethods = hasNonStaticMethods(userland)

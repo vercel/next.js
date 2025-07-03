@@ -31,7 +31,7 @@ use crate::{
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, NonLocalValue, TraceRawVcs)]
 enum EcmascriptModulePartReferenceMode {
-    Synthesize { remove_unused_exports: bool },
+    Synthesize,
     Normal,
 }
 
@@ -51,14 +51,11 @@ impl EcmascriptModulePartReference {
     pub fn new_part(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         part: ModulePart,
-        remove_unused_exports: bool,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
             part,
-            mode: EcmascriptModulePartReferenceMode::Synthesize {
-                remove_unused_exports,
-            },
+            mode: EcmascriptModulePartReferenceMode::Synthesize,
         }
         .cell()
     }
@@ -91,9 +88,7 @@ impl ModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let module = match self.mode {
-            EcmascriptModulePartReferenceMode::Synthesize {
-                remove_unused_exports,
-            } => {
+            EcmascriptModulePartReferenceMode::Synthesize => {
                 match &self.part {
                     ModulePart::Locals => {
                         let Some(module) = ResolvedVc::try_downcast_type(self.module) else {
@@ -108,13 +103,9 @@ impl ModuleReference for EcmascriptModulePartReference {
                     | ModulePart::Evaluation
                     | ModulePart::Facade
                     | ModulePart::RenamedExport { .. }
-                    | ModulePart::RenamedNamespace { .. } => {
-                        Vc::upcast(EcmascriptModuleFacadeModule::new(
-                            *self.module,
-                            self.part.clone(),
-                            remove_unused_exports,
-                        ))
-                    }
+                    | ModulePart::RenamedNamespace { .. } => Vc::upcast(
+                        EcmascriptModuleFacadeModule::new(*self.module, self.part.clone()),
+                    ),
                     ModulePart::Export(..) | ModulePart::Internal(..) => {
                         bail!(
                             "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",

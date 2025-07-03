@@ -18,7 +18,6 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
@@ -157,7 +156,6 @@ impl AmdDefineWithDependenciesCodeGen {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();

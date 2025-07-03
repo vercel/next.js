@@ -13,7 +13,10 @@ use crate::{
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup, module_batches::BatchingConfig},
+    module_graph::{
+        ModuleGraph, chunk_group_info::ChunkGroup, export_usage::ModuleExportUsageInfo,
+        module_batches::BatchingConfig,
+    },
     output::{OutputAsset, OutputAssets},
 };
 
@@ -292,6 +295,12 @@ pub trait ChunkingContext {
     fn chunk_item_id_from_module(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<ModuleId> {
         self.chunk_item_id_from_ident(module.ident())
     }
+
+    #[turbo_tasks::function]
+    async fn module_export_usage(
+        self: Vc<Self>,
+        module: Vc<Box<dyn Module>>,
+    ) -> Result<Vc<ModuleExportUsageInfo>>;
 }
 
 pub trait ChunkingContextExt {

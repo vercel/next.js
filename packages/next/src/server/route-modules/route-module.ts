@@ -59,6 +59,7 @@ import {
   type RouterServerContext,
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
+import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -641,25 +642,34 @@ export abstract class RouteModule<
     }
 
     const routeParamKeys = new Set<string>()
-    const combinedParamKeys = [...routeParamKeys]
+    const combinedParamKeys = []
 
-    for (const key of rewriteParamKeys) {
-      // We only want to filter rewrite param keys from the URL
-      // if they are matches from the URL e.g. the key/value matches
-      // before and after applying the rewrites /:path for /hello and
-      // { path: 'hello' } but not for { path: 'another' } and /hello
-      // TODO: we should prefix rewrite param keys the same as we do
-      // for dynamic routes so we can identify them properly
-      const originalValue = Array.isArray(originalQuery[key])
-        ? originalQuery[key].join('')
-        : originalQuery[key]
+    // we don't include rewriteParamKeys in the combinedParamKeys
+    // for app router since the searchParams is populated from the
+    // URL so we don't want to strip the rewrite params from the URL
+    // so that searchParams can include them
+    if (!this.isAppRouter) {
+      for (const key of [
+        ...rewriteParamKeys,
+        ...Object.keys(serverUtils.defaultRouteMatches || {}),
+      ]) {
+        // We only want to filter rewrite param keys from the URL
+        // if they are matches from the URL e.g. the key/value matches
+        // before and after applying the rewrites /:path for /hello and
+        // { path: 'hello' } but not for { path: 'another' } and /hello
+        // TODO: we should prefix rewrite param keys the same as we do
+        // for dynamic routes so we can identify them properly
+        const originalValue = Array.isArray(originalQuery[key])
+          ? originalQuery[key].join('')
+          : originalQuery[key]
 
-      const queryValue = Array.isArray(query[key])
-        ? query[key].join('')
-        : query[key]
+        const queryValue = Array.isArray(query[key])
+          ? query[key].join('')
+          : query[key]
 
-      if (!(key in originalQuery) || originalValue === queryValue) {
-        combinedParamKeys.push(key)
+        if (!(key in originalQuery) || originalValue === queryValue) {
+          combinedParamKeys.push(key)
+        }
       }
     }
 
@@ -772,6 +782,8 @@ export abstract class RouteModule<
     try {
       resolvedPathname = decodePathParams(resolvedPathname)
     } catch (_) {}
+
+    resolvedPathname = removeTrailingSlash(resolvedPathname)
 
     return {
       query,

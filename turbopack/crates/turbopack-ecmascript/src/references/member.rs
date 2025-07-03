@@ -7,7 +7,7 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;
 use crate::{
@@ -29,7 +29,6 @@ impl MemberReplacement {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let key = self.key.clone();

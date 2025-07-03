@@ -12,7 +12,6 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
@@ -157,7 +156,6 @@ pub struct CjsRequireAssetReferenceCodeGen {
 impl CjsRequireAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -281,7 +279,6 @@ pub struct CjsRequireResolveAssetReferenceCodeGen {
 impl CjsRequireResolveAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -344,7 +341,6 @@ impl CjsRequireCacheAccess {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();

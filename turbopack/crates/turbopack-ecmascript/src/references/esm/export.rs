@@ -22,6 +22,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
+    module_graph::export_usage::ModuleExportUsageInfo,
     reference::ModuleReference,
     resolve::ModulePart,
 };
@@ -29,11 +30,10 @@ use turbopack_core::{
 use super::base::ReferencedAsset;
 use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext,
+    analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
-    export_usage::ModuleExportUsageInfo,
     magic_identifier,
-    parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     tree_shake::asset::EcmascriptModulePartAsset,
     utils::module_id_to_lit,
@@ -499,17 +499,14 @@ impl EsmExports {
     #[turbo_tasks::function]
     pub async fn expand_exports(
         &self,
-        export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
+        export_usage_info: Vc<ModuleExportUsageInfo>,
     ) -> Result<Vc<ExpandedExports>> {
         let mut exports: BTreeMap<RcStr, EsmExport> = self.exports.clone();
         let mut dynamic_exports = vec![];
-        let usage_info = match export_usage_info {
-            Some(usage_info) => Some(usage_info.await?),
-            None => None,
-        };
+        let export_usage_info = export_usage_info.await?;
 
-        if let Some(usage_info) = &usage_info {
-            exports.retain(|export, _| usage_info.is_export_used(export));
+        if !matches!(*export_usage_info, ModuleExportUsageInfo::All) {
+            exports.retain(|export, _| export_usage_info.is_export_used(export));
         }
 
         for &esm_ref in self.star_exports.iter() {
@@ -524,9 +521,7 @@ impl EsmExports {
             let export_info = expand_star_exports(**asset).await?;
 
             for export in &export_info.star_exports {
-                if let Some(usage_info) = &usage_info
-                    && !usage_info.is_export_used(export)
-                {
+                if !export_usage_info.is_export_used(export) {
                     continue;
                 }
 
@@ -560,10 +555,11 @@ impl EsmExports {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
-        parsed: Option<Vc<ParseResult>>,
-        export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
+        eval_context: &EvalContext,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Result<CodeGeneration> {
-        let expanded = self.expand_exports(export_usage_info.map(|v| *v)).await?;
+        let export_usage_info = chunking_context.module_export_usage(*ResolvedVc::upcast(module));
+        let expanded = self.expand_exports(export_usage_info).await?;
 
         if scope_hoisting_context.skip_module_exports() && expanded.dynamic_exports.is_empty() {
             // If the current module is not exposed, no need to generate exports.
@@ -573,12 +569,6 @@ impl EsmExports {
             // be handled at runtime via property access, e.g. `export * from "./some-dynamic-cjs"`
             return Ok(CodeGeneration::empty());
         }
-
-        let parsed = if let Some(parsed) = parsed {
-            Some(parsed.await?)
-        } else {
-            None
-        };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
         {
@@ -624,24 +614,16 @@ impl EsmExports {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding = if let Some(parsed) = &parsed {
-                        if let ParseResult::Ok { eval_context, .. } = &**parsed {
-                            if let Some((local, ctxt)) = eval_context.imports.exports.get(exported)
-                            {
-                                Some((Cow::Borrowed(local.as_str()), *ctxt))
-                            } else {
-                                bail!(
-                                    "Expected export to be in eval context {:?} {:?}",
-                                    exported,
-                                    eval_context.imports,
-                                )
-                            }
+                    let binding =
+                        if let Some((local, ctxt)) = eval_context.imports.exports.get(exported) {
+                            Some((Cow::Borrowed(local.as_str()), *ctxt))
                         } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
+                            bail!(
+                                "Expected export to be in eval context {:?} {:?}",
+                                exported,
+                                eval_context.imports,
+                            )
+                        };
                     let (local, ctxt) = binding.unwrap_or_else(|| {
                         // Fallback, shouldn't happen in practice
                         (
