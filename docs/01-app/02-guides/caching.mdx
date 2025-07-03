@@ -573,7 +573,7 @@ To disable caching at request time, add the `export const dynamicParams = false`
 
 The React `cache` function allows you to memoize the return value of a function, allowing you to call the same function multiple times while only executing it once.
 
-`fetch` requests using the `GET` and `HEAD` method are automatically memoized, so you do not need to wrap it in React `cache`. However, for other `fetch` methods, or when using data fetching libraries (such as some database, CMS, or GraphQL clients) that don't inherently memoize requests, you can use `cache` to manually memoize data requests.
+`fetch` requests using the `GET` or `HEAD` methods are automatically memoized, so you do not need to wrap it in React `cache`. However, for other `fetch` methods, or when using data fetching libraries (such as some database, CMS, or GraphQL clients) that don't inherently memoize requests, you can use `cache` to manually memoize data requests.
 
 ```ts filename="utils/get-item.ts" switcher
 import { cache } from 'react'
