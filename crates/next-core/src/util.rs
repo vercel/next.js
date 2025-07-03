@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, str::FromStr};
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -60,13 +60,10 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
             )
             .or_insert_with(|| {
                 if let Some(v) = v {
-                    let val = serde_json::from_str(v);
+                    let val = serde_json::Value::from_str(v);
                     match val {
-                        Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                        Ok(serde_json::Value::String(v)) => {
-                            CompileTimeDefineValue::String(v.into())
-                        }
-                        _ => CompileTimeDefineValue::JSON(v.clone()),
+                        Ok(v) => v.into(),
+                        _ => CompileTimeDefineValue::Evaluate(v.clone()),
                     }
                 } else {
                     CompileTimeDefineValue::Undefined
