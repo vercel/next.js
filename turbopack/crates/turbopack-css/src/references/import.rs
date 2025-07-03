@@ -139,7 +139,7 @@ impl ModuleReference for ImportAssetReference {
             *self.origin,
             *self.request,
             CssReferenceSubType::AtImport(import_context),
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
         ))
     }
 }

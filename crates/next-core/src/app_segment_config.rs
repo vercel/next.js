@@ -245,10 +245,8 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(Some(
-            self.source.resolve_source_map().await?.into_owned(),
-        )))
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }
 
@@ -583,11 +581,15 @@ pub async fn parse_segment_config_from_loader_tree_internal(
     }
 
     let modules = &loader_tree.modules;
-    for path in [modules.page, modules.default, modules.layout]
-        .into_iter()
-        .flatten()
+    for path in [
+        modules.page.clone(),
+        modules.default.clone(),
+        modules.layout.clone(),
+    ]
+    .into_iter()
+    .flatten()
     {
-        let source = Vc::upcast(FileSource::new(*path));
+        let source = Vc::upcast(FileSource::new(path.clone()));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 

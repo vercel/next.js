@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  NEXT_DEV_TOOLS_SCALE,
   STORAGE_KEY_POSITION,
   STORAGE_KEY_SCALE,
   STORAGE_KEY_THEME,
@@ -25,14 +26,6 @@ export function getInitialPosition() {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-
-const BASE_SIZE = 16
-
-export const NEXT_DEV_TOOLS_SCALE = {
-  Small: BASE_SIZE / 14,
-  Medium: BASE_SIZE / 16,
-  Large: BASE_SIZE / 18,
-} as const
 
 export type DevToolsScale =
   (typeof NEXT_DEV_TOOLS_SCALE)[keyof typeof NEXT_DEV_TOOLS_SCALE]

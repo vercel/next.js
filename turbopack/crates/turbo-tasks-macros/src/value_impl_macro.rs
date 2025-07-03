@@ -9,17 +9,13 @@ use syn::{
     spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
-    get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
-    get_register_trait_impls_ident, get_register_trait_methods_ident,
-    get_trait_impl_function_id_ident, get_trait_impl_function_ident, get_type_ident, is_self_used,
+    get_inherent_impl_function_ident, get_path_ident, get_register_trait_impls_ident,
+    get_register_trait_methods_ident, get_trait_impl_function_ident, get_type_ident, is_self_used,
 };
 
-use crate::{
-    func::{
-        DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-        split_function_attributes,
-    },
-    function_macro::is_immutable,
+use crate::func::{
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+    split_function_attributes,
 };
 
 struct ValueImplArguments {
@@ -98,7 +94,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     }
                 };
                 let local = func_args.local.is_some();
-                let invalidator = func_args.invalidator.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
@@ -121,21 +116,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_self_used,
                     filter_trait_call_args: None, // not a trait method
                     local,
-                    invalidator,
-                    immutable: is_immutable(sig) && !invalidator,
                 };
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
                 let native_function_ty = native_fn.ty();
                 let native_function_def = native_fn.definition();
 
-                let native_function_id_ident = get_inherent_impl_function_id_ident(ty_ident, ident);
-                let native_function_id_ty = native_fn.id_ty();
-                let native_function_id_def =
-                    native_fn.id_definition(&native_function_ident.clone().into());
-
                 let turbo_signature = turbo_fn.signature();
-                let turbo_block = turbo_fn.static_block(&native_function_id_ident);
+                let turbo_block = turbo_fn.static_block(&native_function_ident);
                 exposed_impl_items.push(quote! {
                     #(#attrs)*
                     #vis #turbo_signature #turbo_block
@@ -157,10 +145,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     pub(crate) static #native_function_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                             turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
-                    #[doc(hidden)]
-                    pub(crate) static #native_function_id_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
                 })
             }
         }
@@ -218,7 +202,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     }
                 };
                 let local = func_args.local.is_some();
-                let invalidator = func_args.invalidator.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
@@ -251,8 +234,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                     local,
-                    invalidator,
-                    immutable: is_immutable(sig) && !invalidator,
                 };
 
                 let native_function_ident =
@@ -260,14 +241,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let native_function_ty = native_fn.ty();
                 let native_function_def = native_fn.definition();
 
-                let native_function_id_ident =
-                    get_trait_impl_function_id_ident(ty_ident, &trait_ident, ident);
-                let native_function_id_ty = native_fn.id_ty();
-                let native_function_id_def =
-                    native_fn.id_definition(&native_function_ident.clone().into());
-
                 let turbo_signature = turbo_fn.signature();
-                let turbo_block = turbo_fn.static_block(&native_function_id_ident);
+                let turbo_block = turbo_fn.static_block(&native_function_ident);
 
                 trait_functions.push(quote! {
                     #(#attrs)*
@@ -295,14 +270,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     pub(crate) static #native_function_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                             turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
-                    #[doc(hidden)]
-                    pub(crate) static #native_function_id_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
                 });
 
                 trait_registers.push(quote! {
-                    value.register_trait_method(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(), stringify!(#ident).into(), *#native_function_id_ident);
+                    value.register_trait_method(
+                        <Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
+                        stringify!(#ident),
+                        &#native_function_ident);
                 });
             }
         }

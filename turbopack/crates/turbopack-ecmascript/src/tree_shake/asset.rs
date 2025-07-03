@@ -22,12 +22,12 @@ use crate::{
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
     EcmascriptParsable,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    export_usage::get_module_export_usages,
     parse::ParseResult,
     references::{
         FollowExportsResult, analyse_ecmascript_module, esm::FoundExportType, follow_reexports,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    simple_tree_shake::get_module_export_usages,
     tree_shake::{Key, side_effect_module::SideEffectsModule},
 };
 
@@ -92,7 +92,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
         let analyze = self.analyze();
         let analyze_ref = analyze.await?;
 
-        let module_type_result = *module.full_module.determine_module_type().await?;
+        let module_type_result = module.full_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
             .reference_module_source_maps(Vc::upcast(self))
             .await?;
@@ -130,7 +130,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModulePartAsset {
-    /// Create a new instance of [Vc<EcmascriptModulePartAsset>], whcih consists
+    /// Create a new instance of [Vc<EcmascriptModulePartAsset>], which consists
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
     #[turbo_tasks::function]

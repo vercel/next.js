@@ -45,7 +45,7 @@ impl TurboFn<'_> {
         orig_signature: &Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
-    ) -> Option<TurboFn> {
+    ) -> Option<TurboFn<'_>> {
         if !orig_signature.generics.params.is_empty() {
             orig_signature
                 .generics
@@ -598,7 +598,7 @@ impl TurboFn<'_> {
 
     /// The block of the exposed function for a dynamic dispatch call to the
     /// given trait.
-    pub fn dynamic_block(&self, trait_type_id_ident: &Ident) -> Block {
+    pub fn dynamic_block(&self, trait_type_ident: &Ident) -> Block {
         let Some(converted_this) = self.converted_this() else {
             return parse_quote! {
                 {
@@ -618,10 +618,11 @@ impl TurboFn<'_> {
                 let inputs = std::boxed::Box::new((#(#inputs,)*));
                 let this = #converted_this;
                 let persistence = #persistence;
+                static TRAIT_METHOD: turbo_tasks::macro_helpers::Lazy<&'static turbo_tasks::TraitMethod> =
+                        turbo_tasks::macro_helpers::Lazy::new(|| #trait_type_ident.get(stringify!(#ident)));
                 <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                     turbo_tasks::trait_call(
-                        *#trait_type_id_ident,
-                        std::borrow::Cow::Borrowed(stringify!(#ident)),
+                        *TRAIT_METHOD,
                         this,
                         inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                         persistence,
@@ -633,7 +634,7 @@ impl TurboFn<'_> {
 
     /// The block of the exposed function for a static dispatch call to the
     /// given native function.
-    pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
+    pub fn static_block(&self, native_function_ident: &Ident) -> Block {
         let output = &self.output;
         let inputs = self.inline_input_idents();
         let assertions = self.get_assertions();
@@ -647,7 +648,7 @@ impl TurboFn<'_> {
                     let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
-                            *#native_function_id_ident,
+                            &#native_function_ident,
                             Some(this),
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
@@ -664,7 +665,7 @@ impl TurboFn<'_> {
                     let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
-                            *#native_function_id_ident,
+                            &#native_function_ident,
                             None,
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
@@ -733,9 +734,6 @@ pub struct FunctionArguments {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: Option<Span>,
-    /// If true, the function will be allowed to call `get_invalidator` . If this is false, the
-    /// `get_invalidator` function will panic on calls.
-    pub invalidator: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -763,14 +761,11 @@ impl Parse for FunctionArguments {
                 ("local", Meta::Path(_)) => {
                     parsed_args.local = Some(meta.span());
                 }
-                ("invalidator", Meta::Path(_)) => {
-                    parsed_args.invalidator = Some(meta.span());
-                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"local\", \"invalidator\"",
+                         \"local\"",
                     ));
                 }
             }
@@ -1098,8 +1093,6 @@ pub struct NativeFn {
     pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub local: bool,
-    pub invalidator: bool,
-    pub immutable: bool,
 }
 
 impl NativeFn {
@@ -1115,8 +1108,6 @@ impl NativeFn {
             is_self_used,
             filter_trait_call_args,
             local,
-            invalidator,
-            immutable,
         } = self;
 
         if *is_method {
@@ -1140,11 +1131,9 @@ impl NativeFn {
                     {
                         #[allow(deprecated)]
                         turbo_tasks::macro_helpers::NativeFunction::new_method(
-                            #function_path_string.to_owned(),
+                            #function_path_string,
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
-                                invalidator: #invalidator,
-                                immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1156,11 +1145,9 @@ impl NativeFn {
                     {
                         #[allow(deprecated)]
                         turbo_tasks::macro_helpers::NativeFunction::new_method_without_this(
-                            #function_path_string.to_owned(),
+                            #function_path_string,
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
-                                invalidator: #invalidator,
-                                immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1173,26 +1160,14 @@ impl NativeFn {
                 {
                     #[allow(deprecated)]
                     turbo_tasks::macro_helpers::NativeFunction::new_function(
-                        #function_path_string.to_owned(),
+                        #function_path_string,
                         turbo_tasks::macro_helpers::FunctionMeta {
                             local: #local,
-                            invalidator: #invalidator,
-                            immutable: #immutable,
                         },
                         #function_path,
                     )
                 }
             }
-        }
-    }
-
-    pub fn id_ty(&self) -> Type {
-        parse_quote! { turbo_tasks::FunctionId }
-    }
-
-    pub fn id_definition(&self, native_function_id_path: &Path) -> TokenStream {
-        quote! {
-            turbo_tasks::registry::get_function_id(&*#native_function_id_path)
         }
     }
 }

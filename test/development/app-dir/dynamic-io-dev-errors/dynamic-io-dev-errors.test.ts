@@ -13,20 +13,19 @@ describe('Dynamic IO Dev Errors', () => {
     const browser = await next.browser('/error')
 
     await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
-         "environmentLabel": "Server",
-         "label": "Console Error",
-         "source": "app/error/page.tsx (2:23) @ Page
-       > 2 |   const random = Math.random()
-           |                       ^",
-         "stack": [
-           "Page app/error/page.tsx (2:23)",
-           "JSON.parse <anonymous> (0:0)",
-           "LogSafely <anonymous> (0:0)",
-         ],
-       }
-      `)
+     {
+       "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+       "environmentLabel": "Server",
+       "label": "Console Error",
+       "source": "app/error/page.tsx (2:23) @ Page
+     > 2 |   const random = Math.random()
+         |                       ^",
+       "stack": [
+         "Page app/error/page.tsx (2:23)",
+         "LogSafely <anonymous> (0:0)",
+       ],
+     }
+    `)
   })
 
   it('should show a red box error on client navigations', async () => {
@@ -39,20 +38,19 @@ describe('Dynamic IO Dev Errors', () => {
     await browser.elementByCss("[href='/error']").click()
 
     await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
-         "environmentLabel": "Server",
-         "label": "Console Error",
-         "source": "app/error/page.tsx (2:23) @ Page
-       > 2 |   const random = Math.random()
-           |                       ^",
-         "stack": [
-           "Page app/error/page.tsx (2:23)",
-           "JSON.parse <anonymous> (0:0)",
-           "LogSafely <anonymous> (0:0)",
-         ],
-       }
-      `)
+     {
+       "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+       "environmentLabel": "Server",
+       "label": "Console Error",
+       "source": "app/error/page.tsx (2:23) @ Page
+     > 2 |   const random = Math.random()
+         |                       ^",
+       "stack": [
+         "Page app/error/page.tsx (2:23)",
+         "LogSafely <anonymous> (0:0)",
+       ],
+     }
+    `)
   })
 
   it('should not log unhandled rejections for persistently thrown top-level errors', async () => {
@@ -81,40 +79,74 @@ describe('Dynamic IO Dev Errors', () => {
       )
     })
 
-    expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
-      `\nError: Route "/no-accessed-data": ` +
-        `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
-        `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
-        `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
-        '\n    at Page [Server] (<anonymous>)' +
-        (isTurbopack
-          ? '\n    at main (<anonymous>)' +
-            '\n    at body (<anonymous>)' +
-            '\n    at html (<anonymous>)' +
-            '\n    at Root [Server] (<anonymous>)' +
-            // Just need some string to assert that this is the whole stack
-            '\n GET /no-accessed-data 200'
-          : // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
-            '\n    at InnerLayoutRouter (..')
-    )
+    if (isTurbopack) {
+      const normalizedCliOutput = stripAnsi(
+        next.cliOutput.slice(outputIndex)
+      ).replaceAll(`file:` + next.testDir, '<FIXME-file-protocol>')
 
-    await expect(browser).toDisplayCollapsedRedbox(`
+      expect(normalizedCliOutput).toContain(
+        `\nError: Route "/no-accessed-data": ` +
+          `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
+          `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
+          `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
+          (isTurbopack
+            ? '\n    at Page (<FIXME-file-protocol>/app/no-accessed-data/page.js:1:30)' +
+              '\n    at main (<anonymous>)' +
+              '\n    at body (<anonymous>)' +
+              '\n    at html (<anonymous>)' +
+              '\n    at Root [Server] (<anonymous>)' +
+              '\n> 1 | export default async function Page() {' +
+              '\n    |                              ^' +
+              '\n  2 |   await new Promise((r) => setTimeout(r, 200))'
+            : '\n    at Page (app/no-accessed-data/page.js:1:30)' +
+              // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
+              '\n    at InnerLayoutRouter (..')
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": null,
          "stack": [
-           "Page [Server] <anonymous> (2:1)",
-           "main <anonymous> (2:1)",
-           "body <anonymous> (2:1)",
-           "html <anonymous> (2:1)",
-           "Root [Server] <anonymous> (2:1)",
-           "JSON.parse <anonymous> (0:0)",
+           "<FIXME-file-protocol>",
+           "main <anonymous> (1:13)",
+           "body <anonymous> (1:13)",
+           "html <anonymous> (1:13)",
+           "Root [Server] <anonymous> (1:22)",
            "LogSafely <anonymous> (0:0)",
          ],
        }
       `)
+    } else {
+      expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
+        `\nError: Route "/no-accessed-data": ` +
+          `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
+          `We don't have the exact line number added to error messages yet but you can see which component in the stack below. ` +
+          `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
+          '\n    at Page (app/no-accessed-data/page.js:1:30)' +
+          // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
+          '\n    at InnerLayoutRouter (..'
+      )
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+         "environmentLabel": "Server",
+         "label": "Console Error",
+         "source": "app/no-accessed-data/page.js (1:31) @ Page
+       > 1 | export default async function Page() {
+           |                               ^",
+         "stack": [
+           "Page app/no-accessed-data/page.js (1:31)",
+           "main <anonymous> (1:13)",
+           "body <anonymous> (1:13)",
+           "html <anonymous> (1:13)",
+           "Root [Server] <anonymous> (1:22)",
+           "LogSafely <anonymous> (0:0)",
+         ],
+       }
+      `)
+    }
   })
 
   it('should clear segment errors after correcting them', async () => {

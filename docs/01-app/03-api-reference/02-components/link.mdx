@@ -512,7 +512,7 @@ The following examples demonstrate how to use the `<Link>` component in differen
 
 <AppOnly>
 
-### Linking to dynamic segments
+### Linking to dynamic route segments
 
 When linking to [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
 
@@ -610,28 +610,13 @@ export function Links() {
 }
 ```
 
-### Scrolling to an `id`
-
-If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
-
-```jsx
-<Link href="/dashboard#settings">Settings</Link>
-
-// Output
-<a href="/dashboard#settings">Settings</a>
-```
-
-> **Good to know**:
->
-> - Next.js will scroll to the [Page](/docs/app/api-reference/file-conventions/page) if it is not visible in the viewport upon navigation.
-
 </AppOnly>
+
+<PagesOnly>
 
 ### Linking to dynamic route segments
 
-For [dynamic route segments](/docs/app/api-reference/file-conventions/dynamic-routes), it can be handy to use template literals to create the link's path.
-
-<PagesOnly>
+For [dynamic route segments](/docs/pages/building-your-application/routing/dynamic-routes#convention), it can be handy to use template literals to create the link's path.
 
 For example, you can generate a list of links to the dynamic route `pages/blog/[slug].js`
 
@@ -671,41 +656,22 @@ export default Posts
 
 </PagesOnly>
 
+### Scrolling to an `id`
+
+If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
+
+```jsx
+<Link href="/dashboard#settings">Settings</Link>
+
+// Output
+<a href="/dashboard#settings">Settings</a>
+```
+
 <AppOnly>
 
-For example, you can generate a list of links to the dynamic route `app/blog/[slug]/page.js`:
-
-```tsx filename="app/blog/page.tsx" switcher
-import Link from 'next/link'
-
-export default function Page({ posts }) {
-  return (
-    <ul>
-      {posts.map((post) => (
-        <li key={post.id}>
-          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
-        </li>
-      ))}
-    </ul>
-  )
-}
-```
-
-```jsx filename="app/blog/page.js" switcher
-import Link from 'next/link'
-
-export default function Page({ posts }) {
-  return (
-    <ul>
-      {posts.map((post) => (
-        <li key={post.id}>
-          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
-        </li>
-      ))}
-    </ul>
-  )
-}
-```
+> **Good to know**:
+>
+> - Next.js will scroll to the [Page](/docs/app/api-reference/file-conventions/page) if it is not visible in the viewport upon navigation.
 
 </AppOnly>
 
@@ -713,7 +679,7 @@ export default function Page({ posts }) {
 
 <AppOnly>
 
-If the child of `Link` is a custom component that wraps an `<a>` tag, you must add `passHref` to `Link`. This is necessary if you’re using libraries like [styled-components](https://styled-components.com/). Without this, the `<a>` tag will not have the `href` attribute, which hurts your site's accessibility and might affect SEO. If you're using [ESLint](/docs/pages/api-reference/config/eslint), there is a built-in rule `next/link-passhref` to ensure correct usage of `passHref`.
+If the child of `Link` is a custom component that wraps an `<a>` tag, you must add `passHref` to `Link`. This is necessary if you’re using libraries like [styled-components](https://styled-components.com/). Without this, the `<a>` tag will not have the `href` attribute, which hurts your site's accessibility and might affect SEO. If you're using [ESLint](/docs/app/api-reference/config/eslint), there is a built-in rule `next/link-passhref` to ensure correct usage of `passHref`.
 
 </AppOnly>
 
@@ -973,7 +939,7 @@ export default Home
 The above example has a link to:
 
 - A predefined route: `/about?name=test`
-- A [dynamic route](/docs/app/api-reference/file-conventions/dynamic-routes): `/blog/my-post`
+- A [dynamic route](/docs/pages/building-your-application/routing/dynamic-routes#convention): `/blog/my-post`
 
 You can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
@@ -1226,13 +1192,11 @@ export default function Home() {
 }
 ```
 
-</PagesOnly>
-
-<PagesOnly>
-
-> **Good to know**: If you're using [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/authed/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
+> **Good to know**: If you're using [Dynamic Routes](/docs/pages/building-your-application/routing/dynamic-routes#convention), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/authed/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
 
 </PagesOnly>
+
+<AppOnly>
 
 ### Blocking navigation
 
@@ -1509,6 +1473,8 @@ export default function Page() {
 ```
 
 When a user tries to navigate away using `CustomLink` while the form has unsaved changes, they'll be prompted to confirm before leaving.
+
+</AppOnly>
 
 ## Version history
 

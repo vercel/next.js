@@ -29,9 +29,9 @@ const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 16 * 1024;
 /// The aimed false positive rate for the AQMF
 const AQMF_FALSE_POSITIVE_RATE: f64 = 0.01;
 
-/// The maximum compression dictionay size for value blocks
+/// The maximum compression dictionary size for value blocks
 const VALUE_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
-/// The maximum compression dictionay size for key and index blocks
+/// The maximum compression dictionary size for key and index blocks
 const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
 /// The maximum bytes that should be selected as value samples to create a compression dictionary
 const VALUE_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;

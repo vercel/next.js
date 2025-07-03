@@ -28,7 +28,6 @@ import {
   DIALOG_HEADER_STYLES,
 } from '../dialog/header'
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
-import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
@@ -186,7 +185,6 @@ export const styles = `
   ${errorTypeLabelStyles}
   ${errorMessageStyles}
   ${toolbarStyles}
-  ${CALL_STACK_STYLES}
 
   [data-nextjs-error-label-group] {
     display: flex;

@@ -53,6 +53,7 @@ pub static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
             "turbopack_static=trace",
             "turbopack_swc_utils=trace",
             "turbopack_wasm=trace",
+            "swc_ecma_minifier=trace",
         ],
     ]
     .concat()

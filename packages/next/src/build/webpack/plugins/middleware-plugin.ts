@@ -583,7 +583,12 @@ async function codeAnalyzerBySwc(
     if (module.constructor.name !== 'NormalModule') {
       continue
     }
-    const originalSource = (module as webpack.NormalModule).originalSource()
+    const normalModule = module as webpack.NormalModule
+    if (!normalModule.type.startsWith('javascript')) {
+      // Only analyze JavaScript modules
+      continue
+    }
+    const originalSource = normalModule.originalSource()
     if (!originalSource) {
       continue
     }

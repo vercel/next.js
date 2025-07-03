@@ -194,6 +194,9 @@ import {
   trackPendingImport,
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
+import { isReactLargeShellError } from './react-large-shell-error'
+import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
+import { normalizeConventionFilePath } from './segment-explorer-path'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -794,7 +797,6 @@ async function getRSCPayload(
     query,
     appUsingSizeAdjustment,
     componentMod: {
-      GlobalError,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -873,7 +875,10 @@ async function getRSCPayload(
     </React.Fragment>
   )
 
-  const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
+  const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
+    tree,
+    ctx
+  )
 
   // Assume the head we're rendering contains only partial data if PPR is
   // enabled and this is a statically generated response. This is used by the
@@ -930,7 +935,6 @@ async function getErrorRSCPayload(
     query,
     appUsingSizeAdjustment,
     componentMod: {
-      GlobalError,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -1001,7 +1005,10 @@ async function getErrorRSCPayload(
     false,
   ]
 
-  const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
+  const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
+    tree,
+    ctx
+  )
 
   const isPossiblyPartialHead =
     workStore.isStaticGeneration &&
@@ -1092,7 +1099,7 @@ function App<T>({
       <ServerInsertedHTMLProvider>
         <AppRouter
           actionQueue={actionQueue}
-          globalErrorComponentAndStyles={response.G}
+          globalErrorState={response.G}
           assetPrefix={response.p}
           gracefullyDegrade={gracefullyDegrade}
         />
@@ -1149,7 +1156,7 @@ function ErrorApp<T>({
     <ServerInsertedHTMLProvider>
       <AppRouter
         actionQueue={actionQueue}
-        globalErrorComponentAndStyles={response.G}
+        globalErrorState={response.G}
         assetPrefix={response.p}
         gracefullyDegrade={gracefullyDegrade}
       />
@@ -1965,8 +1972,8 @@ async function renderToStream(
         const postponed = getPostponedFromState(postponedState)
 
         const resume = (
-          require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-        ).resume as (typeof import('react-dom/server.edge'))['resume']
+          require('react-dom/server') as typeof import('react-dom/server')
+        ).resume
 
         const htmlStream = await workUnitAsyncStorage.run(
           requestStore,
@@ -2004,9 +2011,8 @@ async function renderToStream(
 
     // This is a regular dynamic render
     const renderToReadableStream = (
-      require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-    )
-      .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
+      require('react-dom/server') as typeof import('react-dom/server')
+    ).renderToReadableStream
 
     const htmlStream = await workUnitAsyncStorage.run(
       requestStore,
@@ -2165,7 +2171,7 @@ async function renderToStream(
         renderToInitialFizzStream,
         {
           ReactDOMServer:
-            require('react-dom/server.edge') as typeof import('react-dom/server.edge'),
+            require('react-dom/server') as typeof import('react-dom/server'),
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
@@ -2349,6 +2355,12 @@ async function spawnDynamicValidationInDev(
           return digest
         }
 
+        if (isReactLargeShellError(err)) {
+          // TODO: Aggregate
+          console.error(err)
+          return undefined
+        }
+
         if (initialServerPrerenderController.signal.aborted) {
           // The render aborted before this error was handled which indicates
           // the error is caused by unfinished components within the render
@@ -2435,8 +2447,8 @@ async function spawnDynamicValidationInDev(
     }
 
     const prerender = (
-      require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-    ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+      require('react-dom/static') as typeof import('react-dom/static')
+    ).prerender
     const pendingInitialClientResult = workUnitAsyncStorage.run(
       initialClientPrerenderStore,
       prerender,
@@ -2455,6 +2467,12 @@ async function spawnDynamicValidationInDev(
 
           if (digest) {
             return digest
+          }
+
+          if (isReactLargeShellError(err)) {
+            // TODO: Aggregate
+            console.error(err)
+            return undefined
           }
 
           if (initialClientController.signal.aborted) {
@@ -2548,6 +2566,12 @@ async function spawnDynamicValidationInDev(
                 return err.digest
               }
 
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
+              }
+
               return getDigestForWellKnownError(err)
             },
             signal: finalServerController.signal,
@@ -2589,8 +2613,8 @@ async function spawnDynamicValidationInDev(
 
   try {
     const prerender = (
-      require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-    ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+      require('react-dom/static') as typeof import('react-dom/static')
+    ).prerender
     let { prelude: unprocessedPrelude } =
       await prerenderAndAbortInSequentialTasks(
         () =>
@@ -2622,6 +2646,12 @@ async function spawnDynamicValidationInDev(
                     )
                   }
                   return
+                }
+
+                if (isReactLargeShellError(err)) {
+                  // TODO: Aggregate
+                  console.error(err)
+                  return undefined
                 }
 
                 return getDigestForWellKnownError(err)
@@ -2948,6 +2978,12 @@ async function prerenderToStream(
               return digest
             }
 
+            if (isReactLargeShellError(err)) {
+              // TODO: Aggregate
+              console.error(err)
+              return undefined
+            }
+
             if (initialServerPrerenderController.signal.aborted) {
               // The render aborted before this error was handled which indicates
               // the error is caused by unfinished components within the render
@@ -3027,8 +3063,8 @@ async function prerenderToStream(
         }
 
         const prerender = (
-          require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-        ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+          require('react-dom/static') as typeof import('react-dom/static')
+        ).prerender
         const pendingInitialClientResult = workUnitAsyncStorage.run(
           initialClientPrerenderStore,
           prerender,
@@ -3047,6 +3083,12 @@ async function prerenderToStream(
 
               if (digest) {
                 return digest
+              }
+
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
               }
 
               if (initialClientController.signal.aborted) {
@@ -3189,8 +3231,8 @@ async function prerenderToStream(
       let dynamicValidation = createDynamicValidationState()
 
       const prerender = (
-        require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-      ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+        require('react-dom/static') as typeof import('react-dom/static')
+      ).prerender
       let { prelude: unprocessedPrelude, postponed } =
         await prerenderAndAbortInSequentialTasks(
           () =>
@@ -3322,8 +3364,8 @@ async function prerenderToStream(
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
           const resume = (
-            require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-          ).resume as (typeof import('react-dom/server.edge'))['resume']
+            require('react-dom/server') as typeof import('react-dom/server')
+          ).resume
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3425,8 +3467,8 @@ async function prerenderToStream(
         prerenderResumeDataCache,
       }
       const prerender = (
-        require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-      ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+        require('react-dom/static') as typeof import('react-dom/static')
+      ).prerender
       const { prelude, postponed } = await workUnitAsyncStorage.run(
         ssrPrerenderStore,
         prerender,
@@ -3555,8 +3597,8 @@ async function prerenderToStream(
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
           const resume = (
-            require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-          ).resume as (typeof import('react-dom/server.edge'))['resume']
+            require('react-dom/server') as typeof import('react-dom/server')
+          ).resume
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3637,10 +3679,8 @@ async function prerenderToStream(
         ))
 
       const renderToReadableStream = (
-        require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-      )
-        .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
-
+        require('react-dom/server') as typeof import('react-dom/server')
+      ).renderToReadableStream
       const htmlStream = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
         renderToReadableStream,
@@ -3813,7 +3853,7 @@ async function prerenderToStream(
         renderToInitialFizzStream,
         {
           ReactDOMServer:
-            require('react-dom/server.edge') as typeof import('react-dom/server.edge'),
+            require('react-dom/server') as typeof import('react-dom/server'),
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
@@ -3903,11 +3943,16 @@ async function prerenderToStream(
 const getGlobalErrorStyles = async (
   tree: LoaderTree,
   ctx: AppRenderContext
-): Promise<React.ReactNode | undefined> => {
+): Promise<{
+  GlobalError: GlobalErrorComponent
+  styles: React.ReactNode | undefined
+}> => {
   const {
     modules: { 'global-error': globalErrorModule },
   } = parseLoaderTree(tree)
 
+  const GlobalErrorComponent: GlobalErrorComponent =
+    ctx.componentMod.GlobalError
   let globalErrorStyles
   if (globalErrorModule) {
     const [, styles] = await createComponentStylesAndScripts({
@@ -3919,8 +3964,36 @@ const getGlobalErrorStyles = async (
     })
     globalErrorStyles = styles
   }
+  if (ctx.renderOpts.dev) {
+    const dir =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? process.env.__NEXT_EDGE_PROJECT_DIR!
+        : ctx.renderOpts.dir || ''
 
-  return globalErrorStyles
+    const globalErrorModulePath = normalizeConventionFilePath(
+      dir,
+      globalErrorModule?.[1]
+    )
+    if (ctx.renderOpts.devtoolSegmentExplorer && globalErrorModulePath) {
+      const SegmentViewNode = ctx.componentMod.SegmentViewNode
+      globalErrorStyles = (
+        // This will be rendered next to GlobalError component under ErrorBoundary,
+        // it requires a key to avoid React warning about duplicate keys.
+        <SegmentViewNode
+          key="ge-svn"
+          type="global-error"
+          pagePath={globalErrorModulePath}
+        >
+          {globalErrorStyles}
+        </SegmentViewNode>
+      )
+    }
+  }
+
+  return {
+    GlobalError: GlobalErrorComponent,
+    styles: globalErrorStyles,
+  }
 }
 
 async function collectSegmentData(

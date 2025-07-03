@@ -1,4 +1,3 @@
-import { constants as FS, promises as fs } from 'fs'
 import { findSourceMap, type SourceMap } from 'module'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
@@ -8,7 +7,7 @@ import {
 } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from './get-source-map-from-file'
-import { launchEditor } from '../../next-devtools/server/launch-editor'
+import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import {
   getOriginalCodeFrame,
   type OriginalStackFrameResponse,
@@ -514,11 +513,13 @@ async function getOriginalStackFrame({
 
 export function getOverlayMiddleware(options: {
   rootDirectory: string
+  isSrcDir: boolean
   clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const { rootDirectory, clientStats, serverStats, edgeServerStats } = options
+  const { rootDirectory, isSrcDir, clientStats, serverStats, edgeServerStats } =
+    options
 
   return async function (
     req: IncomingMessage,
@@ -577,24 +578,39 @@ export function getOverlayMiddleware(options: {
 
       if (!frame.file) return middlewareResponse.badRequest(res)
 
-      // frame files may start with their webpack layer, like (middleware)/middleware.js
-      const filePath = path.resolve(
-        rootDirectory,
-        frame.file.replace(/^\([^)]+\)\//, '')
-      )
-      const fileExists = await fs.access(filePath, FS.F_OK).then(
-        () => true,
-        () => false
-      )
-      if (!fileExists) return middlewareResponse.notFound(res)
-
-      try {
-        launchEditor(filePath, frame.lineNumber, frame.column ?? 1)
-      } catch (err) {
-        console.log('Failed to launch editor:', err)
-        return middlewareResponse.internalServerError(res)
+      let openEditorResult
+      const isAppRelativePath = searchParams.get('isAppRelativePath') === '1'
+      if (isAppRelativePath) {
+        const relativeFilePath = searchParams.get('file') || ''
+        const absoluteFilePath = path.join(
+          rootDirectory,
+          'app',
+          isSrcDir ? 'src' : '',
+          relativeFilePath
+        )
+        openEditorResult = await openFileInEditor(absoluteFilePath, 1, 1)
+      } else {
+        // frame files may start with their webpack layer, like (middleware)/middleware.js
+        const filePath = path.resolve(
+          rootDirectory,
+          frame.file.replace(/^\([^)]+\)\//, '')
+        )
+        openEditorResult = await openFileInEditor(
+          filePath,
+          frame.lineNumber,
+          frame.column ?? 1
+        )
       }
-
+      if (openEditorResult.error) {
+        console.error('Failed to launch editor:', openEditorResult.error)
+        return middlewareResponse.internalServerError(
+          res,
+          openEditorResult.error
+        )
+      }
+      if (!openEditorResult.found) {
+        return middlewareResponse.notFound(res)
+      }
       return middlewareResponse.noContent(res)
     }
 

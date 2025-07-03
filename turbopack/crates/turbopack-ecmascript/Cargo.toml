@@ -21,11 +21,13 @@ data-encoding = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
+itertools = { workspace = true }
 num-bigint = "0.4"
 num-traits = "0.2.15"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 petgraph = { workspace = true }
+dashmap = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
@@ -55,7 +57,6 @@ swc_core = { workspace = true, features = [
   "ecma_codegen",
   "ecma_lints",
   "ecma_minifier",
-  "ecma_minifier_concurrent",
   "ecma_parser",
   "ecma_preset_env",
   "ecma_transforms",
@@ -72,7 +73,6 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-bitvec = "1.0.1"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

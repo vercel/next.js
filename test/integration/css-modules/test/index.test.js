@@ -137,7 +137,7 @@ describe('3rd Party CSS Module Support', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index-module__jAE1EW__foo{position:relative}.index-module__jAE1EW__foo .bar,.index-module__jAE1EW__foo .baz{height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
+            `".index-module__jAE1EW__foo{position:relative}.index-module__jAE1EW__foo .bar{height:100%;overflow:hidden}.index-module__jAE1EW__foo .baz{height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
           )
         } else {
           expect(

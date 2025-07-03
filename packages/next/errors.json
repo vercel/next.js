@@ -711,5 +711,10 @@
   "710": "Unable to remove an invalidated webpack cache. If this issue persists you can work around it by deleting %s",
   "711": "Can't resolve %s",
   "712": "`rspack.warnForEdgeRuntime` is not supported by the wasm bindings.",
-  "713": "Unexpected error during process lookup"
+  "713": "Unexpected error during process lookup",
+  "714": "cannot run loadNative when `NEXT_TEST_WASM` is set",
+  "715": "Server Action \"%s\" was not found on the server. \\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "716": "NEXT_DEVTOOLS_SIMULATED_ERROR",
+  "717": "Unsupported environment condition \"%s\" and react condition \"%s\". This is a bug in Next.js.",
+  "718": "Invariant: projectDir is required for node runtime"
 }

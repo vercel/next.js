@@ -85,7 +85,7 @@ impl EcmascriptClientReferenceModule {
             writedoc!(
                 code,
                 r#"
-                    import {{ registerClientReference }} from "react-server-dom-turbopack/server.edge";
+                    import {{ registerClientReference }} from "react-server-dom-turbopack/server";
                 "#,
             )?;
 
@@ -135,7 +135,7 @@ impl EcmascriptClientReferenceModule {
             writedoc!(
                 code,
                 r#"
-                    const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server.edge");
+                    const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server");
 
                     {TURBOPACK_EXPORT_NAMESPACE}(createClientModuleProxy({server_module_path}));
                 "#,
@@ -148,13 +148,13 @@ impl EcmascriptClientReferenceModule {
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            self.server_ident.path().join(
+            self.server_ident.path().await?.join(
                 // Depending on the original format, we call the file `proxy.mjs` or `proxy.cjs`.
                 // This is because we're placing the virtual module next to the original code, so
                 // its parsing will be affected by `type` fields in package.json --
                 // a bare `proxy.js` may end up being unexpectedly parsed as the wrong format.
-                format!("proxy.{}", if is_esm { "mjs" } else { "cjs" }).into(),
-            ),
+                &format!("proxy.{}", if is_esm { "mjs" } else { "cjs" }),
+            )?,
             proxy_module_content,
         );
 

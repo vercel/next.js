@@ -5,7 +5,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, MergeableModule, MergeableModules,
+        MergeableModulesExposed,
+    },
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -16,13 +19,13 @@ use turbopack_core::{
 use super::chunk_item::EcmascriptModuleLocalsChunkItem;
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
-    EcmascriptModuleContent, EcmascriptModuleContentOptions,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, MergedEcmascriptModule,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    export_usage::get_module_export_usages,
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
-    simple_tree_shake::get_module_export_usages,
 };
 
 /// A module derived from an original ecmascript module that only contains the
@@ -104,7 +107,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
         let analyze = original_module.analyze();
         let analyze_result = analyze.await?;
 
-        let module_type_result = *original_module.determine_module_type().await?;
+        let module_type_result = original_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
             .reference_module_source_maps(Vc::upcast(self))
             .await?;
@@ -203,5 +206,19 @@ impl ChunkableModule for EcmascriptModuleLocalsModule {
             }
             .cell(),
         )
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModuleLocalsModule {
+    #[turbo_tasks::function]
+    async fn merge(
+        &self,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(modules, entry_points, self.module.await?.options).await?,
+        ))
     }
 }

@@ -1,45 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { RefreshClockWise } from '../../../icons/refresh-clock-wise'
+import {
+  ACTION_RESTART_SERVER_BUTTON,
+  type OverlayDispatch,
+} from '../../../shared'
+import type { SupportedErrorEvent } from '../../../container/runtime-error/render-error'
 
 /**
- * When the user reloads on a specific error and that error persists, we show
- * the restart server button as an option. This is because some errors are
- * recoverable by restarting the server and rebuilding the app.
- *
- * When Turbopack persistent cache is enabled, it will also clear the bundler
- * cache. This improves DX by replacing the need to run `rm -rf .next` manually.
+ * When the Turbopack persistent cache is enabled, and the user reloads on a
+ * specific error and that error persists, we show the restart server button as
+ * an option. This is because some errors are recoverable by clearing the
+ * bundler cache, but we want to provide a shortcut to do this and collect
+ * telemetry on how often this is used.
  */
-export function RestartServerButton({ error }: { error: Error }) {
-  const [showButton, setShowButton] = useState(false)
-
-  useEffect(() => {
-    const ERROR_KEY = `__next_error_overlay:${window.location.pathname}:${error.message}`
-
-    setShowButton(sessionStorage.getItem(ERROR_KEY) === '1')
-
-    // When the user tries to reload, set the error key to the session storage.
-    const handleBeforeUnload = () => {
-      sessionStorage.setItem(ERROR_KEY, '1')
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-    }
-  }, [error.message])
-
+export function RestartServerButton({ showButton }: { showButton: boolean }) {
   if (!showButton) {
     return null
   }
 
   function handleClick() {
-    let endpoint = '/__nextjs_restart_dev'
-
-    if (process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE) {
-      endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
-    }
-
     // TODO: Use Client Action for transition indicator when DevTools is isolated.
-    fetch(endpoint, {
+    fetch('/__nextjs_restart_dev?invalidatePersistentCache', {
       method: 'POST',
     }).then(() => {
       // TODO: poll server status and reload when the server is back up.
@@ -51,16 +32,56 @@ export function RestartServerButton({ error }: { error: Error }) {
     <button
       className="restart-dev-server-button"
       onClick={handleClick}
-      title={
-        process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE
-          ? 'Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing.'
-          : 'Restarts the development server without needing to leave the browser.'
-      }
+      title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
     >
       <RefreshClockWise width={14} height={14} />
-      Restart Dev Server
+      Clear Bundler Cache &amp; Restart
     </button>
   )
+}
+
+/**
+ * Sets up a beforeunload listener to show the restart server button
+ * if the developer reloads on a specific error and that error persists with Turbopack + Persistent Cache.
+ */
+export function usePersistentCacheErrorDetection({
+  errors,
+  dispatch,
+}: {
+  errors: SupportedErrorEvent[]
+  dispatch: OverlayDispatch
+}) {
+  useEffect(() => {
+    const isTurbopackWithCache =
+      process.env.__NEXT_BUNDLER?.toUpperCase() === 'TURBOPACK' &&
+      process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE
+    // TODO: Is there a better heuristic here?
+    const firstError = errors[0]?.error
+
+    if (isTurbopackWithCache && firstError) {
+      const errorKey = `__next_error_overlay:${window.location.pathname}:${firstError.message}`
+      const showRestartServerButton = sessionStorage.getItem(errorKey) === '1'
+
+      dispatch({
+        type: ACTION_RESTART_SERVER_BUTTON,
+        showRestartServerButton,
+      })
+
+      const handleBeforeUnload = () => {
+        sessionStorage.setItem(errorKey, '1')
+      }
+
+      window.addEventListener('beforeunload', handleBeforeUnload)
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload)
+      }
+    } else {
+      dispatch({
+        type: ACTION_RESTART_SERVER_BUTTON,
+        showRestartServerButton: false,
+      })
+    }
+  }, [errors, dispatch])
 }
 
 export const RESTART_SERVER_BUTTON_STYLES = `
@@ -70,6 +91,7 @@ export const RESTART_SERVER_BUTTON_STYLES = `
     justify-content: center;
     align-items: center;
     gap: 4px;
+    margin: 0 12px;
 
     height: var(--size-26);
     padding: 6px 8px 6px 6px;

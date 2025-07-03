@@ -1,3 +1,3 @@
-const saslprep = require("saslprep");
+const saslprep = require('saslprep')
 
-saslprep("password\u00AD");
+saslprep('password\u00AD')

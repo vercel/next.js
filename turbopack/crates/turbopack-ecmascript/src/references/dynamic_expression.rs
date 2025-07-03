@@ -44,13 +44,21 @@ impl DynamicExpression {
     ) -> Result<CodeGeneration> {
         let visitor = match self.ty {
             DynamicExpressionType::Normal => {
-                create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-                    *expr = quote!("(() => { const e = new Error(\"Cannot find module as expression is too dynamic\"); e.code = 'MODULE_NOT_FOUND'; throw e; })()" as Expr);
+                create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+                    *expr = quote!(
+                        "(() => { const e = new Error(\"Cannot find module as expression is too \
+                         dynamic\"); e.code = 'MODULE_NOT_FOUND'; throw e; })()"
+                            as Expr
+                    );
                 })
             }
             DynamicExpressionType::Promise => {
-                create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-                    *expr = quote!("Promise.resolve().then(() => { const e = new Error(\"Cannot find module as expression is too dynamic\"); e.code = 'MODULE_NOT_FOUND'; throw e; })" as Expr);
+                create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+                    *expr = quote!(
+                        "Promise.resolve().then(() => { const e = new Error(\"Cannot find module \
+                         as expression is too dynamic\"); e.code = 'MODULE_NOT_FOUND'; throw e; })"
+                            as Expr
+                    );
                 })
             }
         };

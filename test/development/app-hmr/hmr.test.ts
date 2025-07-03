@@ -107,50 +107,6 @@ describe(`app-dir-hmr`, () => {
       expect(next.cliOutput).not.toContain('FATAL')
     })
 
-    it.each(['node', 'node-module-var', 'edge', 'edge-module-var'])(
-      'should update server components pages when env files is changed (%s)',
-      async (page) => {
-        const browser = await next.browser(`/env/${page}`)
-        expect(await browser.elementByCss('p').text()).toBe('mac')
-
-        await next.patchFile(envFile, 'MY_DEVICE="ipad"', async () => {
-          let logs
-
-          await retry(async () => {
-            logs = await browser.log()
-            expect(logs).toEqual(
-              expect.arrayContaining([
-                expect.objectContaining({
-                  message: expect.stringContaining('[Fast Refresh] done'),
-                  source: 'log',
-                }),
-              ])
-            )
-          })
-
-          await retry(async () => {
-            expect(await browser.elementByCss('p').text()).toBe('ipad')
-          })
-
-          expect(logs).toEqual(
-            expect.arrayContaining([
-              expect.objectContaining({
-                message: expect.stringContaining('[Fast Refresh] done in'),
-                source: 'log',
-              }),
-            ])
-          )
-        })
-
-        // ensure it's restored back to "mac" before the next test
-        await retry(async () => {
-          expect(await browser.elementByCss('p').text()).toBe('mac')
-        })
-
-        expect(next.cliOutput).not.toContain('FATAL')
-      }
-    )
-
     it('should have no unexpected action error for hmr', async () => {
       expect(next.cliOutput).not.toContain('Unexpected action')
     })
