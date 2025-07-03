@@ -2433,14 +2433,15 @@ async function spawnDynamicValidationInDev(
   }
 
   if (initialServerResult) {
-    const initialClientController = new AbortController()
+    const initialClientRenderController = new AbortController()
+    const initialClientPrerenderController = new AbortController()
     const initialClientPrerenderStore: PrerenderStore = {
       type: 'prerender-client',
       phase: 'render',
       rootParams,
       implicitTags,
-      renderSignal: initialClientController.signal,
-      controller: initialClientController,
+      renderSignal: initialClientRenderController.signal,
+      controller: initialClientPrerenderController,
       // For HTML Generation the only cache tracked activity
       // is module loading, which has it's own cache signal
       cacheSignal: null,
@@ -2471,7 +2472,7 @@ async function spawnDynamicValidationInDev(
         nonce={nonce}
       />,
       {
-        signal: initialClientController.signal,
+        signal: initialClientRenderController.signal,
         onError: (err) => {
           const digest = getDigestForWellKnownError(err)
 
@@ -2485,7 +2486,7 @@ async function spawnDynamicValidationInDev(
             return undefined
           }
 
-          if (initialClientController.signal.aborted) {
+          if (initialClientRenderController.signal.aborted) {
             // These are expected errors that might error the prerender. we ignore them.
           } else if (
             process.env.NEXT_DEBUG_BUILD ||
@@ -2521,7 +2522,7 @@ async function spawnDynamicValidationInDev(
     // Promises passed to client were already awaited above (assuming that they came from cached functions)
     trackPendingModules(cacheSignal)
     await cacheSignal.cacheReady()
-    initialClientController.abort()
+    initialClientRenderController.abort()
   }
 
   const finalServerController = new AbortController()
@@ -3053,14 +3054,15 @@ async function prerenderToStream(
       }
 
       if (initialServerResult) {
-        const initialClientController = new AbortController()
+        const initialClientRenderController = new AbortController()
+        const initialClientPrerenderController = new AbortController()
         const initialClientPrerenderStore: PrerenderStore = {
           type: 'prerender-client',
           phase: 'render',
           rootParams,
           implicitTags,
-          renderSignal: initialClientController.signal,
-          controller: initialClientController,
+          renderSignal: initialClientRenderController.signal,
+          controller: initialClientPrerenderController,
           // For HTML Generation the only cache tracked activity
           // is module loading, which has it's own cache signal
           cacheSignal: null,
@@ -3091,7 +3093,7 @@ async function prerenderToStream(
             nonce={nonce}
           />,
           {
-            signal: initialClientController.signal,
+            signal: initialClientRenderController.signal,
             onError: (err) => {
               const digest = getDigestForWellKnownError(err)
 
@@ -3105,7 +3107,7 @@ async function prerenderToStream(
                 return undefined
               }
 
-              if (initialClientController.signal.aborted) {
+              if (initialClientRenderController.signal.aborted) {
                 // These are expected errors that might error the prerender. we ignore them.
               } else if (
                 process.env.NEXT_DEBUG_BUILD ||
@@ -3140,7 +3142,7 @@ async function prerenderToStream(
         // Promises passed to client were already awaited above (assuming that they came from cached functions)
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
-        initialClientController.abort()
+        initialClientRenderController.abort()
       }
 
       let serverIsDynamic = false
