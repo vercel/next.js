@@ -119,6 +119,8 @@ describe.each(
         const browser = await next.browser('/')
 
         if (isTurbopack) {
+          // TODO(veil): Source mapping breaks due to double-encoding of the
+          // square brackets.
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
@@ -128,10 +130,6 @@ describe.each(
              "stack": [
                "<FIXME-file-protocol>",
                "<FIXME-file-protocol>",
-               "main <anonymous>",
-               "body <anonymous>",
-               "html <anonymous>",
-               "Root [Server] <anonymous>",
                "LogSafely <anonymous>",
              ],
            }
@@ -148,10 +146,6 @@ describe.each(
              "stack": [
                "Dynamic app/page.tsx (20:16)",
                "Page app/page.tsx (15:7)",
-               "main <anonymous>",
-               "body <anonymous>",
-               "html <anonymous>",
-               "Root [Server] <anonymous>",
                "LogSafely <anonymous>",
              ],
            }
@@ -569,23 +563,18 @@ describe.each(
         const browser = await next.browser('/')
 
         if (isTurbopack) {
+          // TODO(veil): Source mapping breaks due to double-encoding of the
+          // square brackets.
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
                "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/indirection.tsx (7:34) @ IndirectionTwo
-           >  7 | export function IndirectionTwo({ children }) {
-                |                                  ^",
+               "source": null,
                "stack": [
                  "<FIXME-file-protocol>",
-                 "IndirectionTwo app/indirection.tsx (7:34)",
                  "<FIXME-file-protocol>",
-                 "main <anonymous>",
-                 "body <anonymous>",
-                 "html <anonymous>",
-                 "Root [Server] <anonymous>",
                  "LogSafely <anonymous>",
                ],
              },
@@ -597,10 +586,6 @@ describe.each(
                "stack": [
                  "<FIXME-file-protocol>",
                  "<FIXME-file-protocol>",
-                 "main <anonymous>",
-                 "body <anonymous>",
-                 "html <anonymous>",
-                 "Root [Server] <anonymous>",
                  "LogSafely <anonymous>",
                ],
              },
@@ -618,12 +603,7 @@ describe.each(
                 |                ^",
                "stack": [
                  "FetchingComponent app/page.tsx (35:16)",
-                 "IndirectionTwo app/indirection.tsx (7:34)",
-                 "Page app/page.tsx (16:9)",
-                 "main <anonymous>",
-                 "body <anonymous>",
-                 "html <anonymous>",
-                 "Root [Server] <anonymous>",
+                 "Page app/page.tsx (22:9)",
                  "LogSafely <anonymous>",
                ],
              },
@@ -636,11 +616,7 @@ describe.each(
                 |                ^",
                "stack": [
                  "FetchingComponent app/page.tsx (35:16)",
-                 "Page app/page.tsx (16:9)",
-                 "main <anonymous>",
-                 "body <anonymous>",
-                 "html <anonymous>",
-                 "Root [Server] <anonymous>",
+                 "Page app/page.tsx (27:7)",
                  "LogSafely <anonymous>",
                ],
              },

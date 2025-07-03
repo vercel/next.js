@@ -664,7 +664,7 @@ async function warmupDevRender(
 ): Promise<RenderResult> {
   const {
     clientReferenceManifest,
-    componentMod,
+    componentMod: ComponentMod,
     getDynamicParamFromSegment,
     implicitTags,
     renderOpts,
@@ -684,7 +684,7 @@ async function warmupDevRender(
   }
 
   const rootParams = getRootParams(
-    componentMod.tree,
+    ComponentMod.tree,
     getDynamicParamFromSegment
   )
 
@@ -725,6 +725,7 @@ async function warmupDevRender(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
+    captureOwnerStack: ComponentMod.captureOwnerStack,
   }
 
   const rscPayload = await workUnitAsyncStorage.run(
@@ -737,7 +738,7 @@ async function warmupDevRender(
   // which contains the subset React.
   workUnitAsyncStorage.run(
     prerenderStore,
-    componentMod.renderToReadableStream,
+    ComponentMod.renderToReadableStream,
     rscPayload,
     clientReferenceManifest.clientModules,
     {
@@ -2309,6 +2310,9 @@ async function spawnDynamicValidationInDev(
   // to cut the render off.
   const cacheSignal = new CacheSignal()
 
+  const captureOwnerStackClient = React.captureOwnerStack
+  const captureOwnerStackServer = ComponentMod.captureOwnerStack
+
   // The resume data cache here should use a fresh instance as it's
   // performing a fresh prerender. If we get to implementing the
   // prerendering of an already prerendered page, we should use the passed
@@ -2334,6 +2338,7 @@ async function spawnDynamicValidationInDev(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
   }
 
   // We're not going to use the result of this render because the only time it could be used
@@ -2448,6 +2453,7 @@ async function spawnDynamicValidationInDev(
       prerenderResumeDataCache,
       renderResumeDataCache: null,
       hmrRefreshHash: undefined,
+      captureOwnerStack: captureOwnerStackClient,
     }
 
     const prerender = (
@@ -2541,6 +2547,7 @@ async function spawnDynamicValidationInDev(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
   }
 
   const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -2611,6 +2618,7 @@ async function spawnDynamicValidationInDev(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackClient,
   }
 
   let dynamicValidation = createDynamicValidationState()
@@ -2957,6 +2965,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
       })
 
       // We're not going to use the result of this render because the only time it could be used
@@ -3064,6 +3073,7 @@ async function prerenderToStream(
           prerenderResumeDataCache,
           renderResumeDataCache,
           hmrRefreshHash: undefined,
+          captureOwnerStack: undefined, // Not available in production.
         }
 
         const prerender = (
@@ -3157,6 +3167,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
       })
 
       const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -3229,6 +3240,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
       }
 
       let clientIsDynamic = false

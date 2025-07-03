@@ -649,18 +649,24 @@ export function trackAllowedDynamicAccess(
     return
   } else {
     const message = `Route "${route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
-    const error = createErrorWithComponentStack(message, componentStack)
+    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return
   }
 }
 
-function createErrorWithComponentStack(
+/**
+ * In dev mode, we prefer using the owner stack, otherwise the provided
+ * component stack is used.
+ */
+function createErrorWithComponentOrOwnerStack(
   message: string,
   componentStack: string
 ) {
+  // `captureOwnerStack` is only provided in dev mode.
+  const ownerStack = React.captureOwnerStack?.()
   const error = new Error(message)
-  error.stack = 'Error: ' + message + componentStack
+  error.stack = error.name + ': ' + message + (ownerStack ?? componentStack)
   return error
 }
 
