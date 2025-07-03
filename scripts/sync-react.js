@@ -5,6 +5,7 @@ const fsp = require('fs/promises')
 const process = require('process')
 const execa = require('execa')
 const { Octokit } = require('octokit')
+const SemVer = require('semver')
 const yargs = require('yargs')
 
 /** @type {any} */
@@ -17,9 +18,13 @@ const pullRequestReviewers = ['eps1lon']
 /**
  * Set to `null` to automatically sync the React version of Pages Router with App Router React version.
  * Set to a specific version to override the Pages Router React version e.g. `^19.0.0`.
+ *
+ * "Active" just refers to our current development practice. While we do support
+ * React 18 in pages router, we don't focus our development process on it considering
+ * it does not receive new features.
  * @type {string | null}
  */
-const pagesRouterReact = '^19.0.0'
+const activePagesRouterReact = '^19.0.0'
 
 const defaultLatestChannel = 'canary'
 const filesReferencingReactPeerDependencyVersion = [
@@ -176,6 +181,31 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   return changelog.length > 0 ? changelog.join('\n') : null
 }
 
+async function findHighestNPMReactVersion(versionLike) {
+  const { stdout, stderr } = await execa(
+    'npm',
+    ['--silent', 'view', '--json', `react@${versionLike}`, 'version'],
+    {
+      // Avoid "Usage Error: This project is configured to use pnpm".
+      cwd: '/tmp',
+    }
+  )
+  if (stderr) {
+    console.error(stderr)
+    throw new Error(
+      `Failed to read highest react@${versionLike} version from npm.`
+    )
+  }
+
+  const result = JSON.parse(stdout)
+
+  return typeof result === 'string'
+    ? result
+    : result.sort((a, b) => {
+        return SemVer.compare(b, a)
+      })[0]
+}
+
 async function main() {
   const cwd = process.cwd()
   const errors = []
@@ -232,19 +262,7 @@ async function main() {
     // TODO: Fork arguments in GitHub workflow to ensure `--version ""` is considered a mistake
     newVersionStr === ''
   ) {
-    const { stdout, stderr } = await execa(
-      'npm',
-      ['--silent', 'view', `react@${defaultLatestChannel}`, 'version'],
-      {
-        // Avoid "Usage Error: This project is configured to use pnpm".
-        cwd: '/tmp',
-      }
-    )
-    if (stderr) {
-      console.error(stderr)
-      throw new Error('Failed to read latest React canary version from npm.')
-    }
-    newVersionStr = stdout.trim()
+    newVersionStr = await findHighestNPMReactVersion(defaultLatestChannel)
     console.log(
       `--version was not provided. Using react@${defaultLatestChannel}: ${newVersionStr}`
     )
@@ -325,10 +343,14 @@ Or, run this command with no arguments to use the most recently published versio
     )
   }
 
-  const syncPagesRouterReact = pagesRouterReact === null
-  const pagesRouterReactVersion = syncPagesRouterReact
+  const syncPagesRouterReact = activePagesRouterReact === null
+  const newActivePagesRouterReactVersion = syncPagesRouterReact
     ? newVersionStr
-    : pagesRouterReact
+    : activePagesRouterReact
+  const pagesRouterReactVersion = `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${newActivePagesRouterReactVersion}`
+  const highestPagesRouterReactVersion = await findHighestNPMReactVersion(
+    pagesRouterReactVersion
+  )
   const { sha: baseSha, dateString: baseDateString } = baseVersionInfo
 
   if (syncPagesRouterReact) {
@@ -336,13 +358,13 @@ Or, run this command with no arguments to use the most recently published versio
       const filePath = path.join(cwd, fileName)
       const previousSource = await fsp.readFile(filePath, 'utf-8')
       const updatedSource = previousSource.replace(
-        `const nextjsReactPeerVersion = "${baseVersionStr}";`,
-        `const nextjsReactPeerVersion = "${pagesRouterReactVersion}";`
+        /const nextjsReactPeerVersion = "[^"]+";/,
+        `const nextjsReactPeerVersion = "${highestPagesRouterReactVersion}";`
       )
-      if (pagesRouterReact === null && updatedSource === previousSource) {
+      if (activePagesRouterReact === null && updatedSource === previousSource) {
         errors.push(
           new Error(
-            `${fileName}: Failed to update ${baseVersionStr} to ${pagesRouterReactVersion}. Is this file still referencing the React peer dependency version?`
+            `${fileName}: Failed to update ${baseVersionStr} to ${highestPagesRouterReactVersion}. Is this file still referencing the React peer dependency version?`
           )
         )
       } else {
@@ -356,10 +378,10 @@ Or, run this command with no arguments to use the most recently published versio
     const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
     const manifest = JSON.parse(packageJson)
     if (manifest.dependencies['react']) {
-      manifest.dependencies['react'] = pagesRouterReactVersion
+      manifest.dependencies['react'] = highestPagesRouterReactVersion
     }
     if (manifest.dependencies['react-dom']) {
-      manifest.dependencies['react-dom'] = pagesRouterReactVersion
+      manifest.dependencies['react-dom'] = highestPagesRouterReactVersion
     }
     await fsp.writeFile(
       packageJsonPath,
@@ -379,12 +401,10 @@ Or, run this command with no arguments to use the most recently published versio
     const manifest = JSON.parse(packageJson)
     // Need to specify last supported RC version to avoid breaking changes.
     if (manifest.peerDependencies['react']) {
-      manifest.peerDependencies['react'] =
-        `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${pagesRouterReactVersion}`
+      manifest.peerDependencies['react'] = pagesRouterReactVersion
     }
     if (manifest.peerDependencies['react-dom']) {
-      manifest.peerDependencies['react-dom'] =
-        `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${pagesRouterReactVersion}`
+      manifest.peerDependencies['react-dom'] = pagesRouterReactVersion
     }
     await fsp.writeFile(
       packageJsonPath,
@@ -498,7 +518,7 @@ Or run this command again without the --no-install flag to do both automatically
       owner: repoOwner,
       repo: repoName,
       head: branchName,
-      base: 'canary',
+      base: process.env.GITHUB_REF || 'canary',
       draft: false,
       title: prTitle,
       body: prDescription,

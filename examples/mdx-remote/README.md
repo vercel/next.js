@@ -4,8 +4,6 @@ This example shows how a simple blog might be built using the [next-mdx-remote](
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/mdx-remote)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/mdx-remote&project-name=mdx-remote&repository-name=mdx-remote)
 
 ## How to use

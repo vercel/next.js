@@ -5,7 +5,7 @@ use std::{
 
 use clap::{Args, Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, TaskInput};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_cli_utils::issue::IssueSeverityCliOption;
 
 #[derive(Debug, Parser)]
@@ -37,6 +37,7 @@ impl Arguments {
     Hash,
     TaskInput,
     NonLocalValue,
+    TraceRawVcs,
 )]
 pub enum Target {
     Browser,
@@ -134,6 +135,10 @@ pub struct BuildArguments {
     /// Don't minify build output.
     #[clap(long)]
     pub no_minify: bool,
+
+    /// Don't perform scope hoisting.
+    #[clap(long)]
+    pub no_scope_hoist: bool,
 
     /// Drop the `TurboTasks` object upon exit. By default we intentionally leak this memory, as
     /// we're about to exit the process anyways, but that can cause issues with valgrind or other

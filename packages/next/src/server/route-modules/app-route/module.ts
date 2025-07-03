@@ -51,7 +51,7 @@ import {
   type ActionStore,
 } from '../../app-render/action-async-storage.external'
 import * as sharedModules from './shared-modules'
-import { getIsServerAction } from '../../lib/server-action-request-meta'
+import { getIsPossibleServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
@@ -82,6 +82,8 @@ import {
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
+import { executeRevalidates } from '../../revalidation-utils'
+import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 
 export class WrappedNextRouterError {
   constructor(
@@ -213,10 +215,12 @@ export class AppRouteRouteModule extends RouteModule<
   constructor({
     userland,
     definition,
+    distDir,
+    projectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition })
+    super({ userland, definition, distDir, projectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
@@ -323,13 +327,9 @@ export class AppRouteRouteModule extends RouteModule<
     }
 
     const resolvePendingRevalidations = () => {
-      context.renderOpts.pendingWaitUntil = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ]).finally(() => {
+      context.renderOpts.pendingWaitUntil = executeRevalidates(
+        workStore
+      ).finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
           console.log(
             'pending revalidates promise finished for:',
@@ -391,11 +391,15 @@ export class AppRouteRouteModule extends RouteModule<
               // During prospective render we don't use a controller
               // because we need to let all caches fill.
               dynamicTracking,
+              allowEmptyStaticShell: false,
               revalidate: defaultRevalidate,
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
               tags: [...implicitTags.tags],
+              // TODO: Shouldn't we provide an RDC here?
               prerenderResumeDataCache: null,
+              renderResumeDataCache: null,
+              hmrRefreshHash: undefined,
             })
 
           let prospectiveResult
@@ -441,6 +445,8 @@ export class AppRouteRouteModule extends RouteModule<
               }
             )
           }
+
+          trackPendingModules(cacheSignal)
           await cacheSignal.cacheReady()
 
           if (prospectiveRenderIsDynamic) {
@@ -476,11 +482,15 @@ export class AppRouteRouteModule extends RouteModule<
             controller: finalController,
             cacheSignal: null,
             dynamicTracking,
+            allowEmptyStaticShell: false,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
+            // TODO: Shouldn't we provide an RDC here?
             prerenderResumeDataCache: null,
+            renderResumeDataCache: null,
+            hmrRefreshHash: undefined,
           })
 
           let responseHandled = false
@@ -670,7 +680,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const actionStore: ActionStore = {
       isAppRoute: true,
-      isAction: getIsServerAction(req),
+      isAction: getIsPossibleServerAction(req),
     }
 
     const implicitTags = await getImplicitTags(
@@ -720,6 +730,14 @@ export class AppRouteRouteModule extends RouteModule<
               case 'force-dynamic': {
                 // Routes of generated paths should be dynamic
                 workStore.forceDynamic = true
+                if (workStore.isStaticGeneration) {
+                  const err = new DynamicServerError(
+                    'Route is configured with dynamic = error which cannot be statically generated.'
+                  )
+                  workStore.dynamicUsageDescription = err.message
+                  workStore.dynamicUsageStack = err.stack
+                  throw err
+                }
                 break
               }
               case 'force-static':
@@ -1128,7 +1146,7 @@ function createDynamicIOError(route: string) {
   )
 }
 
-export function trackDynamic(
+function trackDynamic(
   store: WorkStore,
   workUnitStore: undefined | WorkUnitStore,
   expression: string

@@ -14,7 +14,7 @@ import { join } from 'path'
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
 // TODO: Implement warning for Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid CSS in _document',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -42,7 +42,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
     )
   }
 )
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid Global CSS',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -108,7 +108,7 @@ describe('Valid Global CSS from npm', () => {
           .replace(/\/\*.*?\*\//g, '')
           .trim()
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(cssContent).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
         } else {
           expect(cssContent).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
@@ -119,7 +119,7 @@ describe('Valid Global CSS from npm', () => {
 })
 
 // TODO: Implement warning for Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid Global CSS with Custom App',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -150,7 +150,7 @@ describe('Valid Global CSS from npm', () => {
 )
 
 // TODO: Implement warning for Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Valid and Invalid Global CSS with Custom App',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

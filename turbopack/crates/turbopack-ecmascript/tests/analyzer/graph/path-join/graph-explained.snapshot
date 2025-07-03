@@ -1,6 +1,16 @@
 a = FreeVar(require)("foo")
 
+p1 = FreeVar(require)("path")
+
 path = FreeVar(require)("path")
+
+path_join1 = p1["join"]
+
+path_join2 = module<path, {}>["default"]["join"]
+
+path_join3 = module<path, {}>["join"]
+
+path_join4 = await(FreeVar(import)("path"))["join"]
 
 z1_joined = path["join"]("foo", "bar")
 

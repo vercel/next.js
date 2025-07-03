@@ -1,7 +1,6 @@
 'use client'
 
 import React, {
-  use,
   useEffect,
   useMemo,
   startTransition,
@@ -23,11 +22,8 @@ import {
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
-import {
-  default as DefaultGlobalError,
-  ErrorBoundary,
-  type GlobalErrorComponent,
-} from './error-boundary'
+import { ErrorBoundary } from './error-boundary'
+import DefaultGlobalError from './builtin/global-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -40,12 +36,15 @@ import { getSelectedParams } from './router-reducer/compute-changed-path'
 import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
+  dispatchTraverseAction,
   publicAppRouterInstance,
   type AppRouterActionQueue,
+  type GlobalErrorState,
 } from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { pingVisibleLinks } from './links'
+import GracefulDegradeBoundary from './errors/graceful-degrade-boundary'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -149,6 +148,7 @@ export function createEmptyCacheNode(): CacheNode {
     prefetchHead: null,
     parallelRoutes: new Map(),
     loading: null,
+    navigatedAt: -1,
   }
 }
 
@@ -196,10 +196,12 @@ function Router({
   actionQueue,
   assetPrefix,
   globalError,
+  gracefullyDegrade,
 }: {
   actionQueue: AppRouterActionQueue
   assetPrefix: string
-  globalError: [GlobalErrorComponent, React.ReactNode]
+  globalError: GlobalErrorState
+  gracefullyDegrade: boolean
 }) {
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
@@ -325,7 +327,10 @@ function Router({
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
     // should interrupt an MPA one?
-    use(unresolvedThenable)
+    // NOTE: This is intentionally using `throw` instead of `use` because we're
+    // inside an externally mutable condition (pushRef.mpaNavigation), which
+    // violates the rules of hooks.
+    throw unresolvedThenable
   }
 
   useEffect(() => {
@@ -417,11 +422,10 @@ function Router({
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {
-        dispatchAppRouterAction({
-          type: ACTION_RESTORE,
-          url: new URL(window.location.href),
-          tree: event.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-        })
+        dispatchTraverseAction(
+          window.location.href,
+          event.state.__PRIVATE_NEXTJS_INTERNALS_TREE
+        )
       })
     }
 
@@ -502,8 +506,10 @@ function Router({
         </DevRootHTTPAccessFallbackBoundary>
       )
     }
-    const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
-      require('./react-dev-overlay/app/hot-reloader-client').default
+    const HotReloader: typeof import('../dev/hot-reloader/app/hot-reloader-app').default =
+      (
+        require('../dev/hot-reloader/app/hot-reloader-app') as typeof import('../dev/hot-reloader/app/hot-reloader-app')
+      ).default
 
     content = (
       <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
@@ -511,15 +517,20 @@ function Router({
       </HotReloader>
     )
   } else {
-    // In production, we only apply the user-customized global error boundary.
-    content = (
-      <ErrorBoundary
-        errorComponent={globalError[0]}
-        errorStyles={globalError[1]}
-      >
-        {content}
-      </ErrorBoundary>
-    )
+    // If gracefully degrading is applied in production,
+    // leave the app as it is rather than caught by GlobalError boundary.
+    if (gracefullyDegrade) {
+      content = <GracefulDegradeBoundary>{content}</GracefulDegradeBoundary>
+    } else {
+      content = (
+        <ErrorBoundary
+          errorComponent={globalError[0]}
+          errorStyles={globalError[1]}
+        >
+          {content}
+        </ErrorBoundary>
+      )
+    }
   }
 
   return (
@@ -552,28 +563,39 @@ function Router({
 
 export default function AppRouter({
   actionQueue,
-  globalErrorComponentAndStyles: [globalErrorComponent, globalErrorStyles],
+  globalErrorState,
   assetPrefix,
+  gracefullyDegrade,
 }: {
   actionQueue: AppRouterActionQueue
-  globalErrorComponentAndStyles: [GlobalErrorComponent, React.ReactNode]
+  globalErrorState: GlobalErrorState
   assetPrefix: string
+  gracefullyDegrade: boolean
 }) {
   useNavFailureHandler()
 
-  return (
-    <ErrorBoundary
-      // At the very top level, use the default GlobalError component as the final fallback.
-      // When the app router itself fails, which means the framework itself fails, we show the default error.
-      errorComponent={DefaultGlobalError}
-    >
-      <Router
-        actionQueue={actionQueue}
-        assetPrefix={assetPrefix}
-        globalError={[globalErrorComponent, globalErrorStyles]}
-      />
-    </ErrorBoundary>
+  const router = (
+    <Router
+      actionQueue={actionQueue}
+      assetPrefix={assetPrefix}
+      globalError={globalErrorState}
+      gracefullyDegrade={gracefullyDegrade}
+    />
   )
+
+  if (gracefullyDegrade) {
+    return router
+  } else {
+    return (
+      <ErrorBoundary
+        // At the very top level, use the default GlobalError component as the final fallback.
+        // When the app router itself fails, which means the framework itself fails, we show the default error.
+        errorComponent={DefaultGlobalError}
+      >
+        {router}
+      </ErrorBoundary>
+    )
+  }
 }
 
 const runtimeStyles = new Set<string>()

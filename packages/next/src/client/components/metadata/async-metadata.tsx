@@ -3,15 +3,6 @@
 import { Suspense, use } from 'react'
 import type { StreamingMetadataResolvedState } from './types'
 
-export const AsyncMetadata =
-  typeof window === 'undefined'
-    ? (
-        require('./server-inserted-metadata') as typeof import('./server-inserted-metadata')
-      ).ServerInsertMetadata
-    : (
-        require('./browser-resolved-metadata') as typeof import('./browser-resolved-metadata')
-      ).BrowserResolvedMetadata
-
 function MetadataOutlet({
   promise,
 }: {

@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/2.css"],"sourcesContent":["@import 'y.css';\n@import 'x.css';\n"],"names":[],"mappings":""}}]
+}

@@ -3,7 +3,7 @@ name = "next-build"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 next-core = { workspace = true }
 turbopack-core = { workspace = true }
+turbo-rcstr = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

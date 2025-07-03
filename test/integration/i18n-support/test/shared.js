@@ -436,7 +436,6 @@ export function runTests(ctx) {
 
   // The page is accessible on subpath as well as on the domain url without subpath.
   // Once this is not the case the test will need to be changed to access it via domain.
-  // Beware of the different expectations on dev and prod version since the pre-rendering on dev does not work with domain locales
   it('should prerender with the correct href for locale domain', async () => {
     let browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go`)
 
@@ -449,11 +448,7 @@ export function runTests(ctx) {
       ['#to-gssp-slug', '/gssp/first'],
     ]) {
       const href = await browser.elementByCss(element).getAttribute('href')
-      if (ctx.isDev) {
-        expect(href).toBe(`${ctx.basePath || ''}/go${pathname}`)
-      } else {
-        expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
-      }
+      expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
     }
     expect(
       await browser.elementByCss('#to-external').getAttribute('href')
@@ -470,13 +465,9 @@ export function runTests(ctx) {
       ['#to-gssp-slug', '/gssp/first'],
     ]) {
       const href = await browser.elementByCss(element).getAttribute('href')
-      if (ctx.isDev) {
-        expect(href).toBe(`${ctx.basePath || ''}/go-BE${pathname}`)
-      } else {
-        expect(href).toBe(
-          `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
-        )
-      }
+      expect(href).toBe(
+        `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
+      )
     }
     expect(
       await browser.elementByCss('#to-external').getAttribute('href')

@@ -6,13 +6,13 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
+import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
-} from '../../client/components/react-dev-overlay/server/middleware-webpack'
+} from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, relative, isAbsolute, posix } from 'path'
+import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -27,6 +27,7 @@ import {
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig, {
+  getCacheDirectories,
   loadProjectInfo,
 } from '../../build/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
@@ -83,9 +84,12 @@ import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { getNodeDebugType } from '../lib/utils'
-import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
-import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
-import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
+import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
+import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
+import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
+import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
+import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
+import { checkPersistentCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -258,6 +262,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
+  private isSrcDir: boolean
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -270,6 +275,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     dir: string,
     {
       config,
+      isSrcDir,
       pagesDir,
       distDir,
       buildId,
@@ -281,6 +287,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch,
     }: {
       config: NextConfigComplete
+      isSrcDir: boolean
       pagesDir?: string
       distDir: string
       buildId: string
@@ -298,6 +305,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dir = dir
+    this.isSrcDir = isSrcDir
     this.middlewares = []
     this.pagesDir = pagesDir
     this.appDir = appDir
@@ -652,6 +660,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         originalRedirects: this.config._originalRedirects,
         runWebpackSpan: this.hotReloaderSpan,
         appDir: this.appDir,
+        previewProps: this.previewProps,
       }
 
       return webpackConfigSpan
@@ -696,6 +705,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       dev: true,
     })
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
+      previewProps: this.previewProps,
       runWebpackSpan: this.hotReloaderSpan,
       dev: true,
       compilerType: COMPILER_NAMES.client,
@@ -735,7 +745,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       ).client,
       ...info,
     })
-    const fallbackCompiler = webpack(fallbackConfig)
+
+    const fallbackCompiler = getWebpackBundler()(fallbackConfig)
 
     this.fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false
@@ -958,6 +969,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       middlewareConfig: Buffer.from(
                         JSON.stringify(staticInfo?.middleware || {})
                       ).toString('base64'),
+                      isGlobalNotFoundEnabled: this.config.experimental
+                        .globalNotFound
+                        ? true
+                        : undefined,
                     }).import
                   : undefined
 
@@ -1048,17 +1063,23 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     preferredRegion: staticInfo?.preferredRegion,
                   })
                 } else if (isAppPath) {
+                  // This path normalization is critical for webpack to resolve the next internals as entry.
+                  const pagePath = entryData.absolutePagePath.startsWith(
+                    dirname(require.resolve('next/package.json'))
+                  )
+                    ? entryData.absolutePagePath
+                    : posix.join(
+                        APP_DIR_ALIAS,
+                        relative(
+                          this.appDir!,
+                          entryData.absolutePagePath
+                        ).replace(/\\/g, '/')
+                      )
                   value = getAppEntry({
                     name: bundlePath,
                     page,
                     appPaths: entryData.appPaths,
-                    pagePath: posix.join(
-                      APP_DIR_ALIAS,
-                      relative(
-                        this.appDir!,
-                        entryData.absolutePagePath
-                      ).replace(/\\/g, '/')
-                    ),
+                    pagePath,
                     appDir: this.appDir!,
                     pageExtensions: this.config.pageExtensions,
                     rootDir: this.dir,
@@ -1071,6 +1092,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     middlewareConfig: Buffer.from(
                       JSON.stringify(staticInfo?.middleware || {})
                     ).toString('base64'),
+                    isGlobalNotFoundEnabled: this.config.experimental
+                      .globalNotFound
+                      ? true
+                      : undefined,
                   })
                 } else if (isAPIRoute(page)) {
                   value = getRouteLoaderEntry({
@@ -1136,7 +1161,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // @ts-ignore webpack 5
     this.activeWebpackConfigs.parallelism = 1
 
-    this.multiCompiler = webpack(
+    await Promise.all(
+      Array.from(getCacheDirectories(this.activeWebpackConfigs)).map(
+        checkPersistentCacheInvalidationAndCleanup
+      )
+    )
+    this.multiCompiler = getWebpackBundler()(
       this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
 
@@ -1219,7 +1249,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       // includes the source map in development which changes
                       // every time for both server and client so we calculate
                       // the hash without the source map for the page module
-                      const hash = require('crypto')
+                      const hash = (
+                        require('crypto') as typeof import('crypto')
+                      )
                         .createHash('sha1')
                         .update(mod.originalSource().buffer())
                         .digest()
@@ -1539,6 +1571,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.middlewares = [
       getOverlayMiddleware({
         rootDirectory: this.dir,
+        isSrcDir: this.isSrcDir,
         clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
@@ -1551,6 +1584,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       getNextErrorFeedbackMiddleware(this.telemetry),
       getDevOverlayFontMiddleware(),
       getDisableDevIndicatorMiddleware(),
+      getRestartDevServerMiddleware({
+        telemetry: this.telemetry,
+        webpackCacheDirectories:
+          this.activeWebpackConfigs != null
+            ? getCacheDirectories(this.activeWebpackConfigs)
+            : undefined,
+      }),
     ]
   }
 

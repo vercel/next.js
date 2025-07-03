@@ -34,6 +34,15 @@ pub struct AllocationCounters {
 }
 
 impl AllocationCounters {
+    const fn new() -> Self {
+        Self {
+            allocation_count: 0,
+            deallocation_count: 0,
+            allocations: 0,
+            deallocations: 0,
+            _not_send: PhantomData {},
+        }
+    }
     pub fn until_now(&self) -> AllocationInfo {
         let new = TurboMalloc::allocation_counters();
         AllocationInfo {
@@ -50,6 +59,7 @@ impl AllocationCounters {
 pub struct TurboMalloc;
 
 impl TurboMalloc {
+    // Returns the current amount of memory
     pub fn memory_usage() -> usize {
         get()
     }
@@ -84,7 +94,7 @@ fn base_alloc() -> &'static impl GlobalAlloc {
 
 unsafe impl GlobalAlloc for TurboMalloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let ret = base_alloc().alloc(layout);
+        let ret = unsafe { base_alloc().alloc(layout) };
         if !ret.is_null() {
             add(layout.size());
         }
@@ -92,12 +102,12 @@ unsafe impl GlobalAlloc for TurboMalloc {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        base_alloc().dealloc(ptr, layout);
+        unsafe { base_alloc().dealloc(ptr, layout) };
         remove(layout.size());
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        let ret = base_alloc().alloc_zeroed(layout);
+        let ret = unsafe { base_alloc().alloc_zeroed(layout) };
         if !ret.is_null() {
             add(layout.size());
         }
@@ -105,7 +115,7 @@ unsafe impl GlobalAlloc for TurboMalloc {
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let ret = base_alloc().realloc(ptr, layout, new_size);
+        let ret = unsafe { base_alloc().realloc(ptr, layout, new_size) };
         if !ret.is_null() {
             let old_size = layout.size();
             update(old_size, new_size);

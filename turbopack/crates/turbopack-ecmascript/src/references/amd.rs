@@ -12,15 +12,15 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc,
-    TryJoinIterExt, ValueToString, Vc,
+    NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     module_graph::ModuleGraph,
     reference::ModuleReference,
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
@@ -28,8 +28,8 @@ use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::{
-        pattern_mapping::{PatternMapping, ResolveType},
         AstPath,
+        pattern_mapping::{PatternMapping, ResolveType},
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
 };
@@ -68,7 +68,7 @@ impl ModuleReference for AmdDefineAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
             self.in_try,
         )
     }
@@ -178,7 +178,7 @@ impl AmdDefineWithDependenciesCodeGen {
                             cjs_resolve(
                                 *self.origin,
                                 **request,
-                                Some(self.issue_source.clone()),
+                                Some(self.issue_source),
                                 self.in_try,
                             ),
                             ResolveType::ChunkItem,
@@ -202,11 +202,14 @@ impl AmdDefineWithDependenciesCodeGen {
 
         let factory_type = self.factory_type;
 
-        visitors.push(
-            create_visitor!(exact self.path, visit_mut_call_expr(call_expr: &mut CallExpr) {
+        visitors.push(create_visitor!(
+            exact,
+            self.path,
+            visit_mut_call_expr,
+            |call_expr: &mut CallExpr| {
                 transform_amd_factory(call_expr, &resolved_elements, factory_type)
-            }),
-        );
+            }
+        ));
 
         Ok(CodeGeneration::visitors(visitors))
     }

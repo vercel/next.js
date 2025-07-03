@@ -55,6 +55,9 @@ function getRouteModuleOptions(page: string) {
       bundlePath: '',
       filename: '',
     },
+    // edge runtime doesn't read from distDir or projectDir
+    distDir: '',
+    projectDir: '',
   }
 
   return options
@@ -86,7 +89,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     if (!cacheHandlers.default) {
       cacheHandlers.default = require.resolve(
-        '../../../../server/lib/cache-handlers/default'
+        '../../../../server/lib/cache-handlers/default.external'
       )
     }
 
@@ -179,10 +182,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_MODULE_GLOBAL_ERROR: errorPath,
         },
         {
-          pagesType: JSON.stringify(pagesType),
-          sriEnabled: JSON.stringify(sriEnabled),
           nextConfig: stringifiedConfig,
-          dev: JSON.stringify(dev),
           pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
           errorRouteModuleOptions: JSON.stringify(
             getRouteModuleOptions('/_error')

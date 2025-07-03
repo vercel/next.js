@@ -525,11 +525,44 @@ describe('Error Overlay for server components', () => {
       // So we need to check for the first part of the message.
       const normalizedSource = await session.getRedboxSource()
       expect(normalizedSource).toContain(
-        `You're importing a component that needs \`${hook}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+        `You're importing a component that needs \`${hook}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
       expect(normalizedSource).toContain(
         `import { ${hook} } from 'next/navigation'`
       )
     })
+  })
+
+  describe('Next.js link client hooks called in Server Component', () => {
+    it.each([['useLinkStatus']])(
+      'should show error when %s is called',
+      async (hook: string) => {
+        await using sandbox = await createSandbox(
+          next,
+          new Map([
+            [
+              'app/page.js',
+              outdent`
+              import { ${hook} } from 'next/link'
+              export default function Page() {
+                return "Hello world"
+              }
+            `,
+            ],
+          ])
+        )
+        const { session } = sandbox
+        await session.assertHasRedbox()
+        // In webpack when the message too long it gets truncated with `  | ` with new lines.
+        // So we need to check for the first part of the message.
+        const normalizedSource = await session.getRedboxSource()
+        expect(normalizedSource).toContain(
+          `You're importing a component that needs \`${hook}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+        )
+        expect(normalizedSource).toContain(
+          `import { ${hook} } from 'next/link'`
+        )
+      }
+    )
   })
 })

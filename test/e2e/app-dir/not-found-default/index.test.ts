@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertHasRedbox,
-  assertNoRedbox,
-  getRedboxDescription,
-} from 'next-test-utils'
+import { assertNoRedbox } from 'next-test-utils'
 
 describe('app dir - not found with default 404 page', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -21,10 +17,16 @@ describe('app dir - not found with default 404 page', () => {
     await browser.elementByCss('#trigger-not-found').click()
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      expect(await getRedboxDescription(browser)).toMatch(
-        /notFound\(\) is not allowed to use in root layout/
-      )
+      // TODO: Either allow or include original stack
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "notFound() is not allowed to use in root layout",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     }
   })
 
@@ -46,10 +48,16 @@ describe('app dir - not found with default 404 page', () => {
     const browser = await next.browser('/?root-not-found=1')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      expect(await getRedboxDescription(browser)).toBe(
-        'Error: notFound() is not allowed to use in root layout'
-      )
+      // TODO: Either allow or include original stack
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "notFound() is not allowed to use in root layout",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     }
   })
 

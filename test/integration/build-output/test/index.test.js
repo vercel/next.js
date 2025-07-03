@@ -221,7 +221,7 @@ describe('Build Output', () => {
       })
 
       // AMP is not supported with Turbopack.
-      ;(process.env.TURBOPACK ? describe.skip : describe)(
+      ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
         'With AMP Output',
         () => {
           const appDir = join(fixturesDir, 'with-amp')

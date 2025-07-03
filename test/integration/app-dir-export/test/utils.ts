@@ -33,12 +33,12 @@ export const expectedWhenTrailingSlashTrue = [
   '404/index.html',
   // Turbopack and plain next.js have different hash output for the file name
   // Turbopack will output favicon in the _next/static/media folder
-  ...(process.env.TURBOPACK
+  ...(process.env.IS_TURBOPACK_TEST
     ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
     : []),
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
-  ...(process.env.TURBOPACK
+  ...(process.env.IS_TURBOPACK_TEST
     ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
@@ -63,12 +63,12 @@ export const expectedWhenTrailingSlashTrue = [
 const expectedWhenTrailingSlashFalse = [
   '404.html',
   // Turbopack will output favicon in the _next/static/media folder
-  ...(process.env.TURBOPACK
+  ...(process.env.IS_TURBOPACK_TEST
     ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
     : []),
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
-  ...(process.env.TURBOPACK
+  ...(process.env.IS_TURBOPACK_TEST
     ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
@@ -117,7 +117,7 @@ export async function runTests({
   dynamicParams?: string
   dynamicApiRoute?: string
   generateStaticParamsOpt?: 'set noop' | 'set client'
-  expectedErrMsg?: string
+  expectedErrMsg?: string | RegExp
 }) {
   if (trailingSlash !== undefined) {
     nextConfig.replace(
@@ -125,17 +125,18 @@ export async function runTests({
       `trailingSlash: ${trailingSlash},`
     )
   }
+
   if (dynamicPage !== undefined) {
     slugPage.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamicPage}`
+      `export const dynamic = 'force-static'`,
+      dynamicPage === 'undefined' ? '' : `export const dynamic = ${dynamicPage}`
     )
   }
 
   if (dynamicApiRoute !== undefined) {
     apiJson.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamicApiRoute}`
+      `export const dynamic = 'force-static'`,
+      `export const dynamic = ${dynamicApiRoute}`
     )
   }
 
@@ -179,7 +180,11 @@ export async function runTests({
         await assertHasRedbox(browser)
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
-        expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        if (expectedErrMsg instanceof RegExp) {
+          expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        } else {
+          expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        }
       } else {
         await check(() => result.stderr, /error/i)
       }

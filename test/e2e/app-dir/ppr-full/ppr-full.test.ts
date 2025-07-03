@@ -3,6 +3,7 @@ import { measurePPRTimings } from 'e2e-utils/ppr'
 import { links } from './components/links'
 import cheerio from 'cheerio'
 import { retry } from 'next-test-utils'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 type Page = {
   pathname: string
@@ -45,6 +46,26 @@ const pages: Page[] = [
     revalidate: 120,
   },
 ]
+
+const addCacheBustingSearchParam = (
+  pathname: string,
+  headers: Record<string, string | string[] | undefined>
+) => {
+  const cacheKey = computeCacheBustingSearchParam(
+    headers['Next-Router-Prefetch'],
+    headers['Next-Router-Segment-Prefetch'],
+    headers['Next-Router-State-Tree'],
+    headers['Next-URL']
+  )
+
+  if (cacheKey === null) {
+    return pathname
+  }
+
+  const url = new URL(pathname, 'http://localhost')
+  url.searchParams.set('_rsc', cacheKey)
+  return url.pathname + url.search
+}
 
 describe('ppr-full', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -353,176 +374,58 @@ describe('ppr-full', () => {
           expect($('[data-agent]').closest('[hidden]').length).toBe(1)
         })
 
-        if (isNextDeploy) {
-          it('should render the fallback shell every time', async () => {
-            const random = Math.random().toString(16).slice(2)
-            const pathname = `/fallback/dynamic/params/on-second-visit-${random}`
+        it('should render the fallback shell every time', async () => {
+          const random = Math.random().toString(16).slice(2)
+          const pathname = `/fallback/dynamic/params/on-second-visit-${random}`
 
-            let $ = await next.render$(pathname)
+          let $ = await next.render$(pathname)
+          expect($('[data-slug]').closest('[hidden]').length).toBe(1)
+          expect($('[data-agent]').closest('[hidden]').length).toBe(1)
+
+          for (let i = 0; i < 10; i++) {
+            $ = await next.render$(pathname)
             expect($('[data-slug]').closest('[hidden]').length).toBe(1)
             expect($('[data-agent]').closest('[hidden]').length).toBe(1)
+          }
+        })
 
-            for (let i = 0; i < 10; i++) {
-              $ = await next.render$(pathname)
-              expect($('[data-slug]').closest('[hidden]').length).toBe(1)
-              expect($('[data-agent]').closest('[hidden]').length).toBe(1)
-            }
-          })
+        it('should render the fallback shell even if the page is static', async () => {
+          const random = Math.random().toString(16).slice(2)
+          const pathname = `/fallback/params/on-second-visit-${random}`
 
-          it('should render the fallback shell even if the page is static', async () => {
-            const random = Math.random().toString(16).slice(2)
-            const pathname = `/fallback/params/on-second-visit-${random}`
+          // Expect that the slug had to be resumed.
+          let $ = await next.render$(pathname)
+          expect($('[data-slug]').closest('[hidden]').length).toBe(1)
 
-            // Expect that the slug had to be resumed.
-            let $ = await next.render$(pathname)
-            expect($('[data-slug]').closest('[hidden]').length).toBe(1)
-
-            for (let i = 0; i < 10; i++) {
-              $ = await next.render$(pathname)
-              expect($('[data-slug]').closest('[hidden]').length).toBe(1)
-            }
-          })
-
-          it('will not revalidate the fallback shell', async () => {
-            const random = Math.random().toString(16).slice(2)
-            const pathname = `/fallback/dynamic/params/revalidate-${random}`
-
-            let $ = await next.render$(pathname)
-            const fallbackID = $('[data-layout]').data('layout') as string
-
-            // Now let's revalidate the page.
-            await next.fetch(
-              `/api/revalidate?pathname=${encodeURIComponent(pathname)}`
-            )
-
-            // We expect to get the fallback shell again.
+          for (let i = 0; i < 10; i++) {
             $ = await next.render$(pathname)
-            expect($('[data-layout]').data('layout')).toBe(fallbackID)
-
-            // Let's wait for the page to be revalidated.
-            await retry(async () => {
-              $ = await next.render$(pathname)
-              const newDynamicID = $('[data-layout]').data('layout') as string
-              expect(newDynamicID).toBe(fallbackID)
-            })
-          })
-        } else {
-          it('should render the route shell on the second visit', async () => {
-            const random = Math.random().toString(16).slice(2)
-            const pathname = `/fallback/dynamic/params/on-second-visit-${random}`
-
-            let $ = await next.render$(pathname)
             expect($('[data-slug]').closest('[hidden]').length).toBe(1)
-            expect($('[data-agent]').closest('[hidden]').length).toBe(1)
+          }
+        })
 
-            await retry(async () => {
-              $ = await next.render$(pathname)
-              expect($('[data-slug]').closest('[hidden]').length).toBe(0)
-              expect($('[data-agent]').closest('[hidden]').length).toBe(1)
-            })
-          })
+        it('will not revalidate the fallback shell', async () => {
+          const random = Math.random().toString(16).slice(2)
+          const pathname = `/fallback/dynamic/params/revalidate-${random}`
 
-          it('should render the dynamic shell as static if the page is static', async () => {
-            const random = Math.random().toString(16).slice(2)
-            const pathname = `/fallback/params/on-second-visit-${random}`
+          let $ = await next.render$(pathname)
+          const fallbackID = $('[data-layout]').data('layout') as string
 
-            // Expect that the slug had to be resumed.
-            let $ = await next.render$(pathname)
-            expect($('[data-slug]').closest('[hidden]').length).toBe(1)
+          // Now let's revalidate the page.
+          await next.fetch(
+            `/api/revalidate?pathname=${encodeURIComponent(pathname)}`
+          )
 
-            // The slug didn't have to be resumed, and it should all be static.
-            await retry(async () => {
-              $ = await next.render$(pathname)
-              expect($('[data-slug]').closest('[hidden]').length).toBe(0)
+          // We expect to get the fallback shell again.
+          $ = await next.render$(pathname)
+          expect($('[data-layout]').data('layout')).toBe(fallbackID)
 
-              const {
-                timings: { streamFirstChunk, start, streamEnd },
-                chunks,
-              } = await measurePPRTimings(async () => {
-                const res = await next.fetch(pathname)
-                expect(res.status).toBe(200)
-                expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
-
-                return res.body
-              }, 1000)
-
-              expect(chunks.dynamic).toBe('')
-              expect(streamFirstChunk - start).toBeLessThan(500)
-              expect(streamEnd - start).toBeLessThan(500)
-            })
-          })
-
-          it('will only revalidate the page', async () => {
-            const random = Math.random().toString(16).slice(2)
-            const pathname = `/fallback/dynamic/params/revalidate-${random}`
-
-            let $ = await next.render$(pathname)
-            const fallbackID = $('[data-layout]').data('layout') as string
-
-            let dynamicID: string
-            await retry(async () => {
-              $ = await next.render$(pathname)
-              dynamicID = $('[data-layout]').data('layout') as string
-
-              // These should be different,
-              expect(dynamicID).not.toBe(fallbackID)
-            })
-
-            // Now let's revalidate the page.
-            await next.fetch(
-              `/api/revalidate?pathname=${encodeURIComponent(pathname)}`
-            )
-
-            // We expect to get the fallback shell again.
+          // Let's wait for the page to be revalidated.
+          await retry(async () => {
             $ = await next.render$(pathname)
-            expect($('[data-layout]').data('layout')).toBe(fallbackID)
-
-            // Let's wait for the page to be revalidated.
-            await retry(async () => {
-              $ = await next.render$(pathname)
-              const newDynamicID = $('[data-layout]').data('layout') as string
-              expect(newDynamicID).not.toBe(dynamicID)
-            })
+            const newDynamicID = $('[data-layout]').data('layout') as string
+            expect(newDynamicID).toBe(fallbackID)
           })
-
-          it('will revalidate the page and fallback shell', async () => {
-            const random = Math.random().toString(16).slice(2)
-            const pathname = `/fallback/dynamic/params/revalidate-${random}`
-
-            let $ = await next.render$(pathname)
-            const fallbackID = $('[data-layout]').data('layout') as string
-
-            let dynamicID: string
-            await retry(async () => {
-              $ = await next.render$(pathname)
-              dynamicID = $('[data-layout]').data('layout') as string
-
-              // These should be different,
-              expect(dynamicID).not.toBe(fallbackID)
-            })
-
-            // Now let's revalidate the page.
-            await next.fetch(
-              `/api/revalidate?pathname=${encodeURIComponent(pathname)}`
-            )
-
-            // We expect to get the fallback shell.
-            $ = await next.render$(pathname)
-
-            // When deployed to Vercel, it will serve a stale version of the dynamic shell
-            // Whereas with `next start` it will serve the fallback shell
-            expect($('[data-layout]').data('layout')).toBe(fallbackID)
-
-            // Let's wait for the page to be revalidated.
-            let revalidatedDynamicID: string
-            await retry(async () => {
-              $ = await next.render$(pathname)
-              revalidatedDynamicID = $('[data-layout]').data('layout') as string
-              expect(revalidatedDynamicID).not.toBe(dynamicID)
-              expect(revalidatedDynamicID).not.toBe(fallbackID)
-            })
-          })
-        }
+        })
 
         /**
          * This test is really here to just to force the the suite to have the expected route
@@ -654,8 +557,17 @@ describe('ppr-full', () => {
       describe.each(pages)('for $pathname', ({ pathname, revalidate }) => {
         it('should have correct headers', async () => {
           await retry(async () => {
-            const res = await next.fetch(pathname, {
-              headers: { RSC: '1', 'Next-Router-Prefetch': '1' },
+            const headers = {
+              RSC: '1',
+              'Next-Router-Prefetch': '1',
+            }
+            const urlWithCacheBusting = addCacheBustingSearchParam(
+              pathname,
+              headers
+            )
+
+            const res = await next.fetch(urlWithCacheBusting, {
+              headers,
             })
 
             expect(res.status).toEqual(200)
@@ -683,12 +595,18 @@ describe('ppr-full', () => {
 
         it('should not contain dynamic content', async () => {
           const unexpected = `${Date.now()}:${Math.random()}`
-          const res = await next.fetch(pathname, {
-            headers: {
-              RSC: '1',
-              'Next-Router-Prefetch': '1',
-              'X-Test-Input': unexpected,
-            },
+          const headers = {
+            RSC: '1',
+            'Next-Router-Prefetch': '1',
+            'X-Test-Input': unexpected,
+          }
+          const urlWithCacheBusting = addCacheBustingSearchParam(
+            pathname,
+            headers
+          )
+
+          const res = await next.fetch(urlWithCacheBusting, {
+            headers,
           })
           expect(res.status).toEqual(200)
           expect(res.headers.get('content-type')).toEqual('text/x-component')
@@ -701,8 +619,14 @@ describe('ppr-full', () => {
     describe('Dynamic RSC Response', () => {
       describe.each(pages)('for $pathname', ({ pathname, dynamic }) => {
         it('should have correct headers', async () => {
-          const res = await next.fetch(pathname, {
-            headers: { RSC: '1' },
+          const headers = { RSC: '1' }
+          const urlWithCacheBusting = addCacheBustingSearchParam(
+            pathname,
+            headers
+          )
+
+          const res = await next.fetch(urlWithCacheBusting, {
+            headers,
           })
           expect(res.status).toEqual(200)
           expect(res.headers.get('content-type')).toEqual('text/x-component')
@@ -719,8 +643,17 @@ describe('ppr-full', () => {
         if (dynamic === true || dynamic === 'force-dynamic') {
           it('should contain dynamic content', async () => {
             const expected = `${Date.now()}:${Math.random()}`
-            const res = await next.fetch(pathname, {
-              headers: { RSC: '1', 'X-Test-Input': expected },
+            const headers = {
+              RSC: '1',
+              'X-Test-Input': expected,
+            }
+            const urlWithCacheBusting = addCacheBustingSearchParam(
+              pathname,
+              headers
+            )
+
+            const res = await next.fetch(urlWithCacheBusting, {
+              headers,
             })
             expect(res.status).toEqual(200)
             expect(res.headers.get('content-type')).toEqual('text/x-component')
@@ -730,11 +663,17 @@ describe('ppr-full', () => {
         } else {
           it('should not contain dynamic content', async () => {
             const unexpected = `${Date.now()}:${Math.random()}`
-            const res = await next.fetch(pathname, {
-              headers: {
-                RSC: '1',
-                'X-Test-Input': unexpected,
-              },
+            const headers = {
+              RSC: '1',
+              'X-Test-Input': unexpected,
+            }
+            const urlWithCacheBusting = addCacheBustingSearchParam(
+              pathname,
+              headers
+            )
+
+            const res = await next.fetch(urlWithCacheBusting, {
+              headers,
             })
             expect(res.status).toEqual(200)
             expect(res.headers.get('content-type')).toEqual('text/x-component')

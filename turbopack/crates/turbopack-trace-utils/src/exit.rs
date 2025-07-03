@@ -150,8 +150,8 @@ mod tests {
         future::Future,
         pin::Pin,
         sync::{
-            atomic::{AtomicBool, AtomicU32, Ordering},
             Arc,
+            atomic::{AtomicBool, AtomicU32, Ordering},
         },
     };
 

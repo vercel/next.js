@@ -42,7 +42,7 @@ use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use terminal_hyperlink::Hyperlink;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
-use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{Layer, filter, prelude::*, util::SubscriberInitExt};
 use turbopack_core::error::PrettyPrintError;
 
 static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
@@ -70,49 +70,49 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
 
     // hold open this mutex guard to prevent concurrent writes to the file!
     let mut last_error_time = LOG_THROTTLE.lock().unwrap();
-    if let Some(last_error_time) = last_error_time.as_ref() {
-        if last_error_time.elapsed().as_secs() < 1 {
-            // Throttle panic logging to once per second
-            return;
-        }
+    if let Some(last_error_time) = last_error_time.as_ref()
+        && last_error_time.elapsed().as_secs() < 1
+    {
+        // Throttle panic logging to once per second
+        return;
     }
     *last_error_time = Some(Instant::now());
 
     let size = std::fs::metadata(PANIC_LOG.as_path()).map(|m| m.len());
-    if let Ok(size) = size {
-        if size > 512 * 1024 {
-            // Truncate the earliest error from log file if it's larger than 512KB
-            let new_lines = {
-                let log_read = OpenOptions::new()
-                    .read(true)
-                    .open(PANIC_LOG.as_path())
-                    .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
-
-                io::BufReader::new(&log_read)
-                    .lines()
-                    .skip(1)
-                    .skip_while(|line| match line {
-                        Ok(line) => !line.starts_with(LOG_DIVIDER),
-                        Err(_) => false,
-                    })
-                    .collect::<Vec<_>>()
-            };
-
-            let mut log_write = OpenOptions::new()
-                .create(true)
-                .truncate(true)
-                .write(true)
+    if let Ok(size) = size
+        && size > 512 * 1024
+    {
+        // Truncate the earliest error from log file if it's larger than 512KB
+        let new_lines = {
+            let log_read = OpenOptions::new()
+                .read(true)
                 .open(PANIC_LOG.as_path())
                 .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
 
-            for line in new_lines {
-                match line {
-                    Ok(line) => {
-                        writeln!(log_write, "{}", line).unwrap();
-                    }
-                    Err(_) => {
-                        break;
-                    }
+            io::BufReader::new(&log_read)
+                .lines()
+                .skip(1)
+                .skip_while(|line| match line {
+                    Ok(line) => !line.starts_with(LOG_DIVIDER),
+                    Err(_) => false,
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let mut log_write = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(PANIC_LOG.as_path())
+            .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
+
+        for line in new_lines {
+            match line {
+                Ok(line) => {
+                    writeln!(log_write, "{line}").unwrap();
+                }
+                Err(_) => {
+                    break;
                 }
             }
         }
@@ -131,7 +131,11 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         "Turbopack Error: {}",
         internal_error_str.lines().next().unwrap_or("Unknown")
     );
-    let version_str = format!("Turbopack version: `{}`", env!("VERGEN_GIT_DESCRIBE"));
+    let version_str = format!(
+        "Turbopack version: `{}`\nNext.js version: `{}`",
+        env!("VERGEN_GIT_DESCRIBE"),
+        env!("NEXTJS_VERSION")
+    );
     let new_discussion_url = if supports_hyperlinks::supports_hyperlinks() {
         "clicking here.".hyperlink(
             format!(
@@ -165,7 +169,7 @@ pub fn get_target_triple() -> &'static str {
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
     fn convert_err(self) -> napi::Result<T> {
         self.into()
-            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{:?}", err)))
+            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{err:?}")))
     }
 }
 

@@ -549,8 +549,8 @@ describe('app dir - metadata', () => {
     it('should render icon and apple touch icon meta if their images are specified', async () => {
       const $ = await next.render$('/icons/static/nested')
 
-      const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-      const $appleIcon = $('head > link[rel="apple-touch-icon"]')
+      const $icon = $('link[rel="icon"][type!="image/x-icon"]')
+      const $appleIcon = $('link[rel="apple-touch-icon"]')
 
       expect($icon.attr('href')).toMatch(/\/icons\/static\/nested\/icon1/)
       expect($icon.attr('sizes')).toBe('32x32')
@@ -565,19 +565,17 @@ describe('app dir - metadata', () => {
     it('should not render if image file is not specified', async () => {
       const $ = await next.render$('/icons/static')
 
-      const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
+      const $icon = $('link[rel="icon"][type!="image/x-icon"]')
 
       expect($icon.attr('href')).toMatch(/\/icons\/static\/icon/)
       expect($icon.attr('sizes')).toBe('114x114')
 
       // No apple icon if it's not provided
-      const $appleIcon = $('head > link[rel="apple-touch-icon"]')
+      const $appleIcon = $('link[rel="apple-touch-icon"]')
       expect($appleIcon.length).toBe(0)
 
       const $dynamic = await next.render$('/icons/static/dynamic-routes/123')
-      const $dynamicIcon = $dynamic(
-        'head > link[rel="icon"][type!="image/x-icon"]'
-      )
+      const $dynamicIcon = $dynamic('link[rel="icon"][type!="image/x-icon"]')
       const dynamicIconHref = $dynamicIcon.attr('href')
       expect(dynamicIconHref).toMatch(
         /\/icons\/static\/dynamic-routes\/123\/icon/
@@ -835,7 +833,7 @@ describe('app dir - metadata', () => {
     if (isNextDev) {
       // This test frequently causes a compilation error when run in Turbopack
       // which also causes all subsequent tests to fail. Disabled while we investigate to reduce flakes.
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'should handle updates to the file icon name and order',
         async () => {
           await next.renameFile(
@@ -845,7 +843,7 @@ describe('app dir - metadata', () => {
 
           await check(async () => {
             const $ = await next.render$('/icons/static')
-            const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
+            const $icon = $('link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
           }, /\/icons\/static\/icon2/)
 
@@ -856,5 +854,22 @@ describe('app dir - metadata', () => {
         }
       )
     }
+  })
+
+  it('regression: renders a large shell', async () => {
+    const pageErrors: unknown[] = []
+    await next.browser('/large-shell/foo', {
+      beforePageLoad(page) {
+        page.on('pageerror', (error) => {
+          pageErrors.push(error)
+        })
+      },
+    })
+
+    // TODO: Assert on errorless pages by default.
+    // This isn't 100% accurate.
+    // We sometimes receive the pageerror after the hydration complete event
+    // since that event is just for shell hydration not everything being hydrated.
+    expect(pageErrors).toEqual([])
   })
 })

@@ -1,5 +1,5 @@
 import Router from '../router'
-import { sendMessage } from '../components/react-dev-overlay/pages/websocket'
+import { sendMessage } from './hot-reloader/pages/websocket'
 
 export default async (page?: string) => {
   // Never send pings when using Turbopack as it's not used.

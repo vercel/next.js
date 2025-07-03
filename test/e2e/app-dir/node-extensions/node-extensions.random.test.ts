@@ -13,12 +13,13 @@ describe('Node Extensions', () => {
       }
 
       it('should not error when accessing middlware that use Math.random()', async () => {
-        let res, $
+        let res: Awaited<ReturnType<typeof next.fetch>>,
+          $: Awaited<ReturnType<typeof next.render$>>
 
         res = await next.fetch('/rewrite')
         expect(res.status).toBe(200)
         $ = await next.render$('/rewrite')
-        expect($('main section').text()).toBe('rewritten')
+        expect($('[data-testid="content"]').text()).toBe('rewritten')
       })
 
       it('should not error when accessing pages that use Math.random() in App Router', async () => {
@@ -165,7 +166,7 @@ describe('Node Extensions', () => {
         res = await next.fetch('/rewrite')
         expect(res.status).toBe(200)
         $ = await next.render$('/rewrite')
-        expect($('main section').text()).toBe('rewritten')
+        expect($('[data-testid="content"]').text()).toBe('rewritten')
       })
 
       it('should not error when accessing pages that use Math.random() in App Router', async () => {

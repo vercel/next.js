@@ -137,29 +137,6 @@ function reduceComponents<T extends {} & WithInAmpMode>(
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
-      if (
-        process.env.NODE_ENV !== 'development' &&
-        process.env.__NEXT_OPTIMIZE_FONTS &&
-        !inAmpMode
-      ) {
-        if (
-          c.type === 'link' &&
-          c.props['href'] &&
-          // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
-          ['https://fonts.googleapis.com/css', 'https://use.typekit.net/'].some(
-            (url) => c.props['href'].startsWith(url)
-          )
-        ) {
-          const newProps = { ...(c.props || {}) }
-          newProps['data-href'] = newProps['href']
-          newProps['href'] = undefined
-
-          // Add this attribute to make it easy to identify optimized tags
-          newProps['data-optimized-fonts'] = true
-
-          return React.cloneElement(c, newProps)
-        }
-      }
       if (process.env.NODE_ENV === 'development') {
         // omit JSON-LD structured data snippets from the warning
         if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {

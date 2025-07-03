@@ -47,7 +47,7 @@ function runTests() {
 }
 
 // This test is not needed for Turbopack as it relies on an experimental webpack feature.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'next/dynamic lazy compilation',
   () => {
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(

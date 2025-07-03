@@ -5,7 +5,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 
-use crate::{embed::EmbeddedFileSystem, DiskFileSystem, FileSystem};
+use crate::{DiskFileSystem, FileSystem, embed::EmbeddedFileSystem};
 
 #[turbo_tasks::function]
 pub async fn directory_from_relative_path(
@@ -69,8 +69,8 @@ macro_rules! embed_directory_internal {
         // make sure the types the `include_dir!` proc macro refers to are in scope
         use turbo_tasks_fs::embed::include_dir;
 
-        static dir: include_dir::Dir<'static> = turbo_tasks_fs::embed::include_dir!($path);
+        static DIR: include_dir::Dir<'static> = turbo_tasks_fs::embed::include_dir!($path);
 
-        turbo_tasks_fs::embed::directory_from_include_dir($name.into(), &dir)
+        turbo_tasks_fs::embed::directory_from_include_dir($name.into(), &DIR)
     }};
 }

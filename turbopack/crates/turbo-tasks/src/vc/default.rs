@@ -13,5 +13,6 @@ use crate::{self as turbo_tasks};
 /// 2. No annotations: this will make `Vc::default()` always return a different value.
 #[turbo_tasks::value_trait]
 pub trait ValueDefault {
+    #[turbo_tasks::function]
     fn value_default() -> Vc<Self>;
 }

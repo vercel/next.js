@@ -4,7 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp, FxIndexMap};
+use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp};
 
 pub struct NextJsFormat {
     store: Arc<StoreContainer>,
@@ -108,16 +108,16 @@ enum TagValue<'a> {
 impl Display for TagValue<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TagValue::String(s) => write!(f, "{}", s),
-            TagValue::Number(n) => write!(f, "{}", n),
-            TagValue::Bool(b) => write!(f, "{}", b),
+            TagValue::String(s) => write!(f, "{s}"),
+            TagValue::Number(n) => write!(f, "{n}"),
+            TagValue::Bool(b) => write!(f, "{b}"),
             TagValue::Array(a) => {
                 write!(f, "[")?;
                 for (i, v) in a.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", v)?;
+                    write!(f, "{v}")?;
                 }
                 write!(f, "]")
             }

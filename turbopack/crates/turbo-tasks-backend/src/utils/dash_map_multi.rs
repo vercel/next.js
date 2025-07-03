@@ -25,6 +25,10 @@ unsafe impl<K: Eq + Hash + Sync, V: Sync> Send for RefMut<'_, K, V> {}
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 
 impl<K: Eq + Hash, V> RefMut<'_, K, V> {
+    pub fn key(&self) -> &K {
+        self.pair().0
+    }
+
     pub fn value(&self) -> &V {
         self.pair().1
     }
@@ -39,7 +43,7 @@ impl<K: Eq + Hash, V> RefMut<'_, K, V> {
             RefMut::Simple { bucket, .. } | RefMut::Shared { bucket, .. } => {
                 // SAFETY:
                 // - The bucket is still valid, as we're holding a write guard on the shard
-                // - These bucket pointers are convertable to references
+                // - These bucket pointers are convertible to references
                 //
                 // https://doc.rust-lang.org/std/ptr/index.html#pointer-to-reference-conversion
                 let entry = unsafe { bucket.as_ref() };
@@ -119,7 +123,7 @@ where
             .find_or_find_insert_slot(h1, eq1, hash_entry)
             .unwrap_or_else(|slot| unsafe {
                 // SAFETY: This slot was previously returned by `find_or_find_insert_slot`, and no
-                // mutation of the table has occured since that call.
+                // mutation of the table has occurred since that call.
                 guard.insert_in_slot(h1, slot, (key1.clone(), SharedValue::new(insert_with())))
             });
 
@@ -212,18 +216,18 @@ mod tests {
         const THREADS: usize = 20;
 
         let map = FxDashMap::with_hasher_and_shard_amount(Default::default(), 4);
-        let indicies = (0..THREADS)
+        let indices = (0..THREADS)
             .map(|_| {
                 let mut vec = (0..N).collect::<Vec<_>>();
-                vec.shuffle(&mut rand::thread_rng());
+                vec.shuffle(&mut rand::rng());
                 vec
             })
             .collect::<Vec<_>>();
         let map = &map;
         scope(|s| {
-            for indicies in indicies {
+            for indices in indices {
                 s.spawn(|| {
-                    for i in indicies {
+                    for i in indices {
                         let (mut a, mut b) = get_multiple_mut(map, i, i + 1, || 0);
                         *a += 1;
                         *b += 1;

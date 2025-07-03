@@ -6,7 +6,7 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Promise in next config',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

@@ -6,8 +6,6 @@ When using Next's `<Link>` component, you will likely want to [disable the defau
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-framer-motion)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-framer-motion&project-name=with-framer-motion&repository-name=with-framer-motion)
 
 ## How to use

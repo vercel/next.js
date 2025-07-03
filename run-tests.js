@@ -19,7 +19,7 @@ const { getTestFilter } = require('./test/get-test-filter')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "^19.0.0";
+const nextjsReactPeerVersion = "19.1.0";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -200,8 +200,13 @@ async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
+  // `.github/workflows/build_reusable.yml` sets this, we should use it unless
+  // it's overridden by an explicit `--concurrency` argument.
+  const envConcurrency =
+    process.env.TEST_CONCURRENCY && parseInt(process.env.TEST_CONCURRENCY, 10)
+
   const options = {
-    concurrency: argv.concurrency || DEFAULT_CONCURRENCY,
+    concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
     debug: argv.debug ?? false,
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,
@@ -475,7 +480,7 @@ ${ENDGROUP}`)
         // tested when enabled
         CI: '',
         // But some tests need to fork based on machine? CI? behavior differences
-        // Only use read this in tests.
+        // Only use this in tests.
         // For implementation forks, use `process.env.CI` instead
         NEXT_TEST_CI: process.env.CI,
 

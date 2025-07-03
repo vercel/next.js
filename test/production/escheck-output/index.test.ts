@@ -7,13 +7,11 @@ describe('ES Check .next output', () => {
 
   it('should emit ES2020 with default', async () => {
     next = await createNext({
-      files: {
-        'pages/index.js': 'export default function Page() { return "hi" }',
-      },
+      files: __dirname,
       dependencies: { 'es-check': '7.0.1' },
       packageJson: {
         scripts: {
-          build: 'next build && es-check es2020 .next/static/**/*.js',
+          build: 'next build && es-check es2020 ".next/static/**/*.js"',
         },
       },
       installCommand: 'pnpm i',

@@ -275,7 +275,14 @@ export function unstable_cache<T extends Callback>(
         )
 
         if (!workStore.isDraftMode) {
-          cacheNewResult(
+          if (!workStore.pendingRevalidates) {
+            workStore.pendingRevalidates = {}
+          }
+
+          // We need to push the cache result promise to pending
+          // revalidates otherwise it won't be awaited and is just
+          // dangling
+          workStore.pendingRevalidates[invocationKey] = cacheNewResult(
             result,
             incrementalCache,
             cacheKey,
@@ -330,7 +337,11 @@ export function unstable_cache<T extends Callback>(
           cb,
           ...args
         )
-        cacheNewResult(
+
+        // we need to wait setting the new cache result here as
+        // we don't have pending revalidates on workStore to
+        // push to and we can't have a dangling promise
+        await cacheNewResult(
           result,
           incrementalCache,
           cacheKey,

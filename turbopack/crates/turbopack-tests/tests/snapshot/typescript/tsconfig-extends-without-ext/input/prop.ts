@@ -1,1 +1,1 @@
-export const prop = 1;
+export const prop = 1

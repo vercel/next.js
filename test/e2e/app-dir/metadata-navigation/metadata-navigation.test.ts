@@ -5,7 +5,6 @@ import {
   getTitle,
   retry,
 } from 'next-test-utils'
-import { Request } from 'playwright'
 
 describe('app dir - metadata navigation', () => {
   const { next } = nextTestSetup({
@@ -115,7 +114,7 @@ describe('app dir - metadata navigation', () => {
       const browser = await next.browser('/server-action/not-found')
       // collect server action requests
       let isActionSent = false
-      browser.on('request', (req: Request) => {
+      browser.on('request', (req) => {
         if (
           req.method() === 'POST' &&
           req.url().endsWith('/server-action/not-found')

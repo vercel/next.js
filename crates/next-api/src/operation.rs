@@ -2,8 +2,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, get_effects, trace::TraceRawVcs, CollectiblesSource, FxIndexMap,
-    NonLocalValue, OperationVc, ResolvedVc, Vc,
+    CollectiblesSource, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
+    TaskInput, Vc, debug::ValueDebugFormat, get_effects, trace::TraceRawVcs,
 };
 use turbopack_core::{diagnostics::Diagnostic, issue::IssueDescriptionExt};
 
@@ -25,9 +25,9 @@ pub struct EntrypointsOperation {
     pub routes: FxIndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
-    pub pages_document_endpoint: OperationVc<Box<dyn Endpoint>>,
-    pub pages_app_endpoint: OperationVc<Box<dyn Endpoint>>,
-    pub pages_error_endpoint: OperationVc<Box<dyn Endpoint>>,
+    pub pages_document_endpoint: OperationVc<OptionEndpoint>,
+    pub pages_app_endpoint: OperationVc<OptionEndpoint>,
+    pub pages_error_endpoint: OperationVc<OptionEndpoint>,
 }
 
 /// Removes diagnostics, issues, and effects from the top-level `entrypoints` operation so that
@@ -53,96 +53,181 @@ impl EntrypointsOperation {
             routes: e
                 .routes
                 .iter()
-                .map(|(k, v)| (k.clone(), wrap_route(v, entrypoints)))
+                .map(|(k, v)| (k.clone(), pick_route(entrypoints, k.clone(), v)))
                 .collect(),
-            middleware: e.middleware.as_ref().map(|m| MiddlewareOperation {
-                endpoint: wrap(m.endpoint, entrypoints),
+            middleware: e.middleware.as_ref().map(|_| MiddlewareOperation {
+                endpoint: pick_endpoint(entrypoints, EndpointSelector::Middleware),
             }),
             instrumentation: e
                 .instrumentation
                 .as_ref()
-                .map(|i| InstrumentationOperation {
-                    node_js: wrap(i.node_js, entrypoints),
-                    edge: wrap(i.edge, entrypoints),
+                .map(|_| InstrumentationOperation {
+                    node_js: pick_endpoint(entrypoints, EndpointSelector::InstrumentationNodeJs),
+                    edge: pick_endpoint(entrypoints, EndpointSelector::InstrumentationEdge),
                 }),
-            pages_document_endpoint: wrap(e.pages_document_endpoint, entrypoints),
-            pages_app_endpoint: wrap(e.pages_app_endpoint, entrypoints),
-            pages_error_endpoint: wrap(e.pages_error_endpoint, entrypoints),
+            pages_document_endpoint: pick_endpoint(entrypoints, EndpointSelector::PagesDocument),
+            pages_app_endpoint: pick_endpoint(entrypoints, EndpointSelector::PagesApp),
+            pages_error_endpoint: pick_endpoint(entrypoints, EndpointSelector::PagesError),
         }
         .cell())
     }
 }
 
-fn wrap_route(route: &Route, entrypoints: OperationVc<Entrypoints>) -> RouteOperation {
+fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) -> RouteOperation {
     match route {
-        Route::Page {
-            html_endpoint,
-            data_endpoint,
-        } => RouteOperation::Page {
-            html_endpoint: wrap(*html_endpoint, entrypoints),
-            data_endpoint: wrap(*data_endpoint, entrypoints),
+        Route::Page { .. } => RouteOperation::Page {
+            html_endpoint: pick_endpoint(entrypoints, EndpointSelector::RoutePageHtml(key.clone())),
+            data_endpoint: pick_endpoint(entrypoints, EndpointSelector::RoutePageData(key)),
         },
-        Route::PageApi { endpoint } => RouteOperation::PageApi {
-            endpoint: wrap(*endpoint, entrypoints),
+        Route::PageApi { .. } => RouteOperation::PageApi {
+            endpoint: pick_endpoint(entrypoints, EndpointSelector::RoutePageApi(key)),
         },
         Route::AppPage(pages) => RouteOperation::AppPage(
             pages
                 .iter()
-                .map(|p| AppPageRouteOperation {
+                .enumerate()
+                .map(|(i, p)| AppPageRouteOperation {
                     original_name: p.original_name.clone(),
-                    html_endpoint: wrap(p.html_endpoint, entrypoints),
-                    rsc_endpoint: wrap(p.rsc_endpoint, entrypoints),
+                    html_endpoint: pick_endpoint(
+                        entrypoints,
+                        EndpointSelector::RouteAppPageHtml(key.clone(), i),
+                    ),
+                    rsc_endpoint: pick_endpoint(
+                        entrypoints,
+                        EndpointSelector::RouteAppPageRsc(key.clone(), i),
+                    ),
                 })
                 .collect(),
         ),
-        Route::AppRoute {
-            original_name,
-            endpoint,
-        } => RouteOperation::AppRoute {
+        Route::AppRoute { original_name, .. } => RouteOperation::AppRoute {
             original_name: original_name.clone(),
-            endpoint: wrap(*endpoint, entrypoints),
+            endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
         },
         Route::Conflict => RouteOperation::Conflict,
     }
 }
 
-/// Given a resolved `Endpoint` and the `Entrypoints` operation that it comes from, connect the
-/// operation and return a `OperationVc` of the `Entrypoint`. This `Endpoint` operation will keep
-/// the entire `Entrypoints` operation alive.
+#[derive(
+    Debug,
+    Clone,
+    TaskInput,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    Hash,
+    ValueDebugFormat,
+    NonLocalValue,
+    OperationValue,
+)]
+enum EndpointSelector {
+    RoutePageHtml(RcStr),
+    RoutePageData(RcStr),
+    RoutePageApi(RcStr),
+    RouteAppPageHtml(RcStr, usize),
+    RouteAppPageRsc(RcStr, usize),
+    RouteAppRoute(RcStr),
+    InstrumentationNodeJs,
+    InstrumentationEdge,
+    Middleware,
+    PagesDocument,
+    PagesApp,
+    PagesError,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionEndpoint(Option<ResolvedVc<Box<dyn Endpoint>>>);
+
+/// Given a selector and the `Entrypoints` operation that it comes from, connect the operation and
+/// return an `OperationVc` containing the selected value. The returned operation will keep the
+/// entire `Entrypoints` operation alive.
 #[turbo_tasks::function(operation)]
-fn wrap(
-    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+async fn pick_endpoint(
     op: OperationVc<Entrypoints>,
-) -> Vc<Box<dyn Endpoint>> {
-    let _ = op.connect();
-    *endpoint
+    selector: EndpointSelector,
+) -> Result<Vc<OptionEndpoint>> {
+    let endpoints = op.connect().strongly_consistent().await?;
+    let endpoint = match selector {
+        EndpointSelector::InstrumentationNodeJs => {
+            endpoints.instrumentation.as_ref().map(|i| i.node_js)
+        }
+        EndpointSelector::InstrumentationEdge => endpoints.instrumentation.as_ref().map(|i| i.edge),
+        EndpointSelector::Middleware => endpoints.middleware.as_ref().map(|m| m.endpoint),
+        EndpointSelector::PagesDocument => Some(endpoints.pages_document_endpoint),
+        EndpointSelector::PagesApp => Some(endpoints.pages_app_endpoint),
+        EndpointSelector::PagesError => Some(endpoints.pages_error_endpoint),
+        EndpointSelector::RoutePageHtml(name) => {
+            if let Some(Route::Page { html_endpoint, .. }) = endpoints.routes.get(&name) {
+                Some(*html_endpoint)
+            } else {
+                None
+            }
+        }
+        EndpointSelector::RoutePageData(name) => {
+            if let Some(Route::Page { data_endpoint, .. }) = endpoints.routes.get(&name) {
+                Some(*data_endpoint)
+            } else {
+                None
+            }
+        }
+        EndpointSelector::RoutePageApi(name) => {
+            if let Some(Route::PageApi { endpoint }) = endpoints.routes.get(&name) {
+                Some(*endpoint)
+            } else {
+                None
+            }
+        }
+        EndpointSelector::RouteAppPageHtml(name, i) => {
+            if let Some(Route::AppPage(pages)) = endpoints.routes.get(&name) {
+                pages.get(i).as_ref().map(|p| p.html_endpoint)
+            } else {
+                None
+            }
+        }
+        EndpointSelector::RouteAppPageRsc(name, i) => {
+            if let Some(Route::AppPage(pages)) = endpoints.routes.get(&name) {
+                pages.get(i).as_ref().map(|p| p.rsc_endpoint)
+            } else {
+                None
+            }
+        }
+        EndpointSelector::RouteAppRoute(name) => {
+            if let Some(Route::AppRoute { endpoint, .. }) = endpoints.routes.get(&name) {
+                Some(*endpoint)
+            } else {
+                None
+            }
+        }
+    };
+    Ok(Vc::cell(endpoint))
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct InstrumentationOperation {
-    pub node_js: OperationVc<Box<dyn Endpoint>>,
-    pub edge: OperationVc<Box<dyn Endpoint>>,
+    pub node_js: OperationVc<OptionEndpoint>,
+    pub edge: OperationVc<OptionEndpoint>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct MiddlewareOperation {
-    pub endpoint: OperationVc<Box<dyn Endpoint>>,
+    pub endpoint: OperationVc<OptionEndpoint>,
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum RouteOperation {
     Page {
-        html_endpoint: OperationVc<Box<dyn Endpoint>>,
-        data_endpoint: OperationVc<Box<dyn Endpoint>>,
+        html_endpoint: OperationVc<OptionEndpoint>,
+        data_endpoint: OperationVc<OptionEndpoint>,
     },
     PageApi {
-        endpoint: OperationVc<Box<dyn Endpoint>>,
+        endpoint: OperationVc<OptionEndpoint>,
     },
     AppPage(Vec<AppPageRouteOperation>),
     AppRoute {
         original_name: RcStr,
-        endpoint: OperationVc<Box<dyn Endpoint>>,
+        endpoint: OperationVc<OptionEndpoint>,
     },
     Conflict,
 }
@@ -160,6 +245,6 @@ pub enum RouteOperation {
 )]
 pub struct AppPageRouteOperation {
     pub original_name: RcStr,
-    pub html_endpoint: OperationVc<Box<dyn Endpoint>>,
-    pub rsc_endpoint: OperationVc<Box<dyn Endpoint>>,
+    pub html_endpoint: OperationVc<OptionEndpoint>,
+    pub rsc_endpoint: OperationVc<OptionEndpoint>,
 }

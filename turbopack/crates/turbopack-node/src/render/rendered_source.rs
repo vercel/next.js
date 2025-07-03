@@ -1,13 +1,13 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     introspect::{
-        module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
-        IntrospectableChildren,
+        Introspectable, IntrospectableChildren, module::IntrospectableModule,
+        output_asset::IntrospectableOutputAsset,
     },
     issue::IssueDescriptionExt,
     module::Module,
@@ -17,18 +17,18 @@ use turbopack_core::{
 use turbopack_dev_server::{
     html::DevHtmlAsset,
     source::{
+        ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+        GetContentSourceContent, ProxyResult,
         asset_graph::AssetGraphContentSource,
         conditional::ConditionalContentSource,
         lazy_instantiated::{GetContentSource, LazyInstantiatedContentSource},
         route_tree::{BaseSegment, RouteTree, RouteType},
-        ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-        GetContentSourceContent, ProxyResult,
     },
 };
 
 use super::{
-    render_static::{render_static_operation, StaticResult},
     RenderData,
+    render_static::{StaticResult, render_static_operation},
 };
 use crate::{
     external_asset_entrypoints, get_intermediate_asset, node_entry::NodeEntry,
@@ -43,11 +43,11 @@ use crate::{
 /// to this directory.
 #[turbo_tasks::function]
 pub fn create_node_rendered_source(
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: ResolvedVc<FileSystemPath>,
+    server_root: FileSystemPath,
     route_match: ResolvedVc<Box<dyn RouteMatcher>>,
     pathname: ResolvedVc<RcStr>,
     entry: ResolvedVc<Box<dyn NodeEntry>>,
@@ -83,11 +83,11 @@ pub fn create_node_rendered_source(
 /// see [create_node_rendered_source]
 #[turbo_tasks::value]
 pub struct NodeRenderContentSource {
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: ResolvedVc<FileSystemPath>,
+    server_root: FileSystemPath,
     route_match: ResolvedVc<Box<dyn RouteMatcher>>,
     pathname: ResolvedVc<RcStr>,
     entry: ResolvedVc<Box<dyn NodeEntry>>,
@@ -122,7 +122,7 @@ impl GetContentSource for NodeRenderContentSource {
                     *entry.module,
                     *entry.runtime_entries,
                     *entry.chunking_context,
-                    *entry.intermediate_output_path,
+                    entry.intermediate_output_path.clone(),
                 )
                 .await?
                 .iter()
@@ -130,7 +130,7 @@ impl GetContentSource for NodeRenderContentSource {
             )
         }
         Ok(Vc::upcast(AssetGraphContentSource::new_lazy_multiple(
-            *self.server_root,
+            self.server_root.clone(),
             Vc::cell(set),
         )))
     }
@@ -165,11 +165,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn get(
-        &self,
-        path: RcStr,
-        data: Value<ContentSourceData>,
-    ) -> Result<Vc<ContentSourceContent>> {
+    async fn get(&self, path: RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
         let pathname = self.pathname.await?;
         let Some(params) = &*self.route_match.params(path.clone()).await? else {
             anyhow::bail!("Non matching path ({}) provided for {}", path, pathname)
@@ -181,22 +177,22 @@ impl GetContentSourceContent for NodeRenderContentSource {
             raw_headers: Some(raw_headers),
             raw_query: Some(raw_query),
             ..
-        } = &*data
+        } = &data
         else {
             anyhow::bail!("Missing request data")
         };
         let entry = (*self.entry).entry(data.clone()).await?;
         let result_op = render_static_operation(
-            self.cwd,
+            self.cwd.clone(),
             self.env,
-            self.server_root.join(path.clone()).to_resolved().await?,
+            self.server_root.join(&path)?,
             ResolvedVc::upcast(entry.module),
             entry.runtime_entries,
             self.fallback_page,
             entry.chunking_context,
-            entry.intermediate_output_path,
-            entry.output_root,
-            entry.project_dir,
+            entry.intermediate_output_path.clone(),
+            entry.output_root.clone(),
+            entry.project_dir.clone(),
             RenderData {
                 params: params.clone(),
                 method: method.clone(),
@@ -211,8 +207,8 @@ impl GetContentSourceContent for NodeRenderContentSource {
             self.debug,
         )
         .issue_file_path(
-            entry.module.ident().path(),
-            format!("server-side rendering {}", pathname),
+            entry.module.ident().path().await?.clone_value(),
+            format!("server-side rendering {pathname}"),
         )
         .await?;
         Ok(match *result_op.connect().await? {
@@ -258,16 +254,11 @@ async fn static_streamed_content_to_proxy_result_operation(
     Ok(*proxy_result)
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("node render content source".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for NodeRenderContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("node render content source"))
     }
 
     #[turbo_tasks::function]
@@ -276,7 +267,7 @@ impl Introspectable for NodeRenderContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Vc<RcStr> {
+    fn details(&self) -> Vc<RcStr> {
         Vc::cell(
             format!(
                 "base: {:?}\ntype: {:?}",
@@ -292,13 +283,13 @@ impl Introspectable for NodeRenderContentSource {
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
-                ResolvedVc::cell("module".into()),
+                rcstr!("module"),
                 IntrospectableModule::new(Vc::upcast(*entry.module))
                     .to_resolved()
                     .await?,
             ));
             set.insert((
-                ResolvedVc::cell("intermediate asset".into()),
+                rcstr!("intermediate asset"),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     *entry.chunking_context,
                     *entry.module,

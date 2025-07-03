@@ -2,7 +2,7 @@ use std::sync::{LockResult, Mutex, MutexGuard};
 
 use concurrent_queue::ConcurrentQueue;
 use rustc_hash::FxHashMap;
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 use turbo_tasks::{Invalidator, ReadRef};
 
 use crate::{FileContent, LinkContent};
@@ -42,14 +42,22 @@ impl InvalidatorMap {
         Ok(guard)
     }
 
-    #[allow(unused_must_use)]
     pub fn insert(
         &self,
         key: String,
         invalidator: Invalidator,
         write_content: Option<WriteContent>,
     ) {
-        self.queue.push((key, invalidator, write_content));
+        self.queue
+            .push((key, invalidator, write_content))
+            .unwrap_or_else(|err| {
+                let (key, ..) = err.into_inner();
+                // PushError<T> is not Debug
+                panic!(
+                    "failed to push {key:?} queue push should never fail, queue is unbounded and \
+                     never closed"
+                )
+            });
     }
 }
 

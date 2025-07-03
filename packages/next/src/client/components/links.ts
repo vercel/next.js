@@ -3,14 +3,14 @@ import type { AppRouterInstance } from '../../shared/lib/app-router-context.shar
 import { getCurrentAppRouterState } from './app-router-instance'
 import { createPrefetchURL } from './app-router'
 import { PrefetchKind } from './router-reducer/router-reducer-types'
-import { getCurrentCacheVersion } from './segment-cache'
+import { isPrefetchTaskDirty } from './segment-cache'
 import { createCacheKey } from './segment-cache'
 import {
   type PrefetchTask,
   PrefetchPriority,
   schedulePrefetchTask as scheduleSegmentPrefetchTask,
   cancelPrefetchTask,
-  bumpPrefetchTask,
+  reschedulePrefetchTask,
 } from './segment-cache'
 import { startTransition } from 'react'
 
@@ -25,16 +25,11 @@ type LinkOrFormInstanceShared = {
   kind: PrefetchKind.AUTO | PrefetchKind.FULL
 
   isVisible: boolean
-  wasHoveredOrTouched: boolean
 
   // The most recently initiated prefetch task. It may or may not have
-  // already completed.  The same prefetch task object can be reused across
+  // already completed. The same prefetch task object can be reused across
   // multiple prefetches of the same link.
   prefetchTask: PrefetchTask | null
-
-  // The cache version at the time the task was initiated. This is used to
-  // determine if the cache was invalidated since the task was initiated.
-  cacheVersion: number
 }
 
 export type FormInstance = LinkOrFormInstanceShared & {
@@ -156,9 +151,7 @@ export function mountLinkInstance(
         router,
         kind,
         isVisible: false,
-        wasHoveredOrTouched: false,
         prefetchTask: null,
-        cacheVersion: -1,
         prefetchHref: prefetchURL.href,
         setOptimisticLinkStatus,
       }
@@ -174,9 +167,7 @@ export function mountLinkInstance(
     router,
     kind,
     isVisible: false,
-    wasHoveredOrTouched: false,
     prefetchTask: null,
-    cacheVersion: -1,
     prefetchHref: null,
     setOptimisticLinkStatus,
   }
@@ -201,9 +192,7 @@ export function mountFormInstance(
     router,
     kind,
     isVisible: false,
-    wasHoveredOrTouched: false,
     prefetchTask: null,
-    cacheVersion: -1,
     prefetchHref: prefetchURL.href,
     setOptimisticLinkStatus: null,
   }
@@ -254,22 +243,34 @@ export function onLinkVisibilityChanged(element: Element, isVisible: boolean) {
   } else {
     prefetchableAndVisible.delete(instance)
   }
-  rescheduleLinkPrefetch(instance)
+  rescheduleLinkPrefetch(instance, PrefetchPriority.Default)
 }
 
-export function onNavigationIntent(element: HTMLAnchorElement | SVGAElement) {
+export function onNavigationIntent(
+  element: HTMLAnchorElement | SVGAElement,
+  unstable_upgradeToDynamicPrefetch: boolean
+) {
   const instance = prefetchable.get(element)
   if (instance === undefined) {
     return
   }
   // Prefetch the link on hover/touchstart.
   if (instance !== undefined) {
-    instance.wasHoveredOrTouched = true
-    rescheduleLinkPrefetch(instance)
+    if (
+      process.env.__NEXT_DYNAMIC_ON_HOVER &&
+      unstable_upgradeToDynamicPrefetch
+    ) {
+      // Switch to a full, dynamic prefetch
+      instance.kind = PrefetchKind.FULL
+    }
+    rescheduleLinkPrefetch(instance, PrefetchPriority.Intent)
   }
 }
 
-function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
+function rescheduleLinkPrefetch(
+  instance: PrefetchableInstance,
+  priority: PrefetchPriority.Default | PrefetchPriority.Intent
+) {
   const existingPrefetchTask = instance.prefetchTask
 
   if (!instance.isVisible) {
@@ -279,7 +280,7 @@ function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
       cancelPrefetchTask(existingPrefetchTask)
     }
     // We don't need to reset the prefetchTask to null upon cancellation; an
-    // old task object can be rescheduled with bumpPrefetchTask. This is a
+    // old task object can be rescheduled with reschedulePrefetchTask. This is a
     // micro-optimization but also makes the code simpler (don't need to
     // worry about whether an old task object is stale).
     return
@@ -292,34 +293,30 @@ function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
     return
   }
 
-  // In the Segment Cache implementation, we assign a higher priority level to
-  // links that were at one point hovered or touched. Since the queue is last-
-  // in-first-out, the highest priority Link is whichever one was hovered last.
-  //
-  // We also increase the relative priority of links whenever they re-enter the
-  // viewport, as if they were being scheduled for the first time.
-  const priority = instance.wasHoveredOrTouched
-    ? PrefetchPriority.Intent
-    : PrefetchPriority.Default
-  if (existingPrefetchTask === null) {
-    // Initiate a prefetch task.
-    const appRouterState = getCurrentAppRouterState()
-    if (appRouterState !== null) {
+  const appRouterState = getCurrentAppRouterState()
+  if (appRouterState !== null) {
+    const treeAtTimeOfPrefetch = appRouterState.tree
+    if (existingPrefetchTask === null) {
+      // Initiate a prefetch task.
       const nextUrl = appRouterState.nextUrl
-      const treeAtTimeOfPrefetch = appRouterState.tree
       const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
       instance.prefetchTask = scheduleSegmentPrefetchTask(
         cacheKey,
         treeAtTimeOfPrefetch,
         instance.kind === PrefetchKind.FULL,
+        priority,
+        null
+      )
+    } else {
+      // We already have an old task object that we can reschedule. This is
+      // effectively the same as canceling the old task and creating a new one.
+      reschedulePrefetchTask(
+        existingPrefetchTask,
+        treeAtTimeOfPrefetch,
+        instance.kind === PrefetchKind.FULL,
         priority
       )
-      instance.cacheVersion = getCurrentCacheVersion()
     }
-  } else {
-    // We already have an old task object that we can reschedule. This is
-    // effectively the same as canceling the old task and creating a new one.
-    bumpPrefetchTask(existingPrefetchTask, priority)
   }
 }
 
@@ -334,15 +331,9 @@ export function pingVisibleLinks(
   // This is called when the Next-Url or the base tree changes, since those
   // may affect the result of a prefetch task. It's also called after a
   // cache invalidation.
-  const currentCacheVersion = getCurrentCacheVersion()
   for (const instance of prefetchableAndVisible) {
     const task = instance.prefetchTask
-    if (
-      task !== null &&
-      instance.cacheVersion === currentCacheVersion &&
-      task.key.nextUrl === nextUrl &&
-      task.treeAtTimeOfPrefetch === tree
-    ) {
+    if (task !== null && !isPrefetchTaskDirty(task, nextUrl, tree)) {
       // The cache has not been invalidated, and none of the inputs have
       // changed. Bail out.
       continue
@@ -353,16 +344,13 @@ export function pingVisibleLinks(
       cancelPrefetchTask(task)
     }
     const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
-    const priority = instance.wasHoveredOrTouched
-      ? PrefetchPriority.Intent
-      : PrefetchPriority.Default
     instance.prefetchTask = scheduleSegmentPrefetchTask(
       cacheKey,
       tree,
       instance.kind === PrefetchKind.FULL,
-      priority
+      PrefetchPriority.Default,
+      null
     )
-    instance.cacheVersion = getCurrentCacheVersion()
   }
 }
 

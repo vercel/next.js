@@ -5,7 +5,11 @@ import { SentinelValue } from '../../../../getSentinelValue'
 export default async function Page() {
   await new Promise((r) => process.nextTick(r))
   const first = crypto.randomInt(128)
-  const second = crypto.randomInt(128)
+  let second = crypto.randomInt(128)
+  while (first === second) {
+    // Ensure that the second value is different from the first
+    second = crypto.randomInt(128)
+  }
   return (
     <div>
       <dl>

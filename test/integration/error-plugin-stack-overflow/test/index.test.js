@@ -6,7 +6,7 @@ import { nextBuild } from 'next-test-utils'
 const appDir = join(__dirname, '..')
 
 // This test is skipped because it's not relevant to Turbopack.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Reports stack trace when webpack plugin stack overflows',
   () => {
     it('shows details in next build', async () => {

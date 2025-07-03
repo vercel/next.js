@@ -1,13 +1,13 @@
 use std::future::Future;
 
 use anyhow::Result;
-use futures::{stream::FuturesUnordered, StreamExt};
+use futures::{StreamExt, stream::FuturesUnordered};
 use rustc_hash::FxHashSet;
 
 use super::{
-    graph_store::{GraphNode, GraphStore},
-    with_future::With,
     SkipDuplicates, Visit, VisitControlFlow,
+    graph_store::{GraphNode, GraphStore, SkipDuplicatesWithKey},
+    with_future::With,
 };
 
 /// A list of modules that were already visited and should be skipped (including their subgraphs).
@@ -35,6 +35,14 @@ pub trait GraphTraversal: GraphStore + Sized {
         self,
         visited: VisitedNodes<Self::Node>,
     ) -> SkipDuplicates<Self>;
+
+    fn skip_duplicates_with_key<
+        Key: Send + Eq + std::hash::Hash + Clone,
+        KeyExtractor: Send + Fn(&Self::Node) -> &Key,
+    >(
+        self,
+        key_extractor: KeyExtractor,
+    ) -> SkipDuplicatesWithKey<Self, Key, KeyExtractor>;
 }
 
 impl<Store> GraphTraversal for Store
@@ -104,7 +112,7 @@ where
                                     self.insert(Some(parent_handle.clone()), GraphNode(node));
                                 }
                                 VisitControlFlow::Abort(abort) => {
-                                    return GraphTraversalResult::Aborted(abort)
+                                    return GraphTraversalResult::Aborted(abort);
                                 }
                             }
                         }
@@ -129,6 +137,16 @@ where
         visited: VisitedNodes<Store::Node>,
     ) -> SkipDuplicates<Self> {
         SkipDuplicates::new_with_visited_nodes(self, visited.0)
+    }
+
+    fn skip_duplicates_with_key<
+        Key: Send + Eq + std::hash::Hash + Clone,
+        KeyExtractor: Send + Fn(&Self::Node) -> &Key,
+    >(
+        self,
+        key_extractor: KeyExtractor,
+    ) -> SkipDuplicatesWithKey<Self, Key, KeyExtractor> {
+        SkipDuplicatesWithKey::new(self, key_extractor)
     }
 }
 

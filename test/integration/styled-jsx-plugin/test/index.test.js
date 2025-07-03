@@ -21,7 +21,7 @@ function runTests() {
 }
 
 // This test is skipped in Turbopack because it uses a custom babelrc.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'styled-jsx using in node_modules',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

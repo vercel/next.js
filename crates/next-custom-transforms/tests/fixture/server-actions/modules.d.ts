@@ -49,3 +49,6 @@ declare module 'components' {
 declare module 'navigation' {
   export function redirect(href: string): void
 }
+
+// Some tests generate `data:text/javascript,...` imports
+declare module 'data:text/*'

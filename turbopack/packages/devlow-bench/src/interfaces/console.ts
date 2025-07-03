@@ -1,16 +1,16 @@
-import picocolors from "picocolors";
-import { Interface } from "../index.js";
-import { formatUnit } from "../units.js";
-import { formatVariant } from "../utils.js";
+import picocolors from 'picocolors'
+import { Interface } from '../index.js'
+import { formatUnit } from '../units.js'
+import { formatVariant } from '../utils.js'
 
-const { bgCyan, bold, magenta, red, underline } = picocolors;
+const { bgCyan, bold, magenta, red, underline } = picocolors
 
 export default function createInterface(): Interface {
   const iface: Interface = {
     start: async (scenario, props) => {
       console.log(
         bold(underline(`Running ${formatVariant(scenario, props)}...`))
-      );
+      )
     },
     measurement: async (scenario, props, name, value, unit, relativeTo) => {
       console.log(
@@ -20,11 +20,11 @@ export default function createInterface(): Interface {
               `${formatVariant(scenario, props)}: ${name} = ${formatUnit(
                 value,
                 unit
-              )}${relativeTo ? ` (from ${relativeTo})` : ""}`
+              )}${relativeTo ? ` (from ${relativeTo})` : ''}`
             )
           )
         )
-      );
+      )
     },
     error: async (scenario, props, error) => {
       console.log(
@@ -35,9 +35,9 @@ export default function createInterface(): Interface {
             }`
           )
         )
-      );
+      )
     },
-  };
+  }
 
-  return iface;
+  return iface
 }

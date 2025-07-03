@@ -18,6 +18,24 @@
         ),
     ),
     (
+        "p1",
+        Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "path",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
         "path",
         Call(
             3,
@@ -33,6 +51,108 @@
                     ),
                 ),
             ],
+        ),
+    ),
+    (
+        "path_join1",
+        Member(
+            3,
+            Variable(
+                (
+                    "p1",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "join",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "path_join2",
+        Member(
+            5,
+            Member(
+                3,
+                Module(
+                    ModuleValue {
+                        module: "path",
+                        annotations: ImportAnnotations {
+                            map: {},
+                        },
+                    },
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "default",
+                        ),
+                    ),
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "join",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "path_join3",
+        Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "path",
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "join",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "path_join4",
+        Member(
+            6,
+            Awaited(
+                4,
+                Call(
+                    3,
+                    FreeVar(
+                        "import",
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "path",
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "join",
+                    ),
+                ),
+            ),
         ),
     ),
     (

@@ -5,12 +5,12 @@ use std::{
 };
 
 use crate::{
+    FxIndexMap,
     span::{SpanBottomUp, SpanGraphEvent, SpanIndex},
-    span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
+    span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
     span_ref::SpanRef,
     store::{SpanId, Store},
     timestamp::Timestamp,
-    FxIndexMap,
 };
 
 pub struct SpanBottomUpRef<'a> {

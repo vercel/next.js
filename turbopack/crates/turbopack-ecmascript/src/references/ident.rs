@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
@@ -29,7 +29,7 @@ impl IdentReplacement {
     ) -> Result<CodeGeneration> {
         let value = self.value.clone();
 
-        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let id = Expr::Ident((&*value).into());
             *expr = quote!("(\"TURBOPACK ident replacement\", $e)" as Expr, e: Expr = id);
         });

@@ -69,7 +69,7 @@ function transformAst(file: any, babelConfig: any, parentSpan: Span) {
   }
 }
 
-export default function transform(
+export default async function transform(
   this: NextJsLoaderContext,
   source: string,
   inputSourceMap: object | null | undefined,
@@ -79,7 +79,7 @@ export default function transform(
   parentSpan: Span
 ) {
   const getConfigSpan = parentSpan.traceChild('babel-turbo-get-config')
-  const babelConfig = getConfig.call(this, {
+  const babelConfig = await getConfig.call(this, {
     source,
     loaderOptions,
     inputSourceMap,

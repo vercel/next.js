@@ -172,7 +172,7 @@ describe.each([['', '/docs']])(
           await retry(async () => {
             // TODO: These requests seem to be blocked regardless of our handling only when running with Turbopack
             // Investigate why this is the case
-            if (!process.env.TURBOPACK) {
+            if (!process.env.IS_TURBOPACK_TEST) {
               expect(await browser.elementByCss('#status').text()).toBe('OK')
             }
 

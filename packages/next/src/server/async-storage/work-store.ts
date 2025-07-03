@@ -10,6 +10,9 @@ import type { CacheLife } from '../use-cache/cache-life'
 import { AfterContext } from '../after/after-context'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { createLazyResult, type LazyResult } from '../lib/lazy-result'
+import { getCacheHandlerEntries } from '../use-cache/handlers'
+import { createSnapshot } from '../app-render/async-local-storage'
 
 export type WorkStoreContext = {
   /**
@@ -29,7 +32,7 @@ export type WorkStoreContext = {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
     fetchCache?: AppSegmentConfig['fetchCache']
-    isServerAction?: boolean
+    isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
@@ -106,7 +109,7 @@ export function createWorkStore({
     !renderOpts.shouldWaitOnAllReady &&
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
-    !renderOpts.isServerAction
+    !renderOpts.isPossibleServerAction
 
   const store: WorkStore = {
     isStaticGeneration,
@@ -119,7 +122,7 @@ export function createWorkStore({
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
     isRevalidate: renderOpts.isRevalidate,
-    isPrerendering: renderOpts.nextExport,
+    isBuildTimePrerendering: renderOpts.nextExport,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
@@ -135,6 +138,8 @@ export function createWorkStore({
     dynamicIOEnabled: renderOpts.experimental.dynamicIO,
     dev: renderOpts.dev ?? false,
     previouslyRevalidatedTags,
+    refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
+    runInCleanSnapshot: createSnapshot(),
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context
@@ -150,4 +155,26 @@ function createAfterContext(renderOpts: RequestLifecycleOpts): AfterContext {
     onClose,
     onTaskError: onAfterTaskError,
   })
+}
+
+/**
+ * Creates a map with lazy results that refresh tags for the respective cache
+ * kind when they're awaited for the first time.
+ */
+function createRefreshTagsByCacheKind(): Map<string, LazyResult<void>> {
+  const refreshTagsByCacheKind = new Map<string, LazyResult<void>>()
+  const cacheHandlers = getCacheHandlerEntries()
+
+  if (cacheHandlers) {
+    for (const [kind, cacheHandler] of cacheHandlers) {
+      if ('refreshTags' in cacheHandler) {
+        refreshTagsByCacheKind.set(
+          kind,
+          createLazyResult(async () => cacheHandler.refreshTags())
+        )
+      }
+    }
+  }
+
+  return refreshTagsByCacheKind
 }

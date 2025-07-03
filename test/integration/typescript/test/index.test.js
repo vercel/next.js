@@ -73,7 +73,7 @@ describe('TypeScript Features', () => {
     })
 
     // Turbopack has the correct behavior where `.ts` / `.tsx` is preferred over `.js` / `.jsx`. Webpack prefers `.js` / `.jsx`.
-    ;(process.env.TURBOPACK ? it.skip : it)(
+    ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
       'should resolve files in correct order',
       async () => {
         const $ = await get$('/hello')

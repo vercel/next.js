@@ -1,3 +1,3 @@
-require("@bugsnag/js");
+require('@bugsnag/js')
 
-module.exports = () => {};
+module.exports = () => {}

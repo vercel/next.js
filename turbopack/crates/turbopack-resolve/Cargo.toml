@@ -3,7 +3,7 @@ name = "turbopack-resolve"
 version = "0.1.0"
 description = "Methods to create and modify resolver options"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -14,8 +14,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-indexmap = { workspace = true, features = ["serde"] }
-lazy_static = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

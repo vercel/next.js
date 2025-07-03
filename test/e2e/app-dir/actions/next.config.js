@@ -4,4 +4,8 @@ module.exports = {
   logging: {
     fetches: {},
   },
+  experimental: {
+    nodeMiddleware: true,
+    serverActions: { bodySizeLimit: '2mb' },
+  },
 }

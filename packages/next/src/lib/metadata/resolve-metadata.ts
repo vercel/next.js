@@ -68,11 +68,11 @@ type ViewportResolver = (
 
 export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
 
-export type MetadataItems = [
-  Metadata | MetadataResolver | null,
-  StaticMetadata,
-  Viewport | ViewportResolver | null,
-][]
+export type MetadataItems = Array<
+  [Metadata | MetadataResolver | null, StaticMetadata]
+>
+
+export type ViewportItems = Array<Viewport | ViewportResolver | null>
 
 type TitleTemplates = {
   title: string | null
@@ -105,15 +105,16 @@ function isFavicon(icon: IconDescriptor | undefined): boolean {
   )
 }
 
-function mergeStaticMetadata(
+async function mergeStaticMetadata(
   source: Metadata | null,
   target: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata,
   metadataContext: MetadataContext,
   titleTemplates: TitleTemplates,
-  leafSegmentStaticIcons: StaticIcons
-) {
-  if (!staticFilesMetadata) return
+  leafSegmentStaticIcons: StaticIcons,
+  pathname: Promise<string>
+): Promise<ResolvedMetadata> {
+  if (!staticFilesMetadata) return target
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
 
   // Keep updating the static icons in the most leaf node
@@ -138,9 +139,10 @@ function mergeStaticMetadata(
 
   // file based metadata is specified and current level metadata openGraph.images is not specified
   if (openGraph && !source?.openGraph?.hasOwnProperty('images')) {
-    const resolvedOpenGraph = resolveOpenGraph(
+    const resolvedOpenGraph = await resolveOpenGraph(
       { ...target.openGraph, images: openGraph } as OpenGraph,
       target.metadataBase,
+      pathname,
       { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.openGraph
     )
@@ -154,23 +156,27 @@ function mergeStaticMetadata(
 }
 
 // Merge the source metadata into the resolved target metadata.
-function mergeMetadata({
-  source,
-  target,
-  staticFilesMetadata,
-  titleTemplates,
-  metadataContext,
-  buildState,
-  leafSegmentStaticIcons,
-}: {
-  source: Metadata | null
-  target: ResolvedMetadata
-  staticFilesMetadata: StaticMetadata
-  titleTemplates: TitleTemplates
-  metadataContext: MetadataContext
-  buildState: BuildState
-  leafSegmentStaticIcons: StaticIcons
-}): void {
+async function mergeMetadata(
+  route: string,
+  pathname: Promise<string>,
+  {
+    source,
+    target,
+    staticFilesMetadata,
+    titleTemplates,
+    metadataContext,
+    buildState,
+    leafSegmentStaticIcons,
+  }: {
+    source: Metadata | null
+    target: ResolvedMetadata
+    staticFilesMetadata: StaticMetadata
+    titleTemplates: TitleTemplates
+    metadataContext: MetadataContext
+    buildState: BuildState
+    leafSegmentStaticIcons: StaticIcons
+  }
+): Promise<ResolvedMetadata> {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
     typeof source?.metadataBase !== 'undefined'
@@ -185,17 +191,19 @@ function mergeMetadata({
         break
       }
       case 'alternates': {
-        target.alternates = resolveAlternates(
+        target.alternates = await resolveAlternates(
           source.alternates,
           metadataBase,
+          pathname,
           metadataContext
         )
         break
       }
       case 'openGraph': {
-        target.openGraph = resolveOpenGraph(
+        target.openGraph = await resolveOpenGraph(
           source.openGraph,
           metadataBase,
+          pathname,
           metadataContext,
           titleTemplates.openGraph
         )
@@ -243,17 +251,19 @@ function mergeMetadata({
         break
       }
       case 'itunes': {
-        target[key] = resolveItunes(
+        target[key] = await resolveItunes(
           source.itunes,
           metadataBase,
+          pathname,
           metadataContext
         )
         break
       }
       case 'pagination': {
-        target.pagination = resolvePagination(
+        target.pagination = await resolvePagination(
           source.pagination,
           metadataBase,
+          pathname,
           metadataContext
         )
         break
@@ -288,20 +298,21 @@ function mergeMetadata({
           source[key] != null
         ) {
           buildState.warnings.add(
-            `Unsupported metadata ${key} is configured in metadata export in ${metadataContext.pathname}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
+            `Unsupported metadata ${key} is configured in metadata export in ${route}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
           )
         }
         break
       }
     }
   }
-  mergeStaticMetadata(
+  return mergeStaticMetadata(
     source,
     target,
     staticFilesMetadata,
     metadataContext,
     titleTemplates,
-    leafSegmentStaticIcons
+    leafSegmentStaticIcons,
+    pathname
   )
 }
 
@@ -457,22 +468,65 @@ async function collectMetadata({
   const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
   const metadataExport = mod ? getDefinedMetadata(mod, props, { route }) : null
 
-  const viewportExport = mod ? getDefinedViewport(mod, props, { route }) : null
-
-  metadataItems.push([metadataExport, staticFilesMetadata, viewportExport])
+  metadataItems.push([metadataExport, staticFilesMetadata])
 
   if (hasErrorConventionComponent && errorConvention) {
     const errorMod = await getComponentTypeModule(tree, errorConvention)
-    const errorViewportExport = errorMod
-      ? getDefinedViewport(errorMod, props, { route })
-      : null
     const errorMetadataExport = errorMod
       ? getDefinedMetadata(errorMod, props, { route })
       : null
 
     errorMetadataItem[0] = errorMetadataExport
     errorMetadataItem[1] = staticFilesMetadata
-    errorMetadataItem[2] = errorViewportExport
+  }
+}
+
+// [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
+async function collectViewport({
+  tree,
+  viewportItems,
+  errorViewportItemRef,
+  props,
+  route,
+  errorConvention,
+}: {
+  tree: LoaderTree
+  viewportItems: ViewportItems
+  errorViewportItemRef: ErrorViewportItemRef
+  props: any
+  route: string
+  errorConvention?: MetadataErrorType
+}) {
+  let mod
+  let modType
+  const hasErrorConventionComponent = Boolean(
+    errorConvention && tree[2][errorConvention]
+  )
+  if (errorConvention) {
+    mod = await getComponentTypeModule(tree, 'layout')
+    modType = errorConvention
+  } else {
+    const { mod: layoutOrPageMod, modType: layoutOrPageModType } =
+      await getLayoutOrPageModule(tree)
+    mod = layoutOrPageMod
+    modType = layoutOrPageModType
+  }
+
+  if (modType) {
+    route += `/${modType}`
+  }
+
+  const viewportExport = mod ? getDefinedViewport(mod, props, { route }) : null
+
+  viewportItems.push(viewportExport)
+
+  if (hasErrorConventionComponent && errorConvention) {
+    const errorMod = await getComponentTypeModule(tree, errorConvention)
+    const errorViewportExport = errorMod
+      ? getDefinedViewport(errorMod, props, { route })
+      : null
+
+    errorViewportItemRef.current = errorViewportExport
   }
 }
 
@@ -485,7 +539,7 @@ const resolveMetadataItems = cache(async function (
 ) {
   const parentParams = {}
   const metadataItems: MetadataItems = []
-  const errorMetadataItem: MetadataItems[number] = [null, null, null]
+  const errorMetadataItem: MetadataItems[number] = [null, null]
   const treePrefix = undefined
   return resolveMetadataItemsImpl(
     metadataItems,
@@ -578,6 +632,113 @@ async function resolveMetadataItemsImpl(
   }
 
   return metadataItems
+}
+
+type ErrorViewportItemRef = { current: ViewportItems[number] }
+const resolveViewportItems = cache(async function (
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: MetadataErrorType | undefined,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  workStore: WorkStore
+) {
+  const parentParams = {}
+  const viewportItems: ViewportItems = []
+  const errorViewportItemRef: ErrorViewportItemRef = {
+    current: null,
+  }
+  const treePrefix = undefined
+  return resolveViewportItemsImpl(
+    viewportItems,
+    tree,
+    treePrefix,
+    parentParams,
+    searchParams,
+    errorConvention,
+    errorViewportItemRef,
+    getDynamicParamFromSegment,
+    workStore
+  )
+})
+
+async function resolveViewportItemsImpl(
+  viewportItems: ViewportItems,
+  tree: LoaderTree,
+  /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
+  treePrefix: undefined | string[],
+  parentParams: Params,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: MetadataErrorType | undefined,
+  errorViewportItemRef: ErrorViewportItemRef,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  workStore: WorkStore
+): Promise<ViewportItems> {
+  const [segment, parallelRoutes, { page }] = tree
+  const currentTreePrefix =
+    treePrefix && treePrefix.length ? [...treePrefix, segment] : [segment]
+  const isPage = typeof page !== 'undefined'
+
+  // Handle dynamic segment params.
+  const segmentParam = getDynamicParamFromSegment(segment)
+  /**
+   * Create object holding the parent params and current params
+   */
+  let currentParams = parentParams
+  if (segmentParam && segmentParam.value !== null) {
+    currentParams = {
+      ...parentParams,
+      [segmentParam.param]: segmentParam.value,
+    }
+  }
+
+  const params = createServerParamsForMetadata(currentParams, workStore)
+
+  let layerProps: LayoutProps | PageProps
+  if (isPage) {
+    layerProps = {
+      params,
+      searchParams,
+    }
+  } else {
+    layerProps = {
+      params,
+    }
+  }
+
+  await collectViewport({
+    tree,
+    viewportItems,
+    errorViewportItemRef,
+    errorConvention,
+    props: layerProps,
+    route: currentTreePrefix
+      // __PAGE__ shouldn't be shown in a route
+      .filter((s) => s !== PAGE_SEGMENT_KEY)
+      .join('/'),
+  })
+
+  for (const key in parallelRoutes) {
+    const childTree = parallelRoutes[key]
+    await resolveViewportItemsImpl(
+      viewportItems,
+      childTree,
+      currentTreePrefix,
+      currentParams,
+      searchParams,
+      errorConvention,
+      errorViewportItemRef,
+      getDynamicParamFromSegment,
+      workStore
+    )
+  }
+
+  if (Object.keys(parallelRoutes).length === 0 && errorConvention) {
+    // If there are no parallel routes, place error metadata as the last item.
+    // e.g. layout -> layout -> not-found
+    viewportItems.push(errorViewportItemRef.current)
+  }
+
+  return viewportItems
 }
 
 type WithTitle = { title?: AbsoluteTemplateString | null }
@@ -692,15 +853,15 @@ function prerenderMetadata(metadataItems: MetadataItems) {
   return resolversAndResults
 }
 
-function prerenderViewport(metadataItems: MetadataItems) {
+function prerenderViewport(viewportItems: ViewportItems) {
   // If the index is a function then it is a resolver and the next slot
   // is the corresponding result. If the index is not a function it is the result
   // itself.
   const resolversAndResults: Array<
     ((value: ResolvedViewport) => void) | Result<Viewport>
   > = []
-  for (let i = 0; i < metadataItems.length; i++) {
-    const viewportExport = metadataItems[i][2]
+  for (let i = 0; i < viewportItems.length; i++) {
+    const viewportExport = viewportItems[i]
     getResult(resolversAndResults, viewportExport)
   }
   return resolversAndResults
@@ -744,8 +905,14 @@ function resolvePendingResult<
   // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
   // In prod we just pass resolvedMetadata through without any copying.
   if (process.env.NODE_ENV === 'development') {
-    parentResult = require('../../shared/lib/deep-freeze').deepFreeze(
-      require('./clone-metadata').cloneMetadata(parentResult)
+    // @ts-expect-error -- DeepReadonly<T> is by definition not assignable to T
+    // Instead, we should only accept DeepReadonly<ResolvedType>
+    parentResult = (
+      require('../../shared/lib/deep-freeze') as typeof import('../../shared/lib/deep-freeze')
+    ).deepFreeze(
+      (
+        require('./clone-metadata') as typeof import('./clone-metadata')
+      ).cloneMetadata(parentResult)
     )
   }
 
@@ -753,10 +920,12 @@ function resolvePendingResult<
 }
 
 export async function accumulateMetadata(
+  route: string,
   metadataItems: MetadataItems,
+  pathname: Promise<string>,
   metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
-  const resolvedMetadata = createDefaultMetadata()
+  let resolvedMetadata = createDefaultMetadata()
 
   let titleTemplates: TitleTemplates = {
     title: null,
@@ -810,7 +979,7 @@ export async function accumulateMetadata(
       metadata = pendingMetadata
     }
 
-    mergeMetadata({
+    resolvedMetadata = await mergeMetadata(route, pathname, {
       target: resolvedMetadata,
       source: metadata,
       metadataContext,
@@ -865,11 +1034,11 @@ export async function accumulateMetadata(
 }
 
 export async function accumulateViewport(
-  metadataItems: MetadataItems
+  viewportItems: ViewportItems
 ): Promise<ResolvedViewport> {
   const resolvedViewport: ResolvedViewport = createDefaultViewport()
 
-  const resolversAndResults = prerenderViewport(metadataItems)
+  const resolversAndResults = prerenderViewport(viewportItems)
   let i = 0
 
   while (i < resolversAndResults.length) {
@@ -905,6 +1074,7 @@ export async function accumulateViewport(
 // Exposed API for metadata component, that directly resolve the loader tree and related context as resolved metadata.
 export async function resolveMetadata(
   tree: LoaderTree,
+  pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -918,7 +1088,12 @@ export async function resolveMetadata(
     getDynamicParamFromSegment,
     workStore
   )
-  return accumulateMetadata(metadataItems, metadataContext)
+  return accumulateMetadata(
+    workStore.route,
+    metadataItems,
+    pathname,
+    metadataContext
+  )
 }
 
 // Exposed API for viewport component, that directly resolve the loader tree and related context as resolved viewport.
@@ -929,14 +1104,14 @@ export async function resolveViewport(
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   workStore: WorkStore
 ): Promise<ResolvedViewport> {
-  const metadataItems = await resolveMetadataItems(
+  const viewportItems = await resolveViewportItems(
     tree,
     searchParams,
     errorConvention,
     getDynamicParamFromSegment,
     workStore
   )
-  return accumulateViewport(metadataItems)
+  return accumulateViewport(viewportItems)
 }
 
 function isPromiseLike<T>(

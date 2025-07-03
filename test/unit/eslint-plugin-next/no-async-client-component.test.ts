@@ -5,7 +5,7 @@ import { rules } from '@next/eslint-plugin-next'
 const NextESLintRule = rules['no-async-client-component']
 
 const message =
-  'Prevent client components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
+  'Prevent Client Components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
 
 const tests = {
   valid: [

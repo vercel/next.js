@@ -1,17 +1,17 @@
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_tasks::TaskId;
+use turbo_tasks::{TaskExecutionReason, TaskId};
 
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
+            ExecuteContext, Operation, TaskGuard,
             aggregation_update::{
                 AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
             },
-            ExecuteContext, Operation, TaskGuard,
         },
         storage::{get, get_mut},
-        TaskDataCategory,
     },
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState,
@@ -176,7 +176,7 @@ pub fn make_task_dirty(
         return;
     }
 
-    let mut task = ctx.task(task_id, TaskDataCategory::All);
+    let mut task = ctx.task(task_id, TaskDataCategory::Meta);
 
     make_task_dirty_internal(
         &mut task,
@@ -197,21 +197,38 @@ pub fn make_task_dirty_internal(
     queue: &mut AggregationUpdateQueue,
     ctx: &impl ExecuteContext,
 ) {
-    if make_stale {
-        if let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
+    // There must be no way to invalidate immutable tasks. If there would be a way the task is not
+    // immutable.
+    #[cfg(any(debug_assertions, feature = "verify_immutable"))]
+    if task.is_immutable() {
+        #[cfg(feature = "trace_task_dirty")]
+        let extra_info = format!(
+            " Invalidation cause: {}",
+            TaskDirtyCauseInContext::new(&cause, ctx)
+        );
+        #[cfg(not(feature = "trace_task_dirty"))]
+        let extra_info = "";
+
+        panic!(
+            "Task {} is immutable, but was made dirty. This should not happen and is a \
+             bug.{extra_info}",
+            ctx.get_task_description(task_id),
+        );
+    }
+
+    if make_stale
+        && let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
             get_mut!(task, InProgress)
-        {
-            if !*stale {
-                #[cfg(feature = "trace_task_dirty")]
-                let _span = tracing::trace_span!(
-                    "make task stale",
-                    name = ctx.get_task_description(task_id),
-                    cause = %TaskDirtyCauseInContext::new(&cause, ctx)
-                )
-                .entered();
-                *stale = true;
-            }
-        }
+        && !*stale
+    {
+        #[cfg(feature = "trace_task_dirty")]
+        let _span = tracing::trace_span!(
+            "make task stale",
+            name = ctx.get_task_description(task_id),
+            cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+        )
+        .entered();
+        *stale = true;
     }
     let old = task.insert(CachedDataItem::Dirty {
         value: DirtyState {
@@ -280,7 +297,10 @@ pub fn make_task_dirty_internal(
 
     if should_schedule {
         let description = ctx.get_task_desc_fn(task_id);
-        if task.add(CachedDataItem::new_scheduled(description)) {
+        if task.add(CachedDataItem::new_scheduled(
+            TaskExecutionReason::Invalidated,
+            description,
+        )) {
             ctx.schedule(task_id);
         }
     }

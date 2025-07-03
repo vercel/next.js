@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
@@ -36,15 +36,24 @@ impl ConstantConditionCodeGen {
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let value = self.value;
-        let visitors = [
-            create_visitor!(exact self.path, visit_mut_expr(expr: &mut Expr) {
+        let visitors = [create_visitor!(
+            exact,
+            self.path,
+            visit_mut_expr,
+            |expr: &mut Expr| {
                 *expr = match value {
-                    ConstantConditionValue::Truthy => quote!("(\"TURBOPACK compile-time truthy\", 1)" as Expr),
-                    ConstantConditionValue::Falsy => quote!("(\"TURBOPACK compile-time falsy\", 0)" as Expr),
-                    ConstantConditionValue::Nullish => quote!("(\"TURBOPACK compile-time nullish\", null)" as Expr),
+                    ConstantConditionValue::Truthy => {
+                        quote!("(\"TURBOPACK compile-time truthy\", 1)" as Expr)
+                    }
+                    ConstantConditionValue::Falsy => {
+                        quote!("(\"TURBOPACK compile-time falsy\", 0)" as Expr)
+                    }
+                    ConstantConditionValue::Nullish => {
+                        quote!("(\"TURBOPACK compile-time nullish\", null)" as Expr)
+                    }
                 };
-            }),
-        ]
+            }
+        )]
         .into();
 
         Ok(CodeGeneration::visitors(visitors))

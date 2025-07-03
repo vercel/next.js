@@ -1,8 +1,8 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::{
-    spanned::Spanned, Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed,
-    FieldsUnnamed,
+    Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed, FieldsUnnamed,
+    spanned::Spanned,
 };
 
 /// Handles the expansion of a struct/enum into a match statement that accesses
@@ -10,11 +10,11 @@ use syn::{
 ///
 /// Requires several Fn helpers which perform expand different structures:
 ///
-/// - [expand_named] handles the expansion of a struct or enum variant with named fields (e.g.
+/// - `expand_named` handles the expansion of a struct or enum variant with named fields (e.g.
 ///   `struct Foo { bar: u32 }`, `Foo::Bar { baz: u32 }`).
-/// - [expand_unnamed] handles the expansion of a struct or enum variant with unnamed fields (e.g.
+/// - `expand_unnamed` handles the expansion of a struct or enum variant with unnamed fields (e.g.
 ///   `struct Foo(u32)`, `Foo::Bar(u32)`).
-/// - [expand_unit] handles the expansion of a unit struct or enum (e.g. `struct Foo;`, `Foo::Bar`).
+/// - `expand_unit` handles the expansion of a unit struct or enum (e.g. `struct Foo;`, `Foo::Bar`).
 ///
 /// These helpers should themselves call [generate_destructuring] to generate
 /// the destructure necessary to access the fields of the value.
@@ -157,7 +157,7 @@ pub fn generate_destructuring<'a, I: Fn(&Field) -> bool>(
         .map(|(i, field)| match &field.ident {
             Some(ident) => (quote! { #ident }, quote! { #ident }),
             None => {
-                let ident = Ident::new(&format!("field_{}", i), field.span());
+                let ident = Ident::new(&format!("field_{i}"), field.span());
                 let index = syn::Index::from(i);
                 (quote! { #index: #ident }, quote! { #ident })
             }

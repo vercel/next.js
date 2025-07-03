@@ -1,5 +1,4 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
-import type { Route as PlaywrightRoute, Page } from 'playwright'
 
 type Route = {
   route: string
@@ -145,7 +144,7 @@ describe('ppr-incremental', () => {
           it.each(pathnames)('%s', async (pathname) => {
             const $ = await next.render$(pathname)
             expect($('#dynamic')).toHaveLength(1)
-            expect($('#dynamic').closest('[hidden]')).toHaveLength(0)
+            expect($('#dynamic').parent('[hidden]')).toHaveLength(0)
           })
         })
       }
@@ -154,8 +153,8 @@ describe('ppr-incremental', () => {
     it('should not trigger a dynamic request for static pages', async () => {
       let rscRequests = []
       const browser = await next.browser('/', {
-        beforePageLoad(page: Page) {
-          page.route('**/static*', async (route: PlaywrightRoute) => {
+        beforePageLoad(page) {
+          page.route('**/static*', async (route) => {
             const request = route.request()
             const headers = await request.allHeaders()
             const url = new URL(request.url())
@@ -197,7 +196,7 @@ describe('ppr-incremental', () => {
           it.each(pathnames)('%s', async (pathname) => {
             const $ = await next.render$(pathname)
             expect($('#dynamic')).toHaveLength(1)
-            expect($('#dynamic').closest('[hidden]')).toHaveLength(1)
+            expect($('#dynamic').parent('[hidden]')).toHaveLength(1)
           })
         })
       }

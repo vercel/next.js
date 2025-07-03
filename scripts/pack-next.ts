@@ -33,9 +33,11 @@ interface CliOptions {
 
 const cliOptions = yargs(process.argv.slice(2))
   .command('$0')
-  .option('no-js-build', {
+  .option('js-build', {
     type: 'boolean',
-    describe: 'Skip building JavaScript code',
+    default: true,
+    describe:
+      'Build JavaScript code (default). Use `--no-js-build` to skip building JavaScript',
   })
   .option('project', {
     alias: 'p',

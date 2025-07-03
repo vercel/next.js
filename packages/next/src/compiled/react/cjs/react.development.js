@@ -57,6 +57,7 @@
       this.refs = emptyObject;
       this.updater = updater || ReactNoopUpdateQueue;
     }
+    function noop() {}
     function testStringCoercion(value) {
       return "" + value;
     }
@@ -116,7 +117,7 @@
           case REACT_PORTAL_TYPE:
             return "Portal";
           case REACT_CONTEXT_TYPE:
-            return (type.displayName || "Context") + ".Provider";
+            return type.displayName || "Context";
           case REACT_CONSUMER_TYPE:
             return (type._context.displayName || "Context") + ".Consumer";
           case REACT_FORWARD_REF_TYPE:
@@ -286,7 +287,6 @@
         ? (checkKeyStringCoercion(element.key), escape("" + element.key))
         : index.toString(36);
     }
-    function noop$1() {}
     function resolveThenable(thenable) {
       switch (thenable.status) {
         case "fulfilled":
@@ -296,7 +296,7 @@
         default:
           switch (
             ("string" === typeof thenable.status
-              ? thenable.then(noop$1, noop$1)
+              ? thenable.then(noop, noop)
               : ((thenable.status = "pending"),
                 thenable.then(
                   function (fulfilledValue) {
@@ -498,7 +498,9 @@
         );
       return dispatcher;
     }
-    function noop() {}
+    function releaseAsyncTransition() {
+      ReactSharedInternals.asyncTransitions--;
+    }
     function enqueueTask(task) {
       if (null === enqueueTaskImpl)
         try {
@@ -590,9 +592,8 @@
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
       REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
       REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"),
-      REACT_PROFILER_TYPE = Symbol.for("react.profiler");
-    Symbol.for("react.provider");
-    var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"),
+      REACT_PROFILER_TYPE = Symbol.for("react.profiler"),
+      REACT_CONSUMER_TYPE = Symbol.for("react.consumer"),
       REACT_CONTEXT_TYPE = Symbol.for("react.context"),
       REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
       REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
@@ -660,8 +661,8 @@
         A: null,
         T: null,
         S: null,
-        V: null,
         actQueue: null,
+        asyncTransitions: 0,
         isBatchingLegacy: !1,
         didScheduleLegacyUpdate: !1,
         didUsePromise: !1,
@@ -676,15 +677,16 @@
             return null;
           };
     deprecatedAPIs = {
-      "react-stack-bottom-frame": function (callStackForError) {
+      react_stack_bottom_frame: function (callStackForError) {
         return callStackForError();
       }
     };
     var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
-    var unknownOwnerDebugStack = deprecatedAPIs[
-      "react-stack-bottom-frame"
-    ].bind(deprecatedAPIs, UnknownOwner)();
+    var unknownOwnerDebugStack = deprecatedAPIs.react_stack_bottom_frame.bind(
+      deprecatedAPIs,
+      UnknownOwner
+    )();
     var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g,
@@ -893,6 +895,9 @@
       return function () {
         return fn.apply(null, arguments);
       };
+    };
+    exports.cacheSignal = function () {
+      return null;
     };
     exports.captureOwnerStack = function () {
       var getCurrentStack = ReactSharedInternals.getCurrentStack;
@@ -1118,8 +1123,8 @@
     exports.startTransition = function (scope) {
       var prevTransition = ReactSharedInternals.T,
         currentTransition = {};
-      ReactSharedInternals.T = currentTransition;
       currentTransition._updatedFibers = new Set();
+      ReactSharedInternals.T = currentTransition;
       try {
         var returnValue = scope(),
           onStartTransitionFinish = ReactSharedInternals.S;
@@ -1128,7 +1133,9 @@
         "object" === typeof returnValue &&
           null !== returnValue &&
           "function" === typeof returnValue.then &&
-          returnValue.then(noop, reportGlobalError);
+          (ReactSharedInternals.asyncTransitions++,
+          returnValue.then(releaseAsyncTransition, releaseAsyncTransition),
+          returnValue.then(noop, reportGlobalError));
       } catch (error) {
         reportGlobalError(error);
       } finally {
@@ -1140,6 +1147,14 @@
             console.warn(
               "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
             )),
+          null !== prevTransition &&
+            null !== currentTransition.types &&
+            (null !== prevTransition.types &&
+              prevTransition.types !== currentTransition.types &&
+              console.error(
+                "We expected inner Transitions to have transferred the outer types set and that you cannot add to the outer Transition while inside the inner.This is a bug in React."
+              ),
+            (prevTransition.types = currentTransition.types)),
           (ReactSharedInternals.T = prevTransition);
       }
     };
@@ -1229,7 +1244,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-canary-313332d1-20250326";
+    exports.version = "19.2.0-canary-73aa744b-20250702";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

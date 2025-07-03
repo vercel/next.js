@@ -49,6 +49,7 @@ import {
 } from '../../../lib/metadata/is-metadata-route'
 import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
 import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
+import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
 
 interface Options {
   dev: boolean
@@ -107,6 +108,9 @@ const pluginState = getProxiedPluginState({
   injectedClientEntries: {} as Record<string, string>,
 })
 
+const POSSIBLE_SHARED_CONVENTIONS = ['template', 'layout']
+const STANDALONE_BUNDLE_CONVENTION = 'global-not-found'
+
 function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   // If multiple entry module connections are having the same CSS import,
   // we only need to have one module to keep track of that CSS import.
@@ -137,8 +141,8 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
     const aName = path.parse(aPath).name
     const bName = path.parse(bPath).name
 
-    const indexA = ['template', 'layout'].indexOf(aName)
-    const indexB = ['template', 'layout'].indexOf(bName)
+    const indexA = POSSIBLE_SHARED_CONVENTIONS.indexOf(aName)
+    const indexB = POSSIBLE_SHARED_CONVENTIONS.indexOf(bName)
 
     if (indexA === -1) return 1
     if (indexB === -1) return -1
@@ -147,20 +151,29 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
 
   const dedupedCSSImports: CssImports = {}
   const trackedCSSImports = new Set<string>()
-  for (const [entryName, cssImports] of sortedCSSImports) {
+
+  for (const [entryFilePath, cssImports] of sortedCSSImports) {
+    const entryConventionName = path.parse(entryFilePath).name
+
     for (const cssImport of cssImports) {
-      if (trackedCSSImports.has(cssImport)) continue
+      // If the CSS import is already tracked, we can skip it.
+      // Or if it's any standalone entry such as `global-not-found`, it won't share any resources with other entry, skip it.
+      if (
+        trackedCSSImports.has(cssImport) &&
+        STANDALONE_BUNDLE_CONVENTION !== entryConventionName
+      ) {
+        continue
+      }
 
       // Only track CSS imports that are in files that can inherit CSS.
-      const filename = path.parse(entryName).name
-      if (['template', 'layout'].includes(filename)) {
+      if (POSSIBLE_SHARED_CONVENTIONS.includes(entryConventionName)) {
         trackedCSSImports.add(cssImport)
       }
 
-      if (!dedupedCSSImports[entryName]) {
-        dedupedCSSImports[entryName] = []
+      if (!dedupedCSSImports[entryFilePath]) {
+        dedupedCSSImports[entryFilePath] = []
       }
-      dedupedCSSImports[entryName].push(cssImport)
+      dedupedCSSImports[entryFilePath].push(cssImport)
     }
   }
 
@@ -395,6 +408,20 @@ export class FlightClientEntryPlugin {
             compilation,
             entryName: name,
             clientComponentImports: {},
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            absolutePagePath: entryRequest,
+          })
+        }
+
+        if (
+          name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
+          bundlePath === 'app/global-not-found'
+        ) {
+          clientEntriesToInject.push({
+            compiler,
+            compilation,
+            entryName: name,
+            clientComponentImports,
             bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
             absolutePagePath: entryRequest,
           })
@@ -784,6 +811,7 @@ export class FlightClientEntryPlugin {
     addRSCEntryPromise: Promise<void>,
     ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
   ] {
+    const bundler = getWebpackBundler()
     let shouldInvalidate = false
 
     const modules = Object.keys(clientImports)
@@ -853,12 +881,12 @@ export class FlightClientEntryPlugin {
       pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
     }
 
-    const clientComponentSSREntryDep = webpack.EntryPlugin.createDependency(
+    const clientComponentSSREntryDep = bundler.EntryPlugin.createDependency(
       clientServerLoader,
       { name: bundlePath }
     )
 
-    const clientComponentRSCEntryDep = webpack.EntryPlugin.createDependency(
+    const clientComponentRSCEntryDep = bundler.EntryPlugin.createDependency(
       clientServerLoader,
       { name: bundlePath }
     )
@@ -897,6 +925,7 @@ export class FlightClientEntryPlugin {
     createdActionIds: Set<string>
     fromClient?: boolean
   }) {
+    const bundler = getWebpackBundler()
     const actionsArray = Array.from(actions.entries())
     for (const [, actionsFromModule] of actions) {
       for (const { id } of actionsFromModule) {
@@ -939,7 +968,7 @@ export class FlightClientEntryPlugin {
     }
 
     // Inject the entry to the server compiler
-    const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {
+    const actionEntryDep = bundler.EntryPlugin.createDependency(actionLoader, {
       name: bundlePath,
     })
 

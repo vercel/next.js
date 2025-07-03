@@ -346,7 +346,7 @@ describe('required server files', () => {
   })
 
   // TODO(mischnic) do we still want to do this?
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should warn when "next" is imported directly',
     async () => {
       await renderViaHTTP(appPort, '/gssp')
@@ -380,7 +380,7 @@ describe('required server files', () => {
   })
 
   // TODO(mischnic) do these files even exist in turbopack?
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should output middleware correctly',
     async () => {
       if (!process.env.TEST_NODE_MIDDLEWARE) {
@@ -1266,7 +1266,7 @@ describe('required server files', () => {
     )
 
     const json = await res.json()
-    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional/index?another=value')
   })
 
@@ -1379,7 +1379,7 @@ describe('required server files', () => {
       expect(await res.text()).toContain('index page')
 
       if (!process.env.TEST_NODE_MIDDLEWARE) {
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             fs.existsSync(join(standaloneDir, '.next/server/edge/chunks'))
           ).toBe(true)

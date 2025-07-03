@@ -1,6 +1,7 @@
 import type { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { UseCacheTrackerKey } from '../../build/webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+import { extractNextErrorCode } from '../../lib/error-telemetry-utils'
 
 const REGEXP_DIRECTORY_DUNDER =
   /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
@@ -53,6 +54,7 @@ export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
 
 const EVENT_BUILD_COMPLETED = 'NEXT_BUILD_COMPLETED'
 type EventBuildCompleted = {
+  bundler: 'webpack' | 'rspack' | 'turbopack'
   durationInSeconds: number
   totalPageCount: number
   hasDunderPages: boolean
@@ -81,6 +83,20 @@ export function eventBuildCompleted(
       ),
       totalAppPagesCount: event.totalAppPagesCount,
     },
+  }
+}
+
+const EVENT_BUILD_FAILED = 'NEXT_BUILD_FAILED'
+type EventBuildFailed = {
+  bundler: 'webpack' | 'rspack' | 'turbopack'
+  errorCode: string
+  durationInSeconds: number
+}
+
+export function eventBuildFailed(event: EventBuildFailed) {
+  return {
+    eventName: EVENT_BUILD_FAILED,
+    payload: event,
   }
 }
 
@@ -179,6 +195,7 @@ export type EventBuildFeatureUsage = {
     | 'webpackPlugins'
     | UseCacheTrackerKey
     | 'turbopackPersistentCaching'
+    | 'runAfterProductionCompile'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(
@@ -211,4 +228,22 @@ export function eventPackageUsedInGetServerSideProps(
       package: packageName,
     },
   }))
+}
+
+export const ERROR_THROWN_EVENT = 'NEXT_ERROR_THROWN'
+type ErrorThrownEvent = {
+  eventName: typeof ERROR_THROWN_EVENT
+  payload: {
+    errorCode: string | undefined
+  }
+}
+
+// Creates a Telemetry event for errors. For privacy, only includes the error code.
+export function eventErrorThrown(error: Error): ErrorThrownEvent {
+  return {
+    eventName: ERROR_THROWN_EVENT,
+    payload: {
+      errorCode: extractNextErrorCode(error) || 'Unknown',
+    },
+  }
 }

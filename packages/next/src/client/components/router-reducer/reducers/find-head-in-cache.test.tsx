@@ -2,6 +2,8 @@ import type { FlightRouterState } from '../../../../server/app-render/types'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { findHeadInCache } from './find-head-in-cache'
 
+const navigatedAt = -1
+
 describe('findHeadInCache', () => {
   it('should find the head', () => {
     const routerTree: FlightRouterState = [
@@ -25,6 +27,7 @@ describe('findHeadInCache', () => {
     ]
 
     const cache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
@@ -38,6 +41,7 @@ describe('findHeadInCache', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
@@ -51,6 +55,7 @@ describe('findHeadInCache', () => {
                       [
                         'about',
                         {
+                          navigatedAt,
                           lazyData: null,
                           head: null,
                           prefetchHead: null,
@@ -62,6 +67,7 @@ describe('findHeadInCache', () => {
                                 [
                                   '',
                                   {
+                                    navigatedAt,
                                     lazyData: null,
                                     rsc: null,
                                     prefetchRsc: null,

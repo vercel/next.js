@@ -1,1 +1,1 @@
-const ioredis = require("ioredis");
+const ioredis = require('ioredis')

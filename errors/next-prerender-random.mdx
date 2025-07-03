@@ -1,14 +1,45 @@
 ---
-title: Cannot access `Math.random()` while prerendering
+title: Cannot infer intended usage of `Math.random()` in a Server Component
 ---
 
 ## Why This Error Occurred
 
-A function is calling `Math.random()`. Random values are not prerenderable and must be excluded. The correct solution depends on your use case. You can find more information below about possible ways to resolves this issue.
+A Server Component is calling `Math.random()` without specifying whether it should be cached or whether it should be evaluated on each user Request. If you want this random value to be included in the prerendered HTML for this page you must cache it using `"use cache"`. If you want this random value to be unique per Request you must precede it with `await connection()` so Next.js knows to exclude it from the prerendered HTML.
 
 ## Possible Ways to Fix It
 
-If your random value is intended to be unique per Request add `await connection()` before you call `Math.random()` and ensure there is a Suspense boundary somewhere above this component. This will inform Next.js that this component should be excluded from prerendering and communicate the necessary fallback UI that should be rendered while the component renders on each Request.
+### Cache the random value
+
+If your random value is cacheable, move the `Math.random()` call to a `"use cache"` function. For instance, imagine you have a product page and you want to randomize the product order periodically but you are fine with the random order being re-used for different users.
+
+Before:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  const products = await getCachedProducts()
+  const randomSeed = Math.random()
+  const randomizedProducts = randomize(products, randomSeed)
+  return <ProductsView products={randomizedProducts} />
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  'use cache'
+  const products = await getCachedProducts()
+  const randomSeed = Math.random()
+  const randomizedProducts = randomize(products, randomSeed)
+  return <ProductsView products={randomizedProducts} />
+}
+```
+
+> **Note**: `"use cache"` is a powerful API with some nuances. If your cache lifetime is too short Next.js may still exclude it from prerendering. Check out the docs for `"use cache"` to learn more.
+
+### Indicate the random value is unique per Request
+
+If you want the random value to be evaluated on each Request precede it with `await connection()`. Next.js will exclude this Server Component from the prerendered HTML and include the fallback UI from the nearest Suspense boundary wrapping this component instead. When a user makes a Request for this page the Server Component will be rendered and the updated UI will stream in dynamically.
 
 Before:
 
@@ -32,12 +63,14 @@ async function ProductsSkeleton() {
 
 export default async function Page() {
   const products = await getCachedProducts();
-  return <Suspense fallback={<ProductsSkeleton />}>
-    <DynamicProductsView products={products} />
-  </Suspense>
+  return (
+    <Suspense fallback={<ProductsSkeleton />}>
+      <DynamicProductsView products={products} />
+    </Suspense>
+  )
 }
 
-async function DynamicProductsView() {
+async function DynamicProductsView({ products }) {
   await connection();
   const randomSeed = Math.random()
   const randomizedProducts = randomize(products, randomSeed)

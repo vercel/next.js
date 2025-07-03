@@ -29,19 +29,19 @@ DEALINGS IN THE SOFTWARE.
 use std::{
     cell::RefCell,
     fs::read_to_string,
-    panic::{catch_unwind, AssertUnwindSafe},
+    panic::{AssertUnwindSafe, catch_unwind},
     rc::Rc,
 };
 
-use anyhow::{anyhow, bail, Context as _};
+use anyhow::{Context as _, anyhow, bail};
 use napi::bindgen_prelude::*;
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    base::{try_with_handler, Compiler, TransformOutput},
-    common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
+    base::{Compiler, TransformOutput, try_with_handler},
+    common::{FileName, GLOBALS, Mark, comments::SingleThreadedComments, errors::ColorConfig},
     ecma::ast::noop_pass,
 };
 
@@ -119,7 +119,7 @@ impl Task for TransformTask {
                                     self.c.cm.new_source_file(
                                         FileName::Real(filename.into()).into(),
                                         read_to_string(filename).with_context(|| {
-                                            format!("Failed to read source code from {}", filename)
+                                            format!("Failed to read source code from {filename}")
                                         })?,
                                     )
                                 }
@@ -177,11 +177,9 @@ impl Task for TransformTask {
                                 .into_inner(),
                         )
                     })
+                    .map_err(|e| e.to_pretty_error())
                     .convert_err(),
-                Err(err) => Err(napi::Error::new(
-                    Status::GenericFailure,
-                    format!("{:?}", err),
-                )),
+                Err(err) => Err(napi::Error::new(Status::GenericFailure, format!("{err:?}"))),
             }
         })
     }
@@ -248,7 +246,7 @@ fn test_deser() {
 
     let tr: TransformOptions = serde_json::from_str(JSON_STR).unwrap();
 
-    println!("{:#?}", tr);
+    println!("{tr:#?}");
 }
 
 #[test]
@@ -257,5 +255,5 @@ fn test_deserialize_transform_regenerator() {
 
     let tr: TransformOptions = serde_json::from_str(JSON_STR).unwrap();
 
-    println!("{:#?}", tr);
+    println!("{tr:#?}");
 }

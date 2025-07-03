@@ -1,7 +1,7 @@
 use crate::{
+    ArcSlice,
     constants::MAX_SMALL_VALUE_SIZE,
     static_sorted_file_builder::{Entry, EntryValue},
-    ArcSlice,
 };
 
 /// A value from a SST file lookup.

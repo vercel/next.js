@@ -1,10 +1,31 @@
-use std::{env, process::Command, str};
+use std::{env, fs, path::Path, process::Command, str};
+
+use serde_json::Value;
 
 extern crate napi_build;
 
 fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-env-changed=CI");
     let is_ci = env::var("CI").is_ok_and(|value| !value.is_empty());
+
+    let nextjs_version = {
+        let package_json_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("packages/next/package.json");
+
+        println!("cargo:rerun-if-changed={}", package_json_path.display());
+
+        let package_json_content = fs::read_to_string(&package_json_path)?;
+        let package_json: Value = serde_json::from_str(&package_json_content)?;
+
+        package_json["version"]
+            .as_str()
+            .expect("Expected a Next.js `version` string in its package.json")
+            .to_string()
+    };
+
+    // Make the Next.js version available as a build-time environment variable
+    println!("cargo:rustc-env=NEXTJS_VERSION={nextjs_version}");
 
     // Generates, stores build-time information as static values.
     // There are some places relying on correct values for this (i.e telemetry),

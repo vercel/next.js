@@ -14,7 +14,7 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 
 // Webpack specific config tests.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'devtool set in development mode in next config',
   () => {
     it('should warn and revert when a devtool is set in development mode', async () => {

@@ -33,6 +33,7 @@ import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
+import { getImplicitTags } from '../lib/implicit-tags'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -70,6 +71,8 @@ export type AdapterOptions = {
   page: string
   request: RequestData
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
+  incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
+  bypassNextUrl?: boolean
 }
 
 let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
@@ -86,10 +89,9 @@ function ensureTestApisIntercepted() {
   if (!testApisIntercepted) {
     testApisIntercepted = true
     if (process.env.NEXT_PRIVATE_TEST_PROXY === 'true') {
-      const {
-        interceptTestApis,
-        wrapRequestHandler,
-      } = require('next/dist/experimental/testmode/server-edge')
+      const { interceptTestApis, wrapRequestHandler } =
+        // eslint-disable-next-line @next/internal/typechecked-require -- experimental/testmode is not built ins next/dist/esm
+        require('next/dist/experimental/testmode/server-edge') as typeof import('../../experimental/testmode/server-edge')
       interceptTestApis()
       propagator = wrapRequestHandler(propagator)
     }
@@ -108,10 +110,12 @@ export async function adapter(
 
   params.request.url = normalizeRscURL(params.request.url)
 
-  const requestURL = new NextURL(params.request.url, {
-    headers: params.request.headers,
-    nextConfig: params.request.nextConfig,
-  })
+  const requestURL = params.bypassNextUrl
+    ? new URL(params.request.url)
+    : new NextURL(params.request.url, {
+        headers: params.request.headers,
+        nextConfig: params.request.nextConfig,
+      })
 
   // Iterator uses an index to keep track of the current iteration. Because of deleting and appending below we can't just use the iterator.
   // Instead we use the keys before iteration.
@@ -130,8 +134,11 @@ export async function adapter(
   }
 
   // Ensure users only see page requests, never data requests.
-  const buildId = requestURL.buildId
-  requestURL.buildId = ''
+  let buildId = process.env.__NEXT_BUILD_ID || ''
+  if ('buildId' in requestURL) {
+    buildId = (requestURL as NextURL).buildId || ''
+    requestURL.buildId = ''
+  }
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
@@ -185,19 +192,23 @@ export async function adapter(
   }
 
   if (
-    !(globalThis as any).__incrementalCache &&
+    // If we are inside of the next start sandbox
+    // leverage the shared instance if not we need
+    // to create a fresh cache instance each time
+    !(globalThis as any).__incrementalCacheShared &&
     (params as any).IncrementalCache
   ) {
     ;(globalThis as any).__incrementalCache = new (
-      params as any
+      params as {
+        IncrementalCache: typeof import('../lib/incremental-cache').IncrementalCache
+      }
     ).IncrementalCache({
-      appDir: true,
-      fetchCache: true,
+      CurCacheHandler: params.incrementalCacheHandler,
       minimalMode: process.env.NODE_ENV !== 'development',
       fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
-      requestProtocol: 'https',
+
       getPrerenderManifest: () => {
         return {
           version: -1 as any, // letting us know this doesn't conform to spec
@@ -251,18 +262,26 @@ export async function adapter(
               cookiesFromResponse = cookies
             }
             const previewProps = getEdgePreviewProps()
+            const page = '/' // Fake Work
+            const fallbackRouteParams = null
+
+            const implicitTags = await getImplicitTags(
+              page,
+              request.nextUrl,
+              fallbackRouteParams
+            )
 
             const requestStore = createRequestStoreForAPI(
               request,
               request.nextUrl,
-              undefined,
+              implicitTags,
               onUpdateCookies,
               previewProps
             )
 
             const workStore = createWorkStore({
-              page: '/', // Fake Work
-              fallbackRouteParams: null,
+              page,
+              fallbackRouteParams,
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,

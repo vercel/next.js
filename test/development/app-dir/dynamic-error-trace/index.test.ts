@@ -13,8 +13,7 @@ describe('app dir - dynamic error trace', () => {
     // TODO(veil): Where is the stackframe for app/page.js?
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: Route / with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+       "description": "Route / with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
        "environmentLabel": "Server",
        "label": "Runtime Error",
        "source": "app/lib.js (4:13) @ Foo

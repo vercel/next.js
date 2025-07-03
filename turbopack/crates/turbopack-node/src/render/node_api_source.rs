@@ -1,30 +1,30 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
-    module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
-    IntrospectableChildren,
+    Introspectable, IntrospectableChildren, module::IntrospectableModule,
+    output_asset::IntrospectableOutputAsset,
 };
 use turbopack_dev_server::source::{
-    route_tree::{BaseSegment, RouteTree, RouteType},
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
     GetContentSourceContent,
+    route_tree::{BaseSegment, RouteTree, RouteType},
 };
 
-use super::{render_proxy::render_proxy_operation, RenderData};
+use super::{RenderData, render_proxy::render_proxy_operation};
 use crate::{get_intermediate_asset, node_entry::NodeEntry, route_matcher::RouteMatcher};
 
 /// Creates a [NodeApiContentSource].
 #[turbo_tasks::function]
 pub fn create_node_api_source(
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: ResolvedVc<FileSystemPath>,
+    server_root: FileSystemPath,
     route_match: ResolvedVc<Box<dyn RouteMatcher>>,
     pathname: ResolvedVc<RcStr>,
     entry: ResolvedVc<Box<dyn NodeEntry>>,
@@ -56,11 +56,11 @@ pub fn create_node_api_source(
 /// to this directory.
 #[turbo_tasks::value]
 pub struct NodeApiContentSource {
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: ResolvedVc<FileSystemPath>,
+    server_root: FileSystemPath,
     pathname: ResolvedVc<RcStr>,
     route_match: ResolvedVc<Box<dyn RouteMatcher>>,
     entry: ResolvedVc<Box<dyn NodeEntry>>,
@@ -107,11 +107,7 @@ impl GetContentSourceContent for NodeApiContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn get(
-        &self,
-        path: RcStr,
-        data: Value<ContentSourceData>,
-    ) -> Result<Vc<ContentSourceContent>> {
+    async fn get(&self, path: RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
         let Some(params) = &*self.route_match.params(path.clone()).await? else {
             anyhow::bail!("Non matching path provided")
         };
@@ -123,21 +119,21 @@ impl GetContentSourceContent for NodeApiContentSource {
             raw_query: Some(raw_query),
             body: Some(body),
             ..
-        } = &*data
+        } = &data
         else {
             anyhow::bail!("Missing request data")
         };
         let entry = (*self.entry).entry(data.clone()).await?;
         Ok(ContentSourceContent::HttpProxy(render_proxy_operation(
-            self.cwd,
+            self.cwd.clone(),
             self.env,
-            self.server_root.join(path.clone()).to_resolved().await?,
+            self.server_root.join(&path.clone())?,
             ResolvedVc::upcast(entry.module),
             entry.runtime_entries,
             entry.chunking_context,
-            entry.intermediate_output_path,
-            entry.output_root,
-            entry.project_dir,
+            entry.intermediate_output_path.clone(),
+            entry.output_root.clone(),
+            entry.project_dir.clone(),
             RenderData {
                 params: params.clone(),
                 method: method.clone(),
@@ -145,7 +141,7 @@ impl GetContentSourceContent for NodeApiContentSource {
                 original_url: original_url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
-                path: format!("/{}", path).into(),
+                path: format!("/{path}").into(),
                 data: Some(self.render_data.await?),
             }
             .resolved_cell(),
@@ -156,16 +152,11 @@ impl GetContentSourceContent for NodeApiContentSource {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("node api content source".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for NodeApiContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("node api content source"))
     }
 
     #[turbo_tasks::function]
@@ -174,7 +165,7 @@ impl Introspectable for NodeApiContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Vc<RcStr> {
+    fn details(&self) -> Vc<RcStr> {
         Vc::cell(
             format!(
                 "base: {:?}\ntype: {:?}",
@@ -190,13 +181,13 @@ impl Introspectable for NodeApiContentSource {
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
-                ResolvedVc::cell("module".into()),
+                rcstr!("module"),
                 IntrospectableModule::new(Vc::upcast(*entry.module))
                     .to_resolved()
                     .await?,
             ));
             set.insert((
-                ResolvedVc::cell("intermediate asset".into()),
+                rcstr!("intermediate asset"),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     *entry.chunking_context,
                     Vc::upcast(*entry.module),

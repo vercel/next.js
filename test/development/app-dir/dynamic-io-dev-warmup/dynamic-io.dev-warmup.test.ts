@@ -21,13 +21,21 @@ describe('dynamic-io-dev-warmup', () => {
 
   it('logs with Prerender or Server environment depending based on whether the timing of when the log runs relative to this environment boundary', async () => {
     let browser = await next.browser('/')
-    // At the moment this second render is required for the logs to resolves in the expected environment
-    // This doesn't reproduce locally but I suspect some kind of lazy initialization during dev that leads the initial render
-    // to not resolve in a microtask on the first render.
-    await browser.close()
-    browser = await next.browser('/')
+    let logs = await browser.log()
 
-    const logs = await browser.log()
+    assertLog(logs, 'after layout cache read', 'Prerender')
+    assertLog(logs, 'after page cache read', 'Prerender')
+    assertLog(logs, 'after cached layout fetch', 'Prerender')
+    assertLog(logs, 'after cached page fetch', 'Prerender')
+    assertLog(logs, 'after uncached layout fetch', 'Server')
+    assertLog(logs, 'after uncached page fetch', 'Server')
+
+    // After a revalidation the subsequent warmup render must discard stale
+    // cache entries.
+    await next.fetch('/revalidate')
+
+    browser = await next.browser('/')
+    logs = await browser.log()
 
     assertLog(logs, 'after layout cache read', 'Prerender')
     assertLog(logs, 'after page cache read', 'Prerender')

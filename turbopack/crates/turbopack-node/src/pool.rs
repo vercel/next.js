@@ -11,17 +11,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::join;
 use once_cell::sync::Lazy;
 use owo_colors::{OwoColorize, Style};
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use tokio::{
     io::{
-        stderr, stdout, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
-        BufReader, Stderr, Stdout,
+        AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, Stderr,
+        Stdout, stderr, stdout,
     },
     net::{TcpListener, TcpStream},
     process::{Child, ChildStderr, ChildStdout, Command},
@@ -30,11 +30,11 @@ use tokio::{
     time::{sleep, timeout},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{duration_span, FxIndexSet, ResolvedVc, Vc};
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Vc, duration_span};
+use turbo_tasks_fs::{FileSystemPath, json::parse_json_with_source_context};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{source_map::apply_source_mapping, AssetsForSourceMapping};
+use crate::{AssetsForSourceMapping, source_map::apply_source_mapping};
 
 #[derive(Clone, Copy)]
 pub enum FormattingMode {
@@ -47,8 +47,8 @@ pub enum FormattingMode {
 impl FormattingMode {
     pub fn magic_identifier<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
         match self {
-            FormattingMode::Plain => format!("{{{}}}", content),
-            FormattingMode::AnsiColors => format!("{{{}}}", content).italic().to_string(),
+            FormattingMode::Plain => format!("{{{content}}}"),
+            FormattingMode::AnsiColors => format!("{{{content}}}").italic().to_string(),
         }
     }
 
@@ -73,8 +73,8 @@ struct NodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
     assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    assets_root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
     debug: bool,
@@ -120,8 +120,8 @@ impl NodeJsPoolProcess {
                 apply_source_mapping(
                     text,
                     *self.assets_for_source_mapping,
-                    *self.assets_root,
-                    *self.project_dir,
+                    self.assets_root.clone(),
+                    self.project_dir.clone(),
                     formatting_mode,
                 )
                 .await
@@ -130,8 +130,8 @@ impl NodeJsPoolProcess {
                 let cow = apply_source_mapping(
                     text,
                     *self.assets_for_source_mapping,
-                    *self.assets_root,
-                    *self.project_dir,
+                    self.assets_root.clone(),
+                    self.project_dir.clone(),
                     formatting_mode,
                 )
                 .await?;
@@ -159,8 +159,8 @@ struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     stream: BufReader<R>,
     shared: SharedOutputSet,
     assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    root: ResolvedVc<FileSystemPath>,
-    project_dir: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
+    project_dir: FileSystemPath,
     final_stream: W,
 }
 
@@ -197,13 +197,13 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
         async fn write_source_mapped_final<W: AsyncWrite + Unpin>(
             bytes: &[u8],
             assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-            root: Vc<FileSystemPath>,
-            project_dir: Vc<FileSystemPath>,
+            root: FileSystemPath,
+            project_dir: FileSystemPath,
             final_stream: &mut W,
         ) -> Result<()> {
             if let Ok(text) = std::str::from_utf8(bytes) {
                 let text = unmangle_identifiers(text, |content| {
-                    format!("{{{}}}", content).italic().to_string()
+                    format!("{{{content}}}").italic().to_string()
                 });
                 match apply_source_mapping(
                     text.as_ref(),
@@ -298,8 +298,8 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                             write_source_mapped_final(
                                 &entry.data,
                                 **assets_for_source_mapping,
-                                **root,
-                                **project_dir,
+                                root.clone(),
+                                project_dir.clone(),
                                 final_stream,
                             )
                             .await?;
@@ -325,8 +325,8 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             write_source_mapped_final(
                 &buffer,
                 **assets_for_source_mapping,
-                **root,
-                **project_dir,
+                root.clone(),
+                project_dir.clone(),
                 final_stream,
             )
             .await?;
@@ -342,8 +342,8 @@ impl NodeJsPoolProcess {
         env: &FxHashMap<RcStr, RcStr>,
         entrypoint: &Path,
         assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-        assets_root: ResolvedVc<FileSystemPath>,
-        project_dir: ResolvedVc<FileSystemPath>,
+        assets_root: FileSystemPath,
+        project_dir: FileSystemPath,
         shared_stdout: SharedOutputSet,
         shared_stderr: SharedOutputSet,
         debug: bool,
@@ -440,16 +440,16 @@ impl NodeJsPoolProcess {
             stream: child_stdout,
             shared: shared_stdout,
             assets_for_source_mapping,
-            root: assets_root,
-            project_dir,
+            root: assets_root.clone(),
+            project_dir: project_dir.clone(),
             final_stream: stdout(),
         };
         let stderr_handler = OutputStreamHandler {
             stream: child_stderr,
             shared: shared_stderr,
             assets_for_source_mapping,
-            root: assets_root,
-            project_dir,
+            root: assets_root.clone(),
+            project_dir: project_dir.clone(),
             final_stream: stderr(),
         };
 
@@ -457,8 +457,8 @@ impl NodeJsPoolProcess {
             child: Some(child),
             connection,
             assets_for_source_mapping,
-            assets_root,
-            project_dir,
+            assets_root: assets_root.clone(),
+            project_dir: project_dir.clone(),
             stdout_handler,
             stderr_handler,
             debug,
@@ -727,8 +727,8 @@ pub struct NodeJsPool {
     entrypoint: PathBuf,
     env: FxHashMap<RcStr, RcStr>,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: ResolvedVc<FileSystemPath>,
-    pub project_dir: ResolvedVc<FileSystemPath>,
+    pub assets_root: FileSystemPath,
+    pub project_dir: FileSystemPath,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     processes: Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>,
     /// Semaphore to limit the number of concurrent operations in general
@@ -758,8 +758,8 @@ impl NodeJsPool {
         entrypoint: PathBuf,
         env: FxHashMap<RcStr, RcStr>,
         assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-        assets_root: ResolvedVc<FileSystemPath>,
-        project_dir: ResolvedVc<FileSystemPath>,
+        assets_root: FileSystemPath,
+        project_dir: FileSystemPath,
         concurrency: usize,
         debug: bool,
     ) -> Self {
@@ -838,8 +838,8 @@ impl NodeJsPool {
             &self.env,
             self.entrypoint.as_path(),
             self.assets_for_source_mapping,
-            self.assets_root,
-            self.project_dir,
+            self.assets_root.clone(),
+            self.project_dir.clone(),
             self.shared_stdout.clone(),
             self.shared_stderr.clone(),
             self.debug,

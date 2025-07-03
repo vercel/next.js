@@ -1,5 +1,5 @@
 import type { Duplex } from 'stream'
-import type { IncomingMessage, ServerResponse } from 'webpack-dev-server'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { parseUrl } from '../../../lib/url'
 import { warnOnce } from '../../../build/output/log'
 import { isCsrfOriginAllowed } from '../../app-render/csrf-protection'

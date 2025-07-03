@@ -1,26 +1,25 @@
 use std::{
-    collections::{hash_map::Entry, VecDeque},
+    collections::{VecDeque, hash_map::Entry},
     fmt::Display,
     mem::take,
+    sync::LazyLock,
 };
 
 use anyhow::Result;
-use lazy_static::lazy_static;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
-    Vc,
+    NonLocalValue, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    util::normalize_path, FileSystemPath, LinkContent, LinkType, RawDirectoryContent,
-    RawDirectoryEntry,
+    FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
+    util::normalize_path,
 };
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Hash, Clone, Debug, Default)]
 pub enum Pattern {
     Constant(RcStr),
@@ -30,21 +29,31 @@ pub enum Pattern {
     Concatenation(Vec<Pattern>),
 }
 
+/// manually implement TaskInput to avoid recursion in the implementation of `resolve_input` in the
+/// derived implementation.  We can instead use the default implementation since `Pattern` contains
+/// no VCs.
+impl TaskInput for Pattern {
+    fn is_transient(&self) -> bool {
+        // We contain no vcs so they cannot be transient.
+        false
+    }
+}
+
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
-    if let Pattern::Constant(ref s) = pat {
-        if let Some(Pattern::Constant(ref mut last)) = list.last_mut() {
-            let mut buf = last.to_string();
-            buf.push_str(s);
-            *last = buf.into();
-            return;
-        }
+    if let Pattern::Constant(ref s) = pat
+        && let Some(Pattern::Constant(last)) = list.last_mut()
+    {
+        let mut buf = last.to_string();
+        buf.push_str(s);
+        *last = buf.into();
+        return;
     }
     list.push(pat);
 }
 
 fn concatenation_push_front_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
     if let Pattern::Constant(s) = pat {
-        if let Some(Pattern::Constant(ref mut first)) = list.iter_mut().next() {
+        if let Some(Pattern::Constant(first)) = list.iter_mut().next() {
             let mut buf = s.into_owned();
             buf.push_str(first);
 
@@ -122,9 +131,11 @@ impl Pattern {
         }
     }
 
+    /// Whether the pattern has any significant constant parts (everything except `/`).
+    /// E.g. `<dynamic>/<dynamic>` doesn't really have constant parts
     pub fn has_constant_parts(&self) -> bool {
         match self {
-            Pattern::Constant(_) => true,
+            Pattern::Constant(str) => str != "/",
             Pattern::Dynamic => false,
             Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
                 list.iter().any(|p| p.has_constant_parts())
@@ -396,7 +407,7 @@ impl Pattern {
                 concatenation_extend_or_merge_items(&mut more, take(list).into_iter());
                 *list = more;
             }
-            (Pattern::Concatenation(ref mut list), pat) => {
+            (Pattern::Concatenation(list), pat) => {
                 concatenation_push_front_or_merge_item(list, pat);
             }
             (this, Pattern::Concatenation(mut list)) => {
@@ -436,29 +447,36 @@ impl Pattern {
         current
     }
 
+    /// Normalizes paths by
+    /// - processing path segments: `.` and `..`
+    /// - normalizing windows filepaths by replacing `\` with `/`
+    ///
+    /// The Pattern must have already been processed by [Self::normalize].
+    /// Returns [Option::None] if any of the patterns attempt to navigate out of the root.
     pub fn with_normalized_path(&self) -> Option<Pattern> {
         let mut new = self.clone();
 
         fn normalize_path_internal(pattern: &mut Pattern) -> Option<()> {
             match pattern {
                 Pattern::Constant(c) => {
-                    *c = (*(normalize_path(c)?)).into();
+                    let normalized = c.replace('\\', "/");
+                    *c = (*(normalize_path(normalized.as_str())?)).into();
                     Some(())
                 }
                 Pattern::Dynamic => Some(()),
                 Pattern::Concatenation(list) => {
                     let mut segments = Vec::new();
-                    for seqment in list.iter() {
-                        match seqment {
+                    for segment in list.iter() {
+                        match segment {
                             Pattern::Constant(str) => {
-                                for seqment in str.split('/') {
-                                    match seqment {
+                                for segment in str.split('/') {
+                                    match segment {
                                         "." | "" => {}
                                         ".." => {
                                             segments.pop()?;
                                         }
-                                        seqment => {
-                                            segments.push(vec![Pattern::Constant(seqment.into())]);
+                                        segment => {
+                                            segments.push(vec![Pattern::Constant(segment.into())]);
                                         }
                                     }
                                 }
@@ -478,7 +496,7 @@ impl Pattern {
                             }
                         }
                     }
-                    let separator: RcStr = "/".into();
+                    let separator = rcstr!("/");
                     *list = segments
                         .into_iter()
                         .flat_map(|c| {
@@ -513,17 +531,9 @@ impl Pattern {
     /// Order into Alternatives -> Concatenation -> Constant/Dynamic
     /// Merge when possible
     pub fn normalize(&mut self) {
-        let mut alternatives = [Vec::new()];
         match self {
-            Pattern::Constant(c) => {
-                for alt in alternatives.iter_mut() {
-                    alt.push(Pattern::Constant(c.clone()));
-                }
-            }
-            Pattern::Dynamic => {
-                for alt in alternatives.iter_mut() {
-                    alt.push(Pattern::Dynamic);
-                }
+            Pattern::Dynamic | Pattern::Constant(_) => {
+                // already normalized
             }
             Pattern::Alternatives(list) => {
                 for alt in list.iter_mut() {
@@ -611,6 +621,7 @@ impl Pattern {
                             })
                             .collect(),
                     );
+                    // The recursive call will deduplicate the alternatives after simplifying them
                     self.normalize();
                 } else {
                     let mut new_parts = Vec::new();
@@ -799,7 +810,6 @@ impl Pattern {
                 .then_some(0)
         }
     }
-
     fn match_internal<'a>(
         &self,
         mut value: &'a str,
@@ -835,11 +845,11 @@ impl Pattern {
                 }
             }
             Pattern::Dynamic => {
-                lazy_static! {
-                    static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap();
-                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
-                }
+                static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
+                });
+                static FORBIDDEN_MATCH: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     MatchResult::Consumed {
                         remaining: value,
@@ -857,7 +867,7 @@ impl Pattern {
                 }
             }
             Pattern::Alternatives(_) => {
-                panic!("for matching a Pattern must be normalized {:?}", self)
+                panic!("for matching a Pattern must be normalized {self:?}")
             }
             Pattern::Concatenation(list) => {
                 for part in list {
@@ -921,11 +931,11 @@ impl Pattern {
                 }
             }
             Pattern::Dynamic => {
-                lazy_static! {
-                    static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap();
-                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
-                }
+                static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
+                });
+                static FORBIDDEN_MATCH: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     MatchResult::Consumed {
                         remaining: value,
@@ -941,7 +951,7 @@ impl Pattern {
                 }
             }
             Pattern::Alternatives(_) => {
-                panic!("for matching a Pattern must be normalized {:?}", self)
+                panic!("for matching a Pattern must be normalized {self:?}")
             }
             Pattern::Concatenation(list) => {
                 for part in list {
@@ -957,10 +967,10 @@ impl Pattern {
                         }
                     }
                 }
-                if let Some(offset) = any_offset {
-                    if offset == value.len() {
-                        dynamics.push_back(value);
-                    }
+                if let Some(offset) = any_offset
+                    && offset == value.len()
+                {
+                    dynamics.push_back(value);
                 }
                 MatchResult::Consumed {
                     remaining: value,
@@ -1035,11 +1045,11 @@ impl Pattern {
                 }
             }
             Pattern::Dynamic => {
-                lazy_static! {
-                    static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap();
-                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
-                }
+                static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap()
+                });
+                static FORBIDDEN_MATCH: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     NextConstantUntilResult::Consumed(value, Some(m.start()))
                 } else if FORBIDDEN_MATCH.find(value).is_some() {
@@ -1056,16 +1066,16 @@ impl Pattern {
                 while let Some(part) = iter.next() {
                     match part.next_constants_internal(value, any_offset) {
                         NextConstantUntilResult::NoMatch => {
-                            return NextConstantUntilResult::NoMatch
+                            return NextConstantUntilResult::NoMatch;
                         }
                         NextConstantUntilResult::PartialDynamic => {
-                            return NextConstantUntilResult::PartialDynamic
+                            return NextConstantUntilResult::PartialDynamic;
                         }
                         NextConstantUntilResult::Partial(r, end) => {
                             return NextConstantUntilResult::Partial(
                                 r,
                                 end && iter.next().is_none(),
-                            )
+                            );
                         }
                         NextConstantUntilResult::Consumed(new_value, new_any_offset) => {
                             value = new_value;
@@ -1080,7 +1090,7 @@ impl Pattern {
 
     pub fn or_any_nested_file(&self) -> Self {
         let mut new = self.clone();
-        new.push(Pattern::Constant("/".into()));
+        new.push(Pattern::Constant(rcstr!("/")));
         new.push(Pattern::Dynamic);
         new.normalize();
         Pattern::alternatives([self.clone(), new])
@@ -1168,16 +1178,17 @@ impl Pattern {
 }
 
 impl Pattern {
-    pub fn new(pattern: Pattern) -> Vc<Self> {
-        Pattern::new_internal(Value::new(pattern))
+    pub fn new(mut pattern: Pattern) -> Vc<Self> {
+        pattern.normalize();
+        Pattern::new_internal(pattern)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Pattern {
     #[turbo_tasks::function]
-    fn new_internal(pattern: Value<Pattern>) -> Vc<Self> {
-        Self::cell(pattern.into_value())
+    fn new_internal(pattern: Pattern) -> Vc<Self> {
+        Self::cell(pattern)
     }
 }
 
@@ -1314,14 +1325,14 @@ impl ValueToString for Pattern {
     NonLocalValue,
 )]
 pub enum PatternMatch {
-    File(RcStr, ResolvedVc<FileSystemPath>),
-    Directory(RcStr, ResolvedVc<FileSystemPath>),
+    File(RcStr, FileSystemPath),
+    Directory(RcStr, FileSystemPath),
 }
 
 impl PatternMatch {
-    pub fn path(&self) -> ResolvedVc<FileSystemPath> {
-        match *self {
-            PatternMatch::File(_, path) | PatternMatch::Directory(_, path) => path,
+    pub fn path(&self) -> Vc<FileSystemPath> {
+        match self {
+            PatternMatch::File(_, path) | PatternMatch::Directory(_, path) => path.clone().cell(),
         }
     }
 
@@ -1347,7 +1358,7 @@ pub struct PatternMatches(Vec<PatternMatch>);
 /// symlinks when they are interested in that.
 #[turbo_tasks::function]
 pub async fn read_matches(
-    lookup_dir: ResolvedVc<FileSystemPath>,
+    lookup_dir: FileSystemPath,
     prefix: RcStr,
     force_in_lookup_dir: bool,
     pattern: Vc<Pattern>,
@@ -1375,11 +1386,11 @@ pub async fn read_matches(
                     if last_segment.is_empty() {
                         // This means we don't have a last segment, so we just have a directory
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(parent_path.into()).await?
+                            lookup_dir.try_join_inside(parent_path)?
                         } else {
-                            lookup_dir.try_join(parent_path.into()).await?
+                            lookup_dir.try_join(parent_path)?
                         };
-                        let Some(fs_path) = *joined else {
+                        let Some(fs_path) = joined else {
                             continue;
                         };
                         results.push((
@@ -1392,10 +1403,10 @@ pub async fn read_matches(
                     let read_dir = match entry {
                         Entry::Occupied(e) => Some(e.into_mut()),
                         Entry::Vacant(e) => {
-                            let path_option = *if force_in_lookup_dir {
-                                lookup_dir.try_join_inside(parent_path.into()).await?
+                            let path_option = if force_in_lookup_dir {
+                                lookup_dir.try_join_inside(parent_path)?
                             } else {
-                                lookup_dir.try_join(parent_path.into()).await?
+                                lookup_dir.try_join(parent_path)?
                             };
                             if let Some(path) = path_option {
                                 Some(e.insert((path.raw_read_dir().await?, path)))
@@ -1419,10 +1430,7 @@ pub async fn read_matches(
                                 index,
                                 PatternMatch::File(
                                     concat(&prefix, str).into(),
-                                    parent_fs_path
-                                        .join(last_segment.into())
-                                        .to_resolved()
-                                        .await?,
+                                    parent_fs_path.join(last_segment)?,
                                 ),
                             ));
                         }
@@ -1430,17 +1438,11 @@ pub async fn read_matches(
                             index,
                             PatternMatch::Directory(
                                 concat(&prefix, str).into(),
-                                parent_fs_path
-                                    .join(last_segment.into())
-                                    .to_resolved()
-                                    .await?,
+                                parent_fs_path.join(last_segment)?,
                             ),
                         )),
                         RawDirectoryEntry::Symlink => {
-                            let fs_path = parent_fs_path
-                                .join(last_segment.into())
-                                .to_resolved()
-                                .await?;
+                            let fs_path = parent_fs_path.join(last_segment)?;
                             let LinkContent::Link { link_type, .. } = &*fs_path.read_link().await?
                             else {
                                 continue;
@@ -1458,17 +1460,17 @@ pub async fn read_matches(
                     let subpath = &str[..=str.rfind('/').unwrap()];
                     if handled.insert(subpath) {
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(subpath.into()).await?
+                            lookup_dir.try_join_inside(subpath)?
                         } else {
-                            lookup_dir.try_join(subpath.into()).await?
+                            lookup_dir.try_join(subpath)?
                         };
-                        let Some(fs_path) = *joined else {
+                        let Some(fs_path) = joined else {
                             continue;
                         };
                         nested.push((
                             0,
                             read_matches(
-                                *fs_path,
+                                fs_path.clone(),
                                 concat(&prefix, subpath).into(),
                                 force_in_lookup_dir,
                                 pattern,
@@ -1495,10 +1497,7 @@ pub async fn read_matches(
                 if let Some(pos) = pat.match_position(&prefix) {
                     results.push((
                         pos,
-                        PatternMatch::Directory(
-                            prefix.clone().into(),
-                            lookup_dir.parent().to_resolved().await?,
-                        ),
+                        PatternMatch::Directory(prefix.clone().into(), lookup_dir.parent()),
                     ));
                 }
 
@@ -1507,10 +1506,7 @@ pub async fn read_matches(
                 if let Some(pos) = pat.match_position(&prefix) {
                     results.push((
                         pos,
-                        PatternMatch::Directory(
-                            prefix.clone().into(),
-                            lookup_dir.parent().to_resolved().await?,
-                        ),
+                        PatternMatch::Directory(prefix.clone().into(), lookup_dir.parent()),
                     ));
                 }
                 if let Some(pos) = pat.could_match_position(&prefix) {
@@ -1529,17 +1525,23 @@ pub async fn read_matches(
                 if let Some(pos) = pat.match_position(&prefix) {
                     results.push((
                         pos,
-                        PatternMatch::Directory(prefix.clone().into(), lookup_dir),
+                        PatternMatch::Directory(prefix.clone().into(), lookup_dir.clone()),
                     ));
                 }
                 prefix.pop();
             }
             if prefix.is_empty() {
                 if let Some(pos) = pat.match_position("./") {
-                    results.push((pos, PatternMatch::Directory("./".into(), lookup_dir)));
+                    results.push((
+                        pos,
+                        PatternMatch::Directory(rcstr!("./"), lookup_dir.clone()),
+                    ));
                 }
                 if let Some(pos) = pat.could_match_position("./") {
-                    nested.push((pos, read_matches(*lookup_dir, "./".into(), false, pattern)));
+                    nested.push((
+                        pos,
+                        read_matches(lookup_dir.clone(), rcstr!("./"), false, pattern),
+                    ));
                 }
             } else {
                 prefix.push('/');
@@ -1547,7 +1549,12 @@ pub async fn read_matches(
                 if let Some(pos) = pat.could_match_position(&prefix) {
                     nested.push((
                         pos,
-                        read_matches(*lookup_dir, prefix.to_string().into(), false, pattern),
+                        read_matches(
+                            lookup_dir.clone(),
+                            prefix.to_string().into(),
+                            false,
+                            pattern,
+                        ),
                     ));
                 }
                 prefix.pop();
@@ -1556,7 +1563,12 @@ pub async fn read_matches(
                 if let Some(pos) = pat.could_match_position(&prefix) {
                     nested.push((
                         pos,
-                        read_matches(*lookup_dir, prefix.to_string().into(), false, pattern),
+                        read_matches(
+                            lookup_dir.clone(),
+                            prefix.to_string().into(),
+                            false,
+                            pattern,
+                        ),
                     ));
                 }
                 prefix.pop();
@@ -1571,7 +1583,7 @@ pub async fn read_matches(
                                 prefix.push_str(key);
                                 // {prefix}{key}
                                 if let Some(pos) = pat.match_position(&prefix) {
-                                    let path = lookup_dir.join(key.clone()).to_resolved().await?;
+                                    let path = lookup_dir.join(key)?;
                                     results.push((
                                         pos,
                                         PatternMatch::File(prefix.clone().into(), path),
@@ -1587,7 +1599,7 @@ pub async fn read_matches(
                                     prefix.pop();
                                 }
                                 if let Some(pos) = pat.match_position(&prefix) {
-                                    let path = lookup_dir.join(key.clone()).to_resolved().await?;
+                                    let path = lookup_dir.join(key)?;
                                     results.push((
                                         pos,
                                         PatternMatch::Directory(prefix.clone().into(), path),
@@ -1596,17 +1608,17 @@ pub async fn read_matches(
                                 prefix.push('/');
                                 // {prefix}{key}/
                                 if let Some(pos) = pat.match_position(&prefix) {
-                                    let path = lookup_dir.join(key.clone()).to_resolved().await?;
+                                    let path = lookup_dir.join(key)?;
                                     results.push((
                                         pos,
                                         PatternMatch::Directory(prefix.clone().into(), path),
                                     ));
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
-                                    let path = lookup_dir.join(key.clone()).to_resolved().await?;
+                                    let path = lookup_dir.join(key)?;
                                     nested.push((
                                         pos,
-                                        read_matches(*path, prefix.clone().into(), true, pattern),
+                                        read_matches(path, prefix.clone().into(), true, pattern),
                                     ));
                                 }
                                 prefix.truncate(len)
@@ -1619,8 +1631,7 @@ pub async fn read_matches(
                                     prefix.pop();
                                 }
                                 if let Some(pos) = pat.match_position(&prefix) {
-                                    let fs_path =
-                                        lookup_dir.join(key.clone()).to_resolved().await?;
+                                    let fs_path = lookup_dir.join(&key.clone())?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
                                     {
@@ -1642,37 +1653,27 @@ pub async fn read_matches(
                                 }
                                 prefix.push('/');
                                 if let Some(pos) = pat.match_position(&prefix) {
-                                    let fs_path =
-                                        lookup_dir.join(key.clone()).to_resolved().await?;
+                                    let fs_path = lookup_dir.join(&key.clone())?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
+                                        && link_type.contains(LinkType::DIRECTORY)
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
-                                            results.push((
-                                                pos,
-                                                PatternMatch::Directory(
-                                                    prefix.clone().into(),
-                                                    fs_path,
-                                                ),
-                                            ));
-                                        }
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                        ));
                                     }
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
-                                    let fs_path =
-                                        lookup_dir.join(key.clone()).to_resolved().await?;
+                                    let fs_path = lookup_dir.join(&key.clone())?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
+                                        && link_type.contains(LinkType::DIRECTORY)
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
-                                            results.push((
-                                                pos,
-                                                PatternMatch::Directory(
-                                                    prefix.clone().into(),
-                                                    fs_path,
-                                                ),
-                                            ));
-                                        }
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                        ));
                                     }
                                 }
                                 prefix.truncate(len)
@@ -1737,7 +1738,7 @@ mod tests {
     use rstest::*;
     use turbo_rcstr::RcStr;
 
-    use super::{longest_common_prefix, longest_common_suffix, split_last_segment, Pattern};
+    use super::{Pattern, longest_common_prefix, longest_common_suffix, split_last_segment};
 
     #[test]
     fn longest_common_prefix_test() {
@@ -1828,9 +1829,11 @@ mod tests {
 
     #[test]
     fn with_normalized_path() {
-        assert!(Pattern::Constant("a/../..".into())
-            .with_normalized_path()
-            .is_none());
+        assert!(
+            Pattern::Constant("a/../..".into())
+                .with_normalized_path()
+                .is_none()
+        );
         assert_eq!(
             Pattern::Constant("a/b/../c".into())
                 .with_normalized_path()

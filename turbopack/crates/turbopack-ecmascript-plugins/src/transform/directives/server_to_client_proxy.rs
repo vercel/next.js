@@ -10,9 +10,9 @@ use swc_core::{
     quote,
 };
 use turbopack_ecmascript::{
-    annotations::{with_clause, ANNOTATION_TRANSITION},
-    runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
     TURBOPACK_HELPER,
+    annotations::{ANNOTATION_TRANSITION, with_clause},
+    runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
 };
 
 pub fn create_proxy_module(transition_name: &str, target_import: &str) -> Program {

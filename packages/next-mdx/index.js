@@ -23,12 +23,16 @@ module.exports =
           },
         }
 
+    /**
+     * @type {import('next').NextConfig}
+     */
     let nextConfig = Object.assign({}, inputConfig, {
       webpack(config, options) {
         config.resolve.alias['next-mdx-import-source-file'] = [
           'private-next-root-dir/src/mdx-components',
           'private-next-root-dir/mdx-components',
           '@mdx-js/react',
+          require.resolve('./mdx-components.js'),
         ]
         config.module.rules.push({
           test: extension,
@@ -44,22 +48,21 @@ module.exports =
     })
 
     if (process.env.TURBOPACK) {
-      nextConfig.experimental = Object.assign({}, nextConfig?.experimental, {
-        turbo: Object.assign({}, nextConfig?.experimental?.turbo, {
-          rules: Object.assign({}, nextConfig?.experimental?.turbo?.rules, {
-            '*.mdx': {
-              loaders: [loader],
-              as: '*.tsx',
-            },
-          }),
-          resolveAlias: Object.assign(
-            {},
-            nextConfig?.experimental?.turbo?.resolveAlias,
-            {
-              'next-mdx-import-source-file':
-                '@vercel/turbopack-next/mdx-import-source',
-            }
-          ),
+      nextConfig.turbopack = Object.assign({}, nextConfig?.turbopack, {
+        rules: Object.assign({}, nextConfig?.turbopack?.rules, {
+          '#next-mdx': {
+            loaders: [loader],
+            as: '*.tsx',
+          },
+        }),
+        conditions: {
+          '#next-mdx': {
+            path: extension,
+          },
+        },
+        resolveAlias: Object.assign({}, nextConfig?.turbopack?.resolveAlias, {
+          'next-mdx-import-source-file':
+            '@vercel/turbopack-next/mdx-import-source',
         }),
       })
     }

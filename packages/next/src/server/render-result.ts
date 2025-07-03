@@ -31,16 +31,19 @@ export type AppPageRenderResultMetadata = {
    * The headers to set on the response that were added by the render.
    */
   headers?: OutgoingHttpHeaders
+  statusCode?: number
   fetchTags?: string
   fetchMetrics?: FetchMetrics
 
   segmentData?: Map<string, Buffer>
 
   /**
-   * In development, the cache is warmed up before the render. This is attached
-   * to the metadata so that it can be used during the render.
+   * In development, the resume data cache is warmed up before the render. This
+   * is attached to the metadata so that it can be used during the render. When
+   * prerendering, the filled resume data cache is also attached to the metadata
+   * so that it can be used when prerendering matching fallback shells.
    */
-  devRenderResumeDataCache?: RenderResumeDataCache
+  renderResumeDataCache?: RenderResumeDataCache
 }
 
 export type PagesRenderResultMetadata = {

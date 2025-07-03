@@ -32,7 +32,9 @@ function buildError(error: any, file: string) {
 const debugMinify = process.env.NEXT_DEBUG_MINIFY
 
 export class MinifyPlugin {
-  constructor(private options: { noMangling?: boolean }) {}
+  constructor(
+    private options: { noMangling?: boolean; disableCharFreq?: boolean }
+  ) {}
 
   async optimize(
     compiler: any,
@@ -47,7 +49,12 @@ export class MinifyPlugin {
       RawSource: typeof sources.RawSource
     }
   ) {
-    const mangle = !this.options.noMangling
+    const mangle = this.options.noMangling
+      ? false
+      : {
+          reserved: ['AbortSignal'],
+          disableCharFreq: !!this.options.disableCharFreq,
+        }
     const compilationSpan =
       getCompilationSpan(compilation)! || getCompilationSpan(compiler)
 
@@ -133,9 +140,14 @@ export class MinifyPlugin {
                     },
                   }
                 : {}),
-              // Compress options are defined in crates/napi/src/minify.rs.
-              compress: false,
-              // Mangle options may be amended in crates/napi/src/minify.rs.
+              compress: {
+                inline: 2,
+                global_defs: {
+                  'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
+                },
+                keep_classnames: this.options.noMangling,
+                keep_fnames: this.options.noMangling,
+              },
               mangle,
               module: 'unknown',
               output: {

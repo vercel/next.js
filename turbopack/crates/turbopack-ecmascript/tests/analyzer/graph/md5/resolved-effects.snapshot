@@ -1,6 +1,6 @@
 0 -> 2 free var = FreeVar(module)
 
-0 -> 3 typeof = typeof((???*0* | new ???*1*(???*2*)))
+0 -> 3 typeof = typeof((???*0* | new ???*1*((???*2* | undefined["length"]))))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* FreeVar(Array)
@@ -21,7 +21,7 @@
   ⚠️  nested operation
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* new ???*3*(???*4*)
+- *2* new ???*3*((???*4* | undefined["length"]))
   ⚠️  nested operation
 - *3* FreeVar(Array)
   ⚠️  unknown global
@@ -40,7 +40,9 @@
 
 4 -> 6 free var = FreeVar(encodeURIComponent)
 
-4 -> 7 call = ???*0*((???*1* | new ???*2*(???*3*)))
+4 -> 7 call = ???*0*(
+    (???*1* | new ???*2*((???*3* | undefined["length"])))
+)
 - *0* FreeVar(encodeURIComponent)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -72,7 +74,7 @@
 
 4 -> 9 free var = FreeVar(Array)
 
-4 -> 11 call = new ???*0*(???*1*)
+4 -> 11 call = new ???*0*((???*1* | undefined["length"]))
 - *0* FreeVar(Array)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -86,7 +88,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-4 -> 15 member call = ???*0*["charCodeAt"]((0 | ???*2*))
+4 -> 15 member call = (???*0* | undefined)["charCodeAt"]((0 | undefined | ???*2*))
 - *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
   ⚠️  This value might have side effects
@@ -96,7 +98,9 @@
 - *2* updated with update expression
   ⚠️  This value might have side effects
 
-0 -> 16 call = (...) => output((???*0* | new ???*1*(???*2*)))
+0 -> 16 call = (...) => output(
+    (???*0* | new ???*1*((???*2* | undefined["length"])))
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* FreeVar(Array)

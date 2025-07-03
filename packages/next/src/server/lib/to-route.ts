@@ -2,8 +2,8 @@
  * This transforms a URL pathname into a route. It removes any trailing slashes
  * and the `/index` suffix.
  *
- * @param {string} pathname - The URL path that needs to be optimized.
- * @returns {string} - The route
+ * @param pathname - The URL path that needs to be optimized.
+ * @returns - The route
  *
  * @example
  * // returns '/example'

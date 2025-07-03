@@ -32,7 +32,7 @@ const runTests = () => {
   })
 }
 
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Web Workers with webpack 5',
   () => {
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(

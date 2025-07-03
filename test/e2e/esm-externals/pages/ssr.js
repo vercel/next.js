@@ -13,8 +13,8 @@ export function getServerSideProps() {
 
 export default function Index({ worlds }) {
   return (
-    <div>
+    <p>
       Hello {World1}+{World2}+{World3}+{worlds}
-    </div>
+    </p>
   )
 }

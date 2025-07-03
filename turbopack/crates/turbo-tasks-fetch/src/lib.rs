@@ -3,8 +3,8 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{mark_session_dependent, ResolvedVc, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, Vc, duration_span, mark_session_dependent};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
@@ -50,12 +50,10 @@ pub struct OptionProxyConfig(Option<ProxyConfig>);
 
 #[turbo_tasks::function(network)]
 pub async fn fetch(
-    url: Vc<RcStr>,
-    user_agent: Vc<Option<RcStr>>,
+    url: RcStr,
+    user_agent: Option<RcStr>,
     proxy_option: Vc<OptionProxyConfig>,
 ) -> Result<Vc<FetchResult>> {
-    let url = &*url.await?;
-    let user_agent = &*user_agent.await?;
     let proxy_option = &*proxy_option.await?;
 
     let client_builder = reqwest::Client::builder();
@@ -72,22 +70,31 @@ pub async fn fetch(
         builder = builder.header("User-Agent", user_agent.as_str());
     }
 
-    let response = builder.send().await.and_then(|r| r.error_for_status());
+    let response = {
+        let _span = duration_span!("fetch request", url = url.as_str());
+        builder.send().await
+    }
+    .and_then(|r| r.error_for_status());
     match response {
         Ok(response) => {
             let status = response.status().as_u16();
-            let body = response.bytes().await?.to_vec();
+
+            let body = {
+                let _span = duration_span!("fetch response", url = url.as_str());
+                response.bytes().await?
+            }
+            .to_vec();
 
             Ok(Vc::cell(Ok(HttpResponse {
                 status,
-                body: HttpResponseBody::resolved_cell(HttpResponseBody(body)),
+                body: HttpResponseBody(body).resolved_cell(),
             }
             .resolved_cell())))
         }
         Err(err) => {
             mark_session_dependent();
             Ok(Vc::cell(Err(
-                FetchError::from_reqwest_error(&err, url).resolved_cell()
+                FetchError::from_reqwest_error(&err, &url).resolved_cell()
             )))
         }
     }
@@ -132,27 +139,26 @@ impl FetchError {
 #[turbo_tasks::value_impl]
 impl FetchError {
     #[turbo_tasks::function]
-    pub async fn to_issue(
-        self: Vc<Self>,
-        severity: ResolvedVc<IssueSeverity>,
-        issue_context: ResolvedVc<FileSystemPath>,
-    ) -> Result<Vc<FetchIssue>> {
-        let this = &*self.await?;
-        Ok(FetchIssue {
+    pub fn to_issue(
+        &self,
+        severity: IssueSeverity,
+        issue_context: FileSystemPath,
+    ) -> Vc<FetchIssue> {
+        FetchIssue {
             issue_context,
             severity,
-            url: this.url,
-            kind: this.kind,
-            detail: this.detail,
+            url: self.url,
+            kind: self.kind,
+            detail: self.detail,
         }
-        .into())
+        .cell()
     }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct FetchIssue {
-    pub issue_context: ResolvedVc<FileSystemPath>,
-    pub severity: ResolvedVc<IssueSeverity>,
+    pub issue_context: FileSystemPath,
+    pub severity: IssueSeverity,
     pub url: ResolvedVc<RcStr>,
     pub kind: ResolvedVc<FetchErrorKind>,
     pub detail: ResolvedVc<StyledString>,
@@ -162,17 +168,16 @@ pub struct FetchIssue {
 impl Issue for FetchIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.issue_context
+        self.issue_context.clone().cell()
     }
 
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error while requesting resource".into()).cell()
+        StyledString::Text(rcstr!("Error while requesting resource")).cell()
     }
 
     #[turbo_tasks::function]
@@ -187,20 +192,17 @@ impl Issue for FetchIssue {
 
         Ok(Vc::cell(Some(
             StyledString::Text(match kind {
-                FetchErrorKind::Connect => format!(
-                    "There was an issue establishing a connection while requesting {}.",
-                    url
-                )
-                .into(),
-                FetchErrorKind::Status(status) => format!(
-                    "Received response with status {} when requesting {}",
-                    status, url
-                )
-                .into(),
-                FetchErrorKind::Timeout => {
-                    format!("Connection timed out when requesting {}", url).into()
+                FetchErrorKind::Connect => {
+                    format!("There was an issue establishing a connection while requesting {url}.")
+                        .into()
                 }
-                FetchErrorKind::Other => format!("There was an issue requesting {}", url).into(),
+                FetchErrorKind::Status(status) => {
+                    format!("Received response with status {status} when requesting {url}").into()
+                }
+                FetchErrorKind::Timeout => {
+                    format!("Connection timed out when requesting {url}").into()
+                }
+                FetchErrorKind::Other => format!("There was an issue requesting {url}").into(),
             })
             .resolved_cell(),
         )))

@@ -9,7 +9,7 @@ describe('ReactRefreshRegression app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      'styled-components': '5.1.0',
+      'styled-components': '6.1.16',
       '@next/mdx': 'canary',
       '@mdx-js/loader': '2.2.1',
       '@mdx-js/react': '2.2.1',

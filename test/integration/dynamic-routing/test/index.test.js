@@ -1256,7 +1256,11 @@ function runTests({ dev }) {
         caseSensitive: false,
         basePath: '',
         headers: [],
-        rewrites: [],
+        rewrites: {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        },
         staticRoutes: [
           {
             namedRegex: '^/(?:/)?$',
@@ -1550,7 +1554,7 @@ function runTests({ dev }) {
         '/d/[id]': 'pages/d/[id].html',
         '/dash/[hello-world]': 'pages/dash/[hello-world].html',
         '/': 'pages/index.html',
-        '/index/[...slug]': process.env.TURBOPACK
+        '/index/[...slug]': process.env.IS_TURBOPACK_TEST
           ? 'pages/index/index/[...slug].html'
           : 'pages/index/[...slug].html',
         '/on-mount/[post]': 'pages/on-mount/[post].html',

@@ -1,7 +1,5 @@
 module.exports = {
   experimental: {
-    turbo: {
-      unstablePersistentCaching: true
-    }
+    turbopackPersistentCaching: true
   }
-} 
+}

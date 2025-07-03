@@ -1,3 +1,3 @@
-export * from "./unknown.js";
+export * from './unknown.js'
 
-await 1;
+await 1

@@ -3,7 +3,7 @@ name = "turbopack-ecmascript-plugins"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -25,7 +25,6 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 indexmap = { workspace = true }
-lightningcss = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }

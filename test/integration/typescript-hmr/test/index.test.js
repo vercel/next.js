@@ -42,7 +42,7 @@ describe('TypeScript HMR', () => {
         const originalContent = await fs.readFile(pagePath, 'utf8')
         const editedContent = originalContent.replace('Hello', 'COOL page')
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           // TODO Turbopack needs a bit to start watching
           await new Promise((resolve) => setTimeout(resolve, 500))
         }
@@ -98,7 +98,7 @@ describe('TypeScript HMR', () => {
         '() => <p>Hello world</p>',
         '(): boolean => <p>hello with error</p>'
       )
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         // TODO Turbopack needs a bit to start watching
         await new Promise((resolve) => setTimeout(resolve, 500))
       }

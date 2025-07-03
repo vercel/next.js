@@ -1,13 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
-import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (basic tests)', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     test('ppr is disabled', () => {})
     return
   }
@@ -15,7 +13,7 @@ describe('segment cache (basic tests)', () => {
   it('navigate before any data has loaded into the prefetch cache', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -58,7 +56,7 @@ describe('segment cache (basic tests)', () => {
   it('navigate with prefetched data', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -97,7 +95,7 @@ describe('segment cache (basic tests)', () => {
   it('navigate to page with lazily-generated (not at build time) static param', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/lazily-generated-params', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -134,7 +132,7 @@ describe('segment cache (basic tests)', () => {
   it('prefetch interception route', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/interception/feed', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -163,10 +161,42 @@ describe('segment cache (basic tests)', () => {
     )
   })
 
+  it('prefetch interception route with params', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/interception-with-params/feed', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Reveal the link to trigger a prefetch.
+    const reveal = await browser.elementByCss('input[type="checkbox"]')
+    const link = await act(
+      async () => {
+        await reveal.click()
+        return await browser.elementByCss('a')
+      },
+      { includes: 'intercepted-photo-page' }
+    )
+
+    // Navigate to the test page
+    await act(
+      async () => {
+        await link.click()
+
+        // The page should render immediately because it was prefetched
+        const div = await browser.elementById('intercepted-photo-page')
+        expect(await div.innerHTML()).toBe('Intercepted photo page for id "1"')
+      },
+      // No additional requests were required, because everything was prefetched
+      'no-requests'
+    )
+  })
+
   it('skips dynamic request if prefetched data is fully static', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/fully-static', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -197,7 +227,7 @@ describe('segment cache (basic tests)', () => {
   it('skips static layouts during partially static navigation', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/partially-static', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -245,7 +275,7 @@ describe('segment cache (basic tests)', () => {
   it('refreshes page segments when navigating to the exact same URL as the current location', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/same-page-nav', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -306,5 +336,39 @@ describe('segment cache (basic tests)', () => {
       await linkWithHashB.click()
     }, 'no-requests')
     expect(await readRandomNumberFromPage()).toBe(randomNumber3)
+  })
+
+  it('does not throw an error when navigating to a page with a server action', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/with-server-action', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Reveal the link to trigger a prefetch.
+    const reveal = await browser.elementByCss('input[type="checkbox"]')
+    const link = await act(
+      async () => {
+        await reveal.click()
+        return await browser.elementByCss(
+          'a[href="/with-server-action/target-page"]'
+        )
+      },
+      { includes: 'Target' }
+    )
+
+    await act(
+      async () => {
+        await link.click()
+
+        // The page should render immediately because it was prefetched, and it
+        // should not throw an error.
+        const form = await browser.elementById('target-page')
+        expect(await form.innerHTML()).toBe('Target')
+      },
+      // No additional requests were required, because everything was prefetched
+      'no-requests'
+    )
   })
 })

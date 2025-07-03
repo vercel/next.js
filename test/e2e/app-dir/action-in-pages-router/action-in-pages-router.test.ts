@@ -23,7 +23,7 @@ describe('app-dir - action-in-pages-router', () => {
 
   if (isNextStart) {
     // Disabling for turbopack because the chunk path are different
-    if (!process.env.TURBOPACK) {
+    if (!process.env.IS_TURBOPACK_TEST) {
       it('should not contain server action in page bundle', async () => {
         const pageBundle = await next.readFile('.next/server/pages/foo.js')
         // Should not contain the RSC client import source for the server action
@@ -32,7 +32,7 @@ describe('app-dir - action-in-pages-router', () => {
     }
 
     it('should not contain server action in manifest', async () => {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         const manifest = JSON.parse(
           await next.readFile('.next/server/server-reference-manifest.json')
         )

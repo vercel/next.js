@@ -7,7 +7,9 @@ use std::{
     sync::Arc,
 };
 
-use serde::{de::DeserializeSeed, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeSeed};
+
+use crate::trace::{TraceRawVcs, TraceRawVcsContext};
 
 pub trait MagicAny: mopa::Any + Send + Sync {
     fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send>;
@@ -17,6 +19,8 @@ pub trait MagicAny: mopa::Any + Send + Sync {
     fn magic_eq(&self, other: &dyn MagicAny) -> bool;
 
     fn magic_hash(&self, hasher: &mut dyn Hasher);
+
+    fn magic_trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext);
 
     #[cfg(debug_assertions)]
     fn magic_type_name(&self) -> &'static str;
@@ -31,7 +35,7 @@ mod clippy {
     mopafy!(MagicAny);
 }
 
-impl<T: Debug + Eq + Hash + Send + Sync + 'static> MagicAny for T {
+impl<T: Debug + Eq + Hash + Send + Sync + TraceRawVcs + 'static> MagicAny for T {
     fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send> {
         self
     }
@@ -56,6 +60,10 @@ impl<T: Debug + Eq + Hash + Send + Sync + 'static> MagicAny for T {
 
     fn magic_hash(&self, hasher: &mut dyn Hasher) {
         Hash::hash(&(TypeId::of::<Self>(), self), &mut HasherMut(hasher))
+    }
+
+    fn magic_trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.trace_raw_vcs(trace_context);
     }
 
     #[cfg(debug_assertions)]
@@ -99,8 +107,14 @@ where
     }
 }
 
+impl TraceRawVcs for dyn MagicAny {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.magic_trace_raw_vcs(trace_context)
+    }
+}
+
 impl dyn MagicAny {
-    pub fn as_serialize<T: Debug + Eq + Hash + Serialize + Send + Sync + 'static>(
+    pub fn as_serialize<T: Debug + Eq + Hash + Serialize + Send + Sync + TraceRawVcs + 'static>(
         &self,
     ) -> &dyn erased_serde::Serialize {
         if let Some(r) = self.downcast_ref::<T>() {
@@ -126,8 +140,8 @@ pub struct MagicAnySerializeSeed {
 }
 
 impl MagicAnySerializeSeed {
-    pub fn new<T: Debug + Eq + Hash + Serialize + Send + Sync + 'static>() -> Self {
-        fn serialize<T: Debug + Eq + Hash + Serialize + Send + Sync + 'static>(
+    pub fn new<T: Debug + Eq + Hash + Serialize + Send + Sync + TraceRawVcs + 'static>() -> Self {
+        fn serialize<T: Debug + Eq + Hash + Serialize + Send + Sync + TraceRawVcs + 'static>(
             value: &dyn MagicAny,
         ) -> &dyn erased_serde::Serialize {
             value.as_serialize::<T>()
@@ -153,11 +167,14 @@ pub struct MagicAnyDeserializeSeed {
 impl MagicAnyDeserializeSeed {
     pub fn new<T>() -> Self
     where
-        T: for<'de> Deserialize<'de> + Debug + Eq + Hash + Send + Sync + 'static,
+        T: for<'de> Deserialize<'de> + Debug + Eq + Hash + Send + Sync + TraceRawVcs + 'static,
     {
-        fn deserialize<T: Debug + Eq + Hash + for<'de> Deserialize<'de> + Send + Sync + 'static>(
+        fn deserialize<T>(
             deserializer: &mut dyn erased_serde::Deserializer<'_>,
-        ) -> Result<Box<dyn MagicAny>, erased_serde::Error> {
+        ) -> Result<Box<dyn MagicAny>, erased_serde::Error>
+        where
+            T: for<'de> Deserialize<'de> + Debug + Eq + Hash + Send + Sync + TraceRawVcs + 'static,
+        {
             let value: T = erased_serde::deserialize(deserializer)?;
             Ok(Box::new(value))
         }

@@ -12,6 +12,7 @@ export default async function Page() {
         We expect that if you intended for your metadata to be dynamic you will
         ensure your page is dynamic too
       </p>
+      <span id="sentinel">sentinel</span>
     </>
   )
 }

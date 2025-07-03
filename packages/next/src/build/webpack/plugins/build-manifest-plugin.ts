@@ -36,10 +36,12 @@ function buildNodejsLowPriorityPath(filename: string, buildId: string) {
   return `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
 }
 
-function createEdgeRuntimeManifest(originAssetMap: BuildManifest): string {
+export function createEdgeRuntimeManifest(
+  originAssetMap: Partial<BuildManifest>
+): string {
   const manifestFilenames = ['_buildManifest.js', '_ssgManifest.js']
 
-  const assetMap: BuildManifest = {
+  const assetMap: Partial<BuildManifest> = {
     ...originAssetMap,
     lowPriorityFiles: [],
   }

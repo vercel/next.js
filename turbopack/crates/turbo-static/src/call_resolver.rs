@@ -2,7 +2,7 @@ use std::{fs::OpenOptions, path::PathBuf};
 
 use rustc_hash::FxHashMap;
 
-use crate::{lsp_client::RAClient, Identifier, IdentifierReference};
+use crate::{Identifier, IdentifierReference, lsp_client::RAClient};
 
 /// A wrapper around a rust-analyzer client that can resolve call references.
 /// This is quite expensive so we cache the results in an on-disk key-value

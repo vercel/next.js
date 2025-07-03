@@ -136,7 +136,8 @@ export async function verifyTypeScriptSetup({
 
     let result
     if (typeCheckPreflight) {
-      const { runTypeCheck } = require('./typescript/runTypeCheck')
+      const { runTypeCheck } =
+        require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
 
       // Verify the project passes type-checking before we go to webpack phase:
       result = await runTypeCheck(

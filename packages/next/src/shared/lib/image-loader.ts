@@ -38,7 +38,8 @@ function defaultLoader({
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
         // We use dynamic require because this should only error in development
-        const { hasLocalMatch } = require('./match-local-pattern')
+        const { hasLocalMatch } =
+          require('./match-local-pattern') as typeof import('./match-local-pattern')
         if (!hasLocalMatch(config.localPatterns, src)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\` does not match \`images.localPatterns\` configured in your \`next.config.js\`\n` +
@@ -65,8 +66,11 @@ function defaultLoader({
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
         // We use dynamic require because this should only error in development
-        const { hasRemoteMatch } = require('./match-remote-pattern')
-        if (!hasRemoteMatch(config.domains, config.remotePatterns, parsedSrc)) {
+        const { hasRemoteMatch } =
+          require('./match-remote-pattern') as typeof import('./match-remote-pattern')
+        if (
+          !hasRemoteMatch(config.domains!, config.remotePatterns!, parsedSrc)
+        ) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`

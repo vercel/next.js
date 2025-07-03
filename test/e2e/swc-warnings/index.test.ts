@@ -3,7 +3,7 @@ import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 // Tests Babel, not needed for Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'swc warnings by default',
   () => {
     let next: NextInstance
@@ -37,37 +37,40 @@ import { renderViaHTTP } from 'next-test-utils'
 )
 
 // Tests Babel, not needed for Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)('can force swc', () => {
-  let next: NextInstance
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'can force swc',
+  () => {
+    let next: NextInstance
 
-  beforeAll(async () => {
-    next = await createNext({
-      nextConfig: {
-        experimental: {
-          forceSwcTransforms: true,
+    beforeAll(async () => {
+      next = await createNext({
+        nextConfig: {
+          experimental: {
+            forceSwcTransforms: true,
+          },
         },
-      },
-      files: {
-        'pages/index.js': `
+        files: {
+          'pages/index.js': `
           export default function Page() { 
             return <p>hello world</p>
           } 
         `,
-        '.babelrc': `
+          '.babelrc': `
           {
             "presets": ["next/babel"]
           }
         `,
-      },
-      dependencies: {},
+        },
+        dependencies: {},
+      })
     })
-  })
-  afterAll(() => next.destroy())
+    afterAll(() => next.destroy())
 
-  it('should not have warning', async () => {
-    await renderViaHTTP(next.url, '/')
-    expect(next.cliOutput).not.toContain(
-      'Disabled SWC as replacement for Babel because of custom Babel configuration'
-    )
-  })
-})
+    it('should not have warning', async () => {
+      await renderViaHTTP(next.url, '/')
+      expect(next.cliOutput).not.toContain(
+        'Disabled SWC as replacement for Babel because of custom Babel configuration'
+      )
+    })
+  }
+)

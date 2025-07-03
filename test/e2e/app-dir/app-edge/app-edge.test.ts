@@ -106,7 +106,7 @@ describe('app-dir edge SSR', () => {
       const manifest = JSON.parse(
         await next.readFile('.next/server/middleware-manifest.json')
       )
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
           {
             regexp: '^/group(?:/)?$',

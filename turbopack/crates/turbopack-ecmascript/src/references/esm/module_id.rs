@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use swc_core::quote;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, ValueToString, Vc,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
@@ -12,7 +12,7 @@ use turbopack_core::{
     resolve::ModuleResolveResult,
 };
 
-use super::{base::ReferencedAsset, EsmAssetReference};
+use super::{EsmAssetReference, base::ReferencedAsset};
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
@@ -93,16 +93,24 @@ impl EsmModuleIdAssetReferenceCodeGen {
         {
             let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
             let id = module_id_to_lit(&id);
-            visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-                *expr = id.clone()
-            }));
+            visitors.push(create_visitor!(
+                self.path,
+                visit_mut_expr,
+                |expr: &mut Expr| {
+                    *expr = id.clone();
+                }
+            ));
         } else {
             // If the referenced asset can't be found, replace the expression with null.
             // This can happen if the referenced asset is an external, or doesn't resolve
             // to anything.
-            visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-                *expr = quote!("null" as Expr);
-            }));
+            visitors.push(create_visitor!(
+                self.path,
+                visit_mut_expr,
+                |expr: &mut Expr| {
+                    *expr = quote!("null" as Expr);
+                }
+            ));
         }
 
         Ok(CodeGeneration::visitors(visitors))

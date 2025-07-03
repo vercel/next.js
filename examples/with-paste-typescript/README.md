@@ -8,8 +8,6 @@ Next.js and Paste have built-in TypeScript declarations, so you'll get autocompl
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-paste-typescript)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-paste-typescript&project-name=with-paste-typescript&repository-name=with-paste-typescript)
 
 ## How to use

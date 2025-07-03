@@ -69,7 +69,7 @@ describe('i18n-ignore-rewrite-source-locale', () => {
   // build artifacts aren't available on deploy
   if (!(global as any).isNextDeploy) {
     // chunks are not written to disk with TURBOPACK
-    ;(process.env.TURBOPACK ? it.skip.each : it.each)(locales)(
+    ;(process.env.IS_TURBOPACK_TEST ? it.skip.each : it.each)(locales)(
       'get _next/static/ files by skipping locale in rewrite, locale: %s',
       async (locale) => {
         const chunks = (

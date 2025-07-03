@@ -1,12 +1,12 @@
 ---
-title: Cannot infer intended usage of current time with `Date.now()`, `Date()`, or `new Date()`
+title: Cannot infer intended usage of current time with `Date.now()`, `Date()`, or `new Date()` in a Server Component
 ---
 
 ## Why This Error Occurred
 
-Reading the current time can be ambiguous. Sometimes you intend to capture the time when something was cached, other times you intend to capture the time of a user Request. You might also be trying to measure runtime performance to track elapsed time.
+Reading the current time in a Server Component can be ambiguous. Sometimes you intend to capture the time when something was cached, other times you intend to capture the time of a user Request. You might also be trying to measure runtime performance to track elapsed time.
 
-In this instance Next.js cannot determine your intent from usage so it needs you to clarify your intent. The way you do that depends on your use case. See the possible solutions below for how to move forward.
+Depending on your use case you might use alternative time APIs like `performance.now()`, you might cache the time read with `"use cache"`, or you might communicate that the time must be evaluated on each request by guarding it with `await connection()` or moving it into a Client Component.
 
 ## Possible Ways to Fix It
 
@@ -94,22 +94,29 @@ export default async function Page() {
 }
 ```
 
-### Reactive use case
+### Request-time use case
 
-If you want the current time to change and be reactive, consider moving this usage to a Client Component. Note that Server Side Rendering timestamps in a Client Component is also considered ambiguous so to implement this properly Next.js needs you to only read the time in the browser, for instance by using `useLayoutEffect()` or `useEffect()`.
+#### Moving time to the client
+
+If the current time must be evaluated on each user Request consider moving the current time read into a Client Component. You might also find that this is more convenient when you want to do things like update the time independent of a page navigation. For instance imagine you have a relative time component. Instead of rendering the relative time in a Server Component on each Request you can render the relative time when the Client Component renders and then update it periodically.
+
+If you go with this approach you will need to ensure the Client Component which reads the time during render has a Suspense boundary above it. You may be able to improve the loading experience by adopting a more narrowly scoped Suspense boundary. Use your judgement about what kind of UI loading sequence you want your users to experience to guide your decision here.
 
 Before:
 
 ```jsx filename="app/page.js"
-function Timestamp() {
-  return 'current time: ' + new Date().toString()
+function RelativeTime({ when }) {
+  return computeTimeAgo(new Date(), when)
 }
 
 export default async function Page() {
+  const data = await ...
   return (
     <main>
       ...
-      <Timestamp />
+      <Suspense>
+        <RelativeTime when={data.createdAt} />
+      </Suspense>
     </main>
   )
 }
@@ -117,41 +124,55 @@ export default async function Page() {
 
 After:
 
-```jsx filename="app/client-components.js"
+```jsx filename="app/relative-time.js"
 'use client'
 
-import { useState, useLayoutEffect } from 'react'
+import { useReducer } from 'react'
 
-export function Timestamp() {
-  const [time, setTime] = useState(null)
-  useLayoutEffect(() => {
-    // You can determine when and how often to update
-    // the time here. In this example we update it only once
-    setTime(new Date().toString())
-  }, [])
-  if (time) {
-    return 'current time: ' + time
-  }
-  return null
+export function RelativeTime({ when }) {
+  const [_, update] = useReducer(() => ({}), {})
+  const timeAgo = computeTimeAgo(new Date(), when)
+
+  // Whenever the timeAgo value changes a new timeout is
+  // scheduled to update the component. Now the time can
+  // rerender without having the Server Component render again.
+  useEffect(() => {
+    const updateAfter = computeTimeUntilNextUpdate(timeAgo)
+    let timeout = setTimeout(() => {
+      update()
+    }, updateAfter)
+    return () => {
+      clearTimeout(timeout)
+    }
+  })
+
+  return timeAgo
 }
 ```
 
 ```jsx filename="app/page.js"
-import { Timestamp } from './client-components'
+import { RelativeTime } from './relative-time'
 
 export default async function Page() {
+  const data = await ...
   return (
     <main>
       ...
-      <Timestamp />
+      <Suspense>
+        <RelativeTime when={data.createdAt} />
+      </Suspense>
     </main>
   )
 }
 ```
 
-### Request-time use case
+> **Note**: Accessing the current time in a Client Component will still cause it to be excluded from prerendered server HTML but Next.js allows this within Client Components because it can either compute the time dynamically when the user requests the HTML page or in the browser.
 
-If you want the current time to represent the time of a user Request, add `await connection()` before you read the current time. This instructs Next.js that everything after the `await connection()` requires there to be a user Request before it can run. If you add `await connection()` you will also need to ensure there is a Suspense boundary somewhere above the waiting component that describes a fallback UI React can use. The Suspense can be anywhere in the parent component stack but it is shown here above the waiting component for demonstration purposes.
+#### Guarding the time with `await connection()`
+
+It may be that you want to make some rendering determination using the current time on the server and thus cannot move the time read into a Client Component. In this case you must instruct Next.js that the time read is meant to be evaluated at request time by preceding it with `await connection()`.
+
+Next.js enforces that it can always produce at least a partially static initial HTML page so you will also need to ensure that there is a Suspense boundary somewhere above this component that informs Next.js about the intended fallback UI to use while prerendering this page.
 
 Before:
 
@@ -169,6 +190,7 @@ export default async function Page() {
 After:
 
 ```jsx filename="app/page.js"
+import { Suspense } from 'react'
 import { connection } from 'next/server'
 
 async function BannerSkeleton() {

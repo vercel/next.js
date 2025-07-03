@@ -212,6 +212,7 @@ describe('next.rs api', () => {
       },
       dev: true,
       defineEnv: createDefineEnv({
+        projectPath: next.testDir,
         isTurbopack: true,
         clientRouterFilters: undefined,
         config: nextConfig,
@@ -220,6 +221,11 @@ describe('next.rs api', () => {
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
+        rewrites: {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        },
       }),
       buildId: 'development',
       encryptionKey: '12345',
@@ -230,6 +236,7 @@ describe('next.rs api', () => {
       },
       browserslistQuery: 'last 2 versions',
       noMangling: false,
+      currentNodeJsVersion: '18.0.0',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
@@ -640,7 +647,7 @@ describe('next.rs api', () => {
     let currentContent = await next.readFile(file)
     let nextContent = pagesIndexCode('hello world2')
 
-    const count = process.env.CI ? 300 : 1000
+    const count = process.env.NEXT_TEST_CI ? 300 : 1000
     for (let i = 0; i < count; i++) {
       await next.patchFile(file, nextContent)
       const content = currentContent

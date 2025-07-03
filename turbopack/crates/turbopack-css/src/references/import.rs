@@ -5,13 +5,13 @@ use lightningcss::{
     traits::ToCss,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext},
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 
 use crate::{
@@ -138,8 +138,8 @@ impl ModuleReference for ImportAssetReference {
         Ok(css_resolve(
             *self.origin,
             *self.request,
-            Value::new(CssReferenceSubType::AtImport(import_context)),
-            Some(self.issue_source.clone()),
+            CssReferenceSubType::AtImport(import_context),
+            Some(self.issue_source),
         ))
     }
 }
@@ -170,7 +170,7 @@ impl CodeGenerateable for ImportAssetReference {
         } = &*this.request.await?
         {
             imports.push(CssImport::External(ResolvedVc::cell(
-                format!("{}{}", protocol, remainder).into(),
+                format!("{protocol}{remainder}").into(),
             )))
         }
 

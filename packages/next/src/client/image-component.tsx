@@ -29,7 +29,7 @@ import { ImageConfigContext } from '../shared/lib/image-config-context.shared-ru
 import { warnOnce } from '../shared/lib/utils/warn-once'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
-// @ts-ignore - This is replaced by webpack alias
+// This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
 
@@ -314,7 +314,7 @@ function ImagePreload({
   isAppRouter: boolean
   imgAttributes: ImgProps
 }) {
-  const opts = {
+  const opts: ReactDOM.PreloadOptions = {
     as: 'image',
     imageSrcSet: imgAttributes.srcSet,
     imageSizes: imgAttributes.sizes,
@@ -324,12 +324,7 @@ function ImagePreload({
   }
 
   if (isAppRouter && ReactDOM.preload) {
-    // See https://github.com/facebook/react/pull/26940
-    ReactDOM.preload(
-      imgAttributes.src,
-      // @ts-expect-error TODO: upgrade to `@types/react-dom@18.3.x`
-      opts
-    )
+    ReactDOM.preload(imgAttributes.src, opts)
     return null
   }
 

@@ -1,2 +1,2 @@
-import { doubleSub } from "fixtures/double/sub";
-console.log(doubleSub);
+import { doubleSub } from 'fixtures/double/sub'
+console.log(doubleSub)

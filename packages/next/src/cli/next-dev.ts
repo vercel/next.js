@@ -170,7 +170,7 @@ const nextDev = async (
 
   async function preflight(skipOnReboot: boolean) {
     const { getPackageVersion, getDependencies } = (await Promise.resolve(
-      require('../lib/get-package-version')
+      require('../lib/get-package-version') as typeof import('../lib/get-package-version')
     )) as typeof import('../lib/get-package-version')
 
     const [sassVersion, nodeSassVersion] = await Promise.all([
@@ -236,11 +236,14 @@ const nextDev = async (
     hostname: host,
   }
 
-  if (options.turbo || options.turbopack) {
+  const isTurbopack = Boolean(
+    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
+  )
+  if (isTurbopack) {
     process.env.TURBOPACK = '1'
   }
 
-  isTurboSession = !!process.env.TURBOPACK
+  isTurboSession = isTurbopack
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -284,7 +287,7 @@ const nextDev = async (
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          TURBOPACK: process.env.TURBOPACK,
+          ...(isTurbopack ? { TURBOPACK: '1' } : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate

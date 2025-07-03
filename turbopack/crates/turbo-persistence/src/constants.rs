@@ -6,16 +6,20 @@ pub const MAX_MEDIUM_VALUE_SIZE: usize = 64 * 1024 * 1024;
 pub const MAX_SMALL_VALUE_SIZE: usize = 64 * 1024 - 1;
 
 /// Maximum number of entries per SST file
-pub const MAX_ENTRIES_PER_INITIAL_FILE: usize = 1024 * 1024;
+pub const MAX_ENTRIES_PER_INITIAL_FILE: usize = 256 * 1024;
 
 /// Maximum number of entries per SST file
 pub const MAX_ENTRIES_PER_COMPACTED_FILE: usize = 1024 * 1024;
 
 /// Finish file when total amount of data exceeds this
-pub const DATA_THRESHOLD_PER_INITIAL_FILE: usize = 256 * 1024 * 1024;
+pub const DATA_THRESHOLD_PER_INITIAL_FILE: usize = 64 * 1024 * 1024;
 
 /// Finish file when total amount of data exceeds this
 pub const DATA_THRESHOLD_PER_COMPACTED_FILE: usize = 256 * 1024 * 1024;
+
+/// Reduction factor (as bit shift) for the size of the thread-local buffer as shift of
+/// MAX_ENTRIES_PER_INITIAL_FILE and DATA_THRESHOLD_PER_INITIAL_FILE.
+pub const THREAD_LOCAL_SIZE_SHIFT: usize = 7;
 
 /// Maximum RAM bytes for AQMF cache
 pub const AQMF_CACHE_SIZE: u64 = 300 * 1024 * 1024;

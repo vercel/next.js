@@ -226,7 +226,7 @@ describe('Middleware Runtime', () => {
         delete middlewareWithoutEnvs.env
         expect(middlewareWithoutEnvs).toEqual({
           // Turbopack creates more files as it can do chunking.
-          files: process.env.TURBOPACK
+          files: process.env.IS_TURBOPACK_TEST
             ? expect.toBeArray()
             : expect.arrayContaining([
                 'server/edge-runtime-webpack.js',
@@ -236,7 +236,7 @@ describe('Middleware Runtime', () => {
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: process.env.TURBOPACK ? expect.toBeArray() : [],
+          assets: process.env.IS_TURBOPACK_TEST ? expect.toBeArray() : [],
           regions: 'auto',
         })
         expect(envs).toContainAllKeys([
@@ -265,7 +265,7 @@ describe('Middleware Runtime', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (!process.env.TURBOPACK) {
+          if (!process.env.IS_TURBOPACK_TEST) {
             expect(middleware.files).toContainEqual(
               expect.stringContaining('server/edge-runtime-webpack')
             )
@@ -823,17 +823,6 @@ describe('Middleware Runtime', () => {
           i18n ? '/en' : ''
         }/sha.json?hello=goodbye`,
       ])
-    })
-
-    it(`should read request body`, async () => {
-      const body = { hello: 'world' }
-      const res = await fetchViaHTTP(next.url, '/request-body', undefined, {
-        body: JSON.stringify(body),
-        headers: { 'content-type': 'application/json' },
-        method: 'POST',
-      })
-
-      expect(await res.json()).toEqual(body)
     })
   }
   describe('with i18n', () => {

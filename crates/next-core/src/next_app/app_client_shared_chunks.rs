@@ -1,12 +1,12 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, EvaluatableAssets,
+        ChunkGroupResult, ChunkingContext, EvaluatableAssets, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::OutputAssets,
 };
 
@@ -38,7 +38,7 @@ pub async fn get_app_client_shared_chunk_group(
                         .collect(),
                 ),
                 module_graph,
-                Value::new(AvailabilityInfo::Root),
+                AvailabilityInfo::Root,
             )
             .resolve()
             .await

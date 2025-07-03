@@ -3,7 +3,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     reference::ModuleReference,
-    resolve::{pattern::Pattern, resolve_raw, ModuleResolveResult},
+    resolve::{ModuleResolveResult, pattern::Pattern, resolve_raw},
     source::Source,
 };
 
@@ -25,10 +25,10 @@ impl FileSourceReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for FileSourceReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        let context_dir = self.source.ident().path().parent();
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        let context_dir = self.source.ident().path().await?.parent();
 
-        resolve_raw(context_dir, *self.path, false).as_raw_module_result()
+        Ok(resolve_raw(context_dir, *self.path, false).as_raw_module_result())
     }
 }
 

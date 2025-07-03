@@ -4,7 +4,7 @@ i = (0 | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
-key = ???*0*
+key = (???*0* | undefined)
 - *0* ???*1*[i]
   ⚠️  unknown object
   ⚠️  This value might have side effects

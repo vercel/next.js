@@ -3,11 +3,10 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (staleness)', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     test('disabled in development / deployment', () => {})
     return
   }
@@ -77,6 +76,79 @@ describe('segment cache (staleness)', () => {
       // The page with a stale time of 10 minutes is *not* requested again
       // because it's still fresh.
       'no-requests'
+    )
+  })
+
+  it('reuses dynamic data up to the staleTimes.dynamic threshold', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    await page.clock.install()
+    const startDate = Date.now()
+    await page.clock.setFixedTime(startDate)
+
+    // Navigate to the dynamic page
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/dynamic"]'
+        )
+        await toggle.click()
+        const link = await browser.elementByCss('a[href="/dynamic"]')
+        await link.click()
+      },
+      {
+        includes: 'Dynamic content',
+      }
+    )
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
+    )
+
+    await browser.back()
+
+    // Advance time by 29 seconds. staleTimes.dynamic is configured as 30s, so
+    // if we navigate to the same link again, the old data should be reused
+    // without a new network request.
+    await page.clock.setFixedTime(startDate + 29 * 1000)
+
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/dynamic"]'
+      )
+      await toggle.click()
+      const link = await browser.elementByCss('a[href="/dynamic"]')
+      await link.click()
+      // The next page is immediately rendered
+      expect(await browser.elementById('dynamic-content').text()).toBe(
+        'Dynamic content'
+      )
+    }, 'no-requests')
+
+    await browser.back()
+
+    // Advance an additional second. This time, if we navigate to the link
+    // again, the data is stale, so we issue a new request.
+    await page.clock.setFixedTime(startDate + 30 * 1000)
+
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/dynamic"]'
+        )
+        await toggle.click()
+        const link = await browser.elementByCss('a[href="/dynamic"]')
+        await link.click()
+      },
+      { includes: 'Dynamic content' }
+    )
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
     )
   })
 })

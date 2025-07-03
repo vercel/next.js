@@ -5,8 +5,8 @@ import { NextInstance } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 // TODO: Somehow the warning doesn't show up with Turbopack, even though the transform is not enabled.
-// TODO: It no longer shows up with Webpack either in tests. Manual repro does work though.
-;(process.env.TURBOPACK ? describe.skip : describe.skip)(
+// TODO: It no longer shows up with Webpack either in tests.
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe.skip)(
   'styled-components SWC transform',
   () => {
     let next: NextInstance
@@ -22,7 +22,7 @@ import { retry } from 'next-test-utils'
           ),
         },
         dependencies: {
-          'styled-components': '5.3.3',
+          'styled-components': '6.1.16',
         },
       })
     })

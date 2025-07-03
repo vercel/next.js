@@ -40,6 +40,7 @@ import {
   normalizeRewritesForBuildManifest,
   srcEmptySsgManifest,
   processRoute,
+  createEdgeRuntimeManifest,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
@@ -454,7 +455,7 @@ export class TurbopackManifestLoader {
       middlewareBuildManifestPath,
       // we use globalThis here because middleware can be node
       // which doesn't have "self"
-      `globalThis.__BUILD_MANIFEST=${JSON.stringify(buildManifest)};`
+      createEdgeRuntimeManifest(buildManifest)
     )
 
     const interceptionRewrites = JSON.stringify(
@@ -477,22 +478,29 @@ export class TurbopackManifestLoader {
     }
 
     const sortedPageKeys = getSortedRoutes(pagesKeys)
-    const content: ClientBuildManifest = {
+    const clientBuildManifest: ClientBuildManifest = {
       __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
       ...Object.fromEntries(
-        sortedPageKeys.map((pathname) => [
-          pathname,
-          [`static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`],
-        ])
+        sortedPageKeys.map((pathname) => {
+          let filePath
+          if (pathname === '/') {
+            filePath = '/index.js'
+          } else if (pathname.endsWith('/index')) {
+            filePath = `${pathname}/index.js`
+          } else {
+            filePath = `${pathname}.js`
+          }
+          return [pathname, [`static/chunks/pages${filePath}`]]
+        })
       ),
       sortedPages: sortedPageKeys,
     }
-    const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
-      content
+    const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
+      clientBuildManifest
     )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
     await writeFileAtomic(
       join(this.distDir, 'static', this.buildId, '_buildManifest.js'),
-      buildManifestJs
+      clientBuildManifestJs
     )
     await writeFileAtomic(
       join(this.distDir, 'static', this.buildId, '_ssgManifest.js'),

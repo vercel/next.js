@@ -1,14 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('segment cache (MPA navigations)', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     test('ppr is disabled', () => {})
     return
   }
+
+  type ElementWithExpando = Element & { __expando?: boolean }
 
   it('triggers MPA navigation when navigating to a different root layout', async () => {
     const browser = await next.browser('/')
@@ -16,15 +18,22 @@ describe('segment cache (MPA navigations)', () => {
     // Set an expando on the html element so we can detect if the page
     // gets unloaded.
     const html = await browser.elementByCss('html')
-    await html.evaluate((el) => (el.__expando = true))
+
+    await html.evaluate((el) => ((el as ElementWithExpando).__expando = true))
 
     // Navigate to a page with a different root layout.
     const link = await browser.elementByCss(`a[href="/foo"]`)
     await link.click()
 
     // The expando should not be present because we did a full-page navigation.
-    const htmlAfterNav = await browser.elementByCss('html')
-    expect(await htmlAfterNav.evaluate((el) => el.__expando)).toBe(undefined)
+    await retry(async () => {
+      const htmlAfterNav = await browser.elementByCss('html')
+      expect(
+        await htmlAfterNav.evaluate(
+          (el) => (el as ElementWithExpando).__expando
+        )
+      ).toBe(undefined)
+    })
   })
 
   it(
@@ -41,15 +50,21 @@ describe('segment cache (MPA navigations)', () => {
       // Set an expando on the html element so we can detect if the page
       // gets unloaded.
       const html = await browser.elementByCss('html')
-      await html.evaluate((el) => (el.__expando = true))
+      await html.evaluate((el) => ((el as ElementWithExpando).__expando = true))
 
       // Navigate to a page with a different root layout.
       const link = await browser.elementByCss(`a[href="/bar/inner"]`)
       await link.click()
 
       // The expando should not be present because we did a full-page navigation.
-      const htmlAfterNav = await browser.elementByCss('html')
-      expect(await htmlAfterNav.evaluate((el) => el.__expando)).toBe(undefined)
+      await retry(async () => {
+        const htmlAfterNav = await browser.elementByCss('html')
+        expect(
+          await htmlAfterNav.evaluate(
+            (el) => (el as ElementWithExpando).__expando
+          )
+        ).toBe(undefined)
+      })
     }
   )
 })

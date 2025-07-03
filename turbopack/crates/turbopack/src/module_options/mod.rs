@@ -10,11 +10,12 @@ pub use custom_module_type::CustomModuleType;
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     chunk::SourceMapsType,
+    ident::Layer,
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::options::{ImportMap, ImportMapping},
 };
@@ -31,26 +32,23 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-async fn package_import_map_from_import_mapping(
+fn package_import_map_from_import_mapping(
     package_name: RcStr,
     package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
-    import_map.insert_exact_alias(
-        format!("@vercel/turbopack/{}", package_name),
-        package_mapping,
-    );
+    import_map.insert_exact_alias(format!("@vercel/turbopack/{package_name}"), package_mapping);
     import_map.cell()
 }
 
 #[turbo_tasks::function]
-async fn package_import_map_from_context(
+fn package_import_map_from_context(
     package_name: RcStr,
-    context_path: ResolvedVc<FileSystemPath>,
+    context_path: FileSystemPath,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
-        format!("@vercel/turbopack/{}", package_name),
+        format!("@vercel/turbopack/{package_name}"),
         ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
     import_map.cell()
@@ -65,7 +63,7 @@ pub struct ModuleOptions {
 impl ModuleOptions {
     #[turbo_tasks::function]
     pub async fn new(
-        path: Vc<FileSystemPath>,
+        path: FileSystemPath,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
     ) -> Result<Vc<ModuleOptions>> {
@@ -78,10 +76,8 @@ impl ModuleOptions {
         } = *module_options_context.await?;
 
         if !rules.is_empty() {
-            let path_value = path.await?;
-
             for (condition, new_context) in rules.iter() {
-                if condition.matches(&path_value).await? {
+                if condition.matches(&path) {
                     return Ok(ModuleOptions::new(
                         path,
                         **new_context,
@@ -114,7 +110,7 @@ impl ModuleOptions {
 
     #[turbo_tasks::function]
     async fn new_internal(
-        path: Option<Vc<FileSystemPath>>,
+        path: Option<FileSystemPath>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
     ) -> Result<Vc<ModuleOptions>> {
@@ -142,11 +138,12 @@ impl ModuleOptions {
                 },
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
-            preset_env_versions,
+            environment,
             ref module_rules,
             execution_context,
             tree_shaking_mode,
             keep_last_successful_parse,
+            remove_unused_exports,
             ..
         } = *module_options_context.await?;
 
@@ -177,12 +174,13 @@ impl ModuleOptions {
             refresh,
             extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             keep_last_successful_parse,
+            remove_unused_exports,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
-        if let Some(env) = preset_env_versions {
-            transforms.push(EcmascriptInputTransform::PresetEnv(env));
+        if let Some(environment) = environment {
+            transforms.push(EcmascriptInputTransform::PresetEnv(environment));
         }
 
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
@@ -447,12 +445,17 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
+                        environment,
                     })],
                 ),
                 ModuleRule::new(
-                    RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    RuleCondition::any(vec![
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
+                        environment,
                     })],
                 ),
             ]);
@@ -466,8 +469,9 @@ impl ModuleOptions {
                     package_import_map_from_import_mapping("postcss".into(), *postcss_package)
                 } else {
                     package_import_map_from_context(
-                        "postcss".into(),
-                        path.context("need_path in ModuleOptions::new is incorrect")?,
+                        rcstr!("postcss"),
+                        path.clone()
+                            .context("need_path in ModuleOptions::new is incorrect")?,
                     )
                 };
 
@@ -483,7 +487,7 @@ impl ModuleOptions {
                                     *execution_context,
                                     Some(import_map),
                                     None,
-                                    "postcss".into(),
+                                    Layer::new(rcstr!("postcss")),
                                     true,
                                 ),
                                 *execution_context,
@@ -505,11 +509,15 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
+                        environment,
                     })],
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                        ]),
                         // Only create a module CSS asset if not `@import`ed from CSS already.
                         // NOTE: `composes` references should not be treated as `@import`s and
                         // should also create a module CSS asset.
@@ -521,7 +529,10 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                        ]),
                         // Create a normal CSS asset if `@import`ed from CSS already.
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::AtImport(None),
@@ -529,13 +540,18 @@ impl ModuleOptions {
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
+                        environment,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new_internal(
-                    RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    RuleCondition::Any(vec![
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
+                        environment,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
@@ -544,10 +560,14 @@ impl ModuleOptions {
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::Analyze,
                         )),
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                        ]),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
+                        environment,
                     })],
                 ),
             ]);
@@ -612,16 +632,40 @@ impl ModuleOptions {
                     path.context("need_path in ModuleOptions::new is incorrect")?,
                 )
             };
-            for (glob, rule) in webpack_loaders_options.rules.await?.iter() {
+            for (key, rule) in webpack_loaders_options.rules.await?.iter() {
                 rules.push(ModuleRule::new(
                     RuleCondition::All(vec![
-                        if !glob.contains('/') {
-                            RuleCondition::ResourceBasePathGlob(Glob::new(glob.clone()).await?)
-                        } else {
-                            RuleCondition::ResourcePathGlob {
-                                base: execution_context.project_path().await?,
-                                glob: Glob::new(glob.clone()).await?,
+                        if key.starts_with("#") {
+                            // This is a custom marker requiring a corresponding condition entry
+                            let conditions = (*webpack_loaders_options.conditions.await?)
+                                .context(
+                                    "Expected a condition entry for the webpack loader rule \
+                                     matching {key}. Create a `conditions` mapping in your \
+                                     next.config.js",
+                                )?
+                                .await?;
+
+                            let condition = conditions.get(key).context(
+                                "Expected a condition entry for the webpack loader rule matching \
+                                 {key}.",
+                            )?;
+
+                            match &condition.path {
+                                ConditionPath::Glob(glob) => RuleCondition::ResourcePathGlob {
+                                    base: execution_context.project_path().await?.clone_value(),
+                                    glob: Glob::new(glob.clone()).await?,
+                                },
+                                ConditionPath::Regex(regex) => {
+                                    RuleCondition::ResourcePathEsRegex(regex.await?)
+                                }
                             }
+                        } else if key.contains('/') {
+                            RuleCondition::ResourcePathGlob {
+                                base: execution_context.project_path().await?.clone_value(),
+                                glob: Glob::new(key.clone()).await?,
+                            }
+                        } else {
+                            RuleCondition::ResourceBasePathGlob(Glob::new(key.clone()).await?)
                         },
                         RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
                     ]),
@@ -632,7 +676,7 @@ impl ModuleOptions {
                                     *execution_context,
                                     Some(import_map),
                                     None,
-                                    "webpack_loaders".into(),
+                                    Layer::new(rcstr!("webpack_loaders")),
                                     false,
                                 ),
                                 *execution_context,

@@ -9,7 +9,7 @@ describe('Link component deprecations', () => {
     const browser = await next.browser('/')
     const logs = await browser.log()
 
-    const didWarn = logs.some(
+    const errors = logs.filter(
       (log) =>
         log.source === 'error' &&
         log.message.includes(
@@ -17,6 +17,6 @@ describe('Link component deprecations', () => {
         )
     )
 
-    expect(didWarn).toBe(isNextDev)
+    expect(errors.length).toBe(isNextDev ? 1 : 0)
   })
 })

@@ -2,6 +2,8 @@ import React from 'react'
 import { clearCacheNodeDataForSegmentPath } from './clear-cache-node-data-for-segment-path'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 
+const navigatedAt = -1
+
 describe('clearCacheNodeDataForSegmentPath', () => {
   it('should clear the data property', () => {
     const pathname = '/dashboard/settings'
@@ -13,6 +15,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       .flat()
 
     const cache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
@@ -22,6 +25,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       loading: null,
     }
     const existingCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
@@ -35,6 +39,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
@@ -48,6 +53,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
@@ -74,18 +80,21 @@ describe('clearCacheNodeDataForSegmentPath', () => {
        "head": null,
        "lazyData": null,
        "loading": null,
+       "navigatedAt": -1,
        "parallelRoutes": Map {
          "children" => Map {
            "linking" => {
              "head": null,
              "lazyData": null,
              "loading": null,
+             "navigatedAt": -1,
              "parallelRoutes": Map {
                "children" => Map {
                  "" => {
                    "head": null,
                    "lazyData": null,
                    "loading": null,
+                   "navigatedAt": -1,
                    "parallelRoutes": Map {},
                    "prefetchHead": null,
                    "prefetchRsc": null,
@@ -105,6 +114,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
              "head": null,
              "lazyData": null,
              "loading": null,
+             "navigatedAt": -1,
              "parallelRoutes": Map {},
              "prefetchHead": null,
              "prefetchRsc": null,

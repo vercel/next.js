@@ -567,6 +567,27 @@ describe('Image Optimizer', () => {
       )
     })
 
+    it('should error when images.remotePatterns URL has invalid protocol', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        `{ images: { remotePatterns: [new URL('file://example.com/**')] } }`
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Specified images.remotePatterns must have protocol "http" or "https" received "file"`
+      )
+    })
+
     it('should error when images.contentDispositionType is not valid', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',

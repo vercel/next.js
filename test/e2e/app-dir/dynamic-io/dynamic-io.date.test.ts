@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-
-const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
+import expect from 'expect'
 
 describe('dynamic-io', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -36,12 +35,8 @@ describe('dynamic-io', () => {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#value').text()).toMatch(/^\d+$/)
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#value').text()).toMatch(/^\d+$/)
     } else {
-      expect($('#layout').text()).toBe('at runtime')
+      expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#value').text()).toMatch(/^\d+$/)
     }
@@ -66,12 +61,8 @@ describe('dynamic-io', () => {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#value').text()).toContain('GMT')
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#value').text()).toContain('GMT')
     } else {
-      expect($('#layout').text()).toBe('at runtime')
+      expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#value').text()).toContain('GMT')
     }
@@ -96,12 +87,8 @@ describe('dynamic-io', () => {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#value').text()).toContain('GMT')
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#value').text()).toContain('GMT')
     } else {
-      expect($('#layout').text()).toBe('at runtime')
+      expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#value').text()).toContain('GMT')
     }

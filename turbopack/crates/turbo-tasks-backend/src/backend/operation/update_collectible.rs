@@ -5,13 +5,12 @@ use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
-        get_many,
+        TaskDataCategory, get_many,
         operation::{
-            get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
-            AggregationUpdateQueue, ExecuteContext, Operation,
+            AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext,
+            Operation, get_aggregation_number, is_root_node,
         },
         storage::{get, update_count},
-        TaskDataCategory,
     },
     data::CollectibleRef,
 };

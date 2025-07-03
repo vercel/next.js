@@ -1,20 +1,16 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
-use turbo_tasks_env::EnvMap;
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOptionsContext};
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
-        SourceMapsType,
+        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
+        module_id_strategies::ModuleIdStrategy,
     },
-    compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
-        FreeVarReference, FreeVarReferences,
-    },
-    environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
+    compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
+    environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -27,37 +23,14 @@ use crate::{
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::{
-        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
+        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
     },
-    util::{foreign_code_context_condition, NextRuntime},
+    util::{NextRuntime, OptionEnvMap, defines, foreign_code_context_condition},
 };
 
-fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
-    let mut defines = FxIndexMap::default();
-
-    for (k, v) in define_env {
-        defines
-            .entry(
-                k.split('.')
-                    .map(|s| DefineableNameSegment::Name(s.into()))
-                    .collect::<Vec<_>>(),
-            )
-            .or_insert_with(|| {
-                let val = serde_json::from_str(v);
-                match val {
-                    Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
-                    _ => CompileTimeDefineValue::JSON(v.clone()),
-                }
-            });
-    }
-
-    CompileTimeDefines(defines)
-}
-
 #[turbo_tasks::function]
-async fn next_edge_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefines>> {
+async fn next_edge_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileTimeDefines>> {
     Ok(defines(&*define_env.await?).cell())
 }
 
@@ -65,15 +38,15 @@ async fn next_edge_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefin
 /// See [here](https://github.com/vercel/next.js/blob/160bb99b06e9c049f88e25806fd995f07f4cc7e1/packages/next/src/build/webpack-config.ts#L1715-L1718) how webpack configures it.
 #[turbo_tasks::function]
 async fn next_edge_free_vars(
-    project_path: ResolvedVc<FileSystemPath>,
-    define_env: Vc<EnvMap>,
+    project_path: FileSystemPath,
+    define_env: Vc<OptionEnvMap>,
 ) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "buffer".into(),
+            request: rcstr!("buffer"),
             lookup_path: Some(project_path),
-            export: Some("Buffer".into()),
+            export: Some(rcstr!("Buffer")),
         },
     )
     .cell())
@@ -81,13 +54,14 @@ async fn next_edge_free_vars(
 
 #[turbo_tasks::function]
 pub async fn get_edge_compile_time_info(
-    project_path: Vc<FileSystemPath>,
-    define_env: Vc<EnvMap>,
+    project_path: FileSystemPath,
+    define_env: Vc<OptionEnvMap>,
+    node_version: ResolvedVc<NodeJsVersion>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(Value::new(ExecutionEnvironment::EdgeWorker(
-            EdgeWorkerEnvironment {}.resolved_cell(),
-        )))
+        Environment::new(ExecutionEnvironment::EdgeWorker(
+            EdgeWorkerEnvironment { node_version }.resolved_cell(),
+        ))
         .to_resolved()
         .await?,
     )
@@ -103,21 +77,24 @@ pub async fn get_edge_compile_time_info(
 
 #[turbo_tasks::function]
 pub async fn get_edge_resolve_options_context(
-    project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    project_path: FileSystemPath,
+    ty: ServerContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
-    let next_edge_import_map =
-        get_next_edge_import_map(*project_path, ty, next_config, execution_context)
-            .to_resolved()
-            .await?;
-
-    let ty: ServerContextType = ty.into_value();
+    let next_edge_import_map = get_next_edge_import_map(
+        project_path.clone(),
+        ty.clone(),
+        next_config,
+        mode,
+        execution_context,
+    )
+    .to_resolved()
+    .await?;
 
     let mut before_resolve_plugins = vec![ResolvedVc::upcast(
-        ModuleFeatureReportResolvePlugin::new(*project_path)
+        ModuleFeatureReportResolvePlugin::new(project_path.clone())
             .to_resolved()
             .await?,
     )];
@@ -128,7 +105,7 @@ pub async fn get_edge_resolve_options_context(
             | ServerContextType::AppRSC { .. }
     ) {
         before_resolve_plugins.push(ResolvedVc::upcast(
-            NextFontLocalResolvePlugin::new(*project_path)
+            NextFontLocalResolvePlugin::new(project_path.clone())
                 .to_resolved()
                 .await?,
         ));
@@ -143,19 +120,19 @@ pub async fn get_edge_resolve_options_context(
             | ServerContextType::Instrumentation { .. }
     ) {
         before_resolve_plugins.push(ResolvedVc::upcast(
-            get_invalid_client_only_resolve_plugin(project_path)
+            get_invalid_client_only_resolve_plugin(project_path.clone())
                 .to_resolved()
                 .await?,
         ));
         before_resolve_plugins.push(ResolvedVc::upcast(
-            get_invalid_styled_jsx_resolve_plugin(project_path)
+            get_invalid_styled_jsx_resolve_plugin(project_path.clone())
                 .to_resolved()
                 .await?,
         ));
     }
 
     let after_resolve_plugins = vec![ResolvedVc::upcast(
-        NextSharedRuntimeResolvePlugin::new(*project_path)
+        NextSharedRuntimeResolvePlugin::new(project_path.clone())
             .to_resolved()
             .await?,
     )];
@@ -170,12 +147,12 @@ pub async fn get_edge_resolve_options_context(
             .map(RcStr::from),
     );
 
-    if ty.supports_react_server() {
-        custom_conditions.push("react-server".into());
+    if ty.should_use_react_server_condition() {
+        custom_conditions.push(rcstr!("react-server"));
     };
 
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().to_resolved().await?),
+        enable_node_modules: Some(project_path.root().await?.clone_value()),
         enable_edge_node_externals: true,
         custom_conditions,
         import_map: Some(next_edge_import_map),
@@ -183,6 +160,7 @@ pub async fn get_edge_resolve_options_context(
         browser: true,
         after_resolve_plugins,
         before_resolve_plugins,
+
         ..Default::default()
     };
 
@@ -192,6 +170,12 @@ pub async fn get_edge_resolve_options_context(
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
+        tsconfig_path: next_config
+            .typescript_tsconfig_path()
+            .await?
+            .as_ref()
+            .map(|p| project_path.join(p))
+            .transpose()?,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -204,36 +188,35 @@ pub async fn get_edge_resolve_options_context(
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
-    root_path: ResolvedVc<FileSystemPath>,
-    node_root: ResolvedVc<FileSystemPath>,
+    root_path: FileSystemPath,
+    node_root: FileSystemPath,
     output_root_to_root_path: ResolvedVc<RcStr>,
-    client_root: ResolvedVc<FileSystemPath>,
+    client_root: FileSystemPath,
     asset_prefix: ResolvedVc<Option<RcStr>>,
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
+    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".into()).to_resolved().await?;
+    let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
-        output_root,
-        output_root_to_root_path,
-        client_root,
-        output_root.join("chunks/ssr".into()).to_resolved().await?,
-        client_root
-            .join("static/media".into())
-            .to_resolved()
-            .await?,
+        output_root.clone(),
+        output_root_to_root_path.owned().await?,
+        client_root.clone(),
+        output_root.join("chunks/ssr")?,
+        client_root.join("static/media")?,
         environment,
         next_mode.runtime_type(),
     )
-    .asset_base_path(asset_prefix)
+    .asset_base_path(asset_prefix.owned().await?)
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            // React needs deterministic function names to work correctly.
+            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
         }
     } else {
         MinifyType::NoMinify
@@ -246,20 +229,22 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.chunking_config(
-            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                min_chunk_size: 20_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.chunking_config(
-            Vc::<CssChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 20_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -268,24 +253,25 @@ pub async fn get_edge_chunking_context_with_client_assets(
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context(
     mode: Vc<NextMode>,
-    root_path: ResolvedVc<FileSystemPath>,
-    node_root: ResolvedVc<FileSystemPath>,
+    root_path: FileSystemPath,
+    node_root: FileSystemPath,
     node_root_to_root_path: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
+    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".into()).to_resolved().await?;
+    let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
-        output_root,
-        node_root_to_root_path,
-        output_root,
-        output_root.join("chunks".into()).to_resolved().await?,
-        output_root.join("assets".into()).to_resolved().await?,
+        output_root.clone(),
+        node_root_to_root_path.owned().await?,
+        output_root.clone(),
+        output_root.join("chunks")?,
+        output_root.join("assets")?,
         environment,
         next_mode.runtime_type(),
     )
@@ -293,10 +279,10 @@ pub async fn get_edge_chunking_context(
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the
     // asset from the output directory.
-    .asset_base_path(ResolvedVc::cell(Some("blob:server/edge/".into())))
+    .asset_base_path(Some(rcstr!("blob:server/edge/")))
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify
@@ -309,20 +295,22 @@ pub async fn get_edge_chunking_context(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.chunking_config(
-            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                min_chunk_size: 20_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.chunking_config(
-            Vc::<CssChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 20_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))

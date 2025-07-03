@@ -43,6 +43,7 @@ macro_rules! impl_auto_marker_trait {
             ::serde_json::Value, ::serde_json::Map<String, ::serde_json::Value>
         );
 
+        $crate::marker_trait::impl_marker_trait_fn_ptr!($trait: E D C B A Z Y X W V U T);
         $crate::marker_trait::impl_marker_trait_tuple!($trait: E D C B A Z Y X W V U T);
 
         unsafe impl<T: $trait> $trait for ::std::option::Option<T> {}
@@ -77,7 +78,6 @@ macro_rules! impl_auto_marker_trait {
         {}
         unsafe impl<T: $trait> $trait for $crate::State<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientState<T> {}
-        unsafe impl<T: $trait> $trait for $crate::Value<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientValue<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientInstance<T> {}
 
@@ -101,9 +101,27 @@ macro_rules! impl_marker_trait {
     }
 }
 
+/// Create an implementation for every possible `fn` pointer type, regardless of the type of the
+/// arguments and return type.
+///
+/// This is typically valid for marker traits as `fn` pointer types (not the `Fn` trait) do not
+/// contain any data, they are compile-time pointers to static code.
+macro_rules! impl_marker_trait_fn_ptr {
+    ($trait:ident: $T:ident) => {
+        $crate::marker_trait::impl_marker_trait_fn_ptr!(@impl $trait: $T);
+    };
+    ($trait:ident: $T:ident $( $U:ident )+) => {
+        $crate::marker_trait::impl_marker_trait_fn_ptr!($trait: $( $U )+);
+        $crate::marker_trait::impl_marker_trait_fn_ptr!(@impl $trait: $T $( $U )+);
+    };
+    (@impl $trait:ident: $( $T:ident )+) => {
+        unsafe impl<$($T,)+ Return> $trait for fn($($T),+) -> Return {}
+    };
+}
+
 /// Create an implementation for every possible tuple where every element implements `$trait`.
 ///
-/// Must be passed a sequence of identifier fo the tuple's generic parameters. This will only
+/// Must be passed a sequence of identifier to the tuple's generic parameters. This will only
 /// generate implementations up to the length of the passed in sequence.
 ///
 /// Based on stdlib's internal `tuple_impls!` macro.
@@ -122,4 +140,5 @@ macro_rules! impl_marker_trait_tuple {
 
 pub(crate) use impl_auto_marker_trait;
 pub(crate) use impl_marker_trait;
+pub(crate) use impl_marker_trait_fn_ptr;
 pub(crate) use impl_marker_trait_tuple;

@@ -487,6 +487,49 @@ describe('parallel-routes-and-interception', () => {
     })
   })
 
+  describe('route intercepting with prerendered dynamic routes ', () => {
+    it('should render intercepted route', async () => {
+      const browser = await next.browser(
+        '/intercepting-routes-dynamic-prerendered/photos'
+      )
+
+      // Check if navigation to modal route works.
+      await browser
+        .elementByCss(
+          '[href="/intercepting-routes-dynamic-prerendered/photos/1"]'
+        )
+        .click()
+
+      // This should load the intercepted page.
+      await retry(async () => {
+        expect(
+          await browser.waitForElementByCss('#photo-intercepted-1').text()
+        ).toBe('Photo INTERCEPTED 1')
+      })
+
+      // Check if url matches even though it was intercepted.
+      expect(await browser.url()).toBe(
+        next.url + '/intercepting-routes-dynamic-prerendered/photos/1'
+      )
+
+      // There must not be any errors from prefetching the intercepted page.
+      expect(
+        (await browser.log()).filter(({ source }) => source === 'error')
+      ).toEqual([])
+
+      // Trigger a refresh, this should load the normal page, not the modal.
+      await browser.refresh()
+      expect(await browser.waitForElementByCss('#photo-page-1').text()).toBe(
+        'Photo PAGE 1'
+      )
+
+      // Check if the url matches still.
+      expect(await browser.url()).toBe(
+        next.url + '/intercepting-routes-dynamic-prerendered/photos/1'
+      )
+    })
+  })
+
   describe('route intercepting with dynamic optional catch-all routes', () => {
     it('should render intercepted route', async () => {
       const browser = await next.browser(
@@ -901,7 +944,7 @@ describe('parallel-routes-and-interception-conflicting-pages', () => {
 
     // before adding this file, the page would have matched `/app/parallel/(new)/@baz/nested-2/page`
     // but we've added a more specific page, so it should match that instead
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       // TODO: this matches differently in Turbopack because the Webpack loader does some sorting on the paths
       // Investigate the discrepancy in a follow-up. For now, since no errors are being thrown (and since this test was previously ignored in Turbopack),
       // we'll just verify that the page is rendered and some content was matched.

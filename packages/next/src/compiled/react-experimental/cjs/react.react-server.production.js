@@ -36,8 +36,9 @@ function formatProdErrorMessage(code) {
     " for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
   );
 }
-var isArrayImpl = Array.isArray,
-  REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
+var isArrayImpl = Array.isArray;
+function noop() {}
+var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_PORTAL_TYPE = Symbol.for("react.portal"),
   REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
   REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"),
@@ -47,6 +48,7 @@ var isArrayImpl = Array.isArray,
   REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+  REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
@@ -101,7 +103,6 @@ function getElementKey(element, index) {
     ? escape("" + element.key)
     : index.toString(36);
 }
-function noop$1() {}
 function resolveThenable(thenable) {
   switch (thenable.status) {
     case "fulfilled":
@@ -111,7 +112,7 @@ function resolveThenable(thenable) {
     default:
       switch (
         ("string" === typeof thenable.status
-          ? thenable.then(noop$1, noop$1)
+          ? thenable.then(noop, noop)
           : ((thenable.status = "pending"),
             thenable.then(
               function (fulfilledValue) {
@@ -279,36 +280,35 @@ function createCacheNode() {
   return { s: 0, v: void 0, o: null, p: null };
 }
 var reportGlobalError =
-  "function" === typeof reportError
-    ? reportError
-    : function (error) {
-        if (
-          "object" === typeof window &&
-          "function" === typeof window.ErrorEvent
-        ) {
-          var event = new window.ErrorEvent("error", {
-            bubbles: !0,
-            cancelable: !0,
-            message:
-              "object" === typeof error &&
-              null !== error &&
-              "string" === typeof error.message
-                ? String(error.message)
-                : String(error),
-            error: error
-          });
-          if (!window.dispatchEvent(event)) return;
-        } else if (
-          "object" === typeof process &&
-          "function" === typeof process.emit
-        ) {
-          process.emit("uncaughtException", error);
-          return;
-        }
-        console.error(error);
-      };
-function noop() {}
-var getPrototypeOf = Object.getPrototypeOf,
+    "function" === typeof reportError
+      ? reportError
+      : function (error) {
+          if (
+            "object" === typeof window &&
+            "function" === typeof window.ErrorEvent
+          ) {
+            var event = new window.ErrorEvent("error", {
+              bubbles: !0,
+              cancelable: !0,
+              message:
+                "object" === typeof error &&
+                null !== error &&
+                "string" === typeof error.message
+                  ? String(error.message)
+                  : String(error),
+              error: error
+            });
+            if (!window.dispatchEvent(event)) return;
+          } else if (
+            "object" === typeof process &&
+            "function" === typeof process.emit
+          ) {
+            process.emit("uncaughtException", error);
+            return;
+          }
+          console.error(error);
+        },
+  getPrototypeOf = Object.getPrototypeOf,
   TaintRegistryObjects = ReactSharedInternals.TaintRegistryObjects,
   TaintRegistryValues = ReactSharedInternals.TaintRegistryValues,
   TaintRegistryByteLengths = ReactSharedInternals.TaintRegistryByteLengths,
@@ -403,6 +403,10 @@ exports.cache = function (fn) {
       throw ((result = dispatcher), (result.s = 2), (result.v = error), error);
     }
   };
+};
+exports.cacheSignal = function () {
+  var dispatcher = ReactSharedInternals.A;
+  return dispatcher ? dispatcher.cacheSignal() : null;
 };
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
@@ -521,6 +525,9 @@ exports.memo = function (type, compare) {
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
     currentTransition = {};
+  currentTransition.types =
+    null !== prevTransition ? prevTransition.types : null;
+  currentTransition.gesture = null;
   ReactSharedInternals.T = currentTransition;
   try {
     var returnValue = scope(),
@@ -534,9 +541,13 @@ exports.startTransition = function (scope) {
   } catch (error) {
     reportGlobalError(error);
   } finally {
-    ReactSharedInternals.T = prevTransition;
+    null !== prevTransition &&
+      null !== currentTransition.types &&
+      (prevTransition.types = currentTransition.types),
+      (ReactSharedInternals.T = prevTransition);
   }
 };
+exports.unstable_Activity = REACT_ACTIVITY_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.unstable_getCacheForType = function (resourceType) {
@@ -561,4 +572,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.1.0-experimental-313332d1-20250326";
+exports.version = "19.2.0-experimental-73aa744b-20250702";

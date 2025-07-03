@@ -189,8 +189,19 @@ export function getResolveRoutes(
         parsedUrl.pathname || '',
         config.basePath
       )
+      let normalizedPath = parsedUrl.pathname || '/'
+
+      if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
+        normalizedPath = removePathPrefix(normalizedPath, config.basePath)
+      } else if (
+        config.assetPrefix &&
+        pathHasPrefix(normalizedPath, config.assetPrefix)
+      ) {
+        normalizedPath = removePathPrefix(normalizedPath, config.assetPrefix)
+      }
+
       initialLocaleResult = normalizeLocalePath(
-        removePathPrefix(parsedUrl.pathname || '/', config.basePath),
+        normalizedPath,
         config.i18n.locales
       )
 
@@ -240,7 +251,7 @@ export function getResolveRoutes(
     }
 
     async function checkTrue() {
-      const pathname = parsedUrl.pathname || ''
+      const pathname = parsedUrl.pathname || '/'
 
       if (checkLocaleApi(pathname)) {
         return
@@ -424,7 +435,7 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
-          const pathname = parsedUrl.pathname || ''
+          const pathname = parsedUrl.pathname || '/'
 
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
@@ -461,9 +472,23 @@ export function getResolveRoutes(
 
         if (!opts.minimalMode && route.name === 'middleware') {
           const match = fsChecker.getMiddlewareMatchers()
+          let maybeDecodedPathname = parsedUrl.pathname || '/'
+
+          try {
+            maybeDecodedPathname = decodeURIComponent(maybeDecodedPathname)
+          } catch {
+            /* non-fatal we can't decode so can't match it */
+          }
+
           if (
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query)
+            match?.(parsedUrl.pathname, req, parsedUrl.query) ||
+            match?.(
+              maybeDecodedPathname,
+              // @ts-expect-error BaseNextRequest stuff
+              req,
+              parsedUrl.query
+            )
           ) {
             if (ensureMiddleware) {
               await ensureMiddleware(req.url)

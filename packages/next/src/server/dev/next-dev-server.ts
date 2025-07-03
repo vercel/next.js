@@ -9,6 +9,7 @@ import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
 import {
+  addRequestMeta,
   getRequestMeta,
   type NextParsedUrlQuery,
   type NextUrlWithParsedQuery,
@@ -20,20 +21,19 @@ import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
+import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
 import { ampValidation } from '../../build/output'
-import {
-  INSTRUMENTATION_HOOK_FILENAME,
-  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
-} from '../../lib/constants'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,
   COMPILER_NAMES,
+  PRERENDER_MANIFEST,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -68,18 +68,23 @@ import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
-import { FallbackMode } from '../../lib/fallback'
-import type { PagesDevOverlayType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import { FallbackMode, fallbackModeToFallbackField } from '../../lib/fallback'
+import type { PagesDevOverlayBridgeType } from '../../next-devtools/userspace/pages/pages-dev-overlay-setup'
+import {
+  ensureInstrumentationRegistered,
+  getInstrumentationModule,
+} from '../lib/router-utils/instrumentation-globals.external'
+import type { PrerenderManifest } from '../../build'
 
 // Load ReactDevOverlay only when needed
-let ReactDevOverlayImpl: PagesDevOverlayType
-const ReactDevOverlay: PagesDevOverlayType = (props) => {
-  if (ReactDevOverlayImpl === undefined) {
-    ReactDevOverlayImpl =
-      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
-        .PagesDevOverlay as PagesDevOverlayType
+let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
+const ReactDevOverlay: PagesDevOverlayBridgeType = (props) => {
+  if (PagesDevOverlayBridgeImpl === undefined) {
+    PagesDevOverlayBridgeImpl = (
+      require('../../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../../next-devtools/userspace/pages/pages-dev-overlay-setup')
+    ).PagesDevOverlayBridge
   }
-  return ReactDevOverlayImpl(props)
+  return React.createElement(PagesDevOverlayBridgeImpl, props)
 }
 
 export interface Options extends ServerOptions {
@@ -174,27 +179,59 @@ export default class DevServer extends Server {
     )
     this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
-    this.renderOpts.ampValidator = (html: string, pathname: string) => {
-      const validatorPath =
-        (this.nextConfig.experimental &&
-          this.nextConfig.experimental.amp &&
-          this.nextConfig.experimental.amp.validator) ||
-        require.resolve(
-          'next/dist/compiled/amphtml-validator/validator_wasm.js'
-        )
+    this.renderOpts.ampValidator = async (html: string, pathname: string) => {
+      const { getAmpValidatorInstance, getBundledAmpValidatorFilepath } =
+        require('../../export/helpers/get-amp-html-validator') as typeof import('../../export/helpers/get-amp-html-validator')
 
-      const AmpHtmlValidator =
-        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
-      return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
-        const result = validator.validateString(html)
-        ampValidation(
-          pathname,
-          result.errors
-            .filter((e) => e.severity === 'ERROR')
-            .filter((e) => this._filterAmpDevelopmentScript(html, e)),
-          result.errors.filter((e) => e.severity !== 'ERROR')
-        )
-      })
+      const validatorPath =
+        this.nextConfig.experimental?.amp?.validator ||
+        getBundledAmpValidatorFilepath()
+
+      const validator = await getAmpValidatorInstance(validatorPath)
+
+      const result = validator.validateString(html)
+      ampValidation(
+        pathname,
+        result.errors
+          .filter((error) => {
+            if (error.severity === 'ERROR') {
+              // Unclear yet if these actually prevent the page from being indexed by the AMP cache.
+              // These are coming from React so all we can do is ignore them for now.
+
+              // <link rel="expect" blocking="render" />
+              // https://github.com/ampproject/amphtml/issues/40279
+              if (
+                error.code === 'DISALLOWED_ATTR' &&
+                error.params[0] === 'blocking' &&
+                error.params[1] === 'link'
+              ) {
+                return false
+              }
+              // <template> without type
+              // https://github.com/ampproject/amphtml/issues/40280
+              if (
+                error.code === 'MANDATORY_ATTR_MISSING' &&
+                error.params[0] === 'type' &&
+                error.params[1] === 'template'
+              ) {
+                return false
+              }
+              // <template> without type
+              // https://github.com/ampproject/amphtml/issues/40280
+              if (
+                error.code === 'MISSING_REQUIRED_EXTENSION' &&
+                error.params[0] === 'template' &&
+                error.params[1] === 'amp-mustache'
+              ) {
+                return false
+              }
+              return true
+            }
+            return false
+          })
+          .filter((e) => this._filterAmpDevelopmentScript(html, e)),
+        result.errors.filter((e) => e.severity !== 'ERROR')
+      )
     }
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
@@ -276,11 +313,23 @@ export default class DevServer extends Server {
         })
       )
 
+      // TODO: Improve passing of "is running with Turbopack"
+      const isTurbopack = !!process.env.TURBOPACK
       matchers.push(
-        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
+        new DevAppPageRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
       )
       matchers.push(
-        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
+        new DevAppRouteRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
       )
     }
 
@@ -509,6 +558,7 @@ export default class DevServer extends Server {
     const span = trace('handle-request', undefined, { url: req.url })
     const result = await span.traceAsyncFn(async () => {
       await this.ready?.promise
+      addRequestMeta(req, 'PagesErrorDebug', this.renderOpts.ErrorDebug)
       return await super.handleRequest(req, res, parsedUrl)
     })
     const memoryUsage = process.memoryUsage()
@@ -657,8 +707,9 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        instrumentationModule = await require(
-          pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
+        instrumentationModule = await getInstrumentationModule(
+          this.dir,
+          this.nextConfig.distDir
         )
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -669,9 +720,7 @@ export default class DevServer extends Server {
   }
 
   protected async runInstrumentationHookIfAvailable() {
-    await this.startServerSpan
-      .traceChild('run-instrumentation-hook')
-      .traceAsyncFn(() => this.instrumentation?.register?.())
+    await ensureInstrumentationRegistered(this.dir, this.nextConfig.distDir)
   }
 
   protected async ensureEdgeFunction({
@@ -801,9 +850,10 @@ export default class DevServer extends Server {
       `staticPaths-${pathname}`,
       []
     )
-      .then((res) => {
+      .then(async (res) => {
         const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
           res.value
+
         if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {
             throw new Error(
@@ -822,6 +872,32 @@ export default class DevServer extends Server {
         } = {
           staticPaths: staticPaths?.map((route) => route.pathname),
           fallbackMode: fallback,
+        }
+
+        if (res.value?.fallbackMode !== undefined) {
+          // we write the static paths to partial manifest for
+          // fallback handling inside of entry handler's
+          const rawExistingManifest = await fs.promises.readFile(
+            pathJoin(this.distDir, PRERENDER_MANIFEST),
+            'utf8'
+          )
+          const existingManifest: PrerenderManifest =
+            JSON.parse(rawExistingManifest)
+          for (const staticPath of value.staticPaths || []) {
+            existingManifest.routes[staticPath] = {} as any
+          }
+          existingManifest.dynamicRoutes[pathname] = {
+            fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
+          } as any
+
+          const updatedManifest = JSON.stringify(existingManifest)
+
+          if (updatedManifest !== rawExistingManifest) {
+            await fs.promises.writeFile(
+              pathJoin(this.distDir, PRERENDER_MANIFEST),
+              updatedManifest
+            )
+          }
         }
         this.staticPathsCache.set(pathname, value)
         return value

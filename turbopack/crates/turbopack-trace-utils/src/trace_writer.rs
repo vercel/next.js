@@ -1,6 +1,6 @@
 use std::{debug_assert, io::Write, sync::Arc, thread::JoinHandle, time::Duration};
 
-use crossbeam_channel::{bounded, unbounded, Receiver, RecvTimeoutError, Sender, TryRecvError};
+use crossbeam_channel::{Receiver, RecvTimeoutError, Sender, TryRecvError, bounded, unbounded};
 use crossbeam_utils::CachePadded;
 use parking_lot::{Mutex, MutexGuard};
 use thread_local::ThreadLocal;

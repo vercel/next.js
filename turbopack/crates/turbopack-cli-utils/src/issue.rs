@@ -8,15 +8,16 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{source_context::get_source_context, FileLinesContent};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, Vc};
+use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
-    CapturedIssues, Issue, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
-    PlainIssueSource, StyledString,
+    CapturedIssues, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
+    PlainIssueSource, PlainTraceItem, StyledString,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -79,12 +80,12 @@ fn severity_to_style(severity: IssueSeverity) -> Style {
 }
 
 fn format_source_content(source: &PlainIssueSource, formatted_issue: &mut String) {
-    if let FileLinesContent::Lines(lines) = source.asset.content.lines_ref() {
-        if let Some((start, end)) = source.range {
-            let lines = lines.iter().map(|l| l.content.as_str());
-            let ctx = get_source_context(lines, start.line, start.column, end.line, end.column);
-            format_source_context_lines(&ctx, formatted_issue);
-        }
+    if let FileLinesContent::Lines(lines) = source.asset.content.lines_ref()
+        && let Some((start, end)) = source.range
+    {
+        let lines = lines.iter().map(|l| l.content.as_str());
+        let ctx = get_source_context(lines, start.line, start.column, end.line, end.column);
+        format_source_context_lines(&ctx, formatted_issue);
     }
 }
 
@@ -102,7 +103,7 @@ fn format_optional_path(
             if let Some(context) = context {
                 let option_context = Some(context.clone());
                 if last_context == option_context {
-                    writeln!(formatted_issue, " at {}", description)?;
+                    writeln!(formatted_issue, " at {description}")?;
                 } else {
                     writeln!(
                         formatted_issue,
@@ -113,7 +114,7 @@ fn format_optional_path(
                     last_context = option_context;
                 }
             } else {
-                writeln!(formatted_issue, " at {}", description)?;
+                writeln!(formatted_issue, " at {description}")?;
                 last_context = None;
             }
         }
@@ -141,7 +142,7 @@ pub fn format_issue(
         .replace("[project]", &current_dir.to_string_lossy())
         .replace("/./", "/")
         .replace("\\\\?\\", "");
-    let stgae = plain_issue.stage.to_string();
+    let stage = plain_issue.stage.to_string();
 
     let mut styled_issue = style_issue_source(plain_issue, &context_path);
     let description = &plain_issue.description;
@@ -167,21 +168,119 @@ pub fn format_issue(
             writeln!(styled_issue, "\ndocumentation: {documentation_link}").unwrap();
         }
         if let Some(path) = path {
-            writeln!(styled_issue, "{}", path).unwrap();
+            writeln!(styled_issue, "{path}").unwrap();
+        }
+    }
+    let traces = &*plain_issue.import_traces;
+    if !traces.is_empty() {
+        /// Returns the leaf layer name, which is the first present layer name in the trace
+        fn leaf_layer_name(items: &[PlainTraceItem]) -> Option<RcStr> {
+            items
+                .iter()
+                .find(|t| t.layer.is_some())
+                .and_then(|t| t.layer.clone())
+        }
+        /// Returns whether or not all layers in the trace are identical
+        /// If a layer is missing we ignore it in this analysis
+        fn are_layers_identical(items: &[PlainTraceItem]) -> bool {
+            let Some(first_present_layer) = items.iter().position(|t| t.layer.is_some()) else {
+                return true; // if all layers are absent they are the same.
+            };
+            let layer = &items[first_present_layer].layer;
+            items
+                .iter()
+                .skip(first_present_layer + 1)
+                .all(|t| t.layer.is_none() || &t.layer == layer)
+        }
+        fn format_trace_items(
+            out: &mut String,
+            indent: &'static str,
+            print_layers: bool,
+            items: &[PlainTraceItem],
+        ) {
+            for item in items {
+                out.push_str(indent);
+                // We want to format the filepath but with a few caveats
+                // - if it is part of the `[project]` filesystem, omit the fs name
+                // - format the label at the end
+                // - if it is the last item add the special marker `[entrypoint]` to help clarify
+                //   that this is an application entry point
+                // TODO(lukesandberg): some formatting could be useful. We could use colors,
+                // bold/faint, links?
+                if item.fs_name != "project" {
+                    out.push('[');
+                    out.push_str(&item.fs_name);
+                    out.push_str("]/");
+                } else {
+                    // This is consistent with webpack's output
+                    out.push_str("./");
+                }
+                out.push_str(&item.path);
+                if let Some(ref label) = item.layer
+                    && print_layers
+                {
+                    out.push_str(" [");
+                    out.push_str(label);
+                    out.push(']');
+                }
+                out.push('\n');
+            }
+        }
+        if traces.len() == 1 {
+            let trace = &traces[0];
+            // We don't put the layer in the header for the single case. Either they are all the
+            // same in which case it should be clear from the filename or they are different and we
+            // need to print them on the items anyway.
+            writeln!(styled_issue, "Import trace:").unwrap();
+            format_trace_items(&mut styled_issue, "  ", !are_layers_identical(trace), trace);
+        } else {
+            // When there are multiple traces we:
+            // * display the layer in the header if the trace has a consistent layer
+            // * label the traces with their index, unless the layer is sufficiently unique.
+            styled_issue.push_str("Import traces:\n");
+            let every_trace_has_a_distinct_root_layer = traces
+                .iter()
+                .filter_map(|t| leaf_layer_name(t))
+                .collect::<FxHashSet<RcStr>>()
+                .len()
+                == traces.len();
+            if every_trace_has_a_distinct_root_layer {
+                for trace in traces {
+                    writeln!(styled_issue, "  {}:", leaf_layer_name(trace).unwrap()).unwrap();
+                    format_trace_items(&mut styled_issue, "    ", false, trace);
+                }
+            } else {
+                for (index, trace) in traces.iter().enumerate() {
+                    let printed_layer = match leaf_layer_name(trace) {
+                        Some(layer) => {
+                            writeln!(styled_issue, "  #{} [{layer}]:", index + 1).unwrap();
+                            false
+                        }
+                        None => {
+                            writeln!(styled_issue, "  #{}:", index + 1).unwrap();
+                            true
+                        }
+                    };
+                    format_trace_items(
+                        &mut styled_issue,
+                        "    ",
+                        !printed_layer || !are_layers_identical(trace),
+                        trace,
+                    );
+                }
+            }
         }
     }
 
-    write!(
-        issue_text,
-        "{} - [{}] {}",
-        severity.style(severity_to_style(severity)),
-        stgae,
-        plain_issue.file_path
-    )
-    .unwrap();
-
-    for line in styled_issue.lines() {
-        writeln!(issue_text, "  {line}").unwrap();
+    let severity = severity.style(severity_to_style(severity));
+    write!(issue_text, "{severity} - [{stage}] ").unwrap();
+    for (index, line) in styled_issue.lines().enumerate() {
+        // don't indent the first line
+        if index > 0 {
+            issue_text.push_str("  ");
+        }
+        issue_text.push_str(line);
+        issue_text.push('\n');
     }
 
     issue_text
@@ -341,7 +440,7 @@ impl IssueReporter for ConsoleUi {
         &self,
         issues: TransientInstance<CapturedIssues>,
         source: TransientValue<RawVc>,
-        min_failing_severity: Vc<IssueSeverity>,
+        min_failing_severity: IssueSeverity,
     ) -> Result<Vc<bool>> {
         let issues = &*issues;
         let LogOptions {
@@ -354,15 +453,14 @@ impl IssueReporter for ConsoleUi {
         } = self.options;
         let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
-        let issues = issues
-            .iter_with_shortest_path()
-            .map(|(issue, path)| async move {
-                let plain_issue = issue.into_plain(path);
-                let id = plain_issue.internal_hash(false).await?;
-                Ok((plain_issue.await?, *id))
+        let plain_issues = issues.get_plain_issues().await?;
+        let issues = plain_issues
+            .iter()
+            .map(|plain_issue| {
+                let id = plain_issue.internal_hash_ref(false);
+                (plain_issue, id)
             })
-            .try_join()
-            .await?;
+            .collect::<Vec<_>>();
 
         let issue_ids = issues.iter().map(|(_, id)| *id).collect::<FxHashSet<_>>();
         let mut new_ids = self
@@ -378,7 +476,7 @@ impl IssueReporter for ConsoleUi {
             }
 
             let severity = plain_issue.severity;
-            if severity <= *min_failing_severity.await? {
+            if severity <= min_failing_severity {
                 has_fatal = true;
             }
 
@@ -390,7 +488,7 @@ impl IssueReporter for ConsoleUi {
             let category_map = severity_map.entry(stage.clone()).or_default();
             let issues = category_map.entry(context_path.to_string()).or_default();
 
-            let mut styled_issue = style_issue_source(&plain_issue, &context_path);
+            let mut styled_issue = style_issue_source(plain_issue, &context_path);
             let description = &plain_issue.description;
             if let Some(description) = description {
                 writeln!(
@@ -444,21 +542,20 @@ impl IssueReporter for ConsoleUi {
                         println!("{indent}[{category}]");
                         format!("{indent}  ")
                     };
-                    let (mut contextes, mut vendor_contextes): (Vec<_>, Vec<_>) = category_issues
+                    let (mut contexts, mut vendor_contexts): (Vec<_>, Vec<_>) = category_issues
                         .iter_mut()
                         .partition(|(context, _)| !context.contains("node_modules"));
-                    contextes.sort_by_key(|(c, _)| *c);
+                    contexts.sort_by_key(|(c, _)| *c);
                     if show_all {
-                        vendor_contextes.sort_by_key(|(c, _)| *c);
-                        contextes.extend(vendor_contextes);
+                        vendor_contexts.sort_by_key(|(c, _)| *c);
+                        contexts.extend(vendor_contexts);
                     }
                     let category_issues_take_count = if show_all {
                         category_issues_size
                     } else {
-                        min(contextes.len(), DEFAULT_SHOW_COUNT)
+                        min(contexts.len(), DEFAULT_SHOW_COUNT)
                     };
-                    for (context, issues) in contextes.into_iter().take(category_issues_take_count)
-                    {
+                    for (context, issues) in contexts.into_iter().take(category_issues_take_count) {
                         issues.sort();
                         println!("{indent}{}", context.bright_blue());
                         let issues_size = issues.len();
@@ -590,12 +687,12 @@ fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
                 start.column,
                 formatted_title
             ),
-            None => format!("{}  {}", context_path, formatted_title),
+            None => format!("{context_path}  {formatted_title}"),
         };
         styled_issue.push('\n');
         format_source_content(source, &mut styled_issue);
         styled_issue
     } else {
-        formatted_title
+        format!("{context_path}  {formatted_title}\n")
     }
 }
