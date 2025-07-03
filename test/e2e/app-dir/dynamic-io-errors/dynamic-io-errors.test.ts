@@ -123,7 +123,7 @@ describe.each(
           // square brackets.
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
              "environmentLabel": "Server",
              "label": "Console Error",
              "source": null,
@@ -137,7 +137,7 @@ describe.each(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
              "environmentLabel": "Server",
              "label": "Console Error",
              "source": "app/page.tsx (20:16) @ Dynamic
@@ -168,7 +168,7 @@ describe.each(
         if (isTurbopack) {
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -179,7 +179,7 @@ describe.each(
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at a (<next-dist-dir>)
                  at b (<next-dist-dir>)
                  at c (<next-dist-dir>)
@@ -201,7 +201,7 @@ describe.each(
         } else {
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at InnerLayoutRouter (webpack://<next-src>)
                  at RedirectErrorBoundary (webpack://<next-src>)
                  at RedirectBoundary (webpack://<next-src>)
@@ -230,7 +230,7 @@ describe.each(
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at a (<next-dist-dir>)
                  at b (<next-dist-dir>)
                  at c (<next-dist-dir>)
@@ -568,7 +568,7 @@ describe.each(
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": null,
@@ -579,7 +579,7 @@ describe.each(
                ],
              },
              {
-               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": null,
@@ -595,7 +595,7 @@ describe.each(
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/page.tsx (35:16) @ FetchingComponent
@@ -608,7 +608,7 @@ describe.each(
                ],
              },
              {
-               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/page.tsx (35:16) @ FetchingComponent
@@ -639,7 +639,7 @@ describe.each(
         if (isTurbopack) {
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at IndirectionTwo (turbopack:///[project]/app/indirection.tsx:7:33)
                  at main (<anonymous>)
                  at body (<anonymous>)
@@ -651,7 +651,7 @@ describe.each(
                 8 |   return children
                 9 | }
                10 |
-             Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -662,7 +662,7 @@ describe.each(
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at a (<next-dist-dir>)
                  at b (<next-dist-dir>)
                  at c (<next-dist-dir>)
@@ -678,7 +678,7 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
-             Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at m (<next-dist-dir>)
                  at n (<next-dist-dir>)
                  at o (<next-dist-dir>)
@@ -700,7 +700,7 @@ describe.each(
         } else {
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at IndirectionTwo (webpack:///app/indirection.tsx:7:33)
                  at InnerLayoutRouter (webpack://<next-src>)
                  at RedirectErrorBoundary (webpack://<next-src>)
@@ -723,7 +723,7 @@ describe.each(
                 8 |   return children
                 9 | }
                10 |
-             Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at InnerLayoutRouter (webpack://<next-src>)
                  at RedirectErrorBoundary (webpack://<next-src>)
                  at RedirectBoundary (webpack://<next-src>)
@@ -752,7 +752,7 @@ describe.each(
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at a (<next-dist-dir>)
                  at b (<next-dist-dir>)
                  at c (<next-dist-dir>)
@@ -768,7 +768,7 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
-             Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at m (<next-dist-dir>)
                  at n (<next-dist-dir>)
                  at o (<next-dist-dir>)
