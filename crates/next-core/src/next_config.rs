@@ -1645,14 +1645,11 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn turbopack_remove_unused_exports(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(match *mode.await? {
-            // Ignore configuration in development mode, this is only useful in prod
-            NextMode::Development => false,
-            NextMode::Build => self
-                .experimental
+        Ok(Vc::cell(
+            self.experimental
                 .turbopack_remove_unused_exports
-                .unwrap_or(true),
-        }))
+                .unwrap_or(matches!(*mode.await?, NextMode::Build)),
+        ))
     }
 
     #[turbo_tasks::function]
