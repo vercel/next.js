@@ -1,4 +1,4 @@
-import { forwardRef } from 'react'
+import { forwardRef, useRef, useState } from 'react'
 import { Tooltip as BaseTooltip } from '@base-ui-components/react/tooltip'
 import { cx } from '../dev-overlay/utils/cx'
 import './tooltip.css'
@@ -7,22 +7,22 @@ type TooltipDirection = 'top' | 'bottom' | 'left' | 'right'
 
 interface TooltipProps {
   children: React.ReactNode
-  title: string
+  title: string | null
   direction?: TooltipDirection
-  container?: HTMLElement | React.RefObject<HTMLElement>
   arrowSize?: number
   offset?: number
   bgcolor?: string
   color?: string
+  className?: string
 }
 
 export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
   function Tooltip(
     {
+      className,
       children,
       title,
       direction = 'top',
-      container,
       arrowSize = 6,
       offset = 8,
       bgcolor = '#000',
@@ -30,6 +30,17 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
     },
     ref
   ) {
+    const [shadowRoot] = useState<ShadowRoot>(() => {
+      const ownerDocument = document
+      const portalNode = ownerDocument.querySelector('nextjs-portal')!
+      return portalNode.shadowRoot! as ShadowRoot
+    })
+    const shadowRootRef = useRef<HTMLElement>(
+      shadowRoot as unknown as HTMLElement
+    )
+    if (!title) {
+      return children
+    }
     return (
       <BaseTooltip.Provider>
         <BaseTooltip.Root delay={0}>
@@ -40,7 +51,7 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
             }}
           />
 
-          <BaseTooltip.Portal {...(container && { container })}>
+          <BaseTooltip.Portal container={shadowRootRef}>
             <BaseTooltip.Positioner
               side={direction}
               sideOffset={offset + arrowSize}
@@ -53,7 +64,7 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
               }
             >
               <BaseTooltip.Popup
-                className="tooltip"
+                className={cx('tooltip', className)}
                 style={
                   {
                     backgroundColor: bgcolor,

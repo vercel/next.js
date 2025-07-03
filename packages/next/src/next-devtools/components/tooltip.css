@@ -10,8 +10,8 @@
   border-radius: 8px;
   font-size: 14px;
   line-height: 1.4;
-  min-width: 200px;
   pointer-events: none;
+  white-space: nowrap;
 }
 
 .tooltip-arrow {
