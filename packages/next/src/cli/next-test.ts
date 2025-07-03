@@ -146,6 +146,7 @@ async function runPlaywright(
       disableStaticImages: nextConfig.images.disableStaticImages,
       hasAppDir: !!appDir,
       hasPagesDir: !!pagesDir,
+      nextConfig,
     })
 
     const isUsingTypeScript = !!typeScriptVersion

@@ -85,6 +85,13 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
 import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
+import { generateRouteTypesFile } from './typegen'
+import {
+  type RouteTypesManifest,
+  extractSlotFromPageName,
+  createLayoutFileRegex,
+  createUnifiedRouteTypesManifest,
+} from './route-types-shared'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -144,12 +151,55 @@ async function verifyTypeScript(opts: SetupOpts) {
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
+    nextConfig: opts.nextConfig,
   })
 
   if (verifyResult.version) {
     usingTypeScript = true
   }
   return usingTypeScript
+}
+
+// RouteInfo and RouteTypesManifest are now imported from route-types-shared
+
+function createRouteTypesManifest({
+  dir,
+  pagesPageFilePaths,
+  appPageFilePaths,
+  appLayoutFilePaths,
+  layoutSlots,
+}: {
+  dir: string
+  pagesPageFilePaths: Map<string, string>
+  appPageFilePaths: Map<string, string>
+  appLayoutFilePaths: Map<string, string>
+  layoutSlots: Map<string, Set<string>>
+}): RouteTypesManifest {
+  // Convert maps to arrays for the unified function
+  const pageRoutes = Array.from(pagesPageFilePaths.entries()).map(
+    ([route, filePath]) => ({ route, filePath })
+  )
+
+  const appRoutes = Array.from(appPageFilePaths.entries()).map(
+    ([route, filePath]) => ({ route, filePath })
+  )
+
+  const layoutRoutes = Array.from(appLayoutFilePaths.entries()).map(
+    ([route, filePath]) => ({
+      route,
+      filePath,
+      slots: layoutSlots.has(route)
+        ? Array.from(layoutSlots.get(route)!)
+        : undefined,
+    })
+  )
+
+  return createUnifiedRouteTypesManifest({
+    dir,
+    pageRoutes,
+    appRoutes,
+    layoutRoutes,
+  })
 }
 
 export async function propagateServerField(
@@ -232,6 +282,24 @@ async function startWatcher(
     routesManifestPath,
     JSON.stringify(routesManifest)
   )
+
+  if (opts.nextConfig.experimental.newTypedRoutes) {
+    const routeTypesFilePath = path.join(distDir, 'types', 'routes.ts')
+    await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+
+    const routeTypesManifest = createRouteTypesManifest({
+      dir,
+      pagesPageFilePaths: new Map(),
+      appPageFilePaths: new Map(),
+      appLayoutFilePaths: new Map(),
+      layoutSlots: new Map(),
+    })
+
+    await fs.promises.writeFile(
+      routeTypesFilePath,
+      generateRouteTypesFile(routeTypesManifest)
+    )
+  }
 
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
   await fs.promises.writeFile(
@@ -332,6 +400,8 @@ async function startWatcher(
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
+      const appLayoutFilePaths = new Map<string, string>()
+      const layoutSlots = new Map<string, Set<string>>()
 
       let envChange = false
       let tsconfigChange = false
@@ -344,9 +414,24 @@ async function startWatcher(
       pageFiles.clear()
       devPageFiles.clear()
 
-      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
-        sortByPageExts(nextConfig.pageExtensions)
-      )
+      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort((a, b) => {
+        // First, prioritize regular routes over parallel routes
+        const aHasParallel = a.includes('/@')
+        const bHasParallel = b.includes('/@')
+
+        if (aHasParallel && !bHasParallel) {
+          return 1 // a comes after b (b is regular route, prioritized)
+        }
+        if (!aHasParallel && bHasParallel) {
+          return -1 // a comes before b (a is regular route, prioritized)
+        }
+
+        // If both are regular or both are parallel, fall back to extension sorting
+        return sortByPageExts(nextConfig.pageExtensions)(a, b)
+      })
+
+      // Create layout file regex
+      const layoutFileRegex = createLayoutFileRegex(nextConfig.pageExtensions)
 
       for (const fileName of sortedKnownFiles) {
         if (
@@ -497,6 +582,34 @@ async function startWatcher(
           continue
         }
 
+        if (opts.nextConfig.experimental.newTypedRoutes && isAppPath) {
+          // *record parallel route slots for layout typing*
+          const normalizedPageName = normalizePathSep(pageName)
+
+          // this will likely run multiple times (e.g. if a parallel route
+          // has both a layout and a page, and children) but that's fine
+          const slotInfo = extractSlotFromPageName(normalizedPageName)
+
+          if (slotInfo) {
+            const { parentPath, slotName } = slotInfo
+
+            if (!layoutSlots.has(parentPath)) {
+              layoutSlots.set(parentPath, new Set())
+            }
+            layoutSlots.get(parentPath)!.add(slotName)
+          }
+
+          // *record layouts* (later filtered out by isAppRouterPage)
+          if (layoutFileRegex.test(fileName)) {
+            const layoutRoute = normalizeAppPath(pageName).replace(/%5F/g, '_')
+
+            // Ignore files/directories starting with `_` in the app directory
+            if (!normalizePathSep(layoutRoute).includes('/_')) {
+              appLayoutFilePaths.set(layoutRoute, fileName)
+            }
+          }
+        }
+
         if (isAppPath) {
           const isRootNotFound = validFileMatcher.isRootNotFound(fileName)
           hasRootAppNotFound = true
@@ -539,10 +652,12 @@ async function startWatcher(
             opts.fsChecker.nextDataRoutes.add(pageName)
           }
         }
-        ;(isAppPath ? appPageFilePaths : pagesPageFilePaths).set(
-          pageName,
-          fileName
-        )
+        // *record pages*
+        if (isAppPath) {
+          appPageFilePaths.set(pageName, fileName)
+        } else {
+          pagesPageFilePaths.set(pageName, fileName)
+        }
 
         if (appDir && pageNameSet.has(pageName)) {
           conflictingAppPagePaths.add(pageName)
@@ -938,6 +1053,24 @@ async function startWatcher(
           })
         }
         prevSortedRoutes = sortedRoutes
+
+        if (opts.nextConfig.experimental.newTypedRoutes) {
+          const routeTypesFilePath = path.join(distDir, 'types', 'routes.ts')
+          await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+
+          const routeTypesManifest = createRouteTypesManifest({
+            dir,
+            pagesPageFilePaths,
+            appPageFilePaths,
+            appLayoutFilePaths,
+            layoutSlots,
+          })
+
+          await fs.promises.writeFile(
+            routeTypesFilePath,
+            generateRouteTypesFile(routeTypesManifest)
+          )
+        }
 
         if (!resolved) {
           resolve()

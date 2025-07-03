@@ -498,6 +498,13 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
+   * Enable new type-safe Link component with path, params, and searchParams props.
+   * This is a replacement for the existing typedRoutes feature with improved ergonomics.
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/newTypedRoutes
+   */
+  newTypedRoutes?: boolean
+
+  /**
    * Enable type-checking and autocompletion for environment variables.
    *
    * @default false
@@ -1440,6 +1447,7 @@ export const defaultConfig = Object.freeze({
     urlImports: undefined,
     turbo: undefined,
     typedRoutes: false,
+    newTypedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,

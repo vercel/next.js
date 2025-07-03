@@ -273,6 +273,8 @@ export function getDefineEnv({
       config.experimental.webVitalsAttribution ?? false,
     'process.env.__NEXT_LINK_NO_TOUCH_START':
       config.experimental.linkNoTouchStart ?? false,
+    'process.env.__NEXT_NEW_TYPED_ROUTES':
+      config.experimental.newTypedRoutes ?? false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
     'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
       !!config.experimental.authInterrupts,
