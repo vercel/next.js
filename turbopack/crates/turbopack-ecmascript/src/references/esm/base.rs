@@ -23,6 +23,7 @@ use turbopack_core::{
         OptionStyledString, StyledString,
     },
     module::Module,
+    module_graph::export_usage::ModuleExportUsageInfo,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
@@ -165,7 +166,7 @@ impl ReferencedAsset {
                     && let Some(export) = &export
                     && let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await?
                 {
-                    let exports = exports.expand_exports(None).await?;
+                    let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
                         Some(EsmExport::LocalBinding(_, _)) => {

@@ -21,7 +21,6 @@ use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleContent, EcmascriptModuleContentOptions, MergedEcmascriptModule,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    export_usage::get_module_export_usages,
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
@@ -95,8 +94,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
 
     #[turbo_tasks::function]
     async fn module_content_options(
-        self: Vc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        self: ResolvedVc<Self>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
@@ -109,24 +107,13 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
 
         let module_type_result = original_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(self))
+            .reference_module_source_maps(Vc::upcast(*self))
             .await?;
-
-        let export_usage_info = if original_module.options().await?.remove_unused_exports {
-            Some(
-                get_module_export_usages(*module_graph, Vc::upcast(self))
-                    .to_resolved()
-                    .await?,
-            )
-        } else {
-            None
-        };
 
         Ok(EcmascriptModuleContentOptions {
             parsed,
-            ident: self.ident().to_resolved().await?,
+            module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
-            module_graph,
             chunking_context,
             references: analyze.local_references().to_resolved().await?,
             esm_references: analyze_result.esm_local_references,
@@ -137,7 +124,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             original_source_map: analyze_result.source_map,
             exports,
             async_module_info,
-            export_usage_info,
         }
         .cell())
     }
@@ -195,13 +181,12 @@ impl ChunkableModule for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             EcmascriptModuleLocalsChunkItem {
                 module: self,
-                module_graph,
                 chunking_context,
             }
             .cell(),

@@ -14,7 +14,6 @@ pub mod async_chunk;
 pub mod chunk;
 pub mod code_gen;
 mod errors;
-pub mod export_usage;
 pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
@@ -117,7 +116,6 @@ use crate::{
     analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
     code_gen::{CodeGens, ModifiableAst},
-    export_usage::{ModuleExportUsageInfo, get_module_export_usages},
     merged_module::MergedEcmascriptModule,
     parse::generate_js_source_map,
     references::{
@@ -342,7 +340,6 @@ pub trait EcmascriptAnalyzable: Module + Asset {
     #[turbo_tasks::function]
     async fn module_content_options(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>>;
@@ -350,12 +347,10 @@ pub trait EcmascriptAnalyzable: Module + Asset {
     #[turbo_tasks::function]
     fn module_content(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
-        let own_options =
-            self.module_content_options(module_graph, chunking_context, async_module_info);
+        let own_options = self.module_content_options(chunking_context, async_module_info);
         Ok(EcmascriptModuleContent::new(own_options))
     }
 }
@@ -470,7 +465,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn module_content_options(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
@@ -484,21 +478,10 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             .reference_module_source_maps(Vc::upcast(*self))
             .await?;
 
-        let export_usage_info = if self.options().await?.remove_unused_exports {
-            Some(
-                get_module_export_usages(*module_graph, Vc::upcast(*self))
-                    .to_resolved()
-                    .await?,
-            )
-        } else {
-            None
-        };
-
         Ok(EcmascriptModuleContentOptions {
             parsed,
-            ident: self.ident().to_resolved().await?,
+            module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
-            module_graph,
             chunking_context,
             references: analyze.references().to_resolved().await?,
             esm_references: analyze_ref.esm_references,
@@ -509,7 +492,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             original_source_map: analyze_ref.source_map,
             exports: analyze_ref.exports,
             async_module_info,
-            export_usage_info,
         }
         .cell())
     }
@@ -683,14 +665,13 @@ impl Asset for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
-            module_graph,
             chunking_context,
         }))
     }
@@ -789,7 +770,6 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: ResolvedVc<EcmascriptModuleAsset>,
-    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -842,11 +822,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 .module_options(async_module_info);
 
             // TODO check if we need to pass async_module_info at all
-            let content = this.module.module_content(
-                *this.module_graph,
-                *this.chunking_context,
-                async_module_info,
-            );
+            let content = this
+                .module
+                .module_content(*this.chunking_context, async_module_info);
 
             EcmascriptChunkItemContent::new(
                 content,
@@ -875,10 +853,9 @@ pub struct EcmascriptModuleContent {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Hash, TaskInput)]
 pub struct EcmascriptModuleContentOptions {
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: ResolvedVc<ParseResult>,
-    ident: ResolvedVc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     references: ResolvedVc<ModuleReferences>,
     esm_references: ResolvedVc<EsmAssetReferences>,
@@ -889,7 +866,6 @@ pub struct EcmascriptModuleContentOptions {
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     exports: ResolvedVc<EcmascriptExports>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
-    export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
 }
 
 impl EcmascriptModuleContentOptions {
@@ -899,7 +875,7 @@ impl EcmascriptModuleContentOptions {
     ) -> Result<Vec<CodeGeneration>> {
         let EcmascriptModuleContentOptions {
             parsed,
-            module_graph,
+            module,
             chunking_context,
             references,
             esm_references,
@@ -908,7 +884,6 @@ impl EcmascriptModuleContentOptions {
             async_module,
             exports,
             async_module_info,
-            export_usage_info,
             ..
         } = self;
 
@@ -934,7 +909,7 @@ impl EcmascriptModuleContentOptions {
                                 **chunking_context,
                                 scope_hoisting_context,
                                 Some(**parsed),
-                                *export_usage_info,
+                                *module,
                             )
                             .await?,
                     )
@@ -959,9 +934,7 @@ impl EcmascriptModuleContentOptions {
             let code_gens = code_generation
                 .await?
                 .iter()
-                .map(|c| {
-                    c.code_generation(**module_graph, **chunking_context, scope_hoisting_context)
-                })
+                .map(|c| c.code_generation(**chunking_context, scope_hoisting_context))
                 .try_join()
                 .await?;
 
@@ -987,7 +960,7 @@ impl EcmascriptModuleContent {
         let input = input.await?;
         let EcmascriptModuleContentOptions {
             parsed,
-            ident,
+            module,
             specified_module_type,
             generate_source_map,
             original_source_map,
@@ -1000,7 +973,7 @@ impl EcmascriptModuleContent {
 
             let content = process_parse_result(
                 *parsed,
-                **ident,
+                module.ident(),
                 *specified_module_type,
                 *generate_source_map,
                 *original_source_map,
@@ -1075,13 +1048,12 @@ impl EcmascriptModuleContent {
 
             let contents = module_options
                 .iter()
-                .zip(modules.keys().copied())
-                .map(async |(options, module)| {
+                .map(async |options| {
                     let options = options.await?;
                     let EcmascriptModuleContentOptions {
                         chunking_context,
                         parsed,
-                        ident,
+                        module,
                         specified_module_type,
                         generate_source_map,
                         original_source_map,
@@ -1090,20 +1062,20 @@ impl EcmascriptModuleContent {
 
                     let result = process_parse_result(
                         *parsed,
-                        **ident,
+                        module.ident(),
                         *specified_module_type,
                         *generate_source_map,
                         *original_source_map,
                         *chunking_context.minify_type().await?,
                         Some(&*options),
                         Some(ScopeHoistingOptions {
-                            module,
+                            module: *module,
                             modules: &modules,
                         }),
                     )
                     .await?;
 
-                    Ok((module, result))
+                    Ok((*module, result))
                 })
                 .try_join()
                 .await?;

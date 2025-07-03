@@ -43,6 +43,7 @@ use crate::{
 
 pub mod async_module_info;
 pub mod chunk_group_info;
+pub mod export_usage;
 pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;

@@ -10,10 +10,13 @@ use next_core::{
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
-    next_client::{get_client_chunking_context, get_client_compile_time_info},
+    next_client::{
+        ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
+    },
     next_config::{JsConfig, ModuleIds as ModuleIdStrategyConfig, NextConfig},
+    next_edge::context::EdgeChunkingContextOptions,
     next_server::{
-        ServerContextType, get_server_chunking_context,
+        ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
         get_server_chunking_context_with_client_assets, get_server_compile_time_info,
         get_server_module_options_context, get_server_resolve_options_context,
     },
@@ -62,6 +65,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         chunk_group_info::ChunkGroupEntry,
+        export_usage::{OptionExportUsageInfo, compute_export_usage_info},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -1026,20 +1030,21 @@ impl Project {
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(get_client_chunking_context(
-            self.project_root_path().await?.clone_value(),
-            self.client_relative_path().await?.clone_value(),
-            rcstr!("/ROOT"),
-            self.next_config().computed_asset_prefix(),
-            self.next_config().chunk_suffix_path(),
-            self.client_compile_time_info().environment(),
-            self.next_mode(),
-            self.module_ids(),
-            self.next_config().turbo_minify(self.next_mode()),
-            self.next_config().client_source_maps(self.next_mode()),
-            self.no_mangling(),
-            self.next_config().turbo_scope_hoisting(self.next_mode()),
-        ))
+        Ok(get_client_chunking_context(ClientChunkingContextOptions {
+            mode: self.next_mode(),
+            root_path: self.project_root_path().await?.clone_value(),
+            client_root: self.client_relative_path().await?.clone_value(),
+            client_root_to_root_path: rcstr!("/ROOT"),
+            asset_prefix: self.next_config().computed_asset_prefix(),
+            chunk_suffix_path: self.next_config().chunk_suffix_path(),
+            environment: self.client_compile_time_info().environment(),
+            module_id_strategy: self.module_ids(),
+            export_usage: self.export_usage(),
+            minify: self.next_config().turbo_minify(self.next_mode()),
+            source_maps: self.next_config().client_source_maps(self.next_mode()),
+            no_mangling: self.no_mangling(),
+            scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+        }))
     }
 
     #[turbo_tasks::function]
@@ -1047,34 +1052,27 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
+        let options = ServerChunkingContextOptions {
+            mode: self.next_mode(),
+            root_path: self.project_root_path().await?.clone_value(),
+            node_root: self.node_root().await?.clone_value(),
+            node_root_to_root_path: self.node_root_to_root_path().owned().await?,
+            environment: self.server_compile_time_info().environment(),
+            module_id_strategy: self.module_ids(),
+            export_usage: self.export_usage(),
+            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
+            turbo_source_maps: self.next_config().server_source_maps(),
+            no_mangling: self.no_mangling(),
+            scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+        };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(
-                self.next_mode(),
-                self.project_root_path().await?.clone_value(),
-                self.node_root().await?.clone_value(),
-                self.node_root_to_root_path().owned().await?,
+                options,
                 self.client_relative_path().await?.clone_value(),
                 self.next_config().computed_asset_prefix().owned().await?,
-                self.server_compile_time_info().environment(),
-                self.module_ids(),
-                self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().server_source_maps(),
-                self.no_mangling(),
-                self.next_config().turbo_scope_hoisting(self.next_mode()),
             )
         } else {
-            get_server_chunking_context(
-                self.next_mode(),
-                self.project_root_path().await?.clone_value(),
-                self.node_root().await?.clone_value(),
-                self.node_root_to_root_path().owned().await?,
-                self.server_compile_time_info().environment(),
-                self.module_ids(),
-                self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().server_source_maps(),
-                self.no_mangling(),
-                self.next_config().turbo_scope_hoisting(self.next_mode()),
-            )
+            get_server_chunking_context(options)
         })
     }
 
@@ -1083,34 +1081,27 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let options = EdgeChunkingContextOptions {
+            mode: self.next_mode(),
+            root_path: self.project_root_path().await?.clone_value(),
+            node_root: self.node_root().await?.clone_value(),
+            output_root_to_root_path: self.node_root_to_root_path(),
+            environment: self.edge_compile_time_info().environment(),
+            module_id_strategy: self.module_ids(),
+            export_usage: self.export_usage(),
+            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
+            turbo_source_maps: self.next_config().server_source_maps(),
+            no_mangling: self.no_mangling(),
+            scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+        };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(
-                self.next_mode(),
-                self.project_root_path().await?.clone_value(),
-                self.node_root().await?.clone_value(),
-                self.node_root_to_root_path(),
+                options,
                 self.client_relative_path().await?.clone_value(),
                 self.next_config().computed_asset_prefix(),
-                self.edge_compile_time_info().environment(),
-                self.module_ids(),
-                self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().server_source_maps(),
-                self.no_mangling(),
-                self.next_config().turbo_scope_hoisting(self.next_mode()),
             )
         } else {
-            get_edge_chunking_context(
-                self.next_mode(),
-                self.project_root_path().await?.clone_value(),
-                self.node_root().await?.clone_value(),
-                self.node_root_to_root_path(),
-                self.edge_compile_time_info().environment(),
-                self.module_ids(),
-                self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().server_source_maps(),
-                self.no_mangling(),
-                self.next_config().turbo_scope_hoisting(self.next_mode()),
-            )
+            get_edge_chunking_context(options)
         })
     }
 
@@ -1782,6 +1773,26 @@ impl Project {
                     *module_graphs.full,
                 )))
             }
+        }
+    }
+
+    /// Compute the used exports for each module.
+    #[turbo_tasks::function]
+    pub async fn export_usage(self: Vc<Self>) -> Result<Vc<OptionExportUsageInfo>> {
+        if *self
+            .next_config()
+            .turbopack_remove_unused_exports(self.next_mode())
+            .await?
+        {
+            let module_graphs = self.whole_app_module_graphs().await?;
+            Ok(Vc::cell(Some(
+                compute_export_usage_info(module_graphs.full)
+                    // As a performance optimization, we resolve strongly consistently
+                    .resolve_strongly_consistent()
+                    .await?,
+            )))
+        } else {
+            Ok(Vc::cell(None))
         }
     }
 }

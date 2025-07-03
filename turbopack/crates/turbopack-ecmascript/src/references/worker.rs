@@ -13,7 +13,6 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
@@ -134,7 +133,6 @@ pub struct WorkerAssetReferenceCodeGen {
 impl WorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let Some(loader) = self.reference.await?.worker_loader_module().await? else {

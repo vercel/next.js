@@ -22,6 +22,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
+    module_graph::export_usage::ModuleExportUsageInfo,
     reference::ModuleReference,
     resolve::ModulePart,
 };
@@ -31,7 +32,6 @@ use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
-    export_usage::ModuleExportUsageInfo,
     magic_identifier,
     parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
@@ -499,17 +499,14 @@ impl EsmExports {
     #[turbo_tasks::function]
     pub async fn expand_exports(
         &self,
-        export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
+        export_usage_info: Vc<ModuleExportUsageInfo>,
     ) -> Result<Vc<ExpandedExports>> {
         let mut exports: BTreeMap<RcStr, EsmExport> = self.exports.clone();
         let mut dynamic_exports = vec![];
-        let usage_info = match export_usage_info {
-            Some(usage_info) => Some(usage_info.await?),
-            None => None,
-        };
+        let export_usage_info = export_usage_info.await?;
 
-        if let Some(usage_info) = &usage_info {
-            exports.retain(|export, _| usage_info.is_export_used(export));
+        if !matches!(*export_usage_info, ModuleExportUsageInfo::All) {
+            exports.retain(|export, _| export_usage_info.is_export_used(export));
         }
 
         for &esm_ref in self.star_exports.iter() {
@@ -524,9 +521,7 @@ impl EsmExports {
             let export_info = expand_star_exports(**asset).await?;
 
             for export in &export_info.star_exports {
-                if let Some(usage_info) = &usage_info
-                    && !usage_info.is_export_used(export)
-                {
+                if !export_usage_info.is_export_used(export) {
                     continue;
                 }
 
@@ -561,9 +556,10 @@ impl EsmExports {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         parsed: Option<Vc<ParseResult>>,
-        export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Result<CodeGeneration> {
-        let expanded = self.expand_exports(export_usage_info.map(|v| *v)).await?;
+        let export_usage_info = chunking_context.module_export_usage(*ResolvedVc::upcast(module));
+        let expanded = self.expand_exports(export_usage_info).await?;
 
         if scope_hoisting_context.skip_module_exports() && expanded.dynamic_exports.is_empty() {
             // If the current module is not exposed, no need to generate exports.

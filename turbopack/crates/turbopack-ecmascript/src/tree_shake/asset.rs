@@ -22,7 +22,6 @@ use crate::{
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
     EcmascriptParsable,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    export_usage::get_module_export_usages,
     parse::ParseResult,
     references::{
         FollowExportsResult, analyse_ecmascript_module, esm::FoundExportType, follow_reexports,
@@ -77,8 +76,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn module_content_options(
-        self: Vc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        self: ResolvedVc<Self>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
@@ -94,24 +92,12 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
 
         let module_type_result = module.full_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(self))
+            .reference_module_source_maps(Vc::upcast(*self))
             .await?;
-
-        let export_usage_info = if module.full_module.options().await?.remove_unused_exports {
-            Some(
-                get_module_export_usages(*module_graph, Vc::upcast(*module.full_module))
-                    .to_resolved()
-                    .await?,
-            )
-        } else {
-            None
-        };
-
         Ok(EcmascriptModuleContentOptions {
             parsed,
-            ident: self.ident().to_resolved().await?,
+            module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
-            module_graph,
             chunking_context,
             references: analyze.references().to_resolved().await?,
             esm_references: analyze_ref.esm_references,
@@ -122,7 +108,6 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             original_source_map: analyze_ref.source_map,
             exports: analyze_ref.exports,
             async_module_info,
-            export_usage_info,
         }
         .cell())
     }
@@ -402,13 +387,12 @@ impl ChunkableModule for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             EcmascriptModulePartChunkItem {
                 module: self,
-                module_graph,
                 chunking_context,
             }
             .cell(),
