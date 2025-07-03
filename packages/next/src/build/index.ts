@@ -210,6 +210,13 @@ import {
   sortPages,
   sortSortableRouteObjects,
 } from '../shared/lib/router/utils/sortable-routes'
+import { generateRouteTypesFile } from '../server/lib/router-utils/typegen'
+import { mkdir } from 'fs/promises'
+import {
+  type RouteTypesManifest,
+  createUnifiedRouteTypesManifest,
+} from '../server/lib/router-utils/route-types-shared'
+import { absolutePathToPage } from '../shared/lib/page-path/absolute-path-to-page'
 
 type Fallback = null | boolean | string
 
@@ -877,6 +884,146 @@ async function getBuildId(
     .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
 }
 
+async function createRouteTypesManifestFromBuild({
+  dir,
+  mappedPages,
+  mappedAppPages,
+  appDir,
+  config,
+}: {
+  dir: string
+  mappedPages: Record<string, string>
+  mappedAppPages: Record<string, string> | undefined
+  appDir: string | undefined
+  config: NextConfigComplete
+}): Promise<RouteTypesManifest> {
+  const pageRoutes: Array<{ route: string; filePath: string }> = []
+  const appRoutes: Array<{ route: string; filePath: string }> = []
+  const layoutRoutes: Array<{
+    route: string
+    filePath: string
+    slots?: string[]
+  }> = []
+
+  const discoveredLayouts = new Set<string>()
+
+  // Build pages routes - filter out reserved pages but NOT API routes
+  for (const [route, filePath] of Object.entries(mappedPages)) {
+    // Only filter out _app, _error, _document but not API routes
+    if (isReservedPage(route) && !route.startsWith('/api/')) continue
+    pageRoutes.push({ route, filePath })
+  }
+
+  // Build app routes and discover layouts if appDir exists
+  if (appDir && mappedAppPages) {
+    const potentialLayoutFiles = config.pageExtensions.map(
+      (ext) => 'layout.' + ext
+    )
+
+    // Helper function to collect named slots from a directory
+    const collectNamedSlots = async (layoutDir: string): Promise<string[]> => {
+      try {
+        const entries = await fs.readdir(layoutDir, { withFileTypes: true })
+        const slots: string[] = []
+
+        for (const entry of entries) {
+          if (entry.isDirectory() && entry.name.startsWith('@')) {
+            slots.push(entry.name.substring(1)) // Remove '@' prefix
+          }
+        }
+
+        return slots.sort()
+      } catch {
+        return []
+      }
+    }
+
+    // Helper function to process layout files
+    const processLayoutFile = (fileName: string): string | null => {
+      const layoutPagePath = absolutePathToPage(fileName, {
+        dir: appDir,
+        extensions: config.pageExtensions,
+        keepIndex: true,
+        pagesType: PAGE_TYPES.APP,
+      })
+
+      const layoutRoute = normalizeAppPath(layoutPagePath).replace(/%5F/g, '_')
+
+      // Ignore files/directories starting with `_` in the app directory
+      if (normalizePathSep(layoutRoute).includes('/_')) {
+        return null
+      }
+
+      return layoutRoute
+    }
+
+    // First pass: collect page routes from mappedAppPages
+    for (const [originalPath, filePath] of Object.entries(mappedAppPages)) {
+      const normalizedRoute = normalizeAppPath(originalPath)
+      const absoluteFilePath = path.join(
+        appDir,
+        filePath.replace(/^private-next-app-dir\//, '')
+      )
+
+      // This is a page file
+      const pageRoute = normalizedRoute.replace(/%5F/g, '_')
+      // Ignore files/directories starting with `_` in the app directory
+      if (!normalizePathSep(pageRoute).includes('/_')) {
+        appRoutes.push({
+          route: pageRoute,
+          filePath: absoluteFilePath,
+        })
+
+        // Discover layouts by walking up from this page file (similar to getStaticInfoIncludingLayouts)
+        let currentDir = path.dirname(absoluteFilePath)
+
+        while (currentDir.startsWith(appDir)) {
+          for (const potentialLayoutFile of potentialLayoutFiles) {
+            const layoutFile = path.join(currentDir, potentialLayoutFile)
+
+            if (
+              await fs
+                .access(layoutFile)
+                .then(() => true)
+                .catch(() => false)
+            ) {
+              const layoutRoute = processLayoutFile(layoutFile)
+              if (layoutRoute) {
+                discoveredLayouts.add(layoutFile)
+              }
+            }
+          }
+
+          // Walk up the directory tree
+          currentDir = path.join(currentDir, '..')
+        }
+      }
+    }
+
+    // Second pass: process discovered layouts and collect their slots
+    for (const layoutFile of discoveredLayouts) {
+      const layoutRoute = processLayoutFile(layoutFile)
+      if (!layoutRoute) continue
+
+      // Collect named slots from the layout's directory
+      const slots = await collectNamedSlots(path.dirname(layoutFile))
+
+      layoutRoutes.push({
+        route: layoutRoute,
+        filePath: layoutFile,
+        slots: slots.length > 0 ? slots : undefined,
+      })
+    }
+  }
+
+  return createUnifiedRouteTypesManifest({
+    dir,
+    pageRoutes,
+    appRoutes,
+    layoutRoutes,
+  })
+}
+
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -1276,6 +1423,29 @@ export default async function build(
         app: appPaths.length > 0 ? appPaths : undefined,
       }
 
+      // Generate route types if experimental.newTypedRoutes is enabled
+      if (config.experimental.newTypedRoutes) {
+        await nextBuildSpan
+          .traceChild('generate-route-types')
+          .traceAsyncFn(async () => {
+            const routeTypesFilePath = path.join(distDir, 'types', 'routes.ts')
+            await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+
+            const routeTypesManifest = await createRouteTypesManifestFromBuild({
+              dir,
+              mappedPages,
+              mappedAppPages,
+              appDir,
+              config,
+            })
+
+            await fs.writeFile(
+              routeTypesFilePath,
+              generateRouteTypesFile(routeTypesManifest)
+            )
+          })
+      }
+
       // Turbopack already handles conflicting app and page routes.
       if (!isTurbopack) {
         const numConflictingAppPaths = conflictingAppPagePaths.length
@@ -1428,8 +1598,8 @@ export default async function build(
               suffix: RSC_SUFFIX,
               prefetchSuffix: RSC_PREFETCH_SUFFIX,
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-              prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
               prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
+              prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,

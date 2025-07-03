@@ -40,7 +40,7 @@ export function normalizeAppPath(route: string) {
 
       // The last segment (if it's a leaf) should be ignored.
       if (
-        (segment === 'page' || segment === 'route') &&
+        (segment === 'page' || segment === 'route' || segment === 'layout') &&
         index === segments.length - 1
       ) {
         return pathname

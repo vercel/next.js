@@ -7,11 +7,13 @@ export async function writeAppTypeDeclarations({
   imageImportsEnabled,
   hasPagesDir,
   hasAppDir,
+  hasNewTypedRoutes,
 }: {
   baseDir: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   hasAppDir: boolean
+  hasNewTypedRoutes?: boolean
 }): Promise<void> {
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
@@ -53,6 +55,10 @@ export async function writeAppTypeDeclarations({
     directives.push(
       '/// <reference types="next/navigation-types/compat/navigation" />'
     )
+  }
+
+  if (hasNewTypedRoutes) {
+    directives.push('/// <reference path="./.next/types/routes.ts" />')
   }
 
   // Push the notice in.
