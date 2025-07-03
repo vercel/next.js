@@ -3,6 +3,7 @@ name: retry-deploy-tests
 on:
   workflow_run:
     workflows: ['test-e2e-deploy-release']
+    branches: [canary]
     types:
       - completed
 
