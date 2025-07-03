@@ -20,7 +20,6 @@ browserslist-rs = { workspace = true }
 const_format = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
-futures = { workspace = true }
 indexmap = { workspace = true }
 once_cell = { workspace = true }
 patricia_tree = "0.5.5"

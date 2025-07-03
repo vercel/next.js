@@ -79,7 +79,7 @@ describe.each(
               |                       ^",
            "stack": [
              "RandomReadingComponent app/page.tsx (35:23)",
-             "LogSafely <anonymous> (0:0)",
+             "LogSafely <anonymous>",
            ],
          }
         `)

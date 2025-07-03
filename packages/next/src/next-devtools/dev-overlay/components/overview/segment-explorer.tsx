@@ -258,6 +258,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     font-weight: 500;
     color: var(--color-gray-1000);
     font-family: var(--font-mono);
+    white-space: nowrap;
   }
 
   .segment-explorer-item {

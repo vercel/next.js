@@ -24,7 +24,7 @@ describe('next-link', () => {
        > 6 |   return <Link>Hello, Dave!</Link>
            |          ^",
          "stack": [
-           "Array.forEach <anonymous> (0:0)",
+           "Array.forEach <anonymous>",
            "Hello app/invalid-href/page.js (6:10)",
          ],
        }
@@ -99,7 +99,7 @@ describe('next-link', () => {
        >  7 |     <Link prefetch="unknown" href="https://nextjs.org/">
             |     ^",
          "stack": [
-           "Array.forEach <anonymous> (0:0)",
+           "Array.forEach <anonymous>",
            "Hello app/invalid-prefetch/page.js (7:5)",
          ],
        }

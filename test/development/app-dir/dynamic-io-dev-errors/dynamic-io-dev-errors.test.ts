@@ -22,7 +22,7 @@ describe('Dynamic IO Dev Errors', () => {
          |                       ^",
        "stack": [
          "Page app/error/page.tsx (2:23)",
-         "LogSafely <anonymous> (0:0)",
+         "LogSafely <anonymous>",
        ],
      }
     `)
@@ -47,7 +47,7 @@ describe('Dynamic IO Dev Errors', () => {
          |                       ^",
        "stack": [
          "Page app/error/page.tsx (2:23)",
-         "LogSafely <anonymous> (0:0)",
+         "LogSafely <anonymous>",
        ],
      }
     `)
@@ -110,11 +110,11 @@ describe('Dynamic IO Dev Errors', () => {
          "source": null,
          "stack": [
            "<FIXME-file-protocol>",
-           "main <anonymous> (1:13)",
-           "body <anonymous> (1:13)",
-           "html <anonymous> (1:13)",
-           "Root [Server] <anonymous> (1:22)",
-           "LogSafely <anonymous> (0:0)",
+           "main <anonymous>",
+           "body <anonymous>",
+           "html <anonymous>",
+           "Root [Server] <anonymous>",
+           "LogSafely <anonymous>",
          ],
        }
       `)
@@ -138,11 +138,11 @@ describe('Dynamic IO Dev Errors', () => {
            |                               ^",
          "stack": [
            "Page app/no-accessed-data/page.js (1:31)",
-           "main <anonymous> (1:13)",
-           "body <anonymous> (1:13)",
-           "html <anonymous> (1:13)",
-           "Root [Server] <anonymous> (1:22)",
-           "LogSafely <anonymous> (0:0)",
+           "main <anonymous>",
+           "body <anonymous>",
+           "html <anonymous>",
+           "Root [Server] <anonymous>",
+           "LogSafely <anonymous>",
          ],
        }
       `)
