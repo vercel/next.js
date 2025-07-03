@@ -234,7 +234,7 @@
       ) {
         var callSite = structuredStackTrace[i],
           _name = callSite.getFunctionName() || "<anonymous>";
-        if ("react-stack-bottom-frame" === _name) break;
+        if (_name.includes("react_stack_bottom_frame")) break;
         else if (callSite.isNative()) result.push([_name, "", 0, 0, 0, 0]);
         else {
           if (callSite.isConstructor()) _name = "new " + _name;
@@ -315,7 +315,7 @@
         );
       stack.startsWith("Error: react-stack-top-frame\n") &&
         (stack = stack.slice(29));
-      existing = stack.indexOf("react-stack-bottom-frame");
+      existing = stack.indexOf("react_stack_bottom_frame");
       -1 !== existing && (existing = stack.lastIndexOf("\n", existing));
       -1 !== existing && (stack = stack.slice(0, existing));
       stack = stack.split("\n");
@@ -724,7 +724,7 @@
                   (stack = stack.slice(29));
                 var idx = stack.indexOf("\n");
                 -1 !== idx && (stack = stack.slice(idx + 1));
-                idx = stack.indexOf("react-stack-bottom-frame");
+                idx = stack.indexOf("react_stack_bottom_frame");
                 -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
                 var JSCompiler_inline_result =
                   -1 !== idx ? (stack = stack.slice(0, idx)) : "";
@@ -4668,7 +4668,7 @@
       };
     }
     var callComponent = {
-        "react-stack-bottom-frame": function (
+        react_stack_bottom_frame: function (
           Component,
           props,
           componentDebugInfo
@@ -4682,22 +4682,22 @@
         }
       },
       callComponentInDEV =
-        callComponent["react-stack-bottom-frame"].bind(callComponent),
+        callComponent.react_stack_bottom_frame.bind(callComponent),
       callLazyInit = {
-        "react-stack-bottom-frame": function (lazy) {
+        react_stack_bottom_frame: function (lazy) {
           var init = lazy._init;
           return init(lazy._payload);
         }
       },
       callLazyInitInDEV =
-        callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
+        callLazyInit.react_stack_bottom_frame.bind(callLazyInit),
       callIterator = {
-        "react-stack-bottom-frame": function (iterator, progress, error) {
+        react_stack_bottom_frame: function (iterator, progress, error) {
           iterator.next().then(progress, error);
         }
       },
       callIteratorInDEV =
-        callIterator["react-stack-bottom-frame"].bind(callIterator),
+        callIterator.react_stack_bottom_frame.bind(callIterator),
       isArrayImpl = Array.isArray,
       getPrototypeOf = Object.getPrototypeOf,
       jsxPropsParents = new WeakMap(),

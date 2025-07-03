@@ -496,16 +496,18 @@
             return null;
           },
       createFakeCallStack = {
-        "react-stack-bottom-frame": function (callStackForError) {
+        react_stack_bottom_frame: function (callStackForError) {
           return callStackForError();
         }
       },
       specialPropKeyWarningShown,
       didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
-    var unknownOwnerDebugStack = createFakeCallStack[
-      "react-stack-bottom-frame"
-    ].bind(createFakeCallStack, UnknownOwner)();
+    var unknownOwnerDebugStack =
+      createFakeCallStack.react_stack_bottom_frame.bind(
+        createFakeCallStack,
+        UnknownOwner
+      )();
     var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g;
@@ -814,5 +816,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.2.0-canary-7216c0f0-20250630";
+    exports.version = "19.2.0-canary-73aa744b-20250702";
   })();

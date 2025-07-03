@@ -436,3 +436,5 @@ webbrowser = "0.8.7"
 
 [patch.crates-io]
 mdxjs = { git = "https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-30" }
+lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
+parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }

@@ -4564,7 +4564,7 @@
       prevPrepareStackTrace = error.indexOf("\n");
       -1 !== prevPrepareStackTrace &&
         (error = error.slice(prevPrepareStackTrace + 1));
-      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
+      prevPrepareStackTrace = error.indexOf("react_stack_bottom_frame");
       -1 !== prevPrepareStackTrace &&
         (prevPrepareStackTrace = error.lastIndexOf(
           "\n",
@@ -6129,26 +6129,30 @@
               type.displayName || type.name || "Component"
             );
           if ("function" === typeof type.getDerivedStateFromProps) {
-            var _componentName2 = getComponentNameFromType(type) || "Unknown";
-            didWarnAboutGetDerivedStateOnFunctionComponent[_componentName2] ||
+            var componentName$jscomp$4 =
+              getComponentNameFromType(type) || "Unknown";
+            didWarnAboutGetDerivedStateOnFunctionComponent[
+              componentName$jscomp$4
+            ] ||
               (console.error(
                 "%s: Function components do not support getDerivedStateFromProps.",
-                _componentName2
+                componentName$jscomp$4
               ),
-              (didWarnAboutGetDerivedStateOnFunctionComponent[_componentName2] =
-                !0));
+              (didWarnAboutGetDerivedStateOnFunctionComponent[
+                componentName$jscomp$4
+              ] = !0));
           }
           if (
             "object" === typeof type.contextType &&
             null !== type.contextType
           ) {
-            var _componentName3 = getComponentNameFromType(type) || "Unknown";
-            didWarnAboutContextTypeOnFunctionComponent[_componentName3] ||
+            var _componentName2 = getComponentNameFromType(type) || "Unknown";
+            didWarnAboutContextTypeOnFunctionComponent[_componentName2] ||
               (console.error(
                 "%s: Function components do not support contextType.",
-                _componentName3
+                _componentName2
               ),
-              (didWarnAboutContextTypeOnFunctionComponent[_componentName3] =
+              (didWarnAboutContextTypeOnFunctionComponent[_componentName2] =
                 !0));
           }
           finishFunctionComponent(
@@ -9473,11 +9477,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-7216c0f0-20250630" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-73aa744b-20250702" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-7216c0f0-20250630\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-73aa744b-20250702\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -10990,26 +10994,26 @@
       "function" === typeof WeakMap ? WeakMap : Map
     )();
     var callComponent = {
-        "react-stack-bottom-frame": function (Component, props, secondArg) {
+        react_stack_bottom_frame: function (Component, props, secondArg) {
           return Component(props, secondArg);
         }
       },
       callComponentInDEV =
-        callComponent["react-stack-bottom-frame"].bind(callComponent),
+        callComponent.react_stack_bottom_frame.bind(callComponent),
       callRender = {
-        "react-stack-bottom-frame": function (instance) {
+        react_stack_bottom_frame: function (instance) {
           return instance.render();
         }
       },
-      callRenderInDEV = callRender["react-stack-bottom-frame"].bind(callRender),
+      callRenderInDEV = callRender.react_stack_bottom_frame.bind(callRender),
       callLazyInit = {
-        "react-stack-bottom-frame": function (lazy) {
+        react_stack_bottom_frame: function (lazy) {
           var init = lazy._init;
           return init(lazy._payload);
         }
       },
       callLazyInitInDEV =
-        callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
+        callLazyInit.react_stack_bottom_frame.bind(callLazyInit),
       lastResetTime = 0;
     if (
       "object" === typeof performance &&
@@ -11296,5 +11300,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-experimental-7216c0f0-20250630";
+    exports.version = "19.2.0-experimental-73aa744b-20250702";
   })();

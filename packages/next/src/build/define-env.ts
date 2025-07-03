@@ -1,5 +1,10 @@
-import type { I18NDomains, NextConfigComplete } from '../server/config-shared'
+import type {
+  I18NConfig,
+  I18NDomains,
+  NextConfigComplete,
+} from '../server/config-shared'
 import type { MiddlewareMatcher } from './analysis/get-page-static-info'
+import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
@@ -29,6 +34,11 @@ export interface DefineEnvOptions {
   isNodeServer: boolean
   middlewareMatchers: MiddlewareMatcher[] | undefined
   omitNonDeterministic?: boolean
+  rewrites: {
+    beforeFiles: Rewrite[]
+    afterFiles: Rewrite[]
+    fallback: Rewrite[]
+  }
 }
 
 interface DefineEnv {
@@ -40,6 +50,7 @@ interface DefineEnv {
     | BloomFilter
     | Partial<NextConfigComplete['images']>
     | I18NDomains
+    | I18NConfig
 }
 
 interface SerializedDefineEnv {
@@ -99,6 +110,7 @@ export function getDefineEnv({
   isNodeServer,
   middlewareMatchers,
   omitNonDeterministic,
+  rewrites,
 }: DefineEnvOptions): SerializedDefineEnv {
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
@@ -220,6 +232,11 @@ export function getDefineEnv({
             : projectPath,
         }
       : {}),
+    'process.env.__NEXT_BASE_PATH': config.basePath,
+    'process.env.__NEXT_CASE_SENSITIVE_ROUTES': Boolean(
+      config.experimental.caseSensitiveRoutes
+    ),
+    'process.env.__NEXT_REWRITES': rewrites as any,
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
     'process.env.__NEXT_DEV_INDICATOR': config.devIndicators !== false,
     'process.env.__NEXT_DEV_INDICATOR_POSITION':
@@ -245,6 +262,7 @@ export function getDefineEnv({
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,
     'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
+    'process.env.__NEXT_I18N_CONFIG': config.i18n || '',
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE':
       config.skipMiddlewareUrlNormalize,
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE':

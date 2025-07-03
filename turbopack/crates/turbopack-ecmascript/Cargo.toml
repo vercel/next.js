@@ -27,6 +27,7 @@ num-traits = "0.2.15"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 petgraph = { workspace = true }
+dashmap = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }

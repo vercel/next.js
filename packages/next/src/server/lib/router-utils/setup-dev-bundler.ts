@@ -677,6 +677,7 @@ async function startWatcher(
               // TODO: Implement
               middlewareMatchers: undefined,
               projectPath: opts.dir,
+              rewrites: opts.fsChecker.rewrites,
             }),
           })
         }
@@ -752,6 +753,7 @@ async function startWatcher(
                   isNodeServer,
                   middlewareMatchers: undefined,
                   projectPath: opts.dir,
+                  rewrites: opts.fsChecker.rewrites,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {
