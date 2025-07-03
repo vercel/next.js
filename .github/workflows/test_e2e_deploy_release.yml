@@ -22,7 +22,7 @@ env:
   TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
   DD_ENV: 'ci'
 
-run-name: test-e2e-deploy ${{ inputs.nextVersion }}
+run-name: test-e2e-deploy ${{ inputs.nextVersion || 'canary' }}
 
 jobs:
   setup:
