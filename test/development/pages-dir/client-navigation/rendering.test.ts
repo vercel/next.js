@@ -136,7 +136,7 @@ describe('Client Navigation rendering', () => {
            "label": "Runtime Error",
            "source": null,
            "stack": [
-             "new Promise <anonymous> (0:0)",
+             "new Promise <anonymous>",
            ],
          }
         `)

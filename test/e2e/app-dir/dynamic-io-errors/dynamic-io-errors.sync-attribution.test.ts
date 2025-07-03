@@ -80,7 +80,7 @@ describe.each(
              |                ^",
            "stack": [
              "SyncIO app/client.tsx (5:16)",
-             "LogSafely <anonymous> (0:0)",
+             "LogSafely <anonymous>",
            ],
          }
         `)
@@ -179,14 +179,14 @@ describe.each(
              "source": null,
              "stack": [
                "<FIXME-file-protocol>",
-               "section <anonymous> (1:16)",
-               "main <anonymous> (1:13)",
+               "section <anonymous>",
+               "main <anonymous>",
                "<FIXME-file-protocol>",
-               "main <anonymous> (1:13)",
-               "body <anonymous> (1:13)",
-               "html <anonymous> (1:13)",
-               "Root [Server] <anonymous> (1:22)",
-               "LogSafely <anonymous> (0:0)",
+               "main <anonymous>",
+               "body <anonymous>",
+               "html <anonymous>",
+               "Root [Server] <anonymous>",
+               "LogSafely <anonymous>",
              ],
            }
           `)
@@ -201,14 +201,14 @@ describe.each(
                 |                ^",
              "stack": [
                "RequestData app/page.tsx (33:16)",
-               "section <anonymous> (1:16)",
-               "main <anonymous> (1:13)",
+               "section <anonymous>",
+               "main <anonymous>",
                "Page app/page.tsx (27:9)",
-               "main <anonymous> (1:13)",
-               "body <anonymous> (1:13)",
-               "html <anonymous> (1:13)",
-               "Root [Server] <anonymous> (1:22)",
-               "LogSafely <anonymous> (0:0)",
+               "main <anonymous>",
+               "body <anonymous>",
+               "html <anonymous>",
+               "Root [Server] <anonymous>",
+               "LogSafely <anonymous>",
              ],
            }
           `)
@@ -352,7 +352,7 @@ describe.each(
              |                ^",
            "stack": [
              "SyncIO app/client.tsx (5:16)",
-             "LogSafely <anonymous> (0:0)",
+             "LogSafely <anonymous>",
            ],
          }
         `)

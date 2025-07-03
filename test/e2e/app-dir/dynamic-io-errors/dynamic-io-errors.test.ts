@@ -44,7 +44,7 @@ describe.each(
            "label": "Console Error",
            "source": null,
            "stack": [
-             "LogSafely <anonymous> (0:0)",
+             "LogSafely <anonymous>",
            ],
          }
         `)
@@ -128,11 +128,11 @@ describe.each(
              "stack": [
                "<FIXME-file-protocol>",
                "<FIXME-file-protocol>",
-               "main <anonymous> (1:13)",
-               "body <anonymous> (1:13)",
-               "html <anonymous> (1:13)",
-               "Root [Server] <anonymous> (1:22)",
-               "LogSafely <anonymous> (0:0)",
+               "main <anonymous>",
+               "body <anonymous>",
+               "html <anonymous>",
+               "Root [Server] <anonymous>",
+               "LogSafely <anonymous>",
              ],
            }
           `)
@@ -148,11 +148,11 @@ describe.each(
              "stack": [
                "Dynamic app/page.tsx (20:16)",
                "Page app/page.tsx (15:7)",
-               "main <anonymous> (1:13)",
-               "body <anonymous> (1:13)",
-               "html <anonymous> (1:13)",
-               "Root [Server] <anonymous> (1:22)",
-               "LogSafely <anonymous> (0:0)",
+               "main <anonymous>",
+               "body <anonymous>",
+               "html <anonymous>",
+               "Root [Server] <anonymous>",
+               "LogSafely <anonymous>",
              ],
            }
           `)
@@ -283,7 +283,7 @@ describe.each(
            "label": "Console Error",
            "source": null,
            "stack": [
-             "LogSafely <anonymous> (0:0)",
+             "LogSafely <anonymous>",
            ],
          }
         `)
@@ -393,7 +393,7 @@ describe.each(
            "label": "Console Error",
            "source": null,
            "stack": [
-             "LogSafely <anonymous> (0:0)",
+             "LogSafely <anonymous>",
            ],
          }
         `)
@@ -470,7 +470,7 @@ describe.each(
            "label": "Console Error",
            "source": null,
            "stack": [
-             "LogSafely <anonymous> (0:0)",
+             "LogSafely <anonymous>",
            ],
          }
         `)
@@ -582,11 +582,11 @@ describe.each(
                  "<FIXME-file-protocol>",
                  "IndirectionTwo app/indirection.tsx (7:34)",
                  "<FIXME-file-protocol>",
-                 "main <anonymous> (1:13)",
-                 "body <anonymous> (1:13)",
-                 "html <anonymous> (1:13)",
-                 "Root [Server] <anonymous> (1:22)",
-                 "LogSafely <anonymous> (0:0)",
+                 "main <anonymous>",
+                 "body <anonymous>",
+                 "html <anonymous>",
+                 "Root [Server] <anonymous>",
+                 "LogSafely <anonymous>",
                ],
              },
              {
@@ -597,11 +597,11 @@ describe.each(
                "stack": [
                  "<FIXME-file-protocol>",
                  "<FIXME-file-protocol>",
-                 "main <anonymous> (1:13)",
-                 "body <anonymous> (1:13)",
-                 "html <anonymous> (1:13)",
-                 "Root [Server] <anonymous> (1:22)",
-                 "LogSafely <anonymous> (0:0)",
+                 "main <anonymous>",
+                 "body <anonymous>",
+                 "html <anonymous>",
+                 "Root [Server] <anonymous>",
+                 "LogSafely <anonymous>",
                ],
              },
            ]
@@ -620,11 +620,11 @@ describe.each(
                  "FetchingComponent app/page.tsx (35:16)",
                  "IndirectionTwo app/indirection.tsx (7:34)",
                  "Page app/page.tsx (16:9)",
-                 "main <anonymous> (1:13)",
-                 "body <anonymous> (1:13)",
-                 "html <anonymous> (1:13)",
-                 "Root [Server] <anonymous> (1:22)",
-                 "LogSafely <anonymous> (0:0)",
+                 "main <anonymous>",
+                 "body <anonymous>",
+                 "html <anonymous>",
+                 "Root [Server] <anonymous>",
+                 "LogSafely <anonymous>",
                ],
              },
              {
@@ -637,11 +637,11 @@ describe.each(
                "stack": [
                  "FetchingComponent app/page.tsx (35:16)",
                  "Page app/page.tsx (16:9)",
-                 "main <anonymous> (1:13)",
-                 "body <anonymous> (1:13)",
-                 "html <anonymous> (1:13)",
-                 "Root [Server] <anonymous> (1:22)",
-                 "LogSafely <anonymous> (0:0)",
+                 "main <anonymous>",
+                 "body <anonymous>",
+                 "html <anonymous>",
+                 "Root [Server] <anonymous>",
+                 "LogSafely <anonymous>",
                ],
              },
            ]

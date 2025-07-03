@@ -168,8 +168,8 @@ describe('pages/ error recovery', () => {
           |           ^",
        "stack": [
          "Index.useCallback[increment] index.js (7:11)",
-         "UtilityScript.evaluate <anonymous> (236:17)",
-         "UtilityScript.<anonymous> <anonymous> (1:44)",
+         "UtilityScript.evaluate <anonymous>",
+         "UtilityScript.<anonymous> <anonymous>",
        ],
      }
     `)
@@ -261,7 +261,7 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -275,7 +275,7 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -293,7 +293,7 @@ describe('pages/ error recovery', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
-           "Set.forEach <anonymous> (0:0)",
+           "Set.forEach <anonymous>",
            "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
            "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
          ],
@@ -549,7 +549,7 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -563,7 +563,7 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -596,7 +596,7 @@ describe('pages/ error recovery', () => {
              |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
              "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
            ],
@@ -665,7 +665,7 @@ describe('pages/ error recovery', () => {
            |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -679,7 +679,7 @@ describe('pages/ error recovery', () => {
            |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -697,7 +697,7 @@ describe('pages/ error recovery', () => {
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
-           "Set.forEach <anonymous> (0:0)",
+           "Set.forEach <anonymous>",
            "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
            "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
          ],
