@@ -1,6 +1,7 @@
 import { forwardRef } from 'react'
 import { Tooltip as BaseTooltip } from '@base-ui-components/react/tooltip'
 import { cx } from '../dev-overlay/utils/cx'
+import './tooltip.css'
 
 type TooltipDirection = 'top' | 'bottom' | 'left' | 'right'
 
@@ -80,62 +81,3 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
     )
   }
 )
-
-export const styles = `
-  .tooltip-wrapper {
-    position: relative;
-    display: inline-block;
-    line-height: 1;
-  }
-
-  .tooltip {
-    position: relative;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    line-height: 1.4;
-    min-width: 200px;
-    pointer-events: none;
-  }
-
-  .tooltip-arrow {
-    position: absolute;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: var(--arrow-size, 6px);
-    border-color: transparent;
-  }
-
-  .tooltip-arrow--top {
-    border-width: var(--arrow-size, 6px) var(--arrow-size, 6px) 0 var(--arrow-size, 6px);
-    border-top-color: var(--tooltip-bg-color);
-    bottom: 0;
-    transform: translateY(100%);
-  }
-
-  .tooltip-arrow--bottom {
-    border-width: 0 var(--arrow-size, 6px) var(--arrow-size, 6px) var(--arrow-size, 6px);
-    border-bottom-color: var(--tooltip-bg-color);
-    top: 0;
-    transform: translateY(-100%);
-  }
-
-  .tooltip-arrow--left {
-    border-width: var(--arrow-size, 6px) 0 var(--arrow-size, 6px) var(--arrow-size, 6px);
-    border-left-color: var(--tooltip-bg-color);
-    right: 0;
-    transform: translateX(100%);
-  }
-
-  .tooltip-arrow--right {
-    border-width: var(--arrow-size, 6px) var(--arrow-size, 6px) var(--arrow-size, 6px) 0;
-    border-right-color: var(--tooltip-bg-color);
-    left: 0;
-    transform: translateX(-100%);
-  }
-  
-  .tooltip-positioner {
-    z-index: 3;
-  }
-`

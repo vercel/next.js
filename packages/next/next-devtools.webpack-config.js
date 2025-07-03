@@ -91,6 +91,21 @@ module.exports = ({ dev, ...rest }) => {
           },
           type: 'javascript/auto',
         },
+        {
+          test: /\.css$/,
+          use: [
+            {
+              loader: 'style-loader',
+              options: {
+                injectType: 'singletonStyleTag',
+                insert: require.resolve(
+                  './src/build/webpack/loaders/devtool/devtool-style-inject.js'
+                ),
+              },
+            },
+            'css-loader',
+          ],
+        },
       ],
     },
     externals: [],

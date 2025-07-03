@@ -1,0 +1,7 @@
+/* 
+ * Define CSS variables at shadow root for all descendants
+ * Both :host and :scope ensure compatibility across different shadow DOM implementations
+ */
+:host {
+  --top-z-index: 2147483647;
+}
