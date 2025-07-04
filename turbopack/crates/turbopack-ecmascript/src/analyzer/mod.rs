@@ -206,25 +206,25 @@ impl ConstantValue {
         }
     }
 
-    pub fn is_truthy(&self) -> Option<bool> {
+    pub fn is_truthy(&self) -> bool {
         match self {
-            Self::Undefined | Self::False | Self::Null => Some(false),
-            Self::True | Self::Regex(..) => Some(true),
-            Self::Str(s) => Some(!s.is_empty()),
-            Self::Num(ConstantNumber(n)) => Some(*n != 0.0),
-            Self::BigInt(n) => Some(!n.is_zero()),
+            Self::Undefined | Self::False | Self::Null => false,
+            Self::True | Self::Regex(..) => true,
+            Self::Str(s) => !s.is_empty(),
+            Self::Num(ConstantNumber(n)) => *n != 0.0,
+            Self::BigInt(n) => !n.is_zero(),
         }
     }
 
-    pub fn is_nullish(&self) -> Option<bool> {
+    pub fn is_nullish(&self) -> bool {
         match self {
-            Self::Undefined | Self::Null => Some(true),
+            Self::Undefined | Self::Null => true,
             Self::Str(..)
             | Self::Num(..)
             | Self::True
             | Self::False
             | Self::BigInt(..)
-            | Self::Regex(..) => Some(false),
+            | Self::Regex(..) => false,
         }
     }
 
@@ -236,16 +236,7 @@ impl ConstantValue {
     }
 
     pub fn is_value_type(&self) -> bool {
-        match self {
-            ConstantValue::Undefined
-            | ConstantValue::Null
-            | ConstantValue::Str(_)
-            | ConstantValue::Num(_)
-            | ConstantValue::True
-            | ConstantValue::False
-            | ConstantValue::BigInt(_) => true,
-            ConstantValue::Regex(_) => false,
-        }
+        !matches!(self, Self::Regex(..))
     }
 }
 
@@ -2239,7 +2230,7 @@ impl JsValue {
     /// Some if we know if or if not the value is truthy.
     pub fn is_truthy(&self) -> Option<bool> {
         match self {
-            JsValue::Constant(c) => c.is_truthy(),
+            JsValue::Constant(c) => Some(c.is_truthy()),
             JsValue::Concat(..) => self.is_empty_string().map(|x| !x),
             JsValue::Url(..)
             | JsValue::Array { .. }
@@ -2320,7 +2311,7 @@ impl JsValue {
     /// don't know. Returns Some if we know if or if not the value is nullish.
     pub fn is_nullish(&self) -> Option<bool> {
         match self {
-            JsValue::Constant(c) => c.is_nullish(),
+            JsValue::Constant(c) => Some(c.is_nullish()),
             JsValue::Concat(..)
             | JsValue::Url(..)
             | JsValue::Array { .. }
