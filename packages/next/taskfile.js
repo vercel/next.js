@@ -2245,22 +2245,24 @@ export async function precompile(task, opts) {
     opts
   )
 
-  const validatorRes = await fetch(
-    'https://cdn.ampproject.org/v0/validator_wasm.js'
-  ).catch((err) => {
-    throw new Error('Failed to fetch AMP validator', { cause: err })
-  })
+  if (!process.env.NEXT_TEST_PREFER_OFFLINE) {
+    const validatorRes = await fetch(
+      'https://cdn.ampproject.org/v0/validator_wasm.js'
+    ).catch((err) => {
+      throw new Error('Failed to fetch AMP validator', { cause: err })
+    })
 
-  if (!validatorRes.ok) {
-    throw new Error(
-      `Failed to get the AMP validator, status: ${validatorRes.status}`
+    if (!validatorRes.ok) {
+      throw new Error(
+        `Failed to get the AMP validator, status: ${validatorRes.status}`
+      )
+    }
+
+    await fs.writeFile(
+      join(__dirname, 'dist/compiled/amphtml-validator/validator_wasm.js'),
+      require('buffer').Buffer.from(await validatorRes.arrayBuffer())
     )
   }
-
-  await fs.writeFile(
-    join(__dirname, 'dist/compiled/amphtml-validator/validator_wasm.js'),
-    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
-  )
 }
 
 // eslint-disable-next-line camelcase
@@ -2790,7 +2792,9 @@ export async function check_error_codes(task, opts) {
 
 export default async function (task) {
   const opts = { dev: true }
-  await task.clear('dist')
+  if (!process.env.NEXT_TEST_PREFER_OFFLINE) {
+    await task.clear('dist')
+  }
   await task.start('build', opts)
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
@@ -2909,7 +2913,11 @@ export async function experimental_testmode(task, opts) {
 }
 
 export async function release(task) {
-  await task.clear('dist').start('build')
+  if (process.env.NEXT_TEST_PREFER_OFFLINE) {
+    await task.start('build')
+  } else {
+    await task.clear('dist').start('build')
+  }
 }
 
 export async function next_bundle_app_prod_turbo(task, opts) {
