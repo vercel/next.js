@@ -12,7 +12,7 @@ use std::{
 use anyhow::Result;
 use indexmap::map::Entry;
 use ringmap::RingSet;
-use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 use smallvec::{SmallVec, smallvec};
 #[cfg(any(
@@ -613,7 +613,6 @@ pub struct AggregationUpdateQueue {
     number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
     done_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
     find_and_schedule: FxRingSet<FindAndScheduleJob>,
-    done_find_and_schedule: FxHashSet<TaskId>,
     balance_queue: FxRingSet<BalanceJob>,
     optimize_queue: FxRingSet<OptimizeJob>,
 }
@@ -626,7 +625,6 @@ impl AggregationUpdateQueue {
             number_updates: FxIndexMap::default(),
             done_number_updates: FxHashMap::default(),
             find_and_schedule: FxRingSet::default(),
-            done_find_and_schedule: FxHashSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
         }
@@ -640,7 +638,6 @@ impl AggregationUpdateQueue {
             find_and_schedule,
             balance_queue,
             optimize_queue,
-            done_find_and_schedule: _,
             done_number_updates: _,
         } = self;
         jobs.is_empty()
@@ -718,20 +715,14 @@ impl AggregationUpdateQueue {
 
     /// Pushes a job to find and schedule dirty tasks.
     pub fn push_find_and_schedule_dirty(&mut self, task_id: TaskId) {
-        if !self.done_find_and_schedule.contains(&task_id) {
-            self.find_and_schedule
-                .push_back(FindAndScheduleJob::new(task_id));
-        }
+        self.find_and_schedule
+            .push_back(FindAndScheduleJob::new(task_id));
     }
 
     /// Extends the queue with multiple jobs to find and schedule dirty tasks.
     pub fn extend_find_and_schedule_dirty(&mut self, task_ids: impl IntoIterator<Item = TaskId>) {
-        self.find_and_schedule.extend(
-            task_ids
-                .into_iter()
-                .filter(|task_id| !self.done_find_and_schedule.contains(task_id))
-                .map(FindAndScheduleJob::new),
-        );
+        self.find_and_schedule
+            .extend(task_ids.into_iter().map(FindAndScheduleJob::new));
     }
 
     /// Pushes a job to optimize a task.
