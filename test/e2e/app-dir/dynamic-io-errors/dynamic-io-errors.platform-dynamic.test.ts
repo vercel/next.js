@@ -11,10 +11,10 @@ describe.each(
         },
       ]
     : [
-        // {
-        //   inPrerenderDebugMode: false,
-        //   name: 'Build Without --prerender-debug',
-        // },
+        {
+          inPrerenderDebugMode: false,
+          name: 'Build Without --prerender-debug',
+        },
         {
           inPrerenderDebugMode: true,
           name: 'Build With --prerender-debug',
