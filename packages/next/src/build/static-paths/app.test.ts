@@ -1,7 +1,7 @@
 import { FallbackMode } from '../../lib/fallback'
 import {
   assignErrorIfEmpty,
-  filterUniqueRootParamsCombinations,
+  generateParamPrefixCombinations,
   filterUniqueParams,
 } from './app'
 import type { PrerenderedRoute } from './types'
@@ -109,14 +109,6 @@ describe('assignErrorIfEmpty', () => {
     expect(prerenderedRoutes[2].throwOnEmptyStaticShell).toBe(true)
     expect(prerenderedRoutes[3].throwOnEmptyStaticShell).toBe(true)
     expect(prerenderedRoutes[4].throwOnEmptyStaticShell).toBe(false)
-  })
-
-  it('should handle parameter value collisions', () => {
-    const params = [{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }]
-
-    const unique = filterUniqueRootParamsCombinations(['slug'], params)
-
-    expect(unique).toEqual([{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }])
   })
 
   it('should handle multiple routes at the same trie node', () => {
@@ -352,20 +344,20 @@ describe('filterUniqueParams', () => {
   })
 })
 
-describe('filterUniqueRootParamsCombinations', () => {
-  it('should return only the root parameters', () => {
+describe('generateParamPrefixCombinations', () => {
+  it('should return only the route parameters', () => {
     const params = [
       { id: '1', name: 'test' },
       { id: '1', name: 'test' },
       { id: '2', name: 'test' },
     ]
 
-    const unique = filterUniqueRootParamsCombinations(['id'], params)
+    const unique = generateParamPrefixCombinations(['id'], params)
 
     expect(unique).toEqual([{ id: '1' }, { id: '2' }])
   })
 
-  it('should handle multiple root parameters', () => {
+  it('should handle multiple route parameters', () => {
     const params = [
       { lang: 'en', region: 'US', page: 'home' },
       { lang: 'en', region: 'US', page: 'about' },
@@ -373,14 +365,126 @@ describe('filterUniqueRootParamsCombinations', () => {
       { lang: 'fr', region: 'CA', page: 'about' },
     ]
 
-    const unique = filterUniqueRootParamsCombinations(
-      ['lang', 'region'],
+    const unique = generateParamPrefixCombinations(['lang', 'region'], params)
+
+    expect(unique).toEqual([
+      { lang: 'en' },
+      { lang: 'en', region: 'US' },
+      { lang: 'fr' },
+      { lang: 'fr', region: 'CA' },
+    ])
+  })
+
+  it('should handle parameter value collisions', () => {
+    const params = [{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }]
+
+    const unique = generateParamPrefixCombinations(['slug'], params)
+
+    expect(unique).toEqual([{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }])
+  })
+
+  it('should handle empty inputs', () => {
+    // Empty routeParamKeys
+    expect(generateParamPrefixCombinations([], [{ id: '1' }])).toEqual([])
+
+    // Empty routeParams
+    expect(generateParamPrefixCombinations(['id'], [])).toEqual([])
+
+    // Both empty
+    expect(generateParamPrefixCombinations([], [])).toEqual([])
+  })
+
+  it('should handle undefined parameters', () => {
+    const params = [
+      { id: '1', name: 'test' },
+      { id: '2', name: undefined },
+      { id: '3' }, // missing name key
+    ]
+
+    const unique = generateParamPrefixCombinations(['id', 'name'], params)
+
+    expect(unique).toEqual([
+      { id: '1' },
+      { id: '1', name: 'test' },
+      { id: '2' },
+      { id: '3' },
+    ])
+  })
+
+  it('should handle missing parameter keys in objects', () => {
+    const params = [
+      { lang: 'en', region: 'US', category: 'tech' },
+      { lang: 'en', region: 'US' }, // missing category
+      { lang: 'fr' }, // missing region and category
+    ]
+
+    const unique = generateParamPrefixCombinations(
+      ['lang', 'region', 'category'],
       params
     )
 
     expect(unique).toEqual([
+      { lang: 'en' },
       { lang: 'en', region: 'US' },
-      { lang: 'fr', region: 'CA' },
+      { lang: 'en', region: 'US', category: 'tech' },
+      { lang: 'fr' },
+    ])
+  })
+
+  it('should prevent collisions with special characters', () => {
+    const params = [
+      { slug: ['foo', 'bar'] }, // Array: A:foo,bar
+      { slug: 'foo,bar' }, // String: S:foo,bar
+      { slug: 'A:foo,bar' }, // String that looks like array prefix
+      { slug: ['A:foo', 'bar'] }, // Array with A: prefix in element
+      { slug: undefined }, // Undefined: U:undefined
+      { slug: 'U:undefined' }, // String that looks like undefined prefix
+    ]
+
+    const unique = generateParamPrefixCombinations(['slug'], params)
+
+    expect(unique).toEqual([
+      { slug: ['foo', 'bar'] },
+      { slug: 'foo,bar' },
+      { slug: 'A:foo,bar' },
+      { slug: ['A:foo', 'bar'] },
+      { slug: undefined },
+      { slug: 'U:undefined' },
+    ])
+  })
+
+  it('should handle parameters with pipe characters', () => {
+    const params = [
+      { slug: 'foo|bar' }, // String with pipe
+      { slug: ['foo', 'bar|baz'] }, // Array with pipe in element
+    ]
+
+    const unique = generateParamPrefixCombinations(['slug'], params)
+
+    expect(unique).toEqual([{ slug: 'foo|bar' }, { slug: ['foo', 'bar|baz'] }])
+  })
+
+  it('should handle deep parameter hierarchies', () => {
+    const params = [
+      { a: '1', b: '2', c: '3', d: '4', e: '5' },
+      { a: '1', b: '2', c: '3', d: '4', e: '6' },
+      { a: '1', b: '2', c: '3', d: '7' },
+    ]
+
+    const unique = generateParamPrefixCombinations(
+      ['a', 'b', 'c', 'd', 'e'],
+      params
+    )
+
+    // Should contain all the unique prefix combinations
+    expect(unique).toEqual([
+      { a: '1' },
+      { a: '1', b: '2' },
+      { a: '1', b: '2', c: '3' },
+      { a: '1', b: '2', c: '3', d: '4' },
+      { a: '1', b: '2', c: '3', d: '4', e: '5' },
+      { a: '1', b: '2', c: '3', d: '4', e: '6' },
+      { a: '1', b: '2', c: '3', d: '7' },
     ])
   })
 })

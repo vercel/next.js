@@ -75,11 +75,12 @@ export function filterUniqueParams(
 }
 
 /**
- * Filters out all combinations of root params from a list of parameters.
- * This function extracts only the root parameters from each parameter object
- * and then filters out duplicate combinations using a Map for efficiency.
+ * Generates all unique sub-combinations of route params from a list of parameters.
+ * This function creates all possible prefixes of the route parameters, which is
+ * useful for generating partial routes that can serve as shells for more specific routes.
  *
- * Given the following root param ('lang'), and the following routeParams:
+ * Given the following route params ('lang', 'region', 'slug'), and the
+ * following routeParams:
  *
  * ```
  * [
@@ -93,61 +94,83 @@ export function filterUniqueParams(
  *
  * ```
  * [
+ *   { lang: 'en' },
  *   { lang: 'en', region: 'US' },
+ *   { lang: 'en', region: 'US', slug: ['home'] },
+ *   { lang: 'en', region: 'US', slug: ['about'] },
+ *   { lang: 'fr' },
  *   { lang: 'fr', region: 'CA' },
+ *   { lang: 'fr', region: 'CA', slug: ['about'] },
  * ]
  * ```
  *
- * @param rootParamKeys - The keys of the root params. These should be sorted
+ * This allows the system to generate routes like:
+ * - `/en` (partial route with just lang)
+ * - `/en/US` (complete route with lang and region)
+ * - `/en/US/home` (complete route with lang, region, and slug)
+ * - `/en/US/about` (complete route with lang, region, and slug)
+ * - `/fr` (partial route with just lang)
+ * - `/fr/CA` (complete route with lang and region)
+ * - `/fr/CA/about` (complete route with lang, region, and slug)
+ *
+ * @param routeParamKeys - The keys of the route params. These should be sorted
  *   to ensure consistent key generation for the internal Map.
  * @param routeParams - The list of parameter objects to filter.
- * @returns A new array containing only the unique combinations of root params.
+ * @returns A new array containing all unique sub-combinations of route params.
  */
-export function filterUniqueRootParamsCombinations(
-  rootParamKeys: readonly string[],
+export function generateParamPrefixCombinations(
+  routeParamKeys: readonly string[],
   routeParams: readonly Params[]
 ): Params[] {
-  // A Map is used to store unique combinations of root parameters.
-  // The key of the Map is a string representation of the root parameter
+  // A Map is used to store unique combinations of route parameters.
+  // The key of the Map is a string representation of the route parameter
   // combination, and the value is the `Params` object containing only
-  // the root parameters.
+  // the route parameters.
   const combinations = new Map<string, Params>()
 
   // Iterate over each parameter object in the input array.
   for (const params of routeParams) {
-    const combination: Params = {} // Initialize an object to hold only the root parameters.
-    let key = '' // Initialize an empty string to build the unique key for the current root parameter combination.
-
-    // Iterate through the `rootParamKeys` (which are assumed to be sorted).
+    // Iterate through the `routeParamKeys` (which are assumed to be sorted).
     // This consistent order is crucial for generating a stable and unique key
-    // for each root parameter combination.
-    for (const rootKey of rootParamKeys) {
-      const value = params[rootKey]
-      combination[rootKey] = value // Add the root parameter and its value to the combination object.
+    // for each route parameter combination.
+    for (let i = 0; i < routeParamKeys.length; i++) {
+      const combination: Params = {} // Initialize an object to hold only the route parameters up to index i.
+      let currentKey = '' // Build key for this sub-combination.
 
-      // Construct a part of the key using the root parameter key and its value.
-      // A type prefix (`A:` for Array, `S:` for String, `U:` for undefined) is added to the value
-      // to prevent collisions. This ensures that different types with the same
-      // string representation are treated as distinct.
-      let valuePart: string
-      if (Array.isArray(value)) {
-        valuePart = `A:${value.join(',')}`
-      } else if (value === undefined) {
-        valuePart = `U:undefined`
-      } else {
-        valuePart = `S:${value}`
+      // Build the sub-combination with parameters from index 0 to i (inclusive).
+      for (let j = 0; j <= i; j++) {
+        const routeKey = routeParamKeys[j]
+        const value = params[routeKey]
+
+        // Only add to combination if the value exists in the original params.
+        if (value !== undefined) {
+          combination[routeKey] = value
+        }
+
+        // Construct a part of the key using the route parameter key and its value.
+        // A type prefix (`A:` for Array, `S:` for String, `U:` for undefined) is added to the value
+        // to prevent collisions. This ensures that different types with the same
+        // string representation are treated as distinct.
+        let valuePart: string
+        if (Array.isArray(value)) {
+          valuePart = `A:${value.join(',')}`
+        } else if (value === undefined) {
+          valuePart = `U:undefined`
+        } else {
+          valuePart = `S:${value}`
+        }
+        currentKey += `${routeKey}:${valuePart}|`
       }
-      key += `${rootKey}:${valuePart}|`
-    }
 
-    // If the generated key is not already in the `combinations` Map, it means
-    // this root parameter combination is unique so far. Add it to the Map.
-    if (!combinations.has(key)) {
-      combinations.set(key, combination)
+      // If the generated key is not already in the `combinations` Map, it means
+      // this route parameter combination is unique so far. Add it to the Map.
+      if (!combinations.has(currentKey)) {
+        combinations.set(currentKey, combination)
+      }
     }
   }
 
-  // Convert the Map's values (the unique root parameter `Params` objects)
+  // Convert the Map's values (the unique route parameter `Params` objects)
   // back into an array and return it.
   return Array.from(combinations.values())
 }
@@ -622,10 +645,11 @@ export async function buildAppStaticPaths({
 
   if (hadAllParamsGenerated || isRoutePPREnabled) {
     if (isRoutePPREnabled) {
-      // Discover all unique combinations of the rootParams so we can generate
-      // routes that won't throw on empty static shell for each of them if they're available.
+      // Discover all unique combinations of the routeParams so we can generate
+      // routes that won't throw on empty static shell for each of them if
+      // they're available.
       routeParams.unshift(
-        ...filterUniqueRootParamsCombinations(rootParamKeys, routeParams)
+        ...generateParamPrefixCombinations(routeParamKeys, routeParams)
       )
 
       prerenderedRoutesByPathname.set(page, {
