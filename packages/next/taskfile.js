@@ -676,6 +676,23 @@ export async function ncc_amphtml_validator(task, opts) {
     .source(relative(__dirname, require.resolve('amphtml-validator')))
     .ncc({ packageName: 'amphtml-validator', externals })
     .target('src/compiled/amphtml-validator')
+
+  const validatorRes = await fetch(
+    'https://cdn.ampproject.org/v0/validator_wasm.js'
+  ).catch((err) => {
+    throw new Error('Failed to fetch AMP validator', { cause: err })
+  })
+
+  if (!validatorRes.ok) {
+    throw new Error(
+      `Failed to get the AMP validator, status: ${validatorRes.status}`
+    )
+  }
+
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/amphtml-validator/validator_wasm.js'),
+    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -2244,25 +2261,6 @@ export async function precompile(task, opts) {
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
     opts
   )
-
-  if (!process.env.NEXT_BUILD_PREFER_OFFLINE) {
-    const validatorRes = await fetch(
-      'https://cdn.ampproject.org/v0/validator_wasm.js'
-    ).catch((err) => {
-      throw new Error('Failed to fetch AMP validator', { cause: err })
-    })
-
-    if (!validatorRes.ok) {
-      throw new Error(
-        `Failed to get the AMP validator, status: ${validatorRes.status}`
-      )
-    }
-
-    await fs.writeFile(
-      join(__dirname, 'dist/compiled/amphtml-validator/validator_wasm.js'),
-      require('buffer').Buffer.from(await validatorRes.arrayBuffer())
-    )
-  }
 }
 
 // eslint-disable-next-line camelcase
@@ -2792,9 +2790,7 @@ export async function check_error_codes(task, opts) {
 
 export default async function (task) {
   const opts = { dev: true }
-  if (!process.env.NEXT_BUILD_PREFER_OFFLINE) {
-    await task.clear('dist')
-  }
+  await task.clear('dist')
   await task.start('build', opts)
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
@@ -2913,11 +2909,7 @@ export async function experimental_testmode(task, opts) {
 }
 
 export async function release(task) {
-  if (process.env.NEXT_BUILD_PREFER_OFFLINE) {
-    await task.start('build')
-  } else {
-    await task.clear('dist').start('build')
-  }
+  await task.clear('dist').start('build')
 }
 
 export async function next_bundle_app_prod_turbo(task, opts) {
