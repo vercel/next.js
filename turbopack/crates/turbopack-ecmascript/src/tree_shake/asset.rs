@@ -200,7 +200,6 @@ impl EcmascriptModulePartAsset {
                             EcmascriptModuleFacadeModule::new(
                                 **final_module,
                                 ModulePart::renamed_export(new_export.clone(), export.clone()),
-                                module.options().await?.remove_unused_exports,
                             )
                             .to_resolved()
                             .await?,
@@ -211,7 +210,6 @@ impl EcmascriptModulePartAsset {
                         EcmascriptModuleFacadeModule::new(
                             **final_module,
                             ModulePart::renamed_namespace(export.clone()),
-                            module.options().await?.remove_unused_exports,
                         )
                         .to_resolved()
                         .await?,

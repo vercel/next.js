@@ -201,8 +201,6 @@ pub struct EcmascriptOptions {
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
     /// are temporarily introduced.
     pub keep_last_successful_parse: bool,
-
-    pub remove_unused_exports: bool,
 }
 
 #[turbo_tasks::value]
@@ -872,9 +870,11 @@ impl EcmascriptModuleContentOptions {
     async fn merged_code_gens(
         &self,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        eval_context: &EvalContext,
     ) -> Result<Vec<CodeGeneration>> {
+        // Don't read `parsed` here again, it will cause a recomputation as `process_parse_result`
+        // has consumed the cell already.
         let EcmascriptModuleContentOptions {
-            parsed,
             module,
             chunking_context,
             references,
@@ -908,7 +908,7 @@ impl EcmascriptModuleContentOptions {
                             .code_generation(
                                 **chunking_context,
                                 scope_hoisting_context,
-                                Some(**parsed),
+                                eval_context,
                                 *module,
                             )
                             .await?,
@@ -1098,7 +1098,6 @@ impl EcmascriptModuleContent {
                     modules_header_width,
                     comments,
                 },
-                export_contexts: None,
                 is_esm: true,
                 strict: true,
                 original_source_map: CodeGenResultOriginalSourceMap::ScopeHoisting(
@@ -1276,8 +1275,9 @@ async fn merge_modules(
             Ok((
                 *module,
                 content
-                    .export_contexts
+                    .scope_hoisting_syntax_contexts
                     .as_ref()
+                    .map(|(_, export_contexts)| export_contexts)
                     .context("expected exports contexts")?,
             ))
         })
@@ -1296,7 +1296,7 @@ async fn merge_modules(
              program: &mut Program| {
                 let _ = tracing::trace_span!("prepare module").entered();
                 if let CodeGenResult {
-                    scope_hoisting_syntax_contexts: Some(module_contexts),
+                    scope_hoisting_syntax_contexts: Some((module_contexts, _)),
                     ..
                 } = content
                 {
@@ -1557,14 +1557,16 @@ struct CodeGenResult {
     program: Program,
     source_map: CodeGenResultSourceMap,
     comments: CodeGenResultComments,
-    /// `eval_context.imports.exports`
-    export_contexts: Option<FxHashMap<RcStr, Id>>,
     is_esm: bool,
     strict: bool,
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
-    scope_hoisting_syntax_contexts:
-        Option<FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>>,
+    #[allow(clippy::type_complexity)]
+    /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports`)
+    scope_hoisting_syntax_contexts: Option<(
+        FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>,
+        FxHashMap<RcStr, Id>,
+    )>,
 }
 
 struct ScopeHoistingOptions<'a> {
@@ -1586,14 +1588,14 @@ async fn process_parse_result(
     with_consumed_parse_result(
         parsed,
         async |mut program, source_map, globals, eval_context, comments| -> Result<CodeGenResult> {
-            let (top_level_mark, is_esm, strict, export_contexts) = eval_context
+            let (top_level_mark, is_esm, strict) = eval_context
+                .as_ref()
                 .map_either(
                     |e| {
                         (
                             e.top_level_mark,
                             e.is_esm(specified_module_type),
                             e.imports.strict,
-                            Cow::Owned(e.imports.exports),
                         )
                     },
                     |e| {
@@ -1601,7 +1603,6 @@ async fn process_parse_result(
                             e.top_level_mark,
                             e.is_esm(specified_module_type),
                             e.imports.strict,
-                            Cow::Borrowed(&e.imports.exports),
                         )
                     },
                 )
@@ -1619,7 +1620,23 @@ async fn process_parse_result(
                         is_import_mark,
                         globals,
                     };
-                    let code_gens = options.unwrap().merged_code_gens(ctx).await?;
+                    let code_gens = options
+                        .unwrap()
+                        .merged_code_gens(
+                            ctx,
+                            match &eval_context {
+                                Either::Left(e) => e,
+                                Either::Right(e) => e,
+                            },
+                        )
+                        .await?;
+
+                    let export_contexts = eval_context
+                        .map_either(
+                            |e| Cow::Owned(e.imports.exports),
+                            |e| Cow::Borrowed(&e.imports.exports),
+                        )
+                        .into_inner();
                     let preserved_exports =
                         match &*scope_hoisting_options.module.get_exports().await? {
                             EcmascriptExports::EsmExports(exports) => exports
@@ -1654,12 +1671,21 @@ async fn process_parse_result(
                             is_import_mark,
                             module_syntax_contexts_cache,
                             preserved_exports,
+                            export_contexts,
                         )),
                         prepend_ident_comment,
                     )
                 } else if let Some(options) = options {
                     (
-                        options.merged_code_gens(ScopeHoistingContext::None).await?,
+                        options
+                            .merged_code_gens(
+                                ScopeHoistingContext::None,
+                                match &eval_context {
+                                    Either::Left(e) => e,
+                                    Either::Right(e) => e,
+                                },
+                            )
+                            .await?,
                         None,
                         None,
                     )
@@ -1698,7 +1724,7 @@ async fn process_parse_result(
                     }
                 }
 
-                if let Some((is_import_mark, _, preserved_exports)) = &retain_syntax_context {
+                if let Some((is_import_mark, _, preserved_exports, _)) = &retain_syntax_context {
                     program.visit_mut_with(&mut hygiene_rename_only(
                         Some(top_level_mark),
                         *is_import_mark,
@@ -1735,13 +1761,13 @@ async fn process_parse_result(
                     comments,
                     extra_comments,
                 },
-                // TODO ideally don't clone here at all
-                export_contexts: Some(export_contexts.into_owned()),
                 is_esm,
                 strict,
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
                 minify,
-                scope_hoisting_syntax_contexts: retain_syntax_context.map(|(_, ctxts, _)| ctxts),
+                scope_hoisting_syntax_contexts: retain_syntax_context
+                    // TODO ideally don't clone here
+                    .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),
             })
         },
         async |parse_result| -> Result<CodeGenResult> {
@@ -1771,7 +1797,6 @@ async fn process_parse_result(
                         }),
                         source_map: CodeGenResultSourceMap::None,
                         comments: CodeGenResultComments::Empty,
-                        export_contexts: None,
                         is_esm: false,
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
@@ -1798,7 +1823,6 @@ async fn process_parse_result(
                         }),
                         source_map: CodeGenResultSourceMap::None,
                         comments: CodeGenResultComments::Empty,
-                        export_contexts: None,
                         is_esm: false,
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
@@ -1893,7 +1917,6 @@ async fn emit_content(
         strict,
         original_source_map,
         minify,
-        export_contexts: _,
         scope_hoisting_syntax_contexts: _,
     } = content;
 

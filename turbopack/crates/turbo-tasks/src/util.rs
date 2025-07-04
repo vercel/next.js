@@ -16,7 +16,6 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use super::{
     id_factory::{IdFactory, IdFactoryWithReuse},
-    no_move_vec::NoMoveVec,
     once_map::*,
 };
 

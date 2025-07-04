@@ -415,22 +415,127 @@ describe('app-dir - server source maps', () => {
         ).toEqual(3)
       }
     } else {
+      // Bundlers silently drop invalid sourcemaps.
+      expect(
+        normalizeCliOutput(next.cliOutput).split('Invalid source map.').length -
+          1
+      ).toEqual(0)
+    }
+  })
+
+  it('sourcemaps errors during module evaluation', async () => {
+    const outputIndex = next.cliOutput.length
+    const browser = await next.browser('/module-evaluation')
+
+    if (isNextDev) {
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: module-evaluation'
+        )
+      })
+      const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       if (isTurbopack) {
-        // Expect the invalid sourcemap warning only once per render.
-        expect(
-          normalizeCliOutput(next.cliOutput).split('Invalid source map.')
-            .length - 1
-        ).toEqual(
-          // >= 20
-          // behavior in Node.js 20+ is intended
-          process.versions.node.startsWith('18') ? 0 : 2
+        expect(cliOutput).toContain(
+          '' +
+            '\nError: module-evaluation' +
+            // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
+            '\n    at [project]/app/module-evaluation/module.js [app-rsc] (ecmascript) (app/module-evaluation/module.js:1:21)' +
+            // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
+            '\n    at [project]/app/module-evaluation/page.js [app-rsc] (ecmascript) (app/module-evaluation/page.js:1:0)' +
+            '\n    at [project]/app/module-evaluation/page.js [app-rsc] (ecmascript, Next.js Server Component) (.next'
         )
       } else {
-        // Webpack is silent about invalid sourcemaps for next build.
+        expect(cliOutput).toContain(
+          '' +
+            '\nError: module-evaluation' +
+            // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
+            // TODO(veil): Location should be sourcemapped
+            '\n    at eval (app/module-evaluation/module.js:1:21)' +
+            // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
+            '\n    at <unknown> (rsc)/.'
+        )
+      }
+
+      expect(cliOutput).toContain(
+        '' +
+          "\n> 1 | export const error = new Error('module-evaluation')" +
+          '\n    |                     ^'
+      )
+
+      if (isTurbopack) {
+        // TODO(veil): Ignore-list Turbopack runtime
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "module-evaluation",
+           "environmentLabel": "Prerender",
+           "label": "Console Error",
+           "source": "app/module-evaluation/module.js (1:22) @ [project]/app/module-evaluation/module.js [app-rsc] (ecmascript)
+         > 1 | export const error = new Error('module-evaluation')
+             |                      ^",
+           "stack": [
+             "[project]/app/module-evaluation/module.js [app-rsc] (ecmascript) app/module-evaluation/module.js (1:22)",
+             "[project]/app/module-evaluation/page.js [app-rsc] (ecmascript) app/module-evaluation/page.js (1:1)",
+             "[project]/app/module-evaluation/page.js [app-rsc] (ecmascript, Next.js Server Component) app/module-evaluation/page.js (6:1)",
+             "<FIXME-next-dist-dir>",
+             "Page <anonymous>",
+           ],
+         }
+        `)
+      } else {
+        // TODO(veil): Ignore-list Webpack runtime
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "module-evaluation",
+           "environmentLabel": "Prerender",
+           "label": "Console Error",
+           "source": "app/module-evaluation/module.js (1:22) @ eval
+         > 1 | export const error = new Error('module-evaluation')
+             |                      ^",
+           "stack": [
+             "eval app/module-evaluation/module.js (1:22)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "eval rsc:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:65)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "Function.all <anonymous>",
+             "Function.all <anonymous>",
+             "Page <anonymous>",
+           ],
+         }
+        `)
+      }
+    } else {
+      if (isTurbopack) {
         expect(
-          normalizeCliOutput(next.cliOutput).split('Invalid source map.')
-            .length - 1
-        ).toEqual(0)
+          normalizeCliOutput(next.cliOutput).replaceAll(
+            /at \d+ /g,
+            'at <TurbopackModuleID> '
+          )
+        ).toContain(
+          '' +
+            '\nError: module-evaluation' +
+            '\n    at <TurbopackModuleID> (turbopack:///[project]/app/module-evaluation/module.js:1:21)' +
+            // TODO(veil): Why are there unsourcemapped module frames below?
+            '\n    at <TurbopackModuleID> (.next/'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '' +
+            "\n> 1 | export const error = new Error('module-evaluation')" +
+            '\n    |                     ^'
+        )
+      } else {
+        expect(
+          normalizeCliOutput(next.cliOutput).replaceAll(
+            /at \d+ /g,
+            'at <WebpackModuleID> '
+          )
+        ).toContain(
+          '' +
+            '\nError: module-evaluation' +
+            // TODO(veil): column numbers are flaky in Webpack
+            '\n    at <WebpackModuleID> (webpack:///app/module-evaluation/module.js:1:'
+        )
       }
     }
   })

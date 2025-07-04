@@ -41,7 +41,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.evaluate(() => document.querySelector('a').click())
+    await browser.elementByCss('a').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -54,8 +54,6 @@ describe('ReactRefreshLogBox', () => {
             |                           ^",
          "stack": [
            "onClick index.js (8:27)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -70,8 +68,6 @@ describe('ReactRefreshLogBox', () => {
             |                           ^",
          "stack": [
            "onClick index.js (8:27)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -654,7 +650,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -667,8 +663,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -683,8 +677,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -709,7 +701,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -722,8 +714,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -738,8 +728,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -764,7 +752,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -777,8 +765,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -793,8 +779,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -819,7 +803,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -832,8 +816,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -848,8 +830,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -874,7 +854,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -887,8 +867,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)
@@ -903,8 +881,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous>",
-           "UtilityScript.<anonymous> <anonymous>",
          ],
        }
       `)

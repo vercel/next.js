@@ -170,10 +170,6 @@ pub struct ModuleOptionsContext {
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ResolvedVc<ModuleOptionsContext>)>,
 
-    /// `matches!(tree_shaking_mode, Some(TreeShakingMode::Intermediate))` is not enough because we
-    /// use different tree shaking modes for user code and foreign code while intermediate tree
-    /// shaking is a global option.
-    pub remove_unused_exports: bool,
     pub placeholder_for_future_extensions: (),
 }
 
