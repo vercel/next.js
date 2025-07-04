@@ -109,9 +109,7 @@ jobs:
         with:
           node-version: 18
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: npm i -g corepack@0.31
       - name: 'Run link checker'
         run: node ./.github/actions/validate-docs-links/dist/index.js
         env:
