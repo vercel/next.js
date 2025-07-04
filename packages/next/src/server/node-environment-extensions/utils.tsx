@@ -46,15 +46,21 @@ export function io(expression: string, type: ApiType) {
           }
 
           const errorWithStack = new Error(message)
-          const ownerStack = workUnitStore.captureOwnerStack?.()
 
-          if (ownerStack) {
-            // TODO: Instead of stitching the stacks here, we should log the
-            // original error as-is when it occurs (i.e. here), and let
-            // `patchErrorInspect` handle adding the owner stack, instead of
-            // logging it deferred in the `LogSafely` component via
-            // `throwIfDisallowedDynamic`.
-            applyOwnerStack(errorWithStack, ownerStack)
+          if (
+            process.env.NODE_ENV !== 'production' &&
+            workUnitStore.captureOwnerStack
+          ) {
+            const ownerStack = workUnitStore.captureOwnerStack()
+
+            if (ownerStack) {
+              // TODO: Instead of stitching the stacks here, we should log the
+              // original error as-is when it occurs (i.e. here), and let
+              // `patchErrorInspect` handle adding the owner stack, instead of
+              // logging it deferred in the `LogSafely` component via
+              // `throwIfDisallowedDynamic`.
+              applyOwnerStack(errorWithStack, ownerStack)
+            }
           }
 
           abortOnSynchronousPlatformIOAccess(
