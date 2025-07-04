@@ -2696,9 +2696,9 @@ dependencies = [
 
 [[package]]
 name = "hstr"
-version = "1.1.2"
+version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48f71bdf5d9c3b0f21f142d5f0bc0b5121e6b0fdcc89179d96ee1fc08ccaf57d"
+checksum = "ab73a92ae4a07d38866dbfd2537ea52a02d68df53b8b8d74595acc9cad6338dc"
 dependencies = [
  "hashbrown 0.14.5",
  "new_debug_unreachable",
@@ -7040,9 +7040,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "13.0.2"
+version = "13.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc28daa84b57762ecf28d8fdf6a3204ff04c8b8d98d35b9e8b9f56d4a7fafffa"
+checksum = "f77288e8187be57e6ef487301b08cac12351a6e479c85d1d06f77e21df496bcb"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -7137,9 +7137,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "30.1.0"
+version = "30.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5be74de4cb502abff296993823cdec34950c1936e305406a7d48979f4b30e905"
+checksum = "2170d7cd871260715ac383025926fcfc7f7dfb26831dfa4fa109a4a7228c9d33"
 dependencies = [
  "binding_macros",
  "par-core",
@@ -7788,9 +7788,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "19.0.0"
+version = "19.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abface3af9575e3849dce475189384d4b549335cb127fd5691d1c8f304f694c0"
+checksum = "4b3678545af8a4c757de91d1898d29134c0bf313410b0d2fb992d332a2d1e3df"
 dependencies = [
  "better_scoped_tls",
  "bitflags 2.9.1",
