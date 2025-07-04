@@ -12,6 +12,9 @@ describe('Dynamic IO Dev Errors', () => {
   it('should show a red box error on the SSR render', async () => {
     const browser = await next.browser('/error')
 
+    // TODO(veil): The "Page <anonymous>" frame should be omitted.
+    // Interestingly, it only appears on initial load, and not when
+    // soft-navigating to the page (see test below).
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
@@ -22,6 +25,7 @@ describe('Dynamic IO Dev Errors', () => {
          |                       ^",
        "stack": [
          "Page app/error/page.tsx (2:23)",
+         "Page <anonymous>",
          "LogSafely <anonymous>",
        ],
      }

@@ -70,20 +70,39 @@ describe.each(
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
-        await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-           "environmentLabel": "Server",
-           "label": "Console Error",
-           "source": "app/client.tsx (5:16) @ SyncIO
-         > 5 |   const data = new Date().toISOString()
-             |                ^",
-           "stack": [
-             "SyncIO app/client.tsx (5:16)",
-             "LogSafely <anonymous>",
-           ],
-         }
-        `)
+        if (isTurbopack) {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/client.tsx (5:16)",
+               "<FIXME-file-protocol>",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
+        } else {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/client.tsx (5:16)",
+               "Page app/page.tsx (22:9)",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
+        }
       })
     } else {
       it('should error the build with a reason related to sync IO access', async () => {
@@ -348,20 +367,39 @@ describe.each(
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
-        await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-           "environmentLabel": "Server",
-           "label": "Console Error",
-           "source": "app/client.tsx (5:16) @ SyncIO
-         > 5 |   const data = new Date().toISOString()
-             |                ^",
-           "stack": [
-             "SyncIO app/client.tsx (5:16)",
-             "LogSafely <anonymous>",
-           ],
-         }
-        `)
+        if (isTurbopack) {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/client.tsx (5:16)",
+               "<FIXME-file-protocol>",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
+        } else {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/client.tsx (5:16)",
+               "Page app/page.tsx (22:9)",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
+        }
       })
     } else {
       it('should error the build with a reason related to sync IO access', async () => {
