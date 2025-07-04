@@ -260,6 +260,28 @@ export function generateParamPrefixCombinations(
 }
 
 /**
+ * Calculates the fallback mode based on the given parameters.
+ *
+ * @param dynamicParams - Whether dynamic params are enabled.
+ * @param fallbackRootParams - The root params that are part of the fallback.
+ * @param baseFallbackMode - The base fallback mode to use.
+ * @returns The calculated fallback mode.
+ */
+export function calculateFallbackMode(
+  dynamicParams: boolean,
+  fallbackRootParams: readonly string[],
+  baseFallbackMode: FallbackMode | undefined
+): FallbackMode {
+  return dynamicParams
+    ? // If the fallback params includes any root params, then we need to
+      // perform a blocking static render.
+      fallbackRootParams.length > 0
+      ? FallbackMode.BLOCKING_STATIC_RENDER
+      : baseFallbackMode ?? FallbackMode.NOT_FOUND
+    : FallbackMode.NOT_FOUND
+}
+
+/**
  * Validates the parameters to ensure they're accessible and have the correct
  * types.
  *
@@ -755,33 +777,46 @@ export async function buildAppStaticPaths({
 
   const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>()
 
+  // Precompile the regex patterns for the route params.
+  const paramPatterns = new Map<string, string>()
+  for (const key of routeParamKeys) {
+    const { repeat, optional } = regex.groups[key]
+    let pattern = `[${repeat ? '...' : ''}${key}]`
+    if (optional) {
+      pattern = `[${pattern}]`
+    }
+    paramPatterns.set(key, pattern)
+  }
+
+  // Convert rootParamKeys to Set for O(1) lookup.
+  const rootParamSet = new Set(rootParamKeys)
+
   if (hadAllParamsGenerated || isRoutePPREnabled) {
+    let paramsToProcess = routeParams
+
     if (isRoutePPREnabled) {
       // Discover all unique combinations of the routeParams so we can generate
       // routes that won't throw on empty static shell for each of them if
       // they're available.
-      routeParams.unshift(
-        ...generateParamPrefixCombinations(
-          routeParamKeys,
-          routeParams,
-          rootParamKeys
-        )
+      paramsToProcess = generateParamPrefixCombinations(
+        routeParamKeys,
+        routeParams,
+        rootParamKeys
       )
 
+      // Add the base route, this is the route with all the placeholders as it's
+      // derived from the `page` string.
       prerenderedRoutesByPathname.set(page, {
         params: {},
         pathname: page,
         encodedPathname: page,
         fallbackRouteParams: routeParamKeys,
-        fallbackMode: dynamicParams
-          ? // If the fallback params includes any root params, then we need to
-            // perform a blocking static render.
-            rootParamKeys.length > 0
-            ? FallbackMode.BLOCKING_STATIC_RENDER
-            : fallbackMode
-          : FallbackMode.NOT_FOUND,
+        fallbackMode: calculateFallbackMode(
+          dynamicParams,
+          rootParamKeys,
+          fallbackMode
+        ),
         fallbackRootParams: rootParamKeys,
-        // This is set later after all the routes have been processed.
         throwOnEmptyStaticShell: true,
       })
     }
@@ -794,30 +829,29 @@ export async function buildAppStaticPaths({
         isRoutePPREnabled,
         routeParamKeys,
         rootParamKeys,
-        routeParams
+        paramsToProcess
       )
     ).forEach((params) => {
-      let pathname: string = page
-      let encodedPathname: string = page
+      let pathname = page
+      let encodedPathname = page
 
-      let fallbackRouteParams: string[] = []
+      const fallbackRouteParams: string[] = []
 
       for (const key of routeParamKeys) {
-        if (fallbackRouteParams.length > 0) {
-          // This is a partial route, so we should add the value to the
-          // fallbackRouteParams.
-          fallbackRouteParams.push(key)
-          continue
-        }
-
-        let paramValue = params[key]
+        const paramValue = params[key]
 
         if (!paramValue) {
           if (isRoutePPREnabled) {
-            // This is a partial route, so we should add the value to the
-            // fallbackRouteParams.
+            // Mark remaining params as fallback params.
             fallbackRouteParams.push(key)
-            continue
+            for (
+              let i = routeParamKeys.indexOf(key) + 1;
+              i < routeParamKeys.length;
+              i++
+            ) {
+              fallbackRouteParams.push(routeParamKeys[i])
+            }
+            break
           } else {
             // This route is not complete, and we aren't performing a partial
             // prerender, so we should return, skipping this route.
@@ -825,25 +859,24 @@ export async function buildAppStaticPaths({
           }
         }
 
-        const { repeat, optional } = regex.groups[key]
-        let replaced = `[${repeat ? '...' : ''}${key}]`
-        if (optional) {
-          replaced = `[${replaced}]`
-        }
-
+        // Use pre-compiled pattern for replacement
+        const pattern = paramPatterns.get(key)!
         pathname = pathname.replace(
-          replaced,
+          pattern,
           encodeParam(paramValue, (value) => escapePathDelimiters(value, true))
         )
         encodedPathname = encodedPathname.replace(
-          replaced,
+          pattern,
           encodeParam(paramValue, encodeURIComponent)
         )
       }
 
-      const fallbackRootParams = rootParamKeys.filter((param) =>
-        fallbackRouteParams.includes(param)
-      )
+      const fallbackRootParams: string[] = []
+      for (const param of fallbackRouteParams) {
+        if (rootParamSet.has(param)) {
+          fallbackRootParams.push(param)
+        }
+      }
 
       pathname = normalizePathname(pathname)
 
@@ -852,15 +885,12 @@ export async function buildAppStaticPaths({
         pathname,
         encodedPathname: normalizePathname(encodedPathname),
         fallbackRouteParams,
-        fallbackMode: dynamicParams
-          ? // If the fallback params includes any root params, then we need to
-            // perform a blocking static render.
-            fallbackRootParams.length > 0
-            ? FallbackMode.BLOCKING_STATIC_RENDER
-            : fallbackMode
-          : FallbackMode.NOT_FOUND,
+        fallbackMode: calculateFallbackMode(
+          dynamicParams,
+          fallbackRootParams,
+          fallbackMode
+        ),
         fallbackRootParams,
-        // This is set later after all the routes have been processed.
         throwOnEmptyStaticShell: true,
       })
     })
