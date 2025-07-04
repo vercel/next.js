@@ -714,7 +714,7 @@ export function throwIfDisallowedDynamic(
     if (serverDynamic.syncDynamicErrorWithStack) {
       // There is no shell and the server did something sync dynamic likely
       // leading to an early termination of the prerender before the shell
-      // could be completed.We terminate the build/validating render.
+      // could be completed. We terminate the build/validating render.
       logDisallowedDynamicError(
         workStore,
         serverDynamic.syncDynamicErrorWithStack
