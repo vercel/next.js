@@ -680,7 +680,7 @@ function logDisallowedDynamicError(workStore: WorkStore, error: Error): void {
   console.error(error)
 
   if (!workStore.dev) {
-    if (workStore.hasNonMinifiedSourceMappedStacks) {
+    if (workStore.hasReadableErrorStacks) {
       console.error(
         `To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error using the Next.js DevTools.`
       )

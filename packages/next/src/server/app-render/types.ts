@@ -269,7 +269,7 @@ export interface RenderOptsPartial {
    * - source maps are applied
    * - minification is disabled
    */
-  hasNonMinifiedSourceMappedStacks?: boolean
+  hasReadableErrorStacks?: boolean
 
   /**
    * The maximum length of the headers that are emitted by React and added to

@@ -410,7 +410,7 @@ async function exportAppImpl(
       authInterrupts: !!nextConfig.experimental.authInterrupts,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
-    hasNonMinifiedSourceMappedStacks:
+    hasReadableErrorStacks:
       nextConfig.experimental.serverSourceMaps === true &&
       (process.env.TURBOPACK
         ? nextConfig.experimental.turbopackMinify === false

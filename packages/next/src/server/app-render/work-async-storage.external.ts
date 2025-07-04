@@ -43,7 +43,7 @@ export interface WorkStore {
    * - source maps are applied
    * - minification is disabled
    */
-  readonly hasNonMinifiedSourceMappedStacks?: boolean
+  readonly hasReadableErrorStacks?: boolean
 
   readonly isRevalidate?: boolean
 
