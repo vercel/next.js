@@ -5,7 +5,9 @@ import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from './get-source-map-from-file'
 import {
+  findApplicableSourceMapPayload,
   sourceMapIgnoreListsEverything,
+  type BasicSourceMapPayload,
   type ModernSourceMapPayload,
 } from '../lib/source-maps'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
@@ -50,13 +52,13 @@ type SourceAttributes = {
 type Source =
   | {
       type: 'file'
-      sourceMap: ModernSourceMapPayload
+      sourceMap: BasicSourceMapPayload
       ignoredSources: IgnoredSources
       moduleURL: string
     }
   | {
       type: 'bundle'
-      sourceMap: ModernSourceMapPayload
+      sourceMap: BasicSourceMapPayload
       ignoredSources: IgnoredSources
       compilation: webpack.Compilation
       moduleId: string
@@ -284,11 +286,16 @@ async function getSourceMapFromCompilation(
 }
 
 async function getSource(
-  sourceURL: string,
+  frame: {
+    file: string | null
+    lineNumber: number | null
+    column: number | null
+  },
   options: {
     getCompilations: () => webpack.Compilation[]
   }
 ): Promise<Source | undefined> {
+  let sourceURL = frame.file ?? ''
   const { getCompilations } = options
 
   // Rspack is now using file:// URLs for source maps. Remove the rsc prefix to produce the file:/// url.
@@ -308,7 +315,11 @@ async function getSource(
     const sourceMapPayload = nativeSourceMap.payload
     return {
       type: 'file',
-      sourceMap: sourceMapPayload,
+      sourceMap: findApplicableSourceMapPayload(
+        frame.lineNumber ?? 0,
+        frame.column ?? 0,
+        sourceMapPayload
+      )!,
 
       ignoredSources: getIgnoredSources(
         // @ts-expect-error -- TODO: Support IndexSourceMap
@@ -435,7 +446,7 @@ async function getOriginalStackFrame({
   rootDirectory: string
 }): Promise<OriginalStackFrameResponse> {
   const filename = frame.file ?? ''
-  const source = await getSource(filename, {
+  const source = await getSource(frame, {
     getCompilations: () => {
       const compilations: webpack.Compilation[] = []
 
@@ -658,23 +669,31 @@ export function getSourceMapMiddleware(options: {
     let source: Source | undefined
 
     try {
-      source = await getSource(filename, {
-        getCompilations: () => {
-          const compilations: webpack.Compilation[] = []
-
-          for (const stats of [
-            clientStats(),
-            serverStats(),
-            edgeServerStats(),
-          ]) {
-            if (stats?.compilation) {
-              compilations.push(stats.compilation)
-            }
-          }
-
-          return compilations
+      source = await getSource(
+        {
+          file: filename,
+          // Webpack doesn't use Index Source Maps
+          lineNumber: null,
+          column: null,
         },
-      })
+        {
+          getCompilations: () => {
+            const compilations: webpack.Compilation[] = []
+
+            for (const stats of [
+              clientStats(),
+              serverStats(),
+              edgeServerStats(),
+            ]) {
+              if (stats?.compilation) {
+                compilations.push(stats.compilation)
+              }
+            }
+
+            return compilations
+          },
+        }
+      )
     } catch (error) {
       return middlewareResponse.internalServerError(res, error)
     }

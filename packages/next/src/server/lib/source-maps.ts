@@ -18,7 +18,7 @@ interface IndexSourceMap {
 }
 
 /** https://tc39.es/ecma426/#sec-source-map-format */
-interface BasicSourceMapPayload {
+export interface BasicSourceMapPayload {
   version: number
   // TODO: Move to https://github.com/jridgewell/sourcemaps which is actively maintained
   /** WARNING: `file` is optional. */
@@ -34,17 +34,9 @@ interface BasicSourceMapPayload {
 
 export type ModernSourceMapPayload = BasicSourceMapPayload | IndexSourceMap
 
-// TODO: This should take the BasicSourceMapPayload. Only the relevant section
-// needs to ignore list everything making this check effectively O(1) multiplied
-// by the complexity of finding the section.
 export function sourceMapIgnoreListsEverything(
-  sourceMap: ModernSourceMapPayload
+  sourceMap: BasicSourceMapPayload
 ): boolean {
-  if ('sections' in sourceMap) {
-    return sourceMap.sections.every((section) => {
-      return sourceMapIgnoreListsEverything(section.map)
-    })
-  }
   return (
     sourceMap.ignoreList !== undefined &&
     sourceMap.sources.length === sourceMap.ignoreList.length
@@ -56,26 +48,40 @@ export function sourceMapIgnoreListsEverything(
  * Equal to the input unless an Index Source Map is used.
  */
 export function findApplicableSourceMapPayload(
-  lineNumber: number,
-  columnNumber: number,
+  line: number,
+  column: number,
   payload: ModernSourceMapPayload
 ): BasicSourceMapPayload | undefined {
   if ('sections' in payload) {
-    // Sections must not overlap and must be sorted: https://tc39.es/source-map/#section-object
-    // Therefore the last section that has an offset less than or equal to the frame is the applicable one.
-    // TODO(veil): Binary search
-    let section: IndexSourceMapSection | undefined = payload.sections[0]
-    for (
-      let i = 0;
-      i < payload.sections.length &&
-      payload.sections[i].offset.line <= lineNumber &&
-      payload.sections[i].offset.column <= columnNumber;
-      i++
-    ) {
-      section = payload.sections[i]
+    if (payload.sections.length === 0) {
+      return undefined
     }
 
-    return section === undefined ? undefined : section.map
+    // Sections must not overlap and must be sorted: https://tc39.es/source-map/#section-object
+    // Therefore the last section that has an offset less than or equal to the frame is the applicable one.
+    const sections = payload.sections
+    let left = 0
+    let right = sections.length - 1
+    let result: IndexSourceMapSection | null = null
+
+    while (left <= right) {
+      // fast Math.floor
+      const middle = ~~((left + right) / 2)
+      const section = sections[middle]
+      const offset = section.offset
+
+      if (
+        offset.line < line ||
+        (offset.line === line && offset.column <= column)
+      ) {
+        result = section
+        left = middle + 1
+      } else {
+        right = middle - 1
+      }
+    }
+
+    return result === null ? undefined : result.map
   } else {
     return payload
   }

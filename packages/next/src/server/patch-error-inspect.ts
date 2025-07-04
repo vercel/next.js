@@ -208,7 +208,14 @@ function getSourcemappedFrameIfPossible(
     line: frame.lineNumber ?? 1,
   })
 
-  let ignored = sourceMapIgnoreListsEverything(sourceMapPayload)
+  const applicableSourceMap = findApplicableSourceMapPayload(
+    frame.lineNumber ?? 0,
+    frame.column ?? 0,
+    sourceMapPayload
+  )
+  let ignored =
+    applicableSourceMap !== undefined &&
+    sourceMapIgnoreListsEverything(applicableSourceMap)
   if (sourcePosition.source === null) {
     return {
       stack: {
@@ -223,11 +230,6 @@ function getSourcemappedFrameIfPossible(
     }
   }
 
-  const applicableSourceMap = findApplicableSourceMapPayload(
-    frame.lineNumber ?? 0,
-    frame.column ?? 0,
-    sourceMapPayload
-  )
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
   if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
