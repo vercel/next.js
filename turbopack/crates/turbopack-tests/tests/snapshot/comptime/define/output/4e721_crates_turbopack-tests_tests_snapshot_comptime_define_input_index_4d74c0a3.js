@@ -30,11 +30,11 @@ if ("TURBOPACK compile-time truthy", 1) {
         ("TURBOPACK compile-time value", null)
     ]));
 }
-if ("TURBOPACK compile-time value", 1 + 1) {
-    console.log('DEFINED_EVALED', ("TURBOPACK compile-time value", 1 + 1));
+if ("TURBOPACK compile-time truthy", 1) {
+    console.log('DEFINED_EVALUATE', ("TURBOPACK compile-time value", 1 + 1));
 }
 if ("TURBOPACK compile-time truthy", 1) {
-    console.log('DEFINED_EVALED_NESTED', ("TURBOPACK compile-time value", [
+    console.log('DEFINED_EVALUATE_NESTED', ("TURBOPACK compile-time value", [
         ("TURBOPACK compile-time value", true),
         ("TURBOPACK compile-time value", void 0),
         ("TURBOPACK compile-time value", ()=>1)
@@ -46,18 +46,16 @@ if ("TURBOPACK compile-time truthy", 1) {
 if ("TURBOPACK compile-time truthy", 1) {
     console.log('something');
 }
-if (("TURBOPACK compile-time value", "development") === 'production') {
-    console.log('production');
-}
+if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+;
 var p = process;
 console.log(("TURBOPACK compile-time value", {
     "test": ("TURBOPACK compile-time value", true)
 }));
 console.log(("TURBOPACK compile-time value", "value"));
 console.log(("TURBOPACK compile-time value", "development"));
-if (("TURBOPACK compile-time value", "development") === 'production') {
-    console.log('production');
-}
+if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+;
 ("TURBOPACK compile-time falsy", 0) ? "TURBOPACK unreachable" : console.log('development');
 // TODO short-circuit is not implemented yet
 ("TURBOPACK compile-time value", "development") != 'production' && console.log('development');

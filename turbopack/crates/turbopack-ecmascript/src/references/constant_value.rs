@@ -105,29 +105,29 @@ fn define_env_to_expr(value: CompileTimeDefineValue) -> Expr {
         CompileTimeDefineValue::Undefined => {
             quote!("(\"TURBOPACK compile-time value\", void 0)" as Expr)
         }
-        CompileTimeDefineValue::Evaluate(ref s) => parse_code_to_expr(s.to_string()),
+        CompileTimeDefineValue::Evaluate(ref s) => parse_single_expr_lit(s.to_string()),
     }
 }
 
-fn parse_code_to_expr(code: String) -> Expr {
+fn parse_single_expr_lit(expr_lit: String) -> Expr {
     let cm = Lrc::new(SourceMap::default());
     let fm = cm.new_source_file(
         Lrc::new(
-            PathBuf::from_str("__compile_time_define_value_internal__.js")
+            PathBuf::from_str("__parse_expr_lit_internal__.js")
                 .unwrap()
                 .into(),
         ),
-        code.clone(),
+        expr_lit.clone(),
     );
     parse_file_as_expr(
         &fm,
-        Syntax::Typescript(Default::default()),
+        Syntax::Es(Default::default()),
         EsVersion::latest(),
         None,
         &mut vec![],
     )
     .map_or(
-        quote!("$s" as Expr, s: Expr = code.into()),
+        quote!("(\"Failed parsed TURBOPACK compile-time value\", $s)" as Expr, s: Expr = expr_lit.into()),
         |expr| quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = *expr),
     )
 }

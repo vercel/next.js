@@ -1,16 +1,24 @@
 use std::{
     iter,
     mem::{replace, take},
+    path::PathBuf,
+    str::FromStr,
     sync::Arc,
 };
 
+use anyhow::{Ok, Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    common::{GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments, pass::AstNodePath},
+    base::try_with_handler,
+    common::{
+        GLOBALS, Mark, SourceMap, Span, Spanned, SyntaxContext, comments::Comments,
+        pass::AstNodePath, sync::Lrc,
+    },
     ecma::{
         ast::*,
         atoms::atom,
+        parser::{Syntax, parse_file_as_program},
         utils::contains_ident_ref,
         visit::{fields::*, *},
     },
@@ -719,6 +727,60 @@ impl EvalContext {
 
             _ => JsValue::unknown_empty(true, "unsupported expression"),
         }
+    }
+
+    pub fn eval_single_expr_lit(expr_lit: String) -> Result<JsValue> {
+        let cm = Lrc::new(SourceMap::default());
+        let fm = cm.new_source_file(
+            Lrc::new(
+                PathBuf::from_str("__eval_single_expr_lit_internal__.js")
+                    .unwrap()
+                    .into(),
+            ),
+            expr_lit.clone(),
+        );
+
+        let js_value = try_with_handler(cm, Default::default(), |handler| {
+            GLOBALS.set(&Default::default(), || {
+                let program = parse_file_as_program(
+                    &fm,
+                    Syntax::Es(Default::default()),
+                    EsVersion::latest(),
+                    None,
+                    &mut vec![],
+                )
+                .map_or_else(
+                    |e| {
+                        e.into_diagnostic(handler).emit();
+                        bail!(r#"Failed to evaluate compile-time defined value expression: "{expr_lit}""#)
+                    },
+                    Ok,
+                )?;
+
+                    let eval_context = EvalContext::new(
+                    &program,
+    Mark::new(),Mark::new(),
+                    Default::default(),
+                    None,
+                    None,
+                );
+
+                if let Program::Script(script) = program {
+                    if script.body.len() == 1
+                        && let Some(Stmt::Expr(expr_stmt)) = script.body.first()
+                    {
+                        Ok(eval_context.eval(&expr_stmt.expr))
+                    } else {
+                        bail!(r#"Failed to parse compile-time defined value expression: "{expr_lit}""#)
+                    }
+                } else {
+                     bail!(r#"Failed to parse compile-time defined value expression: "{expr_lit}""#)
+                }
+            })
+        })
+        .map_err(|e| e.to_pretty_error())?;
+
+        Ok(js_value)
     }
 }
 

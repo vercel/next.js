@@ -2906,11 +2906,11 @@ async fn value_visitor_inner(
                 &DefinableNameSegment::TypeOf,
             )
         {
-            return Ok(((&*value.await?).into(), true));
+            return Ok(((&*value.await?).try_into()?, true));
         }
 
         if let Some(value) = v.match_define(&*compile_time_info.defines.individual().await?) {
-            return Ok(((&*value.await?).into(), true));
+            return Ok(((&*value.await?).try_into()?, true));
         }
     }
     let value = match v {

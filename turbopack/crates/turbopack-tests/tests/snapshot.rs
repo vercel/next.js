@@ -34,7 +34,7 @@ use turbopack_core::{
         EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
-    compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefineableNameSegment},
+    compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment},
     condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -310,12 +310,12 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     );
 
     defines.0.insert(
-        vec![DefineableNameSegment::from("DEFINED_EVALED")],
+        vec![DefinableNameSegment::from("DEFINED_EVALUATE")],
         CompileTimeDefineValue::Evaluate("1 + 1".into()),
     );
 
     defines.0.insert(
-        vec![DefineableNameSegment::from("DEFINED_EVALED_NESTED")],
+        vec![DefinableNameSegment::from("DEFINED_EVALUATE_NESTED")],
         CompileTimeDefineValue::Array(vec![
             CompileTimeDefineValue::Bool(true),
             CompileTimeDefineValue::Undefined,
