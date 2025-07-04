@@ -140,8 +140,8 @@ where
         });
     }
 
-    // TODO try downcast modules to `EcmascriptMergedModule` to get the socpe hoisted modules as
-    // well
+    // TODO try to downcast modules to `EcmascriptMergedModule` to include the scope hoisted modules
+    // as well
 
     let modules = chunk_items
         .into_iter()
