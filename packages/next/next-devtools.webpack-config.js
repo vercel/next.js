@@ -97,7 +97,7 @@ module.exports = ({ dev, ...rest }) => {
             {
               loader: 'style-loader',
               options: {
-                injectType: 'singletonStyleTag',
+                injectType: 'styleTag',
                 insert: require.resolve(
                   './src/build/webpack/loaders/devtool/devtool-style-inject.js'
                 ),
