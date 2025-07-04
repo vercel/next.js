@@ -774,7 +774,7 @@ impl EvalContext {
                         bail!(r#"Failed to parse compile-time defined value expression: "{expr_lit}""#)
                     }
                 } else {
-                     bail!(r#"Failed to parse compile-time defined value expression: "{expr_lit}""#)
+                     bail!(r#"Failed to parse compile-time defined value: "{expr_lit}" in non-script context"#)
                 }
             })
         })
