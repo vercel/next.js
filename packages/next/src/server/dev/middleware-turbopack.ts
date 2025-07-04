@@ -12,12 +12,15 @@ import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   SourceMapConsumer,
-  type BasicSourceMapConsumer,
   type NullableMappedPosition,
 } from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../build/swc/types'
+import {
+  type ModernSourceMapPayload,
+  findApplicableSourceMapPayload,
+} from '../lib/source-maps'
 import { getSourceMapFromFile } from './get-source-map-from-file'
-import { findSourceMap, type SourceMapPayload } from 'node:module'
+import { findSourceMap } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 
@@ -171,61 +174,6 @@ function createStackFrame(
 }
 
 /**
- * https://tc39.es/source-map/#index-map
- */
-interface IndexSourceMapSection {
-  offset: {
-    line: number
-    column: number
-  }
-  map: ModernRawSourceMap
-}
-
-// TODO(veil): Upstream types
-interface IndexSourceMap {
-  version: number
-  file: string
-  sections: IndexSourceMapSection[]
-}
-
-interface ModernRawSourceMap extends SourceMapPayload {
-  ignoreList?: number[]
-}
-
-type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
-
-/**
- * Finds the sourcemap payload applicable to a given frame.
- * Equal to the input unless an Index Source Map is used.
- */
-function findApplicableSourceMapPayload(
-  frame: TurbopackStackFrame,
-  payload: ModernSourceMapPayload
-): ModernRawSourceMap | undefined {
-  if ('sections' in payload) {
-    const frameLine = frame.line ?? 0
-    const frameColumn = frame.column ?? 0
-    // Sections must not overlap and must be sorted: https://tc39.es/source-map/#section-object
-    // Therefore the last section that has an offset less than or equal to the frame is the applicable one.
-    // TODO(veil): Binary search
-    let section: IndexSourceMapSection | undefined = payload.sections[0]
-    for (
-      let i = 0;
-      i < payload.sections.length &&
-      payload.sections[i].offset.line <= frameLine &&
-      payload.sections[i].offset.column <= frameColumn;
-      i++
-    ) {
-      section = payload.sections[i]
-    }
-
-    return section === undefined ? undefined : section.map
-  } else {
-    return payload
-  }
-}
-
-/**
  * @returns 1-based lines and 0-based columns
  */
 async function nativeTraceSource(
@@ -244,7 +192,7 @@ async function nativeTraceSource(
   }
 
   if (sourceMapPayload !== undefined) {
-    let consumer: BasicSourceMapConsumer
+    let consumer: SourceMapConsumer
     try {
       consumer = await new SourceMapConsumer(sourceMapPayload)
     } catch (cause) {
@@ -282,7 +230,8 @@ async function nativeTraceSource(
     if (traced !== null) {
       const { originalPosition, sourceContent } = traced
       const applicableSourceMap = findApplicableSourceMapPayload(
-        frame,
+        frame.line ?? 0,
+        frame.column ?? 0,
         sourceMapPayload
       )
 

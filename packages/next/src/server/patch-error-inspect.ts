@@ -1,12 +1,14 @@
-import {
-  findSourceMap as nativeFindSourceMap,
-  type SourceMapPayload,
-} from 'module'
+import { findSourceMap as nativeFindSourceMap } from 'module'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import {
+  type ModernSourceMapPayload,
+  findApplicableSourceMapPayload,
+  sourceMapIgnoreListsEverything,
+} from './lib/source-maps'
 import { parseStack } from './lib/parse-stack'
 import { getOriginalCodeFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
@@ -26,30 +28,6 @@ export function setBundlerFindSourceMapImplementation(
 ): void {
   bundlerFindSourceMapPayload = findSourceMapImplementation
 }
-
-/**
- * https://tc39.es/source-map/#index-map
- */
-interface IndexSourceMapSection {
-  offset: {
-    line: number
-    column: number
-  }
-  map: ModernRawSourceMap
-}
-
-// TODO(veil): Upstream types
-interface IndexSourceMap {
-  version: number
-  file: string
-  sections: IndexSourceMapSection[]
-}
-
-interface ModernRawSourceMap extends SourceMapPayload {
-  ignoreList?: number[]
-}
-
-export type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
 
 interface IgnoreableStackFrame extends StackFrame {
   ignored: boolean
@@ -116,37 +94,6 @@ function shouldIgnoreListOriginalFrame(file: string): boolean {
   return file.includes('node_modules')
 }
 
-/**
- * Finds the sourcemap payload applicable to a given frame.
- * Equal to the input unless an Index Source Map is used.
- */
-function findApplicableSourceMapPayload(
-  frame: StackFrame,
-  payload: ModernSourceMapPayload
-): ModernRawSourceMap | undefined {
-  if ('sections' in payload) {
-    const frameLine = frame.lineNumber ?? 0
-    const frameColumn = frame.column ?? 0
-    // Sections must not overlap and must be sorted: https://tc39.es/source-map/#section-object
-    // Therefore the last section that has an offset less than or equal to the frame is the applicable one.
-    // TODO(veil): Binary search
-    let section: IndexSourceMapSection | undefined = payload.sections[0]
-    for (
-      let i = 0;
-      i < payload.sections.length &&
-      payload.sections[i].offset.line <= frameLine &&
-      payload.sections[i].offset.column <= frameColumn;
-      i++
-    ) {
-      section = payload.sections[i]
-    }
-
-    return section === undefined ? undefined : section.map
-  } else {
-    return payload
-  }
-}
-
 interface SourcemappableStackFrame extends StackFrame {
   file: NonNullable<StackFrame['file']>
 }
@@ -171,19 +118,6 @@ function createUnsourcemappedFrame(
     },
     code: null,
   }
-}
-
-function sourceMapIgnoreListsEverything(
-  sourceMap: ModernSourceMapPayload
-): boolean {
-  if ('sections' in sourceMap) {
-    // If sections are present, the ignoreList is not used.
-    // This is because sections are used to ignore-list everything.
-    return sourceMap.sections.every((section) => {
-      return sourceMapIgnoreListsEverything(section.map)
-    })
-  }
-  return sourceMap.sources.length === sourceMap.ignoreList?.length
 }
 
 /**
@@ -290,7 +224,8 @@ function getSourcemappedFrameIfPossible(
   }
 
   const applicableSourceMap = findApplicableSourceMapPayload(
-    frame,
+    frame.lineNumber ?? 0,
+    frame.column ?? 0,
     sourceMapPayload
   )
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.

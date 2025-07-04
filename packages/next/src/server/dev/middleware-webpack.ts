@@ -1,12 +1,13 @@
 import { findSourceMap, type SourceMap } from 'module'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
-import {
-  SourceMapConsumer,
-  type BasicSourceMapConsumer,
-} from 'next/dist/compiled/source-map08'
+import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from './get-source-map-from-file'
+import {
+  sourceMapIgnoreListsEverything,
+  type ModernSourceMapPayload,
+} from '../lib/source-maps'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import {
   getOriginalCodeFrame,
@@ -15,7 +16,6 @@ import {
   type OriginalStackFramesResponse,
 } from '../../next-devtools/server/shared'
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
-export { getSourceMapFromFile }
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
@@ -50,13 +50,13 @@ type SourceAttributes = {
 type Source =
   | {
       type: 'file'
-      sourceMap: RawSourceMap
+      sourceMap: ModernSourceMapPayload
       ignoredSources: IgnoredSources
       moduleURL: string
     }
   | {
       type: 'bundle'
-      sourceMap: RawSourceMap
+      sourceMap: ModernSourceMapPayload
       ignoredSources: IgnoredSources
       compilation: webpack.Compilation
       moduleId: string
@@ -87,10 +87,10 @@ function getSourcePath(source: string) {
  * @returns 1-based lines and 0-based columns
  */
 async function findOriginalSourcePositionAndContent(
-  sourceMap: RawSourceMap,
+  sourceMap: ModernSourceMapPayload,
   position: { lineNumber: number | null; column: number | null }
 ): Promise<SourceAttributes | null> {
-  let consumer: BasicSourceMapConsumer
+  let consumer: SourceMapConsumer
   try {
     consumer = await new SourceMapConsumer(sourceMap)
   } catch (cause) {
@@ -309,7 +309,11 @@ async function getSource(
     return {
       type: 'file',
       sourceMap: sourceMapPayload,
-      ignoredSources: getIgnoredSources(sourceMapPayload),
+
+      ignoredSources: getIgnoredSources(
+        // @ts-expect-error -- TODO: Support IndexSourceMap
+        sourceMapPayload
+      ),
       moduleURL: sourceURL,
     }
   }
@@ -409,12 +413,6 @@ function getOriginalStackFrames({
         )
     )
   )
-}
-
-function sourceMapIgnoreListsEverything(
-  sourceMap: RawSourceMap & { ignoreList?: number[] }
-): boolean {
-  return sourceMap.sources.length === sourceMap.ignoreList?.length
 }
 
 async function getOriginalStackFrame({
