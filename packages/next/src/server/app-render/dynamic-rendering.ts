@@ -663,8 +663,8 @@ function createErrorWithComponentOrOwnerStack(
   message: string,
   componentStack: string
 ) {
-  // `captureOwnerStack` is only provided in dev mode.
-  const ownerStack = React.captureOwnerStack?.()
+  const ownerStack =
+    process.env.NODE_ENV !== 'production' ? React.captureOwnerStack() : null
   const error = new Error(message)
   error.stack = error.name + ': ' + message + (ownerStack ?? componentStack)
   return error
@@ -682,11 +682,11 @@ function logDisallowedDynamicError(workStore: WorkStore, error: Error): void {
   if (!workStore.dev) {
     if (workStore.hasReadableErrorStacks) {
       console.error(
-        `To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error using the Next.js DevTools.`
+        `To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.`
       )
     } else {
       console.error(`To get a more detailed stack trace and pinpoint the issue, try one of the following:
-  - Start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error using the Next.js DevTools.
+  - Start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.
   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.`)
     }
   }

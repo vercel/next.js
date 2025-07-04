@@ -128,7 +128,7 @@ describe.each(
                6 |
                7 |   return (
                8 |     <main>
-             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -139,7 +139,7 @@ describe.each(
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
@@ -157,7 +157,7 @@ describe.each(
                6 |
                7 |   return (
                8 |     <main>
-             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -168,7 +168,7 @@ describe.each(
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
@@ -253,7 +253,7 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
-             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -279,7 +279,7 @@ describe.each(
                  at body (<anonymous>)
                  at html (<anonymous>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
@@ -312,7 +312,7 @@ describe.each(
                335 |   segmentPath,
                336 |   cacheNode,
                337 |   url,
-             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -338,7 +338,7 @@ describe.each(
                  at body (<anonymous>)
                  at html (<anonymous>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
@@ -425,7 +425,7 @@ describe.each(
                6 |
                7 |   return (
                8 |     <main>
-             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -436,7 +436,7 @@ describe.each(
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
@@ -454,7 +454,7 @@ describe.each(
                6 |
                7 |   return (
                8 |     <main>
-             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -465,7 +465,7 @@ describe.each(
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                  at a (<next-dist-dir>)
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."

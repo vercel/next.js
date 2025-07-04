@@ -412,6 +412,8 @@ async function exportAppImpl(
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
     hasReadableErrorStacks:
       nextConfig.experimental.serverSourceMaps === true &&
+      // TODO(NDX-531): Checking (and setting) the minify flags should be
+      // unnecessary once name mapping is fixed.
       (process.env.TURBOPACK
         ? nextConfig.experimental.turbopackMinify === false
         : nextConfig.experimental.serverMinification === false) &&
