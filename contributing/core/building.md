@@ -36,3 +36,7 @@ If you are actively working on Rust code or you need to test out the most recent
 If you want to test out the wasm build locally, you will need to [install wasm-pack](https://rustwasm.github.io/wasm-pack/installer/). Run `pnpm --filter=@next/swc build-wasm --target <wasm_target>` to build and `node ./scripts/setup-wasm.mjs` to copy it into your `node_modules`. Run next with `NODE_OPTIONS='--no-addons'` to force it to use the wasm binary.
 
 If you need to clean the project for any reason, use `pnpm clean`.
+
+## Offline Support
+
+You can use `NEXT_BUILD_PREFER_OFFLINE=1 pnpm build -F next` to rebuild the Next.js package without triggering any network requests. This is helpful when working in internet-restricted environments such as planes or public Wi-Fi.

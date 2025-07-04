@@ -2245,7 +2245,7 @@ export async function precompile(task, opts) {
     opts
   )
 
-  if (!process.env.NEXT_TEST_PREFER_OFFLINE) {
+  if (!process.env.NEXT_BUILD_PREFER_OFFLINE) {
     const validatorRes = await fetch(
       'https://cdn.ampproject.org/v0/validator_wasm.js'
     ).catch((err) => {
@@ -2792,7 +2792,7 @@ export async function check_error_codes(task, opts) {
 
 export default async function (task) {
   const opts = { dev: true }
-  if (!process.env.NEXT_TEST_PREFER_OFFLINE) {
+  if (!process.env.NEXT_BUILD_PREFER_OFFLINE) {
     await task.clear('dist')
   }
   await task.start('build', opts)
@@ -2913,7 +2913,7 @@ export async function experimental_testmode(task, opts) {
 }
 
 export async function release(task) {
-  if (process.env.NEXT_TEST_PREFER_OFFLINE) {
+  if (process.env.NEXT_BUILD_PREFER_OFFLINE) {
     await task.start('build')
   } else {
     await task.clear('dist').start('build')
