@@ -1,4 +1,4 @@
-import React, { Suspense, use } from 'react'
+import { Suspense, use } from 'react'
 
 import { IndirectionOne, IndirectionTwo, IndirectionThree } from './indirection'
 
