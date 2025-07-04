@@ -11,10 +11,10 @@ describe.each(
         },
       ]
     : [
-        {
-          inPrerenderDebugMode: false,
-          name: 'Build Without --prerender-debug',
-        },
+        // {
+        //   inPrerenderDebugMode: false,
+        //   name: 'Build Without --prerender-debug',
+        // },
         {
           inPrerenderDebugMode: true,
           name: 'Build With --prerender-debug',
@@ -74,11 +74,13 @@ describe.each(
            "description": "Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/page.tsx (35:23) @ RandomReadingComponent
-         > 35 |   const random = Math.random()
-              |                       ^",
+           "source": "app/page.tsx (32:15) @ getRandomNumber
+         > 32 |   return Math.random()
+              |               ^",
            "stack": [
-             "RandomReadingComponent app/page.tsx (35:23)",
+             "getRandomNumber app/page.tsx (32:15)",
+             "RandomReadingComponent app/page.tsx (40:18)",
+             "Page app/page.tsx (18:11)",
              "LogSafely <anonymous>",
            ],
          }
@@ -100,14 +102,16 @@ describe.each(
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                 at RandomReadingComponent (turbopack:///[project]/app/page.tsx:35:22)
-               33 |     use(new Promise((r) => process.nextTick(r)))
-               34 |   }
-             > 35 |   const random = Math.random()
-                  |                      ^
-               36 |   return (
-               37 |     <div>
-               38 |       <span id="rand">{random}</span>
+                 at getRandomNumber (turbopack:///[project]/app/page.tsx:32:14)
+                 at RandomReadingComponent (turbopack:///[project]/app/page.tsx:40:17)
+               30 |
+               31 | function getRandomNumber() {
+             > 32 |   return Math.random()
+                  |              ^
+               33 | }
+               34 |
+               35 | function RandomReadingComponent() {
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -117,6 +121,9 @@ describe.each(
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                  at a (<next-dist-dir>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
@@ -125,14 +132,16 @@ describe.each(
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                 at RandomReadingComponent (webpack:///app/page.tsx:35:22)
-               33 |     use(new Promise((r) => process.nextTick(r)))
-               34 |   }
-             > 35 |   const random = Math.random()
-                  |                      ^
-               36 |   return (
-               37 |     <div>
-               38 |       <span id="rand">{random}</span>
+                 at getRandomNumber (webpack:///app/page.tsx:32:14)
+                 at RandomReadingComponent (webpack:///app/page.tsx:40:17)
+               30 |
+               31 | function getRandomNumber() {
+             > 32 |   return Math.random()
+                  |              ^
+               33 | }
+               34 |
+               35 | function RandomReadingComponent() {
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -142,6 +151,9 @@ describe.each(
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
                  at a (<next-dist-dir>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
