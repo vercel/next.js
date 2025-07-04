@@ -1368,8 +1368,12 @@ impl AppEndpoint {
                 .should_create_webpack_stats()
                 .await?
             {
-                let webpack_stats =
-                    generate_webpack_stats(app_entry.original_name.clone(), &client_assets).await?;
+                let webpack_stats = generate_webpack_stats(
+                    *module_graphs.base,
+                    app_entry.original_name.clone(),
+                    client_assets.iter().copied(),
+                )
+                .await?;
                 let stats_output = VirtualOutputAsset::new(
                     node_root.join(&format!(
                         "server/app{manifest_path_prefix}/webpack-stats.json",
