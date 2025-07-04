@@ -140,8 +140,6 @@ where
         });
     }
 
-    // TODO map the chunk items back to the module
-
     // TODO try downcast modules to `EcmascriptMergedModule` to get the socpe hoisted modules as
     // well
 
