@@ -410,6 +410,12 @@ async function exportAppImpl(
       authInterrupts: !!nextConfig.experimental.authInterrupts,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
+    hasNonMinifiedSourceMappedStacks:
+      nextConfig.experimental.serverSourceMaps === true &&
+      (process.env.TURBOPACK
+        ? nextConfig.experimental.turbopackMinify === false
+        : nextConfig.experimental.serverMinification === false) &&
+      nextConfig.experimental.enablePrerenderSourceMaps === true,
   }
 
   const { publicRuntimeConfig } = nextConfig

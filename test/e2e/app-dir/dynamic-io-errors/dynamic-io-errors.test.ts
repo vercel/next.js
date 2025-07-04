@@ -172,6 +172,7 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -194,6 +195,9 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
@@ -223,6 +227,7 @@ describe.each(
                335 |   segmentPath,
                336 |   cacheNode,
                337 |   url,
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -245,6 +250,9 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
@@ -651,10 +659,12 @@ describe.each(
                 8 |   return children
                 9 | }
                10 |
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
              Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -678,6 +688,9 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at m (<next-dist-dir>)
                  at n (<next-dist-dir>)
@@ -693,6 +706,9 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
@@ -723,6 +739,7 @@ describe.each(
                 8 |   return children
                 9 | }
                10 |
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
              Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at InnerLayoutRouter (webpack://<next-src>)
                  at RedirectErrorBoundary (webpack://<next-src>)
@@ -745,6 +762,7 @@ describe.each(
                335 |   segmentPath,
                336 |   cacheNode,
                337 |   url,
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -768,6 +786,9 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at m (<next-dist-dir>)
                  at n (<next-dist-dir>)
@@ -783,6 +804,9 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error using the Next.js DevTools.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)

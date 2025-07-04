@@ -65,6 +65,7 @@ export type WorkStoreContext = {
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
     | 'dev'
+    | 'hasNonMinifiedSourceMappedStacks'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
@@ -123,6 +124,8 @@ export function createWorkStore({
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
     isRevalidate: renderOpts.isRevalidate,
     isBuildTimePrerendering: renderOpts.nextExport,
+    hasNonMinifiedSourceMappedStacks:
+      renderOpts.hasNonMinifiedSourceMappedStacks,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
