@@ -729,7 +729,7 @@ impl EvalContext {
         }
     }
 
-    pub fn eval_single_expr_lit(expr_lit: String) -> Result<JsValue> {
+    pub fn eval_single_expr_lit(expr_lit: RcStr) -> Result<JsValue> {
         let cm = Lrc::new(SourceMap::default());
         let fm = cm.new_source_file(
             Lrc::new(

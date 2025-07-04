@@ -622,7 +622,7 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
                 Ok(js_value)
             }
             CompileTimeDefineValue::Undefined => Ok(JsValue::Constant(ConstantValue::Undefined)),
-            CompileTimeDefineValue::Evaluate(s) => EvalContext::eval_single_expr_lit(s.to_string()),
+            CompileTimeDefineValue::Evaluate(s) => EvalContext::eval_single_expr_lit(s.clone()),
         }
     }
 }
