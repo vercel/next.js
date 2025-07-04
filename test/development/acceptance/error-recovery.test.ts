@@ -244,7 +244,6 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    // TODO(veil): ignore-list Turbopack runtime
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // Somehow we end up with two in React 18 + Turbopack due to React's attempt to recover from this error.
     if (isReact18 && isTurbopack) {
@@ -549,7 +548,6 @@ describe('pages/ error recovery', () => {
       await expect(session.getRedboxSource()).resolves.toInclude('render() {')
     })
 
-    // TODO(veil): ignore-list Turbopack runtime
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
     if (isReact18 && isTurbopack) {
@@ -681,7 +679,6 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    // TODO(veil): ignore-list Turbopack runtime
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // We get an error because Foo didn't import React. Fair.
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.

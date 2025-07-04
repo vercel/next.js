@@ -463,7 +463,6 @@ describe('app-dir - server source maps', () => {
       )
 
       if (isTurbopack) {
-        // TODO(veil): Ignore-list Turbopack runtime
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "module-evaluation",
@@ -482,7 +481,6 @@ describe('app-dir - server source maps', () => {
          }
         `)
       } else {
-        // TODO(veil): Ignore-list Webpack runtime
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "module-evaluation",
@@ -514,8 +512,8 @@ describe('app-dir - server source maps', () => {
           '' +
             '\nError: module-evaluation' +
             '\n    at <TurbopackModuleID> (turbopack:///[project]/app/module-evaluation/module.js:1:21)' +
-            // TODO(veil): Why are there unsourcemapped module frames below?
-            '\n    at <TurbopackModuleID> (.next/'
+            // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
+            '\n    at Object.<anonymous>'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +

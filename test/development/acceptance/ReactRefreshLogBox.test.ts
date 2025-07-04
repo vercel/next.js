@@ -471,7 +471,6 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    // TODO(veil): ignore-list Turbopack runtime
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
