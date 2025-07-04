@@ -63,15 +63,16 @@ export class TurbopackInternalError extends Error {
 export function isWellKnownError(issue: Issue): boolean {
   const { title } = issue
   const formattedTitle = renderStyledStringToErrorAnsi(title)
-  // TODO: add more well known errors
-  if (
-    formattedTitle.includes('Module not found') ||
-    formattedTitle.includes('Unknown module type')
-  ) {
-    return true
-  }
-
-  return false
+  // Expanded list of well-known errors with codes
+  const wellKnownPatterns = [
+    { code: 'MODULE_NOT_FOUND', pattern: /Module not found/ },
+    { code: 'UNKNOWN_MODULE_TYPE', pattern: /Unknown module type/ },
+    { code: 'CANNOT_FIND_MODULE_SASS', pattern: /Cannot find module 'sass'/ },
+    { code: 'SYNTAX_ERROR', pattern: /SyntaxError/ },
+    { code: 'EXPORT_NOT_FOUND', pattern: /export '.*' was not found/ },
+    // Add more patterns as needed
+  ]
+  return wellKnownPatterns.some(({ pattern }) => pattern.test(formattedTitle))
 }
 
 export function getIssueKey(issue: Issue): IssueKey {
@@ -137,43 +138,59 @@ export function formatIssue(issue: Issue) {
     '\n    '
   )
 
-  // TODO: Use error codes to identify these
-  // TODO: Generalize adapting Turbopack errors to Next.js errors
-  if (formattedTitle.includes('Module not found')) {
-    // For compatiblity with webpack
-    // TODO: include columns in webpack errors.
-    documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
+  // Map error patterns to codes and docs
+  const errorMappings = [
+    {
+      code: 'MODULE_NOT_FOUND',
+      pattern: /Module not found/,
+      doc: 'https://nextjs.org/docs/messages/module-not-found',
+    },
+    {
+      code: 'CANNOT_FIND_MODULE_SASS',
+      pattern: /Cannot find module 'sass'/,
+      doc: 'https://nextjs.org/docs/messages/install-sass',
+    },
+    {
+      code: 'UNKNOWN_MODULE_TYPE',
+      pattern: /Unknown module type/,
+      doc: '',
+    },
+    // Add more mappings as needed
+  ]
+  let errorCode = undefined
+  for (const mapping of errorMappings) {
+    if (mapping.pattern.test(formattedTitle)) {
+      errorCode = mapping.code
+      if (!documentationLink && mapping.doc) documentationLink = mapping.doc
+      break
+    }
   }
 
   const formattedFilePath = filePath
     .replace('[project]/', './')
     .replaceAll('/./', '/')
-    .replace('\\\\?\\', '')
+    .replace(/\\\?\\/g, '')
 
   let message = ''
 
+  if (errorCode) {
+    message += `[Error Code: ${errorCode}]\n`
+  }
+
   if (source?.range) {
     const { start } = source.range
-    message = `${formattedFilePath}:${start.line + 1}:${
-      start.column + 1
-    }\n${formattedTitle}`
+    message += `${formattedFilePath}:${start.line + 1}:${start.column + 1}\n${formattedTitle}`
   } else if (formattedFilePath) {
-    message = `${formattedFilePath}\n${formattedTitle}`
+    message += `${formattedFilePath}\n${formattedTitle}`
   } else {
-    message = formattedTitle
+    message += formattedTitle
   }
   message += '\n'
 
-  if (
-    source?.range &&
-    source.source.content &&
-    // ignore Next.js/React internals, as these can often be huge bundled files.
-    !isInternal(filePath)
-  ) {
+  if (source?.range && source.source.content && !isInternal(filePath)) {
     const { start, end } = source.range
     const { codeFrameColumns } =
       require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
-
     message +=
       codeFrameColumns(
         source.source.content,
@@ -205,20 +222,11 @@ export function formatIssue(issue: Issue) {
     }
   }
 
-  // TODO: make it possible to enable this for debugging, but not in tests.
-  // if (detail) {
-  //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
-  // }
-
   if (importTraces?.length) {
-    // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
     if (importTraces.length === 1) {
       const trace = importTraces[0]
-      // We only display the layer if there is more than one for the trace
       message += `Import trace:\n${formatIssueTrace(trace, '  ', !identicalLayers(trace))}`
     } else {
-      // We end up with multiple traces when the file with the error is reachable from multiple
-      // different entry points (e.g. ssr, client)
       message += 'Import traces:\n'
       const everyTraceHasADistinctRootLayer =
         new Set(importTraces.map(leafLayerName).filter((l) => l != null))
