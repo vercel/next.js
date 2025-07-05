@@ -1,8 +1,6 @@
 use std::{
     iter,
     mem::{replace, take},
-    path::PathBuf,
-    str::FromStr,
     sync::Arc,
 };
 
@@ -12,7 +10,7 @@ use swc_core::{
     atoms::Atom,
     base::try_with_handler,
     common::{
-        GLOBALS, Mark, SourceMap, Span, Spanned, SyntaxContext, comments::Comments,
+        FileName, GLOBALS, Mark, SourceMap, Span, Spanned, SyntaxContext, comments::Comments,
         pass::AstNodePath, sync::Lrc,
     },
     ecma::{
@@ -731,14 +729,7 @@ impl EvalContext {
 
     pub fn eval_single_expr_lit(expr_lit: RcStr) -> Result<JsValue> {
         let cm = Lrc::new(SourceMap::default());
-        let fm = cm.new_source_file(
-            Lrc::new(
-                PathBuf::from_str("__eval_single_expr_lit_internal__.js")
-                    .unwrap()
-                    .into(),
-            ),
-            expr_lit.clone(),
-        );
+        let fm = cm.new_source_file(FileName::Anon.into(), expr_lit.clone());
 
         let js_value = try_with_handler(cm, Default::default(), |handler| {
             GLOBALS.set(&Default::default(), || {

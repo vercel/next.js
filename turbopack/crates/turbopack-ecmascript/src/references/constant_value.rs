@@ -1,9 +1,7 @@
-use std::{path::PathBuf, str::FromStr};
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::{DUMMY_SP, SourceMap, sync::Lrc},
+    common::{DUMMY_SP, FileName, SourceMap, sync::Lrc},
     ecma::{
         ast::{ArrayLit, EsVersion, Expr, KeyValueProp, ObjectLit, Prop, PropName, Str},
         parser::{Syntax, parse_file_as_expr},
@@ -112,14 +110,7 @@ fn define_env_to_expr(value: CompileTimeDefineValue) -> Expr {
 
 fn parse_single_expr_lit(expr_lit: RcStr) -> Expr {
     let cm = Lrc::new(SourceMap::default());
-    let fm = cm.new_source_file(
-        Lrc::new(
-            PathBuf::from_str("__parse_expr_lit_internal__.js")
-                .unwrap()
-                .into(),
-        ),
-        expr_lit.clone(),
-    );
+    let fm = cm.new_source_file(FileName::Anon.into(), expr_lit.clone());
     parse_file_as_expr(
         &fm,
         Syntax::Es(Default::default()),
