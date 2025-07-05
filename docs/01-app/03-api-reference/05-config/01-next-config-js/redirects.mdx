@@ -250,7 +250,7 @@ module.exports = {
 
 <AppOnly>
 
-When leveraging [`i18n` support](/docs/app/guides/internationalization) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
+When implementing redirects with internationalization in the App Router, you handle locales through [dynamic route segments and middleware](/docs/app/guides/internationalization). This means you need to include locale information directly in your redirect paths:
 
 </AppOnly>
 
@@ -259,6 +259,45 @@ When leveraging [`i18n` support](/docs/app/guides/internationalization) with red
 When leveraging [`i18n` support](/docs/pages/guides/internationalization) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
 
 </PagesOnly>
+
+<AppOnly>
+
+```js filename="next.config.js"
+module.exports = {
+  async redirects() {
+    return [
+      {
+        // Manually handle locale prefixes for App Router
+        source: '/en/old-path',
+        destination: '/en/new-path',
+        permanent: false,
+      },
+      {
+        // Redirect for all locales using a parameter
+        source: '/:locale/old-path',
+        destination: '/:locale/new-path',
+        permanent: false,
+      },
+      {
+        // Redirect from one locale to another
+        source: '/de/old-path',
+        destination: '/en/new-path',
+        permanent: false,
+      },
+      {
+        // Catch-all redirect for multiple locales
+        source: '/:locale(en|fr|de)/:path*',
+        destination: '/:locale/new-section/:path*',
+        permanent: false,
+      },
+    ]
+  },
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
 
 ```js filename="next.config.js"
 module.exports = {
@@ -306,6 +345,8 @@ module.exports = {
   },
 }
 ```
+
+</PagesOnly>
 
 In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. To to ensure IE11 compatibility, a `Refresh` header is automatically added for the 308 status code.
 
