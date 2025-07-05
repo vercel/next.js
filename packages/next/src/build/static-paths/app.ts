@@ -140,22 +140,29 @@ export function generateParamPrefixCombinations(
       // Build the sub-combination with parameters from index 0 to i (inclusive).
       for (let j = 0; j <= i; j++) {
         const routeKey = routeParamKeys[j]
-        const value = params[routeKey]
 
-        // Only add to combination if the value exists in the original params.
-        if (value !== undefined) {
-          combination[routeKey] = value
+        // Check if the parameter exists in the original params object and has a defined value
+        if (
+          !params.hasOwnProperty(routeKey) ||
+          params[routeKey] === undefined
+        ) {
+          // If the parameter doesn't exist or is undefined, we've reached the end of available
+          // parameters for this combination, so break out of the loop
+          break
         }
 
+        const value = params[routeKey]
+
+        // Add to combination (we know value is not undefined due to check above)
+        combination[routeKey] = value
+
         // Construct a part of the key using the route parameter key and its value.
-        // A type prefix (`A:` for Array, `S:` for String, `U:` for undefined) is added to the value
+        // A type prefix (`A:` for Array, `S:` for String) is added to the value
         // to prevent collisions. This ensures that different types with the same
         // string representation are treated as distinct.
         let valuePart: string
         if (Array.isArray(value)) {
           valuePart = `A:${value.join(',')}`
-        } else if (value === undefined) {
-          valuePart = `U:undefined`
         } else {
           valuePart = `S:${value}`
         }
