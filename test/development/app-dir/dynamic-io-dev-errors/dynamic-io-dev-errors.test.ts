@@ -41,6 +41,7 @@ describe('Dynamic IO Dev Errors', () => {
 
     await browser.elementByCss("[href='/error']").click()
 
+    // TODO: React should not include the anon stack in the Owner Stack.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
@@ -51,6 +52,7 @@ describe('Dynamic IO Dev Errors', () => {
          |                       ^",
        "stack": [
          "Page app/error/page.tsx (2:23)",
+         "Page <anonymous>",
          "LogSafely <anonymous>",
        ],
      }

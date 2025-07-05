@@ -605,6 +605,8 @@ describe('Dynamic IO Errors', () => {
              > 59 |   const response = await fetch(
                   |                          ^",
                  "stack": [
+                   "Promise.then <anonymous>",
+                   "Promise.catch <anonymous>",
                    "fetchRandom app/dynamic-root/page.tsx (59:26)",
                    "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (22:9)",
@@ -619,6 +621,8 @@ describe('Dynamic IO Errors', () => {
              > 59 |   const response = await fetch(
                   |                          ^",
                  "stack": [
+                   "Promise.then <anonymous>",
+                   "Promise.catch <anonymous>",
                    "fetchRandom app/dynamic-root/page.tsx (59:26)",
                    "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (27:7)",

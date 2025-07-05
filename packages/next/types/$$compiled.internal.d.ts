@@ -141,7 +141,12 @@ declare module 'react-server-dom-webpack/server.edge' {
     options?: {
       temporaryReferences?: TemporaryReferenceSet
       environmentName?: string | (() => string)
-      filterStackFrame?: (url: string, functionName: string) => boolean
+      filterStackFrame?: (
+        url: string,
+        functionName: string,
+        lineNumber: number,
+        columnNumber: number
+      ) => boolean
       onError?: (error: unknown) => void
       onPostpone?: (reason: string) => void
       signal?: AbortSignal
@@ -262,7 +267,12 @@ declare module 'react-server-dom-webpack/static' {
     },
     options?: {
       environmentName?: string | (() => string)
-      filterStackFrame?: (url: string, functionName: string) => boolean
+      filterStackFrame?: (
+        url: string,
+        functionName: string,
+        lineNumber: number,
+        columnNumber: number
+      ) => boolean
       identifierPrefix?: string
       signal?: AbortSignal
       temporaryReferences?: TemporaryReferenceSet
