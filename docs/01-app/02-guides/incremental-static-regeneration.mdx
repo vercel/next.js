@@ -38,13 +38,14 @@ export const revalidate = 60
 // We'll prerender only the params from `generateStaticParams` at build time.
 // If a request comes in for a path that hasn't been generated,
 // Next.js will server-render the page on-demand.
-export const dynamicParams = true // or false, to 404 on unknown paths
+export const dynamicParams = true // setting to false will 404 on unknown paths instead
 
 export async function generateStaticParams() {
   const posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  return posts.map((post) => ({
+  // Generate params for 24 posts and leave 25th post for on-demand generation
+  return posts.slice(0, 24).map((post) => ({
     id: String(post.id),
   }))
 }
@@ -67,7 +68,7 @@ export default async function Page({
 }
 ```
 
-```jsx filename="app/blog/[id]/page.js" switcher
+```jsx filename="app/blog/[id]/page.jsx" switcher
 // Next.js will invalidate the cache when a
 // request comes in, at most once every 60 seconds.
 export const revalidate = 60
@@ -75,13 +76,14 @@ export const revalidate = 60
 // We'll prerender only the params from `generateStaticParams` at build time.
 // If a request comes in for a path that hasn't been generated,
 // Next.js will server-render the page on-demand.
-export const dynamicParams = true // or false, to 404 on unknown paths
+export const dynamicParams = true // setting to false will 404 on unknown paths instead
 
 export async function generateStaticParams() {
   const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  return posts.map((post) => ({
+  // Generate params for 24 posts and leave 25th post for on-demand generation
+  return posts.slice(0, 24).map((post) => ({
     id: String(post.id),
   }))
 }
@@ -121,14 +123,14 @@ export const getStaticPaths: GetStaticPaths = async () => {
   const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  const paths = posts.map((post: Post) => ({
+  // Generate params for 24 posts and leave 25th post for on-demand generation
+  const paths = posts.slice(0, 24).map((post: Post) => ({
     params: { id: String(post.id) },
   }))
 
-  // We'll prerender only these paths at build time.
-  // { fallback: 'blocking' } will server-render pages
-  // on-demand if the path doesn't exist.
-  return { paths, fallback: false }
+  // If a request comes in for a path that hasn't been generated (e.g. /blog/25),
+  // Next.js will server-render the page on-demand.
+  return { paths, fallback: 'blocking' } // setting to false will 404 on unknown paths instead
 }
 
 export const getStaticProps: GetStaticProps<Props> = async ({
@@ -163,13 +165,14 @@ export async function getStaticPaths() {
   const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  const paths = posts.map((post) => ({
+  // Generate params for 24 posts and leave 25th post for on-demand generation
+  const paths = posts.slice(0, 24).map((post) => ({
     params: { id: post.id },
   }))
 
-  // We'll prerender only these paths at build time.
-  // { fallback: false } means other routes should 404.
-  return { paths, fallback: false }
+  // If a request comes in for a path that hasn't been generated (e.g. /blog/25),
+  // Next.js will server-render the page on-demand.
+  return { paths, fallback: 'blocking' } // setting to false will 404 on unknown paths instead
 }
 
 export async function getStaticProps({ params }) {
@@ -199,12 +202,12 @@ export default function Page({ post }) {
 
 Here's how this example works:
 
-1. During `next build`, all known blog posts are generated (there are 25 in this example)
+1. During `next build`, the first 24 blog posts are generated (out of 25 available from the API)
 2. All requests made to these pages (e.g. `/blog/1`) are cached and instantaneous
 3. After 60 seconds has passed, the next request will still show the cached (stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
-5. Once generated successfully, Next.js will display and cache the updated page
-6. If `/blog/26` is requested, Next.js will generate and cache this page on-demand
+5. Once generated successfully, the next request will show the updated page
+6. If `/blog/25` is requested (a post not generated at build time), the page will be generated on-demand, shown, and cached
 
 ## Reference
 
