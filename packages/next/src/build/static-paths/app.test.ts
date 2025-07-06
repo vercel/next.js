@@ -1,4 +1,5 @@
 import { FallbackMode } from '../../lib/fallback'
+import type { Params } from '../../server/request/params'
 import {
   assignErrorIfEmpty,
   generateParamPrefixCombinations,
@@ -352,7 +353,7 @@ describe('generateParamPrefixCombinations', () => {
       { id: '2', name: 'test' },
     ]
 
-    const unique = generateParamPrefixCombinations(['id'], params)
+    const unique = generateParamPrefixCombinations(['id'], params, [])
 
     expect(unique).toEqual([{ id: '1' }, { id: '2' }])
   })
@@ -365,7 +366,11 @@ describe('generateParamPrefixCombinations', () => {
       { lang: 'fr', region: 'CA', page: 'about' },
     ]
 
-    const unique = generateParamPrefixCombinations(['lang', 'region'], params)
+    const unique = generateParamPrefixCombinations(
+      ['lang', 'region'],
+      params,
+      []
+    )
 
     expect(unique).toEqual([
       { lang: 'en' },
@@ -378,20 +383,20 @@ describe('generateParamPrefixCombinations', () => {
   it('should handle parameter value collisions', () => {
     const params = [{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }]
 
-    const unique = generateParamPrefixCombinations(['slug'], params)
+    const unique = generateParamPrefixCombinations(['slug'], params, [])
 
     expect(unique).toEqual([{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }])
   })
 
   it('should handle empty inputs', () => {
     // Empty routeParamKeys
-    expect(generateParamPrefixCombinations([], [{ id: '1' }])).toEqual([])
+    expect(generateParamPrefixCombinations([], [{ id: '1' }], [])).toEqual([])
 
     // Empty routeParams
-    expect(generateParamPrefixCombinations(['id'], [])).toEqual([])
+    expect(generateParamPrefixCombinations(['id'], [], [])).toEqual([])
 
     // Both empty
-    expect(generateParamPrefixCombinations([], [])).toEqual([])
+    expect(generateParamPrefixCombinations([], [], [])).toEqual([])
   })
 
   it('should handle undefined parameters', () => {
@@ -401,7 +406,7 @@ describe('generateParamPrefixCombinations', () => {
       { id: '3' }, // missing name key
     ]
 
-    const unique = generateParamPrefixCombinations(['id', 'name'], params)
+    const unique = generateParamPrefixCombinations(['id', 'name'], params, [])
 
     expect(unique).toEqual([
       { id: '1' },
@@ -420,7 +425,8 @@ describe('generateParamPrefixCombinations', () => {
 
     const unique = generateParamPrefixCombinations(
       ['lang', 'region', 'category'],
-      params
+      params,
+      []
     )
 
     expect(unique).toEqual([
@@ -441,7 +447,7 @@ describe('generateParamPrefixCombinations', () => {
       { slug: 'U:undefined' }, // String that looks like undefined prefix
     ]
 
-    const unique = generateParamPrefixCombinations(['slug'], params)
+    const unique = generateParamPrefixCombinations(['slug'], params, [])
 
     expect(unique).toEqual([
       { slug: ['foo', 'bar'] },
@@ -459,7 +465,7 @@ describe('generateParamPrefixCombinations', () => {
       { slug: ['foo', 'bar|baz'] }, // Array with pipe in element
     ]
 
-    const unique = generateParamPrefixCombinations(['slug'], params)
+    const unique = generateParamPrefixCombinations(['slug'], params, [])
 
     expect(unique).toEqual([{ slug: 'foo|bar' }, { slug: ['foo', 'bar|baz'] }])
   })
@@ -473,7 +479,8 @@ describe('generateParamPrefixCombinations', () => {
 
     const unique = generateParamPrefixCombinations(
       ['a', 'b', 'c', 'd', 'e'],
-      params
+      params,
+      []
     )
 
     // Should contain all the unique prefix combinations
@@ -486,5 +493,154 @@ describe('generateParamPrefixCombinations', () => {
       { a: '1', b: '2', c: '3', d: '4', e: '6' },
       { a: '1', b: '2', c: '3', d: '7' },
     ])
+  })
+
+  it('should only generate combinations with complete root params', () => {
+    const params = [
+      { lang: 'en', region: 'US', slug: 'home' },
+      { lang: 'en', region: 'US', slug: 'about' },
+      { lang: 'fr', region: 'CA', slug: 'about' },
+    ]
+
+    const unique = generateParamPrefixCombinations(
+      ['lang', 'region', 'slug'],
+      params,
+      ['lang', 'region'] // Root params
+    )
+
+    // Should NOT include partial combinations like { lang: 'en' }
+    // Should only include combinations with complete root params
+    expect(unique).toEqual([
+      { lang: 'en', region: 'US' }, // Complete root params
+      { lang: 'en', region: 'US', slug: 'home' },
+      { lang: 'en', region: 'US', slug: 'about' },
+      { lang: 'fr', region: 'CA' }, // Complete root params
+      { lang: 'fr', region: 'CA', slug: 'about' },
+    ])
+  })
+
+  it('should handle routes without root params normally', () => {
+    const params = [
+      { category: 'tech', slug: 'news' },
+      { category: 'tech', slug: 'reviews' },
+      { category: 'sports', slug: 'news' },
+    ]
+
+    const unique = generateParamPrefixCombinations(
+      ['category', 'slug'],
+      params,
+      [] // No root params
+    )
+
+    // Should generate all sub-combinations as before
+    expect(unique).toEqual([
+      { category: 'tech' },
+      { category: 'tech', slug: 'news' },
+      { category: 'tech', slug: 'reviews' },
+      { category: 'sports' },
+      { category: 'sports', slug: 'news' },
+    ])
+  })
+
+  it('should handle single root param', () => {
+    const params = [
+      { lang: 'en', page: 'home' },
+      { lang: 'en', page: 'about' },
+      { lang: 'fr', page: 'home' },
+    ]
+
+    const unique = generateParamPrefixCombinations(
+      ['lang', 'page'],
+      params,
+      ['lang'] // Single root param
+    )
+
+    // Should include combinations starting from the root param
+    expect(unique).toEqual([
+      { lang: 'en' },
+      { lang: 'en', page: 'home' },
+      { lang: 'en', page: 'about' },
+      { lang: 'fr' },
+      { lang: 'fr', page: 'home' },
+    ])
+  })
+
+  it('should handle missing root params gracefully', () => {
+    const params = [
+      { lang: 'en', page: 'home' },
+      { lang: 'en', page: 'about' },
+      { page: 'contact' }, // Missing lang root param
+    ]
+
+    const unique = generateParamPrefixCombinations(
+      ['lang', 'page'],
+      params,
+      ['lang'] // Root param
+    )
+
+    // Should only include combinations that have the root param
+    expect(unique).toEqual([
+      { lang: 'en' },
+      { lang: 'en', page: 'home' },
+      { lang: 'en', page: 'about' },
+      // { page: 'contact' } should be excluded because it lacks the root param
+    ])
+  })
+
+  it('should handle root params not in route params', () => {
+    const params = [
+      { category: 'tech', slug: 'news' },
+      { category: 'sports', slug: 'news' },
+    ]
+
+    const unique = generateParamPrefixCombinations(
+      ['category', 'slug'],
+      params,
+      ['lang', 'region'] // Root params not in route params
+    )
+
+    // Should fall back to normal behavior when root params are not found
+    expect(unique).toEqual([
+      { category: 'tech' },
+      { category: 'tech', slug: 'news' },
+      { category: 'sports' },
+      { category: 'sports', slug: 'news' },
+    ])
+  })
+
+  it('should handle test case scenario: route with extra param but missing value', () => {
+    // This simulates the failing test scenario:
+    // Route: /[lang]/[locale]/other/[slug]
+    // generateStaticParams only provides: { lang: 'en', locale: 'us' }
+    // Missing: slug parameter
+    const params = [
+      { lang: 'en', locale: 'us' }, // Missing slug parameter
+    ]
+
+    const unique = generateParamPrefixCombinations(
+      ['lang', 'locale', 'slug'], // All route params
+      params,
+      ['lang', 'locale'] // Root params
+    )
+
+    // Should generate only the combination with complete root params
+    // but not try to include the missing slug param
+    expect(unique).toEqual([
+      { lang: 'en', locale: 'us' }, // Complete root params, slug omitted
+    ])
+  })
+
+  it('should handle empty routeParams with root params', () => {
+    // This might be what's happening for the [slug] route
+    const params: Params[] = [] // No generateStaticParams results
+
+    const unique = generateParamPrefixCombinations(
+      ['lang', 'locale', 'slug'], // All route params
+      params,
+      ['lang', 'locale'] // Root params
+    )
+
+    // Should return empty array when there are no route params to work with
+    expect(unique).toEqual([])
   })
 })

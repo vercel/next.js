@@ -79,9 +79,13 @@ export function filterUniqueParams(
  * This function creates all possible prefixes of the route parameters, which is
  * useful for generating partial routes that can serve as shells for more specific routes.
  *
- * Given the following route params ('lang', 'region', 'slug'), and the
- * following routeParams:
+ * When rootParamKeys are provided, the function ensures that partial shells only
+ * include complete sets of root params. This prevents generating invalid partial
+ * routes that are missing required root parameters.
  *
+ * Example with root params ('lang', 'region') and route params ('lang', 'region', 'slug'):
+ *
+ * Given the following routeParams:
  * ```
  * [
  *   { lang: 'en', region: 'US', slug: ['home'] },
@@ -91,36 +95,33 @@ export function filterUniqueParams(
  * ```
  *
  * The result will be:
- *
  * ```
  * [
- *   { lang: 'en' },
- *   { lang: 'en', region: 'US' },
+ *   { lang: 'en', region: 'US' },  // Complete root params
  *   { lang: 'en', region: 'US', slug: ['home'] },
  *   { lang: 'en', region: 'US', slug: ['about'] },
- *   { lang: 'fr' },
- *   { lang: 'fr', region: 'CA' },
+ *   { lang: 'fr', region: 'CA' },  // Complete root params
  *   { lang: 'fr', region: 'CA', slug: ['about'] },
  * ]
  * ```
  *
- * This allows the system to generate routes like:
- * - `/en` (partial route with just lang)
- * - `/en/US` (complete route with lang and region)
- * - `/en/US/home` (complete route with lang, region, and slug)
- * - `/en/US/about` (complete route with lang, region, and slug)
- * - `/fr` (partial route with just lang)
- * - `/fr/CA` (complete route with lang and region)
- * - `/fr/CA/about` (complete route with lang, region, and slug)
+ * Note that partial combinations like `{ lang: 'en' }` are NOT generated because
+ * they don't include the complete set of root params.
+ *
+ * For routes without root params (e.g., `/[slug]`), all sub-combinations are generated
+ * as before.
  *
  * @param routeParamKeys - The keys of the route params. These should be sorted
  *   to ensure consistent key generation for the internal Map.
  * @param routeParams - The list of parameter objects to filter.
+ * @param rootParamKeys - The keys of the root params. When provided, ensures partial
+ *   shells include all root params.
  * @returns A new array containing all unique sub-combinations of route params.
  */
 export function generateParamPrefixCombinations(
   routeParamKeys: readonly string[],
-  routeParams: readonly Params[]
+  routeParams: readonly Params[],
+  rootParamKeys: readonly string[]
 ): Params[] {
   // A Map is used to store unique combinations of route parameters.
   // The key of the Map is a string representation of the route parameter
@@ -128,57 +129,132 @@ export function generateParamPrefixCombinations(
   // the route parameters.
   const combinations = new Map<string, Params>()
 
+  // Determine the minimum index where all root params are included.
+  // This optimization ensures we only generate combinations that include
+  // a complete set of root parameters, preventing invalid partial shells.
+  //
+  // For example, if rootParamKeys = ['lang', 'region'] and routeParamKeys = ['lang', 'region', 'slug']:
+  // - 'lang' is at index 0, 'region' is at index 1
+  // - minIndexForCompleteRootParams = max(0, 1) = 1
+  // - We'll only generate combinations starting from index 1 (which includes both lang and region)
+  let minIndexForCompleteRootParams = -1
+  if (rootParamKeys.length > 0) {
+    // Find the index of the last root param in routeParamKeys.
+    // This tells us the minimum combination length needed to include all root params.
+    for (const rootParamKey of rootParamKeys) {
+      const index = routeParamKeys.indexOf(rootParamKey)
+      if (index === -1) {
+        // Root param not found in route params - this shouldn't happen in normal cases
+        // but we handle it gracefully by treating it as if there are no root params.
+        // This allows the function to fall back to generating all sub-combinations.
+        minIndexForCompleteRootParams = -1
+        break
+      }
+      // Track the highest index among all root params.
+      // This ensures all root params are included in any generated combination.
+      minIndexForCompleteRootParams = Math.max(
+        minIndexForCompleteRootParams,
+        index
+      )
+    }
+  }
+
   // Iterate over each parameter object in the input array.
+  // Each params object represents one potential route combination (e.g., { lang: 'en', region: 'US', slug: 'home' })
   for (const params of routeParams) {
-    // Iterate through the `routeParamKeys` (which are assumed to be sorted).
-    // This consistent order is crucial for generating a stable and unique key
+    // Generate all possible prefix combinations for this parameter set.
+    // For routeParamKeys = ['lang', 'region', 'slug'], we'll generate combinations at:
+    // - i=0: { lang: 'en' }
+    // - i=1: { lang: 'en', region: 'US' }
+    // - i=2: { lang: 'en', region: 'US', slug: 'home' }
+    //
+    // The iteration order is crucial for generating stable and unique keys
     // for each route parameter combination.
     for (let i = 0; i < routeParamKeys.length; i++) {
-      const combination: Params = {} // Initialize an object to hold only the route parameters up to index i.
-      let currentKey = '' // Build key for this sub-combination.
+      // Skip generating combinations that don't include all root params.
+      // This prevents creating invalid partial shells that are missing required root parameters.
+      //
+      // For example, if root params are ['lang', 'region'] and minIndexForCompleteRootParams = 1:
+      // - Skip i=0 (would only include 'lang', missing 'region')
+      // - Process i=1 and higher (includes both 'lang' and 'region')
+      if (
+        minIndexForCompleteRootParams >= 0 &&
+        i < minIndexForCompleteRootParams
+      ) {
+        continue
+      }
+
+      // Initialize data structures for building this specific combination
+      const combination: Params = {}
+      const keyParts: string[] = []
+      let hasAllRootParams = true
 
       // Build the sub-combination with parameters from index 0 to i (inclusive).
+      // This creates a prefix of the full parameter set, building up combinations incrementally.
+      //
+      // For example, if routeParamKeys = ['lang', 'region', 'slug'] and i = 1:
+      // - j=0: Add 'lang' parameter
+      // - j=1: Add 'region' parameter
+      // Result: { lang: 'en', region: 'US' }
       for (let j = 0; j <= i; j++) {
         const routeKey = routeParamKeys[j]
 
-        // Check if the parameter exists in the original params object and has a defined value
+        // Check if the parameter exists in the original params object and has a defined value.
+        // This handles cases where generateStaticParams doesn't provide all possible parameters,
+        // or where some parameters are optional/undefined.
         if (
           !params.hasOwnProperty(routeKey) ||
           params[routeKey] === undefined
         ) {
-          // If the parameter doesn't exist or is undefined, we've reached the end of available
-          // parameters for this combination, so break out of the loop
+          // If this missing parameter is a root param, mark the combination as invalid.
+          // Root params are required for PPR shells, so we can't generate partial combinations without them.
+          if (rootParamKeys.includes(routeKey)) {
+            hasAllRootParams = false
+          }
+          // Stop building this combination since we've hit a missing parameter.
+          // This ensures we only generate valid prefix combinations with consecutive parameters.
           break
         }
 
         const value = params[routeKey]
-
-        // Add to combination (we know value is not undefined due to check above)
         combination[routeKey] = value
 
-        // Construct a part of the key using the route parameter key and its value.
-        // A type prefix (`A:` for Array, `S:` for String) is added to the value
-        // to prevent collisions. This ensures that different types with the same
-        // string representation are treated as distinct.
+        // Construct a unique key part for this parameter to enable deduplication.
+        // We use type prefixes to prevent collisions between different value types
+        // that might have the same string representation.
+        //
+        // Examples:
+        // - Array ['foo', 'bar'] becomes "A:foo,bar"
+        // - String "foo,bar" becomes "S:foo,bar"
+        // - This prevents collisions between ['foo', 'bar'] and "foo,bar"
         let valuePart: string
         if (Array.isArray(value)) {
           valuePart = `A:${value.join(',')}`
         } else {
           valuePart = `S:${value}`
         }
-        currentKey += `${routeKey}:${valuePart}|`
+        keyParts.push(`${routeKey}:${valuePart}`)
       }
 
-      // If the generated key is not already in the `combinations` Map, it means
-      // this route parameter combination is unique so far. Add it to the Map.
-      if (!combinations.has(currentKey)) {
+      // Build the final unique key by joining all parameter parts.
+      // This key is used for deduplication in the combinations Map.
+      // Format: "lang:S:en|region:S:US|slug:A:home,about"
+      const currentKey = keyParts.join('|')
+
+      // Only add the combination if it meets our criteria:
+      // 1. hasAllRequiredParams: Contains all required root parameters
+      // 2. !combinations.has(currentKey): Is not a duplicate of an existing combination
+      //
+      // This ensures we only generate valid, unique parameter combinations for PPR shells.
+      if (hasAllRootParams && !combinations.has(currentKey)) {
         combinations.set(currentKey, combination)
       }
     }
   }
 
-  // Convert the Map's values (the unique route parameter `Params` objects)
-  // back into an array and return it.
+  // Convert the Map's values back into an array and return the final result.
+  // The Map ensures all combinations are unique, and we return only the
+  // parameter objects themselves, discarding the internal deduplication keys.
   return Array.from(combinations.values())
 }
 
@@ -656,7 +732,11 @@ export async function buildAppStaticPaths({
       // routes that won't throw on empty static shell for each of them if
       // they're available.
       routeParams.unshift(
-        ...generateParamPrefixCombinations(routeParamKeys, routeParams)
+        ...generateParamPrefixCombinations(
+          routeParamKeys,
+          routeParams,
+          rootParamKeys
+        )
       )
 
       prerenderedRoutesByPathname.set(page, {
