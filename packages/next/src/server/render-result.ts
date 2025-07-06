@@ -65,6 +65,7 @@ export type RenderResultResponse =
   | ReadableStream<Uint8Array>
   | string
   | Buffer
+  | { type: 'Buffer'; data: number[] }
   | null
 
 export type RenderResultOptions<
@@ -199,8 +200,12 @@ export default class RenderResult<
       throw new Error('Invariant: static responses cannot be streamed')
     }
 
-    if (Buffer.isBuffer(this.response)) {
-      return streamFromBuffer(this.response)
+    if (Buffer.isBuffer(this.response) || 'type' in this.response) {
+      const buf = Buffer.isBuffer(this.response)
+        ? this.response
+        : Buffer.from(this.response['data'])
+
+      return streamFromBuffer(buf)
     }
 
     // If the response is an array of streams, then chain them together.
@@ -230,8 +235,11 @@ export default class RenderResult<
       responses = [streamFromString(this.response)]
     } else if (Array.isArray(this.response)) {
       responses = this.response
-    } else if (Buffer.isBuffer(this.response)) {
-      responses = [streamFromBuffer(this.response)]
+    } else if (Buffer.isBuffer(this.response) || 'type' in this.response) {
+      const buf = Buffer.isBuffer(this.response)
+        ? this.response
+        : Buffer.from(this.response['data'])
+      responses = [streamFromBuffer(buf)]
     } else {
       responses = [this.response]
     }
