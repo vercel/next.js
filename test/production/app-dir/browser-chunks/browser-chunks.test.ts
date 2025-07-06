@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { SourceMapPayload } from 'module'
 
 describe('browser-chunks', () => {
   const { next } = nextTestSetup({
@@ -13,9 +12,7 @@ describe('browser-chunks', () => {
       filename.endsWith('.js.map')
     )
 
-    sources = sourcemaps.flatMap(
-      (sourcemap) => (JSON.parse(sourcemap) as SourceMapPayload).sources
-    )
+    sources = sourcemaps.flatMap((sourcemap) => JSON.parse(sourcemap).sources)
   })
   it('must not bundle any server modules into browser chunks', () => {
     const serverSources = sources.filter(

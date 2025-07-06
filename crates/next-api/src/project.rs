@@ -1567,7 +1567,7 @@ impl Project {
                 self.execution_context(),
             ),
             Layer::new_with_user_friendly_name(
-                rcstr!("instrumentation"),
+                rcstr!("instrumentation-edge"),
                 rcstr!("Edge Instrumentation"),
             ),
         )))

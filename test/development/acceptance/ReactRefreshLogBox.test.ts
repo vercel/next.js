@@ -144,11 +144,7 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "eval index.js (3:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "eval ./pages/index.js",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
@@ -189,11 +185,7 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "eval index.js (3:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "eval ./pages/index.js",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
@@ -208,7 +200,7 @@ describe('ReactRefreshLogBox', () => {
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554152127
-  test('boundaries', async () => {
+  it('boundaries', async () => {
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -297,22 +289,39 @@ describe('ReactRefreshLogBox', () => {
        ]
       `)
     } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "no",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "FunctionDefault.js (1:51) @ FunctionDefault
-       > 1 | export default function FunctionDefault() { throw new Error('no'); }
-           |                                                   ^",
-         "stack": [
-           "FunctionDefault FunctionDefault.js (1:51)",
-           "Set.forEach <anonymous>",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
-      `)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+         > 1 | export default function FunctionDefault() { throw new Error('no'); }
+             |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+             "Set.forEach <anonymous>",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+         > 1 | export default function FunctionDefault() { throw new Error('no'); }
+             |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+             "Set.forEach <anonymous>",
+           ],
+         }
+        `)
+      }
     }
   })
 
@@ -417,7 +426,7 @@ describe('ReactRefreshLogBox', () => {
     }
   })
 
-  test('conversion to class component (1)', async () => {
+  it('conversion to class component (1)', async () => {
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -462,7 +471,6 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
@@ -498,22 +506,39 @@ describe('ReactRefreshLogBox', () => {
        ]
       `)
     } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "Child.js (4:11) @ ClickCount.render
-       > 4 |     throw new Error()
-           |           ^",
-         "stack": [
-           "ClickCount.render Child.js (4:11)",
-           "Set.forEach <anonymous>",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
-      `)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+         > 4 |     throw new Error()
+             |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+             "Set.forEach <anonymous>",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+         > 4 |     throw new Error()
+             |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+             "Set.forEach <anonymous>",
+           ],
+         }
+        `)
+      }
     }
 
     await session.patch(

@@ -70,20 +70,39 @@ describe.each(
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
-        await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-           "environmentLabel": "Server",
-           "label": "Console Error",
-           "source": "app/client.tsx (5:16) @ SyncIO
-         > 5 |   const data = new Date().toISOString()
-             |                ^",
-           "stack": [
-             "SyncIO app/client.tsx (5:16)",
-             "LogSafely <anonymous>",
-           ],
-         }
-        `)
+        if (isTurbopack) {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/client.tsx (5:16)",
+               "<FIXME-file-protocol>",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
+        } else {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/client.tsx (5:16)",
+               "Page app/page.tsx (22:9)",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
+        }
       })
     } else {
       it('should error the build with a reason related to sync IO access', async () => {
@@ -109,6 +128,7 @@ describe.each(
                6 |
                7 |   return (
                8 |     <main>
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -118,6 +138,9 @@ describe.each(
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                  at a (<next-dist-dir>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
@@ -134,6 +157,7 @@ describe.each(
                6 |
                7 |   return (
                8 |     <main>
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -143,6 +167,9 @@ describe.each(
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                  at a (<next-dist-dir>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
@@ -170,22 +197,18 @@ describe.each(
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
+        // TODO(veil): Source mapping breaks due to double-encoding of the
+        // square brackets.
         if (isTurbopack) {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
              "environmentLabel": "Server",
              "label": "Console Error",
              "source": null,
              "stack": [
                "<FIXME-file-protocol>",
-               "section <anonymous>",
-               "main <anonymous>",
                "<FIXME-file-protocol>",
-               "main <anonymous>",
-               "body <anonymous>",
-               "html <anonymous>",
-               "Root [Server] <anonymous>",
                "LogSafely <anonymous>",
              ],
            }
@@ -193,7 +216,7 @@ describe.each(
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
              "environmentLabel": "Server",
              "label": "Console Error",
              "source": "app/page.tsx (33:16) @ RequestData
@@ -201,13 +224,7 @@ describe.each(
                 |                ^",
              "stack": [
                "RequestData app/page.tsx (33:16)",
-               "section <anonymous>",
-               "main <anonymous>",
                "Page app/page.tsx (27:9)",
-               "main <anonymous>",
-               "body <anonymous>",
-               "html <anonymous>",
-               "Root [Server] <anonymous>",
                "LogSafely <anonymous>",
              ],
            }
@@ -229,13 +246,14 @@ describe.each(
         if (isTurbopack) {
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at section (<anonymous>)
                  at main (<anonymous>)
                  at RenderFromTemplateContext (<anonymous>)
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -243,7 +261,7 @@ describe.each(
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at a (<anonymous>)
                  at main (<anonymous>)
                  at b (<next-dist-dir>)
@@ -260,6 +278,9 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
@@ -267,7 +288,7 @@ describe.each(
         } else {
           if (inPrerenderDebugMode) {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at section (<anonymous>)
                  at main (<anonymous>)
                  at InnerLayoutRouter (webpack://<next-src>)
@@ -291,6 +312,7 @@ describe.each(
                335 |   segmentPath,
                336 |   cacheNode,
                337 |   url,
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -298,7 +320,7 @@ describe.each(
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+             "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at a (<anonymous>)
                  at main (<anonymous>)
                  at b (<next-dist-dir>)
@@ -315,6 +337,9 @@ describe.each(
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
@@ -342,20 +367,39 @@ describe.each(
       it('should show a collapsed redbox error', async () => {
         const browser = await next.browser('/')
 
-        await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-           "environmentLabel": "Server",
-           "label": "Console Error",
-           "source": "app/client.tsx (5:16) @ SyncIO
-         > 5 |   const data = new Date().toISOString()
-             |                ^",
-           "stack": [
-             "SyncIO app/client.tsx (5:16)",
-             "LogSafely <anonymous>",
-           ],
-         }
-        `)
+        if (isTurbopack) {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/client.tsx (5:16)",
+               "<FIXME-file-protocol>",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
+        } else {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/client.tsx (5:16) @ SyncIO
+           > 5 |   const data = new Date().toISOString()
+               |                ^",
+             "stack": [
+               "SyncIO app/client.tsx (5:16)",
+               "Page app/page.tsx (22:9)",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
+        }
       })
     } else {
       it('should error the build with a reason related to sync IO access', async () => {
@@ -381,6 +425,7 @@ describe.each(
                6 |
                7 |   return (
                8 |     <main>
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -390,6 +435,9 @@ describe.each(
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                  at a (<next-dist-dir>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)
@@ -406,6 +454,7 @@ describe.each(
                6 |
                7 |   return (
                8 |     <main>
+             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
 
              > Export encountered errors on following paths:
@@ -415,6 +464,9 @@ describe.each(
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                  at a (<next-dist-dir>)
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /page: /, exiting the build."
             `)

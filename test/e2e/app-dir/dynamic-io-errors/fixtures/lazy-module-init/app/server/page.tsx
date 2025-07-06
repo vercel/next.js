@@ -4,14 +4,13 @@ export default async function Page() {
   return (
     <>
       <p>
-        This page requires a module lazily during rendering. The Module computes
-        a "static" id using the current time and a random number. If these APIs
-        are used while prerendering they would normally trigger a synchronous
-        dynamic bailout. However since these APIs are used in module scope they
-        are not semantically part of the render and should be usable like other
-        "static" values. We demonstrate this with this fixture by asserting that
-        this page still produces a static result and it does not warn for
-        reading current time and random in a prerender.
+        This page has several client modules that have sync IO in the module
+        scope that will run in serial when prerendering to HTML. The point of
+        this test is to assert that the serial nature does not lead to
+        unexpected sync IO errors. In the past this particular setup would show
+        up as a sync IO error because the later modules did not initialize
+        during the prospective render and thus appeared to use sync IO when
+        being initialized during the final render.
       </p>
       <BuildID />
     </>
