@@ -292,7 +292,7 @@ We recommend setting a high revalidation time. For instance, 1 hour instead of 1
 
 For a more precise method of revalidation, invalidate pages on-demand with the `revalidatePath` function.
 
-For example, this Server Action would get called after adding a new post. Regardless of how you retrieve your data in your Server Component, either using `fetch` or connecting to a database, this will immediately clear the cache for the entire route. Unlike time-based revalidation, the next request won't return stale data but will serve the updated version right away and cache it for subsequent requests.
+For example, this Server Action would get called after adding a new post. Regardless of how you retrieve your data in your Server Component, either using `fetch` or connecting to a database, this will immediately clear the cache for the entire route. Unlike time-based revalidation, the next request after on-demand revalidation won't return stale data but will serve the updated version right away and cache it for subsequent requests.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
