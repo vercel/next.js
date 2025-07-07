@@ -227,8 +227,7 @@ pub struct WebpackStatsAsset {
 pub struct WebpackStatsChunk {
     /// Indicates whether or not the chunk went through Code Generation
     pub rendered: bool,
-    /// Indicates whether this chunk is loaded on initial page load or [on
-    /// demand](/guides/lazy-loading)
+    /// Indicates whether this chunk is loaded on initial page load or lazily.
     pub initial: bool,
     /// Indicates whether or not the chunk contains the webpack runtime
     pub entry: bool,
