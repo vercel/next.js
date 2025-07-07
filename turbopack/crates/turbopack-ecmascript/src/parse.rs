@@ -27,7 +27,7 @@ use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, util::WrapFuture};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
-use turbo_tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash64_oneshot};
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
@@ -221,7 +221,7 @@ async fn parse_internal(
     let fs_path_vc = source.ident().path().await?.clone_value();
     let fs_path = fs_path_vc.clone();
     let ident = &*source.ident().to_string().await?;
-    let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;
+    let file_path_hash = hash_xxh3_hash64_oneshot(&*source.ident().to_string().await?) as u128;
     let content = match content.await {
         Ok(content) => content,
         Err(error) => {

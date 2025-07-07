@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash64_oneshot};
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingType, module_id_strategies::GlobalModuleIdStrategy},
     ident::AssetIdent,
@@ -54,7 +54,7 @@ pub async fn get_global_module_id_strategy(
             .map(|ident| async move {
                 let ident = ident.to_resolved().await?;
                 let ident_str = ident.to_string().await?;
-                let hash = hash_xxh3_hash64(&ident_str);
+                let hash = hash_xxh3_hash64_oneshot(&ident_str);
                 Ok((ident, (ident_str, hash)))
             })
             .try_join()

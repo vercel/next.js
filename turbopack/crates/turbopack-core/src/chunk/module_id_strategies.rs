@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_hash::hash_xxh3_hash64_oneshot;
 
 use super::ModuleId;
 use crate::{
@@ -76,7 +76,7 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
         }
 
         Ok(ModuleId::String(
-            hash_xxh3_hash64(ident.to_string().await?)
+            hash_xxh3_hash64_oneshot(&*ident.to_string().await?)
                 .to_string()
                 .into(),
         )
