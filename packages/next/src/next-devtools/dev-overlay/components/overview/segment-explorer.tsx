@@ -10,8 +10,12 @@ import {
 } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
 import { useRef, useState } from 'react'
-
-const BUILTIN_PREFIX = '__next_builtin__'
+import {
+  BOUNDARY_PREFIX,
+  BUILTIN_PREFIX,
+  isBoundaryFile,
+  normalizeBoundaryFilename,
+} from '../../../../server/app-render/segment-explorer-path'
 
 const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
@@ -142,12 +146,13 @@ function PageSegmentTreeLayerPresentation({
   filesChildrenKeys.forEach((childKey) => {
     const childNode = node.children[childKey]
     if (!childNode || !childNode.value) return
-    if (childNode.value.type.startsWith('boundary:')) {
-      const boundaryType = childNode.value.type.split(':')[1] as
-        | 'not-found'
-        | 'loading'
-        | 'error'
-      boundaries[boundaryType] = childNode.value.pagePath || null
+    if (isBoundaryFile(childNode.value.type)) {
+      const boundaryType = childNode.value.type.replace(BOUNDARY_PREFIX, '')
+
+      if (boundaryType in boundaries) {
+        boundaries[boundaryType as keyof typeof boundaries] =
+          childNode.value.pagePath || null
+      }
     }
   })
 
@@ -184,13 +189,13 @@ function PageSegmentTreeLayerPresentation({
                     }
                     // If it's boundary node, which marks the existence of the boundary not the rendered status,
                     // we don't need to present in the rendered files.
-                    if (childNode.value.type.startsWith('boundary:')) {
+                    if (isBoundaryFile(childNode.value.type)) {
                       return null
                     }
                     const filePath = childNode.value.pagePath
                     const lastSegment = filePath.split('/').pop() || ''
                     const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
-                    const fileName = lastSegment.replace(BUILTIN_PREFIX, '')
+                    const fileName = normalizeBoundaryFilename(lastSegment)
 
                     return (
                       <span
