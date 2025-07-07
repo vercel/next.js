@@ -26,12 +26,12 @@ jobs:
         with:
           # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
           # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
-          token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
 
       - name: Set Git author
         run: |
-          git config user.name "nextjs-bot"
-          git config user.email "it+nextjs-bot@vercel.com"
+          git config user.name "vercel-release-bot"
+          git config user.email "infra+release@vercel.com"
 
       - name: Setup node
         uses: actions/setup-node@v4
@@ -53,4 +53,4 @@ jobs:
         shell: bash
         run: pnpm sync-react --actor "${{ github.actor }}" --commit --create-pull --version "${{ inputs.version }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
