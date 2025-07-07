@@ -143,22 +143,27 @@ fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
     ));
     RUNTIME
         .block_on(async {
-            tt.run_once(async move {
-                let it = Vc::cell(State::new(0));
-                let task = run_task(spec.clone(), it, 0);
-                task.strongly_consistent().await?;
-                for i in 1..iterations {
+            for i in 0..iterations {
+                let spec = spec.clone();
+                tt.run_once(async move {
+                    let it = create_state().resolve().await?;
                     it.await?.set(i);
+                    let task = run_task(spec.clone(), it, 0);
                     task.strongly_consistent().await?;
-                }
-                Ok(())
-            })
-            .await?;
+                    Ok(())
+                })
+                .await?;
+            }
             tt.stop_and_wait().await;
             drop(tt);
             anyhow::Ok(())
         })
         .unwrap();
+}
+
+#[turbo_tasks::function]
+fn create_state() -> Vc<Iteration> {
+    Vc::cell(State::new(0))
 }
 
 #[turbo_tasks::function]
