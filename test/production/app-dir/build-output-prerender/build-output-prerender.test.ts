@@ -31,6 +31,9 @@ describe('build-output-prerender', () => {
         expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
          "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
              at x (<next-dist-dir>)
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
          Export encountered an error on /client/page: /client, exiting the build."
         `)
@@ -38,6 +41,9 @@ describe('build-output-prerender', () => {
         expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
          "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
              at x (<next-dist-dir>)
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
          Export encountered an error on /client/page: /client, exiting the build."
         `)
@@ -91,6 +97,7 @@ describe('build-output-prerender', () => {
              |                           ^
            5 | }
            6 |
+         To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
          Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
          Error: Route "/server" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
              at Page (turbopack:///[project]/app/server/page.tsx:13:26)
@@ -100,6 +107,7 @@ describe('build-output-prerender', () => {
               |                          ^
            14 | }
            15 |
+         To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
          Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
 
          > Export encountered errors on following paths:
@@ -116,6 +124,7 @@ describe('build-output-prerender', () => {
              |                           ^
            5 | }
            6 |
+         To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
          Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
          Error: Route "/server" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
              at Page (webpack:///app/server/page.tsx:13:26)
@@ -125,6 +134,7 @@ describe('build-output-prerender', () => {
               |                          ^
            14 | }
            15 |
+         To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/server" in your browser to investigate the error.
          Error occurred prerendering page "/server". Read more: https://nextjs.org/docs/messages/prerender-error
 
          > Export encountered errors on following paths:

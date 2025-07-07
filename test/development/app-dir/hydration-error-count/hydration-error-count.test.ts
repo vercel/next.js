@@ -34,7 +34,7 @@ describe('hydration-error-count', () => {
      > 6 |       <p>nest</p>
          |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/bad-nesting/page.tsx (6:7)",
          ],
        },
@@ -46,7 +46,7 @@ describe('hydration-error-count', () => {
      > 6 |       <p>nest</p>
          |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/bad-nesting/page.tsx (6:7)",
          ],
        },
@@ -82,7 +82,7 @@ describe('hydration-error-count', () => {
      > 4 |   return <p>{typeof window === 'undefined' ? 'server' : 'client'}</p>
          |          ^",
        "stack": [
-         "p <anonymous> (0:0)",
+         "p <anonymous>",
          "Page app/html-diff/page.tsx (4:10)",
        ],
      }
@@ -118,7 +118,7 @@ describe('hydration-error-count', () => {
      > 10 |       <p>nest</p>
           |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/two-issues/page.tsx (10:7)",
          ],
        },
@@ -147,7 +147,7 @@ describe('hydration-error-count', () => {
      > 10 |       <p>nest</p>
           |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/two-issues/page.tsx (10:7)",
          ],
        },
@@ -184,7 +184,7 @@ describe('hydration-error-count', () => {
      > 12 |       sneaky <p>very sneaky</p>
           |              ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/hydration-with-runtime-errors/page.tsx (12:14)",
          ],
        },
@@ -196,7 +196,7 @@ describe('hydration-error-count', () => {
      > 12 |       sneaky <p>very sneaky</p>
           |              ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/hydration-with-runtime-errors/page.tsx (12:14)",
          ],
        },

@@ -560,7 +560,7 @@ impl<T> ValueDebugFormat for Vc<T>
 where
     T: Upcast<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         ValueDebugFormatString::Async(Box::pin(async move {
             Ok({
                 let vc_value_debug = Vc::upcast::<Box<dyn ValueDebug>>(*self);

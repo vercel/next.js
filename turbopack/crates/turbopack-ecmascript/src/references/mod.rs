@@ -243,7 +243,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_references_rewritten: Default::default(),
             esm_references_free_var: Default::default(),
             code_gens: Default::default(),
-            exports: EcmascriptExports::None,
+            exports: EcmascriptExports::Unknown,
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,

@@ -35,6 +35,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        export_usage::compute_export_usage_info,
     },
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -314,6 +315,9 @@ async fn build_internal(
             .to_resolved()
             .await?,
     );
+    let export_usage = compute_export_usage_info(module_graph.to_resolved().await?)
+        .resolve_strongly_consistent()
+        .await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
         Target::Browser => {
@@ -339,6 +343,7 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
+            .export_usage(Some(export_usage))
             .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
@@ -386,6 +391,7 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
+            .export_usage(Some(export_usage))
             .minify_type(minify_type);
 
             match *node_env.await? {

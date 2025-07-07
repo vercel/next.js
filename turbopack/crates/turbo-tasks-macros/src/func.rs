@@ -45,7 +45,7 @@ impl TurboFn<'_> {
         orig_signature: &Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
-    ) -> Option<TurboFn> {
+    ) -> Option<TurboFn<'_>> {
         if !orig_signature.generics.params.is_empty() {
             orig_signature
                 .generics

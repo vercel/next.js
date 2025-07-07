@@ -73,7 +73,6 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-bitvec = "1.0.1"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

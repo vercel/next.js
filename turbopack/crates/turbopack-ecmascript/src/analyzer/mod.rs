@@ -118,7 +118,7 @@ impl ConstantString {
         }
     }
 
-    pub fn as_atom(&self) -> Cow<Atom> {
+    pub fn as_atom(&self) -> Cow<'_, Atom> {
         match self {
             Self::Atom(s) => Cow::Borrowed(s),
             Self::RcStr(s) => Cow::Owned(s.as_str().into()),

@@ -264,6 +264,14 @@ export interface RenderOptsPartial {
   isDebugDynamicAccesses?: boolean
 
   /**
+   * This is true when:
+   * - source maps are generated
+   * - source maps are applied
+   * - minification is disabled
+   */
+  hasReadableErrorStacks?: boolean
+
+  /**
    * The maximum length of the headers that are emitted by React and added to
    * the response.
    */

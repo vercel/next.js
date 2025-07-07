@@ -8,7 +8,7 @@ import {
   SegmentBoundaryTrigger,
   styles as segmentBoundaryTriggerStyles,
 } from './segment-boundary-trigger'
-import { Tooltip, styles as tooltipStyles } from '../../../components/tooltip'
+import { Tooltip } from '../../../components/tooltip'
 import { useRef, useState } from 'react'
 
 const BUILTIN_PREFIX = '__next_builtin__'
@@ -258,6 +258,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     font-weight: 500;
     color: var(--color-gray-1000);
     font-family: var(--font-mono);
+    white-space: nowrap;
   }
 
   .segment-explorer-item {
@@ -365,8 +366,6 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   }
 
   ${segmentBoundaryTriggerStyles}
-
-  ${tooltipStyles}
 `
 
 function openInEditor({ filePath }: { filePath: string }) {

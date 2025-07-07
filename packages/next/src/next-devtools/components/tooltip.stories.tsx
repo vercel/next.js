@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { Tooltip, styles } from './tooltip'
+import { Tooltip } from './tooltip'
 
 const meta: Meta<typeof Tooltip> = {
   title: 'DevTools/Tooltip',
@@ -57,7 +57,6 @@ export const Default: Story = {
   },
   render: (args) => (
     <div>
-      <style dangerouslySetInnerHTML={{ __html: styles }} />
       <Tooltip {...args}>
         <button
           style={{
@@ -88,7 +87,6 @@ export const AllDirections: Story = {
   },
   render: () => (
     <div>
-      <style dangerouslySetInnerHTML={{ __html: styles }} />
       <div
         style={{
           display: 'grid',
@@ -201,7 +199,6 @@ export const DifferentTriggers: Story = {
   },
   render: () => (
     <div>
-      <style dangerouslySetInnerHTML={{ __html: styles }} />
       <div
         style={{
           display: 'flex',
@@ -288,7 +285,6 @@ export const LongText: Story = {
   },
   render: (args) => (
     <div>
-      <style dangerouslySetInnerHTML={{ __html: styles }} />
       <Tooltip {...args}>
         <button
           style={{

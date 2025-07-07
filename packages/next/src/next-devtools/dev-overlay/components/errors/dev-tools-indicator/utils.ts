@@ -91,7 +91,14 @@ export function useClickOutside(
       return
     }
 
+    const ownerDocument = rootRef.current?.ownerDocument
+
     function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement
+      if (rootRef.current && rootRef.current.contains(target)) {
+        return
+      }
+
       if (
         !(rootRef.current?.getBoundingClientRect()
           ? event.clientX >= rootRef.current.getBoundingClientRect()!.left &&
@@ -117,12 +124,12 @@ export function useClickOutside(
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
+    ownerDocument?.addEventListener('mousedown', handleClickOutside)
+    ownerDocument?.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
+      ownerDocument?.removeEventListener('mousedown', handleClickOutside)
+      ownerDocument?.removeEventListener('keydown', handleKeyDown)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active])
