@@ -7,7 +7,7 @@ type TooltipDirection = 'top' | 'bottom' | 'left' | 'right'
 
 interface TooltipProps {
   children: React.ReactNode
-  title: string
+  title: string | null
   direction?: TooltipDirection
   container?: HTMLElement | React.RefObject<HTMLElement>
   arrowSize?: number
@@ -32,6 +32,9 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
     },
     ref
   ) {
+    if (!title) {
+      return children
+    }
     return (
       <BaseTooltip.Provider>
         <BaseTooltip.Root delay={0}>
