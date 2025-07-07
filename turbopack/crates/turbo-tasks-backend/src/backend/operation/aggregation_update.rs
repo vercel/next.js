@@ -346,10 +346,10 @@ impl AggregatedDataUpdate {
                 {
                     // When the current task is no longer dirty, we need to fire the
                     // aggregate root events and do some cleanup
-                    if let Some(root_state) = get_mut!(task, Activeness) {
-                        root_state.all_clean_event.notify(usize::MAX);
-                        root_state.unset_active_until_clean();
-                        if root_state.is_empty() {
+                    if let Some(activeness_state) = get_mut!(task, Activeness) {
+                        activeness_state.all_clean_event.notify(usize::MAX);
+                        activeness_state.unset_active_until_clean();
+                        if activeness_state.is_empty() {
                             task.remove(&CachedDataItemKey::Activeness {});
                         }
                     }
