@@ -1,3 +1,4 @@
+import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   type HMR_ACTION_TYPES,
@@ -28,6 +29,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
     if (source) source.close()
 
     function handleOnline() {
+      logQueue.onSocketReady(source)
       reconnections = 0
       window.console.log('[HMR] connected')
     }

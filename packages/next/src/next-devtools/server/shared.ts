@@ -15,7 +15,7 @@ export type OriginalStackFrameResponseResult =
   PromiseSettledResult<OriginalStackFrameResponse>
 
 export interface OriginalStackFrameResponse {
-  originalStackFrame?: (StackFrame & { ignored: boolean }) | null
+  originalStackFrame: (StackFrame & { ignored: boolean }) | null
   originalCodeFrame?: string | null
 }
 
