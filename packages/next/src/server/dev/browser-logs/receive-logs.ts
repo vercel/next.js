@@ -106,7 +106,6 @@ const colorError = (
         `\n${colorFn(mapped.stack)}\n${mapped.frameCode}`
       )
     }
-    // we don't want to echo the gunk if it's just
     // a more sophisticated version of this allows the user to config if they want ignored frames (but we need to be sure to source map them)
     case 'all-ignored': {
       return config?.prefix ? colorFn(config?.prefix) : ''
