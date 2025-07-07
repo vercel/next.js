@@ -40,7 +40,6 @@ use turbopack_core::{
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
-    reference::{ModuleReference, TracedModuleReference},
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
         InnerAssets, ReferenceType,
@@ -792,24 +791,14 @@ impl AssetContext for ModuleAssetContext {
                         ResolveResultItem::External { name, ty, traced } => {
                             let replacement = if replace_externals {
                                 let tracing_mode = if traced == ExternalTraced::Traced
-                                    && let Some(tracing_root) = self
+                                    && let Some(tracing_root) = &self
                                         .module_options_context()
                                         .await?
                                         .enable_externals_tracing
-                                        .clone()
                                 {
-                                    // TODO need to be attatched somewhere
-
-                                    // These are all files that are need to resolve the external
-                                    // itself, i.e. aliases etc.
-                                    let _modules = affecting_sources
-                                        .iter()
-                                        .map(|s| Vc::upcast::<Box<dyn Module>>(RawModule::new(**s)))
-                                        .map(|s| {
-                                            Vc::upcast::<Box<dyn ModuleReference>>(
-                                                TracedModuleReference::new(s),
-                                            )
-                                        });
+                                    // result.affecting_sources can be ignored for tracing, as this
+                                    // request will later be resolved relative to tracing_root
+                                    // anyway
 
                                     CachedExternalTracingMode::Traced {
                                         externals_context: ResolvedVc::upcast(

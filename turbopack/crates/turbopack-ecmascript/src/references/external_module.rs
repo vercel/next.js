@@ -58,6 +58,8 @@ pub enum CachedExternalType {
 #[derive(
     Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, TaskInput, Hash, NonLocalValue,
 )]
+/// Whether to add a traced reference to the external module using the given context and resolve
+/// origin.
 pub enum CachedExternalTracingMode {
     Untraced,
     Traced {
