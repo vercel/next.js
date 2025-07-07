@@ -218,26 +218,22 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
     }
 
     fn edges(&mut self, node: &FindServerEntriesNode) -> Self::EdgesFuture {
-        let node = node.clone();
         let include_traced = self.include_traced;
+        let parent_module = match node {
+            // This should never occur since we always skip visiting these
+            // nodes' edges.
+            FindServerEntriesNode::ClientReference => {
+                unreachable!("ClientReference node should not be visited")
+            }
+            FindServerEntriesNode::Internal(module, _) => **module,
+            FindServerEntriesNode::ServerUtilEntry(module, _) => Vc::upcast(**module),
+            FindServerEntriesNode::ServerComponentEntry(module, _) => Vc::upcast(**module),
+        };
         async move {
-            let parent_module = match node {
-                // This should never occur since we always skip visiting these
-                // nodes' edges.
-                FindServerEntriesNode::ClientReference => {
-                    unreachable!("ClientReference node should not be visited")
-                }
-                FindServerEntriesNode::Internal(module, _) => module,
-                FindServerEntriesNode::ServerUtilEntry(module, _) => ResolvedVc::upcast(module),
-                FindServerEntriesNode::ServerComponentEntry(module, _) => {
-                    ResolvedVc::upcast(module)
-                }
-            };
-
             // Pass include_traced to reuse the same cached `primary_chunkable_referenced_modules`
             // task result, but the traced references will be filtered out again afterwards.
             let referenced_modules =
-                primary_chunkable_referenced_modules(*parent_module, include_traced).await?;
+                primary_chunkable_referenced_modules(parent_module, include_traced).await?;
 
             let referenced_modules = referenced_modules
                 .iter()

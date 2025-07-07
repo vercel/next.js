@@ -16,7 +16,6 @@ use turbopack_core::{
     },
     environment::Rendering,
     issue::IssueSource,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
@@ -173,7 +172,6 @@ impl UrlAssetReferenceCodeGen {
     */
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];

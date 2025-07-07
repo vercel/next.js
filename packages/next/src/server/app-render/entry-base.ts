@@ -10,6 +10,9 @@ export {
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
 
+// eslint-disable-next-line import/no-extraneous-dependencies
+export { captureOwnerStack } from 'react'
+
 export { default as LayoutRouter } from '../../client/components/layout-router'
 export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'
 export { workAsyncStorage } from '../app-render/work-async-storage.external'

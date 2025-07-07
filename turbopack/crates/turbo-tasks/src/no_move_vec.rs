@@ -46,25 +46,6 @@ impl<T> COption<T> {
             COption::Some(t) => Some(t),
         }
     }
-
-    /// Takes the value out of the option, leaving a `None` in its place.
-    fn take(&mut self) -> Option<T> {
-        match std::mem::take(self) {
-            COption::None => None,
-            COption::Some(t) => Some(t),
-        }
-    }
-}
-
-impl<T: Default> COption<T> {
-    /// Returns a slice of the given size filled with the `Some` variant and
-    /// filled with default values.
-    fn new_default_slice(size: usize) -> Box<[Self]> {
-        (0..size)
-            .map(|_| COption::Some(Default::default()))
-            .collect::<Vec<_>>()
-            .into_boxed_slice()
-    }
 }
 
 pub struct NoMoveVec<T, const INITIAL_CAPACITY_BITS: u32 = 6> {
@@ -98,15 +79,6 @@ fn allocate_bucket<const INITIAL_CAPACITY_BITS: u32, T>(bucket_index: u32) -> *m
     Box::into_raw(slice) as *mut COption<T>
 }
 
-/// Allocates a new bucket of `COption<T>`s, all initialized to `None`.
-fn allocate_default_bucket<const INITIAL_CAPACITY_BITS: u32, T: Default>(
-    bucket_index: u32,
-) -> *mut COption<T> {
-    let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_index);
-    let slice = COption::<T>::new_default_slice(size);
-    Box::into_raw(slice) as *mut COption<T>
-}
-
 impl<T, const INITIAL_CAPACITY_BITS: u32> Default for NoMoveVec<T, INITIAL_CAPACITY_BITS> {
     fn default() -> Self {
         Self::new()
@@ -131,23 +103,6 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
         }
         let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
         unsafe { &*bucket_ptr.add(index) }.as_option_ref()
-    }
-
-    /// # Safety
-    /// There must not be a concurrent operation to this idx
-    pub unsafe fn take(&self, idx: usize) -> Option<T> {
-        let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
-        let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
-        let bucket_ptr = bucket.0.load(Ordering::Acquire);
-        if bucket_ptr.is_null() {
-            return None;
-        }
-        let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
-        let item = unsafe { &mut *bucket_ptr.add(index) };
-        let item = item.take();
-        // To sync with any acquire load of the bucket ptr
-        bucket.0.store(bucket_ptr, Ordering::Release);
-        item
     }
 
     /// # Safety
@@ -189,68 +144,6 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
         // To sync with any acquire load of the bucket ptr
         bucket.0.store(bucket_ptr, Ordering::Release);
         item.as_option_ref().unwrap()
-    }
-
-    /// # Safety
-    /// There must not be a concurrent operation to this idx
-    pub unsafe fn remove(&self, idx: usize) {
-        let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
-        let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
-        let bucket_ptr = bucket.0.load(Ordering::Acquire);
-        if bucket_ptr.is_null() {
-            return;
-        }
-        let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
-        let item = unsafe { &mut *bucket_ptr.add(index) };
-        *item = COption::None;
-        // To sync with any acquire load of the bucket ptr
-        bucket.0.store(bucket_ptr, Ordering::Release);
-    }
-}
-
-impl<T: Default, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
-    pub fn new_init_default() -> Self {
-        let mut buckets = [null_mut(); BUCKETS];
-        buckets[0] = allocate_default_bucket::<INITIAL_CAPACITY_BITS, T>(0);
-        let buckets = buckets.map(|p| (AtomicPtr::new(p), Mutex::new(())));
-        NoMoveVec { buckets }
-    }
-
-    pub fn get_init_default(&self, idx: usize) -> &T {
-        let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
-        let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
-        // SAFETY: This is safe to be relaxed as the bucket will never become null
-        // again. We perform a acquire load when it's null.
-        let mut bucket_ptr = bucket.0.load(Ordering::Relaxed);
-        if bucket_ptr.is_null() {
-            bucket_ptr = bucket.0.load(Ordering::Acquire);
-            if bucket_ptr.is_null() {
-                let lock = bucket.1.lock();
-                let guarded_bucket_ptr = bucket.0.load(Ordering::Acquire);
-                if guarded_bucket_ptr.is_null() {
-                    let new_bucket =
-                        allocate_default_bucket::<INITIAL_CAPACITY_BITS, T>(bucket_idx);
-                    bucket_ptr = match bucket.0.compare_exchange(
-                        null_mut(),
-                        new_bucket,
-                        Ordering::AcqRel,
-                        Ordering::Relaxed,
-                    ) {
-                        Ok(_) => new_bucket,
-                        Err(current_bucket) => {
-                            drop(unsafe { Box::from_raw(new_bucket) });
-                            current_bucket
-                        }
-                    };
-                    drop(lock);
-                } else {
-                    bucket_ptr = guarded_bucket_ptr;
-                }
-            }
-        }
-        let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
-        let value = unsafe { &*bucket_ptr.add(index) }.as_option_ref();
-        value.expect("get_init_default must not be combined with normal insert")
     }
 }
 

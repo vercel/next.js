@@ -43,6 +43,7 @@ use crate::{
 
 pub mod async_module_info;
 pub mod chunk_group_info;
+pub mod export_usage;
 pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
@@ -399,7 +400,19 @@ impl SingleModuleGraph {
         })
     }
 
-    /// Iterate over all nodes in the graph
+    /// Returns true if the given module is in this graph and is an entry module
+    pub fn has_entry_module(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
+        if let Some(index) = self.modules.get(&module) {
+            self.graph
+                .edges_directed(*index, petgraph::Direction::Incoming)
+                .next()
+                .is_none()
+        } else {
+            false
+        }
+    }
+
+    /// Iterate over graph entry points
     pub fn entry_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.entries.iter().flat_map(|e| e.entries())
     }

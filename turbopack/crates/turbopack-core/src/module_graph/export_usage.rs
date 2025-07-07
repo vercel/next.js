@@ -1,43 +1,23 @@
 //! Intermediate tree shaking that uses global information but not good as the full tree shaking.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack_core::{module_graph::ModuleGraph, resolve::ExportUsage};
 
-use crate::chunk::EcmascriptChunkPlaceable;
-
-#[turbo_tasks::function]
-pub async fn get_module_export_usages(
-    graph: ResolvedVc<ModuleGraph>,
-    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-) -> Result<Vc<ModuleExportUsageInfo>> {
-    let export_usage_info = compute_export_usage_info(graph)
-        .resolve_strongly_consistent()
-        .await?;
-
-    let export_usage_info = export_usage_info.await?;
-
-    let Some(exports) = export_usage_info.used_exports.get(&module) else {
-        // We exclude template files from tree shaking because they are entrypoints to the module
-        // graph.
-        return Ok(ModuleExportUsageInfo::All.cell());
-    };
-
-    Ok(exports.clone().cell())
-}
+use crate::{module::Module, module_graph::ModuleGraph, resolve::ExportUsage};
 
 #[turbo_tasks::function(operation)]
-async fn compute_export_usage_info(graph: ResolvedVc<ModuleGraph>) -> Result<Vc<ExportUsageInfo>> {
+pub async fn compute_export_usage_info(
+    graph: ResolvedVc<ModuleGraph>,
+) -> Result<Vc<ExportUsageInfo>> {
     let mut used_exports = FxHashMap::<_, ModuleExportUsageInfo>::default();
 
     graph
         .await?
         .traverse_all_edges_unordered(|(_, ref_data), target| {
-            if let Some(target_module) =
-                ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(target.module)
+            if let Some(target_module) = ResolvedVc::try_downcast::<Box<dyn Module>>(target.module)
             {
                 let e = used_exports.entry(target_module).or_default();
 
@@ -46,25 +26,47 @@ async fn compute_export_usage_info(graph: ResolvedVc<ModuleGraph>) -> Result<Vc<
 
             Ok(())
         })
-        .await
-        .context("failed to traverse module graph")?;
+        .await?;
 
     Ok(ExportUsageInfo { used_exports }.cell())
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionExportUsageInfo(Option<ResolvedVc<ExportUsageInfo>>);
+
 #[turbo_tasks::value]
-#[derive(Default)]
 pub struct ExportUsageInfo {
-    used_exports: FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, ModuleExportUsageInfo>,
+    used_exports: FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsageInfo>,
+}
+
+impl ExportUsageInfo {
+    pub fn used_exports(&self, module: ResolvedVc<Box<dyn Module>>) -> Vc<ModuleExportUsageInfo> {
+        if let Some(exports) = self.used_exports.get(&module) {
+            exports.clone().cell()
+        } else {
+            // We exclude template files from tree shaking because they are entrypoints to the
+            // module graph.
+            ModuleExportUsageInfo::all()
+        }
+    }
 }
 
 #[turbo_tasks::value]
 #[derive(Default, Clone)]
 pub enum ModuleExportUsageInfo {
-    All,
+    /// Only the side effects are needed, no exports is used.
     #[default]
     Evaluation,
     Exports(AutoSet<RcStr>),
+    All,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleExportUsageInfo {
+    #[turbo_tasks::function]
+    pub fn all() -> Vc<Self> {
+        ModuleExportUsageInfo::All.cell()
+    }
 }
 
 impl ModuleExportUsageInfo {

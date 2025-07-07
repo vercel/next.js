@@ -2891,10 +2891,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6033,14 +6033,21 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - client searchParams should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - cookies should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - server searchParams should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - client searchParams should show a collapsed redbox with two errors",
-      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - cookies should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - server searchParams should show a collapsed redbox error"
+      "Dynamic IO Errors - Dev Sync Dynamic - client params should return `undefined` for `params.slug`",
+      "Dynamic IO Errors - Dev Sync Dynamic - client params should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors - Dev Sync Dynamic - client searchParams should return `undefined` for `searchParams.foo`",
+      "Dynamic IO Errors - Dev Sync Dynamic - client searchParams should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors - Dev Sync Dynamic - draftMode should return `undefined` for `draftMode().isEnabled`",
+      "Dynamic IO Errors - Dev Sync Dynamic - server params should return `undefined` for `params.slug`",
+      "Dynamic IO Errors - Dev Sync Dynamic - server params should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors - Dev Sync Dynamic - server searchParams should return `undefined` for `searchParams.foo`",
+      "Dynamic IO Errors - Dev Sync Dynamic - server searchParams should show a collapsed redbox with a sync access error"
     ],
-    "failed": [],
+    "failed": [
+      "Dynamic IO Errors - Dev Sync Dynamic - cookies should show a redbox with a sync access error and a runtime error",
+      "Dynamic IO Errors - Dev Sync Dynamic - draftMode should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors - Dev Sync Dynamic - headers should show a redbox with a sync access error and a runtime error"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6094,11 +6101,9 @@
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.cookies.test.ts": {
     "passed": [
-      "dynamic-io should be able to access cookie properties asynchronously",
-      "dynamic-io should be able to access cookie properties synchronously",
+      "dynamic-io should be able to access cookie properties",
       "dynamic-io should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
-      "dynamic-io should partially prerender pages that use async cookies",
-      "dynamic-io should partially prerender pages that use sync cookies"
+      "dynamic-io should partially prerender pages that use cookies"
     ],
     "failed": [],
     "pending": [],
@@ -6132,10 +6137,8 @@
   "test/e2e/app-dir/dynamic-io/dynamic-io.headers.test.ts": {
     "passed": [
       "dynamic-io should be able to access headers properties asynchronously",
-      "dynamic-io should be able to access headers properties synchronously",
       "dynamic-io should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
-      "dynamic-io should partially prerender pages that use async headers",
-      "dynamic-io should partially prerender pages that use sync headers"
+      "dynamic-io should partially prerender pages that use headers"
     ],
     "failed": [],
     "pending": [],
@@ -6171,22 +6174,14 @@
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.params.test.ts": {
     "passed": [
-      "dynamic-io Async Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
-      "dynamic-io Async Params should fully prerender pages that check individual param keys after awaiting params in a server component",
-      "dynamic-io Async Params should partially prerender pages that await params in a server components",
-      "dynamic-io Async Params should partially prerender pages that spread `use`ed params in a client component",
-      "dynamic-io Async Params should partially prerender pages that spread awaited params in a server component",
-      "dynamic-io Async Params should partially prerender pages that use params in a client components",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
-      "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a client component",
-      "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a server component",
-      "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a client component",
-      "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a server component",
-      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a client components",
-      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a server components",
-      "dynamic-io Synchronous Params access should partially prerender pages that spread params without `use`ing them first in a client component",
-      "dynamic-io Synchronous Params access should partially prerender pages that spread params without awaiting first in a server component"
+      "dynamic-io Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
+      "dynamic-io Params should fully prerender pages that check individual param keys after awaiting params in a server component",
+      "dynamic-io Params should partially prerender pages that await params in a server components",
+      "dynamic-io Params should partially prerender pages that spread `use`ed params in a client component",
+      "dynamic-io Params should partially prerender pages that spread awaited params in a server component",
+      "dynamic-io Params should partially prerender pages that use params in a client components"
     ],
     "failed": [],
     "pending": [],
@@ -6214,8 +6209,7 @@
       "dynamic-io should prerender GET route handlers that have entirely cached io (\"use cache\")",
       "dynamic-io should prerender GET route handlers that have entirely cached io (fetches)",
       "dynamic-io should prerender GET route handlers that have entirely cached io (unstable_cache)",
-      "dynamic-io should prerender GET route handlers when accessing awaited params",
-      "dynamic-io should prerender GET route handlers when accessing params without awaiting first"
+      "dynamic-io should prerender GET route handlers when accessing params"
     ],
     "failed": [],
     "pending": [],
@@ -6226,13 +6220,7 @@
     "passed": [
       "dynamic-io should partially prerender pages that `use` searchParams in a client component",
       "dynamic-io should partially prerender pages that `use` searchParams in a server component",
-      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a client component",
-      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a server component",
-      "dynamic-io should partially prerender pages that await searchParams in a server component",
-      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a client component",
-      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a server component",
-      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a client component",
-      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a server component"
+      "dynamic-io should partially prerender pages that await searchParams in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -7292,6 +7280,16 @@
   "test/e2e/app-dir/middleware-matching/index.test.ts": {
     "passed": [
       "app dir - middleware with custom matcher should match /:id (without asterisk)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/middleware-rewrite-dynamic/middleware-rewrite-dynamic.test.ts": {
+    "passed": [
+      "app dir - middleware rewrite dynamic should properly rewrite for /favicon.ico",
+      "app dir - middleware rewrite dynamic should properly rewrite for /robots.txt"
     ],
     "failed": [],
     "pending": [],
