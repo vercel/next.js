@@ -129,31 +129,23 @@ describe(`Terminal Logging (${bundlerName})`, () => {
 
       await retry(() => {
         const logOutput = logs.join('\n')
-        expect(logOutput).toContain('Error: Client error in pages router')
-        expect(logOutput).toMatch(
-          /at throwClientError \(.*pages-client-error\.js:2:\d+\)/
-        )
-        expect(logOutput).toMatch(
-          /at callClientError \(.*pages-client-error\.js:6:\d+\)/
-        )
+        const browserErrorPattern =
+          /\[browser\] Uncaught Error: Client error in pages router\n\s+at throwClientError \(pages\/pages-client-error\.js:2:\d+\)\n\s+at callClientError \(pages\/pages-client-error\.js:6:\d+\)/
+        expect(logOutput).toMatch(browserErrorPattern)
       })
     })
 
     it('should show source-mapped errors for server errors from pages router ', async () => {
       const outputIndex = logs.length
 
-      const response = await next.fetch('/pages-server-error')
-      expect(response.status).toBe(500)
+      browser = await webdriver(next.url, '/pages-server-error')
 
       await retry(() => {
         const newLogs = logs.slice(outputIndex).join('\n')
-        expect(newLogs).toContain('Error: Server error in pages router')
-        expect(newLogs).toMatch(
-          /at throwPagesServerError \(.*pages-server-error\.js:2:\d+\)/
-        )
-        expect(newLogs).toMatch(
-          /at callPagesServerError \(.*pages-server-error\.js:6:\d+\)/
-        )
+
+        const browserErrorPattern =
+          /\[browser\] Uncaught Error: Server error in pages router\n\s+at throwPagesServerError \(pages\/pages-server-error\.js:2:\d+\)\n\s+at callPagesServerError \(pages\/pages-server-error\.js:6:\d+\)/
+        expect(newLogs).toMatch(browserErrorPattern)
       })
     })
   })
@@ -208,19 +200,17 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     it('should show source-mapped errors for server components', async () => {
       const outputIndex = logs.length
 
-      const response = await next.fetch('/server-error')
-      expect(response.status).toBe(500)
+      const browser = await webdriver(next.url, '/server-error')
 
       await retry(() => {
         const newLogs = logs.slice(outputIndex).join('\n')
-        expect(newLogs).toContain('Error: Server component error in app router')
-        expect(newLogs).toMatch(
-          /at throwServerError \(.*server-error\/page\.js:2:\d+\)/
-        )
-        expect(newLogs).toMatch(
-          /at callServerError \(.*server-error\/page\.js:6:\d+\)/
-        )
+
+        const browserErrorPattern =
+          /\[browser\] Uncaught Error: Server component error in app router\n\s+at throwServerError \(app\/server-error\/page\.js:2:\d+\)\n\s+at callServerError \(app\/server-error\/page\.js:6:\d+\)\n\s+at ServerErrorPage \(app\/server-error\/page\.js:10:\d+\)/
+        expect(newLogs).toMatch(browserErrorPattern)
       })
+
+      await browser.close()
     })
   })
 
@@ -281,15 +271,9 @@ describe(`Terminal Logging (${bundlerName})`, () => {
 
       await retry(() => {
         const logOutput = logs.join('\n')
-        expect(logOutput).toContain(
-          'Error: Client component error in app router'
-        )
-        expect(logOutput).toMatch(
-          /at throwError \(.*client-error\/page\.js:4:\d+\)/
-        )
-        expect(logOutput).toMatch(
-          /at callError \(.*client-error\/page\.js:8:\d+\)/
-        )
+        const browserErrorPattern =
+          /\[browser\] Uncaught Error: Client component error in app router\n\s+at throwError \(app\/client-error\/page\.js:4:\d+\)\n\s+at callError \(app\/client-error\/page\.js:8:\d+\)/
+        expect(logOutput).toMatch(browserErrorPattern)
       })
 
       await browser.close()
@@ -334,20 +318,9 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       await retry(() => {
         const logOutput = logs.join('\n')
 
-        expect(logOutput).toContain('Error: Deep stack error during render')
-
-        expect(logOutput).toMatch(
-          /at functionA \(.*edge-deep-stack\/page\.js:6:\d+\)/
-        )
-        expect(logOutput).toMatch(
-          /at functionB \(.*edge-deep-stack\/page\.js:10:\d+\)/
-        )
-        expect(logOutput).toMatch(
-          /at functionC \(.*edge-deep-stack\/page\.js:14:\d+\)/
-        )
-        expect(logOutput).toMatch(
-          /at EdgeDeepStackPage \(.*edge-deep-stack\/page\.js:18:\d+\)/
-        )
+        const browserErrorPattern =
+          /\[browser\] Uncaught Error: Deep stack error during render\n\s+at functionA \(app\/edge-deep-stack\/page\.js:6:\d+\)\n\s+at functionB \(app\/edge-deep-stack\/page\.js:10:\d+\)\n\s+at functionC \(app\/edge-deep-stack\/page\.js:14:\d+\)\n\s+at EdgeDeepStackPage \(app\/edge-deep-stack\/page\.js:18:\d+\)/
+        expect(logOutput).toMatch(browserErrorPattern)
       })
 
       await browser.close()
