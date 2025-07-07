@@ -1,12 +1,11 @@
-import type { OverlayState } from '../../shared'
-import type { OverlayDispatch } from '../../shared'
+import type { OverlayDispatch, OverlayState } from '../../shared'
+import type { StackFrame } from '../../../shared/stack-frame'
 
 import { useMemo, useState, useEffect } from 'react'
 import {
   getErrorByType,
   type ReadyRuntimeError,
 } from '../../utils/get-error-by-type'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { ComponentStackFrame } from '../../utils/parse-component-stack'
 import { usePersistentCacheErrorDetection } from '../../components/errors/error-overlay-toolbar/restart-server-button'
 

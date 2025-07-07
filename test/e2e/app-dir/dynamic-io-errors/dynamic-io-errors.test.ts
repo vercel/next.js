@@ -240,7 +240,7 @@ describe('Dynamic IO Errors', () => {
                  333 |  */
                  334 | function InnerLayoutRouter({
                > 335 |   tree,
-                     |  ^
+                     |   ^
                  336 |   segmentPath,
                  337 |   cacheNode,
                  338 |   url,
@@ -632,14 +632,14 @@ describe('Dynamic IO Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at IndirectionTwo (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:33)
+                   at IndirectionTwo (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
                   5 | }
                   6 |
                >  7 | export function IndirectionTwo({ children }) {
-                    |                                 ^
+                    |                                  ^
                   8 |   return children
                   9 | }
                  10 |
@@ -657,13 +657,14 @@ describe('Dynamic IO Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at c (turbopack:///[project]/app/dynamic-root/indirection.tsx:9:0)
+                   at c (turbopack:///[project]/app/dynamic-root/indirection.tsx:9:1)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
                   7 | export function IndirectionTwo({ children }) {
                   8 |   return children
                >  9 | }
+                    | ^
                  10 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
@@ -683,7 +684,7 @@ describe('Dynamic IO Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at IndirectionTwo (webpack:///app/dynamic-root/indirection.tsx:7:33)
+                   at IndirectionTwo (webpack:///app/dynamic-root/indirection.tsx:7:34)
                    at InnerLayoutRouter (webpack://<next-src>)
                    at RedirectErrorBoundary (webpack://<next-src>)
                    at RedirectBoundary (webpack://<next-src>)
@@ -711,7 +712,7 @@ describe('Dynamic IO Errors', () => {
                   5 | }
                   6 |
                >  7 | export function IndirectionTwo({ children }) {
-                    |                                 ^
+                    |                                  ^
                   8 |   return children
                   9 | }
                  10 |
@@ -744,7 +745,7 @@ describe('Dynamic IO Errors', () => {
                  333 |  */
                  334 | function InnerLayoutRouter({
                > 335 |   tree,
-                     |  ^
+                     |   ^
                  336 |   segmentPath,
                  337 |   cacheNode,
                  338 |   url,
@@ -923,12 +924,12 @@ describe('Dynamic IO Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at getRandomNumber (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:14)
-                     at RandomReadingComponent (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:40:17)
+                     at getRandomNumber (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:15)
+                     at RandomReadingComponent (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:40:18)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
-                      |              ^
+                      |               ^
                    33 | }
                    34 |
                    35 | function RandomReadingComponent() {
@@ -941,11 +942,11 @@ describe('Dynamic IO Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at f (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:14)
+                     at f (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:15)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
-                      |              ^
+                      |               ^
                    33 | }
                    34 |
                    35 | function RandomReadingComponent() {
@@ -960,12 +961,12 @@ describe('Dynamic IO Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:14)
-                     at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:17)
+                     at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:15)
+                     at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:18)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
-                      |              ^
+                      |               ^
                    33 | }
                    34 |
                    35 | function RandomReadingComponent() {
@@ -1184,12 +1185,12 @@ describe('Dynamic IO Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (turbopack:///[project]/app/sync-cookies/page.tsx:17:66)
+                     at CookiesReadingComponent (turbopack:///[project]/app/sync-cookies/page.tsx:17:67)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
                  > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                      |                                                                  ^
+                      |                                                                   ^
                    18 |   return <div>this component reads the \`token\` cookie synchronously</div>
                    19 | }
                    20 | {
@@ -1203,12 +1204,12 @@ describe('Dynamic IO Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at e (turbopack:///[project]/app/sync-cookies/page.tsx:17:66)
+                     at e (turbopack:///[project]/app/sync-cookies/page.tsx:17:67)
                      at a (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
                  > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                      |                                                                  ^
+                      |                                                                   ^
                    18 |   return <div>this component reads the \`token\` cookie synchronously</div>
                    19 | }
                    20 | {
@@ -1222,12 +1223,12 @@ describe('Dynamic IO Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (webpack:///app/sync-cookies/page.tsx:17:66)
+                     at CookiesReadingComponent (webpack:///app/sync-cookies/page.tsx:17:67)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
                  > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                      |                                                                  ^
+                      |                                                                   ^
                    18 |   return <div>this component reads the \`token\` cookie synchronously</div>
                    19 | }
                    20 | {
@@ -1409,12 +1410,12 @@ describe('Dynamic IO Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (turbopack:///[project]/app/sync-headers/page.tsx:17:69)
+                     at HeadersReadingComponent (turbopack:///[project]/app/sync-headers/page.tsx:17:70)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
                  > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                      |                                                                     ^
+                      |                                                                      ^
                    18 |     'user-agent'
                    19 |   )
                    20 |   return ( {
@@ -1428,12 +1429,12 @@ describe('Dynamic IO Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at e (turbopack:///[project]/app/sync-headers/page.tsx:17:69)
+                     at e (turbopack:///[project]/app/sync-headers/page.tsx:17:70)
                      at a (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
                  > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                      |                                                                     ^
+                      |                                                                      ^
                    18 |     'user-agent'
                    19 |   )
                    20 |   return ( {
@@ -1447,12 +1448,12 @@ describe('Dynamic IO Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (webpack:///app/sync-headers/page.tsx:17:69)
+                     at HeadersReadingComponent (webpack:///app/sync-headers/page.tsx:17:70)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
                  > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                      |                                                                     ^
+                      |                                                                      ^
                    18 |     'user-agent'
                    19 |   )
                    20 |   return ( {
@@ -1662,11 +1663,11 @@ describe('Dynamic IO Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:15)
+                     at SyncIO (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
-                     |               ^
+                     |                ^
                    6 |
                    7 |   return (
                    8 |     <main>
@@ -1679,11 +1680,11 @@ describe('Dynamic IO Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:9:6)
+                     at c (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:9:7)
                     7 |   return (
                     8 |     <main>
                  >  9 |       <h1>Sync IO Access</h1>
-                      |      ^
+                      |       ^
                    10 |       <p suppressHydrationWarning>Current date and time: {data}</p>
                    11 |     </main>
                    12 |   )
@@ -1698,11 +1699,11 @@ describe('Dynamic IO Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:15)
+                     at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
-                     |               ^
+                     |                ^
                    6 |
                    7 |   return (
                    8 |     <main>
@@ -1745,11 +1746,11 @@ describe('Dynamic IO Errors', () => {
                  "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:17) @ RequestData
+                 "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
                > 34 |   ;(await cookies()).get('foo')
-                    |                 ^",
+                    |                  ^",
                  "stack": [
-                   "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:17)",
+                   "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18)",
                    "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
                    "LogSafely <anonymous>",
                  ],
@@ -1865,7 +1866,7 @@ describe('Dynamic IO Errors', () => {
                    333 |  */
                    334 | function InnerLayoutRouter({
                  > 335 |   tree,
-                       |  ^
+                       |   ^
                    336 |   segmentPath,
                    337 |   cacheNode,
                    338 |   url,
@@ -1971,11 +1972,11 @@ describe('Dynamic IO Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:15)
+                     at SyncIO (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
-                     |               ^
+                     |                ^
                    6 |
                    7 |   return (
                    8 |     <main>
@@ -1988,11 +1989,11 @@ describe('Dynamic IO Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:9:6)
+                     at c (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:9:7)
                     7 |   return (
                     8 |     <main>
                  >  9 |       <h1>Sync IO Access</h1>
-                      |      ^
+                      |       ^
                    10 |       <p suppressHydrationWarning>Current date and time: {data}</p>
                    11 |     </main>
                    12 |   )
@@ -2007,11 +2008,11 @@ describe('Dynamic IO Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:15)
+                     at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
-                     |               ^
+                     |                ^
                    6 |
                    7 |   return (
                    8 |     <main>

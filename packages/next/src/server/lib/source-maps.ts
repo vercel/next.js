@@ -58,6 +58,8 @@ export function sourceMapIgnoreListsEverything(
 /**
  * Finds the sourcemap payload applicable to a given frame.
  * Equal to the input unless an Index Source Map is used.
+ * @param line0 - The line number of the frame, 0-based.
+ * @param column0 - The column number of the frame, 0-based.
  */
 export function findApplicableSourceMapPayload(
   line0: number,

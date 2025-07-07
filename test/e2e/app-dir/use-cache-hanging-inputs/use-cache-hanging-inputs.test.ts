@@ -74,7 +74,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/search-params/page.tsx:3:15)`)
+    at eval (app/search-params/page.tsx:3:16)`)
         }
       }, 180_000)
     })
@@ -124,7 +124,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/search-params-caught/page.tsx:1:0)`)
+    at eval (app/search-params-caught/page.tsx:1:1)`)
         }
       }, 180_000)
     })
@@ -191,7 +191,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/uncached-promise/page.tsx:10:12)`)
+    at eval (app/uncached-promise/page.tsx:10:13)`)
         }
       }, 180_000)
     })
@@ -245,7 +245,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/uncached-promise-nested/page.tsx:16:0)`)
+    at eval (app/uncached-promise-nested/page.tsx:16:1)`)
         }
       }, 180_000)
     })
@@ -300,7 +300,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/bound-args/page.tsx:13:14)`)
+    at eval (app/bound-args/page.tsx:13:15)`)
         }
       }, 180_000)
     })
