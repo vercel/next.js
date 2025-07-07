@@ -4955,14 +4955,16 @@
           if ("number" === typeof info.time) break;
           if (null != info.awaited) {
             var bestStack = null == info.debugStack ? info.awaited : info;
-            void 0 !== bestStack.debugStack &&
-              ((task.componentStack = {
+            if (void 0 !== bestStack.debugStack) {
+              task.componentStack = {
                 parent: task.componentStack,
                 type: info,
                 owner: bestStack.owner,
                 stack: bestStack.debugStack
-              }),
-              (task.debugTask = bestStack.debugTask));
+              };
+              task.debugTask = bestStack.debugTask;
+              break;
+            }
           }
         }
     }
@@ -10486,5 +10488,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-experimental-5d87cd22-20250704";
+    exports.version = "19.2.0-experimental-223f81d8-20250707";
   })();

@@ -5329,14 +5329,16 @@
           if ("number" === typeof info.time) break;
           if (null != info.awaited) {
             var bestStack = null == info.debugStack ? info.awaited : info;
-            void 0 !== bestStack.debugStack &&
-              ((task.componentStack = {
+            if (void 0 !== bestStack.debugStack) {
+              task.componentStack = {
                 parent: task.componentStack,
                 type: info,
                 owner: bestStack.owner,
                 stack: bestStack.debugStack
-              }),
-              (task.debugTask = bestStack.debugTask));
+              };
+              task.debugTask = bestStack.debugTask;
+              break;
+            }
           }
         }
     }
@@ -9477,11 +9479,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-5d87cd22-20250704" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-223f81d8-20250707" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-5d87cd22-20250704\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-223f81d8-20250707\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11300,5 +11302,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-experimental-5d87cd22-20250704";
+    exports.version = "19.2.0-experimental-223f81d8-20250707";
   })();
