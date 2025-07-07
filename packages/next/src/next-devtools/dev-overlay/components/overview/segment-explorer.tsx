@@ -11,8 +11,8 @@ import {
 import { Tooltip } from '../../../components/tooltip'
 import { useRef, useState } from 'react'
 import {
-  BOUNDARY_PREFIX,
   BUILTIN_PREFIX,
+  getBoundaryOriginFileType,
   isBoundaryFile,
   normalizeBoundaryFilename,
 } from '../../../../server/app-render/segment-explorer-path'
@@ -147,7 +147,7 @@ function PageSegmentTreeLayerPresentation({
     const childNode = node.children[childKey]
     if (!childNode || !childNode.value) return
     if (isBoundaryFile(childNode.value.type)) {
-      const boundaryType = childNode.value.type.replace(BOUNDARY_PREFIX, '')
+      const boundaryType = getBoundaryOriginFileType(childNode.value.type)
 
       if (boundaryType in boundaries) {
         boundaries[boundaryType as keyof typeof boundaries] =

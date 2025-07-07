@@ -42,6 +42,10 @@ export function isBoundaryFile(fileType: string) {
   return fileType.startsWith(BOUNDARY_PREFIX)
 }
 
+export function getBoundaryOriginFileType(fileType: string) {
+  return fileType.replace(BOUNDARY_PREFIX, '')
+}
+
 export function getConventionPathByType(
   tree: LoaderTree,
   dir: string,
