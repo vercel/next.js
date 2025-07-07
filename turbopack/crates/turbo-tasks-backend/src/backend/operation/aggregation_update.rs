@@ -2173,11 +2173,16 @@ impl AggregationUpdateQueue {
             TaskDataCategory::Meta,
         );
         let state = get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
+        let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
         let is_empty = state.is_empty();
         // This can happen if active count was negative before
         if is_empty {
             task.remove(&CachedDataItemKey::Activeness {});
+        }
+        if is_new {
+            let dirty_container = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(ctx.session_id()) > 0 => task);
+            self.extend_find_and_schedule_dirty(dirty_container);
         }
         if is_positive_now {
             let followers = get_followers(&task);
