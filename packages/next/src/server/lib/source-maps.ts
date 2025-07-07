@@ -1,5 +1,8 @@
-import { findSourceMap } from 'module'
-import { inspect } from 'util'
+// Edge runtime does not implement `module`
+const findSourceMap =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? () => undefined
+    : (require('module') as typeof import('module')).findSourceMap
 
 /**
  * https://tc39.es/source-map/#index-map
