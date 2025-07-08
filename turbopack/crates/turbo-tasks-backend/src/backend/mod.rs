@@ -435,7 +435,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     }
 
     fn try_read_task_output(
-        &self,
+        self: &Arc<Self>,
         task_id: TaskId,
         reader: Option<TaskId>,
         consistency: ReadConsistency,
@@ -560,7 +560,103 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     get!(task, Activeness).unwrap()
                 };
                 let listener = activeness.all_clean_event.listen_with_note(move || {
-                    move || format!("try_read_task_output (strongly consistent) from {reader:?}")
+                    let this = self.clone();
+                    let tt = turbo_tasks.pin();
+                    move || {
+                        let tt: &dyn TurboTasksBackendApi<TurboTasksBackend<B>> = &*tt;
+                        let mut ctx = this.execute_context(tt);
+                        let mut visited = FxHashSet::default();
+                        fn indent(s: &str) -> String {
+                            s.split_inclusive('\n')
+                                .flat_map(|line: &str| ["  ", line].into_iter())
+                                .collect::<String>()
+                        }
+                        fn get_info(
+                            ctx: &mut impl ExecuteContext<'_>,
+                            now: &std::time::Instant,
+                            task_id: TaskId,
+                            count: Option<i32>,
+                            visited: &mut FxHashSet<TaskId>,
+                        ) -> String {
+                            let task = ctx.task(task_id, TaskDataCategory::Data);
+                            let is_dirty = get!(task, Dirty)
+                                .map_or(false, |dirty_state| dirty_state.get(ctx.session_id()));
+                            let in_progress =
+                                get!(task, InProgress).map_or("not in progress", |p| match p {
+                                    InProgressState::InProgress(_) => "in progress",
+                                    InProgressState::Scheduled { .. } => "scheduled",
+                                    InProgressState::Canceled => "canceled",
+                                });
+                            let activeness = get!(task, Activeness).map_or_else(
+                                || "not active".to_string(),
+                                |activeness| format!("{activeness:?}"),
+                            );
+                            let aggregation_number = get_aggregation_number(&task);
+
+                            // Check the dirty count of the root node
+                            let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
+                                .cloned()
+                                .unwrap_or_default()
+                                .get(ctx.session_id());
+
+                            let task_description = ctx.get_task_description(task_id);
+                            let is_dirty = if is_dirty { ", dirty" } else { "" };
+                            let count = if let Some(count) = count {
+                                format!(" {count}")
+                            } else {
+                                String::new()
+                            };
+                            let mut info = format!(
+                                "{task_id} {task_description}{count} (aggr={aggregation_number}, \
+                                 {in_progress}, {activeness}{is_dirty})"
+                            );
+                            let children: Vec<_> = iter_many!(
+                                task,
+                                AggregatedDirtyContainer {
+                                    task
+                                } count => {
+                                    (task, count.get(ctx.session_id()))
+                                }
+                            )
+                            .filter(|(_, count)| *count > 0)
+                            .collect();
+                            drop(task);
+
+                            if dirty_tasks > 0 || children.len() > 0 {
+                                writeln!(info, "\n  {dirty_tasks} dirty tasks:").unwrap();
+
+                                for (task_id, count) in children {
+                                    let task_description = ctx.get_task_description(task_id);
+                                    if visited.insert(task_id) {
+                                        let child_info =
+                                            get_info(ctx, now, task_id, Some(count), visited);
+                                        info.push_str(&indent(&child_info));
+                                        if !info.ends_with('\n') {
+                                            info.push('\n');
+                                        }
+                                    } else {
+                                        write!(
+                                            info,
+                                            "  {task_id} {task_description} {count} (already \
+                                             visited)\n"
+                                        )
+                                        .unwrap();
+                                    }
+                                }
+                            }
+                            info
+                        }
+                        let info = get_info(
+                            &mut ctx,
+                            &std::time::Instant::now(),
+                            task_id,
+                            None,
+                            &mut visited,
+                        );
+                        format!(
+                            "try_read_task_output (strongly consistent) from {reader:?}\n{info}"
+                        )
+                    }
                 });
                 drop(task);
                 if !task_ids_to_schedule.is_empty() {
