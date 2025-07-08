@@ -573,7 +573,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         }
                         fn get_info(
                             ctx: &mut impl ExecuteContext<'_>,
-                            now: &std::time::Instant,
                             task_id: TaskId,
                             count: Option<i32>,
                             visited: &mut FxHashSet<TaskId>,
@@ -622,23 +621,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .collect();
                             drop(task);
 
-                            if dirty_tasks > 0 || children.len() > 0 {
+                            if dirty_tasks > 0 || !children.is_empty() {
                                 writeln!(info, "\n  {dirty_tasks} dirty tasks:").unwrap();
 
                                 for (task_id, count) in children {
                                     let task_description = ctx.get_task_description(task_id);
                                     if visited.insert(task_id) {
                                         let child_info =
-                                            get_info(ctx, now, task_id, Some(count), visited);
+                                            get_info(ctx, task_id, Some(count), visited);
                                         info.push_str(&indent(&child_info));
                                         if !info.ends_with('\n') {
                                             info.push('\n');
                                         }
                                     } else {
-                                        write!(
+                                        writeln!(
                                             info,
                                             "  {task_id} {task_description} {count} (already \
-                                             visited)\n"
+                                             visited)"
                                         )
                                         .unwrap();
                                     }
@@ -646,13 +645,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             }
                             info
                         }
-                        let info = get_info(
-                            &mut ctx,
-                            &std::time::Instant::now(),
-                            task_id,
-                            None,
-                            &mut visited,
-                        );
+                        let info = get_info(&mut ctx, task_id, None, &mut visited);
                         format!(
                             "try_read_task_output (strongly consistent) from {reader:?}\n{info}"
                         )
