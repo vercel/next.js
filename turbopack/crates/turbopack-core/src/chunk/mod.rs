@@ -294,6 +294,51 @@ pub enum ChunkingType {
     Traced,
 }
 
+impl Display for ChunkingType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChunkingType::Parallel {
+                inherit_async,
+                hoisted,
+            } => {
+                write!(
+                    f,
+                    "Parallel(inherit_async: {inherit_async}, hoisted: {hoisted})",
+                )
+            }
+            ChunkingType::Async => write!(f, "Async"),
+            ChunkingType::Isolated {
+                _ty,
+                merge_tag: Some(merge_tag),
+            } => {
+                write!(f, "Isolated(merge_tag: {merge_tag})")
+            }
+            ChunkingType::Isolated {
+                _ty,
+                merge_tag: None,
+            } => {
+                write!(f, "Isolated")
+            }
+            ChunkingType::Shared {
+                inherit_async,
+                merge_tag: Some(merge_tag),
+            } => {
+                write!(
+                    f,
+                    "Shared(inherit_async: {inherit_async}, merge_tag: {merge_tag})"
+                )
+            }
+            ChunkingType::Shared {
+                inherit_async,
+                merge_tag: None,
+            } => {
+                write!(f, "Shared(inherit_async: {inherit_async})")
+            }
+            ChunkingType::Traced => write!(f, "Traced"),
+        }
+    }
+}
+
 impl ChunkingType {
     pub fn is_inherit_async(&self) -> bool {
         matches!(

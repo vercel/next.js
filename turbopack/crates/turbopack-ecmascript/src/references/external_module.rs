@@ -209,7 +209,8 @@ impl Module for CachedExternalModule {
     #[turbo_tasks::function]
     fn is_self_async(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
-            self.external_type == CachedExternalType::EcmaScriptViaImport,
+            self.external_type == CachedExternalType::EcmaScriptViaImport
+                || self.external_type == CachedExternalType::Script,
         ))
     }
 }
@@ -255,11 +256,14 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
     #[turbo_tasks::function]
     fn get_async_module(&self) -> Vc<OptionAsyncModule> {
         Vc::cell(
-            if self.external_type == CachedExternalType::EcmaScriptViaImport {
+            if self.external_type == CachedExternalType::EcmaScriptViaImport
+                || self.external_type == CachedExternalType::Script
+            {
                 Some(
                     AsyncModule {
                         has_top_level_await: true,
-                        import_externals: true,
+                        import_externals: self.external_type
+                            == CachedExternalType::EcmaScriptViaImport,
                     }
                     .resolved_cell(),
                 )

@@ -1,0 +1,162 @@
+.resize-container {
+  position: absolute;
+  /* todo: better z index */
+  z-index: 10;
+  /* todo: is this needed */
+  background: transparent;
+}
+
+.resize-line {
+  position: absolute;
+  /* todo smarter z index */
+  z-index: -1;
+  pointer-events: none;
+  /* a normal exit animation curve- at this point the exit animation is */
+  /* immediately responsive so we don't need a bespoke curve */
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* todo: better var? */
+  border: 1px solid var(--color-gray-100);
+}
+
+/* start really fast because we start super hidden initially behind the panel, otherwise feels like an unintended animation delay */
+.resize-container:hover ~ .resize-line {
+  transition: transform 0.2s cubic-bezier(0.05, 0.9, 0.2, 1); /* Fast start for animate in */
+}
+
+.resize-container.right,
+.resize-container.left {
+  top: 0;
+  height: 100%;
+  width: 25px;
+  cursor: ew-resize;
+}
+
+/* todo: don't hard code all these values/use vars */
+
+.resize-container.bottom,
+.resize-container.top {
+  left: 0;
+  width: 100%;
+  height: 25px;
+  cursor: ns-resize;
+}
+
+.resize-container.top {
+  top: -12px;
+}
+.resize-container.bottom {
+  bottom: -12px;
+}
+.resize-container.left {
+  left: -12px;
+}
+.resize-container.right {
+  right: -12px;
+}
+
+.resize-container.top-left,
+.resize-container.top-right,
+.resize-container.bottom-left,
+.resize-container.bottom-right {
+  width: 32px;
+  height: 32px;
+  z-index: 15;
+}
+
+.resize-container.top-left {
+  top: -16px;
+  left: -16px;
+  cursor: nwse-resize;
+}
+.resize-container.top-right {
+  top: -16px;
+  right: -16px;
+  cursor: nesw-resize;
+}
+.resize-container.bottom-left {
+  bottom: -16px;
+  left: -16px;
+  cursor: nesw-resize;
+}
+.resize-container.bottom-right {
+  bottom: -16px;
+  right: -16px;
+  cursor: nwse-resize;
+}
+
+.resize-line.top,
+.resize-line.bottom {
+  height: 28px;
+  width: 100%;
+  background-color: var(--color-background-100);
+}
+
+.resize-line.left,
+.resize-line.right {
+  width: 28px;
+  height: 100%;
+  background-color: var(--color-background-100);
+}
+
+.resize-line.top {
+  top: -12px;
+  left: calc(-1 * var(--border-left, 2px));
+  width: calc(100% + var(--border-horizontal, 4px));
+  border-radius: var(--rounded-md) var(--rounded-md) 0 0;
+  transform: translateY(28px);
+}
+
+.resize-line.bottom {
+  bottom: -12px;
+  left: calc(-1 * var(--border-left, 2px));
+  width: calc(100% + var(--border-horizontal, 4px));
+  border-radius: 0 0 var(--rounded-md) var(--rounded-md);
+  transform: translateY(-28px);
+}
+
+.resize-line.left {
+  top: calc(-1 * var(--border-top, 2px));
+  left: -12px;
+  height: calc(100% + var(--border-vertical, 4px));
+  border-radius: var(--rounded-md) 0 0 var(--rounded-md);
+  transform: translateX(28px);
+}
+
+.resize-line.right {
+  top: calc(-1 * var(--border-top, 2px));
+  right: -12px;
+  height: calc(100% + var(--border-vertical, 4px));
+  border-radius: 0 var(--rounded-md) var(--rounded-md) 0;
+  transform: translateX(-28px);
+}
+
+.resize-container.right:hover ~ .resize-line.right,
+.resize-container.left:hover ~ .resize-line.left,
+.resize-line.right.dragging,
+.resize-line.left.dragging {
+  transform: translateX(0);
+}
+
+.resize-container.bottom:hover ~ .resize-line.bottom,
+.resize-container.top:hover ~ .resize-line.top,
+.resize-line.bottom.dragging,
+.resize-line.top.dragging {
+  transform: translateY(0);
+}
+
+/* make sure that we don't show multiple handles at once
+ * we should only ever show the currently resizing handle
+ * regardless of hover state 
+ */
+.resize-container.no-hover.right:hover ~ .resize-line.right {
+  transform: translateX(-28px);
+}
+.resize-container.no-hover.left:hover ~ .resize-line.left {
+  transform: translateX(28px);
+}
+.resize-container.no-hover.bottom:hover ~ .resize-line.bottom {
+  transform: translateY(-28px);
+}
+.resize-container.no-hover.top:hover ~ .resize-line.top {
+  transform: translateY(28px);
+}
