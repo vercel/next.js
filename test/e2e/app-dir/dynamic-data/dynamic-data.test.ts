@@ -336,7 +336,7 @@ describe('dynamic-data inside cache scope', () => {
              |                                                      ^",
            "stack": [
              "${isTurbopack ? '<anonymous>' : 'eval'} app/connection/page.js (4:54)",
-             "async Page app/connection/page.js (7:3)",
+             "${isTurbopack || !isExperimentalReact ? 'async ' : ''}Page app/connection/page.js (7:3)",
            ],
          }
         `)
