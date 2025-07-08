@@ -676,12 +676,36 @@
             );
             request.pendingChunks++;
             var owner = resolveOwner(),
-              args = arguments;
+              args = Array.from(arguments);
+            a: {
+              var env = 0;
+              switch (methodName) {
+                case "dir":
+                case "dirxml":
+                case "groupEnd":
+                case "table":
+                  env = null;
+                  break a;
+                case "assert":
+                  env = 1;
+              }
+              var format = args[env],
+                style = args[env + 1],
+                badge = args[env + 2];
+              "string" === typeof format &&
+              format.startsWith("%c%s%c ") &&
+              "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px" ===
+                style &&
+              "string" === typeof badge
+                ? (args.splice(env, 4, format.slice(7)),
+                  (env = badge.slice(1, badge.length - 1)))
+                : (env = null);
+            }
+            null === env && (env = (0, request.environmentName)());
             null != owner && outlineComponentInfo(request, owner);
-            var env = (0, request.environmentName)(),
-              payload = [methodName, stack, owner, env];
-            payload.push.apply(payload, args);
-            args = serializeDebugModel(request, 500, payload);
+            format = [methodName, stack, owner, env];
+            format.push.apply(format, args);
+            args = serializeDebugModel(request, 500, format);
             "[" !== args[0] &&
               (args = serializeDebugModel(request, 500, [
                 methodName,

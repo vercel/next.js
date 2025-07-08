@@ -1139,13 +1139,19 @@
       }
       return kind;
     }
-    function addObjectToProperties(object, properties, indent) {
+    function addObjectToProperties(object, properties, indent, prefix) {
       for (var key in object)
         hasOwnProperty.call(object, key) &&
           "_" !== key[0] &&
-          addValueToProperties(key, object[key], properties, indent);
+          addValueToProperties(key, object[key], properties, indent, prefix);
     }
-    function addValueToProperties(propertyName, value, properties, indent) {
+    function addValueToProperties(
+      propertyName,
+      value,
+      properties,
+      indent,
+      prefix
+    ) {
       switch (typeof value) {
         case "object":
           if (null === value) {
@@ -1172,11 +1178,17 @@
                 break;
               }
               properties.push([
-                "\u00a0\u00a0".repeat(indent) + propertyName,
+                prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
                 "<" + typeName
               ]);
               null !== key &&
-                addValueToProperties("key", key, properties, indent + 1);
+                addValueToProperties(
+                  "key",
+                  key,
+                  properties,
+                  indent + 1,
+                  prefix
+                );
               propertyName = !1;
               for (var propKey in value)
                 "children" === propKey
@@ -1190,7 +1202,8 @@
                       propKey,
                       value[propKey],
                       properties,
-                      indent + 1
+                      indent + 1,
+                      prefix
                     );
               properties.push([
                 "",
@@ -1209,7 +1222,7 @@
                 break;
               } else if (3 === propKey) {
                 properties.push([
-                  "\u00a0\u00a0".repeat(indent) + propertyName,
+                  prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
                   ""
                 ]);
                 for (
@@ -1222,7 +1235,8 @@
                       typeName[0],
                       typeName[1],
                       properties,
-                      indent + 1
+                      indent + 1,
+                      prefix
                     );
                 return;
               }
@@ -1234,7 +1248,8 @@
                     propertyName,
                     value.value,
                     properties,
-                    indent
+                    indent,
+                    prefix
                   ),
                   properties.length > typeName)
                 ) {
@@ -1250,7 +1265,8 @@
                   propertyName,
                   value.reason,
                   properties,
-                  indent
+                  indent,
+                  prefix
                 ),
                 properties.length > typeName)
               ) {
@@ -1269,10 +1285,11 @@
               "function" === typeof propKey.constructor &&
               (typeName = propKey.constructor.name);
             properties.push([
-              "\u00a0\u00a0".repeat(indent) + propertyName,
+              prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
               "Object" === typeName ? (3 > indent ? "" : "\u2026") : typeName
             ]);
-            3 > indent && addObjectToProperties(value, properties, indent + 1);
+            3 > indent &&
+              addObjectToProperties(value, properties, indent + 1, prefix);
             return;
           }
         case "function":
@@ -1294,7 +1311,10 @@
         default:
           value = String(value);
       }
-      properties.push(["\u00a0\u00a0".repeat(indent) + propertyName, value]);
+      properties.push([
+        prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
+        value
+      ]);
     }
     function markAllTracksInOrder() {
       supportsUserTiming &&
@@ -1325,6 +1345,80 @@
           return "tertiary-dark";
       }
     }
+    function getIODescription(value) {
+      try {
+        switch (typeof value) {
+          case "object":
+            if (null === value) return "";
+            if (value instanceof Error) return String(value.message);
+            if ("string" === typeof value.url) return value.url;
+            if ("string" === typeof value.command) return value.command;
+            if (
+              "object" === typeof value.request &&
+              "string" === typeof value.request.url
+            )
+              return value.request.url;
+            if (
+              "object" === typeof value.response &&
+              "string" === typeof value.response.url
+            )
+              return value.response.url;
+            if (
+              "string" === typeof value.id ||
+              "number" === typeof value.id ||
+              "bigint" === typeof value.id
+            )
+              return String(value.id);
+            if ("string" === typeof value.name) return value.name;
+            var str = value.toString();
+            return str.startWith("[object ") ||
+              5 > str.length ||
+              500 < str.length
+              ? ""
+              : str;
+          case "string":
+            return 5 > value.length || 500 < value.length ? "" : value;
+          case "number":
+          case "bigint":
+            return String(value);
+          default:
+            return "";
+        }
+      } catch (x) {
+        return "";
+      }
+    }
+    function getIOLongName(ioInfo, description, env, rootEnv) {
+      ioInfo = ioInfo.name;
+      description =
+        "" === description ? ioInfo : ioInfo + " (" + description + ")";
+      return env === rootEnv || void 0 === env
+        ? description
+        : description + " [" + env + "]";
+    }
+    function getIOShortName(ioInfo, description, env, rootEnv) {
+      ioInfo = ioInfo.name;
+      env = env === rootEnv || void 0 === env ? "" : " [" + env + "]";
+      rootEnv = "";
+      var descMaxLength = 30 - ioInfo.length - env.length;
+      if (1 < descMaxLength) {
+        var l = description.length;
+        if (0 < l && l <= descMaxLength) rootEnv = " (" + description + ")";
+        else if (
+          description.startsWith("http://") ||
+          description.startsWith("https://") ||
+          description.startsWith("/")
+        ) {
+          l = description.indexOf("?");
+          -1 === l && (l = description.length);
+          47 === description.charCodeAt(l - 1) && l--;
+          var slashIdx = description.lastIndexOf("/", l - 1);
+          l - slashIdx < descMaxLength &&
+            (rootEnv = " (" + description.slice(slashIdx + 1, l) + ")");
+        }
+      }
+      return ioInfo + rootEnv + env;
+    }
     function logComponentAwait(
       asyncInfo,
       trackIdx,
@@ -1334,77 +1428,91 @@
       value
     ) {
       if (supportsUserTiming && 0 < endTime) {
-        var env = asyncInfo.env,
-          name = asyncInfo.awaited.name,
-          isPrimaryEnv = env === rootEnv;
-        rootEnv = getIOColor(name);
-        env =
-          "await " +
-          (isPrimaryEnv || void 0 === env ? name : name + " [" + env + "]");
-        (asyncInfo = asyncInfo.debugTask || asyncInfo.awaited.debugTask)
-          ? ((name = []),
-            "object" === typeof value && null !== value
-              ? addObjectToProperties(value, name, 0)
-              : void 0 !== value &&
-                addValueToProperties("Resolved", value, name, 0),
-            asyncInfo.run(
-              performance.measure.bind(performance, env, {
-                start: 0 > startTime ? 0 : startTime,
-                end: endTime,
-                detail: {
-                  devtools: {
-                    color: rootEnv,
-                    track: trackNames[trackIdx],
-                    trackGroup: "Server Components \u269b",
-                    properties: name
-                  }
+        var description = getIODescription(value),
+          name = getIOShortName(
+            asyncInfo.awaited,
+            description,
+            asyncInfo.env,
+            rootEnv
+          ),
+          entryName = "await " + name;
+        name = getIOColor(name);
+        var debugTask = asyncInfo.debugTask || asyncInfo.awaited.debugTask;
+        if (debugTask) {
+          var properties = [];
+          "object" === typeof value && null !== value
+            ? addObjectToProperties(value, properties, 0, "")
+            : void 0 !== value &&
+              addValueToProperties("Resolved", value, properties, 0, "");
+          asyncInfo = getIOLongName(
+            asyncInfo.awaited,
+            description,
+            asyncInfo.env,
+            rootEnv
+          );
+          debugTask.run(
+            performance.measure.bind(performance, entryName, {
+              start: 0 > startTime ? 0 : startTime,
+              end: endTime,
+              detail: {
+                devtools: {
+                  color: name,
+                  track: trackNames[trackIdx],
+                  trackGroup: "Server Components \u269b",
+                  properties: properties,
+                  tooltipText: asyncInfo
                 }
-              })
-            ))
-          : console.timeStamp(
-              env,
-              0 > startTime ? 0 : startTime,
-              endTime,
-              trackNames[trackIdx],
-              "Server Components \u269b",
-              rootEnv
-            );
+              }
+            })
+          );
+        } else
+          console.timeStamp(
+            entryName,
+            0 > startTime ? 0 : startTime,
+            endTime,
+            trackNames[trackIdx],
+            "Server Components \u269b",
+            name
+          );
       }
     }
     function logIOInfoErrored(ioInfo, rootEnv, error) {
       var startTime = ioInfo.start,
         endTime = ioInfo.end;
       if (supportsUserTiming && 0 <= endTime) {
-        var name = ioInfo.name,
-          env = ioInfo.env;
-        rootEnv =
-          env === rootEnv || void 0 === env ? name : name + " [" + env + "]";
-        (ioInfo = ioInfo.debugTask)
-          ? ioInfo.run(
-              performance.measure.bind(performance, rootEnv, {
+        var description = getIODescription(error),
+          entryName = getIOShortName(ioInfo, description, ioInfo.env, rootEnv),
+          debugTask = ioInfo.debugTask;
+        debugTask
+          ? ((error = [
+              [
+                "Rejected",
+                "object" === typeof error &&
+                null !== error &&
+                "string" === typeof error.message
+                  ? String(error.message)
+                  : String(error)
+              ]
+            ]),
+            (ioInfo =
+              getIOLongName(ioInfo, description, ioInfo.env, rootEnv) +
+              " Rejected"),
+            debugTask.run(
+              performance.measure.bind(performance, entryName, {
                 start: 0 > startTime ? 0 : startTime,
                 end: endTime,
                 detail: {
                   devtools: {
                     color: "error",
                     track: "Server Requests \u269b",
-                    properties: [
-                      [
-                        "Rejected",
-                        "object" === typeof error &&
-                        null !== error &&
-                        "string" === typeof error.message
-                          ? String(error.message)
-                          : String(error)
-                      ]
-                    ],
-                    tooltipText: rootEnv + " Rejected"
+                    properties: error,
+                    tooltipText: ioInfo
                   }
                 }
               })
-            )
+            ))
           : console.timeStamp(
-              rootEnv,
+              entryName,
               0 > startTime ? 0 : startTime,
               endTime,
               "Server Requests \u269b",
@@ -1417,39 +1525,40 @@
       var startTime = ioInfo.start,
         endTime = ioInfo.end;
       if (supportsUserTiming && 0 <= endTime) {
-        var name = ioInfo.name,
-          env = ioInfo.env;
-        rootEnv =
-          env === rootEnv || void 0 === env ? name : name + " [" + env + "]";
-        ioInfo = ioInfo.debugTask;
-        name = getIOColor(name);
-        ioInfo
-          ? ((env = []),
-            "object" === typeof value && null !== value
-              ? addObjectToProperties(value, env, 0)
-              : void 0 !== value &&
-                addValueToProperties("Resolved", value, env, 0),
-            ioInfo.run(
-              performance.measure.bind(performance, rootEnv, {
-                start: 0 > startTime ? 0 : startTime,
-                end: endTime,
-                detail: {
-                  devtools: {
-                    color: name,
-                    track: "Server Requests \u269b",
-                    properties: env
-                  }
+        var description = getIODescription(value),
+          entryName = getIOShortName(ioInfo, description, ioInfo.env, rootEnv),
+          color = getIOColor(entryName),
+          debugTask = ioInfo.debugTask;
+        if (debugTask) {
+          var properties = [];
+          "object" === typeof value && null !== value
+            ? addObjectToProperties(value, properties, 0, "")
+            : void 0 !== value &&
+              addValueToProperties("Resolved", value, properties, 0, "");
+          ioInfo = getIOLongName(ioInfo, description, ioInfo.env, rootEnv);
+          debugTask.run(
+            performance.measure.bind(performance, entryName, {
+              start: 0 > startTime ? 0 : startTime,
+              end: endTime,
+              detail: {
+                devtools: {
+                  color: color,
+                  track: "Server Requests \u269b",
+                  properties: properties,
+                  tooltipText: ioInfo
                 }
-              })
-            ))
-          : console.timeStamp(
-              rootEnv,
-              0 > startTime ? 0 : startTime,
-              endTime,
-              "Server Requests \u269b",
-              void 0,
-              name
-            );
+              }
+            })
+          );
+        } else
+          console.timeStamp(
+            entryName,
+            0 > startTime ? 0 : startTime,
+            endTime,
+            "Server Requests \u269b",
+            void 0,
+            color
+          );
       }
     }
     function prepareStackTrace(error, structuredStackTrace) {
@@ -3127,484 +3236,514 @@
     function flushComponentPerformance(
       response$jscomp$0,
       root,
-      trackIdx$jscomp$1,
+      trackIdx$jscomp$6,
       trackTime,
       parentEndTime
     ) {
       if (!isArrayImpl(root._children)) {
-        root = root._children;
-        var previousEndTime = root.endTime;
+        var previousResult = root._children,
+          previousEndTime = previousResult.endTime;
         if (
           -Infinity < parentEndTime &&
           parentEndTime < previousEndTime &&
-          null !== root.component
+          null !== previousResult.component
         ) {
-          var componentInfo = root.component,
-            trackIdx = trackIdx$jscomp$1;
+          var componentInfo = previousResult.component,
+            trackIdx = trackIdx$jscomp$6,
+            startTime = parentEndTime;
           if (supportsUserTiming && 0 <= previousEndTime && 10 > trackIdx) {
-            response$jscomp$0 =
-              componentInfo.env === response$jscomp$0._rootEnvironmentName
-                ? "primary-light"
-                : "secondary-light";
-            var entryName = componentInfo.name + " [deduped]";
-            (componentInfo = componentInfo.debugTask)
-              ? componentInfo.run(
+            var color =
+                componentInfo.env === response$jscomp$0._rootEnvironmentName
+                  ? "primary-light"
+                  : "secondary-light",
+              entryName = componentInfo.name + " [deduped]",
+              debugTask = componentInfo.debugTask;
+            debugTask
+              ? debugTask.run(
                   console.timeStamp.bind(
                     console,
                     entryName,
-                    0 > parentEndTime ? 0 : parentEndTime,
+                    0 > startTime ? 0 : startTime,
                     previousEndTime,
                     trackNames[trackIdx],
                     "Server Components \u269b",
-                    response$jscomp$0
+                    color
                   )
                 )
               : console.timeStamp(
                   entryName,
-                  0 > parentEndTime ? 0 : parentEndTime,
+                  0 > startTime ? 0 : startTime,
                   previousEndTime,
                   trackNames[trackIdx],
                   "Server Components \u269b",
-                  response$jscomp$0
+                  color
                 );
           }
         }
-        root.track = trackIdx$jscomp$1;
-        return root;
+        previousResult.track = trackIdx$jscomp$6;
+        return previousResult;
       }
-      entryName = root._children;
+      var children = root._children;
       "resolved_model" === root.status && initializeModelChunk(root);
-      if ((previousEndTime = root._debugInfo)) {
-        for (
-          componentInfo = trackIdx = 0;
-          componentInfo < previousEndTime.length;
-          componentInfo++
-        ) {
-          var info = previousEndTime[componentInfo];
-          "number" === typeof info.time && (trackIdx = info.time);
+      var debugInfo = root._debugInfo;
+      if (debugInfo) {
+        for (var startTime$jscomp$0 = 0, i = 0; i < debugInfo.length; i++) {
+          var info = debugInfo[i];
+          "number" === typeof info.time && (startTime$jscomp$0 = info.time);
           if ("string" === typeof info.name) {
-            trackIdx < trackTime && trackIdx$jscomp$1++;
-            trackTime = trackIdx;
+            startTime$jscomp$0 < trackTime && trackIdx$jscomp$6++;
+            trackTime = startTime$jscomp$0;
             break;
           }
         }
-        for (trackIdx = previousEndTime.length - 1; 0 <= trackIdx; trackIdx--)
-          if (
-            ((componentInfo = previousEndTime[trackIdx]),
-            "number" === typeof componentInfo.time &&
-              componentInfo.time > parentEndTime)
-          ) {
-            parentEndTime = componentInfo.time;
+        for (var _i4 = debugInfo.length - 1; 0 <= _i4; _i4--) {
+          var _info = debugInfo[_i4];
+          if ("number" === typeof _info.time && _info.time > parentEndTime) {
+            parentEndTime = _info.time;
             break;
           }
+        }
       }
-      trackIdx = {
-        track: trackIdx$jscomp$1,
+      var result = {
+        track: trackIdx$jscomp$6,
         endTime: -Infinity,
         component: null
       };
-      root._children = trackIdx;
-      componentInfo = -Infinity;
-      info = trackIdx$jscomp$1;
-      for (var _i5 = 0; _i5 < entryName.length; _i5++) {
+      root._children = result;
+      for (
+        var childrenEndTime = -Infinity,
+          childTrackIdx = trackIdx$jscomp$6,
+          childTrackTime = trackTime,
+          _i5 = 0;
+        _i5 < children.length;
+        _i5++
+      ) {
         var childResult = flushComponentPerformance(
           response$jscomp$0,
-          entryName[_i5],
-          info,
-          trackTime,
+          children[_i5],
+          childTrackIdx,
+          childTrackTime,
           parentEndTime
         );
         null !== childResult.component &&
-          (trackIdx.component = childResult.component);
-        info = childResult.track;
-        childResult = childResult.endTime;
-        childResult > trackTime && (trackTime = childResult);
-        childResult > componentInfo && (componentInfo = childResult);
+          (result.component = childResult.component);
+        childTrackIdx = childResult.track;
+        var childEndTime = childResult.endTime;
+        childEndTime > childTrackTime && (childTrackTime = childEndTime);
+        childEndTime > childrenEndTime && (childrenEndTime = childEndTime);
       }
-      if (previousEndTime)
+      if (debugInfo)
         for (
-          childResult = 0,
-            _i5 = !0,
-            info = parentEndTime = -1,
-            entryName = previousEndTime.length - 1;
-          0 <= entryName;
-          entryName--
-        )
-          if (
-            ((trackTime = previousEndTime[entryName]),
-            "number" === typeof trackTime.time)
-          ) {
-            0 === childResult && (childResult = trackTime.time);
-            trackTime = trackTime.time;
-            if (-1 < info)
-              for (--info; info > entryName; info--) {
-                var candidateInfo = previousEndTime[info];
+          var componentEndTime = 0,
+            isLastComponent = !0,
+            endTime = -1,
+            endTimeIdx = -1,
+            _i6 = debugInfo.length - 1;
+          0 <= _i6;
+          _i6--
+        ) {
+          var _info2 = debugInfo[_i6];
+          if ("number" === typeof _info2.time) {
+            0 === componentEndTime && (componentEndTime = _info2.time);
+            var time = _info2.time;
+            if (-1 < endTimeIdx)
+              for (var j = endTimeIdx - 1; j > _i6; j--) {
+                var candidateInfo = debugInfo[j];
                 if ("string" === typeof candidateInfo.name) {
-                  childResult > componentInfo && (componentInfo = childResult);
-                  var response = response$jscomp$0,
-                    componentInfo$jscomp$0 = candidateInfo,
-                    trackIdx$jscomp$0 = trackIdx$jscomp$1,
-                    startTime = trackTime,
-                    componentEndTime = childResult,
-                    childrenEndTime = componentInfo;
+                  componentEndTime > childrenEndTime &&
+                    (childrenEndTime = componentEndTime);
+                  var componentInfo$jscomp$0 = candidateInfo,
+                    response = response$jscomp$0,
+                    componentInfo$jscomp$1 = componentInfo$jscomp$0,
+                    trackIdx$jscomp$0 = trackIdx$jscomp$6,
+                    startTime$jscomp$1 = time,
+                    componentEndTime$jscomp$0 = componentEndTime,
+                    childrenEndTime$jscomp$0 = childrenEndTime;
                   if (
-                    _i5 &&
+                    isLastComponent &&
                     "rejected" === root.status &&
                     root.reason !== response._closedReason
-                  )
-                    (_i5 = componentInfo$jscomp$0),
-                      (childResult = trackIdx$jscomp$0),
-                      (componentEndTime = childrenEndTime),
-                      (childrenEndTime = root.reason),
-                      supportsUserTiming &&
-                        ((trackIdx$jscomp$0 = _i5.env),
-                        (componentInfo$jscomp$0 = _i5.name),
-                        (response =
-                          trackIdx$jscomp$0 === response._rootEnvironmentName ||
-                          void 0 === trackIdx$jscomp$0
-                            ? componentInfo$jscomp$0
-                            : componentInfo$jscomp$0 +
-                              " [" +
-                              trackIdx$jscomp$0 +
-                              "]"),
-                        (childrenEndTime = [
+                  ) {
+                    var componentInfo$jscomp$2 = componentInfo$jscomp$1,
+                      trackIdx$jscomp$1 = trackIdx$jscomp$0,
+                      startTime$jscomp$2 = startTime$jscomp$1,
+                      childrenEndTime$jscomp$1 = childrenEndTime$jscomp$0,
+                      error = root.reason;
+                    if (supportsUserTiming) {
+                      var env = componentInfo$jscomp$2.env,
+                        name = componentInfo$jscomp$2.name,
+                        entryName$jscomp$0 =
+                          env === response._rootEnvironmentName ||
+                          void 0 === env
+                            ? name
+                            : name + " [" + env + "]",
+                        properties = [
                           [
                             "Error",
-                            "object" === typeof childrenEndTime &&
-                            null !== childrenEndTime &&
-                            "string" === typeof childrenEndTime.message
-                              ? String(childrenEndTime.message)
-                              : String(childrenEndTime)
+                            "object" === typeof error &&
+                            null !== error &&
+                            "string" === typeof error.message
+                              ? String(error.message)
+                              : String(error)
                           ]
-                        ]),
-                        null != _i5.key &&
-                          addValueToProperties(
-                            "key",
-                            _i5.key,
-                            childrenEndTime,
-                            0
-                          ),
-                        null != _i5.props &&
-                          addObjectToProperties(_i5.props, childrenEndTime, 0),
-                        performance.measure(response, {
-                          start: 0 > startTime ? 0 : startTime,
-                          end: componentEndTime,
-                          detail: {
-                            devtools: {
-                              color: "error",
-                              track: trackNames[childResult],
-                              trackGroup: "Server Components \u269b",
-                              tooltipText: response + " Errored",
-                              properties: childrenEndTime
-                            }
+                        ];
+                      null != componentInfo$jscomp$2.key &&
+                        addValueToProperties(
+                          "key",
+                          componentInfo$jscomp$2.key,
+                          properties,
+                          0,
+                          ""
+                        );
+                      null != componentInfo$jscomp$2.props &&
+                        addObjectToProperties(
+                          componentInfo$jscomp$2.props,
+                          properties,
+                          0,
+                          ""
+                        );
+                      performance.measure(entryName$jscomp$0, {
+                        start: 0 > startTime$jscomp$2 ? 0 : startTime$jscomp$2,
+                        end: childrenEndTime$jscomp$1,
+                        detail: {
+                          devtools: {
+                            color: "error",
+                            track: trackNames[trackIdx$jscomp$1],
+                            trackGroup: "Server Components \u269b",
+                            tooltipText: entryName$jscomp$0 + " Errored",
+                            properties: properties
                           }
-                        }));
-                  else if (
-                    ((_i5 = componentInfo$jscomp$0),
-                    (childResult = trackIdx$jscomp$0),
-                    supportsUserTiming &&
-                      0 <= childrenEndTime &&
-                      10 > childResult)
-                  ) {
-                    trackIdx$jscomp$0 = _i5.env;
-                    componentInfo$jscomp$0 = _i5.name;
-                    var isPrimaryEnv =
-                      trackIdx$jscomp$0 === response._rootEnvironmentName;
-                    response = componentEndTime - startTime;
-                    response =
-                      0.5 > response
-                        ? isPrimaryEnv
-                          ? "primary-light"
-                          : "secondary-light"
-                        : 50 > response
-                          ? isPrimaryEnv
-                            ? "primary"
-                            : "secondary"
-                          : 500 > response
+                        }
+                      });
+                    }
+                  } else {
+                    var componentInfo$jscomp$3 = componentInfo$jscomp$1,
+                      trackIdx$jscomp$2 = trackIdx$jscomp$0,
+                      startTime$jscomp$3 = startTime$jscomp$1,
+                      childrenEndTime$jscomp$2 = childrenEndTime$jscomp$0;
+                    if (
+                      supportsUserTiming &&
+                      0 <= childrenEndTime$jscomp$2 &&
+                      10 > trackIdx$jscomp$2
+                    ) {
+                      var env$jscomp$0 = componentInfo$jscomp$3.env,
+                        name$jscomp$0 = componentInfo$jscomp$3.name,
+                        isPrimaryEnv =
+                          env$jscomp$0 === response._rootEnvironmentName,
+                        selfTime =
+                          componentEndTime$jscomp$0 - startTime$jscomp$3,
+                        color$jscomp$0 =
+                          0.5 > selfTime
                             ? isPrimaryEnv
-                              ? "primary-dark"
-                              : "secondary-dark"
-                            : "error";
-                    componentEndTime =
-                      isPrimaryEnv || void 0 === trackIdx$jscomp$0
-                        ? componentInfo$jscomp$0
-                        : componentInfo$jscomp$0 +
-                          " [" +
-                          trackIdx$jscomp$0 +
-                          "]";
-                    (trackIdx$jscomp$0 = _i5.debugTask)
-                      ? ((componentInfo$jscomp$0 = []),
-                        null != _i5.key &&
+                              ? "primary-light"
+                              : "secondary-light"
+                            : 50 > selfTime
+                              ? isPrimaryEnv
+                                ? "primary"
+                                : "secondary"
+                              : 500 > selfTime
+                                ? isPrimaryEnv
+                                  ? "primary-dark"
+                                  : "secondary-dark"
+                                : "error",
+                        entryName$jscomp$1 =
+                          isPrimaryEnv || void 0 === env$jscomp$0
+                            ? name$jscomp$0
+                            : name$jscomp$0 + " [" + env$jscomp$0 + "]",
+                        debugTask$jscomp$0 = componentInfo$jscomp$3.debugTask;
+                      if (debugTask$jscomp$0) {
+                        var properties$jscomp$0 = [];
+                        null != componentInfo$jscomp$3.key &&
                           addValueToProperties(
                             "key",
-                            _i5.key,
-                            componentInfo$jscomp$0,
-                            0
-                          ),
-                        null != _i5.props &&
+                            componentInfo$jscomp$3.key,
+                            properties$jscomp$0,
+                            0,
+                            ""
+                          );
+                        null != componentInfo$jscomp$3.props &&
                           addObjectToProperties(
-                            _i5.props,
-                            componentInfo$jscomp$0,
-                            0
-                          ),
-                        trackIdx$jscomp$0.run(
+                            componentInfo$jscomp$3.props,
+                            properties$jscomp$0,
+                            0,
+                            ""
+                          );
+                        debugTask$jscomp$0.run(
                           performance.measure.bind(
                             performance,
-                            componentEndTime,
+                            entryName$jscomp$1,
                             {
-                              start: 0 > startTime ? 0 : startTime,
-                              end: childrenEndTime,
+                              start:
+                                0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
+                              end: childrenEndTime$jscomp$2,
                               detail: {
                                 devtools: {
-                                  color: response,
-                                  track: trackNames[childResult],
+                                  color: color$jscomp$0,
+                                  track: trackNames[trackIdx$jscomp$2],
                                   trackGroup: "Server Components \u269b",
-                                  properties: componentInfo$jscomp$0
+                                  properties: properties$jscomp$0
                                 }
                               }
                             }
                           )
-                        ))
-                      : console.timeStamp(
-                          componentEndTime,
-                          0 > startTime ? 0 : startTime,
-                          childrenEndTime,
-                          trackNames[childResult],
-                          "Server Components \u269b",
-                          response
                         );
+                      } else
+                        console.timeStamp(
+                          entryName$jscomp$1,
+                          0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
+                          childrenEndTime$jscomp$2,
+                          trackNames[trackIdx$jscomp$2],
+                          "Server Components \u269b",
+                          color$jscomp$0
+                        );
+                    }
                   }
-                  childResult = trackTime;
-                  trackIdx.component = candidateInfo;
-                  _i5 = !1;
-                } else if (candidateInfo.awaited)
-                  if (
-                    (parentEndTime > componentInfo &&
-                      (componentInfo = parentEndTime),
-                    (childrenEndTime = response$jscomp$0._rootEnvironmentName),
-                    (response = candidateInfo.awaited.value))
-                  )
-                    switch (
-                      ((trackIdx$jscomp$0 = response), trackIdx$jscomp$0.status)
-                    ) {
+                  componentEndTime = time;
+                  result.component = componentInfo$jscomp$0;
+                  isLastComponent = !1;
+                } else if (candidateInfo.awaited) {
+                  endTime > childrenEndTime && (childrenEndTime = endTime);
+                  var asyncInfo = candidateInfo,
+                    env$jscomp$1 = response$jscomp$0._rootEnvironmentName,
+                    promise = asyncInfo.awaited.value;
+                  if (promise) {
+                    var thenable = promise;
+                    switch (thenable.status) {
                       case "fulfilled":
                         logComponentAwait(
-                          candidateInfo,
-                          trackIdx$jscomp$1,
-                          trackTime,
-                          parentEndTime,
-                          childrenEndTime,
-                          trackIdx$jscomp$0.value
+                          asyncInfo,
+                          trackIdx$jscomp$6,
+                          time,
+                          endTime,
+                          env$jscomp$1,
+                          thenable.value
                         );
                         break;
                       case "rejected":
-                        response = trackIdx$jscomp$1;
-                        startTime = trackTime;
-                        componentEndTime = parentEndTime;
-                        trackIdx$jscomp$0 = trackIdx$jscomp$0.reason;
-                        supportsUserTiming &&
-                          0 < componentEndTime &&
-                          ((componentInfo$jscomp$0 = candidateInfo.env),
-                          (isPrimaryEnv = candidateInfo.awaited.name),
-                          (childrenEndTime =
-                            "await " +
-                            (componentInfo$jscomp$0 === childrenEndTime ||
-                            void 0 === componentInfo$jscomp$0
-                              ? isPrimaryEnv
-                              : isPrimaryEnv +
-                                " [" +
-                                componentInfo$jscomp$0 +
-                                "]")),
-                          (candidateInfo =
-                            candidateInfo.debugTask ||
-                            candidateInfo.awaited.debugTask)
-                            ? candidateInfo.run(
-                                performance.measure.bind(
-                                  performance,
-                                  childrenEndTime,
-                                  {
-                                    start: 0 > startTime ? 0 : startTime,
-                                    end: componentEndTime,
-                                    detail: {
-                                      devtools: {
-                                        color: "error",
-                                        track: trackNames[response],
-                                        trackGroup: "Server Components \u269b",
-                                        properties: [
-                                          [
-                                            "Rejected",
-                                            "object" ===
-                                              typeof trackIdx$jscomp$0 &&
-                                            null !== trackIdx$jscomp$0 &&
-                                            "string" ===
-                                              typeof trackIdx$jscomp$0.message
-                                              ? String(
-                                                  trackIdx$jscomp$0.message
-                                                )
-                                              : String(trackIdx$jscomp$0)
-                                          ]
-                                        ],
-                                        tooltipText:
-                                          childrenEndTime + " Rejected"
-                                      }
-                                    }
-                                  }
-                                )
-                              )
-                            : console.timeStamp(
-                                childrenEndTime,
-                                0 > startTime ? 0 : startTime,
-                                componentEndTime,
-                                trackNames[response],
-                                "Server Components \u269b",
-                                "error"
-                              ));
-                        break;
-                      default:
-                        logComponentAwait(
-                          candidateInfo,
-                          trackIdx$jscomp$1,
-                          trackTime,
-                          parentEndTime,
-                          childrenEndTime,
-                          void 0
-                        );
-                    }
-                  else
-                    logComponentAwait(
-                      candidateInfo,
-                      trackIdx$jscomp$1,
-                      trackTime,
-                      parentEndTime,
-                      childrenEndTime,
-                      void 0
-                    );
-              }
-            else
-              for (
-                parentEndTime = trackTime, info = previousEndTime.length - 1;
-                info > entryName;
-                info--
-              )
-                (candidateInfo = previousEndTime[info]),
-                  "string" === typeof candidateInfo.name
-                    ? (childResult > componentInfo &&
-                        (componentInfo = childResult),
-                      (_i5 = candidateInfo),
-                      (componentEndTime =
-                        response$jscomp$0._rootEnvironmentName),
-                      (childResult = _i5),
-                      (candidateInfo = trackIdx$jscomp$1),
-                      (response = trackTime),
-                      (startTime = componentInfo),
-                      supportsUserTiming &&
-                        ((childrenEndTime = childResult.env),
-                        (trackIdx$jscomp$0 = childResult.name),
-                        (componentEndTime =
-                          childrenEndTime === componentEndTime ||
-                          void 0 === childrenEndTime
-                            ? trackIdx$jscomp$0
-                            : trackIdx$jscomp$0 + " [" + childrenEndTime + "]"),
-                        (childrenEndTime = [
-                          [
-                            "Aborted",
-                            "The stream was aborted before this Component finished rendering."
-                          ]
-                        ]),
-                        null != childResult.key &&
-                          addValueToProperties(
-                            "key",
-                            childResult.key,
-                            childrenEndTime,
-                            0
-                          ),
-                        null != childResult.props &&
-                          addObjectToProperties(
-                            childResult.props,
-                            childrenEndTime,
-                            0
-                          ),
-                        performance.measure(componentEndTime, {
-                          start: 0 > response ? 0 : response,
-                          end: startTime,
-                          detail: {
-                            devtools: {
-                              color: "warning",
-                              track: trackNames[candidateInfo],
-                              trackGroup: "Server Components \u269b",
-                              tooltipText: componentEndTime + " Aborted",
-                              properties: childrenEndTime
-                            }
-                          }
-                        })),
-                      (childResult = trackTime),
-                      (trackIdx.component = _i5),
-                      (_i5 = !1))
-                    : candidateInfo.awaited &&
-                      ((componentEndTime = candidateInfo),
-                      (childrenEndTime =
-                        response$jscomp$0._rootEnvironmentName),
-                      componentEndTime.awaited.end > parentEndTime &&
-                        (parentEndTime = componentEndTime.awaited.end),
-                      parentEndTime > componentInfo &&
-                        (componentInfo = parentEndTime),
-                      (candidateInfo = trackIdx$jscomp$1),
-                      (response = trackTime),
-                      (startTime = parentEndTime),
-                      supportsUserTiming &&
-                        0 < startTime &&
-                        ((trackIdx$jscomp$0 = componentEndTime.env),
-                        (componentInfo$jscomp$0 =
-                          componentEndTime.awaited.name),
-                        (childrenEndTime =
-                          "await " +
-                          (trackIdx$jscomp$0 === childrenEndTime ||
-                          void 0 === trackIdx$jscomp$0
-                            ? componentInfo$jscomp$0
-                            : componentInfo$jscomp$0 +
-                              " [" +
-                              trackIdx$jscomp$0 +
-                              "]")),
-                        (componentEndTime =
-                          componentEndTime.debugTask ||
-                          componentEndTime.awaited.debugTask)
-                          ? componentEndTime.run(
+                        var asyncInfo$jscomp$0 = asyncInfo,
+                          trackIdx$jscomp$3 = trackIdx$jscomp$6,
+                          startTime$jscomp$4 = time,
+                          endTime$jscomp$0 = endTime,
+                          rootEnv = env$jscomp$1,
+                          error$jscomp$0 = thenable.reason;
+                        if (supportsUserTiming && 0 < endTime$jscomp$0) {
+                          var description = getIODescription(error$jscomp$0),
+                            entryName$jscomp$2 =
+                              "await " +
+                              getIOShortName(
+                                asyncInfo$jscomp$0.awaited,
+                                description,
+                                asyncInfo$jscomp$0.env,
+                                rootEnv
+                              ),
+                            debugTask$jscomp$1 =
+                              asyncInfo$jscomp$0.debugTask ||
+                              asyncInfo$jscomp$0.awaited.debugTask;
+                          if (debugTask$jscomp$1) {
+                            var properties$jscomp$1 = [
+                                [
+                                  "Rejected",
+                                  "object" === typeof error$jscomp$0 &&
+                                  null !== error$jscomp$0 &&
+                                  "string" === typeof error$jscomp$0.message
+                                    ? String(error$jscomp$0.message)
+                                    : String(error$jscomp$0)
+                                ]
+                              ],
+                              tooltipText =
+                                getIOLongName(
+                                  asyncInfo$jscomp$0.awaited,
+                                  description,
+                                  asyncInfo$jscomp$0.env,
+                                  rootEnv
+                                ) + " Rejected";
+                            debugTask$jscomp$1.run(
                               performance.measure.bind(
                                 performance,
-                                childrenEndTime,
+                                entryName$jscomp$2,
                                 {
-                                  start: 0 > response ? 0 : response,
-                                  end: startTime,
+                                  start:
+                                    0 > startTime$jscomp$4
+                                      ? 0
+                                      : startTime$jscomp$4,
+                                  end: endTime$jscomp$0,
                                   detail: {
                                     devtools: {
-                                      color: "warning",
-                                      track: trackNames[candidateInfo],
+                                      color: "error",
+                                      track: trackNames[trackIdx$jscomp$3],
                                       trackGroup: "Server Components \u269b",
-                                      properties: [
-                                        [
-                                          "Aborted",
-                                          "The stream was aborted before this Promise resolved."
-                                        ]
-                                      ],
-                                      tooltipText: childrenEndTime + " Aborted"
+                                      properties: properties$jscomp$1,
+                                      tooltipText: tooltipText
                                     }
                                   }
                                 }
                               )
-                            )
-                          : console.timeStamp(
-                              childrenEndTime,
-                              0 > response ? 0 : response,
-                              startTime,
-                              trackNames[candidateInfo],
+                            );
+                          } else
+                            console.timeStamp(
+                              entryName$jscomp$2,
+                              0 > startTime$jscomp$4 ? 0 : startTime$jscomp$4,
+                              endTime$jscomp$0,
+                              trackNames[trackIdx$jscomp$3],
                               "Server Components \u269b",
-                              "warning"
-                            )));
-            parentEndTime = trackTime;
-            info = entryName;
+                              "error"
+                            );
+                        }
+                        break;
+                      default:
+                        logComponentAwait(
+                          asyncInfo,
+                          trackIdx$jscomp$6,
+                          time,
+                          endTime,
+                          env$jscomp$1,
+                          void 0
+                        );
+                    }
+                  } else
+                    logComponentAwait(
+                      asyncInfo,
+                      trackIdx$jscomp$6,
+                      time,
+                      endTime,
+                      env$jscomp$1,
+                      void 0
+                    );
+                }
+              }
+            else {
+              endTime = time;
+              for (var _j = debugInfo.length - 1; _j > _i6; _j--) {
+                var _candidateInfo = debugInfo[_j];
+                if ("string" === typeof _candidateInfo.name) {
+                  componentEndTime > childrenEndTime &&
+                    (childrenEndTime = componentEndTime);
+                  var _componentInfo = _candidateInfo,
+                    _env = response$jscomp$0._rootEnvironmentName,
+                    componentInfo$jscomp$4 = _componentInfo,
+                    trackIdx$jscomp$4 = trackIdx$jscomp$6,
+                    startTime$jscomp$5 = time,
+                    childrenEndTime$jscomp$3 = childrenEndTime;
+                  if (supportsUserTiming) {
+                    var env$jscomp$2 = componentInfo$jscomp$4.env,
+                      name$jscomp$1 = componentInfo$jscomp$4.name,
+                      entryName$jscomp$3 =
+                        env$jscomp$2 === _env || void 0 === env$jscomp$2
+                          ? name$jscomp$1
+                          : name$jscomp$1 + " [" + env$jscomp$2 + "]",
+                      properties$jscomp$2 = [
+                        [
+                          "Aborted",
+                          "The stream was aborted before this Component finished rendering."
+                        ]
+                      ];
+                    null != componentInfo$jscomp$4.key &&
+                      addValueToProperties(
+                        "key",
+                        componentInfo$jscomp$4.key,
+                        properties$jscomp$2,
+                        0,
+                        ""
+                      );
+                    null != componentInfo$jscomp$4.props &&
+                      addObjectToProperties(
+                        componentInfo$jscomp$4.props,
+                        properties$jscomp$2,
+                        0,
+                        ""
+                      );
+                    performance.measure(entryName$jscomp$3, {
+                      start: 0 > startTime$jscomp$5 ? 0 : startTime$jscomp$5,
+                      end: childrenEndTime$jscomp$3,
+                      detail: {
+                        devtools: {
+                          color: "warning",
+                          track: trackNames[trackIdx$jscomp$4],
+                          trackGroup: "Server Components \u269b",
+                          tooltipText: entryName$jscomp$3 + " Aborted",
+                          properties: properties$jscomp$2
+                        }
+                      }
+                    });
+                  }
+                  componentEndTime = time;
+                  result.component = _componentInfo;
+                  isLastComponent = !1;
+                } else if (_candidateInfo.awaited) {
+                  var _asyncInfo = _candidateInfo,
+                    _env2 = response$jscomp$0._rootEnvironmentName;
+                  _asyncInfo.awaited.end > endTime &&
+                    (endTime = _asyncInfo.awaited.end);
+                  endTime > childrenEndTime && (childrenEndTime = endTime);
+                  var asyncInfo$jscomp$1 = _asyncInfo,
+                    trackIdx$jscomp$5 = trackIdx$jscomp$6,
+                    startTime$jscomp$6 = time,
+                    endTime$jscomp$1 = endTime,
+                    rootEnv$jscomp$0 = _env2;
+                  if (supportsUserTiming && 0 < endTime$jscomp$1) {
+                    var entryName$jscomp$4 =
+                        "await " +
+                        getIOShortName(
+                          asyncInfo$jscomp$1.awaited,
+                          "",
+                          asyncInfo$jscomp$1.env,
+                          rootEnv$jscomp$0
+                        ),
+                      debugTask$jscomp$2 =
+                        asyncInfo$jscomp$1.debugTask ||
+                        asyncInfo$jscomp$1.awaited.debugTask;
+                    if (debugTask$jscomp$2) {
+                      var tooltipText$jscomp$0 =
+                        getIOLongName(
+                          asyncInfo$jscomp$1.awaited,
+                          "",
+                          asyncInfo$jscomp$1.env,
+                          rootEnv$jscomp$0
+                        ) + " Aborted";
+                      debugTask$jscomp$2.run(
+                        performance.measure.bind(
+                          performance,
+                          entryName$jscomp$4,
+                          {
+                            start:
+                              0 > startTime$jscomp$6 ? 0 : startTime$jscomp$6,
+                            end: endTime$jscomp$1,
+                            detail: {
+                              devtools: {
+                                color: "warning",
+                                track: trackNames[trackIdx$jscomp$5],
+                                trackGroup: "Server Components \u269b",
+                                properties: [
+                                  [
+                                    "Aborted",
+                                    "The stream was aborted before this Promise resolved."
+                                  ]
+                                ],
+                                tooltipText: tooltipText$jscomp$0
+                              }
+                            }
+                          }
+                        )
+                      );
+                    } else
+                      console.timeStamp(
+                        entryName$jscomp$4,
+                        0 > startTime$jscomp$6 ? 0 : startTime$jscomp$6,
+                        endTime$jscomp$1,
+                        trackNames[trackIdx$jscomp$5],
+                        "Server Components \u269b",
+                        "warning"
+                      );
+                  }
+                }
+              }
+            }
+            endTime = time;
+            endTimeIdx = _i6;
           }
-      trackIdx.endTime = componentInfo;
-      return trackIdx;
+        }
+      result.endTime = childrenEndTime;
+      return result;
     }
     function processFullBinaryRow(response, id, tag, buffer, chunk) {
       switch (tag) {

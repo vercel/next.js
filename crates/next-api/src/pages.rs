@@ -1392,8 +1392,12 @@ impl PageEndpoint {
             .should_create_webpack_stats()
             .await?
         {
-            let webpack_stats =
-                generate_webpack_stats(original_name.to_owned(), &client_assets.await?).await?;
+            let webpack_stats = generate_webpack_stats(
+                self.client_module_graph(),
+                original_name.to_owned(),
+                client_assets.await?.iter().copied(),
+            )
+            .await?;
             let stats_output = VirtualOutputAsset::new(
                 node_root.join(&format!(
                     "server/pages{manifest_path_prefix}/webpack-stats.json",

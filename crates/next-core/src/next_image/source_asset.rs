@@ -84,19 +84,25 @@ impl Asset for StructuredImageFileSource {
             }
             BlurPlaceholderMode::DataUrl => {
                 let info = get_meta_data(*self.image, *content, Some(blur_options)).await?;
-                writeln!(
+                write!(
                     result,
-                    "export default {{ src, width: {width}, height: {height}, blurDataURL: \
-                     {blur_data_url}, blurWidth: {blur_width}, blurHeight: {blur_height} }}",
+                    "export default {{ src, width: {width}, height: {height}, blurWidth: \
+                     {blur_width}, blurHeight: {blur_height}",
                     width = StringifyJs(&info.width),
                     height = StringifyJs(&info.height),
-                    blur_data_url =
-                        StringifyJs(&info.blur_placeholder.as_ref().map(|p| p.data_url.as_str())),
                     blur_width =
                         StringifyJs(&info.blur_placeholder.as_ref().map_or(0, |p| p.width)),
                     blur_height =
                         StringifyJs(&info.blur_placeholder.as_ref().map_or(0, |p| p.height),),
                 )?;
+                if let Some(blur_placeholder) = &info.blur_placeholder {
+                    write!(
+                        result,
+                        ", blurDataURL: {blur_data_url}",
+                        blur_data_url = StringifyJs(blur_placeholder.data_url.as_str()),
+                    )?;
+                }
+                writeln!(result, "}};")?;
             }
             BlurPlaceholderMode::None => {
                 let info = get_meta_data(*self.image, *content, None).await?;
