@@ -6,7 +6,7 @@ import {
 import { getErrorSource } from '../../../shared/lib/error-source'
 import {
   getTerminalLoggingConfig,
-  isTerminalLoggingEnabled,
+  getIsTerminalLoggingEnabled,
 } from './terminal-logging-config'
 import {
   type ConsoleEntry,
@@ -36,7 +36,7 @@ const stringify = configure({
   maximumBreadth,
 })
 
-const shouldForwardLogs = isTerminalLoggingEnabled()
+export const isTerminalLoggingEnabled = getIsTerminalLoggingEnabled()
 
 const methods: Array<LogMethod> = [
   'log',
@@ -208,9 +208,6 @@ export const logQueue: {
     })
   },
   onSocketReady: (socket: WebSocket) => {
-    if (!shouldForwardLogs) {
-      return
-    }
     if (socket.readyState !== WebSocket.OPEN) {
       // invariant
       return

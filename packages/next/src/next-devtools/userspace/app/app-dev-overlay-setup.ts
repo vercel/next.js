@@ -1,11 +1,13 @@
 import { patchConsoleError } from './errors/intercept-console-error'
 import { handleGlobalErrors } from './errors/use-error-handler'
-import { initializeDebugLogForwarding } from './forward-logs'
-import { isTerminalLoggingEnabled } from './terminal-logging-config'
+import {
+  initializeDebugLogForwarding,
+  isTerminalLoggingEnabled,
+} from './forward-logs'
 
 handleGlobalErrors()
 patchConsoleError()
 
-if (isTerminalLoggingEnabled()) {
+if (isTerminalLoggingEnabled) {
   initializeDebugLogForwarding('app')
 }

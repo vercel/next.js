@@ -15,7 +15,7 @@ export function getTerminalLoggingConfig():
   }
 }
 
-export function isTerminalLoggingEnabled(): boolean {
+export function getIsTerminalLoggingEnabled(): boolean {
   const config = getTerminalLoggingConfig()
   return Boolean(config)
 }

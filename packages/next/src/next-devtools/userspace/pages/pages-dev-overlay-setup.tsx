@@ -15,8 +15,8 @@ import {
   forwardUnhandledError,
   logUnhandledRejection,
   forwardErrorLog,
+  isTerminalLoggingEnabled,
 } from '../app/forward-logs'
-import { isTerminalLoggingEnabled } from '../app/terminal-logging-config'
 
 const usePagesDevOverlayBridge = () => {
   React.useInsertionEffect(() => {
@@ -83,7 +83,9 @@ function nextJsHandleConsoleError(...args: any[]) {
   storeHydrationErrorStateFromConsoleArgs(...args)
   // TODO: Surfaces non-errors logged via `console.error`.
   handleError(maybeError)
-  forwardErrorLog(args)
+  if (isTerminalLoggingEnabled) {
+    forwardErrorLog(args)
+  }
   origConsoleError.apply(window.console, args)
 }
 
@@ -91,7 +93,7 @@ function onUnhandledError(event: ErrorEvent) {
   const error = event?.error
   handleError(error)
 
-  if (error) {
+  if (error && isTerminalLoggingEnabled) {
     forwardUnhandledError(error as Error)
   }
 }
@@ -108,7 +110,9 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
   }
 
   dispatcher.onUnhandledRejection(reason)
-  logUnhandledRejection(reason)
+  if (isTerminalLoggingEnabled) {
+    logUnhandledRejection(reason)
+  }
 }
 
 export function register() {
@@ -121,7 +125,7 @@ export function register() {
     Error.stackTraceLimit = 50
   } catch {}
 
-  if (isTerminalLoggingEnabled()) {
+  if (isTerminalLoggingEnabled) {
     initializeDebugLogForwarding('pages')
   }
   window.addEventListener('error', onUnhandledError)
