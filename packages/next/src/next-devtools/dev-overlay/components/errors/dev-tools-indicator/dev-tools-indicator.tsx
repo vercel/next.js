@@ -80,7 +80,7 @@ interface C {
 
 const Context = createContext({} as C)
 
-const OVERLAYS = {
+export const OVERLAYS = {
   Root: 'root',
   Turbo: 'turbo',
   Route: 'route',
@@ -309,12 +309,12 @@ function DevToolsPopover({
 
       {/* Route Info */}
       <RouteInfo
-        isOpen={isRouteInfoOpen}
-        close={closeToRootMenu}
-        triggerRef={triggerRef}
-        style={popover}
-        routerType={routerType}
-        routeType={isStaticRoute ? 'Static' : 'Dynamic'}
+        // isOpen={isRouteInfoOpen}
+        // close={closeToRootMenu}
+        // triggerRef={triggerRef}
+        // style={popover}
+        // routerType={routerType}
+        // routeType={isStaticRoute ? 'Static' : 'Dynamic'}
       />
 
       {/* Turbopack Info */}
