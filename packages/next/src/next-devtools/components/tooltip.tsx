@@ -7,18 +7,20 @@ type TooltipDirection = 'top' | 'bottom' | 'left' | 'right'
 
 interface TooltipProps {
   children: React.ReactNode
-  title: string
+  title: string | null
   direction?: TooltipDirection
   container?: HTMLElement | React.RefObject<HTMLElement>
   arrowSize?: number
   offset?: number
   bgcolor?: string
   color?: string
+  className?: string
 }
 
 export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
   function Tooltip(
     {
+      className,
       children,
       title,
       direction = 'top',
@@ -30,6 +32,9 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
     },
     ref
   ) {
+    if (!title) {
+      return children
+    }
     return (
       <BaseTooltip.Provider>
         <BaseTooltip.Root delay={0}>
@@ -53,7 +58,7 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
               }
             >
               <BaseTooltip.Popup
-                className="tooltip"
+                className={cx('tooltip', className)}
                 style={
                   {
                     backgroundColor: bgcolor,

@@ -28,15 +28,16 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      parallel-routes/
      layout.tsx
      page.tsx
      @bar/
      layout.tsx
-     page.tsx
+     boundary
      @foo/
      layout.tsx
-     page.tsx"
+     boundary"
     `)
   })
 
@@ -45,6 +46,7 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      parallel-routes-edge/
      layout.tsx
      page.tsx
@@ -62,6 +64,7 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      (v2)/
      layout.tsx
      blog / (team)/
@@ -79,6 +82,7 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      soft-navigation / a/
      page.tsx"
     `)
@@ -91,6 +95,7 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      soft-navigation / b/
      page.tsx"
     `)
@@ -101,6 +106,7 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      (all) / file-segments/
      layout.tsx
      template.tsx
@@ -137,27 +143,32 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      boundary/
      layout.tsx
-     not-found.tsx"
+     boundary"
     `)
 
     await browser.loadPage(`${next.url}/boundary?name=forbidden`)
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      boundary/
      layout.tsx
-     forbidden.tsx"
+     forbidden.tsx
+     boundary"
     `)
 
     await browser.loadPage(`${next.url}/boundary?name=unauthorized`)
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      boundary/
      layout.tsx
-     unauthorized.tsx"
+     unauthorized.tsx
+     boundary"
     `)
   })
 
@@ -174,9 +185,10 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      search/
      layout.tsx
-     loading.tsx"
+     boundary"
     `)
   })
 
@@ -185,8 +197,9 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      runtime-error / boundary/
-     error.tsx"
+     boundary"
     `)
   })
 
@@ -195,6 +208,7 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
      "app/
      layout.tsx
+     boundary
      parallel-default/
      layout.tsx
      default.tsx

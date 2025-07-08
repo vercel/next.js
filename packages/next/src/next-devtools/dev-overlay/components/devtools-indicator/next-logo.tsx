@@ -7,50 +7,51 @@ import { useMinimumLoadingTimeMultiple } from './hooks/use-minimum-loading-time-
 import { Cross } from '../../icons/cross'
 import { Warning } from '../../icons/warning'
 import { css } from '../../utils/css'
-
-interface Props extends React.ComponentProps<'button'> {
-  issueCount: number
-  isDevBuilding: boolean
-  isDevRendering: boolean
-  isBuildError: boolean
-  onTriggerClick: () => void
-  toggleErrorOverlay: () => void
-  scale: DevToolsScale
-}
+import { useDevOverlayContext } from '../../../dev-overlay.browser'
+import { useRenderErrorContext } from '../../dev-overlay'
+import {
+  ACTION_DEVTOOLS_PANEL_OPEN,
+  ACTION_DEVTOOLS_PANEL_TOGGLE,
+  ACTION_ERROR_OVERLAY_OPEN,
+} from '../../shared'
+import { usePanelContext } from '../../menu/context'
+import { OVERLAYS } from '../errors/dev-tools-indicator/dev-tools-indicator'
 
 const SHORT_DURATION_MS = 150
 
-export function NextLogo({
-  disabled,
-  issueCount,
-  isDevBuilding,
-  isDevRendering,
-  isBuildError,
-  onTriggerClick,
-  toggleErrorOverlay,
-  scale = 1,
-  ...props
-}: Props) {
-  const SIZE = 36 / scale
+export function NextLogo(buttonProps: React.ComponentProps<'button'>) {
+  const { state, dispatch } = useDevOverlayContext()
+  const { totalErrorCount } = useRenderErrorContext()
+  const SIZE = 36 / state.scale
+  // const [open, setOpen] = useState(false)
+  // todo: rename better: its indicator menu open something something
+  // also wait we are duplicating this totally need to dedupe
+  const { open, setOpen, setPanel } = usePanelContext()
+  const isMenuOpen = open === OVERLAYS.Root
 
-  const hasError = issueCount > 0
+  const hasError = totalErrorCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [dismissed, setDismissed] = useState(false)
-  const newErrorDetected = useUpdateAnimation(issueCount, SHORT_DURATION_MS)
+  const newErrorDetected = useUpdateAnimation(
+    totalErrorCount,
+    SHORT_DURATION_MS
+  )
 
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
 
   const isLoading = useMinimumLoadingTimeMultiple(
-    isDevBuilding || isDevRendering
+    state.buildingIndicator || state.renderingIndicator
   )
-  const isExpanded = isErrorExpanded || disabled
+  const isExpanded = isErrorExpanded || state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   useEffect(() => {
     setIsErrorExpanded(hasError)
   }, [hasError])
+  console.log('its time for next logo',state.disableDevIndicator);
+  
 
   return (
     <div
@@ -61,7 +62,10 @@ export function NextLogo({
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors
-          display: disabled && (!hasError || dismissed) ? 'none' : 'block',
+          display:
+            state.disableDevIndicator && (!hasError || dismissed)
+              ? 'none'
+              : 'block',
         } as React.CSSProperties
       }
     >
@@ -396,15 +400,30 @@ export function NextLogo({
       >
         <div ref={ref}>
           {/* Children */}
-          {!disabled && (
+          {!state.disableDevIndicator && (
             <button
+            id="next-logo"
               ref={triggerRef}
               data-next-mark
               data-next-mark-loading={isLoading}
-              onClick={onTriggerClick}
-              {...props}
+              onClick={() => {
+
+                // this is really stupid, especially with setOpen
+                setPanel(prev => prev === 'panel-selector' ? null : 'panel-selector')
+                // dispatch({ type: ACTION_DEVTOOLS_PANEL_TOGGLE })
+              }}
+              disabled={state.disableDevIndicator}
+              aria-haspopup="menu"
+              aria-expanded={isMenuOpen}
+              aria-controls="nextjs-dev-tools-menu"
+              aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
+              data-nextjs-dev-tools-button
+              {...buttonProps}
             >
-              <NextMark isLoading={isLoading} isDevBuilding={isDevBuilding} />
+              <NextMark
+                isLoading={isLoading}
+                isDevBuilding={state.buildingIndicator}
+              />
             </button>
           )}
           {isExpanded && (
@@ -412,42 +431,46 @@ export function NextLogo({
               <button
                 data-issues-open
                 aria-label="Open issues overlay"
-                onClick={toggleErrorOverlay}
+                onClick={() => {
+                  dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+                  // Open the DevTools panel to view as error overlay mode.
+                  dispatch({ type: ACTION_DEVTOOLS_PANEL_OPEN })
+                }}
               >
-                {disabled && (
+                {state.disableDevIndicator && (
                   <div data-disabled-icon>
                     <Warning />
                   </div>
                 )}
                 <AnimateCount
                   // Used the key to force a re-render when the count changes.
-                  key={issueCount}
+                  key={totalErrorCount}
                   animate={newErrorDetected}
                   data-issues-count-animation
                 >
-                  {issueCount}
+                  {totalErrorCount}
                 </AnimateCount>{' '}
                 <div>
                   Issue
-                  {issueCount > 1 && (
+                  {totalErrorCount > 1 && (
                     <span
                       aria-hidden
                       data-issues-count-plural
                       // This only needs to animate once the count changes from 1 -> 2,
                       // otherwise it should stay static between re-renders.
-                      data-animate={newErrorDetected && issueCount === 2}
+                      data-animate={newErrorDetected && totalErrorCount === 2}
                     >
                       s
                     </span>
                   )}
                 </div>
               </button>
-              {!isBuildError && (
+              {!state.buildError && (
                 <button
                   data-issues-collapse
                   aria-label="Collapse issues badge"
                   onClick={() => {
-                    if (disabled) {
+                    if (state.disableDevIndicator) {
                       setDismissed(true)
                     } else {
                       setIsErrorExpanded(false)

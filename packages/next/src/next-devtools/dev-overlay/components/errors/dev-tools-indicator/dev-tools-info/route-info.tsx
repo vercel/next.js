@@ -1,6 +1,7 @@
 import type { HTMLProps } from 'react'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
+import { useDevOverlayContext } from '../../../../../dev-overlay.browser'
 
 function StaticRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
   return (
@@ -110,31 +111,30 @@ const learnMoreLink = {
   },
 } as const
 
-export function RouteInfo({
-  routeType,
-  routerType,
-  ...props
-}: {
-  routeType: 'Static' | 'Dynamic'
-  routerType: 'pages' | 'app'
-} & DevToolsInfoPropsCore &
-  HTMLProps<HTMLDivElement>) {
+export function RouteInfo() {
+  const { state } = useDevOverlayContext()
+
+  const routeType = state.staticIndicator ? 'Static' : 'Dynamic'
   const isStaticRoute = routeType === 'Static'
 
   const learnMore = isStaticRoute
-    ? learnMoreLink[routerType].static
-    : learnMoreLink[routerType].dynamic
+    ? learnMoreLink[state.routerType].static
+    : learnMoreLink[state.routerType].dynamic
 
   return (
     <DevToolsInfo
       title={`${routeType} Route`}
       learnMoreLink={learnMore}
-      {...props}
+      // {...props}
+      // these are tbd need to look at the og component how its used
+      close={() => {}}
+      isOpen={true}
+      triggerRef={{ current: null }}
     >
       {isStaticRoute ? (
-        <StaticRouteContent routerType={routerType} />
+        <StaticRouteContent routerType={state.routerType} />
       ) : (
-        <DynamicRouteContent routerType={routerType} />
+        <DynamicRouteContent routerType={state.routerType} />
       )}
     </DevToolsInfo>
   )

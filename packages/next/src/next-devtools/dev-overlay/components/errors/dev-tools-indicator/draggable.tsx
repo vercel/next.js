@@ -245,7 +245,22 @@ export function useDrag(options: UseDragOptions) {
 
     // Check if the target element directly matches the drag handle selector
     // This excludes children elements, only allowing drag from the exact element
-    return element.matches(options.dragHandleSelector)
+
+
+    // NEW allow drag from everywhere, need to narrow this later
+    if (element.matches(options.dragHandleSelector)) {
+      return true
+    }
+
+    let parent = element.parentElement
+    while (parent && parent !== ref.current) {
+      if (parent.matches && parent.matches(options.dragHandleSelector)) {
+        return true
+      }
+      parent = parent.parentElement
+    }
+
+    return false
   }
 
   function onPointerDown(e: React.PointerEvent) {

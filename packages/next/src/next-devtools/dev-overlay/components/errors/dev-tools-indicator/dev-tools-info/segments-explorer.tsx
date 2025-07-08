@@ -22,6 +22,13 @@ export function SegmentsExplorer({
 
 export const SEGMENTS_EXPLORER_STYLES = `
   [data-nextjs-segments-explorer] {
+    min-width: 768px;
     margin: -16px;
+  }
+
+  @media (max-width: 768px) {
+    [data-nextjs-segments-explorer] {
+      min-width: 90vw;
+    }
   }
 `
