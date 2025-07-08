@@ -12,7 +12,7 @@ pub fn hash_xxh3_hash64<T: DeterministicHash>(input: T) -> u64 {
 }
 
 pub fn hash_xxh3_hash64_oneshot(input: &[u8]) -> u64 {
-    XxHash3_64::oneshot(input)
+    XxHash3_64::oneshot_with_seed(input.len() as u64, input)
 }
 
 /// Xxh3Hash64 hasher.
