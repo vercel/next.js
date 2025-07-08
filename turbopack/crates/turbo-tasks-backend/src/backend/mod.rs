@@ -50,7 +50,7 @@ use crate::{
             AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             Operation, OutdatedEdge, TaskGuard, connect_children, get_aggregation_number,
-            is_root_node, prepare_new_children,
+            get_uppers, is_root_node, prepare_new_children,
         },
         storage::{
             InnerStorageSnapshot, Storage, count, get, get_many, get_mut, get_mut_or_insert_with,
@@ -574,7 +574,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         fn get_info(
                             ctx: &mut impl ExecuteContext<'_>,
                             task_id: TaskId,
-                            count: Option<i32>,
+                            parent_and_count: Option<(TaskId, i32)>,
                             visited: &mut FxHashSet<TaskId>,
                         ) -> String {
                             let task = ctx.task(task_id, TaskDataCategory::Data);
@@ -591,6 +591,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 |activeness| format!("{activeness:?}"),
                             );
                             let aggregation_number = get_aggregation_number(&task);
+                            let missing_upper = if let Some((parent_task_id, _)) = parent_and_count
+                            {
+                                let uppers = get_uppers(&task);
+                                !uppers.contains(&parent_task_id)
+                            } else {
+                                false
+                            };
 
                             // Check the dirty count of the root node
                             let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
@@ -600,14 +607,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
                             let task_description = ctx.get_task_description(task_id);
                             let is_dirty = if is_dirty { ", dirty" } else { "" };
-                            let count = if let Some(count) = count {
+                            let count = if let Some((_, count)) = parent_and_count {
                                 format!(" {count}")
                             } else {
                                 String::new()
                             };
                             let mut info = format!(
                                 "{task_id} {task_description}{count} (aggr={aggregation_number}, \
-                                 {in_progress}, {activeness}{is_dirty})"
+                                 {in_progress}, {activeness}{is_dirty})",
                             );
                             let children: Vec<_> = iter_many!(
                                 task,
@@ -621,14 +628,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .collect();
                             drop(task);
 
+                            if missing_upper {
+                                info.push_str("\n  ERROR: missing upper connection");
+                            }
+
                             if dirty_tasks > 0 || !children.is_empty() {
                                 writeln!(info, "\n  {dirty_tasks} dirty tasks:").unwrap();
 
-                                for (task_id, count) in children {
-                                    let task_description = ctx.get_task_description(task_id);
-                                    if visited.insert(task_id) {
-                                        let child_info =
-                                            get_info(ctx, task_id, Some(count), visited);
+                                for (child_task_id, count) in children {
+                                    let task_description = ctx.get_task_description(child_task_id);
+                                    if visited.insert(child_task_id) {
+                                        let child_info = get_info(
+                                            ctx,
+                                            child_task_id,
+                                            Some((task_id, count)),
+                                            visited,
+                                        );
                                         info.push_str(&indent(&child_info));
                                         if !info.ends_with('\n') {
                                             info.push('\n');
@@ -636,8 +651,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     } else {
                                         writeln!(
                                             info,
-                                            "  {task_id} {task_description} {count} (already \
-                                             visited)"
+                                            "  {child_task_id} {task_description} {count} \
+                                             (already visited)"
                                         )
                                         .unwrap();
                                     }
