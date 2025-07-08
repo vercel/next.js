@@ -2216,6 +2216,13 @@ export default async function getBaseWebpackConfig(
         : undefined,
   }
 
+  if (isRspack) {
+    // @ts-ignore
+    webpack5Config.experiments.cache = {
+      type: 'persistent',
+    }
+  }
+
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
