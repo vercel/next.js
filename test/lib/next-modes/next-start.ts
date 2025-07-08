@@ -38,7 +38,13 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  public async start() {
+  public async start(
+    options: {
+      env?: Record<string, string>
+      buildArgs?: string[]
+      startArgs?: string[]
+    } = {}
+  ) {
     if (this.childProcess) {
       throw new Error('next already started')
     }
@@ -51,6 +57,7 @@ export class NextStartInstance extends NextInstance {
       env: {
         ...process.env,
         ...this.env,
+        ...options.env,
         NODE_ENV: this.env.NODE_ENV || ('' as any),
         ...(this.forcedPort
           ? {
@@ -70,16 +77,24 @@ export class NextStartInstance extends NextInstance {
       buildArgs = this.buildCommand.split(' ')
     }
 
-    if (this.buildOptions) {
-      buildArgs.push(...this.buildOptions)
+    if (this.buildArgs) {
+      buildArgs.push(...this.buildArgs)
+    }
+
+    if (options.buildArgs) {
+      buildArgs.push(...options.buildArgs)
     }
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }
 
-    if (this.startOptions) {
-      startArgs.push(...this.startOptions)
+    if (this.startArgs) {
+      startArgs.push(...this.startArgs)
+    }
+
+    if (options.startArgs) {
+      startArgs.push(...options.startArgs)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {
@@ -180,7 +195,10 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  public async build() {
+  public async build(options: {
+    env?: Record<string, string>
+    args?: string[]
+  }) {
     this.spawnOpts = {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -188,6 +206,7 @@ export class NextStartInstance extends NextInstance {
       env: {
         ...process.env,
         ...this.env,
+        ...options.env,
         NODE_ENV: '' as any,
         PORT: this.forcedPort || '0',
         __NEXT_TEST_MODE: 'e2e',
@@ -198,10 +217,14 @@ export class NextStartInstance extends NextInstance {
       cliOutput: string
     }>((resolve) => {
       const curOutput = this._cliOutput.length
-      const exportArgs = ['pnpm', 'next', 'build']
+      const buildArgs = ['pnpm', 'next', 'build']
 
-      if (this.buildOptions) {
-        exportArgs.push(...this.buildOptions)
+      if (this.buildArgs) {
+        buildArgs.push(...this.buildArgs)
+      }
+
+      if (options.args) {
+        buildArgs.push(...options.args)
       }
 
       if (this.childProcess) {
@@ -210,11 +233,11 @@ export class NextStartInstance extends NextInstance {
         )
       }
 
-      console.log('running', exportArgs.join(' '))
+      console.log('running', buildArgs.join(' '))
 
       this.childProcess = spawn(
-        exportArgs[0],
-        exportArgs.slice(1),
+        buildArgs[0],
+        buildArgs.slice(1),
         this.spawnOpts
       )
       this.handleStdio(this.childProcess)

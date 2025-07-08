@@ -25,7 +25,7 @@ describe.each(
       files: __dirname + '/fixtures/sync-client-search',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -77,7 +77,7 @@ describe.each(
       files: __dirname + '/fixtures/sync-server-search',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -129,7 +129,7 @@ describe.each(
       files: __dirname + '/fixtures/sync-cookies',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -282,7 +282,7 @@ describe.each(
       files: __dirname + '/fixtures/sync-draft-mode',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -351,7 +351,7 @@ describe.each(
       files: __dirname + '/fixtures/sync-headers',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -504,7 +504,7 @@ describe.each(
       files: __dirname + '/fixtures/sync-client-params',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -573,7 +573,7 @@ describe.each(
       files: __dirname + '/fixtures/sync-server-params',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {

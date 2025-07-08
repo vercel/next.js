@@ -26,7 +26,7 @@ describe.each(
       files: __dirname + '/fixtures/sync-random-with-fallback',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -58,7 +58,7 @@ describe.each(
       files: __dirname + '/fixtures/sync-random-without-fallback',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {

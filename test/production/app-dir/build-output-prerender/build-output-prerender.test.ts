@@ -55,7 +55,7 @@ describe('build-output-prerender', () => {
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      buildOptions: ['--debug-prerender'],
+      buildArgs: ['--debug-prerender'],
     })
 
     beforeAll(() => next.build())

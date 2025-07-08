@@ -28,7 +28,7 @@ describe.each(
         '/fixtures/sync-attribution/guarded-async-guarded-clientsync',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -59,7 +59,7 @@ describe.each(
         '/fixtures/sync-attribution/guarded-async-unguarded-clientsync',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -186,7 +186,7 @@ describe.each(
         '/fixtures/sync-attribution/unguarded-async-guarded-clientsync',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
@@ -356,7 +356,7 @@ describe.each(
         '/fixtures/sync-attribution/unguarded-async-unguarded-clientsync',
       skipStart: !isNextDev,
       skipDeployment: true,
-      buildOptions: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
+      buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : undefined,
     })
 
     if (skipped) {
