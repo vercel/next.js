@@ -8,11 +8,17 @@ describe('use-cache-with-server-action', () => {
 
   it('should be able to trigger the server action', async () => {
     const browser = await next.browser('/')
-    const cliOutputLength = next.cliOutput.length
-    await browser.elementById('submit-button').click()
 
-    await retry(() =>
+    let cliOutputLength = next.cliOutput.length
+    await browser.elementById('submit-button-arrow').click()
+    await retry(() => {
       expect(next.cliOutput.slice(cliOutputLength)).toContain('Hello, World!')
-    )
+    })
+
+    cliOutputLength = next.cliOutput.length
+    await browser.elementById('submit-button-fn').click()
+    await retry(() => {
+      expect(next.cliOutput.slice(cliOutputLength)).toContain('Hi, World!')
+    })
   })
 })
