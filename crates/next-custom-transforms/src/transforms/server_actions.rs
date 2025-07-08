@@ -525,9 +525,7 @@ impl<C: Comments> ServerActions<C> {
         }
 
         // Create the action export decl from the arrow function
-        // export const $$RSC_SERVER_ACTION_0 = registerServerReference(
-        //    async function action($$ACTION_CLOSURE_BOUND) {}
-        // <id>, null)
+        // export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {}
         self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
@@ -538,37 +536,43 @@ impl<C: Comments> ServerActions<C> {
                         span: DUMMY_SP,
                         name: Pat::Ident(action_ident.clone().into()),
                         definite: false,
-                        init: Some(annotate_expr_as_server_reference(
-                            Box::new(Expr::Fn(FnExpr {
-                                ident: self.arrow_or_fn_expr_ident.clone(),
-                                function: Box::new(Function {
-                                    params: new_params,
-                                    body: match new_body {
-                                        BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                                        BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                        init: Some(Box::new(Expr::Fn(FnExpr {
+                            ident: self.arrow_or_fn_expr_ident.clone(),
+                            function: Box::new(Function {
+                                params: new_params,
+                                body: match new_body {
+                                    BlockStmtOrExpr::BlockStmt(body) => Some(body),
+                                    BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                                        span: DUMMY_SP,
+                                        stmts: vec![Stmt::Return(ReturnStmt {
                                             span: DUMMY_SP,
-                                            stmts: vec![Stmt::Return(ReturnStmt {
-                                                span: DUMMY_SP,
-                                                arg: Some(expr),
-                                            })],
-                                            ..Default::default()
-                                        }),
-                                    },
-                                    decorators: vec![],
-                                    span: DUMMY_SP,
-                                    is_generator: false,
-                                    is_async: true,
-                                    ..Default::default()
-                                }),
-                            })),
-                            action_id.clone(),
-                            arrow.span,
-                        )),
+                                            arg: Some(expr),
+                                        })],
+                                        ..Default::default()
+                                    }),
+                                },
+                                decorators: vec![],
+                                span: DUMMY_SP,
+                                is_generator: false,
+                                is_async: true,
+                                ..Default::default()
+                            }),
+                        }))),
                     }],
                     declare: Default::default(),
                     ctxt: self.private_ctxt,
                 }
                 .into(),
+            })));
+
+        self.hoisted_extra_items
+            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(annotate_ident_as_server_reference(
+                    action_ident.clone(),
+                    action_id.clone(),
+                    arrow.span,
+                )),
             })));
 
         if ids_from_closure.is_empty() {
@@ -674,23 +678,29 @@ impl<C: Comments> ServerActions<C> {
                         span: DUMMY_SP, // TODO: need to map it to the original span?
                         name: Pat::Ident(action_ident.clone().into()),
                         definite: false,
-                        init: Some(annotate_expr_as_server_reference(
-                            Box::new(Expr::Fn(FnExpr {
-                                ident: fn_name,
-                                function: Box::new(Function {
-                                    params: new_params,
-                                    body: new_body,
-                                    ..function.take()
-                                }),
-                            })),
-                            action_id.clone(),
-                            function.span,
-                        )),
+                        init: Some(Box::new(Expr::Fn(FnExpr {
+                            ident: fn_name,
+                            function: Box::new(Function {
+                                params: new_params,
+                                body: new_body,
+                                ..function.take()
+                            }),
+                        }))),
                     }],
                     declare: Default::default(),
                     ctxt: self.private_ctxt,
                 }
                 .into(),
+            })));
+
+        self.hoisted_extra_items
+            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(annotate_ident_as_server_reference(
+                    action_ident.clone(),
+                    action_id.clone(),
+                    function.span,
+                )),
             })));
 
         if ids_from_closure.is_empty() {
@@ -2473,30 +2483,6 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
         ],
         ..Default::default()
     })
-}
-
-fn annotate_expr_as_server_reference(
-    expr: Box<Expr>,
-    action_id: Atom,
-    original_span: Span,
-) -> Box<Expr> {
-    // registerServerReference(expr, id, null)
-    Box::new(Expr::Call(CallExpr {
-        span: original_span,
-        callee: quote_ident!("registerServerReference").as_callee(),
-        args: vec![
-            ExprOrSpread { spread: None, expr },
-            ExprOrSpread {
-                spread: None,
-                expr: Box::new(action_id.clone().into()),
-            },
-            ExprOrSpread {
-                spread: None,
-                expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
-            },
-        ],
-        ..Default::default()
-    }))
 }
 
 fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {

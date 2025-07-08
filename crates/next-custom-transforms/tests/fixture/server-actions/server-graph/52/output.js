@@ -18,18 +18,20 @@ Object["defineProperty"]($$RSC_SERVER_CACHE_2, "name", {
     value: "fn2",
     writable: false
 });
-export const $$RSC_SERVER_ACTION_4 = registerServerReference(async function // Should be 0 110000 0, which is "60" in hex (counts as two params,
+export const $$RSC_SERVER_ACTION_4 = async function // Should be 0 110000 0, which is "60" in hex (counts as two params,
 // because of the encrypted bound args param)
 fn3($$ACTION_CLOSURE_BOUND, c) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("60a9b2939c1f39073a6bed227fd20233064c8b7869", $$ACTION_CLOSURE_BOUND);
     return $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
-}, "60a9b2939c1f39073a6bed227fd20233064c8b7869", null);
-export const $$RSC_SERVER_ACTION_5 = registerServerReference(async function // Should be 0 100000 0, which is "40" in hex (counts as one param,
+};
+registerServerReference($$RSC_SERVER_ACTION_4, "60a9b2939c1f39073a6bed227fd20233064c8b7869", null);
+export const $$RSC_SERVER_ACTION_5 = async function // Should be 0 100000 0, which is "40" in hex (counts as one param,
 // because of the encrypted bound args param)
 fn4($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", $$ACTION_CLOSURE_BOUND);
     return $$ACTION_ARG_0 + $$ACTION_ARG_1;
-}, "409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", null);
+};
+registerServerReference($$RSC_SERVER_ACTION_5, "409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab", null);
 export async function Component(a) {
     const b = 1;
     return <Client // Should be 1 110000 0, which is "e0" in hex (counts as two params,

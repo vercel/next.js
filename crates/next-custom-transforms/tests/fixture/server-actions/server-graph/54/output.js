@@ -8,10 +8,11 @@ Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "foo",
     writable: false
 });
-export const $$RSC_SERVER_ACTION_2 = registerServerReference(async function bar($$ACTION_CLOSURE_BOUND) {
+export const $$RSC_SERVER_ACTION_2 = async function bar($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$ACTION_CLOSURE_BOUND);
     console.log($$ACTION_ARG_0);
-}, "401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null);
+};
+registerServerReference($$RSC_SERVER_ACTION_2, "401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null);
 function createObj(n) {
     const m = n + 1;
     return {
