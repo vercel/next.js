@@ -7,6 +7,7 @@ export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "c03128060c414d59f8552e47
         foo: $$ACTION_ARG_1
     };
 });
+registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "fn",
     writable: false
@@ -18,4 +19,4 @@ async function Component({ foo }) {
     // @ts-expect-error: data is not a valid react child
     return <div>{data}</div>;
 }
-var $$RSC_SERVER_REF_1 = registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
+var $$RSC_SERVER_REF_1 = $$RSC_SERVER_CACHE_0;

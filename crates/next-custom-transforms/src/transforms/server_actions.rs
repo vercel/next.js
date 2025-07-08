@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, hash_map},
+    collections::{hash_map, BTreeMap},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     path::{Path, PathBuf},
@@ -16,23 +16,23 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{Atom, atom},
+    atoms::{atom, Atom},
     common::{
-        BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::{PURE_SP, SourceMapGenConfig},
+        source_map::{SourceMapGenConfig, PURE_SP},
         util::take::Take,
+        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        codegen::{self, Emitter, text_writer::JsWriter},
-        utils::{ExprFactory, private_ident, quote_ident},
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
+        codegen::{self, text_writer::JsWriter, Emitter},
+        utils::{private_ident, quote_ident, ExprFactory},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
     quote,
 };
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::{rcstr, RcStr};
 
 use crate::FxIndexMap;
 
@@ -803,6 +803,16 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
+        self.hoisted_extra_items
+            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(annotate_ident_as_server_reference(
+                    cache_ident.clone(),
+                    reference_id.clone(),
+                    arrow.span,
+                )),
+            })));
+
         if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
             assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
         }
@@ -812,12 +822,6 @@ impl<C: Comments> ServerActions<C> {
             .cloned()
             .map(|id| Some(id.as_arg()))
             .collect();
-
-        let register_action_expr = annotate_ident_as_server_reference(
-            cache_ident.clone(),
-            reference_id.clone(),
-            arrow.span,
-        );
 
         // If there're any bound args from the closure, we need to hoist the
         // register action expression to the top-level, and return the bind
@@ -831,7 +835,7 @@ impl<C: Comments> ServerActions<C> {
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
                     name: Pat::Ident(ref_ident.clone().into()),
-                    init: Some(Box::new(register_action_expr.clone())),
+                    init: Some(Box::new(cache_ident.clone().into())),
                     definite: false,
                 }],
                 ..Default::default()
@@ -847,7 +851,7 @@ impl<C: Comments> ServerActions<C> {
                 reference_id.clone(),
             ))
         } else {
-            Box::new(register_action_expr)
+            Box::new(cache_ident.clone().into())
         }
     }
 
@@ -884,12 +888,6 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions
             .push((cache_name.clone(), reference_id.clone()));
 
-        let register_action_expr = annotate_ident_as_server_reference(
-            cache_ident.clone(),
-            reference_id.clone(),
-            function.span,
-        );
-
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
             private_ctxt: self.private_ctxt,
@@ -924,6 +922,16 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
+        self.hoisted_extra_items
+            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(annotate_ident_as_server_reference(
+                    cache_ident.clone(),
+                    reference_id.clone(),
+                    function.span,
+                )),
+            })));
+
         if let Some(Ident { sym, .. }) = fn_name {
             assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
         } else if self.in_default_export_decl {
@@ -948,7 +956,7 @@ impl<C: Comments> ServerActions<C> {
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
                     name: Pat::Ident(ref_ident.clone().into()),
-                    init: Some(Box::new(register_action_expr.clone())),
+                    init: Some(Box::new(cache_ident.clone().into())),
                     definite: false,
                 }],
                 ..Default::default()
@@ -964,7 +972,7 @@ impl<C: Comments> ServerActions<C> {
                 reference_id.clone(),
             ))
         } else {
-            Box::new(register_action_expr)
+            Box::new(cache_ident.clone().into())
         }
     }
 }

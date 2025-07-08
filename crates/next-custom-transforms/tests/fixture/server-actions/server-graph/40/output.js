@@ -11,6 +11,7 @@ export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e47
         }
     ];
 });
+registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "cache",
     writable: false
@@ -29,4 +30,4 @@ async function Component({ a }) {
       <button>Submit</button>
     </Form>;
 }
-var $$RSC_SERVER_REF_1 = registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
+var $$RSC_SERVER_REF_1 = $$RSC_SERVER_CACHE_0;
