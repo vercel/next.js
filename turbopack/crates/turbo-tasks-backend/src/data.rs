@@ -343,6 +343,34 @@ mod dirty_container_count_tests {
         assert_eq!(diff.get(SESSION_1), -1);
         assert_eq!(count.get(SESSION_2), 0);
         assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(-1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), -1);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), -1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let diff = count.update(2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), -1);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), -1);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), 0);
     }
 
     #[test]
