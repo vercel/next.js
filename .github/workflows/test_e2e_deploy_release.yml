@@ -187,8 +187,3 @@ jobs:
                 "Sync triggered with immediately-close=true due to test failure."
               );
             }
-      - name: Log workflow skip
-        if: steps.check-workflow-enabled.outputs.result != 'true'
-        run: |
-          echo "Skipping sync trigger because target workflow is not enabled"
-          echo "Target workflow state: ${{ steps.check-workflow-enabled.outputs.result }}"
