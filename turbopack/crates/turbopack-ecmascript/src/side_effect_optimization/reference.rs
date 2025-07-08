@@ -41,6 +41,7 @@ enum EcmascriptModulePartReferenceMode {
 pub struct EcmascriptModulePartReference {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
+    export_usage: ResolvedVc<ExportUsage>,
     mode: EcmascriptModulePartReferenceMode,
 }
 
@@ -51,10 +52,12 @@ impl EcmascriptModulePartReference {
     pub fn new_part(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         part: ModulePart,
+        export_usage: ResolvedVc<ExportUsage>,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
             part,
+            export_usage,
             mode: EcmascriptModulePartReferenceMode::Synthesize,
         }
         .cell()
@@ -65,10 +68,12 @@ impl EcmascriptModulePartReference {
     pub fn new_normal(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         part: ModulePart,
+        export_usage: ResolvedVc<ExportUsage>,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
             part,
+            export_usage,
             mode: EcmascriptModulePartReferenceMode::Normal,
         }
         .cell()
@@ -135,14 +140,7 @@ impl ChunkableModuleReference for EcmascriptModulePartReference {
 
     #[turbo_tasks::function]
     fn export_usage(&self) -> Vc<ExportUsage> {
-        match &self.part {
-            ModulePart::Export(export) => ExportUsage::named(export.clone()),
-            ModulePart::RenamedExport {
-                original_export, ..
-            } => ExportUsage::named(original_export.clone()),
-            ModulePart::Evaluation => ExportUsage::evaluation(),
-            _ => ExportUsage::all(),
-        }
+        *self.export_usage
     }
 }
 
