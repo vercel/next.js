@@ -54,7 +54,7 @@ pub async fn get_global_module_id_strategy(
             .map(|ident| async move {
                 let ident = ident.to_resolved().await?;
                 let ident_str = ident.to_string().await?;
-                let hash = hash_xxh3_hash64_oneshot(&ident_str);
+                let hash = hash_xxh3_hash64_oneshot(ident_str.as_bytes());
                 Ok((ident, (ident_str, hash)))
             })
             .try_join()

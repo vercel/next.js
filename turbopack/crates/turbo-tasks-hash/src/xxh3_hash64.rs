@@ -2,7 +2,7 @@ use std::hash::Hasher;
 
 use twox_hash::XxHash3_64;
 
-use crate::{DeterministicBytes, DeterministicHash, DeterministicHasher};
+use crate::{DeterministicHash, DeterministicHasher};
 
 /// Hash some content with the Xxh3Hash64 non-cryptographic hash function.
 pub fn hash_xxh3_hash64<T: DeterministicHash>(input: T) -> u64 {
@@ -11,11 +11,8 @@ pub fn hash_xxh3_hash64<T: DeterministicHash>(input: T) -> u64 {
     hasher.finish()
 }
 
-pub fn hash_xxh3_hash64_oneshot<'a, A>(input: &'a A) -> u64
-where
-    &'a A: Into<DeterministicBytes<'a>>,
-{
-    XxHash3_64::oneshot(input.into().as_ref())
+pub fn hash_xxh3_hash64_oneshot(input: &[u8]) -> u64 {
+    XxHash3_64::oneshot(input)
 }
 
 /// Xxh3Hash64 hasher.

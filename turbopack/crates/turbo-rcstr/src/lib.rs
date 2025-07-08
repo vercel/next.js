@@ -14,7 +14,7 @@ use debug_unreachable::debug_unreachable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
-use turbo_tasks_hash::{DeterministicBytes, DeterministicHash, DeterministicHasher};
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
     dynamic::{deref_from, new_atom},
@@ -144,12 +144,6 @@ impl DeterministicHash for RcStr {
     fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_usize(self.len());
         state.write_bytes(self.as_bytes());
-    }
-}
-
-impl<'a> From<&'a RcStr> for DeterministicBytes<'a> {
-    fn from(value: &'a RcStr) -> Self {
-        DeterministicBytes::new(value.len(), value.as_bytes())
     }
 }
 

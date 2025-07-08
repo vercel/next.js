@@ -76,7 +76,7 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
         }
 
         Ok(ModuleId::String(
-            hash_xxh3_hash64_oneshot(&*ident.to_string().await?)
+            hash_xxh3_hash64_oneshot(ident.to_string().await?.as_bytes())
                 .to_string()
                 .into(),
         )
