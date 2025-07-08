@@ -557,7 +557,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                     get!(task, Activeness).unwrap()
                 };
-                let listener = root.all_clean_event.listen_with_note(move || {
+                let listener = activeness.all_clean_event.listen_with_note(move || {
                     format!("try_read_task_output (strongly consistent) from {reader:?}")
                 });
                 drop(task);
