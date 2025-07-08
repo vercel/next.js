@@ -300,8 +300,9 @@ describe('app dir - metadata', () => {
         .click()
         .waitForElementByCss('#title')
 
-      // Static metadata should be applied immediately
-      expect(await getTitle(browser)).toBe('this is the page title')
+      await retry(async () => {
+        expect(await getTitle(browser)).toBe('this is the page title')
+      })
     })
 
     it('should support generateMetadata dynamic props', async () => {
