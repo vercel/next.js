@@ -707,12 +707,36 @@
             );
             request.pendingChunks++;
             var owner = resolveOwner(),
-              args = arguments;
+              args = Array.from(arguments);
+            a: {
+              var env = 0;
+              switch (methodName) {
+                case "dir":
+                case "dirxml":
+                case "groupEnd":
+                case "table":
+                  env = null;
+                  break a;
+                case "assert":
+                  env = 1;
+              }
+              var format = args[env],
+                style = args[env + 1],
+                badge = args[env + 2];
+              "string" === typeof format &&
+              format.startsWith("\u001b[0m\u001b[7m%c%s\u001b[0m%c ") &&
+              "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px" ===
+                style &&
+              "string" === typeof badge
+                ? (args.splice(env, 4, format.slice(19)),
+                  (env = badge.slice(1, badge.length - 1)))
+                : (env = null);
+            }
+            null === env && (env = (0, request.environmentName)());
             null != owner && outlineComponentInfo(request, owner);
-            var env = (0, request.environmentName)(),
-              payload = [methodName, stack, owner, env];
-            payload.push.apply(payload, args);
-            args = serializeDebugModel(request, 500, payload);
+            format = [methodName, stack, owner, env];
+            format.push.apply(format, args);
+            args = serializeDebugModel(request, 500, format);
             "[" !== args[0] &&
               (args = serializeDebugModel(request, 500, [
                 methodName,
@@ -4797,12 +4821,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_200 = [];
+        var JSCompiler_object_inline_chunks_207 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_200.push(chunk);
+          JSCompiler_object_inline_chunks_207.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_200, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_207, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);

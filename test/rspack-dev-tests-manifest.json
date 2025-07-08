@@ -1858,7 +1858,6 @@
       "ReactRefreshLogBox app Should show error location for server actions in server component",
       "ReactRefreshLogBox app boundaries",
       "ReactRefreshLogBox app logbox: anchors links in error messages",
-      "ReactRefreshLogBox app server component can recover from error thrown in the module",
       "ReactRefreshLogBox app should hide unrelated frames in stack trace with nodejs internal calls",
       "ReactRefreshLogBox app should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app should strip whitespace correctly with newline"
@@ -1871,6 +1870,7 @@
       "ReactRefreshLogBox app conversion to class component (1)",
       "ReactRefreshLogBox app css syntax errors",
       "ReactRefreshLogBox app module init error not shown",
+      "ReactRefreshLogBox app server component can recover from error thrown in the module",
       "ReactRefreshLogBox app should collapse bundler internal stack frames",
       "ReactRefreshLogBox app unterminated JSX"
     ],
@@ -2191,6 +2191,8 @@
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox Call stack count is correct for pages error",
+      "ReactRefreshLogBox boundaries",
+      "ReactRefreshLogBox conversion to class component (1)",
       "ReactRefreshLogBox logbox: anchors links in error messages",
       "ReactRefreshLogBox non-Error errors are handled properly",
       "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace",
@@ -2198,8 +2200,6 @@
       "ReactRefreshLogBox should strip whitespace correctly with newline"
     ],
     "failed": [
-      "ReactRefreshLogBox boundaries",
-      "ReactRefreshLogBox conversion to class component (1)",
       "ReactRefreshLogBox css syntax errors",
       "ReactRefreshLogBox module init error not shown",
       "ReactRefreshLogBox unterminated JSX"
@@ -2256,13 +2256,13 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "pages/ error recovery logbox: can recover from a event handler error"
+      "pages/ error recovery logbox: can recover from a component error",
+      "pages/ error recovery logbox: can recover from a event handler error",
+      "pages/ error recovery stuck error"
     ],
     "failed": [
-      "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a syntax error without losing state",
       "pages/ error recovery render error not shown right after syntax error",
-      "pages/ error recovery stuck error",
       "pages/ error recovery syntax > runtime error"
     ],
     "pending": [],
@@ -2438,13 +2438,13 @@
   },
   "test/development/app-dir/dynamic-io-dev-errors/dynamic-io-dev-errors.test.ts": {
     "passed": [
+      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary",
       "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
       "Dynamic IO Dev Errors should show a red box error on client navigations",
       "Dynamic IO Dev Errors should show a red box error on the SSR render"
     ],
     "failed": [
-      "Dynamic IO Dev Errors should clear segment errors after correcting them",
-      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary"
+      "Dynamic IO Dev Errors should clear segment errors after correcting them"
     ],
     "pending": [],
     "flakey": [],
@@ -2684,6 +2684,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/react-performance-track/react-performance-track.test.ts": {
+    "passed": [
+      "react-performance-track should show fetch",
+      "react-performance-track should show setTimeout"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/segment-explorer-globals/segment-explorer-globals.test.ts": {
     "passed": [
       "segment-explorer - globals should display parallel routes default page when present",
@@ -2891,10 +2901,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3889,7 +3899,6 @@
       "Client Navigation rendering Rendering via HTTP asPath",
       "Client Navigation rendering Rendering via HTTP default Content-Type",
       "Client Navigation rendering Rendering via HTTP default export is not a React Component",
-      "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
       "Client Navigation rendering Rendering via HTTP error-inside-page",
       "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
       "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
@@ -3915,7 +3924,9 @@
       "Client Navigation rendering Rendering via HTTP with the HOC based router should include asPath",
       "Client Navigation rendering Rendering via HTTP with the HOC based router should navigate as expected"
     ],
-    "failed": [],
+    "failed": [
+      "Client Navigation rendering Rendering via HTTP error-in-the-global-scope"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5540,6 +5551,16 @@
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
     "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/conflicting-search-and-route-params/conflicting-search-and-route-params.test.ts": {
+    "passed": [
+      "conflicting-search-and-route-params should handle conflicting search and route params on API route",
+      "conflicting-search-and-route-params should handle conflicting search and route params on page"
     ],
     "failed": [],
     "pending": [],
@@ -7791,10 +7812,10 @@
       "non-root-project-monorepo import.meta.url should work on client-side",
       "non-root-project-monorepo monorepo-package should work during RSC",
       "non-root-project-monorepo monorepo-package should work during SSR",
-      "non-root-project-monorepo monorepo-package should work on client-side",
-      "non-root-project-monorepo source-maps should work on RSC"
+      "non-root-project-monorepo monorepo-package should work on client-side"
     ],
     "failed": [
+      "non-root-project-monorepo source-maps should work on RSC",
       "non-root-project-monorepo source-maps should work on SSR",
       "non-root-project-monorepo source-maps should work on client-side"
     ],
@@ -9428,6 +9449,7 @@
       "app-dir - server source maps thrown SSR errors"
     ],
     "failed": [
+      "app-dir - server source maps sourcemaps errors during module evaluation",
       "app-dir - server source maps stack frames are ignore-listed in rsc"
     ],
     "pending": [],

@@ -757,6 +757,7 @@
   "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
     "passed": [
       "app dir - prefetching (custom staleTime) should fetch again when a static page was prefetched when navigating to it after the stale time has passed",
+      "app dir - prefetching (custom staleTime) should fetch again when the initially visited static page is visited after the stale time has passed",
       "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
       "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group"
     ],
@@ -1672,6 +1673,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/conflicting-search-and-route-params/conflicting-search-and-route-params.test.ts": {
+    "passed": [
+      "conflicting-search-and-route-params should handle conflicting search and route params on API route",
+      "conflicting-search-and-route-params should handle conflicting search and route params on page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/create-root-layout/create-root-layout.test.ts": {
     "passed": [
       "app-dir create root layout build should break the build if a page is missing root layout"
@@ -2186,18 +2197,20 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)"
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - client params should not error the build when synchronously reading `params.slug`",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - client searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - cookies should error the build with a runtime error",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - headers should error the build with a runtime error",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - server params should not error the build when synchronously reading `params.slug`",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - server searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - client params should not error the build when synchronously reading `params.slug`",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - client searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - cookies should error the build with a runtime error",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - headers should error the build with a runtime error",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - server params should not error the build when synchronously reading `params.slug`",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - server searchParams should not error the build when synchronously reading `searchParams.foo`"
     ],
     "failed": [],
     "pending": [],
@@ -2262,11 +2275,9 @@
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.cookies.test.ts": {
     "passed": [
-      "dynamic-io should be able to access cookie properties asynchronously",
-      "dynamic-io should be able to access cookie properties synchronously",
+      "dynamic-io should be able to access cookie properties",
       "dynamic-io should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
-      "dynamic-io should partially prerender pages that use async cookies",
-      "dynamic-io should partially prerender pages that use sync cookies"
+      "dynamic-io should partially prerender pages that use cookies"
     ],
     "failed": [],
     "pending": [],
@@ -2300,10 +2311,8 @@
   "test/e2e/app-dir/dynamic-io/dynamic-io.headers.test.ts": {
     "passed": [
       "dynamic-io should be able to access headers properties asynchronously",
-      "dynamic-io should be able to access headers properties synchronously",
       "dynamic-io should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
-      "dynamic-io should partially prerender pages that use async headers",
-      "dynamic-io should partially prerender pages that use sync headers"
+      "dynamic-io should partially prerender pages that use headers"
     ],
     "failed": [],
     "pending": [],
@@ -2339,22 +2348,14 @@
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.params.test.ts": {
     "passed": [
-      "dynamic-io Async Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
-      "dynamic-io Async Params should fully prerender pages that check individual param keys after awaiting params in a server component",
-      "dynamic-io Async Params should partially prerender pages that await params in a server components",
-      "dynamic-io Async Params should partially prerender pages that spread `use`ed params in a client component",
-      "dynamic-io Async Params should partially prerender pages that spread awaited params in a server component",
-      "dynamic-io Async Params should partially prerender pages that use params in a client components",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
-      "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a client component",
-      "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a server component",
-      "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a client component",
-      "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a server component",
-      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a client components",
-      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a server components",
-      "dynamic-io Synchronous Params access should partially prerender pages that spread params without `use`ing them first in a client component",
-      "dynamic-io Synchronous Params access should partially prerender pages that spread params without awaiting first in a server component"
+      "dynamic-io Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
+      "dynamic-io Params should fully prerender pages that check individual param keys after awaiting params in a server component",
+      "dynamic-io Params should partially prerender pages that await params in a server components",
+      "dynamic-io Params should partially prerender pages that spread `use`ed params in a client component",
+      "dynamic-io Params should partially prerender pages that spread awaited params in a server component",
+      "dynamic-io Params should partially prerender pages that use params in a client components"
     ],
     "failed": [],
     "pending": [
@@ -2384,8 +2385,7 @@
       "dynamic-io should prerender GET route handlers that have entirely cached io (\"use cache\")",
       "dynamic-io should prerender GET route handlers that have entirely cached io (fetches)",
       "dynamic-io should prerender GET route handlers that have entirely cached io (unstable_cache)",
-      "dynamic-io should prerender GET route handlers when accessing awaited params",
-      "dynamic-io should prerender GET route handlers when accessing params without awaiting first"
+      "dynamic-io should prerender GET route handlers when accessing params"
     ],
     "failed": [],
     "pending": [],
@@ -2396,13 +2396,7 @@
     "passed": [
       "dynamic-io should partially prerender pages that `use` searchParams in a client component",
       "dynamic-io should partially prerender pages that `use` searchParams in a server component",
-      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a client component",
-      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a server component",
-      "dynamic-io should partially prerender pages that await searchParams in a server component",
-      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a client component",
-      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a server component",
-      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a client component",
-      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a server component"
+      "dynamic-io should partially prerender pages that await searchParams in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -3427,6 +3421,16 @@
   "test/e2e/app-dir/middleware-matching/index.test.ts": {
     "passed": [
       "app dir - middleware with custom matcher should match /:id (without asterisk)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/middleware-rewrite-dynamic/middleware-rewrite-dynamic.test.ts": {
+    "passed": [
+      "app dir - middleware rewrite dynamic should properly rewrite for /favicon.ico",
+      "app dir - middleware rewrite dynamic should properly rewrite for /robots.txt"
     ],
     "failed": [],
     "pending": [],
@@ -5839,6 +5843,7 @@
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
       "app-dir - server source maps logged errors preserve their name",
+      "app-dir - server source maps sourcemaps errors during module evaluation",
       "app-dir - server source maps stack frames are ignore-listed in rsc",
       "app-dir - server source maps stack frames are ignore-listed in ssr",
       "app-dir - server source maps thrown SSR errors"
@@ -19638,10 +19643,11 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm",
+      "pnpm support should build with dependencies installed via pnpm"
+    ],
+    "failed": [
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

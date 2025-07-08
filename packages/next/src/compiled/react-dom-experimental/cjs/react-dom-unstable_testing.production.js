@@ -14753,20 +14753,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1808 = 0;
-  i$jscomp$inline_1808 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1808++
+  var i$jscomp$inline_1810 = 0;
+  i$jscomp$inline_1810 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1810++
 ) {
-  var eventName$jscomp$inline_1809 =
-      simpleEventPluginEvents[i$jscomp$inline_1808],
-    domEventName$jscomp$inline_1810 =
-      eventName$jscomp$inline_1809.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1811 =
-      eventName$jscomp$inline_1809[0].toUpperCase() +
-      eventName$jscomp$inline_1809.slice(1);
+  var eventName$jscomp$inline_1811 =
+      simpleEventPluginEvents[i$jscomp$inline_1810],
+    domEventName$jscomp$inline_1812 =
+      eventName$jscomp$inline_1811.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1813 =
+      eventName$jscomp$inline_1811[0].toUpperCase() +
+      eventName$jscomp$inline_1811.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1810,
-    "on" + capitalizedEvent$jscomp$inline_1811
+    domEventName$jscomp$inline_1812,
+    "on" + capitalizedEvent$jscomp$inline_1813
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -16969,14 +16969,78 @@ function startViewTransition(
       types: transitionTypes
     });
     ownerDocument.__reactViewTransition = transition;
-    transition.ready.then(spawnedWorkCallback, function (error) {
-      try {
-        (error = customizeViewTransitionError(error, !1)),
-          null !== error && errorCallback(error);
-      } finally {
-        mutationCallback(), layoutCallback(), spawnedWorkCallback();
+    transition.ready.then(
+      function () {
+        for (
+          var animations = ownerDocument.documentElement.getAnimations({
+              subtree: !0
+            }),
+            i = 0;
+          i < animations.length;
+          i++
+        ) {
+          var effect = animations[i].effect,
+            pseudoElement = effect.pseudoElement;
+          if (
+            null != pseudoElement &&
+            pseudoElement.startsWith("::view-transition")
+          ) {
+            pseudoElement = effect.getKeyframes();
+            for (
+              var width = void 0,
+                height = void 0,
+                unchangedDimensions = !0,
+                j = 0;
+              j < pseudoElement.length;
+              j++
+            ) {
+              var keyframe = pseudoElement[j],
+                w = keyframe.width;
+              if (void 0 === width) width = w;
+              else if (width !== w) {
+                unchangedDimensions = !1;
+                break;
+              }
+              w = keyframe.height;
+              if (void 0 === height) height = w;
+              else if (height !== w) {
+                unchangedDimensions = !1;
+                break;
+              }
+              delete keyframe.width;
+              delete keyframe.height;
+              "none" === keyframe.transform && delete keyframe.transform;
+            }
+            unchangedDimensions &&
+              void 0 !== width &&
+              void 0 !== height &&
+              (effect.setKeyframes(pseudoElement),
+              (unchangedDimensions = getComputedStyle(
+                effect.target,
+                effect.pseudoElement
+              )),
+              unchangedDimensions.width !== width ||
+                unchangedDimensions.height !== height) &&
+              ((unchangedDimensions = pseudoElement[0]),
+              (unchangedDimensions.width = width),
+              (unchangedDimensions.height = height),
+              (unchangedDimensions = pseudoElement[pseudoElement.length - 1]),
+              (unchangedDimensions.width = width),
+              (unchangedDimensions.height = height),
+              effect.setKeyframes(pseudoElement));
+          }
+        }
+        spawnedWorkCallback();
+      },
+      function (error) {
+        try {
+          (error = customizeViewTransitionError(error, !1)),
+            null !== error && errorCallback(error);
+        } finally {
+          mutationCallback(), layoutCallback(), spawnedWorkCallback();
+        }
       }
-    });
+    );
     transition.finished.finally(function () {
       cancelAllViewTransitionAnimations(ownerDocument.documentElement);
       ownerDocument.__reactViewTransition === transition &&
@@ -17007,33 +17071,38 @@ function animateGesture(
   targetElement,
   pseudoElement,
   timeline,
+  customTimelineCleanup,
   rangeStart,
   rangeEnd,
   moveFirstFrameIntoViewport,
   moveAllFramesIntoViewport
 ) {
-  for (var i = 0; i < keyframes.length; i++) {
+  for (
+    var width, height, unchangedDimensions = !0, i = 0;
+    i < keyframes.length;
+    i++
+  ) {
     var keyframe = keyframes[i];
     delete keyframe.easing;
     delete keyframe.computedOffset;
+    var w = keyframe.width;
+    void 0 === width ? (width = w) : width !== w && (unchangedDimensions = !1);
+    w = keyframe.height;
+    void 0 === height
+      ? (height = w)
+      : height !== w && (unchangedDimensions = !1);
     "auto" === keyframe.width && delete keyframe.width;
     "auto" === keyframe.height && delete keyframe.height;
     "none" === keyframe.transform && delete keyframe.transform;
-    if (moveAllFramesIntoViewport && null == keyframe.transform)
-      if (null == keyframe.translate || "" === keyframe.translate) {
-        var elementTranslate = getComputedStyle(
-          targetElement,
-          pseudoElement
-        ).translate;
-        keyframe.translate = mergeTranslate(
-          elementTranslate,
-          "20000px 20000px"
-        );
-      } else
-        keyframe.translate = mergeTranslate(
-          keyframe.translate,
-          "20000px 20000px"
-        );
+    moveAllFramesIntoViewport &&
+      null == keyframe.transform &&
+      (null == keyframe.translate || "" === keyframe.translate
+        ? ((w = getComputedStyle(targetElement, pseudoElement).translate),
+          (keyframe.translate = mergeTranslate(w, "20000px 20000px")))
+        : (keyframe.translate = mergeTranslate(
+            keyframe.translate,
+            "20000px 20000px"
+          )));
   }
   moveFirstFrameIntoViewport &&
     ((moveFirstFrameIntoViewport = keyframes[0]),
@@ -17044,16 +17113,37 @@ function animateGesture(
         ("none" === moveAllFramesIntoViewport
           ? ""
           : moveAllFramesIntoViewport)));
-  moveFirstFrameIntoViewport = rangeStart > rangeEnd;
-  targetElement.animate(keyframes, {
-    pseudoElement: pseudoElement,
-    timeline: timeline,
-    easing: "linear",
-    fill: "both",
-    direction: moveFirstFrameIntoViewport ? "normal" : "reverse",
-    rangeStart: (moveFirstFrameIntoViewport ? rangeEnd : rangeStart) + "%",
-    rangeEnd: (moveFirstFrameIntoViewport ? rangeStart : rangeEnd) + "%"
-  });
+  if (
+    unchangedDimensions &&
+    void 0 !== width &&
+    void 0 !== height &&
+    ((unchangedDimensions = getComputedStyle(targetElement, pseudoElement)),
+    unchangedDimensions.width === width &&
+      unchangedDimensions.height === height)
+  )
+    for (width = 0; width < keyframes.length; width++)
+      (height = keyframes[width]), delete height.width, delete height.height;
+  width = rangeStart > rangeEnd;
+  timeline instanceof AnimationTimeline
+    ? targetElement.animate(keyframes, {
+        pseudoElement: pseudoElement,
+        timeline: timeline,
+        easing: "linear",
+        fill: "both",
+        direction: width ? "normal" : "reverse",
+        rangeStart: (width ? rangeEnd : rangeStart) + "%",
+        rangeEnd: (width ? rangeStart : rangeEnd) + "%"
+      })
+    : ((keyframes = targetElement.animate(keyframes, {
+        pseudoElement: pseudoElement,
+        easing: "linear",
+        fill: "both",
+        direction: width ? "normal" : "reverse",
+        delay: width ? rangeEnd : rangeStart,
+        duration: width ? rangeStart - rangeEnd : rangeEnd - rangeStart
+      })),
+      (timeline = timeline.animate(keyframes)) &&
+        customTimelineCleanup.push(timeline));
 }
 function startGestureTransition(
   rootContainer,
@@ -17074,7 +17164,8 @@ function startGestureTransition(
       types: transitionTypes
     });
     ownerDocument.__reactViewTransition = transition;
-    var readyCallback = function () {
+    var customTimelineCleanup = [],
+      readyCallback = function () {
         for (
           var documentElement = ownerDocument.documentElement,
             animations = documentElement.getAnimations({ subtree: !0 }),
@@ -17124,25 +17215,26 @@ function startGestureTransition(
                     )))
                 : (isExitGroupAnim = !0);
             }
-            var timing$269 = pseudoElement.getTiming();
+            var timing$271 = pseudoElement.getTiming();
             anim =
               rangeEnd -
-              (("number" === typeof timing$269.duration
-                ? timing$269.duration
+              (("number" === typeof timing$271.duration
+                ? timing$271.duration
                 : 0) +
-                timing$269.delay) *
+                timing$271.delay) *
                 longestDuration;
-            groupName = rangeEnd - timing$269.delay * longestDuration;
+            groupName = rangeEnd - timing$271.delay * longestDuration;
             if (
-              "reverse" === timing$269.direction ||
-              "alternate-reverse" === timing$269.direction
+              "reverse" === timing$271.direction ||
+              "alternate-reverse" === timing$271.direction
             )
-              (timing$269 = anim), (anim = groupName), (groupName = timing$269);
+              (timing$271 = anim), (anim = groupName), (groupName = timing$271);
             animateGesture(
               pseudoElement.getKeyframes(),
               pseudoElement.target,
               effect,
               timeline,
+              customTimelineCleanup,
               anim,
               groupName,
               isGeneratedGroupAnim,
@@ -17158,6 +17250,7 @@ function startGestureTransition(
                   pseudoElement.target,
                   "::view-transition-group" + effect,
                   timeline,
+                  customTimelineCleanup,
                   rangeStart,
                   rangeEnd,
                   !1,
@@ -17189,6 +17282,8 @@ function startGestureTransition(
     });
     transition.finished.finally(function () {
       cancelAllViewTransitionAnimations(ownerDocument.documentElement);
+      for (var i = 0; i < customTimelineCleanup.length; i++)
+        (0, customTimelineCleanup[i])();
       ownerDocument.__reactViewTransition === transition &&
         (ownerDocument.__reactViewTransition = null);
     });
@@ -18195,26 +18290,26 @@ function getResource(type, currentProps, pendingProps, currentResource) {
         "string" === typeof pendingProps.precedence
       ) {
         type = getStyleKey(pendingProps.href);
-        var styles$278 = getResourcesFromRoot(
+        var styles$280 = getResourcesFromRoot(
             JSCompiler_inline_result
           ).hoistableStyles,
-          resource$279 = styles$278.get(type);
-        resource$279 ||
+          resource$281 = styles$280.get(type);
+        resource$281 ||
           ((JSCompiler_inline_result =
             JSCompiler_inline_result.ownerDocument || JSCompiler_inline_result),
-          (resource$279 = {
+          (resource$281 = {
             type: "stylesheet",
             instance: null,
             count: 0,
             state: { loading: 0, preload: null }
           }),
-          styles$278.set(type, resource$279),
-          (styles$278 = JSCompiler_inline_result.querySelector(
+          styles$280.set(type, resource$281),
+          (styles$280 = JSCompiler_inline_result.querySelector(
             getStylesheetSelectorFromKey(type)
           )) &&
-            !styles$278._p &&
-            ((resource$279.instance = styles$278),
-            (resource$279.state.loading = 5)),
+            !styles$280._p &&
+            ((resource$281.instance = styles$280),
+            (resource$281.state.loading = 5)),
           preloadPropsMap.has(type) ||
             ((pendingProps = {
               rel: "preload",
@@ -18227,16 +18322,16 @@ function getResource(type, currentProps, pendingProps, currentResource) {
               referrerPolicy: pendingProps.referrerPolicy
             }),
             preloadPropsMap.set(type, pendingProps),
-            styles$278 ||
+            styles$280 ||
               preloadStylesheet(
                 JSCompiler_inline_result,
                 type,
                 pendingProps,
-                resource$279.state
+                resource$281.state
               )));
         if (currentProps && null === currentResource)
           throw Error(formatProdErrorMessage(528, ""));
-        return resource$279;
+        return resource$281;
       }
       if (currentProps && null !== currentResource)
         throw Error(formatProdErrorMessage(529, ""));
@@ -18333,37 +18428,37 @@ function acquireResource(hoistableRoot, resource, props) {
         return (resource.instance = instance);
       case "stylesheet":
         styleProps = getStyleKey(props.href);
-        var instance$284 = hoistableRoot.querySelector(
+        var instance$286 = hoistableRoot.querySelector(
           getStylesheetSelectorFromKey(styleProps)
         );
-        if (instance$284)
+        if (instance$286)
           return (
             (resource.state.loading |= 4),
-            (resource.instance = instance$284),
-            markNodeAsHoistable(instance$284),
-            instance$284
+            (resource.instance = instance$286),
+            markNodeAsHoistable(instance$286),
+            instance$286
           );
         instance = stylesheetPropsFromRawProps(props);
         (styleProps = preloadPropsMap.get(styleProps)) &&
           adoptPreloadPropsForStylesheet(instance, styleProps);
-        instance$284 = (
+        instance$286 = (
           hoistableRoot.ownerDocument || hoistableRoot
         ).createElement("link");
-        markNodeAsHoistable(instance$284);
-        var linkInstance = instance$284;
+        markNodeAsHoistable(instance$286);
+        var linkInstance = instance$286;
         linkInstance._p = new Promise(function (resolve, reject) {
           linkInstance.onload = resolve;
           linkInstance.onerror = reject;
         });
-        setInitialProperties(instance$284, "link", instance);
+        setInitialProperties(instance$286, "link", instance);
         resource.state.loading |= 4;
-        insertStylesheet(instance$284, props.precedence, hoistableRoot);
-        return (resource.instance = instance$284);
+        insertStylesheet(instance$286, props.precedence, hoistableRoot);
+        return (resource.instance = instance$286);
       case "script":
-        instance$284 = getScriptKey(props.src);
+        instance$286 = getScriptKey(props.src);
         if (
           (styleProps = hoistableRoot.querySelector(
-            getScriptSelectorFromKey(instance$284)
+            getScriptSelectorFromKey(instance$286)
           ))
         )
           return (
@@ -18372,7 +18467,7 @@ function acquireResource(hoistableRoot, resource, props) {
             styleProps
           );
         instance = props;
-        if ((styleProps = preloadPropsMap.get(instance$284)))
+        if ((styleProps = preloadPropsMap.get(instance$286)))
           (instance = assign({}, props)),
             adoptPreloadPropsForScript(instance, styleProps);
         hoistableRoot = hoistableRoot.ownerDocument || hoistableRoot;
@@ -19472,16 +19567,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2196 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2198 = React.version;
 if (
-  "19.2.0-experimental-73aa744b-20250702" !==
-  isomorphicReactPackageVersion$jscomp$inline_2196
+  "19.2.0-experimental-5d87cd22-20250704" !==
+  isomorphicReactPackageVersion$jscomp$inline_2198
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2196,
-      "19.2.0-experimental-73aa744b-20250702"
+      isomorphicReactPackageVersion$jscomp$inline_2198,
+      "19.2.0-experimental-5d87cd22-20250704"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19501,24 +19596,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2886 = {
+var internals$jscomp$inline_2888 = {
   bundleType: 0,
-  version: "19.2.0-experimental-73aa744b-20250702",
+  version: "19.2.0-experimental-5d87cd22-20250704",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-73aa744b-20250702"
+  reconcilerVersion: "19.2.0-experimental-5d87cd22-20250704"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2887 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2889 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2887.isDisabled &&
-    hook$jscomp$inline_2887.supportsFiber
+    !hook$jscomp$inline_2889.isDisabled &&
+    hook$jscomp$inline_2889.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2887.inject(
-        internals$jscomp$inline_2886
+      (rendererID = hook$jscomp$inline_2889.inject(
+        internals$jscomp$inline_2888
       )),
-        (injectedHook = hook$jscomp$inline_2887);
+        (injectedHook = hook$jscomp$inline_2889);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -19764,4 +19859,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.2.0-experimental-73aa744b-20250702";
+exports.version = "19.2.0-experimental-5d87cd22-20250704";

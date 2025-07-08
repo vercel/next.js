@@ -899,18 +899,15 @@ describe('use-cache', () => {
       const initialLogs = await getSanitizedLogs(browser)
 
       // We ignore the logged time string at the end of this message:
-      const logMessageWithDateRegexp =
-        /^ Server {3}Cache {3}Cache {2}deep inside /
+      const logMessageWithDateRegexp = /^ Cache {2}deep inside /
 
       let logMessageWithCachedDate: string | undefined
 
       await retry(async () => {
-        // TODO(veil): We might want to show only the original (right-most)
-        // environment badge when caches are nested.
         expect(initialLogs).toMatchObject(
           expect.arrayContaining([
             ' Server  outside',
-            ' Server   Cache  inside',
+            ' Cache  inside',
             expect.stringMatching(logMessageWithDateRegexp),
           ])
         )
@@ -933,7 +930,7 @@ describe('use-cache', () => {
         expect(newLogs).toMatchObject(
           expect.arrayContaining([
             ' Server  outside',
-            ' Server   Cache  inside',
+            ' Cache  inside',
             logMessageWithCachedDate,
           ])
         )
