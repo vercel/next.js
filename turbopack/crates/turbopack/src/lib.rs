@@ -770,8 +770,6 @@ impl AssetContext for ModuleAssetContext {
 
         let result = result.await?;
 
-        let affecting_sources = &result.affecting_sources;
-
         let result = result
             .map_primary_items(|item| {
                 let reference_type = reference_type.clone();
@@ -798,7 +796,7 @@ impl AssetContext for ModuleAssetContext {
                                 {
                                     // result.affecting_sources can be ignored for tracing, as this
                                     // request will later be resolved relative to tracing_root
-                                    // anyway
+                                    // anyway.
 
                                     CachedExternalTracingMode::Traced {
                                         externals_context: ResolvedVc::upcast(
