@@ -6,7 +6,7 @@ const {
   execFn,
   booleanArg,
   packageFiles,
-} = require('./pack-util.cjs')
+} = require('./pack-util.js')
 const fs = require('fs')
 const path = require('path')
 
@@ -53,7 +53,7 @@ async function main() {
   if (!noNativeBuild) {
     process.argv = [...process.argv.slice(0, 2), ...args.slice(1)]
 
-    await require('./build-native.cjs')
+    await require('./build-native.js')
   }
 
   await execFn('Patching next', () =>
