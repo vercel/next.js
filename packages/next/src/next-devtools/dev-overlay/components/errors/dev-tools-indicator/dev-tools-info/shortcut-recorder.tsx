@@ -294,7 +294,7 @@ export const SHORTCUT_RECORDER_STYLES = css`
       display: flex;
       align-items: center;
       gap: 4px;
-      background: white;
+      background: transparent;
       border: 1px dashed var(--color-gray-500);
       border-radius: var(--rounded-lg);
       padding: 6px 8px;
