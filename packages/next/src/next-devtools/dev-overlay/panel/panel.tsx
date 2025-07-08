@@ -72,70 +72,90 @@ export function DevOverlayPanel({
         devToolsPosition: state.devToolsPosition,
       }}
     >
-      <Draggable
-        data-nextjs-devtools-panel-draggable
-        padding={INDICATOR_PADDING}
-        onDragStart={() => {}}
-        position={state.devToolsPosition}
-        setPosition={(p) => {
-          localStorage.setItem(STORAGE_KEY_POSITION, p)
-          dispatch({
-            type: ACTION_DEVTOOLS_POSITION,
-            devToolsPosition: p,
-          })
-        }}
-        dragHandleSelector="[data-nextjs-devtools-panel-header], [data-nextjs-devtools-panel-footer], [data-nextjs-devtools-panel-draggable]"
-        // disableDrag={isFullscreen} <-- this will be useful later
+      <Overlay
+        ref={resizeRef}
+        data-nextjs-devtools-panel-overlay
+        style={
+          `${vertical}-${horizontal}` === 'bottom-left'
+            ? {
+                bottom: '40px',
+                // right: INDICATOR_PADDING,
+                top: 'auto',
+                right: 'auto',
+              }
+            : {
+                [vertical]: `${INDICATOR_PADDING}px`,
+                [horizontal]: `${INDICATOR_PADDING}px`,
+                [vertical === 'top' ? 'bottom' : 'top']: 'auto',
+                [horizontal === 'left' ? 'right' : 'left']: 'auto',
+              }
+        }
       >
-        <>
-          {/* this really isn't a dialog, not sure if this is the right component 
+        <Draggable
+          data-nextjs-devtools-panel-draggable
+          padding={INDICATOR_PADDING}
+          onDragStart={() => {}}
+          position={state.devToolsPosition}
+          setPosition={(p) => {
+            localStorage.setItem(STORAGE_KEY_POSITION, p)
+            dispatch({
+              type: ACTION_DEVTOOLS_POSITION,
+              devToolsPosition: p,
+            })
+          }}
+          dragHandleSelector="[data-nextjs-devtools-panel-header], [data-nextjs-devtools-panel-footer], [data-nextjs-devtools-panel-draggable]"
+          // disableDrag={isFullscreen} <-- this will be useful later
+        >
+          <>
+            {/* this really isn't a dialog, not sure if this is the right component 
          seems to be doing something so we shall leave it 
           */}
-          <Dialog
-            data-nextjs-devtools-panel-dialog
-            aria-labelledby="nextjs__container_dev_tools_panel_label"
-            aria-describedby="nextjs__container_dev_tools_panel_desc"
-            onClose={onCloseDevToolsPanel}
-          >
-            <DialogContent
-              data-nextjs-devtools-panel-footer
-              data-nextjs-devtools-panel-draggable
-              data-nextjs-devtools-panel-dialog-content
+            <Dialog
+              data-nextjs-devtools-panel-dialog
+              aria-labelledby="nextjs__container_dev_tools_panel_label"
+              aria-describedby="nextjs__container_dev_tools_panel_desc"
+              onClose={onCloseDevToolsPanel}
             >
-              <DialogHeader
-                style={{
-                  width: '100%',
-                }}
-                data-nextjs-devtools-panel-dialog-header
+              <DialogContent
+                data-nextjs-devtools-panel-footer
+                data-nextjs-devtools-panel-draggable
+                data-nextjs-devtools-panel-dialog-content
               >
-                {header}
-              </DialogHeader>
-              <DialogBody
-                style={{
-                  width: '100%',
-                }}
-                data-nextjs-devtools-panel-dialog-body
-              >
-                {children}
-              </DialogBody>
-            </DialogContent>
-            {/* <DevToolsPanelFooter
+                <DialogHeader
+                  style={{
+                    width: '100%',
+                  }}
+                  data-nextjs-devtools-panel-dialog-header
+                >
+                  {header}
+                </DialogHeader>
+                <DialogBody
+                  style={{
+                    width: '100%',
+                  }}
+                  data-nextjs-devtools-panel-dialog-body
+                >
+                  {children}
+                </DialogBody>
+              </DialogContent>
+              {/* <DevToolsPanelFooter
                 versionInfo={state.versionInfo}
                 isDraggable={!isFullscreen}
                 showRestartServerButton={state.showRestartServerButton}
               /> */}
-          </Dialog>
+            </Dialog>
 
-          <ResizeHandle direction="top" />
-          <ResizeHandle direction="right" />
-          <ResizeHandle direction="bottom" />
-          <ResizeHandle direction="left" />
-          <ResizeHandle direction="top-left" />
-          <ResizeHandle direction="top-right" />
-          <ResizeHandle direction="bottom-left" />
-          <ResizeHandle direction="bottom-right" />
-        </>
-      </Draggable>
+            <ResizeHandle direction="top" />
+            <ResizeHandle direction="right" />
+            <ResizeHandle direction="bottom" />
+            <ResizeHandle direction="left" />
+            <ResizeHandle direction="top-left" />
+            <ResizeHandle direction="top-right" />
+            <ResizeHandle direction="bottom-left" />
+            <ResizeHandle direction="bottom-right" />
+          </>
+        </Draggable>
+      </Overlay>
     </ResizeProvider>
   )
 }

@@ -409,7 +409,7 @@ export function NextLogo(buttonProps: React.ComponentProps<'button'>) {
               onClick={() => {
 
                 // this is really stupid, especially with setOpen
-                setPanel('panel-selector')
+                setPanel(prev => prev === 'panel-selector' ? null : 'panel-selector')
                 // dispatch({ type: ACTION_DEVTOOLS_PANEL_TOGGLE })
               }}
               disabled={state.disableDevIndicator}
