@@ -8,9 +8,9 @@ import type {
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream } from 'react-server-dom-webpack/client.edge'
+import { createFromReadableStream } from 'react-server-dom-webpack/client'
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
+import { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
 
 import {
   streamFromBuffer,

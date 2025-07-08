@@ -3,12 +3,11 @@ import { openDevToolsIndicatorPopover } from 'next-test-utils'
 import { Playwright } from 'next-webdriver'
 
 async function getSegmentExplorerContent(browser: Playwright) {
+  // open the devtool button
   await openDevToolsIndicatorPopover(browser)
 
-  // open segment explorer tab
-  await browser
-    .elementByCss('[data-nextjs-devtools-panel-header-tab="route"]')
-    .click()
+  // open the segment explorer
+  await browser.elementByCss('[data-segment-explorer]').click()
 
   //  wait for the segment explorer to be visible
   await browser.waitForElementByCss('[data-nextjs-devtool-segment-explorer]')

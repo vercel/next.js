@@ -214,9 +214,11 @@ export type DispatcherEvent =
   | RestartServerButtonAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
-  // 1st group: v8
-  // 2nd group: SpiderMonkey, JavaScriptCore
-  /\s+(at react-stack-bottom-frame.*)|(react-stack-bottom-frame@.*)/
+  // 1st group: new frame + v8
+  // 2nd group: new frame + SpiderMonkey, JavaScriptCore
+  // 3rd group: old frame + v8
+  // 4th group: old frame + SpiderMonkey, JavaScriptCore
+  /\s+(at Object\.react_stack_bottom_frame.*)|(react_stack_bottom_frame@.*)|(at react-stack-bottom-frame.*)|(react-stack-bottom-frame@.*)/
 
 // React calls user code starting from a special stack frame.
 // The basic stack will be different if the same error location is hit again

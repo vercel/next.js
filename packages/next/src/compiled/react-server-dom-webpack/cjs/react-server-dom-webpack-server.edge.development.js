@@ -11,15 +11,6 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
-    // This is a patch added by Next.js
-    const setTimeoutOrImmediate =
-      typeof globalThis["set" + "Immediate"] === "function" &&
-      // edge runtime sandbox defines a stub for setImmediate
-      // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-      // but it's made non-enumerable, so we can detect it
-      globalThis.propertyIsEnumerable("setImmediate")
-        ? globalThis["set" + "Immediate"]
-        : (callback, ...args) => setTimeout(callback, 0, ...args);
     function voidHandler() {}
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
@@ -51,7 +42,7 @@
       return obj;
     }
     function handleErrorInNextTick(error) {
-      setTimeoutOrImmediate(function () {
+      setTimeout(function () {
         throw error;
       });
     }
@@ -247,7 +238,7 @@
       ) {
         var callSite = structuredStackTrace[i],
           _name = callSite.getFunctionName() || "<anonymous>";
-        if ("react-stack-bottom-frame" === _name) break;
+        if (_name.includes("react_stack_bottom_frame")) break;
         else if (callSite.isNative()) result.push([_name, "", 0, 0, 0, 0]);
         else {
           if (callSite.isConstructor()) _name = "new " + _name;
@@ -328,7 +319,7 @@
         );
       stack.startsWith("Error: react-stack-top-frame\n") &&
         (stack = stack.slice(29));
-      existing = stack.indexOf("react-stack-bottom-frame");
+      existing = stack.indexOf("react_stack_bottom_frame");
       -1 !== existing && (existing = stack.lastIndexOf("\n", existing));
       -1 !== existing && (stack = stack.slice(0, existing));
       stack = stack.split("\n");
@@ -692,12 +683,36 @@
             );
             request.pendingChunks++;
             var owner = resolveOwner(),
-              args = arguments;
+              args = Array.from(arguments);
+            a: {
+              var env = 0;
+              switch (methodName) {
+                case "dir":
+                case "dirxml":
+                case "groupEnd":
+                case "table":
+                  env = null;
+                  break a;
+                case "assert":
+                  env = 1;
+              }
+              var format = args[env],
+                style = args[env + 1],
+                badge = args[env + 2];
+              "string" === typeof format &&
+              format.startsWith("\u001b[0m\u001b[7m%c%s\u001b[0m%c ") &&
+              "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px" ===
+                style &&
+              "string" === typeof badge
+                ? (args.splice(env, 4, format.slice(19)),
+                  (env = badge.slice(1, badge.length - 1)))
+                : (env = null);
+            }
+            null === env && (env = (0, request.environmentName)());
             null != owner && outlineComponentInfo(request, owner);
-            var env = (0, request.environmentName)(),
-              payload = [methodName, stack, owner, env];
-            payload.push.apply(payload, args);
-            args = serializeDebugModel(request, 500, payload);
+            format = [methodName, stack, owner, env];
+            format.push.apply(format, args);
+            args = serializeDebugModel(request, 500, format);
             "[" !== args[0] &&
               (args = serializeDebugModel(request, 500, [
                 methodName,
@@ -737,7 +752,7 @@
                   (stack = stack.slice(29));
                 var idx = stack.indexOf("\n");
                 -1 !== idx && (stack = stack.slice(idx + 1));
-                idx = stack.indexOf("react-stack-bottom-frame");
+                idx = stack.indexOf("react_stack_bottom_frame");
                 -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
                 var JSCompiler_inline_result =
                   -1 !== idx ? (stack = stack.slice(0, idx)) : "";
@@ -1664,9 +1679,9 @@
           ? scheduleMicrotask(function () {
               return performWork(request);
             })
-          : setTimeoutOrImmediate(function () {
+          : setTimeout(function () {
               return performWork(request);
-            }));
+            }, 0));
     }
     function createTask(
       request,
@@ -3233,20 +3248,20 @@
         : scheduleMicrotask(function () {
             return performWork(request);
           });
-      setTimeoutOrImmediate(function () {
+      setTimeout(function () {
         10 === request.status && (request.status = 11);
-      });
+      }, 0);
     }
     function enqueueFlush(request) {
       !1 === request.flushScheduled &&
         0 === request.pingedTasks.length &&
         null !== request.destination &&
         ((request.flushScheduled = !0),
-        setTimeoutOrImmediate(function () {
+        setTimeout(function () {
           request.flushScheduled = !1;
           var destination = request.destination;
           destination && flushCompletedChunks(request, destination);
-        }));
+        }, 0));
     }
     function callOnAllReadyIfReady(request) {
       0 === request.abortableTasks.size &&
@@ -4524,7 +4539,7 @@
       };
     }
     var callComponent = {
-        "react-stack-bottom-frame": function (
+        react_stack_bottom_frame: function (
           Component,
           props,
           componentDebugInfo
@@ -4538,22 +4553,22 @@
         }
       },
       callComponentInDEV =
-        callComponent["react-stack-bottom-frame"].bind(callComponent),
+        callComponent.react_stack_bottom_frame.bind(callComponent),
       callLazyInit = {
-        "react-stack-bottom-frame": function (lazy) {
+        react_stack_bottom_frame: function (lazy) {
           var init = lazy._init;
           return init(lazy._payload);
         }
       },
       callLazyInitInDEV =
-        callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
+        callLazyInit.react_stack_bottom_frame.bind(callLazyInit),
       callIterator = {
-        "react-stack-bottom-frame": function (iterator, progress, error) {
+        react_stack_bottom_frame: function (iterator, progress, error) {
           iterator.next().then(progress, error);
         }
       },
       callIteratorInDEV =
-        callIterator["react-stack-bottom-frame"].bind(callIterator),
+        callIterator.react_stack_bottom_frame.bind(callIterator),
       isArrayImpl = Array.isArray,
       getPrototypeOf = Object.getPrototypeOf,
       jsxPropsParents = new WeakMap(),

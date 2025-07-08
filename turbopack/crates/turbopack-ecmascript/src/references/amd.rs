@@ -18,7 +18,6 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
@@ -68,7 +67,7 @@ impl ModuleReference for AmdDefineAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
             self.in_try,
         )
     }
@@ -157,7 +156,6 @@ impl AmdDefineWithDependenciesCodeGen {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -178,7 +176,7 @@ impl AmdDefineWithDependenciesCodeGen {
                             cjs_resolve(
                                 *self.origin,
                                 **request,
-                                Some(self.issue_source.clone()),
+                                Some(self.issue_source),
                                 self.in_try,
                             ),
                             ResolveType::ChunkItem,

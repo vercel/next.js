@@ -51,7 +51,7 @@ impl IssueCollector {
                 Vc::cell(issue.title.clone()),
                 issue.message.clone().cell(),
                 issue.code.clone(),
-                issue.issue_source.clone(),
+                issue.issue_source,
             )
         })
     }

@@ -62,6 +62,8 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSassModuleIssue {
+    // TODO(PACK-4879): The `file_path` is incorrect for this issue and we should supply
+    // detailed source information.
     file_path: FileSystemPath,
     request: ResolvedVc<Request>,
 }

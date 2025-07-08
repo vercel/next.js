@@ -26,6 +26,7 @@ import {
   type DevToolsScale,
 } from './dev-tools-info/preferences'
 import { Draggable } from './draggable'
+import { SegmentsExplorer } from './dev-tools-info/segments-explorer'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -63,6 +64,7 @@ export function DevToolsIndicator({
       isTurbopack={!!process.env.TURBOPACK}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
+      page={state.page}
       {...props}
     />
   )
@@ -83,6 +85,7 @@ const OVERLAYS = {
   Turbo: 'turbo',
   Route: 'route',
   Preferences: 'preferences',
+  SegmentExplorer: 'segment-explorer',
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
@@ -102,6 +105,7 @@ function DevToolsPopover({
   dispatch,
   scale,
   setScale,
+  page,
 }: {
   routerType: 'pages' | 'app'
   disabled: boolean
@@ -116,6 +120,7 @@ function DevToolsPopover({
   dispatch: OverlayDispatch
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
+  page: string
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -128,6 +133,7 @@ function DevToolsPopover({
   const isTurbopackInfoOpen = open === OVERLAYS.Turbo
   const isRouteInfoOpen = open === OVERLAYS.Route
   const isPreferencesOpen = open === OVERLAYS.Preferences
+  const isSegmentExplorerOpen = open === OVERLAYS.SegmentExplorer
 
   const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
     isMenuOpen,
@@ -217,9 +223,7 @@ function DevToolsPopover({
   }
 
   function toggleErrorOverlay() {
-    if (!process.env.__NEXT_DEVTOOL_NEW_PANEL_UI) {
-      dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
-    }
+    dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
   }
 
   function closeToRootMenu() {
@@ -270,7 +274,6 @@ function DevToolsPopover({
           '--animate-out-duration-ms': `${MENU_DURATION_MS}ms`,
           '--animate-out-timing-function': MENU_CURVE,
           boxShadow: 'none',
-          zIndex: 2147483647,
           [vertical]: `${INDICATOR_PADDING}px`,
           [horizontal]: `${INDICATOR_PADDING}px`,
         } as CSSProperties
@@ -334,6 +337,18 @@ function DevToolsPopover({
         scale={scale}
         setScale={setScale}
       />
+
+      {/* Page Route Info */}
+      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+        <SegmentsExplorer
+          isOpen={isSegmentExplorerOpen}
+          close={closeToRootMenu}
+          triggerRef={triggerRef}
+          style={popover}
+          routerType={routerType}
+          page={page}
+        />
+      ) : null}
 
       {/* Dropdown Menu */}
       {menuMounted && (
@@ -400,6 +415,15 @@ function DevToolsPopover({
                 onClick={() => setOpen(OVERLAYS.Preferences)}
                 index={isTurbopack ? 2 : 3}
               />
+              {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+                <MenuItem
+                  data-segment-explorer
+                  label="Route Info"
+                  value={<ChevronRight />}
+                  onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
+                  index={isTurbopack ? 3 : 4}
+                />
+              ) : null}
             </div>
           </Context.Provider>
         </div>
@@ -513,7 +537,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     border-radius: var(--rounded-xl);
     position: absolute;
     font-family: var(--font-stack-sans);
-    z-index: 1000;
+    z-index: 3;
     overflow: hidden;
     opacity: 0;
     outline: 0;

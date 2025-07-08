@@ -1,1 +1,1 @@
-require("azure-storage");
+require('azure-storage')

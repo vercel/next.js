@@ -294,6 +294,51 @@ pub enum ChunkingType {
     Traced,
 }
 
+impl Display for ChunkingType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChunkingType::Parallel {
+                inherit_async,
+                hoisted,
+            } => {
+                write!(
+                    f,
+                    "Parallel(inherit_async: {inherit_async}, hoisted: {hoisted})",
+                )
+            }
+            ChunkingType::Async => write!(f, "Async"),
+            ChunkingType::Isolated {
+                _ty,
+                merge_tag: Some(merge_tag),
+            } => {
+                write!(f, "Isolated(merge_tag: {merge_tag})")
+            }
+            ChunkingType::Isolated {
+                _ty,
+                merge_tag: None,
+            } => {
+                write!(f, "Isolated")
+            }
+            ChunkingType::Shared {
+                inherit_async,
+                merge_tag: Some(merge_tag),
+            } => {
+                write!(
+                    f,
+                    "Shared(inherit_async: {inherit_async}, merge_tag: {merge_tag})"
+                )
+            }
+            ChunkingType::Shared {
+                inherit_async,
+                merge_tag: None,
+            } => {
+                write!(f, "Shared(inherit_async: {inherit_async})")
+            }
+            ChunkingType::Traced => write!(f, "Traced"),
+        }
+    }
+}
+
 impl ChunkingType {
     pub fn is_inherit_async(&self) -> bool {
         matches!(
@@ -389,7 +434,7 @@ pub trait ChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(self: Vc<Self>) -> Vc<AssetIdent>;
     /// A [AssetIdent] that uniquely identifies the content of this [ChunkItem].
-    /// It is unusally identical to [ChunkItem::asset_ident] but can be
+    /// It is usually identical to [ChunkItem::asset_ident] but can be
     /// different when the chunk item content depends on available modules e. g.
     /// for chunk loaders.
     #[turbo_tasks::function]

@@ -39,12 +39,14 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::IssueDescriptionExt,
+    module_graph::{
+        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
+    },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
         options::{ImportMap, ImportMapping},
     },
-    source::Source,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{debug::should_debug, evaluate::evaluate};
@@ -383,12 +385,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
-                    remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
-            remove_unused_exports,
             ..Default::default()
         }
         .into(),
@@ -414,6 +414,35 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .cell(),
         Layer::new(rcstr!("test")),
     ));
+
+    let jest_entry_source = FileSource::new(jest_entry_path);
+    let test_source = FileSource::new(test_path);
+
+    let test_asset = asset_context
+        .process(
+            Vc::upcast(test_source),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+        )
+        .module()
+        .to_resolved()
+        .await?;
+
+    let jest_entry_asset = asset_context
+        .process(
+            Vc::upcast(jest_entry_source),
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+                rcstr!("TESTS") => test_asset,
+            })),
+        )
+        .module();
+
+    // Keep this in sync with what `evaluate` does internally
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(vec![
+            jest_entry_asset.to_resolved().await?,
+        ])]),
+        false,
+    );
 
     let chunking_context = NodeJsChunkingContext::builder(
         project_root.clone(),
@@ -447,34 +476,22 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
+    .export_usage(if remove_unused_exports {
+        Some(
+            compute_export_usage_info(module_graph.to_resolved().await?)
+                .resolve_strongly_consistent()
+                .await?,
+        )
+    } else {
+        None
+    })
     .build();
-
-    let jest_entry_source = FileSource::new(jest_entry_path);
-    let test_source = FileSource::new(test_path);
-
-    let test_asset = asset_context
-        .process(
-            Vc::upcast(test_source),
-            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
-        )
-        .module()
-        .to_resolved()
-        .await?;
-
-    let jest_entry_asset = asset_context
-        .process(
-            Vc::upcast(jest_entry_source),
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("TESTS") => test_asset,
-            })),
-        )
-        .module();
 
     let res = evaluate(
         jest_entry_asset,
         path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
-        test_source.ident(),
+        Vc::upcast(test_source),
         asset_context,
         Vc::upcast(chunking_context),
         None,

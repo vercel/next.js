@@ -2608,7 +2608,7 @@
                   (stack = stack.slice(29));
                 var idx = stack.indexOf("\n");
                 -1 !== idx && (stack = stack.slice(idx + 1));
-                idx = stack.indexOf("react-stack-bottom-frame");
+                idx = stack.indexOf("react_stack_bottom_frame");
                 -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
                 var JSCompiler_inline_result =
                   -1 !== idx ? (stack = stack.slice(0, idx)) : "";
@@ -2896,6 +2896,7 @@
         if ("object" === typeof value && null !== value) {
           if (value[0] === REACT_ELEMENT_TYPE)
             b: {
+              var owner = value[4];
               key = value[5];
               var validated = value[6];
               value = {
@@ -2903,7 +2904,7 @@
                 type: value[1],
                 key: value[2],
                 props: value[3],
-                _owner: value[4]
+                _owner: void 0 === owner ? null : owner
               };
               Object.defineProperty(value, "ref", {
                 enumerable: !1,
@@ -2926,7 +2927,7 @@
                 configurable: !1,
                 enumerable: !1,
                 writable: !0,
-                value: key
+                value: void 0 === key ? null : key
               });
               Object.defineProperty(value, "_debugTask", {
                 configurable: !1,
@@ -3093,11 +3094,7 @@
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
       createFakeJSXCallStack = {
-        "react-stack-bottom-frame": function (
-          response,
-          stack,
-          environmentName
-        ) {
+        react_stack_bottom_frame: function (response, stack, environmentName) {
           return buildFakeCallStack(
             response,
             stack,
@@ -3107,12 +3104,13 @@
           )();
         }
       },
-      createFakeJSXCallStackInDEV = createFakeJSXCallStack[
-        "react-stack-bottom-frame"
-      ].bind(createFakeJSXCallStack),
+      createFakeJSXCallStackInDEV =
+        createFakeJSXCallStack.react_stack_bottom_frame.bind(
+          createFakeJSXCallStack
+        ),
       currentOwnerInDEV = null,
       replayConsoleWithCallStack = {
-        "react-stack-bottom-frame": function (
+        react_stack_bottom_frame: function (
           response,
           methodName,
           stackTrace,
@@ -3186,9 +3184,10 @@
           }
         }
       },
-      replayConsoleWithCallStackInDEV = replayConsoleWithCallStack[
-        "react-stack-bottom-frame"
-      ].bind(replayConsoleWithCallStack);
+      replayConsoleWithCallStackInDEV =
+        replayConsoleWithCallStack.react_stack_bottom_frame.bind(
+          replayConsoleWithCallStack
+        );
     exports.createFromFetch = function (promiseForResponse, options) {
       var response = createResponseFromOptions(options);
       promiseForResponse.then(

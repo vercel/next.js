@@ -1,12 +1,3 @@
-// This is a patch added by Next.js
-const setTimeoutOrImmediate =
-  typeof globalThis["set" + "Immediate"] === "function" &&
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // but it's made non-enumerable, so we can detect it
-  globalThis.propertyIsEnumerable("setImmediate")
-    ? globalThis["set" + "Immediate"]
-    : (callback, ...args) => setTimeout(callback, 0, ...args);
 /**
  * @license React
  * react-dom-server.edge.production.js
@@ -126,7 +117,7 @@ function murmurhash3_32_gc(key, seed) {
   return (h1 ^ (h1 >>> 16)) >>> 0;
 }
 function handleErrorInNextTick(error) {
-  setTimeoutOrImmediate(function () {
+  setTimeout(function () {
     throw error;
   });
 }
@@ -4316,7 +4307,7 @@ function describeComponentStackByType(type) {
             (location = location.slice(29)),
           (type = location.indexOf("\n")),
           -1 !== type && (location = location.slice(type + 1)),
-          (type = location.indexOf("react-stack-bottom-frame")),
+          (type = location.indexOf("react_stack_bottom_frame")),
           -1 !== type && (type = location.lastIndexOf("\n", type)),
           (type = -1 !== type ? (location = location.slice(0, type)) : ""),
           (location = type.lastIndexOf("\n")),
@@ -4651,9 +4642,9 @@ function pingTask(request, task) {
       ? scheduleMicrotask(function () {
           return performWork(request);
         })
-      : setTimeoutOrImmediate(function () {
+      : setTimeout(function () {
           return performWork(request);
-        }));
+        }, 0));
 }
 function createSuspenseBoundary(
   request,
@@ -7777,7 +7768,7 @@ function startWork(request) {
     : scheduleMicrotask(function () {
         return performWork(request);
       });
-  setTimeoutOrImmediate(function () {
+  setTimeout(function () {
     10 === request.status && (request.status = 11);
     null === request.trackedPostpones &&
       (supportsRequestStorage
@@ -7787,7 +7778,7 @@ function startWork(request) {
             request
           )
         : enqueueEarlyPreloadsAfterInitialWork(request));
-  });
+  }, 0);
 }
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -7797,12 +7788,12 @@ function enqueueFlush(request) {
     0 === request.pingedTasks.length &&
     null !== request.destination &&
     ((request.flushScheduled = !0),
-    setTimeoutOrImmediate(function () {
+    setTimeout(function () {
       var destination = request.destination;
       destination
         ? flushCompletedQueues(request, destination)
         : (request.flushScheduled = !1);
-    }));
+    }, 0));
 }
 function startFlowing(request, destination) {
   if (13 === request.status)
@@ -7899,11 +7890,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-65c4decb-20250630" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-5d87cd22-20250704" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-experimental-65c4decb-20250630\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-experimental-5d87cd22-20250704\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8157,4 +8148,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-65c4decb-20250630";
+exports.version = "19.2.0-experimental-5d87cd22-20250704";

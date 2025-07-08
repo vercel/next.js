@@ -36,7 +36,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::Layer,
-    issue::{IssueExt, StyledString, module::ModuleIssue},
+    issue::{IssueExt, IssueSource, StyledString, module::ModuleIssue},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -171,7 +171,6 @@ async fn apply_module_type(
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
                                             Vc::upcast(*module),
                                             part,
-                                            options.await?.remove_unused_exports,
                                         ))
                                     } else {
                                         Vc::upcast(*module)
@@ -189,21 +188,18 @@ async fn apply_module_type(
                                                 EcmascriptModuleFacadeModule::new(
                                                     Vc::upcast(*module),
                                                     ModulePart::exports(),
-                                                    options.await?.remove_unused_exports,
                                                 )
                                                 .resolve()
                                                 .await?,
                                             ),
                                             part,
                                             side_effect_free_packages,
-                                            options.await?.remove_unused_exports,
                                         )
                                     } else {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(*module),
                                             part,
                                             side_effect_free_packages,
-                                            options.await?.remove_unused_exports,
                                         )
                                     }
                                 }
@@ -217,7 +213,6 @@ async fn apply_module_type(
                             Vc::upcast(EcmascriptModuleFacadeModule::new(
                                 Vc::upcast(*module),
                                 ModulePart::facade(),
-                                options.await?.remove_unused_exports,
                             ))
                         } else {
                             Vc::upcast(*module)
@@ -282,7 +277,6 @@ async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
     side_effect_free_packages: Vc<Glob>,
-    remove_unused_exports: bool,
 ) -> Result<Vc<Box<dyn Module>>> {
     if let ModulePart::Export(export) = &part {
         let FollowExportsResult {
@@ -297,14 +291,12 @@ async fn apply_reexport_tree_shaking(
                 Vc::upcast(EcmascriptModuleFacadeModule::new(
                     **final_module,
                     ModulePart::renamed_export(new_export.clone(), export.clone()),
-                    remove_unused_exports,
                 ))
             }
         } else {
             Vc::upcast(EcmascriptModuleFacadeModule::new(
                 **final_module,
                 ModulePart::renamed_namespace(export.clone()),
-                remove_unused_exports,
             ))
         };
         return Ok(module);
@@ -599,14 +591,14 @@ async fn process_default_internal(
                             Some(module_type) => {
                                 ModuleIssue {
                                     ident: ident.to_resolved().await?,
-                                    title: StyledString::Text("Invalid module type".into())
+                                    title: StyledString::Text(rcstr!("Invalid module type"))
                                         .resolved_cell(),
-                                    description: StyledString::Text(
+                                    description: StyledString::Text(rcstr!(
                                         "The module type must be Ecmascript or Typescript to add \
                                          Ecmascript transforms"
-                                            .into(),
-                                    )
+                                    ))
                                     .resolved_cell(),
+                                    source: Some(IssueSource::from_source_only(current_source)),
                                 }
                                 .resolved_cell()
                                 .emit();
@@ -615,14 +607,14 @@ async fn process_default_internal(
                             None => {
                                 ModuleIssue {
                                     ident: ident.to_resolved().await?,
-                                    title: StyledString::Text("Missing module type".into())
+                                    title: StyledString::Text(rcstr!("Missing module type"))
                                         .resolved_cell(),
-                                    description: StyledString::Text(
+                                    description: StyledString::Text(rcstr!(
                                         "The module type effect must be applied before adding \
                                          Ecmascript transforms"
-                                            .into(),
-                                    )
+                                    ))
                                     .resolved_cell(),
+                                    source: Some(IssueSource::from_source_only(current_source)),
                                 }
                                 .resolved_cell()
                                 .emit();

@@ -34,7 +34,7 @@ export function useFlightStream<T>(
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
   const { createFromReadableStream } =
     // eslint-disable-next-line import/no-extraneous-dependencies
-    require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
+    require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
 
   const newResponse = createFromReadableStream<T>(flightStream, {
     serverConsumerManifest: {

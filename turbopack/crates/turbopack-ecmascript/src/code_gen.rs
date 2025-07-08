@@ -12,9 +12,7 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::{
-    chunk::ChunkingContext, module_graph::ModuleGraph, reference::ModuleReference,
-};
+use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
     ScopeHoistingContext,
@@ -194,30 +192,29 @@ pub enum CodeGen {
 impl CodeGen {
     pub async fn code_generation(
         &self,
-        g: Vc<ModuleGraph>,
         ctx: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         match self {
-            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::CjsRequireCacheAccess(v) => v.code_generation(g, ctx).await,
-            Self::ConstantConditionCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::ConstantValueCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::DynamicExpression(v) => v.code_generation(g, ctx).await,
-            Self::EsmBinding(v) => v.code_generation(g, ctx, scope_hoisting_context).await,
-            Self::EsmModuleItem(v) => v.code_generation(g, ctx).await,
-            Self::IdentReplacement(v) => v.code_generation(g, ctx).await,
-            Self::ImportMetaBinding(v) => v.code_generation(g, ctx).await,
-            Self::ImportMetaRef(v) => v.code_generation(g, ctx).await,
-            Self::MemberReplacement(v) => v.code_generation(g, ctx).await,
-            Self::Unreachable(v) => v.code_generation(g, ctx).await,
-            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
+            Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
+            Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
+            Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
+            Self::DynamicExpression(v) => v.code_generation(ctx).await,
+            Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
+            Self::EsmModuleItem(v) => v.code_generation(ctx).await,
+            Self::IdentReplacement(v) => v.code_generation(ctx).await,
+            Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
+            Self::ImportMetaRef(v) => v.code_generation(ctx).await,
+            Self::MemberReplacement(v) => v.code_generation(ctx).await,
+            Self::Unreachable(v) => v.code_generation(ctx).await,
+            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
         }
     }
 }

@@ -245,10 +245,8 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(Some(
-            self.source.resolve_source_map().await?.into_owned(),
-        )))
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }
 

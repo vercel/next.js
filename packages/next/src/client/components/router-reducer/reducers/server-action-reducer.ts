@@ -13,17 +13,13 @@ import {
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
 
-// // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromFetch } from 'react-server-dom-webpack/client'
-// // eslint-disable-next-line import/no-extraneous-dependencies
-// import { encodeReply } from 'react-server-dom-webpack/client'
-const { createFromFetch, createTemporaryReferenceSet, encodeReply } = (
-  !!process.env.NEXT_RUNTIME
-    ? // eslint-disable-next-line import/no-extraneous-dependencies
-      (require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge'))
-    : // eslint-disable-next-line import/no-extraneous-dependencies
-      (require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client'))
-) as typeof import('react-server-dom-webpack/client')
+// TODO: Explicitly import from client.browser
+// eslint-disable-next-line import/no-extraneous-dependencies
+import {
+  createFromFetch as createFromFetchBrowser,
+  createTemporaryReferenceSet,
+  encodeReply,
+} from 'react-server-dom-webpack/client'
 
 import {
   PrefetchKind,
@@ -59,6 +55,9 @@ import {
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
 import { revalidateEntireCache } from '../../segment-cache'
+
+const createFromFetch =
+  createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined

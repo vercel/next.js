@@ -411,6 +411,7 @@ export function createDefineEnv({
   fetchCacheKeyPrefix,
   hasRewrites,
   middlewareMatchers,
+  rewrites,
 }: Omit<
   DefineEnvOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
@@ -436,6 +437,7 @@ export function createDefineEnv({
         isEdgeServer: variant === 'edge',
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
+        rewrites,
       })
     )
   }

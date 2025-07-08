@@ -32,7 +32,7 @@ use std::{
     io::{self, BufRead, BufReader, ErrorKind, Read},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     time::Duration,
 };
 
@@ -64,7 +64,7 @@ use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_
 pub use virtual_fs::VirtualFileSystem;
 use watcher::DiskWatcher;
 
-use self::{invalidation::Write, json::UnparseableJson, mutex_map::MutexMap};
+use self::{invalidation::Write, json::UnparsableJson, mutex_map::MutexMap};
 use crate::{
     attach::AttachedFileSystem,
     invalidator_map::WriteContent,
@@ -547,7 +547,7 @@ impl Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
-    #[turbo_tasks::function(fs, invalidator)]
+    #[turbo_tasks::function(fs)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
@@ -573,7 +573,7 @@ impl FileSystem for DiskFileSystem {
         Ok(content.cell())
     }
 
-    #[turbo_tasks::function(fs, invalidator)]
+    #[turbo_tasks::function(fs)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
@@ -628,7 +628,7 @@ impl FileSystem for DiskFileSystem {
         Ok(RawDirectoryContent::new(entries))
     }
 
-    #[turbo_tasks::function(fs, invalidator)]
+    #[turbo_tasks::function(fs)]
     async fn read_link(&self, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path.clone()).await?;
@@ -715,7 +715,7 @@ impl FileSystem for DiskFileSystem {
         .cell())
     }
 
-    #[turbo_tasks::function(fs, invalidator)]
+    #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: FileSystemPath, content: Vc<FileContent>) -> Result<()> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
@@ -786,8 +786,12 @@ impl FileSystem for DiskFileSystem {
                         #[cfg(target_family = "unix")]
                         f.set_permissions(file.meta.permissions.into())?;
                         f.flush()?;
-                        #[cfg(feature = "write_version")]
-                        {
+
+                        static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
+                            std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
+                                .is_some_and(|v| v == "1" || v == "true")
+                        });
+                        if *WRITE_VERSION {
                             let mut full_path = full_path.to_owned();
                             let hash = hash_xxh3_hash64(file);
                             let ext = full_path.extension();
@@ -842,7 +846,7 @@ impl FileSystem for DiskFileSystem {
         Ok(())
     }
 
-    #[turbo_tasks::function(fs, invalidator)]
+    #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
@@ -965,7 +969,7 @@ impl FileSystem for DiskFileSystem {
         Ok(())
     }
 
-    #[turbo_tasks::function(fs, invalidator)]
+    #[turbo_tasks::function(fs)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
@@ -1110,6 +1114,16 @@ impl FileSystemPath {
         file_name
     }
 
+    /// Returns true if this path has the given extension
+    ///
+    /// slightly faster than `self.extension_ref() == Some(extension)` as we can simply match a
+    /// suffix
+    pub fn has_extension(&self, extension: &str) -> bool {
+        debug_assert!(!extension.contains('/') && extension.starts_with('.'));
+        self.path.ends_with(extension)
+    }
+
+    /// Returns the extension (without a leading `.`)
     pub fn extension_ref(&self) -> Option<&str> {
         let (_, extension) = self.split_extension();
         extension
@@ -1172,7 +1186,7 @@ impl FileSystemPathOption {
 }
 
 impl FileSystemPath {
-    /// Create a new FileSystemPath from a path withing a FileSystem. The
+    /// Create a new FileSystemPath from a path within a FileSystem. The
     /// /-separated path is expected to be already normalized (this is asserted
     /// in dev mode).
     fn new_normalized(fs: ResolvedVc<Box<dyn FileSystem>>, path: RcStr) -> Self {
@@ -1192,7 +1206,7 @@ impl FileSystemPath {
     }
 
     /// Adds a subpath to the current path. The /-separate path argument might
-    /// contain ".." or "." seqments, but it must not leave the root of the
+    /// contain ".." or "." segments, but it must not leave the root of the
     /// filesystem.
     pub fn join(&self, path: &str) -> Result<Self> {
         if let Some(path) = join_path(&self.path, path) {
@@ -1450,7 +1464,7 @@ impl FileSystemPath {
     // make it 1 syscall per call, whereas read_dir would make it 1 syscall per
     // directory.
     // - `metadata` allows you to use the "wrong" casing on
-    // case-insenstive filesystems, while read_dir gives you the "correct"
+    // case-insensitive filesystems, while read_dir gives you the "correct"
     // casing. We want to enforce "correct" casing to avoid broken builds on
     // Vercel deployments (case-sensitive).
     pub fn get_type(&self) -> Vc<FileSystemEntryType> {
@@ -1898,11 +1912,12 @@ impl FileContent {
     pub fn parse_json_ref(&self) -> FileJsonContent {
         match self {
             FileContent::Content(file) => {
-                let de = &mut serde_json::Deserializer::from_reader(file.read());
+                let content = file.content.clone().into_bytes();
+                let de = &mut serde_json::Deserializer::from_slice(&content);
                 match serde_path_to_error::deserialize(de) {
                     Ok(data) => FileJsonContent::Content(data),
-                    Err(e) => FileJsonContent::Unparseable(Box::new(
-                        UnparseableJson::from_serde_path_to_error(e),
+                    Err(e) => FileJsonContent::Unparsable(Box::new(
+                        UnparsableJson::from_serde_path_to_error(e),
                     )),
                 }
             }
@@ -1923,15 +1938,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparseable(
+                        None => FileJsonContent::unparsable(
                             "text content doesn't contain any json data",
                         ),
                     },
-                    Err(e) => FileJsonContent::Unparseable(Box::new(
-                        UnparseableJson::from_jsonc_error(e, string.as_ref()),
+                    Err(e) => FileJsonContent::Unparsable(Box::new(
+                        UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparseable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -1950,15 +1965,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparseable(
+                        None => FileJsonContent::unparsable(
                             "text content doesn't contain any json data",
                         ),
                     },
-                    Err(e) => FileJsonContent::Unparseable(Box::new(
-                        UnparseableJson::from_jsonc_error(e, string.as_ref()),
+                    Err(e) => FileJsonContent::Unparsable(Box::new(
+                        UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparseable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -1983,7 +1998,7 @@ impl FileContent {
                             .collect(),
                     )
                 }
-                Err(_) => FileLinesContent::Unparseable,
+                Err(_) => FileLinesContent::Unparsable,
             },
             FileContent::NotFound => FileLinesContent::NotFound,
         }
@@ -2033,7 +2048,7 @@ impl FileContent {
 #[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileJsonContent {
     Content(Value),
-    Unparseable(Box<UnparseableJson>),
+    Unparsable(Box<UnparsableJson>),
     NotFound,
 }
 
@@ -2047,7 +2062,7 @@ impl ValueToString for FileJsonContent {
     fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.to_string().into())),
-            FileJsonContent::Unparseable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
+            FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
             FileJsonContent::NotFound => Err(anyhow!("File not found")),
         }
     }
@@ -2059,14 +2074,14 @@ impl FileJsonContent {
     pub async fn content(self: Vc<Self>) -> Result<Vc<Value>> {
         match &*self.await? {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.clone())),
-            FileJsonContent::Unparseable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
+            FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
             FileJsonContent::NotFound => Err(anyhow!("File not found")),
         }
     }
 }
 impl FileJsonContent {
-    pub fn unparseable(message: &'static str) -> Self {
-        FileJsonContent::Unparseable(Box::new(UnparseableJson {
+    pub fn unparsable(message: &'static str) -> Self {
+        FileJsonContent::Unparsable(Box::new(UnparsableJson {
             message: Cow::Borrowed(message),
             path: None,
             start_location: None,
@@ -2074,8 +2089,8 @@ impl FileJsonContent {
         }))
     }
 
-    pub fn unparseable_with_message(message: Cow<'static, str>) -> Self {
-        FileJsonContent::Unparseable(Box::new(UnparseableJson {
+    pub fn unparsable_with_message(message: Cow<'static, str>) -> Self {
+        FileJsonContent::Unparsable(Box::new(UnparsableJson {
             message,
             path: None,
             start_location: None,
@@ -2093,7 +2108,7 @@ pub struct FileLine {
 #[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileLinesContent {
     Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
-    Unparseable,
+    Unparsable,
     NotFound,
 }
 

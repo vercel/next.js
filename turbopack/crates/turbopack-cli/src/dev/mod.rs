@@ -349,18 +349,13 @@ async fn source(
     )))
 }
 
-pub fn register() {
-    turbopack::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}
-
 /// Start a devserver with the given args.
 pub async fn start_server(args: &DevArguments) -> Result<()> {
     let start = Instant::now();
 
     #[cfg(feature = "tokio_console")]
     console_subscriber::init();
-    register();
+    crate::register();
 
     let NormalizedDirs {
         project_dir,

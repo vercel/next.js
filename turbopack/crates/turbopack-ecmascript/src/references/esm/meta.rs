@@ -10,7 +10,7 @@ use swc_core::{
 use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
@@ -38,7 +38,6 @@ impl ImportMetaBinding {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let rel_path = chunking_context
@@ -98,7 +97,6 @@ impl ImportMetaRef {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {

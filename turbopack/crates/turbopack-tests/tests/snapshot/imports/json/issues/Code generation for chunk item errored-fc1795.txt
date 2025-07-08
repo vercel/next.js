@@ -1,4 +1,5 @@
-error - [code gen] [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json  Code generation for chunk item errored
+error - [code gen] /turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json  Code generation for chunk item errored
+  
   An error occurred while generating the chunk item [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)
   
   Caused by:

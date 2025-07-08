@@ -213,7 +213,7 @@ mod ser {
                 unreachable!();
             };
             let mut state = serializer.serialize_seq(Some(2))?;
-            state.serialize_element(&registry::get_function_global_name(native_fn))?;
+            state.serialize_element(native_fn.global_name())?;
             let arg = *arg;
             let arg = native_fn.arg_meta.as_serialize(arg);
             state.serialize_element(arg)?;
@@ -578,6 +578,7 @@ pub trait Backend: Sync + Send {
         memory_usage: usize,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
+        has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
 
@@ -675,7 +676,6 @@ pub trait Backend: Sync + Send {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
@@ -683,7 +683,6 @@ pub trait Backend: Sync + Send {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 

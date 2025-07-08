@@ -39,6 +39,14 @@ export function Draggable({
   })
 
   function onDragEnd(translation: Point, velocity: Point) {
+    const distance = Math.sqrt(
+      translation.x * translation.x + translation.y * translation.y
+    )
+    if (distance === 0) {
+      ref.current?.style.removeProperty('translate')
+      return
+    }
+
     const projectedPosition = {
       x: translation.x + project(velocity.x),
       y: translation.y + project(velocity.y),

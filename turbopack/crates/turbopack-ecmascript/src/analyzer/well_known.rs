@@ -167,8 +167,8 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     let mut parts = Vec::new();
     for item in args {
         if let Some(str) = item.as_str() {
-            let splitted = str.split('/');
-            parts.extend(splitted.map(|s| s.into()));
+            let split = str.split('/');
+            parts.extend(split.map(|s| s.into()));
         } else {
             parts.push(item);
         }
@@ -619,7 +619,7 @@ pub fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         (.., Some("join")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         (.., Some("dirname")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         (.., Some("resolve")) => {
-            // cwd is added while resolving in refernces.rs
+            // cwd is added while resolving in references.rs
             JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(JsValue::from(
                 "",
             ))))

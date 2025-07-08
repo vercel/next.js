@@ -316,7 +316,7 @@ impl Fold for NextDynamicPatcher {
                             // Only use `require.resolveWebpack` to decouple modules for webpack,
                             // turbopack doesn't need this
 
-                            // When it's not prefering to picking up ESM (in the pages router), we
+                            // When it's not preferring to picking up ESM (in the pages router), we
                             // don't need to do it as it doesn't need to enter the non-ssr module.
                             //
                             // Also transforming it to `require.resolveWeak` doesn't work with ESM

@@ -218,7 +218,7 @@ impl Asset for NftJsonAsset {
             }
 
             let referenced_chunk_path = referenced_chunk.path().await?;
-            if referenced_chunk_path.extension_ref() == Some("map") {
+            if referenced_chunk_path.has_extension(".map") {
                 continue;
             }
 

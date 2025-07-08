@@ -737,6 +737,11 @@ export interface ExperimentalConfig {
   globalNotFound?: boolean
 
   /**
+   * Enable segment viewer for the app directory in Next.js DevTools.
+   */
+  devtoolSegmentExplorer?: boolean
+
+  /**
    * Enable new panel UI for the Next.js DevTools.
    */
   devtoolNewPanelUI?: boolean
@@ -1351,7 +1356,6 @@ export const defaultConfig = {
       static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
     },
     cssChunking: true,
-    devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
     multiZoneDraftMode: false,
     appNavFailHandling: false,
     prerenderEarlyExit: true,
@@ -1451,6 +1455,8 @@ export const defaultConfig = {
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
+    devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
+    devtoolSegmentExplorer: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

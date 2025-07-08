@@ -5,16 +5,12 @@ use syn::{
     FnArg, ItemTrait, Pat, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
-    ValueTraitArguments, get_trait_default_impl_function_ident, get_trait_type_id_ident,
-    get_trait_type_ident, get_trait_type_vtable_registry, is_self_used,
+    ValueTraitArguments, get_trait_default_impl_function_ident, get_trait_type_ident, is_self_used,
 };
 
-use crate::{
-    func::{
-        DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-        split_function_attributes,
-    },
-    function_macro::is_immutable,
+use crate::func::{
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+    split_function_attributes,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -68,8 +64,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let supertraits = supertraits.iter().collect::<Vec<_>>();
 
     let trait_type_ident = get_trait_type_ident(trait_ident);
-    let trait_type_id_ident = get_trait_type_id_ident(trait_ident);
-    let trait_type_vtable_registry = get_trait_type_vtable_registry(trait_ident);
     let mut dynamic_trait_fns = Vec::new();
     let mut trait_methods: Vec<TokenStream2> = Vec::new();
     let mut native_functions = Vec::new();
@@ -194,8 +188,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 //   argument. (This could be fixed)
                 // - This only makes sense when a default implementation is present.
                 local: false,
-                invalidator: func_args.invalidator.is_some(),
-                immutable: is_immutable(sig) && func_args.invalidator.is_none(),
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
@@ -287,24 +279,24 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 #(#trait_methods)*
                 trait_type
             });
-        #[doc(hidden)]
-        static #trait_type_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitTypeId> =
-            turbo_tasks::macro_helpers::Lazy::new(|| {
-                turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
-            });
-        #[doc(hidden)]
-        static #trait_type_vtable_registry: turbo_tasks::macro_helpers::Lazy<turbo_tasks::macro_helpers::VTableRegistry<dyn # trait_ident>> =
-            turbo_tasks::macro_helpers::Lazy::new(turbo_tasks::macro_helpers::VTableRegistry::new);
 
         impl turbo_tasks::VcValueTrait for Box<dyn #trait_ident> {
             type ValueTrait = dyn #trait_ident;
 
             fn get_trait_type_id() -> turbo_tasks::TraitTypeId {
-                *#trait_type_id_ident
+                static ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitTypeId> =
+                turbo_tasks::macro_helpers::Lazy::new(|| {
+                    turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
+                });
+
+                *ident
             }
 
             fn get_impl_vtables() -> &'static turbo_tasks::macro_helpers::VTableRegistry<Self::ValueTrait> {
-                &*#trait_type_vtable_registry
+                static registry: turbo_tasks::macro_helpers::Lazy<turbo_tasks::macro_helpers::VTableRegistry<dyn # trait_ident>> =
+                turbo_tasks::macro_helpers::Lazy::new(turbo_tasks::macro_helpers::VTableRegistry::new);
+
+                &*registry
             }
         }
 

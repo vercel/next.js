@@ -61,8 +61,8 @@ fn main() -> Result<()> {
         span.replace_all(&print, NoExpand("")).to_string()
     };
 
-    let alernate_ws = Regex::new(r" {8}").unwrap();
-    let alternating = alernate_ws.replace_all(
+    let alternate_ws = Regex::new(r" {8}").unwrap();
+    let alternating = alternate_ws.replace_all(
         &stripped,
         NoExpand(&format!(
             "{}{}",
