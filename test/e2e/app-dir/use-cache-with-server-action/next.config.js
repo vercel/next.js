@@ -5,6 +5,7 @@ const nextConfig = {
   experimental: {
     ppr: true,
     useCache: true,
+    turbopackMinify: false,
   },
 }
 

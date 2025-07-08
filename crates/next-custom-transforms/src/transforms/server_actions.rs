@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{hash_map, BTreeMap},
+    collections::{BTreeMap, hash_map},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     path::{Path, PathBuf},
@@ -16,23 +16,23 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::{SourceMapGenConfig, PURE_SP},
+        source_map::{PURE_SP, SourceMapGenConfig},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        codegen::{self, text_writer::JsWriter, Emitter},
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        codegen::{self, Emitter, text_writer::JsWriter},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
-use turbo_rcstr::{rcstr, RcStr};
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::FxIndexMap;
 
@@ -467,16 +467,6 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions
             .push((action_name.clone(), action_id.clone()));
 
-        let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone(), arrow.span),
-            ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Some(id.as_arg()))
-                .collect(),
-            action_id.clone(),
-        );
-
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
@@ -503,7 +493,7 @@ impl<C: Comments> ServerActions<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                             args: vec![
-                                action_id.as_arg(),
+                                action_id.clone().as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
                             ..Default::default()
@@ -535,7 +525,9 @@ impl<C: Comments> ServerActions<C> {
         }
 
         // Create the action export decl from the arrow function
-        // export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {}
+        // export const $$RSC_SERVER_ACTION_0 = registerServerReference(
+        //    async function action($$ACTION_CLOSURE_BOUND) {}
+        // <id>, null)
         self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
@@ -546,28 +538,32 @@ impl<C: Comments> ServerActions<C> {
                         span: DUMMY_SP,
                         name: Pat::Ident(action_ident.clone().into()),
                         definite: false,
-                        init: Some(Box::new(Expr::Fn(FnExpr {
-                            ident: self.arrow_or_fn_expr_ident.clone(),
-                            function: Box::new(Function {
-                                params: new_params,
-                                body: match new_body {
-                                    BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                                    BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
-                                        span: DUMMY_SP,
-                                        stmts: vec![Stmt::Return(ReturnStmt {
+                        init: Some(annotate_expr_as_server_reference(
+                            Box::new(Expr::Fn(FnExpr {
+                                ident: self.arrow_or_fn_expr_ident.clone(),
+                                function: Box::new(Function {
+                                    params: new_params,
+                                    body: match new_body {
+                                        BlockStmtOrExpr::BlockStmt(body) => Some(body),
+                                        BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
                                             span: DUMMY_SP,
-                                            arg: Some(expr),
-                                        })],
-                                        ..Default::default()
-                                    }),
-                                },
-                                decorators: vec![],
-                                span: DUMMY_SP,
-                                is_generator: false,
-                                is_async: true,
-                                ..Default::default()
-                            }),
-                        }))),
+                                            stmts: vec![Stmt::Return(ReturnStmt {
+                                                span: DUMMY_SP,
+                                                arg: Some(expr),
+                                            })],
+                                            ..Default::default()
+                                        }),
+                                    },
+                                    decorators: vec![],
+                                    span: DUMMY_SP,
+                                    is_generator: false,
+                                    is_async: true,
+                                    ..Default::default()
+                                }),
+                            })),
+                            action_id.clone(),
+                            arrow.span,
+                        )),
                     }],
                     declare: Default::default(),
                     ctxt: self.private_ctxt,
@@ -575,7 +571,19 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        Box::new(register_action_expr.clone())
+        if ids_from_closure.is_empty() {
+            Box::new(action_ident.clone().into())
+        } else {
+            Box::new(bind_args_to_ident(
+                action_ident.clone(),
+                ids_from_closure
+                    .iter()
+                    .cloned()
+                    .map(|id| Some(id.as_arg()))
+                    .collect(),
+                action_id.clone(),
+            ))
+        }
     }
 
     fn maybe_hoist_and_create_proxy_for_server_action_function(
@@ -609,20 +617,6 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions
             .push((action_name.clone(), action_id.clone()));
 
-        let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(
-                action_ident.clone(),
-                action_id.clone(),
-                function.span,
-            ),
-            ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Some(id.as_arg()))
-                .collect(),
-            action_id.clone(),
-        );
-
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
             private_ctxt: self.private_ctxt,
@@ -646,7 +640,7 @@ impl<C: Comments> ServerActions<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                             args: vec![
-                                action_id.as_arg(),
+                                action_id.clone().as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
                             ..Default::default()
@@ -680,14 +674,18 @@ impl<C: Comments> ServerActions<C> {
                         span: DUMMY_SP, // TODO: need to map it to the original span?
                         name: Pat::Ident(action_ident.clone().into()),
                         definite: false,
-                        init: Some(Box::new(Expr::Fn(FnExpr {
-                            ident: fn_name,
-                            function: Box::new(Function {
-                                params: new_params,
-                                body: new_body,
-                                ..function.take()
-                            }),
-                        }))),
+                        init: Some(annotate_expr_as_server_reference(
+                            Box::new(Expr::Fn(FnExpr {
+                                ident: fn_name,
+                                function: Box::new(Function {
+                                    params: new_params,
+                                    body: new_body,
+                                    ..function.take()
+                                }),
+                            })),
+                            action_id.clone(),
+                            function.span,
+                        )),
                     }],
                     declare: Default::default(),
                     ctxt: self.private_ctxt,
@@ -695,7 +693,19 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        Box::new(register_action_expr)
+        if ids_from_closure.is_empty() {
+            Box::new(action_ident.clone().into())
+        } else {
+            Box::new(bind_args_to_ident(
+                action_ident.clone(),
+                ids_from_closure
+                    .iter()
+                    .cloned()
+                    .map(|id| Some(id.as_arg()))
+                    .collect(),
+                action_id.clone(),
+            ))
+        }
     }
 
     fn maybe_hoist_and_create_proxy_for_cache_arrow_expr(
@@ -2465,6 +2475,30 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
     })
 }
 
+fn annotate_expr_as_server_reference(
+    expr: Box<Expr>,
+    action_id: Atom,
+    original_span: Span,
+) -> Box<Expr> {
+    // registerServerReference(expr, id, null)
+    Box::new(Expr::Call(CallExpr {
+        span: original_span,
+        callee: quote_ident!("registerServerReference").as_callee(),
+        args: vec![
+            ExprOrSpread { spread: None, expr },
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(action_id.clone().into()),
+            },
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
+            },
+        ],
+        ..Default::default()
+    }))
+}
+
 fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
     if bound.is_empty() {
         expr
@@ -2501,6 +2535,40 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
             ..Default::default()
         })
     }
+}
+
+fn bind_args_to_ident(ident: Ident, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
+    // ident.bind(null, [encryptActionBoundArgs("id", arg1, arg2, ...)])
+    Expr::Call(CallExpr {
+        span: DUMMY_SP,
+        callee: Expr::Member(MemberExpr {
+            span: DUMMY_SP,
+            obj: Box::new(ident.into()),
+            prop: MemberProp::Ident(quote_ident!("bind")),
+        })
+        .as_callee(),
+        args: vec![
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
+            },
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Call(CallExpr {
+                    span: DUMMY_SP,
+                    callee: quote_ident!("encryptActionBoundArgs").as_callee(),
+                    args: std::iter::once(ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(action_id.into()),
+                    })
+                    .chain(bound.into_iter().flatten())
+                    .collect(),
+                    ..Default::default()
+                })),
+            },
+        ],
+        ..Default::default()
+    })
 }
 
 // Detects if two strings are similar (but not the same).
