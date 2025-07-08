@@ -41,7 +41,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.evaluate(() => document.querySelector('a').click())
+    await browser.elementByCss('a').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -54,8 +54,6 @@ describe('ReactRefreshLogBox', () => {
             |                           ^",
          "stack": [
            "onClick index.js (8:27)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -70,8 +68,6 @@ describe('ReactRefreshLogBox', () => {
             |                           ^",
          "stack": [
            "onClick index.js (8:27)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -148,11 +144,7 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "eval index.js (3:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "eval ./pages/index.js",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
@@ -193,11 +185,7 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "eval index.js (3:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "eval ./pages/index.js",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
@@ -212,7 +200,7 @@ describe('ReactRefreshLogBox', () => {
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554152127
-  test('boundaries', async () => {
+  it('boundaries', async () => {
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -279,7 +267,7 @@ describe('ReactRefreshLogBox', () => {
            |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -293,7 +281,7 @@ describe('ReactRefreshLogBox', () => {
            |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -301,22 +289,39 @@ describe('ReactRefreshLogBox', () => {
        ]
       `)
     } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "no",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "FunctionDefault.js (1:51) @ FunctionDefault
-       > 1 | export default function FunctionDefault() { throw new Error('no'); }
-           |                                                   ^",
-         "stack": [
-           "FunctionDefault FunctionDefault.js (1:51)",
-           "Set.forEach <anonymous> (0:0)",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
-      `)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+         > 1 | export default function FunctionDefault() { throw new Error('no'); }
+             |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+             "Set.forEach <anonymous>",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+         > 1 | export default function FunctionDefault() { throw new Error('no'); }
+             |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+             "Set.forEach <anonymous>",
+           ],
+         }
+        `)
+      }
     }
   })
 
@@ -421,7 +426,7 @@ describe('ReactRefreshLogBox', () => {
     }
   })
 
-  test('conversion to class component (1)', async () => {
+  it('conversion to class component (1)', async () => {
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -466,7 +471,6 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
@@ -480,7 +484,7 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -494,7 +498,7 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
-             "Set.forEach <anonymous> (0:0)",
+             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -502,22 +506,39 @@ describe('ReactRefreshLogBox', () => {
        ]
       `)
     } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "Child.js (4:11) @ ClickCount.render
-       > 4 |     throw new Error()
-           |           ^",
-         "stack": [
-           "ClickCount.render Child.js (4:11)",
-           "Set.forEach <anonymous> (0:0)",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
-      `)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+         > 4 |     throw new Error()
+             |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+             "Set.forEach <anonymous>",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+         > 4 |     throw new Error()
+             |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+             "Set.forEach <anonymous>",
+           ],
+         }
+        `)
+      }
     }
 
     await session.patch(
@@ -654,7 +675,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -667,8 +688,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -683,8 +702,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -709,7 +726,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -722,8 +739,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -738,8 +753,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -764,7 +777,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -777,8 +790,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -793,8 +804,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -819,7 +828,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -832,8 +841,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -848,8 +855,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -874,7 +879,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     await session.assertNoRedbox()
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
@@ -887,8 +892,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -903,8 +906,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
          ],
        }
       `)
@@ -1245,7 +1246,7 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "<unknown> pages/index.js (3:11)",
-           "Array.map <anonymous> (0:0)",
+           "Array.map <anonymous>",
            "Page pages/index.js (2:13)",
          ],
        }
@@ -1261,7 +1262,7 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
          "stack": [
            "eval pages/index.js (3:11)",
-           "Array.map <anonymous> (0:0)",
+           "Array.map <anonymous>",
            "Page pages/index.js (2:13)",
          ],
        }

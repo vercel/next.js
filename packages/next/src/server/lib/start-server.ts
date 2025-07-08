@@ -1,3 +1,5 @@
+// Start CPU profile if it wasn't already started.
+import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
 
 if (performance.getEntriesByName('next-start').length === 0) {

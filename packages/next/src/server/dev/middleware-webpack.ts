@@ -1,12 +1,15 @@
 import { findSourceMap, type SourceMap } from 'module'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
-import {
-  SourceMapConsumer,
-  type BasicSourceMapConsumer,
-} from 'next/dist/compiled/source-map08'
+import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from './get-source-map-from-file'
+import {
+  findApplicableSourceMapPayload,
+  sourceMapIgnoreListsEverything,
+  type BasicSourceMapPayload,
+  type ModernSourceMapPayload,
+} from '../lib/source-maps'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import {
   getOriginalCodeFrame,
@@ -15,7 +18,6 @@ import {
   type OriginalStackFramesResponse,
 } from '../../next-devtools/server/shared'
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
-export { getSourceMapFromFile }
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
@@ -50,13 +52,13 @@ type SourceAttributes = {
 type Source =
   | {
       type: 'file'
-      sourceMap: RawSourceMap
+      sourceMap: BasicSourceMapPayload
       ignoredSources: IgnoredSources
       moduleURL: string
     }
   | {
       type: 'bundle'
-      sourceMap: RawSourceMap
+      sourceMap: BasicSourceMapPayload
       ignoredSources: IgnoredSources
       compilation: webpack.Compilation
       moduleId: string
@@ -87,17 +89,20 @@ function getSourcePath(source: string) {
  * @returns 1-based lines and 0-based columns
  */
 async function findOriginalSourcePositionAndContent(
-  sourceMap: RawSourceMap,
+  sourceMap: ModernSourceMapPayload,
   position: { lineNumber: number | null; column: number | null }
 ): Promise<SourceAttributes | null> {
-  let consumer: BasicSourceMapConsumer
+  let consumer: SourceMapConsumer
   try {
     consumer = await new SourceMapConsumer(sourceMap)
   } catch (cause) {
-    throw new Error(
-      `${sourceMap.file}: Invalid source map. Only conformant source maps can be used to find the original code.`,
-      { cause }
+    console.error(
+      new Error(
+        `${sourceMap.file}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+        { cause }
+      )
     )
+    return null
   }
 
   try {
@@ -178,11 +183,14 @@ function findOriginalSourcePositionAndContentFromCompilation(
 }
 
 export async function createOriginalStackFrame({
+  ignoredByDefault,
   source,
   rootDirectory,
   frame,
   errorMessage,
 }: {
+  /** setting this to true will not consult ignoreList */
+  ignoredByDefault: boolean
   source: Source
   rootDirectory: string
   frame: StackFrame
@@ -214,6 +222,7 @@ export async function createOriginalStackFrame({
   }
 
   const ignored =
+    ignoredByDefault ||
     isIgnoredSource(source, sourcePosition) ||
     // If the source file is externals, should be excluded even it's not ignored source.
     // e.g. webpack://next/dist/.. needs to be ignored
@@ -277,11 +286,16 @@ async function getSourceMapFromCompilation(
 }
 
 async function getSource(
-  sourceURL: string,
+  frame: {
+    file: string | null
+    lineNumber: number | null
+    column: number | null
+  },
   options: {
     getCompilations: () => webpack.Compilation[]
   }
 ): Promise<Source | undefined> {
+  let sourceURL = frame.file ?? ''
   const { getCompilations } = options
 
   // Rspack is now using file:// URLs for source maps. Remove the rsc prefix to produce the file:/// url.
@@ -301,8 +315,16 @@ async function getSource(
     const sourceMapPayload = nativeSourceMap.payload
     return {
       type: 'file',
-      sourceMap: sourceMapPayload,
-      ignoredSources: getIgnoredSources(sourceMapPayload),
+      sourceMap: findApplicableSourceMapPayload(
+        frame.lineNumber ?? 0,
+        frame.column ?? 0,
+        sourceMapPayload
+      )!,
+
+      ignoredSources: getIgnoredSources(
+        // @ts-expect-error -- TODO: Support IndexSourceMap
+        sourceMapPayload
+      ),
       moduleURL: sourceURL,
     }
   }
@@ -424,7 +446,7 @@ async function getOriginalStackFrame({
   rootDirectory: string
 }): Promise<OriginalStackFrameResponse> {
   const filename = frame.file ?? ''
-  const source = await getSource(filename, {
+  const source = await getSource(frame, {
     getCompilations: () => {
       const compilations: webpack.Compilation[] = []
 
@@ -494,8 +516,10 @@ async function getOriginalStackFrame({
       originalCodeFrame: null,
     }
   }
+  defaultStackFrame.ignored ||= sourceMapIgnoreListsEverything(source.sourceMap)
 
   const originalStackFrameResponse = await createOriginalStackFrame({
+    ignoredByDefault: defaultStackFrame.ignored,
     frame,
     source,
     rootDirectory,
@@ -645,23 +669,31 @@ export function getSourceMapMiddleware(options: {
     let source: Source | undefined
 
     try {
-      source = await getSource(filename, {
-        getCompilations: () => {
-          const compilations: webpack.Compilation[] = []
-
-          for (const stats of [
-            clientStats(),
-            serverStats(),
-            edgeServerStats(),
-          ]) {
-            if (stats?.compilation) {
-              compilations.push(stats.compilation)
-            }
-          }
-
-          return compilations
+      source = await getSource(
+        {
+          file: filename,
+          // Webpack doesn't use Index Source Maps
+          lineNumber: null,
+          column: null,
         },
-      })
+        {
+          getCompilations: () => {
+            const compilations: webpack.Compilation[] = []
+
+            for (const stats of [
+              clientStats(),
+              serverStats(),
+              edgeServerStats(),
+            ]) {
+              if (stats?.compilation) {
+                compilations.push(stats.compilation)
+              }
+            }
+
+            return compilations
+          },
+        }
+      )
     } catch (error) {
       return middlewareResponse.internalServerError(res, error)
     }

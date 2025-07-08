@@ -6,7 +6,6 @@ import { styles as pagination } from '../components/errors/error-overlay-paginat
 import { styles as overlay } from '../components/overlay/styles'
 import { styles as footer } from '../components/errors/error-overlay-footer/error-overlay-footer'
 import { TERMINAL_STYLES } from '../components/terminal/terminal'
-import { styles as toast } from '../components/toast'
 import { styles as versionStaleness } from '../components/version-staleness-info/version-staleness-info'
 import { styles as buildErrorStyles } from '../container/build-error'
 import { styles as containerErrorStyles } from '../container/errors'
@@ -49,7 +48,6 @@ export function ComponentStyles() {
         ${CALL_STACK_STYLES}
         ${ENVIRONMENT_NAME_LABEL_STYLES}
         ${overlay}
-        ${toast}
         ${dialog}
         ${errorLayout}
         ${footer}

@@ -861,14 +861,13 @@ impl AppProject {
         client_shared_entries: Vc<EvaluatableAssets>,
         has_layout_segments: bool,
     ) -> Result<Vc<ModuleGraphs>> {
-        let client_shared_entries = client_shared_entries
-            .await?
-            .into_iter()
-            .map(|m| ResolvedVc::upcast(*m))
-            .collect();
-
-        let should_trace = self.project.next_mode().await?.is_production();
         if *self.project.per_page_module_graph().await? {
+            let should_trace = self.project.next_mode().await?.is_production();
+            let client_shared_entries = client_shared_entries
+                .await?
+                .into_iter()
+                .map(|m| ResolvedVc::upcast(*m))
+                .collect();
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
             async move {
@@ -1255,7 +1254,7 @@ impl AppEndpoint {
             client_assets.insert(chunk);
 
             let chunk_path = chunk.path().await?;
-            if chunk_path.extension_ref() == Some("js") {
+            if chunk_path.has_extension(".js") {
                 client_shared_chunks.push(chunk);
             }
         }
@@ -1369,8 +1368,12 @@ impl AppEndpoint {
                 .should_create_webpack_stats()
                 .await?
             {
-                let webpack_stats =
-                    generate_webpack_stats(app_entry.original_name.clone(), &client_assets).await?;
+                let webpack_stats = generate_webpack_stats(
+                    *module_graphs.base,
+                    app_entry.original_name.clone(),
+                    client_assets.iter().copied(),
+                )
+                .await?;
                 let stats_output = VirtualOutputAsset::new(
                     node_root.join(&format!(
                         "server/app{manifest_path_prefix}/webpack-stats.json",

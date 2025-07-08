@@ -169,35 +169,32 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         ) -> Result<FileType> {
             // node.js only supports these file extensions
             // mjs is an esm module and we can't bundle that yet
-            let ext = raw_fs_path.extension_ref();
-            if matches!(ext, Some("cjs" | "node" | "json")) {
-                return Ok(FileType::CommonJs);
-            }
-            if matches!(ext, Some("mjs")) {
-                return Ok(FileType::EcmaScriptModule);
-            }
-            if matches!(ext, Some("js")) {
-                // for .js extension in cjs context, we need to check the actual module type via
-                // package.json
-                let FindContextFileResult::Found(package_json, _) =
-                    &*find_context_file(fs_path.parent(), package_json()).await?
-                else {
-                    // can't find package.json
-                    return Ok(FileType::CommonJs);
-                };
-                let FileJsonContent::Content(package) = &*package_json.read_json().await? else {
-                    // can't parse package.json
-                    return Ok(FileType::InvalidPackageJson);
-                };
+            Ok(match raw_fs_path.extension_ref() {
+                Some("cjs" | "node" | "json") => FileType::CommonJs,
+                Some("mjs") => FileType::EcmaScriptModule,
+                Some("js") => {
+                    // for .js extension in cjs context, we need to check the actual module type via
+                    // package.json
+                    let FindContextFileResult::Found(package_json, _) =
+                        &*find_context_file(fs_path.parent(), package_json()).await?
+                    else {
+                        // can't find package.json
+                        return Ok(FileType::CommonJs);
+                    };
+                    let FileJsonContent::Content(package) = &*package_json.read_json().await?
+                    else {
+                        // can't parse package.json
+                        return Ok(FileType::InvalidPackageJson);
+                    };
 
-                if let Some("module") = package["type"].as_str() {
-                    return Ok(FileType::EcmaScriptModule);
+                    if let Some("module") = package["type"].as_str() {
+                        FileType::EcmaScriptModule
+                    } else {
+                        FileType::CommonJs
+                    }
                 }
-
-                return Ok(FileType::CommonJs);
-            }
-
-            Ok(FileType::UnsupportedExtension)
+                _ => FileType::UnsupportedExtension,
+            })
         }
 
         let unable_to_externalize = |reason: Vec<StyledString>| {

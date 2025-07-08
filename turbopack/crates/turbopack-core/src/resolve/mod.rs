@@ -114,6 +114,16 @@ pub enum ExportUsage {
     Evaluation,
 }
 
+impl Display for ExportUsage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExportUsage::Named(name) => write!(f, "export {name}"),
+            ExportUsage::All => write!(f, "all"),
+            ExportUsage::Evaluation => write!(f, "evaluation"),
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl ExportUsage {
     #[turbo_tasks::function]

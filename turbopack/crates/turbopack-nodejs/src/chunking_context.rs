@@ -16,7 +16,11 @@ use turbopack_core::{
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{
+        ModuleGraph,
+        chunk_group_info::ChunkGroup,
+        export_usage::{ExportUsageInfo, ModuleExportUsageInfo},
+    },
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
@@ -84,6 +88,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<ExportUsageInfo>>) -> Self {
+        self.chunking_context.export_usage = export_usage;
+        self
+    }
+
     pub fn chunking_config<T>(mut self, ty: ResolvedVc<T>, chunking_config: ChunkingConfig) -> Self
     where
         T: Upcast<Box<dyn ChunkType>>,
@@ -134,6 +143,8 @@ pub struct NodeJsChunkingContext {
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    /// The module export usage info, if available.
+    export_usage: Option<ResolvedVc<ExportUsageInfo>>,
     /// Whether to use file:// uris for source map sources
     should_use_file_source_map_uris: bool,
     /// The chunking configs
@@ -170,6 +181,7 @@ impl NodeJsChunkingContext {
                 manifest_chunks: false,
                 should_use_file_source_map_uris: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
+                export_usage: None,
                 chunking_configs: Default::default(),
             },
         }
@@ -496,5 +508,17 @@ impl ChunkingContext for NodeJsChunkingContext {
         } else {
             self.chunk_item_id_from_ident(AsyncLoaderModule::asset_ident_for(module))
         })
+    }
+
+    #[turbo_tasks::function]
+    async fn module_export_usage(
+        self: Vc<Self>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ModuleExportUsageInfo>> {
+        if let Some(export_usage) = self.await?.export_usage {
+            Ok(export_usage.await?.used_exports(module))
+        } else {
+            Ok(ModuleExportUsageInfo::all())
+        }
     }
 }

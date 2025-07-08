@@ -20,7 +20,7 @@ describe('hook-function-names', () => {
           |           ^",
        "stack": [
          "Button.useCallback[handleClick] app/button/page.tsx (7:11)",
-         "button <anonymous> (0:0)",
+         "button <anonymous>",
          "Button app/button/page.tsx (11:5)",
          "Page app/button/page.tsx (18:10)",
        ],

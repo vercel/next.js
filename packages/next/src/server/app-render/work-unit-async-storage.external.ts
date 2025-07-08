@@ -142,6 +142,11 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
    * subsequent dynamic render.
    */
   readonly hmrRefreshHash: string | undefined
+
+  /**
+   * Only available in dev mode.
+   */
+  readonly captureOwnerStack: undefined | (() => string | null)
 }
 
 export interface PrerenderStorePPR extends CommonWorkUnitStore {

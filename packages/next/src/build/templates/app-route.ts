@@ -195,6 +195,7 @@ export async function handler(
   }
   const nodeNextReq = new NodeNextRequest(req)
   const nodeNextRes = new NodeNextResponse(res)
+
   const nextReq = NextRequestAdapter.fromNodeNextRequest(
     nodeNextReq,
     signalFromNodeResponse(res)

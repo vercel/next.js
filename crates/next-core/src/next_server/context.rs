@@ -1,8 +1,9 @@
 use std::iter::once;
 
 use anyhow::{Result, bail};
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
@@ -23,6 +24,7 @@ use turbopack_core::{
         Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
     },
     free_var_references,
+    module_graph::export_usage::OptionExportUsageInfo,
     target::CompileTarget,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior};
@@ -538,9 +540,7 @@ pub async fn get_server_module_options_context(
             None
         },
         keep_last_successful_parse: next_mode.is_development(),
-        remove_unused_exports: *next_config
-            .turbopack_remove_unused_exports(next_mode.is_development())
-            .await?,
+
         ..Default::default()
     };
 
@@ -948,21 +948,41 @@ pub fn get_server_runtime_entries(
     Vc::cell(runtime_entries)
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+pub struct ServerChunkingContextOptions {
+    pub mode: Vc<NextMode>,
+    pub root_path: FileSystemPath,
+    pub node_root: FileSystemPath,
+    pub node_root_to_root_path: RcStr,
+    pub environment: Vc<Environment>,
+    pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    pub export_usage: Vc<OptionExportUsageInfo>,
+    pub turbo_minify: Vc<bool>,
+    pub turbo_source_maps: Vc<bool>,
+    pub no_mangling: Vc<bool>,
+    pub scope_hoisting: Vc<bool>,
+}
+
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context_with_client_assets(
-    mode: Vc<NextMode>,
-    root_path: FileSystemPath,
-    node_root: FileSystemPath,
-    node_root_to_root_path: RcStr,
+    options: ServerChunkingContextOptions,
     client_root: FileSystemPath,
     asset_prefix: Option<RcStr>,
-    environment: ResolvedVc<Environment>,
-    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    turbo_minify: Vc<bool>,
-    turbo_source_maps: Vc<bool>,
-    no_mangling: Vc<bool>,
-    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
+    let ServerChunkingContextOptions {
+        mode,
+        root_path,
+        node_root,
+        node_root_to_root_path,
+        environment,
+        module_id_strategy,
+        export_usage,
+        turbo_minify,
+        turbo_source_maps,
+        no_mangling,
+        scope_hoisting,
+    } = options;
+
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
@@ -974,7 +994,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         client_root.clone(),
         node_root.join("server/chunks/ssr")?,
         client_root.join("static/media")?,
-        environment,
+        environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
     .asset_prefix(asset_prefix)
@@ -991,7 +1011,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     } else {
         SourceMapsType::None
     })
-    .module_id_strategy(module_id_strategy)
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
@@ -1022,17 +1043,21 @@ pub async fn get_server_chunking_context_with_client_assets(
 
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context(
-    mode: Vc<NextMode>,
-    root_path: FileSystemPath,
-    node_root: FileSystemPath,
-    node_root_to_root_path: RcStr,
-    environment: ResolvedVc<Environment>,
-    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    turbo_minify: Vc<bool>,
-    turbo_source_maps: Vc<bool>,
-    no_mangling: Vc<bool>,
-    scope_hoisting: Vc<bool>,
+    options: ServerChunkingContextOptions,
 ) -> Result<Vc<NodeJsChunkingContext>> {
+    let ServerChunkingContextOptions {
+        mode,
+        root_path,
+        node_root,
+        node_root_to_root_path,
+        environment,
+        module_id_strategy,
+        export_usage,
+        turbo_minify,
+        turbo_source_maps,
+        no_mangling,
+        scope_hoisting,
+    } = options;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
@@ -1044,7 +1069,7 @@ pub async fn get_server_chunking_context(
         node_root.clone(),
         node_root.join("server/chunks")?,
         node_root.join("server/assets")?,
-        environment,
+        environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
     .minify_type(if *turbo_minify.await? {
@@ -1059,7 +1084,8 @@ pub async fn get_server_chunking_context(
     } else {
         SourceMapsType::None
     })
-    .module_id_strategy(module_id_strategy)
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
