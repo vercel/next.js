@@ -32,7 +32,7 @@ fn bench_file_watching(c: &mut Criterion) {
         BenchmarkId::new("bench_file_watching", "change file"),
         move |b| {
             let (tx, rx) = channel();
-            let event = Arc::new(Event::new(|| "test event".to_string()));
+            let event = Arc::new(Event::new(|| || "test event".to_string()));
 
             let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
             watcher.watch(temp_path, RecursiveMode::Recursive).unwrap();

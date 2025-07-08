@@ -256,9 +256,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             snapshot_completed: Condvar::new(),
             last_snapshot: AtomicU64::new(0),
             stopping: AtomicBool::new(false),
-            stopping_event: Event::new(|| "TurboTasksBackend::stopping_event".to_string()),
-            idle_start_event: Event::new(|| "TurboTasksBackend::idle_start_event".to_string()),
-            idle_end_event: Event::new(|| "TurboTasksBackend::idle_end_event".to_string()),
+            stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
+            idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
+            idle_end_event: Event::new(|| || "TurboTasksBackend::idle_end_event".to_string()),
             #[cfg(feature = "verify_aggregation_graph")]
             is_idle: AtomicBool::new(false),
             task_statistics: TaskStatisticsApi::default(),
@@ -453,12 +453,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             reader: Option<TaskId>,
             done_event: &Event,
         ) -> EventListener {
-            let reader_desc = reader.map(|r| this.get_task_desc_fn(r));
             done_event.listen_with_note(move || {
-                if let Some(reader_desc) = reader_desc.as_ref() {
-                    format!("try_read_task_output from {}", reader_desc())
-                } else {
-                    "try_read_task_output (untracked)".to_string()
+                let reader_desc = reader.map(|r| this.get_task_desc_fn(r));
+                move || {
+                    if let Some(reader_desc) = reader_desc.as_ref() {
+                        format!("try_read_task_output from {}", (reader_desc)())
+                    } else {
+                        "try_read_task_output (untracked)".to_string()
+                    }
                 }
             })
         }
@@ -558,7 +560,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     get!(task, Activeness).unwrap()
                 };
                 let listener = activeness.all_clean_event.listen_with_note(move || {
-                    format!("try_read_task_output (strongly consistent) from {reader:?}")
+                    move || format!("try_read_task_output (strongly consistent) from {reader:?}")
                 });
                 drop(task);
                 if !task_ids_to_schedule.is_empty() {
@@ -612,19 +614,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return result;
         }
 
-        let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
         let note = move || {
-            if let Some(reader_desc) = reader_desc.as_ref() {
-                format!("try_read_task_output (recompute) from {}", reader_desc())
-            } else {
-                "try_read_task_output (recompute, untracked)".to_string()
+            let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
+            move || {
+                if let Some(reader_desc) = reader_desc.as_ref() {
+                    format!("try_read_task_output (recompute) from {}", (reader_desc)())
+                } else {
+                    "try_read_task_output (recompute, untracked)".to_string()
+                }
             }
         };
 
         // Output doesn't exist. We need to schedule the task to compute it.
         let (item, listener) = CachedDataItem::new_scheduled_with_listener(
             TaskExecutionReason::OutputNotAvailable,
-            self.get_task_desc_fn(task_id),
+            || self.get_task_desc_fn(task_id),
             note,
         );
         // It's not possible that the task is InProgress at this point. If it is InProgress {
@@ -756,7 +760,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         } else if !is_scheduled
             && task.add(CachedDataItem::new_scheduled(
                 TaskExecutionReason::CellNotAvailable,
-                self.get_task_desc_fn(task_id),
+                || self.get_task_desc_fn(task_id),
             ))
         {
             turbo_tasks.schedule(task_id);
@@ -772,12 +776,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         reader: Option<TaskId>,
         cell: CellId,
     ) -> (EventListener, bool) {
-        let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
         let note = move || {
-            if let Some(reader_desc) = reader_desc.as_ref() {
-                format!("try_read_task_cell (in progress) from {}", reader_desc())
-            } else {
-                "try_read_task_cell (in progress, untracked)".to_string()
+            let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
+            move || {
+                if let Some(reader_desc) = reader_desc.as_ref() {
+                    format!("try_read_task_cell (in progress) from {}", (reader_desc)())
+                } else {
+                    "try_read_task_cell (in progress, untracked)".to_string()
+                }
             }
         };
         if let Some(in_progress) = get!(task, InProgressCell { cell }) {
@@ -812,15 +818,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         None
     }
 
-    // TODO feature flag that for hanging detection only
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
         let task_type = self.lookup_task_type(task_id);
-        move || {
+        Box::new(move || {
             task_type.as_ref().map_or_else(
                 || format!("{task_id:?} transient"),
                 |task_type| format!("{task_id:?} {task_type}"),
             )
-        }
+        })
     }
 
     fn snapshot(&self) -> Option<(Instant, bool)> {
@@ -2357,9 +2362,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             task.add(CachedDataItem::new_scheduled(
                 TaskExecutionReason::Initial,
-                move || match root_type {
-                    RootType::RootTask => "Root Task".to_string(),
-                    RootType::OnceTask => "Once Task".to_string(),
+                move || {
+                    move || match root_type {
+                        RootType::RootTask => "Root Task".to_string(),
+                        RootType::OnceTask => "Once Task".to_string(),
+                    }
                 },
             ));
         }

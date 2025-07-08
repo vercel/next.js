@@ -1,22 +1,18 @@
-#[cfg(feature = "hanging_detection")]
-use std::sync::Arc;
-#[cfg(feature = "hanging_detection")]
-use std::task::Poll;
-#[cfg(feature = "hanging_detection")]
-use std::task::ready;
-#[cfg(feature = "hanging_detection")]
-use std::time::Duration;
 use std::{
     fmt::{Debug, Formatter},
     future::Future,
     mem::replace,
     pin::Pin,
 };
+#[cfg(feature = "hanging_detection")]
+use std::{
+    sync::Arc,
+    task::{Poll, ready},
+    time::Duration,
+};
 
 #[cfg(feature = "hanging_detection")]
-use tokio::time::Timeout;
-#[cfg(feature = "hanging_detection")]
-use tokio::time::timeout;
+use tokio::time::{Timeout, timeout};
 
 pub struct Event {
     #[cfg(feature = "hanging_detection")]
@@ -24,87 +20,97 @@ pub struct Event {
     event: event_listener::Event,
 }
 
-#[cfg(not(feature = "hanging_detection"))]
 impl Event {
-    /// see [event_listener::Event]::new
+    /// See [`event_listener::Event::new`]. May attach a description that may optionally be read
+    /// later.
+    ///
+    /// This confusingly takes a closure ([`FnOnce`]) that returns a nested closure ([`Fn`]).
+    ///
+    /// When `hanging_detection` is disabled, `description` is never called.
+    ///
+    /// When `hanging_detection` is enabled, the outer closure is called immediately. The outer
+    /// closure can have an ephemeral lifetime. The inner closer must be `'static`, but is called
+    /// only when the `description` is actually read.
+    ///
+    /// The outer closure allow avoiding extra lookups (e.g. task type info) that may be needed to
+    /// capture information needed for constructing (moving into) the inner closure.
     #[inline(always)]
-    pub fn new(_description: impl Fn() -> String + Sync + Send + 'static) -> Self {
-        Self {
+    pub fn new<InnerFn>(_description: impl FnOnce() -> InnerFn) -> Self
+    where
+        InnerFn: Fn() -> String + Sync + Send + 'static,
+    {
+        #[cfg(not(feature = "hanging_detection"))]
+        return Self {
             event: event_listener::Event::new(),
-        }
-    }
-
-    /// see [event_listener::Event]::listen
-    pub fn listen(&self) -> EventListener {
-        EventListener {
-            listener: self.event.listen(),
-        }
-    }
-
-    /// see [event_listener::Event]::listen
-    pub fn listen_with_note(
-        &self,
-        _note: impl Fn() -> String + Sync + Send + 'static,
-    ) -> EventListener {
-        EventListener {
-            listener: self.event.listen(),
-        }
-    }
-
-    /// pulls out the event listener, leaving a new, empty event in its place.
-    pub fn take(&mut self) -> Self {
-        Self {
-            event: replace(&mut self.event, event_listener::Event::new()),
-        }
-    }
-}
-
-#[cfg(feature = "hanging_detection")]
-impl Event {
-    /// see [event_listener::Event]::new
-    #[inline(always)]
-    pub fn new(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
-        Self {
-            description: Arc::new(description),
+        };
+        #[cfg(feature = "hanging_detection")]
+        return Self {
+            description: Arc::new((_description)()),
             event: event_listener::Event::new(),
-        }
+        };
     }
 
-    /// see [event_listener::Event]::listen
+    /// See [`event_listener::Event::listen`].
     pub fn listen(&self) -> EventListener {
-        EventListener {
+        #[cfg(not(feature = "hanging_detection"))]
+        return EventListener {
+            listener: self.event.listen(),
+        };
+        #[cfg(feature = "hanging_detection")]
+        return EventListener {
             description: self.description.clone(),
-            note: Arc::new(|| String::new()),
+            note: Arc::new(String::new),
             future: Some(Box::pin(timeout(
                 Duration::from_secs(10),
                 self.event.listen(),
             ))),
             duration: Duration::from_secs(10),
-        }
+        };
     }
 
-    /// see [event_listener::Event]::listen
-    pub fn listen_with_note(
-        &self,
-        note: impl Fn() -> String + Sync + Send + 'static,
-    ) -> EventListener {
-        EventListener {
+    /// See [`event_listener::Event::listen`]. May attach a note that may optionally be read later.
+    ///
+    /// This confusingly takes a closure ([`FnOnce`]) that returns a nested closure ([`Fn`]).
+    ///
+    /// When `hanging_detection` is disabled, `note` is never called.
+    ///
+    /// When `hanging_detection` is enabled, the outer closure is called immediately. The outer
+    /// closure can have an ephemeral lifetime. The inner closer must be `'static`, but is called
+    /// only when the `note` is actually read.
+    ///
+    /// The outer closure allow avoiding extra lookups (e.g. task type info) that may be needed to
+    /// capture information needed for constructing (moving into) the inner closure.
+    pub fn listen_with_note<InnerFn>(&self, _note: impl FnOnce() -> InnerFn) -> EventListener
+    where
+        InnerFn: Fn() -> String + Sync + Send + 'static,
+    {
+        #[cfg(not(feature = "hanging_detection"))]
+        return EventListener {
+            listener: self.event.listen(),
+        };
+        #[cfg(feature = "hanging_detection")]
+        return EventListener {
             description: self.description.clone(),
-            note: Arc::new(note),
+            note: Arc::new((_note)()),
             future: Some(Box::pin(timeout(
                 Duration::from_secs(10),
                 self.event.listen(),
             ))),
             duration: Duration::from_secs(10),
-        }
+        };
     }
 
     /// pulls out the event listener, leaving a new, empty event in its place.
     pub fn take(&mut self) -> Event {
-        Self {
+        #[cfg(not(feature = "hanging_detection"))]
+        return Self {
+            event: replace(&mut self.event, event_listener::Event::new()),
+        };
+        #[cfg(feature = "hanging_detection")]
+        return Self {
             description: self.description.clone(),
             event: replace(&mut self.event, event_listener::Event::new()),
-        }
+        };
     }
 }
 
