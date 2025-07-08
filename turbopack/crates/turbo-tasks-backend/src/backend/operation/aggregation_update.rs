@@ -2180,14 +2180,14 @@ impl AggregationUpdateQueue {
         if is_empty {
             task.remove(&CachedDataItemKey::Activeness {});
         }
-        if is_new {
-            let dirty_container = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(ctx.session_id()) > 0 => task);
-            self.extend_find_and_schedule_dirty(dirty_container);
-        }
         if is_positive_now {
             let followers = get_followers(&task);
-            // Fast path to schedule
-            self.find_and_schedule_dirty_internal(task_id, task, ctx);
+            if is_new {
+                // Fast path to schedule
+                self.find_and_schedule_dirty_internal(task_id, task, ctx);
+            } else {
+                drop(task);
+            }
 
             if !followers.is_empty() {
                 self.push(AggregationUpdateJob::IncreaseActiveCounts {
