@@ -1,3 +1,3 @@
-import { localFunction } from 'lib'
+import { local } from 'lib'
 
-localFunction()
+local()
