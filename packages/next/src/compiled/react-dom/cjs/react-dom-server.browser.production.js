@@ -4333,6 +4333,13 @@ function pushComponentStack(task) {
         task.componentStack = { parent: task.componentStack, type: node.type };
     }
 }
+function replaceSuspenseComponentStackWithSuspenseFallbackStack(
+  componentStack
+) {
+  return null === componentStack
+    ? null
+    : { parent: componentStack.parent, type: "Suspense Fallback" };
+}
 function getThrownInfo(node$jscomp$0) {
   var errorInfo = {};
   node$jscomp$0 &&
@@ -4710,7 +4717,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         (task.formatContext = defaultProps),
         (task.keyPath = initialState);
     else {
-      ref = pushStartInstance(
+      initialState = pushStartInstance(
         newProps.chunks,
         type,
         props,
@@ -4723,42 +4730,37 @@ function renderElement(request, task, keyPath, type, props, ref) {
       );
       newProps.lastPushedText = !1;
       defaultProps = task.formatContext;
-      initialState = task.keyPath;
+      ref = task.keyPath;
       task.keyPath = keyPath;
-      3 ===
-      (task.formatContext = getChildFormatContext(defaultProps, type, props))
-        .insertionMode
-        ? ((keyPath = createPendingSegment(
-            request,
-            0,
-            null,
-            task.formatContext,
-            !1,
-            !1
-          )),
-          newProps.preambleChildren.push(keyPath),
-          (keyPath = createRenderTask(
-            request,
-            null,
-            ref,
-            -1,
-            task.blockedBoundary,
-            keyPath,
-            task.blockedPreamble,
-            task.hoistableState,
-            request.abortableTasks,
-            task.keyPath,
-            task.formatContext,
-            task.context,
-            task.treeContext,
-            task.row,
-            task.componentStack
-          )),
-          pushComponentStack(keyPath),
-          request.pingedTasks.push(keyPath))
-        : renderNode(request, task, ref, -1);
+      if (
+        3 ===
+        (task.formatContext = getChildFormatContext(defaultProps, type, props))
+          .insertionMode
+      ) {
+        keyPath = createPendingSegment(
+          request,
+          0,
+          null,
+          task.formatContext,
+          !1,
+          !1
+        );
+        newProps.preambleChildren.push(keyPath);
+        task.blockedSegment = keyPath;
+        try {
+          (keyPath.status = 6),
+            renderNode(request, task, initialState, -1),
+            keyPath.lastPushedText &&
+              keyPath.textEmbedded &&
+              keyPath.chunks.push(textSeparator),
+            (keyPath.status = 1),
+            finishedSegment(request, task.blockedBoundary, keyPath);
+        } finally {
+          task.blockedSegment = newProps;
+        }
+      } else renderNode(request, task, initialState, -1);
       task.formatContext = defaultProps;
-      task.keyPath = initialState;
+      task.keyPath = ref;
       a: {
         task = newProps.chunks;
         request = request.resumableState;
@@ -4946,17 +4948,20 @@ function renderElement(request, task, keyPath, type, props, ref) {
           );
           contentRootSegment.parentFlushed = !0;
           if (null !== request.trackedPostpones) {
-            newProps = [keyPath[0], "Suspense Fallback", keyPath[2]];
-            defaultProps = [newProps[1], newProps[2], [], null];
-            request.trackedPostpones.workingMap.set(newProps, defaultProps);
-            newBoundary.trackedFallbackNode = defaultProps;
+            newProps = task.componentStack;
+            defaultProps = [keyPath[0], "Suspense Fallback", keyPath[2]];
+            initialState = [defaultProps[1], defaultProps[2], [], null];
+            request.trackedPostpones.workingMap.set(defaultProps, initialState);
+            newBoundary.trackedFallbackNode = initialState;
             task.blockedSegment = boundarySegment;
             task.blockedPreamble = newBoundary.fallbackPreamble;
-            task.keyPath = newProps;
+            task.keyPath = defaultProps;
             task.formatContext = getSuspenseFallbackFormatContext(
               request.resumableState,
               ref
             );
+            task.componentStack =
+              replaceSuspenseComponentStackWithSuspenseFallbackStack(newProps);
             boundarySegment.status = 6;
             try {
               renderNode(request, task, fallback, -1),
@@ -4994,7 +4999,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               task.context,
               task.treeContext,
               null,
-              task.componentStack
+              newProps
             );
             pushComponentStack(task);
             request.pingedTasks.push(task);
@@ -5076,7 +5081,9 @@ function renderElement(request, task, keyPath, type, props, ref) {
               task.context,
               task.treeContext,
               task.row,
-              task.componentStack
+              replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                task.componentStack
+              )
             );
             pushComponentStack(task);
             request.pingedTasks.push(task);
@@ -5379,7 +5386,9 @@ function retryNode(request, task) {
                         task.context,
                         task.treeContext,
                         task.row,
-                        task.componentStack
+                        replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                          task.componentStack
+                        )
                       );
                       pushComponentStack(childNodes);
                       request.pingedTasks.push(childNodes);
@@ -6842,12 +6851,12 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-5d87cd22-20250704" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-a7a11657-20250708" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.2.0-canary-5d87cd22-20250704"
+        "19.2.0-canary-a7a11657-20250708"
       )
     );
 }
@@ -6994,4 +7003,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-5d87cd22-20250704";
+exports.version = "19.2.0-canary-a7a11657-20250708";

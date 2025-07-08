@@ -841,8 +841,11 @@ function serializeThenable(request, task, thenable) {
         return (
           request.abortableTasks.delete(newTask),
           21 === request.type
-            ? haltTask(newTask, request)
-            : abortTask(newTask, request, request.fatalError),
+            ? (haltTask(newTask),
+              3 === newTask.status && request.pendingChunks--)
+            : ((task = request.fatalError),
+              abortTask(newTask),
+              finishAbortedTask(newTask, request, task)),
           newTask.id
         );
       "string" !== typeof thenable.status &&
@@ -909,8 +912,7 @@ function serializeReadableStream(request, task, stream) {
       signal.removeEventListener("abort", abortStream);
       signal = signal.reason;
       21 === request.type
-        ? (haltTask(streamTask, request),
-          request.abortableTasks.delete(streamTask))
+        ? (haltTask(streamTask), request.abortableTasks.delete(streamTask))
         : (erroredTask(request, streamTask, signal), enqueueFlush(request));
       reader.cancel(signal).then(error, error);
     }
@@ -992,8 +994,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
       signal.removeEventListener("abort", abortIterable);
       var reason = signal.reason;
       21 === request.type
-        ? (haltTask(streamTask, request),
-          request.abortableTasks.delete(streamTask))
+        ? (haltTask(streamTask), request.abortableTasks.delete(streamTask))
         : (erroredTask(request, streamTask, signal.reason),
           enqueueFlush(request));
       "function" === typeof iterator.throw &&
@@ -1365,7 +1366,7 @@ function outlineModel(request, value) {
 function serializeTypedArray(request, tag, typedArray) {
   request.pendingChunks++;
   var bufferId = request.nextChunkId++;
-  emitTypedArrayChunk(request, bufferId, tag, typedArray);
+  emitTypedArrayChunk(request, bufferId, tag, typedArray, !1);
   return serializeByValueID(bufferId);
 }
 function serializeBlob(request, blob) {
@@ -1392,7 +1393,7 @@ function serializeBlob(request, blob) {
       signal.removeEventListener("abort", abortBlob);
       signal = signal.reason;
       21 === request.type
-        ? haltTask(newTask, request)
+        ? haltTask(newTask)
         : (erroredTask(request, newTask, signal), enqueueFlush(request));
       reader.cancel(signal).then(error, error);
     }
@@ -1617,7 +1618,7 @@ function renderModelDestructive(
       return (
         request.pendingChunks++,
         (task = request.nextChunkId++),
-        emitTextChunk(request, task, value),
+        emitTextChunk(request, task, value, !1),
         serializeByValueID(task)
       );
     value = "$" === value[0] ? "$" + value : value;
@@ -1765,7 +1766,7 @@ function emitErrorChunk(request, id, digest) {
   id = id.toString(16) + ":E" + stringify(digest) + "\n";
   request.completedErrorChunks.push(id);
 }
-function emitTypedArrayChunk(request, id, tag, typedArray) {
+function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
   if (TaintRegistryByteLengths.has(typedArray.byteLength)) {
     var tainted = TaintRegistryValues.get(
       String.fromCharCode.apply(
@@ -1779,24 +1780,24 @@ function emitTypedArrayChunk(request, id, tag, typedArray) {
     );
     void 0 !== tainted && throwTaintViolation(tainted.message);
   }
-  request.pendingChunks++;
+  debug ? request.pendingDebugChunks++ : request.pendingChunks++;
   typedArray = new Uint8Array(
     typedArray.buffer,
     typedArray.byteOffset,
     typedArray.byteLength
   );
-  tainted = typedArray.byteLength;
-  id = id.toString(16) + ":" + tag + tainted.toString(16) + ",";
+  debug = typedArray.byteLength;
+  id = id.toString(16) + ":" + tag + debug.toString(16) + ",";
   request.completedRegularChunks.push(id, typedArray);
 }
-function emitTextChunk(request, id, text) {
+function emitTextChunk(request, id, text, debug) {
   if (null === byteLengthOfChunk)
     throw Error(
       "Existence of byteLengthOfChunk should have already been checked. This is a bug in React."
     );
-  request.pendingChunks++;
-  var binaryLength = byteLengthOfChunk(text);
-  id = id.toString(16) + ":T" + binaryLength.toString(16) + ",";
+  debug ? request.pendingDebugChunks++ : request.pendingChunks++;
+  debug = byteLengthOfChunk(text);
+  id = id.toString(16) + ":T" + debug.toString(16) + ",";
   request.completedRegularChunks.push(id, text);
 }
 function emitChunk(request, task, value) {
@@ -1804,33 +1805,33 @@ function emitChunk(request, task, value) {
   "string" === typeof value && null !== byteLengthOfChunk
     ? ((task = TaintRegistryValues.get(value)),
       void 0 !== task && throwTaintViolation(task.message),
-      emitTextChunk(request, id, value))
+      emitTextChunk(request, id, value, !1))
     : value instanceof ArrayBuffer
-      ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value))
+      ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value), !1)
       : value instanceof Int8Array
-        ? emitTypedArrayChunk(request, id, "O", value)
+        ? emitTypedArrayChunk(request, id, "O", value, !1)
         : value instanceof Uint8Array
-          ? emitTypedArrayChunk(request, id, "o", value)
+          ? emitTypedArrayChunk(request, id, "o", value, !1)
           : value instanceof Uint8ClampedArray
-            ? emitTypedArrayChunk(request, id, "U", value)
+            ? emitTypedArrayChunk(request, id, "U", value, !1)
             : value instanceof Int16Array
-              ? emitTypedArrayChunk(request, id, "S", value)
+              ? emitTypedArrayChunk(request, id, "S", value, !1)
               : value instanceof Uint16Array
-                ? emitTypedArrayChunk(request, id, "s", value)
+                ? emitTypedArrayChunk(request, id, "s", value, !1)
                 : value instanceof Int32Array
-                  ? emitTypedArrayChunk(request, id, "L", value)
+                  ? emitTypedArrayChunk(request, id, "L", value, !1)
                   : value instanceof Uint32Array
-                    ? emitTypedArrayChunk(request, id, "l", value)
+                    ? emitTypedArrayChunk(request, id, "l", value, !1)
                     : value instanceof Float32Array
-                      ? emitTypedArrayChunk(request, id, "G", value)
+                      ? emitTypedArrayChunk(request, id, "G", value, !1)
                       : value instanceof Float64Array
-                        ? emitTypedArrayChunk(request, id, "g", value)
+                        ? emitTypedArrayChunk(request, id, "g", value, !1)
                         : value instanceof BigInt64Array
-                          ? emitTypedArrayChunk(request, id, "M", value)
+                          ? emitTypedArrayChunk(request, id, "M", value, !1)
                           : value instanceof BigUint64Array
-                            ? emitTypedArrayChunk(request, id, "m", value)
+                            ? emitTypedArrayChunk(request, id, "m", value, !1)
                             : value instanceof DataView
-                              ? emitTypedArrayChunk(request, id, "V", value)
+                              ? emitTypedArrayChunk(request, id, "V", value, !1)
                               : ((value = stringify(value, task.toJSON)),
                                 (task =
                                   task.id.toString(16) + ":" + value + "\n"),
@@ -1878,11 +1879,17 @@ function retryTask(request, task) {
       callOnAllReadyIfReady(request);
     } catch (thrownValue) {
       if (12 === request.status)
-        request.abortableTasks.delete(task),
+        if (
+          (request.abortableTasks.delete(task),
           (task.status = 0),
-          21 === request.type
-            ? haltTask(task, request)
-            : abortTask(task, request, request.fatalError);
+          21 === request.type)
+        )
+          haltTask(task), 3 === task.status && request.pendingChunks--;
+        else {
+          var errorId = request.fatalError;
+          abortTask(task);
+          finishAbortedTask(task, request, errorId);
+        }
       else {
         var x =
           thrownValue === SuspenseException
@@ -1932,15 +1939,17 @@ function performWork(request) {
       (currentRequest = prevRequest);
   }
 }
-function abortTask(task, request, errorId) {
-  5 !== task.status &&
-    ((task.status = 3),
-    (errorId = serializeByValueID(errorId)),
+function abortTask(task) {
+  0 === task.status && (task.status = 3);
+}
+function finishAbortedTask(task, request, errorId) {
+  3 === task.status &&
+    ((errorId = serializeByValueID(errorId)),
     (task = encodeReferenceChunk(request, task.id, errorId)),
     request.completedErrorChunks.push(task));
 }
-function haltTask(task, request) {
-  5 !== task.status && ((task.status = 3), request.pendingChunks--);
+function haltTask(task) {
+  0 === task.status && (task.status = 3);
 }
 function flushCompletedChunks(request, destination) {
   currentView = new Uint8Array(2048);
@@ -2049,57 +2058,97 @@ function startFlowing(request, destination) {
     }
   }
 }
-function abort(request, reason) {
+function finishHalt(request, abortedTasks) {
   try {
-    11 >= request.status &&
-      ((request.status = 12),
-      request.cacheController.abort(reason),
-      callOnAllReadyIfReady(request));
-    var abortableTasks = request.abortableTasks;
-    if (0 < abortableTasks.size) {
-      if (21 === request.type)
-        abortableTasks.forEach(function (task) {
-          return haltTask(task, request);
-        });
-      else if (
-        "object" === typeof reason &&
-        null !== reason &&
-        reason.$$typeof === REACT_POSTPONE_TYPE
-      ) {
-        logPostpone(request, reason.message, null);
-        var errorId = request.nextChunkId++;
-        request.fatalError = errorId;
-        request.pendingChunks++;
-        emitPostponeChunk(request, errorId, reason);
-        abortableTasks.forEach(function (task) {
-          return abortTask(task, request, errorId);
-        });
-      } else {
-        var error =
-            void 0 === reason
-              ? Error("The render was aborted by the server without a reason.")
-              : "object" === typeof reason &&
-                  null !== reason &&
-                  "function" === typeof reason.then
-                ? Error("The render was aborted by the server with a promise.")
-                : reason,
-          digest = logRecoverableError(request, error, null),
-          errorId$27 = request.nextChunkId++;
-        request.fatalError = errorId$27;
-        request.pendingChunks++;
-        emitErrorChunk(request, errorId$27, digest, error, !1);
-        abortableTasks.forEach(function (task) {
-          return abortTask(task, request, errorId$27);
-        });
-      }
-      abortableTasks.clear();
-      callOnAllReadyIfReady(request);
-    }
+    abortedTasks.forEach(function (task) {
+      3 === task.status && request.pendingChunks--;
+    });
+    var onAllReady = request.onAllReady;
+    onAllReady();
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
-  } catch (error$28) {
-    logRecoverableError(request, error$28, null), fatalError(request, error$28);
+  } catch (error) {
+    logRecoverableError(request, error, null), fatalError(request, error);
   }
+}
+function finishAbort(request, abortedTasks, errorId) {
+  try {
+    abortedTasks.forEach(function (task) {
+      return finishAbortedTask(task, request, errorId);
+    });
+    var onAllReady = request.onAllReady;
+    onAllReady();
+    null !== request.destination &&
+      flushCompletedChunks(request, request.destination);
+  } catch (error) {
+    logRecoverableError(request, error, null), fatalError(request, error);
+  }
+}
+function abort(request, reason) {
+  if (!(11 < request.status))
+    try {
+      request.status = 12;
+      request.cacheController.abort(reason);
+      var abortableTasks = request.abortableTasks;
+      if (0 < abortableTasks.size)
+        if (21 === request.type)
+          abortableTasks.forEach(function (task) {
+            return haltTask(task, request);
+          }),
+            setImmediate(function () {
+              return finishHalt(request, abortableTasks);
+            });
+        else if (
+          "object" === typeof reason &&
+          null !== reason &&
+          reason.$$typeof === REACT_POSTPONE_TYPE
+        ) {
+          logPostpone(request, reason.message, null);
+          var errorId = request.nextChunkId++;
+          request.fatalError = errorId;
+          request.pendingChunks++;
+          emitPostponeChunk(request, errorId, reason);
+          abortableTasks.forEach(function (task) {
+            return abortTask(task, request, errorId);
+          });
+          setImmediate(function () {
+            return finishAbort(request, abortableTasks, errorId);
+          });
+        } else {
+          var error =
+              void 0 === reason
+                ? Error(
+                    "The render was aborted by the server without a reason."
+                  )
+                : "object" === typeof reason &&
+                    null !== reason &&
+                    "function" === typeof reason.then
+                  ? Error(
+                      "The render was aborted by the server with a promise."
+                    )
+                  : reason,
+            digest = logRecoverableError(request, error, null),
+            errorId$27 = request.nextChunkId++;
+          request.fatalError = errorId$27;
+          request.pendingChunks++;
+          emitErrorChunk(request, errorId$27, digest, error, !1);
+          abortableTasks.forEach(function (task) {
+            return abortTask(task, request, errorId$27);
+          });
+          setImmediate(function () {
+            return finishAbort(request, abortableTasks, errorId$27);
+          });
+        }
+      else {
+        var onAllReady = request.onAllReady;
+        onAllReady();
+        null !== request.destination &&
+          flushCompletedChunks(request, request.destination);
+      }
+    } catch (error$28) {
+      logRecoverableError(request, error$28, null),
+        fatalError(request, error$28);
+    }
 }
 function resolveServerReference(bundlerConfig, id) {
   var name = "",
@@ -2979,12 +3028,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_255 = [];
+    var JSCompiler_object_inline_chunks_263 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_255.push(chunk);
+      JSCompiler_object_inline_chunks_263.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_255, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_263, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
