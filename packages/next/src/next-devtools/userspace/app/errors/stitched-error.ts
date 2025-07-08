@@ -28,3 +28,17 @@ export function setOwnerStackIfAvailable(error: Error): void {
     setOwnerStack(error, React.captureOwnerStack())
   }
 }
+
+export function decorateDevError(
+  thrownValue: unknown,
+  errorInfo: React.ErrorInfo
+) {
+  const error = coerceError(thrownValue)
+  setOwnerStackIfAvailable(error)
+  // TODO: change to passing down errorInfo later
+  // In development mode, pass along the component stack to the error
+  if (errorInfo.componentStack) {
+    setComponentStack(error, errorInfo.componentStack)
+  }
+  return error
+}
