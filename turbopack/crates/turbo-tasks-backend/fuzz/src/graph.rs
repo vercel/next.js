@@ -190,7 +190,7 @@ async fn run_task(
         let it = *iteration.get();
         for _ in 0..it {
             task = if let Some(change) = &task.change {
-                &*change
+                change
             } else {
                 task
             };
