@@ -820,8 +820,8 @@ impl<C: Comments> ServerActions<C> {
         if bound_args.is_empty() {
             Box::new(cache_ident.clone().into())
         } else {
-            Box::new(bind_args_to_ref_expr(
-                Expr::Ident(cache_ident.clone()),
+            Box::new(bind_args_to_ident(
+                cache_ident.clone(),
                 bound_args,
                 reference_id.clone(),
             ))
@@ -920,8 +920,8 @@ impl<C: Comments> ServerActions<C> {
         if bound_args.is_empty() {
             Box::new(cache_ident.clone().into())
         } else {
-            Box::new(bind_args_to_ref_expr(
-                Expr::Ident(cache_ident.clone()),
+            Box::new(bind_args_to_ident(
+                cache_ident.clone(),
                 bound_args,
                 reference_id.clone(),
             ))
@@ -2443,44 +2443,6 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
         ],
         ..Default::default()
     })
-}
-
-fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
-    if bound.is_empty() {
-        expr
-    } else {
-        // expr.bind(null, [encryptActionBoundArgs("id", arg1, arg2, ...)])
-        Expr::Call(CallExpr {
-            span: DUMMY_SP,
-            callee: Expr::Member(MemberExpr {
-                span: DUMMY_SP,
-                obj: Box::new(expr),
-                prop: MemberProp::Ident(quote_ident!("bind")),
-            })
-            .as_callee(),
-            args: vec![
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
-                },
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: quote_ident!("encryptActionBoundArgs").as_callee(),
-                        args: std::iter::once(ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(action_id.into()),
-                        })
-                        .chain(bound.into_iter().flatten())
-                        .collect(),
-                        ..Default::default()
-                    })),
-                },
-            ],
-            ..Default::default()
-        })
-    }
 }
 
 fn bind_args_to_ident(ident: Ident, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
