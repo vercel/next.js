@@ -352,12 +352,6 @@ impl<C: Comments> ServerActions<C> {
         id
     }
 
-    fn gen_ref_ident(&mut self) -> Atom {
-        let id: Atom = format!("$$RSC_SERVER_REF_{0}", self.reference_index).into();
-        self.reference_index += 1;
-        id
-    }
-
     fn create_bound_action_args_array_pat(&mut self, arg_len: usize) -> Pat {
         Pat::Array(ArrayPat {
             span: DUMMY_SP,
@@ -823,35 +817,14 @@ impl<C: Comments> ServerActions<C> {
             .map(|id| Some(id.as_arg()))
             .collect();
 
-        // If there're any bound args from the closure, we need to hoist the
-        // register action expression to the top-level, and return the bind
-        // expression inline.
-        if !bound_args.is_empty() {
-            let ref_ident = private_ident!(self.gen_ref_ident());
-
-            let ref_decl = VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Var,
-                decls: vec![VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Ident(ref_ident.clone().into()),
-                    init: Some(Box::new(cache_ident.clone().into())),
-                    definite: false,
-                }],
-                ..Default::default()
-            };
-
-            // Hoist the register action expression to the top-level.
-            self.extra_items
-                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(ref_decl)))));
-
+        if bound_args.is_empty() {
+            Box::new(cache_ident.clone().into())
+        } else {
             Box::new(bind_args_to_ref_expr(
-                Expr::Ident(ref_ident.clone()),
+                Expr::Ident(cache_ident.clone()),
                 bound_args,
                 reference_id.clone(),
             ))
-        } else {
-            Box::new(cache_ident.clone().into())
         }
     }
 
@@ -944,35 +917,14 @@ impl<C: Comments> ServerActions<C> {
             .map(|id| Some(id.as_arg()))
             .collect();
 
-        // If there're any bound args from the closure, we need to hoist the
-        // register action expression to the top-level, and return the bind
-        // expression inline.
-        if !bound_args.is_empty() {
-            let ref_ident = private_ident!(self.gen_ref_ident());
-
-            let ref_decl = VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Var,
-                decls: vec![VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Ident(ref_ident.clone().into()),
-                    init: Some(Box::new(cache_ident.clone().into())),
-                    definite: false,
-                }],
-                ..Default::default()
-            };
-
-            // Hoist the register action expression to the top-level.
-            self.extra_items
-                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(ref_decl)))));
-
+        if bound_args.is_empty() {
+            Box::new(cache_ident.clone().into())
+        } else {
             Box::new(bind_args_to_ref_expr(
-                Expr::Ident(ref_ident.clone()),
+                Expr::Ident(cache_ident.clone()),
                 bound_args,
                 reference_id.clone(),
             ))
-        } else {
-            Box::new(cache_ident.clone().into())
         }
     }
 }
