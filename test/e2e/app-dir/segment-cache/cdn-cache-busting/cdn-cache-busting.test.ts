@@ -101,7 +101,8 @@ describe('segment cache (CDN cache busting)', () => {
     }
   )
 
-  it(
+  // 50% failure rate of this test in CI.
+  it.skip(
     'perform fully prefetched navigation when a third-party proxy ' +
       'performs a redirect',
     async () => {
