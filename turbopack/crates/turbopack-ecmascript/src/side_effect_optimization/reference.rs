@@ -150,9 +150,9 @@ impl EcmascriptModulePartReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
+        let this = self.await?;
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
-        let part = &self.await?.part;
 
         let ReferencedAsset::Some(module) = *referenced_asset else {
             bail!("part module reference should have an module reference");
@@ -173,14 +173,14 @@ impl EcmascriptModulePartReference {
             ));
         }
 
-        if merged_index.is_some() && part == &ModulePart::Evaluation {
+        if merged_index.is_some() && matches!(*this.export_usage.await?, ExportUsage::Evaluation) {
             // No need to import, the module was already executed and is available in the same scope
             // hoisting group (unless it's a namespace import)
         } else {
             let ident = referenced_asset
                 .get_ident(
                     chunking_context,
-                    match part {
+                    match &this.part {
                         ModulePart::Export(export)
                         | ModulePart::RenamedExport {
                             original_export: export,
