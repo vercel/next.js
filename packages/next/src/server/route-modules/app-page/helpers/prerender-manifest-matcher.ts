@@ -42,8 +42,10 @@ export class PrerenderManifestMatcher {
     prerenderManifest: DeepReadonly<PrerenderManifest>
   ) {
     this.matchers = Object.entries(prerenderManifest.dynamicRoutes)
-      .filter(([, route]) => {
-        return route.fallbackSourceRoute === pathname
+      .filter(([source, route]) => {
+        // If the pathname is a fallback source route, or the source route is
+        // the same as the pathname, then we should include it in the matchers.
+        return route.fallbackSourceRoute === pathname || source === pathname
       })
       .map(([source, route]) => ({ source, route }))
   }

@@ -166,7 +166,9 @@ export async function handler(
 
   let { isOnDemandRevalidate } = prepareResult
 
-  const prerenderInfo = routeModule.match(pathname, prerenderManifest)
+  const prerenderInfo =
+    routeModule.match(pathname, prerenderManifest) ??
+    prerenderManifest.dynamicRoutes[normalizedSrcPage]
   const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
   let isSSG = Boolean(
