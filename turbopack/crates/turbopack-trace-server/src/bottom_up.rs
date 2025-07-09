@@ -1,6 +1,6 @@
 use std::{env, sync::Arc};
 
-use hashbrown::HashMap;
+use hashbrown::{Equivalent, HashMap};
 
 use crate::{
     span::{SpanBottomUp, SpanIndex},
@@ -10,7 +10,7 @@ use crate::{
 pub struct SpanBottomUpBuilder {
     // These values won't change after creation:
     pub self_spans: Vec<SpanIndex>,
-    pub children: HashMap<String, SpanBottomUpBuilder>,
+    pub children: HashMap<(String, String), SpanBottomUpBuilder>,
     pub example_span: SpanIndex,
 }
 
@@ -35,6 +35,33 @@ impl SpanBottomUpBuilder {
     }
 }
 
+#[derive(Hash)]
+struct StringTupleRef<'a>(&'a str, &'a str);
+
+impl<'a> Equivalent<(String, String)> for StringTupleRef<'a> {
+    fn equivalent(&self, other: &(String, String)) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
+
+#[cfg(test)]
+mod string_tuple_ref_tests {
+    use std::hash::RandomState;
+
+    use super::*;
+
+    #[test]
+    fn test_string_tuple_ref_hash() {
+        use std::hash::BuildHasher;
+
+        let s = RandomState::new();
+        assert_eq!(
+            s.hash_one(&StringTupleRef("abc", "def")),
+            s.hash_one(&("abc".to_string(), "def".to_string()))
+        );
+    }
+}
+
 pub fn build_bottom_up_graph<'a>(
     spans: impl Iterator<Item = SpanRef<'a>>,
 ) -> Vec<Arc<SpanBottomUp>> {
@@ -42,7 +69,7 @@ pub fn build_bottom_up_graph<'a>(
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(usize::MAX);
-    let mut roots: HashMap<String, SpanBottomUpBuilder> = HashMap::default();
+    let mut roots: HashMap<(String, String), SpanBottomUpBuilder> = HashMap::default();
 
     // unfortunately there is a rustc bug that fails the typechecking here
     // when using Either<impl Iterator, impl Iterator>. This error appears
@@ -52,30 +79,40 @@ pub fn build_bottom_up_graph<'a>(
     let mut current_iterators: Vec<Box<dyn Iterator<Item = SpanRef<'_>>>> =
         vec![Box::new(spans.flat_map(|span| span.children()))];
 
-    let mut current_path: Vec<(&'_ str, SpanIndex)> = vec![];
+    let mut current_path: Vec<((&'_ str, &'_ str), SpanIndex)> = vec![];
     while let Some(mut iter) = current_iterators.pop() {
         if let Some(child) = iter.next() {
             current_iterators.push(iter);
 
-            let name = child.group_name();
+            let (category, name) = child.group_name();
             let (_, mut bottom_up) = roots
                 .raw_entry_mut()
-                .from_key(name)
-                .or_insert_with(|| (name.to_string(), SpanBottomUpBuilder::new(child.index())));
+                .from_key(&StringTupleRef(category, name))
+                .or_insert_with(|| {
+                    (
+                        (category.to_string(), name.to_string()),
+                        SpanBottomUpBuilder::new(child.index()),
+                    )
+                });
             bottom_up.self_spans.push(child.index());
             let mut prev = None;
-            for &(name, example_span) in current_path.iter().rev().take(max_depth) {
-                if prev == Some(name) {
+            for &((category, title), example_span) in current_path.iter().rev().take(max_depth) {
+                if prev == Some((category, title)) {
                     continue;
                 }
                 let (_, child_bottom_up) = bottom_up
                     .children
                     .raw_entry_mut()
-                    .from_key(name)
-                    .or_insert_with(|| (name.to_string(), SpanBottomUpBuilder::new(example_span)));
+                    .from_key(&StringTupleRef(category, title))
+                    .or_insert_with(|| {
+                        (
+                            (category.to_string(), title.to_string()),
+                            SpanBottomUpBuilder::new(example_span),
+                        )
+                    });
                 child_bottom_up.self_spans.push(child.index());
                 bottom_up = child_bottom_up;
-                prev = Some(name);
+                prev = Some((category, title));
             }
 
             current_path.push((child.group_name(), child.index()));

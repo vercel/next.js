@@ -40,7 +40,7 @@ impl<'a> SpanGraphRef<'a> {
         if self.count() == 1 {
             self.first_span().nice_name()
         } else {
-            ("", self.first_span().group_name())
+            self.first_span().group_name()
         }
     }
 
@@ -87,7 +87,7 @@ impl<'a> SpanGraphRef<'a> {
                 self.first_span().extra().graph.get().unwrap().clone()
             } else {
                 let self_group = self.first_span().group_name();
-                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
+                let mut map: FxIndexMap<(&str, &str), (Vec<SpanIndex>, Vec<SpanIndex>)> =
                     FxIndexMap::default();
                 let mut queue = VecDeque::with_capacity(8);
                 for span in self.recursive_spans() {
@@ -304,7 +304,7 @@ impl<'a> SpanGraphRef<'a> {
 }
 
 pub fn event_map_to_list(
-    map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)>,
+    map: FxIndexMap<(&str, &str), (Vec<SpanIndex>, Vec<SpanIndex>)>,
 ) -> Vec<SpanGraphEvent> {
     map.into_iter()
         .map(|(_, (root_spans, recursive_spans))| {

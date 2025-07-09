@@ -309,7 +309,7 @@ impl DiskFileSystemInner {
     }
 
     fn invalidate(&self) {
-        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
+        let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
         let span = tracing::Span::current();
         let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
@@ -332,7 +332,7 @@ impl DiskFileSystemInner {
         &self,
         reason: impl Fn(String) -> R + Sync,
     ) {
-        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
+        let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
         let span = tracing::Span::current();
         let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
@@ -388,7 +388,7 @@ impl DiskFileSystemInner {
         // create the directory for the filesystem on disk, if it doesn't exist
         retry_blocking(root_path.clone(), move |path| {
             let _tracing =
-                tracing::info_span!("create root directory", path = display(path.display()))
+                tracing::info_span!("create root directory", name = display(path.display()))
                     .entered();
 
             std::fs::create_dir_all(path)
@@ -413,7 +413,7 @@ impl DiskFileSystemInner {
                 .concurrency_limited(&self.semaphore)
                 .instrument(tracing::info_span!(
                     "create directory",
-                    path = display(directory.display())
+                    name = display(directory.display())
                 ))
                 .await?;
             ApplyEffectsContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
@@ -558,7 +558,7 @@ impl FileSystem for DiskFileSystem {
             .concurrency_limited(&self.inner.semaphore)
             .instrument(tracing::info_span!(
                 "read file",
-                path = display(full_path.display())
+                name = display(full_path.display())
             ))
             .await
         {
@@ -583,7 +583,7 @@ impl FileSystem for DiskFileSystem {
         // node-file-trace
         let read_dir = match retry_blocking(full_path.clone(), |path| {
             let _span =
-                tracing::info_span!("read directory", path = display(path.display())).entered();
+                tracing::info_span!("read directory", name = display(path.display())).entered();
             std::fs::read_dir(path)
         })
         .concurrency_limited(&self.inner.semaphore)
@@ -640,7 +640,7 @@ impl FileSystem for DiskFileSystem {
                 .concurrency_limited(&self.inner.semaphore)
                 .instrument(tracing::info_span!(
                     "read symlink",
-                    path = display(full_path.display())
+                    name = display(full_path.display())
                 ))
                 .await
             {
@@ -745,7 +745,7 @@ impl FileSystem for DiskFileSystem {
                 .concurrency_limited(&inner.semaphore)
                 .instrument(tracing::info_span!(
                     "read file before write",
-                    path = display(full_path.display())
+                    name = display(full_path.display())
                 ))
                 .await?;
             if compare == FileComparison::Equal {
@@ -812,7 +812,7 @@ impl FileSystem for DiskFileSystem {
                     .concurrency_limited(&inner.semaphore)
                     .instrument(tracing::info_span!(
                         "write file",
-                        path = display(full_path.display())
+                        name = display(full_path.display())
                     ))
                     .await
                     .with_context(|| format!("failed to write to {}", full_path.display()))?;
@@ -824,7 +824,7 @@ impl FileSystem for DiskFileSystem {
                     .concurrency_limited(&inner.semaphore)
                     .instrument(tracing::info_span!(
                         "remove file",
-                        path = display(full_path.display())
+                        name = display(full_path.display())
                     ))
                     .await
                     .or_else(|err| {
@@ -873,7 +873,7 @@ impl FileSystem for DiskFileSystem {
             .concurrency_limited(&inner.semaphore)
             .instrument(tracing::info_span!(
                 "read symlink before write",
-                path = display(full_path.display())
+                name = display(full_path.display())
             ))
             .await
             {
@@ -923,7 +923,7 @@ impl FileSystem for DiskFileSystem {
                     retry_blocking(target_path, move |target_path| {
                         let _span = tracing::info_span!(
                             "write symlink",
-                            path = display(target_path.display())
+                            name = display(target_path.display())
                         )
                         .entered();
                         // we use the sync std method here because `symlink` is fast
@@ -980,7 +980,7 @@ impl FileSystem for DiskFileSystem {
             .concurrency_limited(&self.inner.semaphore)
             .instrument(tracing::info_span!(
                 "read metadata",
-                path = display(full_path.display())
+                name = display(full_path.display())
             ))
             .await
             .with_context(|| format!("reading metadata for {}", full_path.display()))?;

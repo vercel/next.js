@@ -54,7 +54,7 @@ impl<'a> SpanBottomUpRef<'a> {
         self.bottom_up.self_spans.len()
     }
 
-    pub fn group_name(&self) -> &'a str {
+    pub fn group_name(&self) -> (&'a str, &'a str) {
         self.first_span().group_name()
     }
 
@@ -62,7 +62,7 @@ impl<'a> SpanBottomUpRef<'a> {
         if self.count() == 1 {
             self.example_span().nice_name()
         } else {
-            ("", self.example_span().group_name())
+            self.example_span().group_name()
         }
     }
 
@@ -85,7 +85,7 @@ impl<'a> SpanBottomUpRef<'a> {
                     let _ = self.first_span().graph();
                     self.first_span().extra().graph.get().unwrap().clone()
                 } else {
-                    let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
+                    let mut map: FxIndexMap<(&str, &str), (Vec<SpanIndex>, Vec<SpanIndex>)> =
                         FxIndexMap::default();
                     let mut queue = VecDeque::with_capacity(8);
                     for child in self.spans() {
