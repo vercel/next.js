@@ -871,6 +871,7 @@ impl PageEndpoint {
             this.pathname.clone(),
             client_relative_path,
             client_chunks,
+            project.client_chunking_context(),
         );
         Ok(Vc::upcast(page_loader))
     }
