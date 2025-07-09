@@ -296,6 +296,7 @@ export class IncrementalCache implements IncrementalCacheType {
       // handle Uint8Array body
       if (init.body instanceof Uint8Array) {
         bodyChunks.push(decoder.decode(init.body))
+        ;(init as any)._ogBody = init.body
       } // handle ReadableStream body
       else if (typeof (init.body as any).getReader === 'function') {
         const readableBody = init.body as ReadableStream<Uint8Array | string>
