@@ -17,6 +17,7 @@ import { normalizePathname, encodeParam } from './utils'
 import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-delimiters'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -508,6 +509,87 @@ export function assignErrorIfEmpty(
 }
 
 /**
+ * Processes app directory segments to build route parameters from generateStaticParams functions.
+ * This function walks through the segments array and calls generateStaticParams for each segment that has it,
+ * combining parent parameters with child parameters to build the complete parameter combinations.
+ * Uses iterative processing instead of recursion for better performance.
+ *
+ * @param segments - Array of app directory segments to process
+ * @param store - Work store for tracking fetch cache configuration
+ * @returns Promise that resolves to an array of all parameter combinations
+ */
+export async function generateRouteStaticParams(
+  segments: Pick<AppSegment, 'config' | 'generateStaticParams'>[],
+  store: Pick<WorkStore, 'fetchCache'>
+): Promise<Params[]> {
+  // Early return if no segments to process
+  if (segments.length === 0) return []
+
+  // Use iterative processing with a work queue to avoid recursion overhead
+  interface WorkItem {
+    segmentIndex: number
+    params: Params[]
+  }
+
+  const queue: WorkItem[] = [{ segmentIndex: 0, params: [] }]
+  let currentParams: Params[] = []
+
+  while (queue.length > 0) {
+    const { segmentIndex, params } = queue.shift()!
+
+    // If we've processed all segments, this is our final result
+    if (segmentIndex >= segments.length) {
+      currentParams = params
+      break
+    }
+
+    const current = segments[segmentIndex]
+
+    // Skip segments without generateStaticParams and continue to next
+    if (typeof current.generateStaticParams !== 'function') {
+      queue.push({ segmentIndex: segmentIndex + 1, params })
+      continue
+    }
+
+    // Configure fetchCache if specified
+    if (current.config?.fetchCache !== undefined) {
+      store.fetchCache = current.config.fetchCache
+    }
+
+    const nextParams: Params[] = []
+
+    // If there are parent params, we need to process them.
+    if (params.length > 0) {
+      // Process each parent parameter combination
+      for (const parentParams of params) {
+        const result = await current.generateStaticParams({
+          params: parentParams,
+        })
+
+        if (result.length > 0) {
+          // Merge parent params with each result item
+          for (const item of result) {
+            nextParams.push({ ...parentParams, ...item })
+          }
+        } else {
+          // No results, just pass through parent params
+          nextParams.push(parentParams)
+        }
+      }
+    } else {
+      // No parent params, call generateStaticParams with empty object
+      const result = await current.generateStaticParams({ params: {} })
+      nextParams.push(...result)
+    }
+
+    // Add next segment to work queue
+    queue.push({ segmentIndex: segmentIndex + 1, params: nextParams })
+  }
+
+  return currentParams
+}
+
+/**
  * Builds the static paths for an app using `generateStaticParams`.
  *
  * @param params - The parameters for the build.
@@ -603,61 +685,8 @@ export async function buildAppStaticPaths({
     previouslyRevalidatedTags: [],
   })
 
-  const routeParams = await ComponentMod.workAsyncStorage.run(
-    store,
-    async () => {
-      async function builtRouteParams(
-        parentsParams: Params[] = [],
-        idx = 0
-      ): Promise<Params[]> {
-        // If we don't have any more to process, then we're done.
-        if (idx === segments.length) return parentsParams
-
-        const current = segments[idx]
-
-        if (
-          typeof current.generateStaticParams !== 'function' &&
-          idx < segments.length
-        ) {
-          return builtRouteParams(parentsParams, idx + 1)
-        }
-
-        const params: Params[] = []
-
-        if (current.generateStaticParams) {
-          // fetchCache can be used to inform the fetch() defaults used inside
-          // of generateStaticParams. revalidate and dynamic options don't come into
-          // play within generateStaticParams.
-          if (typeof current.config?.fetchCache !== 'undefined') {
-            store.fetchCache = current.config.fetchCache
-          }
-
-          if (parentsParams.length > 0) {
-            for (const parentParams of parentsParams) {
-              const result = await current.generateStaticParams({
-                params: parentParams,
-              })
-
-              for (const item of result) {
-                params.push({ ...parentParams, ...item })
-              }
-            }
-          } else {
-            const result = await current.generateStaticParams({ params: {} })
-
-            params.push(...result)
-          }
-        }
-
-        if (idx < segments.length) {
-          return builtRouteParams(params, idx + 1)
-        }
-
-        return params
-      }
-
-      return builtRouteParams()
-    }
+  const routeParams = await ComponentMod.workAsyncStorage.run(store, () =>
+    generateRouteStaticParams(segments, store)
   )
 
   await afterRunner.executeAfter()
