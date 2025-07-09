@@ -3,7 +3,7 @@
 
 mod util;
 
-use std::{collections::VecDeque, fs, path::PathBuf};
+use std::{collections::VecDeque, fs, path::PathBuf, sync::Once};
 
 use anyhow::{Context, Result, bail};
 use dunce::canonicalize;
@@ -155,6 +155,23 @@ fn default_runtime_type() -> RuntimeType {
 #[testing::fixture("tests/snapshot/*/*/", exclude("node_modules"))]
 fn test(resource: PathBuf) {
     let resource = canonicalize(resource).unwrap();
+
+    let contents = fs::read_dir(&resource)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+    if contents.is_empty() {
+        // just ignore it, git leaves these behind
+    } else if contents.len() == 1 && contents[0] == "output" {
+        // a directory without input or config is invalid
+        if *UPDATE {
+            fs::remove_dir_all(&resource).unwrap();
+            return;
+        } else {
+            panic!("{resource:?} contains an output directory, but no input directory");
+        }
+    }
+
     // Separating this into a different function fixes my IDE's types for some
     // reason...
     run(resource).unwrap();
@@ -162,7 +179,8 @@ fn test(resource: PathBuf) {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(resource: PathBuf) -> Result<()> {
-    register();
+    static REGISTER_ONCE: Once = Once::new();
+    REGISTER_ONCE.call_once(register);
 
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {

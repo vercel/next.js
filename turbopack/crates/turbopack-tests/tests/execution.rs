@@ -5,7 +5,7 @@
 
 mod util;
 
-use std::path::PathBuf;
+use std::{env, path::PathBuf, sync::Once};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
@@ -170,7 +170,8 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
-    register();
+    static REGISTER_ONCE: Once = Once::new();
+    REGISTER_ONCE.call_once(register);
 
     // Clean up old output files.
     let output_path = resource.join("output");
@@ -186,12 +187,27 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     std::fs::create_dir_all(&output_path)
         .context("Unable to create output directory")
         .unwrap();
-    let trace_file = output_path.join("trace-turbopack");
-    let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-    let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
-    let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-    subscriber.init();
+    // Set up a `tracing_subscriber` for debugging -- We can only do this when using nextest, as
+    // `cargo test` runs all execution test cases in the same process.
+    //
+    // Configuring `tracing_subscriber` requires proces-global side-effects. We can't use a
+    // thread-local subscriber because we're not fully single-threaded, even with the
+    // `current_thread` tokio executor.
+    //
+    // https://nexte.st/docs/configuration/env-vars/#environment-variables-nextest-sets
+    let _trace_writer_guard = if env::var_os("NEXTEST").is_some() {
+        let trace_file = output_path.join("trace-turbopack");
+        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
+        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+        subscriber.init();
+
+        Some(trace_writer_guard)
+    } else {
+        None
+    };
 
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -201,19 +217,15 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         },
         noop_backing_storage(),
     ));
-    let result = tt
-        .run_once(async move {
-            let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
-            let result = emit_op.read_strongly_consistent().owned().await?;
-            apply_effects(emit_op).await?;
 
-            Ok(result)
-        })
-        .await;
+    tt.run_once(async move {
+        let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
+        let result = emit_op.read_strongly_consistent().owned().await?;
+        apply_effects(emit_op).await?;
 
-    drop(trace_writer_guard);
-
-    result
+        Ok(result)
+    })
+    .await
 }
 
 #[turbo_tasks::function(operation)]
