@@ -1,7 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { assertNoErrorToast } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
-import build from 'expect'
 
 describe('Dynamic IO Errors', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
@@ -22,34 +21,47 @@ describe('Dynamic IO Errors', () => {
     }
   })
 
-  const testCases: { inPrerenderDebugMode: boolean; name: string }[] = []
+  const testCases: { isDebugPrerender: boolean; name: string }[] = []
 
   if (isNextDev) {
-    testCases.push({ inPrerenderDebugMode: false, name: 'Dev' })
+    testCases.push({ isDebugPrerender: false, name: 'Dev' })
   } else {
-    // For Webpack, the snapshots can't be created for both modes at the same
-    // time because of an issue in the typescript plugin for prettier. Defining
-    // NEXT_TEST_PRERENDER_DEBUG allows us to run them sequentially, when we
+    const prerenderMode = process.env.NEXT_TEST_DEBUG_PRERENDER
+    // The snapshots can't be created for both modes at the same time because of
+    // an issue in the typescript plugin for prettier. Defining
+    // NEXT_TEST_DEBUG_PRERENDER allows us to run them sequentially, when we
     // need to update the snapshots.
-    if (isTurbopack || process.env.NEXT_TEST_PRERENDER_DEBUG !== 'false') {
+    if (!prerenderMode || prerenderMode === 'true') {
       testCases.push({
-        inPrerenderDebugMode: true,
+        isDebugPrerender: true,
         name: 'Build With --prerender-debug',
       })
     }
-    if (isTurbopack || process.env.NEXT_TEST_PRERENDER_DEBUG !== 'true') {
+    if (!prerenderMode || prerenderMode === 'false') {
       testCases.push({
-        inPrerenderDebugMode: false,
+        isDebugPrerender: false,
         name: 'Build Without --prerender-debug',
       })
     }
   }
 
-  describe.each(testCases)('$name', ({ inPrerenderDebugMode }) => {
+  describe.each(testCases)('$name', ({ isDebugPrerender }) => {
+    beforeAll(async () => {
+      if (isNextStart) {
+        const args = ['--experimental-build-mode', 'compile']
+
+        if (isDebugPrerender) {
+          args.push('--debug-prerender')
+        }
+
+        await next.build({ args })
+      }
+    })
+
     const prerender = async (pathname: string) => {
       const args = ['--experimental-build-mode', 'generate']
 
-      if (inPrerenderDebugMode) {
+      if (isDebugPrerender) {
         args.push('--debug-prerender')
       }
 
@@ -94,27 +106,27 @@ describe('Dynamic IO Errors', () => {
 
           const output = getPrerenderOutput(
             next.cliOutput.slice(cliOutputLength),
-            { isMinified: !inPrerenderDebugMode }
+            { isMinified: !isDebugPrerender }
           )
 
           if (isTurbopack) {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Route "/dynamic-metadata-static-route" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
                Error occurred prerendering page "/dynamic-metadata-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
-  
+
                > Export encountered errors on following paths:
-                 /dynamic-metadata-static-route/page: /dynamic-metadata-static-route"
+               	/dynamic-metadata-static-route/page: /dynamic-metadata-static-route"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Route "/" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               "Route "/dynamic-metadata-static-route" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
                Error occurred prerendering page "/dynamic-metadata-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /dynamic-metadata-static-route/page: /dynamic-metadata-static-route, exiting the build."
               `)
             }
           } else {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Route "/dynamic-metadata-static-route" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
                Error occurred prerendering page "/dynamic-metadata-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
@@ -190,25 +202,25 @@ describe('Dynamic IO Errors', () => {
 
           const output = getPrerenderOutput(
             next.cliOutput.slice(cliOutputLength),
-            { isMinified: !inPrerenderDebugMode }
+            { isMinified: !isDebugPrerender }
           )
 
           if (isTurbopack) {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+               "Error: Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-  
+               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
+               Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
+
                > Export encountered errors on following paths:
-                 /page: /"
+               	/dynamic-metadata-error-route/page: /dynamic-metadata-error-route"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+               "Error: Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -219,19 +231,29 @@ describe('Dynamic IO Errors', () => {
                    at h (<next-dist-dir>)
                    at i (<next-dist-dir>)
                    at j (<next-dist-dir>)
-                   at k (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                   at k (<next-dist-dir>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                 - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
+                 - Start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /page: /, exiting the build."
+               Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /dynamic-metadata-error-route/page: /dynamic-metadata-error-route, exiting the build."
               `)
             }
           } else {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                    at InnerLayoutRouter (webpack://<next-src>)
@@ -343,27 +365,27 @@ describe('Dynamic IO Errors', () => {
 
           const output = getPrerenderOutput(
             next.cliOutput.slice(cliOutputLength),
-            { isMinified: !inPrerenderDebugMode }
+            { isMinified: !isDebugPrerender }
           )
 
           if (isTurbopack) {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Route "/" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-  
+               "Route "/dynamic-metadata-static-with-suspense" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               Error occurred prerendering page "/dynamic-metadata-static-with-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+
                > Export encountered errors on following paths:
-                 /page: /"
+               	/dynamic-metadata-static-with-suspense/page: /dynamic-metadata-static-with-suspense"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Route "/" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /page: /, exiting the build."
+               "Route "/dynamic-metadata-static-with-suspense" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+               Error occurred prerendering page "/dynamic-metadata-static-with-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /dynamic-metadata-static-with-suspense/page: /dynamic-metadata-static-with-suspense, exiting the build."
               `)
             }
           } else {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Route "/dynamic-metadata-static-with-suspense" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
                Error occurred prerendering page "/dynamic-metadata-static-with-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
@@ -445,27 +467,27 @@ describe('Dynamic IO Errors', () => {
 
           const output = getPrerenderOutput(
             next.cliOutput.slice(cliOutputLength),
-            { isMinified: !inPrerenderDebugMode }
+            { isMinified: !isDebugPrerender }
           )
 
           if (isTurbopack) {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Route "/" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-  
+               "Route "/dynamic-viewport-static-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+               Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
+
                > Export encountered errors on following paths:
-                 /page: /"
+               	/dynamic-viewport-static-route/page: /dynamic-viewport-static-route"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Route "/" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /page: /, exiting the build."
+               "Route "/dynamic-viewport-static-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+               Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /dynamic-viewport-static-route/page: /dynamic-viewport-static-route, exiting the build."
               `)
             }
           } else {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Route "/dynamic-viewport-static-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
@@ -518,27 +540,27 @@ describe('Dynamic IO Errors', () => {
 
           const output = getPrerenderOutput(
             next.cliOutput.slice(cliOutputLength),
-            { isMinified: !inPrerenderDebugMode }
+            { isMinified: !isDebugPrerender }
           )
 
           if (isTurbopack) {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Route "/" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-  
+               "Route "/dynamic-viewport-dynamic-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+               Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
+
                > Export encountered errors on following paths:
-                 /page: /"
+               	/dynamic-viewport-dynamic-route/page: /dynamic-viewport-dynamic-route"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Route "/" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /page: /, exiting the build."
+               "Route "/dynamic-viewport-dynamic-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+               Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /dynamic-viewport-dynamic-route/page: /dynamic-viewport-dynamic-route, exiting the build."
               `)
             }
           } else {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Route "/dynamic-viewport-dynamic-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
@@ -664,14 +686,14 @@ describe('Dynamic IO Errors', () => {
 
           const output = getPrerenderOutput(
             next.cliOutput.slice(cliOutputLength),
-            { isMinified: !inPrerenderDebugMode }
+            { isMinified: !isDebugPrerender }
           )
 
           if (isTurbopack) {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at IndirectionTwo (turbopack:///[project]/app/indirection.tsx:7:33)
+               "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                   at IndirectionTwo (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:33)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -682,20 +704,20 @@ describe('Dynamic IO Errors', () => {
                   8 |   return children
                   9 | }
                  10 |
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-               Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+               Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-  
+               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+               Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
+
                > Export encountered errors on following paths:
-                 /page: /"
+               	/dynamic-root/page: /dynamic-root"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+               "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -707,14 +729,10 @@ describe('Dynamic IO Errors', () => {
                    at i (<next-dist-dir>)
                    at j (<next-dist-dir>)
                    at k (<next-dist-dir>)
-                   at l (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-               To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                 - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                   at l (<next-dist-dir>)
                    at m (<next-dist-dir>)
                    at n (<next-dist-dir>)
                    at o (<next-dist-dir>)
@@ -725,19 +743,43 @@ describe('Dynamic IO Errors', () => {
                    at t (<next-dist-dir>)
                    at u (<next-dist-dir>)
                    at v (<next-dist-dir>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                    at w (<next-dist-dir>)
+                   at x (<next-dist-dir>)
+                   at y (<next-dist-dir>)
+                   at z (<next-dist-dir>)
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at k (<next-dist-dir>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                 - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
+                 - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /page: /, exiting the build."
+               Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /dynamic-root/page: /dynamic-root, exiting the build."
               `)
             }
           } else {
-            if (inPrerenderDebugMode) {
+            if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                    at IndirectionTwo (webpack:///app/dynamic-root/indirection.tsx:7:33)
@@ -977,70 +1019,68 @@ describe('Dynamic IO Errors', () => {
 
             const output = getPrerenderOutput(
               next.cliOutput.slice(cliOutputLength),
-              { isMinified: !inPrerenderDebugMode }
+              { isMinified: !isDebugPrerender }
             )
 
             if (isTurbopack) {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at getRandomNumber (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:14)
-                   at RandomReadingComponent (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:40:17)
-                 30 |
-                 31 | function getRandomNumber() {
-               > 32 |   return Math.random()
-                    |              ^
-                 33 | }
-                 34 |
-                 35 | function RandomReadingComponent() {
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+                     at getRandomNumber (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:14)
+                     at RandomReadingComponent (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:40:17)
+                   30 |
+                   31 | function getRandomNumber() {
+                 > 32 |   return Math.random()
+                      |              ^
+                   33 | }
+                   34 |
+                   35 | function RandomReadingComponent() {
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+                 Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
-               	/sync-random-without-fallback/page: /sync-random-without-fallback"
-              `)
+                 > Export encountered errors on following paths:
+                 	/sync-random-without-fallback/page: /sync-random-without-fallback"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
-               To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                 - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
-                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /sync-random-without-fallback/page: /sync-random-without-fallback, exiting the build."
-              `)
+                 "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+                     at a (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /sync-random-without-fallback/page: /sync-random-without-fallback, exiting the build."
+                `)
               }
             } else {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-               "Inlining static env ...
-               Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:14)
-                   at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:17)
-                 30 |
-                 31 | function getRandomNumber() {
-               > 32 |   return Math.random()
-                    |              ^
-                 33 | }
-                 34 |
-                 35 | function RandomReadingComponent() {
-               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
-               Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+                     at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:14)
+                     at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:17)
+                   30 |
+                   31 | function getRandomNumber() {
+                 > 32 |   return Math.random()
+                      |              ^
+                   33 | }
+                   34 |
+                   35 | function RandomReadingComponent() {
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+                 Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
 
-               > Export encountered errors on following paths:
-               	/sync-random-without-fallback/page: /sync-random-without-fallback"
-              `)
+                 > Export encountered errors on following paths:
+                 	/sync-random-without-fallback/page: /sync-random-without-fallback"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-               "Inlining static env ...
-               Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
-               To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                 - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
-                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /sync-random-without-fallback/page: /sync-random-without-fallback, exiting the build."
-              `)
+                 "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+                     at a (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /sync-random-without-fallback/page: /sync-random-without-fallback, exiting the build."
+                `)
               }
             }
           })
@@ -1225,49 +1265,49 @@ describe('Dynamic IO Errors', () => {
         } else {
           it('should error the build with a runtime error', async () => {
             try {
-              await build(pathname)
+              await prerender(pathname)
             } catch {
               // we expect the build to fail
             }
 
             const output = getPrerenderOutput(
               next.cliOutput.slice(cliOutputLength),
-              { isMinified: !inPrerenderDebugMode }
+              { isMinified: !isDebugPrerender }
             )
 
             if (isTurbopack) {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-                              TypeError: <module-function>().get is not a function
-                                  at CookiesReadingComponent (turbopack:///[project]/app/page.tsx:17:66)
-                                  at stringify (<anonymous>)
-                                15 |
-                                16 | async function CookiesReadingComponent() {
-                              > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                                   |                                                                  ^
-                                18 |   return <div>this component reads the \`token\` cookie synchronously</div>
-                                19 | }
-                                20 | {
-                                digest: '<error-digest>'
-                              }
+                 "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
+                 TypeError: <module-function>().get is not a function
+                     at CookiesReadingComponent (turbopack:///[project]/app/sync-cookies/page.tsx:17:66)
+                     at stringify (<anonymous>)
+                   15 |
+                   16 | async function CookiesReadingComponent() {
+                 > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                      |                                                                  ^
+                   18 |   return <div>this component reads the \`token\` cookie synchronously</div>
+                   19 | }
+                   20 | {
+                   digest: '<error-digest>'
+                 }
 
-                              > Export encountered errors on following paths:
-                                /page: /"
-                            `)
+                 > Export encountered errors on following paths:
+                 	/sync-cookies/page: /sync-cookies"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-                              TypeError: <module-function>().get is not a function
-                                  at a (<next-dist-dir>)
-                                  at b (<anonymous>) {
-                                digest: '<error-digest>'
-                              }
-                              Export encountered an error on /page: /, exiting the build."
-                            `)
+                 "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
+                 TypeError: <module-function>().get is not a function
+                     at a (<next-dist-dir>)
+                     at b (<anonymous>) {
+                   digest: '<error-digest>'
+                 }
+                 Export encountered an error on /sync-cookies/page: /sync-cookies, exiting the build."
+                `)
               }
             } else {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
@@ -1284,7 +1324,7 @@ describe('Dynamic IO Errors', () => {
                  }
 
                  > Export encountered errors on following paths:
-                  /sync-cookies/page: /sync-cookies"
+                 	/sync-cookies/page: /sync-cookies"
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
@@ -1443,49 +1483,49 @@ describe('Dynamic IO Errors', () => {
         } else {
           it('should error the build with a runtime error', async () => {
             try {
-              await build(pathname)
+              await prerender(pathname)
             } catch {
               // we expect the build to fail
             }
 
             const output = getPrerenderOutput(
               next.cliOutput.slice(cliOutputLength),
-              { isMinified: !inPrerenderDebugMode }
+              { isMinified: !isDebugPrerender }
             )
 
             if (isTurbopack) {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-                              TypeError: <module-function>().get is not a function
-                                  at HeadersReadingComponent (turbopack:///[project]/app/page.tsx:17:69)
-                                  at stringify (<anonymous>)
-                                15 |
-                                16 | async function HeadersReadingComponent() {
-                              > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                                   |                                                                     ^
-                                18 |     'user-agent'
-                                19 |   )
-                                20 |   return ( {
-                                digest: '<error-digest>'
-                              }
+                 "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
+                 TypeError: <module-function>().get is not a function
+                     at HeadersReadingComponent (turbopack:///[project]/app/sync-headers/page.tsx:17:69)
+                     at stringify (<anonymous>)
+                   15 |
+                   16 | async function HeadersReadingComponent() {
+                 > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                      |                                                                     ^
+                   18 |     'user-agent'
+                   19 |   )
+                   20 |   return ( {
+                   digest: '<error-digest>'
+                 }
 
-                              > Export encountered errors on following paths:
-                                /page: /"
-                            `)
+                 > Export encountered errors on following paths:
+                 	/sync-headers/page: /sync-headers"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-                              TypeError: <module-function>().get is not a function
-                                  at a (<next-dist-dir>)
-                                  at b (<anonymous>) {
-                                digest: '<error-digest>'
-                              }
-                              Export encountered an error on /page: /, exiting the build."
-                            `)
+                 "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
+                 TypeError: <module-function>().get is not a function
+                     at a (<next-dist-dir>)
+                     at b (<anonymous>) {
+                   digest: '<error-digest>'
+                 }
+                 Export encountered an error on /sync-headers/page: /sync-headers, exiting the build."
+                `)
               }
             } else {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
@@ -1502,7 +1542,7 @@ describe('Dynamic IO Errors', () => {
                  }
 
                  > Export encountered errors on following paths:
-                  /sync-headers/page: /sync-headers"
+                 	/sync-headers/page: /sync-headers"
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
@@ -1667,10 +1707,11 @@ describe('Dynamic IO Errors', () => {
         } else {
           it('should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic', async () => {
             try {
-              await build(pathname)
+              await prerender(pathname)
             } catch (error) {
               throw new Error('expected build not to fail', { cause: error })
             }
+
             expect(next.cliOutput).toContain(`◐ ${pathname}`)
           })
         }
@@ -1724,47 +1765,47 @@ describe('Dynamic IO Errors', () => {
         } else {
           it('should error the build with a reason related to sync IO access', async () => {
             try {
-              await build(pathname)
+              await prerender(pathname)
             } catch {
               // we expect the build to fail
             }
 
             const output = getPrerenderOutput(
               next.cliOutput.slice(cliOutputLength),
-              { isMinified: !inPrerenderDebugMode }
+              { isMinified: !isDebugPrerender }
             )
 
             if (isTurbopack) {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                                  at SyncIO (turbopack:///[project]/app/client.tsx:5:15)
-                                3 | export function SyncIO() {
-                                4 |   // This is a sync IO access that should not cause an error
-                              > 5 |   const data = new Date().toISOString()
-                                  |               ^
-                                6 |
-                                7 |   return (
-                                8 |     <main>
-                              To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-                              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                     at SyncIO (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:15)
+                   3 | export function SyncIO() {
+                   4 |   // This is a sync IO access that should not cause an error
+                 > 5 |   const data = new Date().toISOString()
+                     |               ^
+                   6 |
+                   7 |   return (
+                   8 |     <main>
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 Error occurred prerendering page "/sync-attribution/guarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                              > Export encountered errors on following paths:
-                                /page: /"
-                            `)
+                 > Export encountered errors on following paths:
+                 	/sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                                  at a (<next-dist-dir>)
-                              To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                                - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-                                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-                              Export encountered an error on /page: /, exiting the build."
-                            `)
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                     at a (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/sync-attribution/guarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync, exiting the build."
+                `)
               }
             } else {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:15)
@@ -1779,7 +1820,7 @@ describe('Dynamic IO Errors', () => {
                  Error occurred prerendering page "/sync-attribution/guarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
                  > Export encountered errors on following paths:
-                  /sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync"
+                 	/sync-attribution/guarded-async-unguarded-clientsync/page: /sync-attribution/guarded-async-unguarded-clientsync"
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
@@ -1845,60 +1886,82 @@ describe('Dynamic IO Errors', () => {
         } else {
           it('should error the build with a reason related dynamic data', async () => {
             try {
-              await build(pathname)
+              await prerender(pathname)
             } catch {
               // we expect the build to fail
             }
 
             const output = getPrerenderOutput(
               next.cliOutput.slice(cliOutputLength),
-              { isMinified: !inPrerenderDebugMode }
+              { isMinified: !isDebugPrerender }
             )
 
             if (isTurbopack) {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                                  at section (<anonymous>)
-                                  at main (<anonymous>)
-                                  at RenderFromTemplateContext (<anonymous>)
-                                  at main (<anonymous>)
-                                  at body (<anonymous>)
-                                  at html (<anonymous>)
-                              To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-                              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at section (<anonymous>)
+                     at main (<anonymous>)
+                     at RenderFromTemplateContext (<anonymous>)
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at RenderFromTemplateContext (<anonymous>)
+                     at RenderFromTemplateContext (<anonymous>)
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
+                 Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                              > Export encountered errors on following paths:
-                                /page: /"
-                            `)
+                 > Export encountered errors on following paths:
+                 	/sync-attribution/unguarded-async-guarded-clientsync/page: /sync-attribution/unguarded-async-guarded-clientsync"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                                  at a (<anonymous>)
-                                  at main (<anonymous>)
-                                  at b (<next-dist-dir>)
-                                  at c (<next-dist-dir>)
-                                  at d (<next-dist-dir>)
-                                  at e (<next-dist-dir>)
-                                  at f (<next-dist-dir>)
-                                  at g (<next-dist-dir>)
-                                  at h (<next-dist-dir>)
-                                  at i (<next-dist-dir>)
-                                  at j (<next-dist-dir>)
-                                  at k (<anonymous>)
-                                  at l (<next-dist-dir>)
-                                  at main (<anonymous>)
-                                  at body (<anonymous>)
-                                  at html (<anonymous>)
-                              To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                                - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-                                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-                              Export encountered an error on /page: /, exiting the build."
-                            `)
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at a (<anonymous>)
+                     at main (<anonymous>)
+                     at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
+                     at e (<next-dist-dir>)
+                     at f (<next-dist-dir>)
+                     at g (<next-dist-dir>)
+                     at h (<next-dist-dir>)
+                     at i (<next-dist-dir>)
+                     at j (<anonymous>)
+                     at k (<next-dist-dir>)
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at l (<next-dist-dir>)
+                     at m (<next-dist-dir>)
+                     at n (<next-dist-dir>)
+                     at o (<next-dist-dir>)
+                     at p (<next-dist-dir>)
+                     at q (<next-dist-dir>)
+                     at r (<next-dist-dir>)
+                     at s (<next-dist-dir>)
+                     at t (<anonymous>)
+                     at u (<next-dist-dir>)
+                     at v (<next-dist-dir>)
+                     at w (<next-dist-dir>)
+                     at x (<next-dist-dir>)
+                     at y (<next-dist-dir>)
+                     at z (<next-dist-dir>)
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
+                     at e (<anonymous>)
+                     at f (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /sync-attribution/unguarded-async-guarded-clientsync/page: /sync-attribution/unguarded-async-guarded-clientsync, exiting the build."
+                `)
               }
             } else {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                      at section (<anonymous>)
@@ -1948,7 +2011,7 @@ describe('Dynamic IO Errors', () => {
                  Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
                  > Export encountered errors on following paths:
-                  /sync-attribution/unguarded-async-guarded-clientsync/page: /sync-attribution/unguarded-async-guarded-clientsync"
+                 	/sync-attribution/unguarded-async-guarded-clientsync/page: /sync-attribution/unguarded-async-guarded-clientsync"
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
@@ -2050,47 +2113,47 @@ describe('Dynamic IO Errors', () => {
         } else {
           it('should error the build with a reason related to sync IO access', async () => {
             try {
-              await build(pathname)
+              await prerender(pathname)
             } catch {
               // we expect the build to fail
             }
 
             const output = getPrerenderOutput(
               next.cliOutput.slice(cliOutputLength),
-              { isMinified: !inPrerenderDebugMode }
+              { isMinified: !isDebugPrerender }
             )
 
             if (isTurbopack) {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                                  at SyncIO (turbopack:///[project]/app/client.tsx:5:15)
-                                3 | export function SyncIO() {
-                                4 |   // This is a sync IO access that should not cause an error
-                              > 5 |   const data = new Date().toISOString()
-                                  |               ^
-                                6 |
-                                7 |   return (
-                                8 |     <main>
-                              To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-                              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                     at SyncIO (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:15)
+                   3 | export function SyncIO() {
+                   4 |   // This is a sync IO access that should not cause an error
+                 > 5 |   const data = new Date().toISOString()
+                     |               ^
+                   6 |
+                   7 |   return (
+                   8 |     <main>
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
+                 Error occurred prerendering page "/sync-attribution/unguarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
-                              > Export encountered errors on following paths:
-                                /page: /"
-                            `)
+                 > Export encountered errors on following paths:
+                 	/sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync"
+                `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                                  at a (<next-dist-dir>)
-                              To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                                - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-                                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                              Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-                              Export encountered an error on /page: /, exiting the build."
-                            `)
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                     at a (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/sync-attribution/unguarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync, exiting the build."
+                `)
               }
             } else {
-              if (inPrerenderDebugMode) {
+              if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:15)
@@ -2105,7 +2168,7 @@ describe('Dynamic IO Errors', () => {
                  Error occurred prerendering page "/sync-attribution/unguarded-async-unguarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
                  > Export encountered errors on following paths:
-                  /sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync"
+                 	/sync-attribution/unguarded-async-unguarded-clientsync/page: /sync-attribution/unguarded-async-unguarded-clientsync"
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
