@@ -67,6 +67,7 @@ export async function handleRouteType({
     case 'page': {
       const serverKey = getEntryKey('pages', 'server', page)
 
+      await manifestLoader.loadClientBuildManifest(page)
       await manifestLoader.loadBuildManifest(page)
       await manifestLoader.loadPagesManifest(page)
 
