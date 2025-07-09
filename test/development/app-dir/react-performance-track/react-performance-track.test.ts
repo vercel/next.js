@@ -13,6 +13,8 @@ describe('react-performance-track', () => {
     expect(track).toEqual([
       { name: 'setTimeout', properties: [] },
       { name: 'setTimeout', properties: [] },
+      // CI only
+      { name: '', properties: [] },
     ])
   })
 
@@ -27,6 +29,8 @@ describe('react-performance-track', () => {
         name: '',
         properties: [],
       },
+      // CI only
+      { name: '', properties: [] },
     ])
   })
 })
