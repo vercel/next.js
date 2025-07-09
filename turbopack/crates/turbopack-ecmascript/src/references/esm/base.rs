@@ -559,8 +559,12 @@ impl EsmAssetReference {
                         ));
                     }
 
-                    if merged_index.is_some() && this.export_name == Some(ModulePart::Evaluation) {
-                        // No need to import to execution, the module was already inlined.
+                    if merged_index.is_some()
+                        && matches!(*self.export_usage().await?, ExportUsage::Evaluation)
+                    {
+                        // No need to import, the module was already executed and is available in
+                        // the same scope hoisting group (unless it's a
+                        // namespace import)
                     } else {
                         let ident = referenced_asset
                             .get_ident(

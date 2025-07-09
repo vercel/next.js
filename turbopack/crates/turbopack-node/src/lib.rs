@@ -216,8 +216,8 @@ pub async fn get_renderer_pool_operation(
 ) -> Result<Vc<NodeJsPool>> {
     emit_package_json(intermediate_output_path.clone())?.await?;
 
-    let _ = emit(*intermediate_asset, output_root.clone())
-        .resolve()
+    emit(*intermediate_asset, output_root.clone())
+        .as_side_effect()
         .await?;
     let assets_for_source_mapping =
         internal_assets_for_source_mapping(*intermediate_asset, output_root.clone());

@@ -57,7 +57,7 @@ pub async fn get_app_metadata_route_entry(
     mode: NextMode,
     metadata: MetadataItem,
     next_config: Vc<NextConfig>,
-) -> Vc<AppEntry> {
+) -> Result<Vc<AppEntry>> {
     // Read original source's segment config before replacing source into
     // dynamic|static metadata route handler.
     let original_path = metadata.clone().into_path();
@@ -82,22 +82,20 @@ pub async fn get_app_metadata_route_entry(
         // remove the last /route segment of page
         page.0.pop();
 
-        let _ = if is_multi_dynamic {
-            page.push(PageSegment::Dynamic("__metadata_id__".into()))
+        if is_multi_dynamic {
+            page.push(PageSegment::Dynamic("__metadata_id__".into()))?;
         } else {
             // if page last segment is sitemap, change to sitemap.xml
             if page.last() == Some(&PageSegment::Static("sitemap".into())) {
                 page.0.pop();
-                page.push(PageSegment::Static("sitemap.xml".into()))
-            } else {
-                Ok(())
+                page.push(PageSegment::Static("sitemap.xml".into()))?
             }
         };
         // Push /route back
-        let _ = page.push(PageSegment::PageType(PageType::Route));
+        page.push(PageSegment::PageType(PageType::Route))?;
     };
 
-    get_app_route_entry(
+    Ok(get_app_route_entry(
         nodejs_context,
         edge_context,
         get_app_metadata_route_source(mode, metadata, is_multi_dynamic),
@@ -105,7 +103,7 @@ pub async fn get_app_metadata_route_entry(
         project_root,
         Some(segment_config),
         next_config,
-    )
+    ))
 }
 
 const CACHE_HEADER_NONE: &str = "no-cache, no-store";

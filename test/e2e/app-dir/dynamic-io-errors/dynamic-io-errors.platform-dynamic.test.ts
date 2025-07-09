@@ -120,7 +120,14 @@ describe.each(
           } else {
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                 at a (<next-dist-dir>)
+                 at f (turbopack:///[project]/app/page.tsx:32:14)
+               30 |
+               31 | function getRandomNumber() {
+             > 32 |   return Math.random()
+                  |              ^
+               33 | }
+               34 |
+               35 | function RandomReadingComponent() {
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.

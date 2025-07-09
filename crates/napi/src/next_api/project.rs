@@ -947,10 +947,10 @@ pub async fn all_entrypoints_write_to_disk_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = project
+    project
         .project()
         .emit_all_output_assets(output_assets_operation(project, app_dir_only))
-        .resolve()
+        .as_side_effect()
         .await?;
 
     Ok(project.entrypoints())

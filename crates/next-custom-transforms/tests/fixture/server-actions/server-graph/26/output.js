@@ -4,5 +4,6 @@ const noop = (action)=>action;
 export const $$RSC_SERVER_ACTION_0 = async function(data) {
     console.log(data);
 };
+registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 // TODO: should use `log` as function name?
-export const log = noop(registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null));
+export const log = noop($$RSC_SERVER_ACTION_0);

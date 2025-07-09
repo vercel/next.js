@@ -226,72 +226,77 @@
           ((hasProperties = !0), (trimmed[key] = options[key]));
       return hasProperties ? trimmed : null;
     }
-    function collectStackTrace(error, structuredStackTrace) {
-      for (
-        var result = [], i = framesToSkip;
-        i < structuredStackTrace.length;
-        i++
-      ) {
+    function collectStackTracePrivate(error, structuredStackTrace) {
+      error = [];
+      for (var i = framesToSkip; i < structuredStackTrace.length; i++) {
         var callSite = structuredStackTrace[i],
-          _name = callSite.getFunctionName() || "<anonymous>";
-        if (_name.includes("react_stack_bottom_frame")) break;
-        else if (callSite.isNative()) result.push([_name, "", 0, 0, 0, 0]);
+          name = callSite.getFunctionName() || "<anonymous>";
+        if (name.includes("react_stack_bottom_frame")) break;
+        else if (callSite.isNative())
+          (callSite = callSite.isAsync()),
+            error.push([name, "", 0, 0, 0, 0, callSite]);
         else {
-          if (callSite.isConstructor()) _name = "new " + _name;
+          if (callSite.isConstructor()) name = "new " + name;
           else if (!callSite.isToplevel()) {
             var callSite$jscomp$0 = callSite;
-            _name = callSite$jscomp$0.getTypeName();
+            name = callSite$jscomp$0.getTypeName();
             var methodName = callSite$jscomp$0.getMethodName();
             callSite$jscomp$0 = callSite$jscomp$0.getFunctionName();
-            var result$jscomp$0 = "";
+            var result = "";
             callSite$jscomp$0
-              ? (_name &&
+              ? (name &&
                   identifierRegExp.test(callSite$jscomp$0) &&
-                  callSite$jscomp$0 !== _name &&
-                  (result$jscomp$0 += _name + "."),
-                (result$jscomp$0 += callSite$jscomp$0),
+                  callSite$jscomp$0 !== name &&
+                  (result += name + "."),
+                (result += callSite$jscomp$0),
                 !methodName ||
                   callSite$jscomp$0 === methodName ||
                   callSite$jscomp$0.endsWith("." + methodName) ||
                   callSite$jscomp$0.endsWith(" " + methodName) ||
-                  (result$jscomp$0 += " [as " + methodName + "]"))
-              : (_name && (result$jscomp$0 += _name + "."),
-                (result$jscomp$0 = methodName
-                  ? result$jscomp$0 + methodName
-                  : result$jscomp$0 + "<anonymous>"));
-            _name = result$jscomp$0;
+                  (result += " [as " + methodName + "]"))
+              : (name && (result += name + "."),
+                (result = methodName
+                  ? result + methodName
+                  : result + "<anonymous>"));
+            name = result;
           }
-          "<anonymous>" === _name && (_name = "");
+          "<anonymous>" === name && (name = "");
           methodName = callSite.getScriptNameOrSourceURL() || "<anonymous>";
-          "<anonymous>" === methodName && (methodName = "");
-          callSite.isEval() &&
-            !methodName &&
-            (callSite$jscomp$0 = callSite.getEvalOrigin()) &&
-            (methodName = callSite$jscomp$0.toString() + ", <anonymous>");
+          "<anonymous>" === methodName &&
+            ((methodName = ""),
+            callSite.isEval() &&
+              (callSite$jscomp$0 = callSite.getEvalOrigin()) &&
+              (methodName = callSite$jscomp$0.toString() + ", <anonymous>"));
           callSite$jscomp$0 = callSite.getLineNumber() || 0;
-          result$jscomp$0 = callSite.getColumnNumber() || 0;
+          result = callSite.getColumnNumber() || 0;
           var enclosingLine =
-            "function" === typeof callSite.getEnclosingLineNumber
-              ? callSite.getEnclosingLineNumber() || 0
-              : 0;
-          callSite =
-            "function" === typeof callSite.getEnclosingColumnNumber
-              ? callSite.getEnclosingColumnNumber() || 0
-              : 0;
-          result.push([
-            _name,
+              "function" === typeof callSite.getEnclosingLineNumber
+                ? callSite.getEnclosingLineNumber() || 0
+                : 0,
+            enclosingCol =
+              "function" === typeof callSite.getEnclosingColumnNumber
+                ? callSite.getEnclosingColumnNumber() || 0
+                : 0;
+          callSite = callSite.isAsync();
+          error.push([
+            name,
             methodName,
             callSite$jscomp$0,
-            result$jscomp$0,
+            result,
             enclosingLine,
+            enclosingCol,
             callSite
           ]);
         }
       }
+      collectedStackTrace = error;
+      return "";
+    }
+    function collectStackTrace(error, structuredStackTrace) {
+      collectStackTracePrivate(error, structuredStackTrace);
       error = (error.name || "Error") + ": " + (error.message || "");
-      for (i = 0; i < structuredStackTrace.length; i++)
+      for (var i = 0; i < structuredStackTrace.length; i++)
         error += "\n    at " + structuredStackTrace[i].toString();
-      collectedStackTrace = result;
       return error;
     }
     function parseStackTrace(error, skipFrames) {
@@ -308,10 +313,10 @@
       }
       if (null !== collectedStackTrace)
         return (
-          (skipFrames = collectedStackTrace),
+          (stack = collectedStackTrace),
           (collectedStackTrace = null),
-          stackTraceCache.set(error, skipFrames),
-          skipFrames
+          stackTraceCache.set(error, stack),
+          stack
         );
       stack.startsWith("Error: react-stack-top-frame\n") &&
         (stack = stack.slice(29));
@@ -322,8 +327,12 @@
       for (existing = []; skipFrames < stack.length; skipFrames++) {
         var parsed = frameRegExp.exec(stack[skipFrames]);
         if (parsed) {
-          var name = parsed[1] || "";
-          "<anonymous>" === name && (name = "");
+          var name = parsed[1] || "",
+            isAsync = "async " === parsed[8];
+          "<anonymous>" === name
+            ? (name = "")
+            : name.startsWith("async ") &&
+              ((name = name.slice(5)), (isAsync = !0));
           var filename = parsed[2] || parsed[5] || "";
           "<anonymous>" === filename && (filename = "");
           existing.push([
@@ -332,7 +341,8 @@
             +(parsed[3] || parsed[6]),
             +(parsed[4] || parsed[7]),
             0,
-            0
+            0,
+            isAsync
           ]);
         }
       }
@@ -673,13 +683,29 @@
         var wrapperMethod = function () {
           var request = resolveRequest();
           if (("assert" !== methodName || !arguments[0]) && null !== request) {
-            var stack = filterStackTrace(
+            a: {
+              var error = Error("react-stack-top-frame");
+              collectedStackTrace = null;
+              framesToSkip = 1;
+              var previousPrepare = Error.prepareStackTrace;
+              Error.prepareStackTrace = collectStackTracePrivate;
+              try {
+                if ("" !== error.stack) {
+                  var JSCompiler_inline_result = null;
+                  break a;
+                }
+              } finally {
+                Error.prepareStackTrace = previousPrepare;
+              }
+              JSCompiler_inline_result = collectedStackTrace;
+            }
+            JSCompiler_inline_result = filterStackTrace(
               request,
-              parseStackTrace(Error("react-stack-top-frame"), 1)
+              JSCompiler_inline_result || []
             );
             request.pendingDebugChunks++;
-            var owner = resolveOwner(),
-              args = Array.from(arguments);
+            error = resolveOwner();
+            previousPrepare = Array.from(arguments);
             a: {
               var env = 0;
               switch (methodName) {
@@ -692,37 +718,44 @@
                 case "assert":
                   env = 1;
               }
-              var format = args[env],
-                style = args[env + 1],
-                badge = args[env + 2];
+              var format = previousPrepare[env],
+                style = previousPrepare[env + 1],
+                badge = previousPrepare[env + 2];
               "string" === typeof format &&
               format.startsWith("%c%s%c ") &&
               "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px" ===
                 style &&
               "string" === typeof badge
-                ? (args.splice(env, 4, format.slice(7)),
+                ? (previousPrepare.splice(env, 4, format.slice(7)),
                   (env = badge.slice(1, badge.length - 1)))
                 : (env = null);
             }
             null === env && (env = (0, request.environmentName)());
-            null != owner && outlineComponentInfo(request, owner);
-            format = [methodName, stack, owner, env];
-            format.push.apply(format, args);
-            args = serializeDebugModel(
+            null != error && outlineComponentInfo(request, error);
+            format = [methodName, JSCompiler_inline_result, error, env];
+            format.push.apply(format, previousPrepare);
+            previousPrepare = serializeDebugModel(
               request,
-              (null === request.deferredDebugObjects ? 500 : 10) + stack.length,
+              (null === request.deferredDebugObjects ? 500 : 10) +
+                JSCompiler_inline_result.length,
               format
             );
-            "[" !== args[0] &&
-              (args = serializeDebugModel(request, 10 + stack.length, [
-                methodName,
-                stack,
-                owner,
-                env,
-                "Unknown Value: React could not send it from the server."
-              ]));
-            stack = stringToChunk(":W" + args + "\n");
-            request.completedDebugChunks.push(stack);
+            "[" !== previousPrepare[0] &&
+              (previousPrepare = serializeDebugModel(
+                request,
+                10 + JSCompiler_inline_result.length,
+                [
+                  methodName,
+                  JSCompiler_inline_result,
+                  error,
+                  env,
+                  "Unknown Value: React could not send it from the server."
+                ]
+              ));
+            JSCompiler_inline_result = stringToChunk(
+              ":W" + previousPrepare + "\n"
+            );
+            request.completedDebugChunks.push(JSCompiler_inline_result);
           }
           return originalMethod.apply(this, arguments);
         };
@@ -974,6 +1007,14 @@
       }
       if (request.status === ABORTING)
         return emitDebugHaltChunk(request, id), ref;
+      var deferredDebugObjects = request.deferredDebugObjects;
+      if (null !== deferredDebugObjects)
+        return (
+          deferredDebugObjects.retained.set(id, thenable),
+          (ref = "$Y@" + id.toString(16)),
+          request.writtenDebugObjects.set(thenable, ref),
+          ref
+        );
       var cancelled = !1;
       thenable.then(
         function (value) {
@@ -1001,6 +1042,22 @@
           (counter = request = null));
       });
       return ref;
+    }
+    function emitRequestedDebugThenable(request, id, counter, thenable) {
+      thenable.then(
+        function (value) {
+          request.status === ABORTING
+            ? emitDebugHaltChunk(request, id)
+            : emitOutlinedDebugModelChunk(request, id, counter, value);
+          enqueueFlush(request);
+        },
+        function (reason) {
+          request.status === ABORTING
+            ? emitDebugHaltChunk(request, id)
+            : emitErrorChunk(request, id, "", reason, !0);
+          enqueueFlush(request);
+        }
+      );
     }
     function serializeThenable(request, task, thenable) {
       var newTask = createTask(
@@ -1121,7 +1178,9 @@
           signal.removeEventListener("abort", abortStream);
           signal = signal.reason;
           21 === request.type
-            ? (haltTask(streamTask), request.abortableTasks.delete(streamTask))
+            ? (request.abortableTasks.delete(streamTask),
+              haltTask(streamTask),
+              finishHaltedTask(streamTask, request))
             : (erroredTask(request, streamTask, signal), enqueueFlush(request));
           reader.cancel(signal).then(error, error);
         }
@@ -1208,7 +1267,9 @@
           signal.removeEventListener("abort", abortIterable);
           var reason = signal.reason;
           21 === request.type
-            ? (haltTask(streamTask), request.abortableTasks.delete(streamTask))
+            ? (request.abortableTasks.delete(streamTask),
+              haltTask(streamTask),
+              finishHaltedTask(streamTask, request))
             : (erroredTask(request, streamTask, signal.reason),
               enqueueFlush(request));
           "function" === typeof iterator.throw &&
@@ -1995,7 +2056,9 @@
           signal.removeEventListener("abort", abortBlob);
           signal = signal.reason;
           21 === request.type
-            ? haltTask(newTask)
+            ? (request.abortableTasks.delete(newTask),
+              haltTask(newTask),
+              finishHaltedTask(newTask, request))
             : (erroredTask(request, newTask, signal), enqueueFlush(request));
           reader.cancel(signal).then(error, error);
         }
@@ -2674,6 +2737,8 @@
             ((existingDebugReference = tempRef.get(parent)),
             void 0 !== existingDebugReference)
           ) {
+            if (0 >= counter.objectLimit && !doNotLimit.has(value))
+              return serializeDeferredObject(request, value);
             var propertyName = parentPropertyName;
             if (isArrayImpl(parent) && parent[0] === REACT_ELEMENT_TYPE)
               switch (parentPropertyName) {
@@ -2690,11 +2755,12 @@
                   propertyName = "_owner";
               }
             tempRef.set(value, existingDebugReference + ":" + propertyName);
-          } else if (debugNoOutline !== value)
-            return (
-              (request = outlineDebugModel(request, counter, value)),
-              serializeByValueID(request)
-            );
+          } else if (debugNoOutline !== value) {
+            if ("function" === typeof value.then)
+              return serializeDebugThenable(request, counter, value);
+            request = outlineDebugModel(request, counter, value);
+            return serializeByValueID(request);
+          }
         parent = request.writtenObjects.get(value);
         if (void 0 !== parent) return parent;
         if (0 >= counter.objectLimit && !doNotLimit.has(value))
@@ -4303,6 +4369,19 @@
                       retainedValue
                     ),
                     enqueueFlush(request));
+              break;
+            case 80:
+              for (command = 0; command < message.length; command++)
+                (id = message[command]),
+                  (retainedValue = deferredDebugObjects.retained.get(id)),
+                  void 0 !== retainedValue &&
+                    (deferredDebugObjects.retained.delete(id),
+                    emitRequestedDebugThenable(
+                      request,
+                      id,
+                      { objectLimit: 10 },
+                      retainedValue
+                    ));
               break;
             default:
               throw Error(

@@ -842,8 +842,8 @@ function serializeReadableStream(request, task, stream) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$9) {
-          error(x$9);
+        } catch (x$8) {
+          error(x$8);
         }
   }
   function error(reason) {
@@ -919,8 +919,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$10) {
-          error(x$10);
+        } catch (x$9) {
+          error(x$9);
         }
   }
   function error(reason) {
@@ -1964,9 +1964,9 @@ function abort(request, reason) {
         null !== request.destination &&
           flushCompletedChunks(request, request.destination);
       }
-    } catch (error$24) {
-      logRecoverableError(request, error$24, null),
-        fatalError(request, error$24);
+    } catch (error$23) {
+      logRecoverableError(request, error$23, null),
+        fatalError(request, error$23);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2423,8 +2423,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$27 = createPendingChunk(response);
-        chunk$27.then(
+        var chunk$26 = createPendingChunk(response);
+        chunk$26.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2432,10 +2432,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$27;
+        previousBlockedChunk = chunk$26;
         chunk.then(function () {
-          previousBlockedChunk === chunk$27 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$27, json, -1);
+          previousBlockedChunk === chunk$26 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$26, json, -1);
         });
       }
     },

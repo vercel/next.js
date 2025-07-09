@@ -3,15 +3,21 @@ use std::{fmt::Display, io::Write};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks_fs::{
+    FileContent, FileSystem, FileSystemPath, VirtualFileSystem, glob::Glob, rope::RopeBuilder,
+};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    context::AssetContext,
     ident::{AssetIdent, Layer},
     module::Module,
     module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences},
+    raw_module::RawModule,
+    reference::{ModuleReference, ModuleReferences, TracedModuleReference},
+    reference_type::ReferenceType,
+    resolve::parse::Request,
 };
 
 use crate::{
@@ -49,6 +55,19 @@ pub enum CachedExternalType {
     Script,
 }
 
+#[derive(
+    Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, TaskInput, Hash, NonLocalValue,
+)]
+/// Whether to add a traced reference to the external module using the given context and resolve
+/// origin.
+pub enum CachedExternalTracingMode {
+    Untraced,
+    Traced {
+        externals_context: ResolvedVc<Box<dyn AssetContext>>,
+        root_origin: FileSystemPath,
+    },
+}
+
 impl Display for CachedExternalType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -63,9 +82,9 @@ impl Display for CachedExternalType {
 
 #[turbo_tasks::value]
 pub struct CachedExternalModule {
-    pub request: RcStr,
-    pub external_type: CachedExternalType,
-    pub additional_references: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    request: RcStr,
+    external_type: CachedExternalType,
+    tracing_mode: CachedExternalTracingMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -74,12 +93,12 @@ impl CachedExternalModule {
     pub fn new(
         request: RcStr,
         external_type: CachedExternalType,
-        additional_references: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+        tracing_mode: CachedExternalTracingMode,
     ) -> Vc<Self> {
         Self::cell(CachedExternalModule {
             request,
             external_type,
-            additional_references,
+            tracing_mode,
         })
     }
 
@@ -202,8 +221,46 @@ impl Module for CachedExternalModule {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(self.additional_references.clone()))
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(match &self.tracing_mode {
+            CachedExternalTracingMode::Untraced => ModuleReferences::empty(),
+            CachedExternalTracingMode::Traced {
+                externals_context,
+                root_origin,
+            } => {
+                let reference_type = match self.external_type {
+                    CachedExternalType::EcmaScriptViaImport => {
+                        ReferenceType::EcmaScriptModules(Default::default())
+                    }
+                    CachedExternalType::CommonJs | CachedExternalType::EcmaScriptViaRequire => {
+                        ReferenceType::CommonJs(Default::default())
+                    }
+                    _ => ReferenceType::Undefined,
+                };
+
+                let external_result = externals_context
+                    .resolve_asset(
+                        root_origin.clone(),
+                        Request::parse_string(self.request.clone()),
+                        externals_context
+                            .resolve_options(root_origin.clone(), reference_type.clone()),
+                        reference_type,
+                    )
+                    .await?;
+                let references = external_result
+                    .affecting_sources
+                    .iter()
+                    .map(|s| Vc::upcast::<Box<dyn Module>>(RawModule::new(**s)))
+                    .chain(external_result.primary_modules_raw_iter().map(|rvc| *rvc))
+                    .map(|s| {
+                        Vc::upcast::<Box<dyn ModuleReference>>(TracedModuleReference::new(s))
+                            .to_resolved()
+                    })
+                    .try_join()
+                    .await?;
+                Vc::cell(references)
+            }
+        })
     }
 
     #[turbo_tasks::function]

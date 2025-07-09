@@ -151,13 +151,13 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let _ = emit_assets(
+        emit_assets(
             assets_operation.connect(),
             node_root,
             client_relative_path,
             client_output_path,
         )
-        .resolve()
+        .as_side_effect()
         .await?;
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation,
