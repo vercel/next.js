@@ -46,9 +46,6 @@ Add a `twitter-image.(jpg|jpeg|png|gif)` image file to any route segment.
 
 ```html filename="<head> output"
 <meta name="twitter:image" content="<generated>" />
-<meta name="twitter:image:type" content="<generated>" />
-<meta name="twitter:image:width" content="<generated>" />
-<meta name="twitter:image:height" content="<generated>" />
 ```
 
 ### `opengraph-image.alt.txt`
@@ -248,13 +245,24 @@ The default export function should return a `Blob` | `ArrayBuffer` | `TypedArray
 
 ### Config exports
 
-You can optionally configure the image's metadata by exporting `alt`, `size`, and `contentType` variables from `opengraph-image` or `twitter-image` route.
+You can optionally configure the image's metadata by exporting configuration variables from `opengraph-image` or `twitter-image` routes. Open Graph and Twitter Cards support different metadata properties.
+
+#### `opengraph-image`
 
 | Option                        | Type                                                                                                            |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | [`alt`](#alt)                 | `string`                                                                                                        |
 | [`size`](#size)               | `{ width: number; height: number }`                                                                             |
 | [`contentType`](#contenttype) | `string` - [image MIME type](https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/MIME_types#image_types) |
+
+#### `twitter-image`
+
+| Option        | Type     |
+| ------------- | -------- |
+| [`alt`](#alt) | `string` |
+
+> **Good to know**:
+> Twitter Cards support only the image URL and alt text metadata properties. The `width`, `height`, and `contentType` properties are available for Open Graph images only.
 
 #### `alt`
 
@@ -276,13 +284,13 @@ export default function Image() {}
 
 #### `size`
 
-```tsx filename="opengraph-image.tsx | twitter-image.tsx" switcher
+```tsx filename="opengraph-image.tsx" switcher
 export const size = { width: 1200, height: 630 }
 
 export default function Image() {}
 ```
 
-```jsx filename="opengraph-image.js | twitter-image.js" switcher
+```jsx filename="opengraph-image.js" switcher
 export const size = { width: 1200, height: 630 }
 
 export default function Image() {}
@@ -295,13 +303,13 @@ export default function Image() {}
 
 #### `contentType`
 
-```tsx filename="opengraph-image.tsx | twitter-image.tsx" switcher
+```tsx filename="opengraph-image.tsx" switcher
 export const contentType = 'image/png'
 
 export default function Image() {}
 ```
 
-```jsx filename="opengraph-image.js | twitter-image.js" switcher
+```jsx filename="opengraph-image.js" switcher
 export const contentType = 'image/png'
 
 export default function Image() {}
