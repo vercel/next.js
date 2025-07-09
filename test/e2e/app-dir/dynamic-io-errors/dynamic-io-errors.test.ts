@@ -3,7 +3,7 @@ import { assertNoErrorToast } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
 
 describe('Dynamic IO Errors', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
@@ -16,7 +16,9 @@ describe('Dynamic IO Errors', () => {
   })
 
   afterEach(async () => {
-    await next.stop()
+    if (isNextStart) {
+      await next.stop()
+    }
   })
 
   describe.each(
@@ -157,15 +159,15 @@ describe('Dynamic IO Errors', () => {
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+               "description": "Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/page.tsx (20:16) @ Dynamic
+               "source": "app/dynamic-metadata-error-route/page.tsx (20:16) @ Dynamic
              > 20 | async function Dynamic() {
                   |                ^",
                "stack": [
-                 "Dynamic app/page.tsx (20:16)",
-                 "Page app/page.tsx (15:7)",
+                 "Dynamic app/dynamic-metadata-error-route/page.tsx (20:16)",
+                 "Page app/dynamic-metadata-error-route/page.tsx (15:7)",
                  "LogSafely <anonymous>",
                ],
              }
@@ -316,7 +318,7 @@ describe('Dynamic IO Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "description": "Route "/" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata",
+             "description": "Route "/dynamic-metadata-static-with-suspense" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata",
              "environmentLabel": "Server",
              "label": "Console Error",
              "source": null,
@@ -417,7 +419,7 @@ describe('Dynamic IO Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "description": "Route "/" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+             "description": "Route "/dynamic-viewport-static-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
              "environmentLabel": "Server",
              "label": "Console Error",
              "source": null,
@@ -490,7 +492,7 @@ describe('Dynamic IO Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "description": "Route "/" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+             "description": "Route "/dynamic-viewport-dynamic-route" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
              "environmentLabel": "Server",
              "label": "Console Error",
              "source": null,
@@ -617,28 +619,28 @@ describe('Dynamic IO Errors', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": "app/page.tsx (35:16) @ FetchingComponent
+                 "source": "app/dynamic-root/page.tsx (35:16) @ FetchingComponent
              > 35 | async function FetchingComponent({
                   |                ^",
                  "stack": [
-                   "FetchingComponent app/page.tsx (35:16)",
-                   "Page app/page.tsx (22:9)",
+                   "FetchingComponent app/dynamic-root/page.tsx (35:16)",
+                   "Page app/dynamic-root/page.tsx (22:9)",
                    "LogSafely <anonymous>",
                  ],
                },
                {
-                 "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": "app/page.tsx (35:16) @ FetchingComponent
+                 "source": "app/dynamic-root/page.tsx (35:16) @ FetchingComponent
              > 35 | async function FetchingComponent({
                   |                ^",
                  "stack": [
-                   "FetchingComponent app/page.tsx (35:16)",
-                   "Page app/page.tsx (27:7)",
+                   "FetchingComponent app/dynamic-root/page.tsx (35:16)",
+                   "Page app/dynamic-root/page.tsx (27:7)",
                    "LogSafely <anonymous>",
                  ],
                },

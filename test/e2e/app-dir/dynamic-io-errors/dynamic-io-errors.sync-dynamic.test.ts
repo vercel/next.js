@@ -2,7 +2,7 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
 
 describe('Dynamic IO Errors', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
@@ -15,7 +15,9 @@ describe('Dynamic IO Errors', () => {
   })
 
   afterEach(async () => {
-    await next.stop()
+    if (isNextStart) {
+      await next.stop()
+    }
   })
 
   describe.each(

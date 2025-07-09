@@ -15,10 +15,6 @@ describe('Dynamic IO Errors', () => {
     cliOutputLength = next.cliOutput.length
   })
 
-  afterEach(async () => {
-    await next.stop()
-  })
-
   describe.each(
     isNextDev
       ? [

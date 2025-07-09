@@ -3,7 +3,7 @@ import { assertNoErrorToast } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
 
 describe('Dynamic IO Errors', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
@@ -16,7 +16,9 @@ describe('Dynamic IO Errors', () => {
   })
 
   afterEach(async () => {
-    await next.stop()
+    if (isNextStart) {
+      await next.stop()
+    }
   })
 
   describe.each(
@@ -46,6 +48,14 @@ describe('Dynamic IO Errors', () => {
         args: inPrerenderDebugMode ? ['--debug-prerender'] : [],
       })
 
+    const start = (pathname: string) =>
+      next.start({
+        env: {
+          NEXT_PRIVATE_APP_PATHS: JSON.stringify([`${pathname}/page.tsx`]),
+        },
+        buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : [],
+      })
+
     describe('Sync Dynamic - With Fallback - Math.random()', () => {
       const pathname = '/sync-random-with-fallback'
 
@@ -61,7 +71,7 @@ describe('Dynamic IO Errors', () => {
       } else {
         it('should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary', async () => {
           try {
-            await next.start()
+            await start(pathname)
           } catch (error) {
             throw new Error('expected build not to fail', { cause: error })
           }
