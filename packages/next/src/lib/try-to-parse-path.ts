@@ -1,19 +1,8 @@
 import type { Token } from 'next/dist/compiled/path-to-regexp'
-import {
-  parse,
-  tokensToRegexp,
-  pathToRegexp,
-  compile,
-  regexpToFunction,
-} from 'next/dist/compiled/path-to-regexp'
+import { parse, tokensToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { parse as parseURL } from 'url'
 import isError from './is-error'
-import {
-  hasAdjacentParameterIssues,
-  normalizeAdjacentParameters,
-  normalizeTokensForRegexp,
-  stripParameterSeparators,
-} from './route-pattern-normalizer'
+import { normalizeTokensForRegexp } from './route-pattern-normalizer'
 
 interface ParseResult {
   error?: any
@@ -47,65 +36,6 @@ function reportError({ route, parsedPath }: ParseResult, err: any) {
 }
 
 /**
- * Safe wrapper around pathToRegexp that handles path-to-regexp 6.3.0+ validation errors.
- * This includes both "Can not repeat without prefix/suffix" and "Must have text between parameters" errors.
- */
-export function safePathToRegexp(
-  route: string | RegExp | Array<string | RegExp>,
-  keys?: any[],
-  options?: any
-): RegExp {
-  // Proactively normalize known problematic patterns
-  if (typeof route === 'string' && hasAdjacentParameterIssues(route)) {
-    const normalizedRoute = normalizeAdjacentParameters(route)
-    return pathToRegexp(normalizedRoute, keys, options)
-  }
-
-  try {
-    return pathToRegexp(route, keys, options)
-  } catch (error) {
-    // For any remaining edge cases, try the normalization as fallback
-    if (isError(error) && typeof route === 'string') {
-      try {
-        const normalizedRoute = normalizeAdjacentParameters(route)
-        return pathToRegexp(normalizedRoute, keys, options)
-      } catch (retryError) {
-        // If that doesn't work, fall back to original error
-        throw error
-      }
-    }
-    throw error
-  }
-}
-
-/**
- * Safe wrapper around compile that handles path-to-regexp 6.3.0+ validation errors.
- */
-export function safeCompile(route: string, options?: any) {
-  // Proactively normalize known problematic patterns
-  if (hasAdjacentParameterIssues(route)) {
-    const normalizedRoute = normalizeAdjacentParameters(route)
-    return compile(normalizedRoute, options)
-  }
-
-  try {
-    return compile(route, options)
-  } catch (error) {
-    // For any remaining edge cases, try the normalization as fallback
-    if (isError(error)) {
-      try {
-        const normalizedRoute = normalizeAdjacentParameters(route)
-        return compile(normalizedRoute, options)
-      } catch (retryError) {
-        // If that doesn't work, fall back to original error
-        throw error
-      }
-    }
-    throw error
-  }
-}
-
-/**
  * Safe wrapper around tokensToRegexp that handles path-to-regexp 6.3.0+ validation errors.
  */
 function safeTokensToRegexp(tokens: Token[]): RegExp {
@@ -118,26 +48,6 @@ function safeTokensToRegexp(tokens: Token[]): RegExp {
       return tokensToRegexp(normalizedTokens)
     }
     throw error
-  }
-}
-
-/**
- * Safe wrapper around regexpToFunction that automatically cleans parameters.
- */
-export function safeRegexpToFunction<
-  T extends Record<string, any> = Record<string, any>,
->(regexp: RegExp, keys?: any[]): (pathname: string) => { params: T } | false {
-  const originalMatcher = regexpToFunction<T>(regexp, keys || [])
-
-  return (pathname: string) => {
-    const result = originalMatcher(pathname)
-    if (!result) return false
-
-    // Clean parameters before returning
-    return {
-      ...result,
-      params: stripParameterSeparators(result.params as any) as T,
-    }
   }
 }
 

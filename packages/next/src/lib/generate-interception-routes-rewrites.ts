@@ -4,7 +4,7 @@ import {
   isInterceptionRouteAppPath,
 } from '../shared/lib/router/utils/interception-routes'
 import type { Rewrite } from './load-custom-routes'
-import { safePathToRegexp } from './try-to-parse-path'
+import { safePathToRegexp } from '../shared/lib/router/utils/route-match-utils'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
 function toPathToRegexpPath(path: string): string {

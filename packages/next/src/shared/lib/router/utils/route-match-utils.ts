@@ -3,6 +3,12 @@
  * utilities to avoid bundling issues with Turbopack
  */
 
+import type {
+  Key,
+  TokensToRegexpOptions,
+  ParseOptions,
+  TokensToFunctionOptions,
+} from 'next/dist/compiled/path-to-regexp'
 import {
   pathToRegexp,
   compile,
@@ -17,24 +23,27 @@ import {
 /**
  * Client-safe wrapper around pathToRegexp that handles path-to-regexp 6.3.0+ validation errors.
  * This includes both "Can not repeat without prefix/suffix" and "Must have text between parameters" errors.
- * No server-side error reporting to avoid bundling issues.
  */
 export function safePathToRegexp(
   route: string | RegExp | Array<string | RegExp>,
-  keys?: any[],
-  options?: any
+  keys?: Key[],
+  options?: TokensToRegexpOptions & ParseOptions
 ): RegExp {
-  // Proactively normalize known problematic patterns
-  if (typeof route === 'string' && hasAdjacentParameterIssues(route)) {
-    const normalizedRoute = normalizeAdjacentParameters(route)
-    return pathToRegexp(normalizedRoute, keys, options)
+  if (typeof route !== 'string') {
+    return pathToRegexp(route, keys, options)
   }
 
+  // Check if normalization is needed and cache the result
+  const needsNormalization = hasAdjacentParameterIssues(route)
+  const routeToUse = needsNormalization
+    ? normalizeAdjacentParameters(route)
+    : route
+
   try {
-    return pathToRegexp(route, keys, options)
+    return pathToRegexp(routeToUse, keys, options)
   } catch (error) {
-    // For any remaining edge cases, try the normalization as fallback
-    if (typeof route === 'string') {
+    // Only try normalization if we haven't already normalized
+    if (!needsNormalization) {
       try {
         const normalizedRoute = normalizeAdjacentParameters(route)
         return pathToRegexp(normalizedRoute, keys, options)
@@ -51,34 +60,39 @@ export function safePathToRegexp(
  * Client-safe wrapper around compile that handles path-to-regexp 6.3.0+ validation errors.
  * No server-side error reporting to avoid bundling issues.
  */
-export function safeCompile(route: string, options?: any) {
-  // Proactively normalize known problematic patterns
-  if (hasAdjacentParameterIssues(route)) {
-    const normalizedRoute = normalizeAdjacentParameters(route)
-    return compile(normalizedRoute, options)
-  }
+export function safeCompile(
+  route: string,
+  options?: TokensToFunctionOptions & ParseOptions
+) {
+  // Check if normalization is needed and cache the result
+  const needsNormalization = hasAdjacentParameterIssues(route)
+  const routeToUse = needsNormalization
+    ? normalizeAdjacentParameters(route)
+    : route
 
   try {
-    return compile(route, options)
+    return compile(routeToUse, options)
   } catch (error) {
-    // For any remaining edge cases, try the normalization as fallback
-    try {
-      const normalizedRoute = normalizeAdjacentParameters(route)
-      return compile(normalizedRoute, options)
-    } catch (retryError) {
-      // If that doesn't work, fall back to original error
-      throw error
+    // Only try normalization if we haven't already normalized
+    if (!needsNormalization) {
+      try {
+        const normalizedRoute = normalizeAdjacentParameters(route)
+        return compile(normalizedRoute, options)
+      } catch (retryError) {
+        // If that doesn't work, fall back to original error
+        throw error
+      }
     }
+    throw error
   }
 }
 
 /**
  * Client-safe wrapper around regexpToFunction that automatically cleans parameters.
- * No server-side error reporting to avoid bundling issues.
  */
 export function safeRegexpToFunction<
   T extends Record<string, any> = Record<string, any>,
->(regexp: RegExp, keys?: any[]): (pathname: string) => { params: T } | false {
+>(regexp: RegExp, keys?: Key[]): (pathname: string) => { params: T } | false {
   const originalMatcher = regexpToFunction<T>(regexp, keys || [])
 
   return (pathname: string) => {
