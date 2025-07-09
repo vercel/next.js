@@ -184,10 +184,9 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  public async build(options: {
-    env?: Record<string, string>
-    args?: string[]
-  }) {
+  public async build(
+    options: { env?: Record<string, string>; args?: string[] } = {}
+  ) {
     this.spawnOpts = {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
