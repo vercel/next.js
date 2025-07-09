@@ -339,7 +339,7 @@ export class TurbopackManifestLoader {
   private mergeWebpackStats(statsFiles: Iterable<WebpackStats>): WebpackStats {
     const entrypoints: Record<string, StatsChunkGroup> = {}
     const assets: Map<string, StatsAsset> = new Map()
-    const chunks: Map<string, StatsChunk> = new Map()
+    const chunks: Map<string | number, StatsChunk> = new Map()
     const modules: Map<string | number, StatsModule> = new Map()
 
     for (const statsFile of statsFiles) {
@@ -361,8 +361,8 @@ export class TurbopackManifestLoader {
 
       if (statsFile.chunks) {
         for (const chunk of statsFile.chunks) {
-          if (!chunks.has(chunk.name)) {
-            chunks.set(chunk.name, chunk)
+          if (!chunks.has(chunk.id!)) {
+            chunks.set(chunk.id!, chunk)
           }
         }
       }
@@ -388,6 +388,7 @@ export class TurbopackManifestLoader {
     }
 
     return {
+      version: 'Turbopack',
       entrypoints,
       assets: [...assets.values()],
       chunks: [...chunks.values()],

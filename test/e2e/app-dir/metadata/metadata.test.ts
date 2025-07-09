@@ -7,6 +7,7 @@ import {
   createMultiDomMatcher,
   checkMetaNameContentPair,
   checkLink,
+  retry,
 } from 'next-test-utils'
 import fs from 'fs/promises'
 import path from 'path'
@@ -227,16 +228,17 @@ describe('app dir - metadata', () => {
       const browser = await next.browser('/')
       await browser.waitForElementByCss('p#index')
       await browser.eval(`next.router.push('/alternates')`)
-      // wait for /alternates page is loaded
-      await browser.waitForElementByCss('p#alternates')
 
       const matchDom = createDomMatcher(browser)
-      await matchDom('link', 'rel="canonical"', {
-        href: 'https://example.com/alternates',
-      })
-      await matchDom('link', 'title="js title"', {
-        type: 'application/rss+xml',
-        href: 'https://example.com/blog/js.rss',
+      // Dynamic metadata streams in async
+      await retry(async () => {
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
+        await matchDom('link', 'title="js title"', {
+          type: 'application/rss+xml',
+          href: 'https://example.com/blog/js.rss',
+        })
       })
     })
 
@@ -283,18 +285,24 @@ describe('app dir - metadata', () => {
         .click()
         .waitForElementByCss('#basic')
 
-      await checkMetaNameContentPair(
-        browser,
-        'referrer',
-        'origin-when-cross-origin'
-      )
+      await retry(async () => {
+        await checkMetaNameContentPair(
+          browser,
+          'referrer',
+          'origin-when-cross-origin'
+        )
+      })
+
       await browser.back().waitForElementByCss('#index')
       expect(await getTitle(browser)).toBe('index page')
       await browser
         .elementByCss('#to-title')
         .click()
         .waitForElementByCss('#title')
-      expect(await getTitle(browser)).toBe('this is the page title')
+
+      await retry(async () => {
+        expect(await getTitle(browser)).toBe('this is the page title')
+      })
     })
 
     it('should support generateMetadata dynamic props', async () => {
@@ -809,6 +817,12 @@ describe('app dir - metadata', () => {
         .waitForElementByCss('#value')
       const value = await browser.elementByCss('#value').text()
       const value2 = await browser.elementByCss('#value2').text()
+      // Dynamic metadata streams in async
+      await retry(async () => {
+        expect(await browser.eval(`document.title`)).toContain(
+          '"page":"cache-deduping"'
+        )
+      })
       // Value in the title should match what's shown on the page component
       const title = await browser.eval(`document.title`)
       const obj = JSON.parse(title)

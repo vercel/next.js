@@ -294,6 +294,194 @@ impl DirtyContainerCount {
     }
 }
 
+#[cfg(test)]
+mod dirty_container_count_tests {
+    use turbo_tasks::SessionId;
+
+    use super::*;
+
+    const SESSION_1: SessionId = unsafe { SessionId::new_unchecked(1) };
+    const SESSION_2: SessionId = unsafe { SessionId::new_unchecked(2) };
+    const SESSION_3: SessionId = unsafe { SessionId::new_unchecked(3) };
+
+    #[test]
+    fn test_update() {
+        let mut count = DirtyContainerCount::default();
+        assert!(count.is_zero());
+
+        let diff = count.update(1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 2);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 2);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let diff = count.update(-1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(-1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), -1);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), -1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let diff = count.update(2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), -1);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), -1);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), 0);
+    }
+
+    #[test]
+    fn test_session_dependent() {
+        let mut count = DirtyContainerCount::default();
+        assert!(count.is_zero());
+
+        let diff = count.update_session_dependent(SESSION_1, 1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update_session_dependent(SESSION_1, -1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update_session_dependent(SESSION_1, 2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 2);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update_session_dependent(SESSION_2, -2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 2);
+        assert_eq!(diff.get(SESSION_2), 0);
+        assert_eq!(count.get(SESSION_3), 0);
+        assert_eq!(diff.get(SESSION_3), -1);
+    }
+
+    #[test]
+    fn test_update_with_dirty_state() {
+        let mut count = DirtyContainerCount::default();
+        let dirty = DirtyState {
+            clean_in_session: None,
+        };
+        let diff = count.update_with_dirty_state(&dirty);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.undo_update_with_dirty_state(&dirty);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let mut count = DirtyContainerCount::default();
+        let dirty = DirtyState {
+            clean_in_session: Some(SESSION_1),
+        };
+        let diff = count.update_with_dirty_state(&dirty);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.undo_update_with_dirty_state(&dirty);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+    }
+
+    #[test]
+    fn test_replace_dirty_state() {
+        let mut count = DirtyContainerCount::default();
+        let old = DirtyState {
+            clean_in_session: None,
+        };
+        let new = DirtyState {
+            clean_in_session: Some(SESSION_1),
+        };
+        count.update_with_dirty_state(&old);
+        let diff = count.replace_dirty_state(&old, &new);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let mut count = DirtyContainerCount::default();
+        let old = DirtyState {
+            clean_in_session: Some(SESSION_1),
+        };
+        let new = DirtyState {
+            clean_in_session: None,
+        };
+        count.update_with_dirty_state(&old);
+        let diff = count.replace_dirty_state(&old, &new);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 0);
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum RootType {
     RootTask,

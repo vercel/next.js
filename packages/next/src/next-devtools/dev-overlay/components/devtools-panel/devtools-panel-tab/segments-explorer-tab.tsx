@@ -1,4 +1,8 @@
-import { PageSegmentTree } from '../../overview/segment-explorer'
+const PageSegmentTree = process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
+  ? (
+      require('../../overview/segment-explorer') as typeof import('../../overview/segment-explorer')
+    ).PageSegmentTree
+  : () => null
 
 function SegmentsExplorer({
   routerType,

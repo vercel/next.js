@@ -664,7 +664,10 @@ function createErrorWithComponentOrOwnerStack(
   componentStack: string
 ) {
   const ownerStack =
-    process.env.NODE_ENV !== 'production' ? React.captureOwnerStack() : null
+    process.env.NODE_ENV !== 'production' && React.captureOwnerStack
+      ? React.captureOwnerStack()
+      : null
+
   const error = new Error(message)
   error.stack = error.name + ': ' + message + (ownerStack ?? componentStack)
   return error

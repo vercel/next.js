@@ -47,8 +47,11 @@ export function io(expression: string, type: ApiType) {
 
           const errorWithStack = new Error(message)
 
-          if (process.env.NODE_ENV !== 'production') {
-            const ownerStack = workUnitStore.captureOwnerStack!()
+          if (
+            process.env.NODE_ENV !== 'production' &&
+            workUnitStore.captureOwnerStack
+          ) {
+            const ownerStack = workUnitStore.captureOwnerStack()
 
             if (ownerStack) {
               // TODO: Instead of stitching the stacks here, we should log the
