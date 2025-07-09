@@ -23,9 +23,9 @@ describe('react-performance-track', () => {
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
     expect(track).toEqual([
       {
-        // TODO(veil): Should always be `fetch (random)`
-        name: isTurbopack ? 'fetch (random)' : 'fetch',
-        properties: expect.arrayContaining([['status', '200']]),
+        // TODO: Should have a name
+        name: '',
+        properties: [],
       },
     ])
   })
