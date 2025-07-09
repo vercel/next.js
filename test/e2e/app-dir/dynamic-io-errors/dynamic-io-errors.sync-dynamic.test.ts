@@ -3,7 +3,7 @@ import { getPrerenderOutput } from './utils'
 
 describe('Dynamic IO Errors', () => {
   const { next, isTurbopack, skipped } = nextTestSetup({
-    files: __dirname,
+    files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
   })
