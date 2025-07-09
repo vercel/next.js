@@ -11,19 +11,19 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        DUMMY_SP, FileName, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
         visit::{
-            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
-            VisitWith,
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
         },
     },
 };
@@ -154,7 +154,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
 impl<C: Comments> ReactServerComponents<C> {
     /// removes specific directive from the AST.
     fn remove_top_level_directive(&mut self, module: &mut Module) {
-        let _ = &module.body.retain(|item| {
+        module.body.retain(|item| {
             if let ModuleItem::Stmt(stmt) = item {
                 if let Some(expr_stmt) = stmt.as_expr() {
                     if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr_stmt.expr {

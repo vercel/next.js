@@ -1625,25 +1625,24 @@ impl Project {
             let node_root = self.node_root().await?.clone_value();
 
             if let Some(map) = self.await?.versioned_content_map {
-                let _ = map
-                    .insert_output_assets(
-                        all_output_assets,
-                        node_root.clone(),
-                        client_relative_path.clone(),
-                        node_root.clone(),
-                    )
-                    .resolve()
-                    .await?;
+                map.insert_output_assets(
+                    all_output_assets,
+                    node_root.clone(),
+                    client_relative_path.clone(),
+                    node_root.clone(),
+                )
+                .as_side_effect()
+                .await?;
 
                 Ok(())
             } else {
-                let _ = emit_assets(
+                emit_assets(
                     all_output_assets.connect(),
                     node_root.clone(),
                     client_relative_path.clone(),
                     node_root.clone(),
                 )
-                .resolve()
+                .as_side_effect()
                 .await?;
 
                 Ok(())
