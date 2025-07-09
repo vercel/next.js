@@ -32,6 +32,9 @@ patchedDependencies:
   stacktrace-parser@0.1.10:
     hash: misknddihoqkqinipod62zbcj4
     path: patches/stacktrace-parser@0.1.10.patch
+  taskr@1.1.0:
+    hash: utitb3olraq7egc3hk7waltisu
+    path: patches/taskr@1.1.0.patch
   webpack-sources@3.2.3:
     hash: jbynf5dc46ambamq3wuyho6hkq
     path: patches/webpack-sources@3.2.3.patch
@@ -576,7 +579,7 @@ importers:
         version: 3.2.7(postcss@8.4.31)
       taskr:
         specifier: 1.1.0
-        version: 1.1.0
+        version: 1.1.0(patch_hash=utitb3olraq7egc3hk7waltisu)
       tree-kill:
         specifier: 1.2.2
         version: 1.2.2
@@ -1539,7 +1542,7 @@ importers:
         version: 6.1.15
       taskr:
         specifier: 1.1.0
-        version: 1.1.0
+        version: 1.1.0(patch_hash=utitb3olraq7egc3hk7waltisu)
       terser:
         specifier: 5.27.0
         version: 5.27.0
@@ -34150,7 +34153,7 @@ snapshots:
       mkdirp: 3.0.1
       yallist: 5.0.0
 
-  taskr@1.1.0:
+  taskr@1.1.0(patch_hash=utitb3olraq7egc3hk7waltisu):
     dependencies:
       bluebird: 3.7.2
       clor: 5.2.0
