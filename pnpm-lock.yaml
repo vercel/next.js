@@ -26,6 +26,9 @@ patchedDependencies:
   '@ampproject/toolbox-optimizer@2.8.3':
     hash: baeiwbdq3sqmjnnh2lznmpb5bu
     path: patches/@ampproject__toolbox-optimizer@2.8.3.patch
+  '@base-ui-components/react@1.0.0-beta.1':
+    hash: husdbmnwfarofaw5whjzcd7l2a
+    path: patches/@base-ui-components__react@1.0.0-beta.1.patch
   '@types/node@20.17.6':
     hash: rvl3vkomen3tospgr67bzubfyu
     path: patches/@types__node@20.17.6.patch
@@ -1005,7 +1008,7 @@ importers:
         version: 7.27.0
       '@base-ui-components/react':
         specifier: 1.0.0-beta.1
-        version: 1.0.0-beta.1(@types/react@19.1.1)(react-dom@19.2.0-canary-60b5271a-20250709(react@19.2.0-canary-60b5271a-20250709))(react@19.2.0-canary-60b5271a-20250709)
+        version: 1.0.0-beta.1(patch_hash=husdbmnwfarofaw5whjzcd7l2a)(@types/react@19.1.1)(react-dom@19.2.0-canary-60b5271a-20250709(react@19.2.0-canary-60b5271a-20250709))(react@19.2.0-canary-60b5271a-20250709)
       '@capsizecss/metrics':
         specifier: 3.4.0
         version: 3.4.0
@@ -17995,7 +17998,7 @@ snapshots:
       '@babel/helper-string-parser': 7.25.9
       '@babel/helper-validator-identifier': 7.25.9
 
-  '@base-ui-components/react@1.0.0-beta.1(@types/react@19.1.1)(react-dom@19.2.0-canary-60b5271a-20250709(react@19.2.0-canary-60b5271a-20250709))(react@19.2.0-canary-60b5271a-20250709)':
+  '@base-ui-components/react@1.0.0-beta.1(patch_hash=husdbmnwfarofaw5whjzcd7l2a)(@types/react@19.1.1)(react-dom@19.2.0-canary-60b5271a-20250709(react@19.2.0-canary-60b5271a-20250709))(react@19.2.0-canary-60b5271a-20250709)':
     dependencies:
       '@babel/runtime': 7.27.6
       '@floating-ui/react-dom': 2.1.4(react-dom@19.2.0-canary-60b5271a-20250709(react@19.2.0-canary-60b5271a-20250709))(react@19.2.0-canary-60b5271a-20250709)
