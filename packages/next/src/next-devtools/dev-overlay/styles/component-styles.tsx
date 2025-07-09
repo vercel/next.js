@@ -38,6 +38,7 @@ import { SEGMENTS_EXPLORER_TAB_STYLES } from '../components/devtools-panel/devto
 import { SEGMENTS_EXPLORER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/segments-explorer'
 import { DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_LAYOUT_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-content-layout'
 import { DEVTOOLS_PANEL_TAB_ISSUES_EMPTY_CONTENT_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-empty-content'
+import { SHORTCUT_RECORDER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/shortcut-recorder'
 
 export function ComponentStyles() {
   return (
@@ -82,6 +83,7 @@ export function ComponentStyles() {
         ${ISSUE_FEEDBACK_BUTTON_STYLES}
         ${ERROR_CONTENT_SKELETON_STYLES}
         ${SEGMENTS_EXPLORER_TAB_STYLES}
+        ${SHORTCUT_RECORDER_STYLES}
       `}
     </style>
   )

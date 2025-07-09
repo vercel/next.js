@@ -1221,6 +1221,9 @@ async function renderToHTMLOrFlightImpl(
       if (!renderOpts.experimental.dynamicIO) {
         return false
       }
+      if (renderOpts.dev) {
+        return true
+      }
       const workUnitStore = workUnitAsyncStorage.getStore()
       return !!(
         workUnitStore &&

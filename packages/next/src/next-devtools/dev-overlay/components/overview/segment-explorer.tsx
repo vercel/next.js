@@ -10,8 +10,12 @@ import {
 } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
 import { useRef, useState } from 'react'
-
-const BUILTIN_PREFIX = '__next_builtin__'
+import {
+  BUILTIN_PREFIX,
+  getBoundaryOriginFileType,
+  isBoundaryFile,
+  normalizeBoundaryFilename,
+} from '../../../../server/app-render/segment-explorer-path'
 
 const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
@@ -133,6 +137,24 @@ function PageSegmentTreeLayerPresentation({
   }
 
   const hasFilesChildren = filesChildrenKeys.length > 0
+  const boundaries: Record<'not-found' | 'loading' | 'error', string | null> = {
+    'not-found': null,
+    loading: null,
+    error: null,
+  }
+
+  filesChildrenKeys.forEach((childKey) => {
+    const childNode = node.children[childKey]
+    if (!childNode || !childNode.value) return
+    if (isBoundaryFile(childNode.value.type)) {
+      const boundaryType = getBoundaryOriginFileType(childNode.value.type)
+
+      if (boundaryType in boundaries) {
+        boundaries[boundaryType as keyof typeof boundaries] =
+          childNode.value.pagePath || null
+      }
+    }
+  })
 
   return (
     <>
@@ -165,10 +187,15 @@ function PageSegmentTreeLayerPresentation({
                     if (!childNode || !childNode.value) {
                       return null
                     }
+                    // If it's boundary node, which marks the existence of the boundary not the rendered status,
+                    // we don't need to present in the rendered files.
+                    if (isBoundaryFile(childNode.value.type)) {
+                      return null
+                    }
                     const filePath = childNode.value.pagePath
                     const lastSegment = filePath.split('/').pop() || ''
                     const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
-                    const fileName = lastSegment.replace(BUILTIN_PREFIX, '')
+                    const fileName = normalizeBoundaryFilename(lastSegment)
 
                     return (
                       <span
@@ -208,6 +235,7 @@ function PageSegmentTreeLayerPresentation({
                 <SegmentBoundaryTrigger
                   offset={6}
                   onSelectBoundary={pageChild.value.setBoundaryType}
+                  boundaries={boundaries}
                 />
               )}
             </div>

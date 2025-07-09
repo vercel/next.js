@@ -11,6 +11,8 @@ const INDICATOR_POSITION =
     .__NEXT_DEV_INDICATOR_POSITION as typeof window.__NEXT_DEV_INDICATOR_POSITION) ||
   'bottom-left'
 
+export const STORAGE_KEY_HIDE_SHORTCUT = '__nextjs_hide_shortcut'
+
 export type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
 
 export function getInitialPosition() {
@@ -62,4 +64,34 @@ export function getInitialTheme() {
   }
   const theme = localStorage.getItem(STORAGE_KEY_THEME)
   return theme === 'dark' || theme === 'light' ? theme : 'system'
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+export function getInitialHideShortcut(): string | null {
+  if (typeof localStorage === 'undefined') {
+    return null
+  }
+  const hideShortcut = localStorage.getItem(STORAGE_KEY_HIDE_SHORTCUT)
+  return hideShortcut ? hideShortcut : null
+}
+
+export function useHideShortcutStorage(): [
+  string | null,
+  (value: string | null) => void,
+] {
+  const [hideShortcut, setHideShortcut] = useState<string | null>(
+    getInitialHideShortcut()
+  )
+
+  function set(value: string | null) {
+    setHideShortcut(value)
+    if (value === null) {
+      localStorage.removeItem(STORAGE_KEY_HIDE_SHORTCUT)
+    } else {
+      localStorage.setItem(STORAGE_KEY_HIDE_SHORTCUT, value)
+    }
+  }
+
+  return [hideShortcut, set]
 }

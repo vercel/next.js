@@ -59,14 +59,18 @@ use turbopack_trace_utils::{
 };
 use url::Url;
 
-use super::{
-    endpoint::ExternalEndpoint,
-    utils::{
-        NapiDiagnostic, NapiIssue, NextTurboTasks, RootTask, TurbopackResult, VcArc,
-        create_turbo_tasks, get_diagnostics, get_issues, subscribe,
+use crate::{
+    next_api::{
+        endpoint::ExternalEndpoint,
+        turbopack_ctx::{NextTurboTasks, NextTurbopackContext, create_turbo_tasks},
+        utils::{
+            DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, get_diagnostics,
+            get_issues, subscribe,
+        },
     },
+    register,
+    util::DhatProfilerGuard,
 };
-use crate::{register, util::DhatProfilerGuard};
 
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
@@ -320,7 +324,7 @@ impl From<NapiDefineEnv> for DefineEnv {
 }
 
 pub struct ProjectInstance {
-    turbo_tasks: NextTurboTasks,
+    turbopack_ctx: NextTurbopackContext,
     container: ResolvedVc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
@@ -447,18 +451,17 @@ pub async fn project_new(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
-    let tasks_ref = turbo_tasks.clone();
-    turbo_tasks.spawn_once_task(async move {
-        benchmark_file_io(
-            tasks_ref,
-            container.project().node_root().await?.clone_value(),
-        )
-        .await
-        .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
+    turbo_tasks.spawn_once_task({
+        let tt = turbo_tasks.clone();
+        async move {
+            benchmark_file_io(tt, container.project().node_root().await?.clone_value())
+                .await
+                .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
+        }
     });
     Ok(External::new_with_size_hint(
         ProjectInstance {
-            turbo_tasks,
+            turbopack_ctx: NextTurbopackContext::new(turbo_tasks),
             container,
             exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
         },
@@ -568,10 +571,11 @@ pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
-    let turbo_tasks = project.turbo_tasks.clone();
     let options = options.into();
     let container = project.container;
-    turbo_tasks
+    project
+        .turbopack_ctx
+        .turbo_tasks()
         .run_once(async move {
             container.update(options).await?;
             Ok(())
@@ -591,7 +595,8 @@ pub async fn project_invalidate_persistent_cache(
         // TODO: Let the JS caller specify a reason? We need to limit the reasons to ones we know
         // how to generate a message for on the Rust side of the FFI.
         project
-            .turbo_tasks
+            .turbopack_ctx
+            .turbo_tasks()
             .backend()
             .backing_storage()
             .invalidate(invalidation_reasons::USER_REQUEST)
@@ -629,7 +634,7 @@ async fn project_on_exit_internal(project: &ProjectInstance) {
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
-    project.turbo_tasks.stop_and_wait().await;
+    project.turbopack_ctx.turbo_tasks().stop_and_wait().await;
     project_on_exit_internal(&project).await;
 }
 
@@ -664,10 +669,14 @@ pub struct NapiRoute {
 }
 
 impl NapiRoute {
-    fn from_route(pathname: String, value: RouteOperation, turbo_tasks: &NextTurboTasks) -> Self {
+    fn from_route(
+        pathname: String,
+        value: RouteOperation,
+        turbopack_ctx: &NextTurbopackContext,
+    ) -> Self {
         let convert_endpoint = |endpoint: OperationVc<OptionEndpoint>| {
-            Some(External::new(ExternalEndpoint(VcArc::new(
-                turbo_tasks.clone(),
+            Some(External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
                 endpoint,
             ))))
         };
@@ -728,10 +737,13 @@ pub struct NapiMiddleware {
 }
 
 impl NapiMiddleware {
-    fn from_middleware(value: &MiddlewareOperation, turbo_tasks: &NextTurboTasks) -> Result<Self> {
+    fn from_middleware(
+        value: &MiddlewareOperation,
+        turbopack_ctx: &NextTurbopackContext,
+    ) -> Result<Self> {
         Ok(NapiMiddleware {
-            endpoint: External::new(ExternalEndpoint(VcArc::new(
-                turbo_tasks.clone(),
+            endpoint: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
                 value.endpoint,
             ))),
         })
@@ -747,15 +759,15 @@ pub struct NapiInstrumentation {
 impl NapiInstrumentation {
     fn from_instrumentation(
         value: &InstrumentationOperation,
-        turbo_tasks: &NextTurboTasks,
+        turbopack_ctx: &NextTurbopackContext,
     ) -> Result<Self> {
         Ok(NapiInstrumentation {
-            node_js: External::new(ExternalEndpoint(VcArc::new(
-                turbo_tasks.clone(),
+            node_js: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
                 value.node_js,
             ))),
-            edge: External::new(ExternalEndpoint(VcArc::new(
-                turbo_tasks.clone(),
+            edge: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
                 value.edge,
             ))),
         })
@@ -775,33 +787,33 @@ pub struct NapiEntrypoints {
 impl NapiEntrypoints {
     fn from_entrypoints_op(
         entrypoints: &EntrypointsOperation,
-        turbo_tasks: &NextTurboTasks,
+        turbopack_ctx: &NextTurbopackContext,
     ) -> Result<Self> {
         let routes = entrypoints
             .routes
             .iter()
-            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbo_tasks))
+            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbopack_ctx))
             .collect();
         let middleware = entrypoints
             .middleware
             .as_ref()
-            .map(|m| NapiMiddleware::from_middleware(m, turbo_tasks))
+            .map(|m| NapiMiddleware::from_middleware(m, turbopack_ctx))
             .transpose()?;
         let instrumentation = entrypoints
             .instrumentation
             .as_ref()
-            .map(|i| NapiInstrumentation::from_instrumentation(i, turbo_tasks))
+            .map(|i| NapiInstrumentation::from_instrumentation(i, turbopack_ctx))
             .transpose()?;
-        let pages_document_endpoint = External::new(ExternalEndpoint(VcArc::new(
-            turbo_tasks.clone(),
+        let pages_document_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
+            turbopack_ctx.clone(),
             entrypoints.pages_document_endpoint,
         )));
-        let pages_app_endpoint = External::new(ExternalEndpoint(VcArc::new(
-            turbo_tasks.clone(),
+        let pages_app_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
+            turbopack_ctx.clone(),
             entrypoints.pages_app_endpoint,
         )));
-        let pages_error_endpoint = External::new(ExternalEndpoint(VcArc::new(
-            turbo_tasks.clone(),
+        let pages_error_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
+            turbopack_ctx.clone(),
             entrypoints.pages_error_endpoint,
         )));
         Ok(NapiEntrypoints {
@@ -864,13 +876,15 @@ pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
-    let turbo_tasks = project.turbo_tasks.clone();
-    let compilation_event_sender = turbo_tasks.clone();
+    let container = project.container;
+    let tt = project.turbopack_ctx.turbo_tasks().clone();
 
-    let (entrypoints, issues, diags) = turbo_tasks
+    let (entrypoints, issues, diags) = project
+        .turbopack_ctx
+        .turbo_tasks()
         .run_once(async move {
             let entrypoints_with_issues_op =
-                get_all_written_entrypoints_with_issues_operation(project.container, app_dir_only);
+                get_all_written_entrypoints_with_issues_operation(container, app_dir_only);
 
             // Read and compile the files
             let EntrypointsWithIssues {
@@ -889,7 +903,7 @@ pub async fn project_write_all_entrypoints_to_disk(
             effects.apply().await?;
 
             // Send a compilation event to indicate that the files have been written to disk
-            compilation_event_sender.send_compilation_event(Arc::new(TimingEvent::new(
+            tt.send_compilation_event(Arc::new(TimingEvent::new(
                 "Finished writing to disk".to_owned(),
                 now.elapsed(),
             )));
@@ -900,7 +914,7 @@ pub async fn project_write_all_entrypoints_to_disk(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     Ok(TurbopackResult {
-        result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbo_tasks)?,
+        result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &project.turbopack_ctx)?,
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
@@ -969,10 +983,10 @@ pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = project.turbo_tasks.clone();
+    let turbopack_ctx = project.turbopack_ctx.clone();
     let container = project.container;
     subscribe(
-        turbo_tasks.clone(),
+        turbopack_ctx.clone(),
         func,
         move || {
             async move {
@@ -994,7 +1008,7 @@ pub fn project_entrypoints_subscribe(
             let (entrypoints, issues, diags) = ctx.value;
 
             Ok(vec![TurbopackResult {
-                result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbo_tasks)?,
+                result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbopack_ctx)?,
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
@@ -1048,11 +1062,10 @@ pub fn project_hmr_events(
     identifier: RcStr,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = project.turbo_tasks.clone();
-    let project = project.container;
+    let container = project.container;
     let session = TransientInstance::new(());
     subscribe(
-        turbo_tasks.clone(),
+        project.turbopack_ctx.clone(),
         func,
         {
             let outer_identifier = identifier.clone();
@@ -1061,7 +1074,7 @@ pub fn project_hmr_events(
                 let identifier: RcStr = outer_identifier.clone();
                 let session = session.clone();
                 async move {
-                    let project = project.project().to_resolved().await?;
+                    let project = container.project().to_resolved().await?;
                     let state = project
                         .hmr_version_state(identifier.clone(), session)
                         .to_resolved()
@@ -1174,10 +1187,9 @@ pub fn project_hmr_identifiers_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = project.turbo_tasks.clone();
     let container = project.container;
     subscribe(
-        turbo_tasks.clone(),
+        project.turbopack_ctx.clone(),
         func,
         move || async move {
             let hmr_identifiers_with_issues_op =
@@ -1276,10 +1288,10 @@ pub fn project_update_info_subscribe(
         let message = ctx.value;
         Ok(vec![NapiUpdateMessage::from(message)])
     })?;
-    let turbo_tasks = project.turbo_tasks.clone();
     tokio::spawn(async move {
+        let tt = project.turbopack_ctx.turbo_tasks();
         loop {
-            let update_info = turbo_tasks
+            let update_info = tt
                 .aggregated_update_info(Duration::ZERO, Duration::ZERO)
                 .await;
 
@@ -1291,11 +1303,10 @@ pub fn project_update_info_subscribe(
             let update_info = match update_info {
                 Some(update_info) => update_info,
                 None => {
-                    turbo_tasks
-                        .get_or_wait_aggregated_update_info(Duration::from_millis(
-                            aggregation_ms.into(),
-                        ))
-                        .await
+                    tt.get_or_wait_aggregated_update_info(Duration::from_millis(
+                        aggregation_ms.into(),
+                    ))
+                    .await
                 }
             };
 
@@ -1321,7 +1332,6 @@ pub fn project_compilation_events_subscribe(
     func: JsFunction,
     event_types: Option<Vec<String>>,
 ) -> napi::Result<()> {
-    let turbo_tasks = project.turbo_tasks.clone();
     let tsfn: ThreadsafeFunction<Arc<dyn CompilationEvent>> =
         func.create_threadsafe_function(0, |ctx| {
             let event: Arc<dyn CompilationEvent> = ctx.value;
@@ -1339,7 +1349,8 @@ pub fn project_compilation_events_subscribe(
         })?;
 
     tokio::spawn(async move {
-        let mut receiver = turbo_tasks.subscribe_to_compilation_events(event_types);
+        let tt = project.turbopack_ctx.turbo_tasks();
+        let mut receiver = tt.subscribe_to_compilation_events(event_types);
         while let Some(msg) = receiver.recv().await {
             let status = tsfn.call(Ok(msg), ThreadsafeFunctionCallMode::Blocking);
 
@@ -1552,9 +1563,10 @@ pub async fn project_trace_source(
     frame: StackFrame,
     current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
-    let turbo_tasks = project.turbo_tasks.clone();
     let container = project.container;
-    let traced_frame = turbo_tasks
+    let traced_frame = project
+        .turbopack_ctx
+        .turbo_tasks()
         .run_once(async move {
             project_trace_source_operation(
                 container,
@@ -1574,11 +1586,12 @@ pub async fn project_get_source_for_asset(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    let turbo_tasks = project.turbo_tasks.clone();
-    let source = turbo_tasks
+    let container = project.container;
+    let source = project
+        .turbopack_ctx
+        .turbo_tasks()
         .run_once(async move {
-            let source_content = &*project
-                .container
+            let source_content = &*container
                 .project()
                 .project_path()
                 .await?
@@ -1606,10 +1619,10 @@ pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    let turbo_tasks = project.turbo_tasks.clone();
     let container = project.container;
-
-    let source_map = turbo_tasks
+    let source_map = project
+        .turbopack_ctx
+        .turbo_tasks()
         .run_once(async move {
             let Some(map) = &*get_source_map_rope_operation(container, file_path)
                 .read_strongly_consistent()

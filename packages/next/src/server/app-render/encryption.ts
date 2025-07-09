@@ -82,12 +82,24 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
   return btoa(ivValue + arrayBufferToString(encrypted))
 }
 
+enum ReadStatus {
+  Ready,
+  Pending,
+  Complete,
+}
+
 // Encrypts the action's bound args into a string. For the same combination of
 // actionId and args the same cached promise is returned. This ensures reference
 // equality for returned objects from "use cache" functions when they're invoked
 // multiple times within one render pass using the same bound args.
 export const encryptActionBoundArgs = React.cache(
   async function encryptActionBoundArgs(actionId: string, ...args: any[]) {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    const cacheSignal =
+      workUnitStore?.type === 'prerender'
+        ? workUnitStore.cacheSignal
+        : undefined
+
     const { clientModules } = getClientReferenceManifestForRsc()
 
     // Create an error before any asynchronous calls, to capture the original
@@ -97,12 +109,37 @@ export const encryptActionBoundArgs = React.cache(
 
     let didCatchError = false
 
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
     const hangingInputAbortSignal =
       workUnitStore?.type === 'prerender'
         ? createHangingInputAbortSignal(workUnitStore)
         : undefined
+
+    let readStatus = ReadStatus.Ready
+    function startReadOnce() {
+      if (readStatus === ReadStatus.Ready) {
+        readStatus = ReadStatus.Pending
+        cacheSignal?.beginRead()
+      }
+    }
+
+    function endReadIfStarted() {
+      if (readStatus === ReadStatus.Pending) {
+        cacheSignal?.endRead()
+      }
+      readStatus = ReadStatus.Complete
+    }
+
+    // streamToString might take longer than a microtask to resolve and then other things
+    // waiting on the cache signal might not realize there is another cache to fill so if
+    // we are no longer waiting on the bound args serialization via the hangingInputAbortSignal
+    // we should eagerly start the cache read to prevent other readers of the cache signal from
+    // missing this cache fill. We use a idempotent function to only start reading once because
+    // it's also possible that streamToString finishes before the hangingInputAbortSignal aborts.
+    if (hangingInputAbortSignal && cacheSignal) {
+      hangingInputAbortSignal.addEventListener('abort', startReadOnce, {
+        once: true,
+      })
+    }
 
     // Using Flight to serialize the args into a string.
     const serialized = await streamToString(
@@ -139,12 +176,17 @@ export const encryptActionBoundArgs = React.cache(
         console.error(error)
       }
 
+      endReadIfStarted()
       throw error
     }
 
     if (!workUnitStore) {
+      // We don't need to call cacheSignal.endRead here because we can't have a cacheSignal
+      // if we do not have a workUnitStore.
       return encodeActionBoundArg(actionId, serialized)
     }
+
+    startReadOnce()
 
     const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
     const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
@@ -158,14 +200,9 @@ export const encryptActionBoundArgs = React.cache(
       return cachedEncrypted
     }
 
-    const cacheSignal =
-      workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
-
-    cacheSignal?.beginRead()
-
     const encrypted = await encodeActionBoundArg(actionId, serialized)
 
-    cacheSignal?.endRead()
+    endReadIfStarted()
     prerenderResumeDataCache?.encryptedBoundArgs.set(cacheKey, encrypted)
 
     return encrypted
