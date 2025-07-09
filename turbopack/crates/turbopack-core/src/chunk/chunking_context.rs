@@ -57,21 +57,8 @@ impl Default for MinifyType {
     }
 }
 
-#[derive(
-    Debug,
-    Default,
-    TaskInput,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    DeterministicHash,
-    NonLocalValue,
-)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Default, TaskInput, Clone, Copy, Hash, DeterministicHash)]
 pub enum SourceMapsType {
     /// Extracts source maps from input files and writes source maps for output files.
     #[default]

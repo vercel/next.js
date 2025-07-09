@@ -127,7 +127,7 @@ impl EcmascriptBrowserChunkContent {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
         }
 
