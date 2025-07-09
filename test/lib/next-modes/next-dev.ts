@@ -25,7 +25,6 @@ export class NextDevInstance extends NextInstance {
     options: {
       env?: Record<string, string>
       startArgs?: string[]
-      buildArgs?: string[]
     } = {}
   ) {
     if (this.childProcess) {

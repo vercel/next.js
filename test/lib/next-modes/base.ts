@@ -453,6 +453,7 @@ export class NextInstance {
     env?: Record<string, string>
     startArgs?: string[]
     buildArgs?: string[]
+    skipBuild?: boolean
   }): Promise<void> {}
 
   public async stop(

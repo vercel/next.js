@@ -43,6 +43,7 @@ export class NextStartInstance extends NextInstance {
       env?: Record<string, string>
       buildArgs?: string[]
       startArgs?: string[]
+      skipBuild?: boolean
     } = {}
   ) {
     if (this.childProcess) {
@@ -107,41 +108,45 @@ export class NextStartInstance extends NextInstance {
       }
     }
 
-    console.log('running', buildArgs.join(' '))
-    await new Promise<void>((resolve, reject) => {
-      try {
-        this.childProcess = spawn(
-          buildArgs[0],
-          buildArgs.slice(1),
-          this.spawnOpts
-        )
-        this.handleStdio(this.childProcess)
-        this.childProcess.on('exit', (code, signal) => {
-          this.childProcess = undefined
-          if (code || signal)
-            reject(
-              new Error(`next build failed with code/signal ${code || signal}`)
-            )
-          else resolve()
-        })
-      } catch (err) {
-        require('console').error(`Failed to run ${buildArgs.join(' ')}`, err)
-        setTimeout(() => process.exit(1), 0)
-      }
-    })
+    if (!options.skipBuild) {
+      console.log('running', buildArgs.join(' '))
+      await new Promise<void>((resolve, reject) => {
+        try {
+          this.childProcess = spawn(
+            buildArgs[0],
+            buildArgs.slice(1),
+            this.spawnOpts
+          )
+          this.handleStdio(this.childProcess)
+          this.childProcess.on('exit', (code, signal) => {
+            this.childProcess = undefined
+            if (code || signal)
+              reject(
+                new Error(
+                  `next build failed with code/signal ${code || signal}`
+                )
+              )
+            else resolve()
+          })
+        } catch (err) {
+          require('console').error(`Failed to run ${buildArgs.join(' ')}`, err)
+          setTimeout(() => process.exit(1), 0)
+        }
+      })
 
-    this._buildId = (
-      await fs
-        .readFile(
-          path.join(
-            this.testDir,
-            this.nextConfig?.distDir || '.next',
-            'BUILD_ID'
-          ),
-          'utf8'
-        )
-        .catch(() => '')
-    ).trim()
+      this._buildId = (
+        await fs
+          .readFile(
+            path.join(
+              this.testDir,
+              this.nextConfig?.distDir || '.next',
+              'BUILD_ID'
+            ),
+            'utf8'
+          )
+          .catch(() => '')
+      ).trim()
+    }
 
     console.log('running', startArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
