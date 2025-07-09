@@ -74,7 +74,6 @@ fn init() {
 
     use tokio::runtime::Builder;
     use turbo_tasks::panic_hooks::handle_panic;
-    use turbo_tasks_malloc::TurboMalloc;
 
     let prev_hook = take_hook();
     set_hook(Box::new(move |info| {
@@ -84,9 +83,6 @@ fn init() {
 
     let rt = Builder::new_multi_thread()
         .enable_all()
-        .on_thread_stop(|| {
-            TurboMalloc::thread_stop();
-        })
         .disable_lifo_slot()
         .build()
         .unwrap();

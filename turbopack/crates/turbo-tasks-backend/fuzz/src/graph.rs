@@ -3,7 +3,6 @@ use arbitrary::Arbitrary;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{self, NonLocalValue, TurboTasks, Vc, trace::TraceRawVcs};
-use turbo_tasks_malloc::TurboMalloc;
 
 #[derive(
     Arbitrary, Clone, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
@@ -26,9 +25,6 @@ pub struct TaskSpec {
 static RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .on_thread_stop(|| {
-            TurboMalloc::thread_stop();
-        })
         .build()
         .unwrap()
 });

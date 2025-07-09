@@ -156,9 +156,6 @@ fn load_next_config() -> RcStr {
 fn runtime() -> Runtime {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .on_thread_stop(|| {
-            turbo_tasks_malloc::TurboMalloc::thread_stop();
-        })
         .build()
         .context("Failed to build tokio runtime")
         .unwrap()

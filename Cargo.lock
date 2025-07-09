@@ -9450,6 +9450,7 @@ name = "turbo-tasks-malloc"
 version = "0.1.0"
 dependencies = [
  "mimalloc",
+ "rustc-hash 2.1.1",
 ]
 
 [[package]]
