@@ -338,7 +338,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                                 EcmascriptModulePartReference::new_part(
                                     *self.module,
                                     ModulePart::exports(),
-                                    ExportUsage::named(rcstr!("default")),
+                                    ExportUsage::all(),
                                 )
                                 .to_resolved()
                                 .await?,
