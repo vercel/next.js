@@ -907,8 +907,6 @@ describe('app-dir static/dynamic handling', () => {
          "variable-revalidate/encoding.rsc",
          "variable-revalidate/headers-instance.html",
          "variable-revalidate/headers-instance.rsc",
-         "variable-revalidate/post-method.html",
-         "variable-revalidate/post-method.rsc",
          "variable-revalidate/revalidate-3.html",
          "variable-revalidate/revalidate-3.rsc",
          "variable-revalidate/revalidate-360-isr.html",
@@ -2277,31 +2275,6 @@ describe('app-dir static/dynamic handling', () => {
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
            "srcRoute": "/variable-revalidate/headers-instance",
-         },
-         "/variable-revalidate/post-method": {
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token",
-           ],
-           "dataRoute": "/variable-revalidate/post-method.rsc",
-           "experimentalBypassFor": [
-             {
-               "key": "Next-Action",
-               "type": "header",
-             },
-             {
-               "key": "content-type",
-               "type": "header",
-               "value": "multipart/form-data;.*",
-             },
-           ],
-           "initialExpireSeconds": 31536000,
-           "initialRevalidateSeconds": 10,
-           "srcRoute": "/variable-revalidate/post-method",
          },
          "/variable-revalidate/revalidate-3": {
            "allowHeader": [
