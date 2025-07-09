@@ -172,8 +172,8 @@ impl EcmascriptBrowserEvaluateChunk {
             RuntimeType::Production | RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
-                    this.chunking_context.chunk_base_path().owned().await?,
-                    this.chunking_context.chunk_suffix_path().owned().await?,
+                    this.chunking_context.chunk_base_path(),
+                    this.chunking_context.chunk_suffix_path(),
                     *this.chunking_context.runtime_type().await?,
                     output_root_to_root_path,
                     source_maps,
