@@ -179,11 +179,11 @@ describe('Dynamic IO Errors', () => {
                "description": "Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/dynamic-metadata-error-route/page.tsx (20:16) @ Dynamic
-             > 20 | async function Dynamic() {
-                  |                ^",
+               "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
+             > 21 |   await new Promise((r) => setTimeout(r))
+                  |         ^",
                "stack": [
-                 "Dynamic app/dynamic-metadata-error-route/page.tsx (20:16)",
+                 "Dynamic app/dynamic-metadata-error-route/page.tsx (21:9)",
                  "Page app/dynamic-metadata-error-route/page.tsx (15:7)",
                  "LogSafely <anonymous>",
                ],
@@ -650,11 +650,12 @@ describe('Dynamic IO Errors', () => {
                  "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": "app/dynamic-root/page.tsx (35:16) @ FetchingComponent
-             > 35 | async function FetchingComponent({
-                  |                ^",
+                 "source": "app/dynamic-root/page.tsx (59:26) @ fetchRandom
+             > 59 |   const response = await fetch(
+                  |                          ^",
                  "stack": [
-                   "FetchingComponent app/dynamic-root/page.tsx (35:16)",
+                   "fetchRandom app/dynamic-root/page.tsx (59:26)",
+                   "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (22:9)",
                    "LogSafely <anonymous>",
                  ],
@@ -663,11 +664,12 @@ describe('Dynamic IO Errors', () => {
                  "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": "app/dynamic-root/page.tsx (35:16) @ FetchingComponent
-             > 35 | async function FetchingComponent({
-                  |                ^",
+                 "source": "app/dynamic-root/page.tsx (59:26) @ fetchRandom
+             > 59 |   const response = await fetch(
+                  |                          ^",
                  "stack": [
-                   "FetchingComponent app/dynamic-root/page.tsx (35:16)",
+                   "fetchRandom app/dynamic-root/page.tsx (59:26)",
+                   "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (27:7)",
                    "LogSafely <anonymous>",
                  ],
@@ -993,21 +995,21 @@ describe('Dynamic IO Errors', () => {
             const browser = await next.browser(pathname)
 
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/sync-random-without-fallback/page.tsx (32:15) @ getRandomNumber
-           > 32 |   return Math.random()
-                |               ^",
-             "stack": [
-               "getRandomNumber app/sync-random-without-fallback/page.tsx (32:15)",
-               "RandomReadingComponent app/sync-random-without-fallback/page.tsx (40:18)",
-               "Page app/sync-random-without-fallback/page.tsx (18:11)",
-               "LogSafely <anonymous>",
-             ],
-           }
-          `)
+                        {
+                          "description": "Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+                          "environmentLabel": "Server",
+                          "label": "Console Error",
+                          "source": "app/sync-random-without-fallback/page.tsx (32:15) @ getRandomNumber
+                        > 32 |   return Math.random()
+                             |               ^",
+                          "stack": [
+                            "getRandomNumber app/sync-random-without-fallback/page.tsx (32:15)",
+                            "RandomReadingComponent app/sync-random-without-fallback/page.tsx (40:18)",
+                            "Page app/sync-random-without-fallback/page.tsx (18:11)",
+                            "LogSafely <anonymous>",
+                          ],
+                        }
+                      `)
           })
         } else {
           it('should error the build if Math.random() happens before some component outside a Suspense boundary is complete', async () => {
@@ -1109,19 +1111,19 @@ describe('Dynamic IO Errors', () => {
             const browser = await next.browser(`${pathname}?foo=test`)
 
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/sync-client-search/page.tsx (26:5) @ SearchParamsReadingComponent
-           > 26 |   ).foo
-                |     ^",
-             "stack": [
-               "SearchParamsReadingComponent app/sync-client-search/page.tsx (26:5)",
-               "Page app/sync-client-search/page.tsx (14:7)",
-             ],
-           }
-          `)
+                        {
+                          "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                          "environmentLabel": null,
+                          "label": "Console Error",
+                          "source": "app/sync-client-search/page.tsx (26:5) @ SearchParamsReadingComponent
+                        > 26 |   ).foo
+                             |     ^",
+                          "stack": [
+                            "SearchParamsReadingComponent app/sync-client-search/page.tsx (26:5)",
+                            "Page app/sync-client-search/page.tsx (14:7)",
+                          ],
+                        }
+                      `)
           })
         } else {
           it('should not error the build when synchronously reading `searchParams.foo`', async () => {
@@ -1161,19 +1163,19 @@ describe('Dynamic IO Errors', () => {
             const browser = await next.browser(`${pathname}?foo=test`)
 
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/sync-server-search" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Prerender",
-             "label": "Console Error",
-             "source": "app/sync-server-search/page.tsx (30:5) @ SearchParamsReadingComponent
-           > 30 |   ).foo
-                |     ^",
-             "stack": [
-               "SearchParamsReadingComponent app/sync-server-search/page.tsx (30:5)",
-               "Page app/sync-server-search/page.tsx (15:7)",
-             ],
-           }
-          `)
+                        {
+                          "description": "Route "/sync-server-search" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                          "environmentLabel": "Prerender",
+                          "label": "Console Error",
+                          "source": "app/sync-server-search/page.tsx (30:5) @ SearchParamsReadingComponent
+                        > 30 |   ).foo
+                             |     ^",
+                          "stack": [
+                            "SearchParamsReadingComponent app/sync-server-search/page.tsx (30:5)",
+                            "Page app/sync-server-search/page.tsx (15:7)",
+                          ],
+                        }
+                      `)
           })
         } else {
           it('should not error the build when synchronously reading `searchParams.foo`', async () => {
@@ -1363,34 +1365,34 @@ describe('Dynamic IO Errors', () => {
 
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
-               "label": "Console Error",
-               "source": "app/sync-draft-mode/page.tsx (23:31) @ DraftModeReadingComponent
-             > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
-                  |                               ^",
-               "stack": [
-                 "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:31)",
-                 "Page app/sync-draft-mode/page.tsx (13:7)",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                              "environmentLabel": "Prerender",
+                              "label": "Console Error",
+                              "source": "app/sync-draft-mode/page.tsx (23:31) @ DraftModeReadingComponent
+                            > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+                                 |                               ^",
+                              "stack": [
+                                "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:31)",
+                                "Page app/sync-draft-mode/page.tsx (13:7)",
+                              ],
+                            }
+                          `)
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
-               "label": "Console Error",
-               "source": "app/sync-draft-mode/page.tsx (23:21) @ DraftModeReadingComponent
-             > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
-                  |                     ^",
-               "stack": [
-                 "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:21)",
-                 "Page app/sync-draft-mode/page.tsx (13:7)",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                              "environmentLabel": "Prerender",
+                              "label": "Console Error",
+                              "source": "app/sync-draft-mode/page.tsx (23:21) @ DraftModeReadingComponent
+                            > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+                                 |                     ^",
+                              "stack": [
+                                "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:21)",
+                                "Page app/sync-draft-mode/page.tsx (13:7)",
+                              ],
+                            }
+                          `)
             }
           })
         } else {
@@ -1579,34 +1581,34 @@ describe('Dynamic IO Errors', () => {
 
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
-               "environmentLabel": null,
-               "label": "Console Error",
-               "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
-             > 20 |       <span id="param">{String(params.slug)}</span>
-                  |                                       ^",
-               "stack": [
-                 "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:39)",
-                 "Page app/sync-client-params/[slug]/page.tsx (11:7)",
-               ],
-             }
-            `)
+                            {
+                              "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
+                              "environmentLabel": null,
+                              "label": "Console Error",
+                              "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
+                            > 20 |       <span id="param">{String(params.slug)}</span>
+                                 |                                       ^",
+                              "stack": [
+                                "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:39)",
+                                "Page app/sync-client-params/[slug]/page.tsx (11:7)",
+                              ],
+                            }
+                          `)
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
-               "environmentLabel": null,
-               "label": "Console Error",
-               "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
-             > 20 |       <span id="param">{String(params.slug)}</span>
-                  |                                       ^",
-               "stack": [
-                 "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:39)",
-                 "Page app/sync-client-params/[slug]/page.tsx (11:7)",
-               ],
-             }
-            `)
+                            {
+                              "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
+                              "environmentLabel": null,
+                              "label": "Console Error",
+                              "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
+                            > 20 |       <span id="param">{String(params.slug)}</span>
+                                 |                                       ^",
+                              "stack": [
+                                "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:39)",
+                                "Page app/sync-client-params/[slug]/page.tsx (11:7)",
+                              ],
+                            }
+                          `)
             }
           })
         } else {
@@ -1644,34 +1646,34 @@ describe('Dynamic IO Errors', () => {
 
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
-               "label": "Console Error",
-               "source": "app/sync-server-params/[slug]/page.tsx (24:39) @ ParamsReadingComponent
-             > 24 |       <span id="param">{String(params.slug)}</span>
-                  |                                       ^",
-               "stack": [
-                 "ParamsReadingComponent app/sync-server-params/[slug]/page.tsx (24:39)",
-                 "Page app/sync-server-params/[slug]/page.tsx (12:7)",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                              "environmentLabel": "Prerender",
+                              "label": "Console Error",
+                              "source": "app/sync-server-params/[slug]/page.tsx (24:39) @ ParamsReadingComponent
+                            > 24 |       <span id="param">{String(params.slug)}</span>
+                                 |                                       ^",
+                              "stack": [
+                                "ParamsReadingComponent app/sync-server-params/[slug]/page.tsx (24:39)",
+                                "Page app/sync-server-params/[slug]/page.tsx (12:7)",
+                              ],
+                            }
+                          `)
             } else {
               // TODO(veil): Source mapping breaks due to double-encoding of the
               // square brackets.
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
-               "label": "Console Error",
-               "source": null,
-               "stack": [
-                 "ParamsReadingComponent rsc:/Prerender/webpack-internal:///(rsc)/app/sync-server-params/%5Bslug%5D/page.tsx (51:41)",
-                 "Page rsc:/Prerender/webpack-internal:///(rsc)/app/sync-server-params/%5Bslug%5D/page.tsx (23:88)",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                              "environmentLabel": "Prerender",
+                              "label": "Console Error",
+                              "source": null,
+                              "stack": [
+                                "ParamsReadingComponent rsc:/Prerender/webpack-internal:///(rsc)/app/sync-server-params/%5Bslug%5D/page.tsx (51:41)",
+                                "Page rsc:/Prerender/webpack-internal:///(rsc)/app/sync-server-params/%5Bslug%5D/page.tsx (23:88)",
+                              ],
+                            }
+                          `)
             }
           })
         } else {
@@ -1730,36 +1732,36 @@ describe('Dynamic IO Errors', () => {
 
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-             > 5 |   const data = new Date().toISOString()
-                 |                ^",
-               "stack": [
-                 "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
-                 "<FIXME-file-protocol>",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+                              "environmentLabel": "Server",
+                              "label": "Console Error",
+                              "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+                            > 5 |   const data = new Date().toISOString()
+                                |                ^",
+                              "stack": [
+                                "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
+                                "<FIXME-file-protocol>",
+                                "LogSafely <anonymous>",
+                              ],
+                            }
+                          `)
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-             > 5 |   const data = new Date().toISOString()
-                 |                ^",
-               "stack": [
-                 "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
-                 "Page app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx (22:9)",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+                              "environmentLabel": "Server",
+                              "label": "Console Error",
+                              "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+                            > 5 |   const data = new Date().toISOString()
+                                |                ^",
+                              "stack": [
+                                "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
+                                "Page app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx (22:9)",
+                                "LogSafely <anonymous>",
+                              ],
+                            }
+                          `)
             }
           })
         } else {
@@ -1853,34 +1855,34 @@ describe('Dynamic IO Errors', () => {
             // square brackets.
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": null,
-               "stack": [
-                 "<FIXME-file-protocol>",
-                 "<FIXME-file-protocol>",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                              "environmentLabel": "Server",
+                              "label": "Console Error",
+                              "source": null,
+                              "stack": [
+                                "<FIXME-file-protocol>",
+                                "<FIXME-file-protocol>",
+                                "LogSafely <anonymous>",
+                              ],
+                            }
+                          `)
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (33:16) @ RequestData
-             > 33 | async function RequestData() {
-                  |                ^",
-               "stack": [
-                 "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (33:16)",
-                 "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                              "environmentLabel": "Server",
+                              "label": "Console Error",
+                              "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (33:16) @ RequestData
+                            > 33 | async function RequestData() {
+                                 |                ^",
+                              "stack": [
+                                "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (33:16)",
+                                "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
+                                "LogSafely <anonymous>",
+                              ],
+                            }
+                          `)
             }
           })
         } else {
@@ -2078,36 +2080,36 @@ describe('Dynamic IO Errors', () => {
 
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-             > 5 |   const data = new Date().toISOString()
-                 |                ^",
-               "stack": [
-                 "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
-                 "<FIXME-file-protocol>",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+                              "environmentLabel": "Server",
+                              "label": "Console Error",
+                              "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+                            > 5 |   const data = new Date().toISOString()
+                                |                ^",
+                              "stack": [
+                                "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
+                                "<FIXME-file-protocol>",
+                                "LogSafely <anonymous>",
+                              ],
+                            }
+                          `)
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-             > 5 |   const data = new Date().toISOString()
-                 |                ^",
-               "stack": [
-                 "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
-                 "Page app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx (22:9)",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
+                            {
+                              "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+                              "environmentLabel": "Server",
+                              "label": "Console Error",
+                              "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+                            > 5 |   const data = new Date().toISOString()
+                                |                ^",
+                              "stack": [
+                                "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
+                                "Page app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx (22:9)",
+                                "LogSafely <anonymous>",
+                              ],
+                            }
+                          `)
             }
           })
         } else {
