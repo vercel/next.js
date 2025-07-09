@@ -21,40 +21,56 @@ describe('Dynamic IO Errors', () => {
     }
   })
 
-  describe.each(
-    isNextDev
-      ? [
-          {
-            inPrerenderDebugMode: false,
-            name: 'Dev',
-          },
-        ]
-      : [
-          {
-            inPrerenderDebugMode: false,
-            name: 'Build Without --prerender-debug',
-          },
-          {
-            inPrerenderDebugMode: true,
-            name: 'Build With --prerender-debug',
-          },
-        ]
-  )('$name', ({ inPrerenderDebugMode }) => {
-    const build = (pathname: string) =>
-      next.build({
-        env: {
-          NEXT_PRIVATE_APP_PATHS: JSON.stringify([`${pathname}/page.tsx`]),
-        },
-        args: inPrerenderDebugMode ? ['--debug-prerender'] : [],
-      })
+  const testCases: { inPrerenderDebugMode: boolean; name: string }[] = []
 
-    const start = (pathname: string) =>
-      next.start({
+  if (isNextDev) {
+    testCases.push({ inPrerenderDebugMode: false, name: 'Dev' })
+  } else {
+    // For Webpack, the snapshots can't be created for both modes at the same
+    // time because of an issue in the typescript plugin for prettier. Defining
+    // NEXT_TEST_PRERENDER_DEBUG allows us to run them sequentially, when we
+    // need to update the snapshots.
+    if (isTurbopack || process.env.NEXT_TEST_PRERENDER_DEBUG !== 'false') {
+      testCases.push({
+        inPrerenderDebugMode: true,
+        name: 'Build With --prerender-debug',
+      })
+    }
+    if (isTurbopack || process.env.NEXT_TEST_PRERENDER_DEBUG !== 'true') {
+      testCases.push({
+        inPrerenderDebugMode: false,
+        name: 'Build Without --prerender-debug',
+      })
+    }
+  }
+
+  describe.each(testCases)('$name', ({ inPrerenderDebugMode }) => {
+    const generate = async (pathname: string) => {
+      const args = ['--experimental-build-mode', 'generate']
+
+      if (inPrerenderDebugMode) {
+        args.push('--debug-prerender')
+      }
+
+      await next.build({
         env: {
           NEXT_PRIVATE_APP_PATHS: JSON.stringify([`${pathname}/page.tsx`]),
         },
-        buildArgs: inPrerenderDebugMode ? ['--debug-prerender'] : [],
+        args,
       })
+    }
+
+    beforeAll(async () => {
+      if (isNextStart) {
+        const args = ['--experimental-build-mode', 'compile']
+
+        if (inPrerenderDebugMode) {
+          args.push('--debug-prerender')
+        }
+
+        await next.build({ args })
+      }
+    })
 
     describe('Sync Dynamic - With Fallback - Math.random()', () => {
       const pathname = '/sync-random-with-fallback'
@@ -71,12 +87,16 @@ describe('Dynamic IO Errors', () => {
       } else {
         it('should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary', async () => {
           try {
-            await start(pathname)
+            await generate(pathname)
           } catch (error) {
             throw new Error('expected build not to fail', { cause: error })
           }
 
-          expect(next.cliOutput).toContain(`◐ ${pathname}`)
+          expect(next.cliOutput.slice(cliOutputLength)).toContain(
+            `◐ ${pathname}`
+          )
+
+          await next.start({ skipBuild: true })
           const $ = await next.render$(pathname)
           expect($('[data-fallback]').length).toBe(2)
         })
@@ -114,7 +134,7 @@ describe('Dynamic IO Errors', () => {
       } else {
         it('should error the build if Math.random() happens before some component outside a Suspense boundary is complete', async () => {
           try {
-            await build(pathname)
+            await generate(pathname)
           } catch {
             // we expect the build to fail
           }
@@ -127,62 +147,64 @@ describe('Dynamic IO Errors', () => {
           if (isTurbopack) {
             if (inPrerenderDebugMode) {
               expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                 at getRandomNumber (turbopack:///[project]/app/page.tsx:32:14)
-                 at RandomReadingComponent (turbopack:///[project]/app/page.tsx:40:17)
-               30 |
-               31 | function getRandomNumber() {
-             > 32 |   return Math.random()
-                  |              ^
-               33 | }
-               34 |
-               35 | function RandomReadingComponent() {
-             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+               "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+                   at getRandomNumber (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:14)
+                   at RandomReadingComponent (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:40:17)
+                 30 |
+                 31 | function getRandomNumber() {
+               > 32 |   return Math.random()
+                    |              ^
+                 33 | }
+                 34 |
+                 35 | function RandomReadingComponent() {
+               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+               Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
 
-             > Export encountered errors on following paths:
-             	/page: /"
-            `)
+               > Export encountered errors on following paths:
+               	/sync-random-without-fallback/page: /sync-random-without-fallback"
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                 at a (<next-dist-dir>)
-             To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /page: /, exiting the build."
-            `)
+               "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+                   at a (<next-dist-dir>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /sync-random-without-fallback/page: /sync-random-without-fallback, exiting the build."
+              `)
             }
           } else {
             if (inPrerenderDebugMode) {
               expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                 at getRandomNumber (webpack:///app/page.tsx:32:14)
-                 at RandomReadingComponent (webpack:///app/page.tsx:40:17)
-               30 |
-               31 | function getRandomNumber() {
-             > 32 |   return Math.random()
-                  |              ^
-               33 | }
-               34 |
-               35 | function RandomReadingComponent() {
-             To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+               "Inlining static env ...
+               Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+                   at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:14)
+                   at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:17)
+                 30 |
+                 31 | function getRandomNumber() {
+               > 32 |   return Math.random()
+                    |              ^
+                 33 | }
+                 34 |
+                 35 | function RandomReadingComponent() {
+               To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+               Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
 
-             > Export encountered errors on following paths:
-             	/page: /"
-            `)
+               > Export encountered errors on following paths:
+               	/sync-random-without-fallback/page: /sync-random-without-fallback"
+              `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-             "Error: Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                 at a (<next-dist-dir>)
-             To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
-               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-             Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /page: /, exiting the build."
-            `)
+               "Inlining static env ...
+               Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
+                   at a (<next-dist-dir>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/sync-random-without-fallback". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /sync-random-without-fallback/page: /sync-random-without-fallback, exiting the build."
+              `)
             }
           }
         })
