@@ -1793,6 +1793,13 @@
             }
           case "Y":
             if (2 < value.length && (ref = response._debugChannel)) {
+              if ("@" === value[2])
+                return (
+                  (parentObject = value.slice(3)),
+                  (key = parseInt(parentObject, 16)),
+                  response._chunks.has(key) || ref("P:" + parentObject),
+                  getChunk(response, key)
+                );
               value = value.slice(2);
               var _id2 = parseInt(value, 16);
               response._chunks.has(_id2) || ref("Q:" + value);
@@ -3057,10 +3064,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-a7a11657-20250708",
+      version: "19.2.0-canary-60b5271a-20250709",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-a7a11657-20250708",
+      reconcilerVersion: "19.2.0-canary-60b5271a-20250709",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

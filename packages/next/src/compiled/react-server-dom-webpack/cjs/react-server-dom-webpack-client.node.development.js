@@ -2007,6 +2007,13 @@
             }
           case "Y":
             if (2 < value.length && (ref = response._debugChannel)) {
+              if ("@" === value[2])
+                return (
+                  (parentObject = value.slice(3)),
+                  (key = parseInt(parentObject, 16)),
+                  response._chunks.has(key) || ref("P:" + parentObject),
+                  getChunk(response, key)
+                );
               value = value.slice(2);
               var _id2 = parseInt(value, 16);
               response._chunks.has(_id2) || ref("Q:" + value);
