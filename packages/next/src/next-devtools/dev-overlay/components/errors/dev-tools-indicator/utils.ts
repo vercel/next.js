@@ -60,7 +60,7 @@ export function useFocusTrap(
   }, [active])
 }
 
-function getActiveElement(node: HTMLElement | null) {
+export function getActiveElement(node: HTMLElement | null) {
   const root = node?.getRootNode()
   return root instanceof ShadowRoot
     ? (root?.activeElement as HTMLElement)

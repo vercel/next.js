@@ -745,6 +745,29 @@ export interface ExperimentalConfig {
    * Enable new panel UI for the Next.js DevTools.
    */
   devtoolNewPanelUI?: boolean
+
+  /**
+   * Enable debug information to be forwarded from browser to dev server stdout/stderr
+   */
+  browserDebugInfoInTerminal?:
+    | boolean
+    | {
+        /**
+         * Option to limit stringification at a specific nesting depth when logging circular objects.
+         * @default 5
+         */
+        depthLimit?: number
+
+        /**
+         * Maximum number of properties/elements to stringify when logging objects/arrays with circular references.
+         * @default 100
+         */
+        edgeLimit?: number
+        /**
+         * Whether to include source location information in debug output when available
+         */
+        showSourceLocation?: boolean
+      }
 }
 
 export type ExportPathMap = {
@@ -1457,6 +1480,7 @@ export const defaultConfig = {
     globalNotFound: false,
     devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
     devtoolSegmentExplorer: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
+    browserDebugInfoInTerminal: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

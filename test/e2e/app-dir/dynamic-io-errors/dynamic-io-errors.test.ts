@@ -140,11 +140,11 @@ describe.each(
              "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
              "environmentLabel": "Server",
              "label": "Console Error",
-             "source": "app/page.tsx (20:16) @ Dynamic
-           > 20 | async function Dynamic() {
-                |                ^",
+             "source": "app/page.tsx (21:9) @ Dynamic
+           > 21 |   await new Promise((r) => setTimeout(r))
+                |         ^",
              "stack": [
-               "Dynamic app/page.tsx (20:16)",
+               "Dynamic app/page.tsx (21:9)",
                "Page app/page.tsx (15:7)",
                "LogSafely <anonymous>",
              ],
@@ -606,11 +606,11 @@ describe.each(
                "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/page.tsx (35:16) @ FetchingComponent
-           > 35 | async function FetchingComponent({
-                |                ^",
+               "source": "app/page.tsx (45:56) @ FetchingComponent
+           > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
+                |                                                        ^",
                "stack": [
-                 "FetchingComponent app/page.tsx (35:16)",
+                 "FetchingComponent app/page.tsx (45:56)",
                  "Page app/page.tsx (22:9)",
                  "LogSafely <anonymous>",
                ],
@@ -619,11 +619,11 @@ describe.each(
                "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/page.tsx (35:16) @ FetchingComponent
-           > 35 | async function FetchingComponent({
-                |                ^",
+               "source": "app/page.tsx (45:56) @ FetchingComponent
+           > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
+                |                                                        ^",
                "stack": [
-                 "FetchingComponent app/page.tsx (35:16)",
+                 "FetchingComponent app/page.tsx (45:56)",
                  "Page app/page.tsx (27:7)",
                  "LogSafely <anonymous>",
                ],

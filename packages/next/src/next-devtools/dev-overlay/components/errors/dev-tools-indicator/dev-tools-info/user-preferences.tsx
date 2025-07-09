@@ -16,6 +16,7 @@ import {
   type DevToolsIndicatorPosition,
   type DevToolsScale,
 } from './preferences'
+import { ShortcutRecorder } from './shortcut-recorder'
 
 export function UserPreferences({
   setPosition,
@@ -23,6 +24,8 @@ export function UserPreferences({
   hide,
   scale,
   setScale,
+  hideShortcut,
+  setHideShortcut,
   ...props
 }: {
   setPosition: (position: DevToolsIndicatorPosition) => void
@@ -30,6 +33,8 @@ export function UserPreferences({
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
   hide: () => void
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
 } & DevToolsInfoPropsCore &
   Omit<HTMLProps<HTMLDivElement>, 'size'>) {
   // derive initial theme from system preference
@@ -169,6 +174,21 @@ export function UserPreferences({
               <EyeIcon />
               <span>Hide</span>
             </button>
+          </div>
+        </div>
+
+        <div className="preference-section">
+          <div className="preference-header">
+            <label id="hide-dev-tools">Hide Dev Tools shortcut</label>
+            <p className="preference-description">
+              Set a custom keyboard shortcut to toggle visibility.
+            </p>
+          </div>
+          <div className="preference-control">
+            <ShortcutRecorder
+              value={hideShortcut?.split('+') ?? null}
+              onChange={setHideShortcut}
+            />
           </div>
         </div>
 
@@ -328,15 +348,23 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     font-size: var(--size-14);
     color: var(--color-gray-1000);
     padding: 6px 8px;
+    transition: border-color 150ms var(--timing-swift);
 
     &:hover {
-      background: var(--color-gray-100);
+      border-color: var(--color-gray-500);
+    }
+
+    svg {
+      width: 14px;
+      height: 14px;
+      overflow: visible;
     }
   }
 
   .select-button {
     &:focus-within {
       outline: var(--focus-ring);
+      outline-offset: -1px;
     }
 
     select {

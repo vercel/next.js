@@ -377,7 +377,7 @@ async function getSource(
   return undefined
 }
 
-function getOriginalStackFrames({
+export function getOriginalStackFrames({
   isServer,
   isEdgeServer,
   isAppDirectory,
@@ -397,31 +397,30 @@ function getOriginalStackFrames({
   rootDirectory: string
 }): Promise<OriginalStackFramesResponse> {
   return Promise.all(
-    frames.map(
-      (frame): Promise<OriginalStackFramesResponse[number]> =>
-        getOriginalStackFrame({
-          isServer,
-          isEdgeServer,
-          isAppDirectory,
-          frame,
-          clientStats,
-          serverStats,
-          edgeServerStats,
-          rootDirectory,
-        }).then(
-          (value) => {
-            return {
-              status: 'fulfilled',
-              value,
-            }
-          },
-          (reason) => {
-            return {
-              status: 'rejected',
-              reason: inspect(reason, { colors: false }),
-            }
+    frames.map((frame) =>
+      getOriginalStackFrame({
+        isServer,
+        isEdgeServer,
+        isAppDirectory,
+        frame,
+        clientStats,
+        serverStats,
+        edgeServerStats,
+        rootDirectory,
+      }).then(
+        (value) => {
+          return {
+            status: 'fulfilled' as const,
+            value,
           }
-        )
+        },
+        (reason) => {
+          return {
+            status: 'rejected' as const,
+            reason: inspect(reason, { colors: false }),
+          }
+        }
+      )
     )
   )
 }
