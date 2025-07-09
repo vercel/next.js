@@ -234,8 +234,15 @@ describe.each(
             expect(output).toMatchInlineSnapshot(`
              "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              TypeError: <module-function>().get is not a function
-                 at a (<next-dist-dir>)
-                 at b (<anonymous>) {
+                 at e (turbopack:///[project]/app/page.tsx:17:66)
+                 at a (<anonymous>)
+               15 |
+               16 | async function CookiesReadingComponent() {
+             > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                  |                                                                  ^
+               18 |   return <div>this component reads the \`token\` cookie synchronously</div>
+               19 | }
+               20 | {
                digest: '<error-digest>'
              }
              Export encountered an error on /page: /, exiting the build."
@@ -456,8 +463,15 @@ describe.each(
             expect(output).toMatchInlineSnapshot(`
              "Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
              TypeError: <module-function>().get is not a function
-                 at a (<next-dist-dir>)
-                 at b (<anonymous>) {
+                 at e (turbopack:///[project]/app/page.tsx:17:69)
+                 at a (<anonymous>)
+               15 |
+               16 | async function HeadersReadingComponent() {
+             > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                  |                                                                     ^
+               18 |     'user-agent'
+               19 |   )
+               20 |   return ( {
                digest: '<error-digest>'
              }
              Export encountered an error on /page: /, exiting the build."

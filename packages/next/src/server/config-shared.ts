@@ -1360,7 +1360,8 @@ export const defaultConfig = {
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
-    enablePrerenderSourceMaps: false,
+    // Will default to dynamicIO value.
+    enablePrerenderSourceMaps: undefined,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,

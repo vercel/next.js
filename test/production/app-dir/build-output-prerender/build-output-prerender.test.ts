@@ -15,22 +15,29 @@ describe('build-output-prerender', () => {
         expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
          "▲ Next.js x.y.z (Turbopack)
             - Experiments (use with caution):
-              ✓ dynamicIO"
+              ✓ dynamicIO
+              ✓ enablePrerenderSourceMaps (enabled by \`experimental.dynamicIO\`)"
         `)
       } else {
         expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
          "▲ Next.js x.y.z
             - Experiments (use with caution):
-              ✓ dynamicIO"
+              ✓ dynamicIO
+              ✓ enablePrerenderSourceMaps (enabled by \`experimental.dynamicIO\`)"
         `)
       }
     })
 
     it('shows only a single prerender error with a mangled stack', async () => {
       if (isTurbopack) {
+        // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
         expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
          "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-             at x (<next-dist-dir>)
+             at c (turbopack:///[project]/app/client/page.tsx:5:0)
+           3 | export default function Page() {
+           4 |   return <p>Current time: {new Date().toISOString()}</p>
+         > 5 | }
+           6 |
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -70,7 +77,7 @@ describe('build-output-prerender', () => {
               ⨯ turbopackMinify (disabled by \`--debug-prerender\`)
               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-              ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)"
+              ✓ enablePrerenderSourceMaps (enabled by \`experimental.dynamicIO\`)"
         `)
       } else {
         expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -81,7 +88,7 @@ describe('build-output-prerender', () => {
               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
               ⨯ serverMinification (disabled by \`--debug-prerender\`)
               ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-              ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)"
+              ✓ enablePrerenderSourceMaps (enabled by \`experimental.dynamicIO\`)"
         `)
       }
     })

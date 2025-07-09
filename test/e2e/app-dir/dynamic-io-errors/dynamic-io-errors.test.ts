@@ -181,17 +181,6 @@ describe.each(
           } else {
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                 at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at c (<next-dist-dir>)
-                 at d (<next-dist-dir>)
-                 at e (<next-dist-dir>)
-                 at f (<next-dist-dir>)
-                 at g (<next-dist-dir>)
-                 at h (<next-dist-dir>)
-                 at i (<next-dist-dir>)
-                 at j (<next-dist-dir>)
-                 at k (<next-dist-dir>)
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -673,36 +662,18 @@ describe.each(
           } else {
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                 at a (<next-dist-dir>)
-                 at b (<next-dist-dir>)
-                 at c (<next-dist-dir>)
-                 at d (<next-dist-dir>)
-                 at e (<next-dist-dir>)
-                 at f (<next-dist-dir>)
-                 at g (<next-dist-dir>)
-                 at h (<next-dist-dir>)
-                 at i (<next-dist-dir>)
-                 at j (<next-dist-dir>)
-                 at k (<next-dist-dir>)
-                 at l (<next-dist-dir>)
+                 at c (turbopack:///[project]/app/indirection.tsx:9:0)
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
+                7 | export function IndirectionTwo({ children }) {
+                8 |   return children
+             >  9 | }
+               10 |
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                 at m (<next-dist-dir>)
-                 at n (<next-dist-dir>)
-                 at o (<next-dist-dir>)
-                 at p (<next-dist-dir>)
-                 at q (<next-dist-dir>)
-                 at r (<next-dist-dir>)
-                 at s (<next-dist-dir>)
-                 at t (<next-dist-dir>)
-                 at u (<next-dist-dir>)
-                 at v (<next-dist-dir>)
-                 at w (<next-dist-dir>)
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)

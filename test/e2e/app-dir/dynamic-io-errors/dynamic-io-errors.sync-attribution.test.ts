@@ -137,7 +137,14 @@ describe.each(
           } else {
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                 at a (<next-dist-dir>)
+                 at c (turbopack:///[project]/app/client.tsx:9:6)
+                7 |   return (
+                8 |     <main>
+             >  9 |       <h1>Sync IO Access</h1>
+                  |      ^
+               10 |       <p suppressHydrationWarning>Current date and time: {data}</p>
+               11 |     </main>
+               12 |   )
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -264,17 +271,7 @@ describe.each(
              "Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                  at a (<anonymous>)
                  at main (<anonymous>)
-                 at b (<next-dist-dir>)
-                 at c (<next-dist-dir>)
-                 at d (<next-dist-dir>)
-                 at e (<next-dist-dir>)
-                 at f (<next-dist-dir>)
-                 at g (<next-dist-dir>)
-                 at h (<next-dist-dir>)
-                 at i (<next-dist-dir>)
-                 at j (<next-dist-dir>)
-                 at k (<anonymous>)
-                 at l (<next-dist-dir>)
+                 at b (<anonymous>)
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -434,7 +431,14 @@ describe.each(
           } else {
             expect(output).toMatchInlineSnapshot(`
              "Error: Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                 at a (<next-dist-dir>)
+                 at c (turbopack:///[project]/app/client.tsx:9:6)
+                7 |   return (
+                8 |     <main>
+             >  9 |       <h1>Sync IO Access</h1>
+                  |      ^
+               10 |       <p suppressHydrationWarning>Current date and time: {data}</p>
+               11 |     </main>
+               12 |   )
              To get a more detailed stack trace and pinpoint the issue, try one of the following:
                - Start the app in development mode by running \`next dev\`, then open "/" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
