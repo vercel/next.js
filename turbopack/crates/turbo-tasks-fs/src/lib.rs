@@ -1912,7 +1912,8 @@ impl FileContent {
     pub fn parse_json_ref(&self) -> FileJsonContent {
         match self {
             FileContent::Content(file) => {
-                let de = &mut serde_json::Deserializer::from_reader(file.read());
+                let content = file.content.clone().into_bytes();
+                let de = &mut serde_json::Deserializer::from_slice(&content);
                 match serde_path_to_error::deserialize(de) {
                     Ok(data) => FileJsonContent::Content(data),
                     Err(e) => FileJsonContent::Unparsable(Box::new(

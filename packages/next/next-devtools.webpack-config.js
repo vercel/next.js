@@ -97,7 +97,10 @@ module.exports = ({ dev, ...rest }) => {
             {
               loader: 'style-loader',
               options: {
-                injectType: 'singletonStyleTag',
+                // Explicitly set the injectType to 'styleTag' which is also the default behavior.
+                // We've experienced `singletonStyleTag` that the later updated styles not being applied.
+                // Keep using `styleTag` to ensure when new styles injected the style can also be updated.
+                injectType: 'styleTag',
                 insert: require.resolve(
                   './src/build/webpack/loaders/devtool/devtool-style-inject.js'
                 ),

@@ -401,6 +401,7 @@ export class AppRouteRouteModule extends RouteModule<
               prerenderResumeDataCache: null,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
+              captureOwnerStack: undefined,
             })
 
           let prospectiveResult
@@ -492,6 +493,7 @@ export class AppRouteRouteModule extends RouteModule<
             prerenderResumeDataCache: null,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
+            captureOwnerStack: undefined,
           })
 
           let responseHandled = false

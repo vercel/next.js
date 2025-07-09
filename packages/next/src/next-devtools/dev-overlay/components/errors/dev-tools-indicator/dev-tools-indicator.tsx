@@ -23,9 +23,11 @@ import {
 } from './utils'
 import {
   getInitialPosition,
+  useHideShortcutStorage,
   type DevToolsScale,
 } from './dev-tools-info/preferences'
 import { Draggable } from './draggable'
+import { useShortcuts } from '../../../hooks/use-shortcuts'
 import { SegmentsExplorer } from './dev-tools-info/segments-explorer'
 
 // TODO: add E2E tests to cover different scenarios
@@ -60,6 +62,9 @@ export function DevToolsIndicator({
         fetch('/__nextjs_disable_dev_indicator', {
           method: 'POST',
         })
+      }}
+      toggleVisibility={() => {
+        setIsDevToolsIndicatorVisible(!isDevToolsIndicatorVisible)
       }}
       isTurbopack={!!process.env.TURBOPACK}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
@@ -102,6 +107,7 @@ function DevToolsPopover({
   isTurbopack,
   isBuildError,
   hide,
+  toggleVisibility,
   dispatch,
   scale,
   setScale,
@@ -117,17 +123,20 @@ function DevToolsPopover({
   isTurbopack: boolean
   isBuildError: boolean
   hide: () => void
+  toggleVisibility: () => void
   dispatch: OverlayDispatch
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
   page: string
 }) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
 
   const [open, setOpen] = useState<Overlays | null>(null)
   const [position, setPosition] = useState(getInitialPosition())
   const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
 
   const isMenuOpen = open === OVERLAYS.Root
   const isTurbopackInfoOpen = open === OVERLAYS.Turbo
@@ -148,6 +157,7 @@ function DevToolsPopover({
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
+  useShortcuts(hideShortcut ? { [hideShortcut]: hideDevTools } : {}, triggerRef)
 
   useEffect(() => {
     if (open === null) {
@@ -158,6 +168,17 @@ function DevToolsPopover({
       return () => clearTimeout(id)
     }
   }, [open])
+
+  function hideDevTools() {
+    toggleVisibility()
+    const root = rootRef.current
+    // Toggle custom hidden attribute, no need
+    // to close the menu in case you want to quickly get it
+    // out the way to see an element behind it.
+    if (root) {
+      root.dataset.hidden = root.dataset.hidden === 'true' ? 'false' : 'true'
+    }
+  }
 
   function select(index: number | 'first' | 'last') {
     if (index === 'first') {
@@ -268,6 +289,7 @@ function DevToolsPopover({
 
   return (
     <Toast
+      ref={rootRef}
       data-nextjs-toast
       style={
         {
@@ -336,6 +358,8 @@ function DevToolsPopover({
         position={position}
         scale={scale}
         setScale={setScale}
+        hideShortcut={hideShortcut}
+        setHideShortcut={setHideShortcut}
       />
 
       {/* Page Route Info */}
@@ -525,6 +549,12 @@ function IssueCount({ children }: { children: number }) {
 //////////////////////////////////////////////////////////////////////////////////////
 
 export const DEV_TOOLS_INDICATOR_STYLES = `
+  [data-nextjs-toast] {
+    &[data-hidden='true'] {
+      display: none;
+    }
+  }
+
   .dev-tools-indicator-menu {
     -webkit-font-smoothing: antialiased;
     display: flex;

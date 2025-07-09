@@ -676,6 +676,23 @@ export async function ncc_amphtml_validator(task, opts) {
     .source(relative(__dirname, require.resolve('amphtml-validator')))
     .ncc({ packageName: 'amphtml-validator', externals })
     .target('src/compiled/amphtml-validator')
+
+  const validatorRes = await fetch(
+    'https://cdn.ampproject.org/v0/validator_wasm.js'
+  ).catch((err) => {
+    throw new Error('Failed to fetch AMP validator', { cause: err })
+  })
+
+  if (!validatorRes.ok) {
+    throw new Error(
+      `Failed to get the AMP validator, status: ${validatorRes.status}`
+    )
+  }
+
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/amphtml-validator/validator_wasm.js'),
+    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -2239,27 +2256,22 @@ export async function ncc_https_proxy_agent(task, opts) {
     .target('src/compiled/https-proxy-agent')
 }
 
+externals['safe-stable-stringify'] = 'next/dist/compiled/safe-stable-stringify'
+export async function ncc_safe_stable_stringify(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('safe-stable-stringify')))
+    .ncc({
+      packageName: 'safe-stable-stringify',
+      externals,
+      target: 'es5',
+    })
+    .target('src/compiled/safe-stable-stringify')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
     opts
-  )
-
-  const validatorRes = await fetch(
-    'https://cdn.ampproject.org/v0/validator_wasm.js'
-  ).catch((err) => {
-    throw new Error('Failed to fetch AMP validator', { cause: err })
-  })
-
-  if (!validatorRes.ok) {
-    throw new Error(
-      `Failed to get the AMP validator, status: ${validatorRes.status}`
-    )
-  }
-
-  await fs.writeFile(
-    join(__dirname, 'dist/compiled/amphtml-validator/validator_wasm.js'),
-    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
   )
 }
 
@@ -2275,6 +2287,7 @@ export async function ncc(task, opts) {
     .clear('src/compiled')
     .parallel(
       [
+        'ncc_safe_stable_stringify',
         'ncc_amp_optimizer',
         'ncc_node_html_parser',
         'ncc_napirs_triples',

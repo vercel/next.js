@@ -28,11 +28,17 @@ export default async function Page(props: {
   )
 }
 
+function getRandomNumber() {
+  return Math.random()
+}
+
 function RandomReadingComponent() {
   if (typeof window === 'undefined') {
     use(new Promise((r) => process.nextTick(r)))
   }
-  const random = Math.random()
+
+  const random = getRandomNumber()
+
   return (
     <div>
       <span id="rand">{random}</span>

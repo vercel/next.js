@@ -1,18 +1,20 @@
 // This file is only used in app router due to the specific error state handling.
 
 import type { ErrorInfo } from 'react'
-import {
-  setOwnerStackIfAvailable,
-  setComponentStack,
-  coerceError,
-} from '../../next-devtools/userspace/app/errors/stitched-error'
-import { handleClientError } from '../../next-devtools/userspace/app/errors/use-error-handler'
 import { isNextRouterError } from '../components/is-next-router-error'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'
-import { originConsoleError } from '../../next-devtools/userspace/app/errors/intercept-console-error'
 import { ErrorBoundaryHandler } from '../components/error-boundary'
 import DefaultErrorBoundary from '../components/builtin/global-error'
+
+const devToolErrorMod: typeof import('../../next-devtools/userspace/app/errors') =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../../next-devtools/userspace/app/errors') as typeof import('../../next-devtools/userspace/app/errors'))
+    : {
+        decorateDevError: (error: unknown) => error as Error,
+        handleClientError: () => {},
+        originConsoleError: console.error.bind(console),
+      }
 
 export function onCaughtError(
   thrownValue: unknown,
@@ -82,21 +84,14 @@ export function onCaughtError(
       : `The above error occurred in one of your components.`
 
     const errorLocation = `${componentErrorMessage} ${errorBoundaryMessage}`
-
-    const error = coerceError(thrownValue)
-    setOwnerStackIfAvailable(error)
-    // TODO: change to passing down errorInfo later
-    // In development mode, pass along the component stack to the error
-    if (errorInfo.componentStack) {
-      setComponentStack(error, errorInfo.componentStack)
-    }
+    const error = devToolErrorMod.decorateDevError(thrownValue, errorInfo)
 
     // Log and report the error with location but without modifying the error stack
-    originConsoleError('%o\n\n%s', thrownValue, errorLocation)
+    devToolErrorMod.originConsoleError('%o\n\n%s', thrownValue, errorLocation)
 
-    handleClientError(error)
+    devToolErrorMod.handleClientError(error)
   } else {
-    originConsoleError(thrownValue)
+    devToolErrorMod.originConsoleError(thrownValue)
   }
 }
 
@@ -108,14 +103,7 @@ export function onUncaughtError(
   if (isBailoutToCSRError(thrownValue) || isNextRouterError(thrownValue)) return
 
   if (process.env.NODE_ENV !== 'production') {
-    const error = coerceError(thrownValue)
-    setOwnerStackIfAvailable(error)
-
-    // TODO: change to passing down errorInfo later
-    // In development mode, pass along the component stack to the error
-    if (errorInfo.componentStack) {
-      setComponentStack(error, errorInfo.componentStack)
-    }
+    const error = devToolErrorMod.decorateDevError(thrownValue, errorInfo)
 
     // TODO: Add an adendum to the overlay telling people about custom error boundaries.
     reportGlobalError(error)
