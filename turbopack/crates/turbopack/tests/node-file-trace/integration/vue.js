@@ -1,8 +1,8 @@
-const Vue = require("vue");
-const renderer = require("vue-server-renderer").createRenderer();
+const Vue = require('vue')
+const renderer = require('vue/server-renderer')
 
-const app = new Vue({
+const app = Vue.createApp({
   data: () => ({ date: Date.now() }),
   template: `<div>Hello World {{ date }}</div>`,
-});
-renderer.renderToString(app);
+})
+renderer.renderToString(app)

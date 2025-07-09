@@ -5,6 +5,7 @@ import {
   getIgnoredSources,
 } from '../../../../server/dev/middleware-webpack'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { RawSourceMap } from 'next/dist/compiled/source-map08'
 
 // Based on https://github.com/webpack/webpack/blob/fcdd04a833943394bbb0a9eeb54a962a24cc7e41/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431
 /*
@@ -46,6 +47,12 @@ function getModuleTrace(input: any, compilation: any) {
   return moduleTrace
 }
 
+function sourceMapIgnoreListsEverything(
+  sourceMap: RawSourceMap & { ignoreList?: number[] }
+): boolean {
+  return sourceMap.sources.length === sourceMap.ignoreList?.length
+}
+
 async function getSourceFrame(
   input: any,
   fileName: any,
@@ -62,6 +69,7 @@ async function getSourceFrame(
       const moduleId = compilation.chunkGraph.getModuleId(module)
 
       const result = await createOriginalStackFrame({
+        ignoredByDefault: sourceMapIgnoreListsEverything(sourceMap),
         source: {
           type: 'bundle',
           sourceMap,

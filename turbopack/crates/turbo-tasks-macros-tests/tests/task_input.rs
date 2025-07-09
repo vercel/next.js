@@ -13,7 +13,7 @@ static REGISTRATION: Registration = register!();
 struct OneUnnamedField(u32);
 
 #[turbo_tasks::function]
-async fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
+fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
     assert_eq!(input.0, 42);
     Completion::immutable()
 }

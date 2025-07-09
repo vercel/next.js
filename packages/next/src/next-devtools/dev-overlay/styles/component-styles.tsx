@@ -6,7 +6,6 @@ import { styles as pagination } from '../components/errors/error-overlay-paginat
 import { styles as overlay } from '../components/overlay/styles'
 import { styles as footer } from '../components/errors/error-overlay-footer/error-overlay-footer'
 import { TERMINAL_STYLES } from '../components/terminal/terminal'
-import { styles as toast } from '../components/toast'
 import { styles as versionStaleness } from '../components/version-staleness-info/version-staleness-info'
 import { styles as buildErrorStyles } from '../container/build-error'
 import { styles as containerErrorStyles } from '../container/errors'
@@ -35,6 +34,11 @@ import { DEVTOOLS_PANEL_TAB_ISSUES_SIDEBAR_FRAME_SKELETON_STYLES } from '../comp
 import { DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-content'
 import { ISSUE_FEEDBACK_BUTTON_STYLES } from '../components/errors/error-overlay-toolbar/issue-feedback-button'
 import { ERROR_CONTENT_SKELETON_STYLES } from '../container/runtime-error/error-content-skeleton'
+import { SEGMENTS_EXPLORER_TAB_STYLES } from '../components/devtools-panel/devtools-panel-tab/segments-explorer-tab'
+import { SEGMENTS_EXPLORER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/segments-explorer'
+import { DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_LAYOUT_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-content-layout'
+import { DEVTOOLS_PANEL_TAB_ISSUES_EMPTY_CONTENT_STYLES } from '../components/devtools-panel/devtools-panel-tab/issues-tab/issues-tab-empty-content'
+import { SHORTCUT_RECORDER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/shortcut-recorder'
 
 export function ComponentStyles() {
   return (
@@ -45,7 +49,6 @@ export function ComponentStyles() {
         ${CALL_STACK_STYLES}
         ${ENVIRONMENT_NAME_LABEL_STYLES}
         ${overlay}
-        ${toast}
         ${dialog}
         ${errorLayout}
         ${footer}
@@ -64,6 +67,7 @@ export function ComponentStyles() {
         ${DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES}
         ${DEV_TOOLS_INFO_ROUTE_INFO_STYLES}
         ${DEV_TOOLS_INFO_USER_PREFERENCES_STYLES}
+        ${SEGMENTS_EXPLORER_STYLES}
         ${DEV_TOOLS_INFO_RENDER_FILES_STYLES}
         ${FADER_STYLES}
         ${DEVTOOLS_PANEL_STYLES}
@@ -71,11 +75,15 @@ export function ComponentStyles() {
         ${DEVTOOLS_PANEL_VERSION_INFO_STYLES}
         ${DEVTOOLS_PANEL_TAB_SETTINGS_STYLES}
         ${DEVTOOLS_PANEL_TAB_ISSUES_STYLES}
+        ${DEVTOOLS_PANEL_TAB_ISSUES_EMPTY_CONTENT_STYLES}
         ${DEVTOOLS_PANEL_TAB_ISSUES_SIDEBAR_STYLES}
         ${DEVTOOLS_PANEL_TAB_ISSUES_SIDEBAR_FRAME_SKELETON_STYLES}
         ${DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_STYLES}
+        ${DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_LAYOUT_STYLES}
         ${ISSUE_FEEDBACK_BUTTON_STYLES}
         ${ERROR_CONTENT_SKELETON_STYLES}
+        ${SEGMENTS_EXPLORER_TAB_STYLES}
+        ${SHORTCUT_RECORDER_STYLES}
       `}
     </style>
   )

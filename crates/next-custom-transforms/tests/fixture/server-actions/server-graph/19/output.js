@@ -5,9 +5,10 @@ export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUN
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     return $$ACTION_ARG_0 * value2;
 };
+registerServerReference($$RSC_SERVER_ACTION_0, "606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 export function Item({ value }) {
     return <>
-      <Button action={registerServerReference($$RSC_SERVER_ACTION_0, "606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", value))}>
+      <Button action={$$RSC_SERVER_ACTION_0.bind(null, encryptActionBoundArgs("606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", value))}>
         Multiple
       </Button>
     </>;

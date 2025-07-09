@@ -21,7 +21,7 @@ export class NextDevInstance extends NextInstance {
     return this._cliOutput || ''
   }
 
-  public async start(useDirArg: boolean = false) {
+  public async start() {
     if (this.childProcess) {
       throw new Error('next already started')
     }
@@ -34,15 +34,14 @@ export class NextDevInstance extends NextInstance {
       'pnpm',
       'next',
       useTurbo ? getTurbopackFlag() : undefined,
-      useDirArg && this.testDir,
     ].filter(Boolean) as string[]
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }
 
-    if (this.startOptions) {
-      startArgs.push(...this.startOptions)
+    if (this.startArgs) {
+      startArgs.push(...this.startArgs)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {
@@ -56,7 +55,7 @@ export class NextDevInstance extends NextInstance {
     await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
-          cwd: useDirArg ? process.cwd() : this.testDir,
+          cwd: this.testDir,
           stdio: ['ignore', 'pipe', 'pipe'],
           shell: false,
           env: {

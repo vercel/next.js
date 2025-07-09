@@ -415,7 +415,7 @@ pub async fn compute_module_batches(
 
         let mut queue: VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)> = VecDeque::new();
 
-        let mut chunk_group_indicies_with_merged_children = FxHashSet::default();
+        let mut chunk_group_indices_with_merged_children = FxHashSet::default();
 
         // Start with the entries
         for chunk_group in &chunk_group_info.chunk_groups {
@@ -431,7 +431,7 @@ pub async fn compute_module_batches(
                 }
             }
             if let Some(parent) = chunk_group.get_merged_parent() {
-                chunk_group_indicies_with_merged_children.insert(parent);
+                chunk_group_indices_with_merged_children.insert(parent);
             }
         }
 
@@ -457,7 +457,7 @@ pub async fn compute_module_batches(
         let mut ordered_entries: Vec<Option<EntriesList>> =
             vec![None; chunk_group_info.chunk_groups.len()];
         for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
-            if !chunk_group_indicies_with_merged_children.contains(&i) {
+            if !chunk_group_indices_with_merged_children.contains(&i) {
                 continue;
             }
             let mut merged_modules: FxHashMap<ChunkingType, FxIndexSet<_>> = FxHashMap::default();
@@ -819,10 +819,10 @@ pub async fn compute_module_batches(
             .flatten()
             .collect::<FxHashMap<_, _>>();
 
-        // Insert batches into the graph and store the NodeIndicies
+        // Insert batches into the graph and store the NodeIndices
         let mut batches_count = 0;
         let mut modules_count = 0;
-        let batch_indicies = batches
+        let batch_indices = batches
             .into_iter()
             .map(|batch| {
                 match &batch {
@@ -834,8 +834,8 @@ pub async fn compute_module_batches(
             })
             .collect::<Vec<_>>();
 
-        // Also insert single modules into the graph and store the NodeIndicies
-        let single_module_indicies = pre_batches
+        // Also insert single modules into the graph and store the NodeIndices
+        let single_module_indices = pre_batches
             .single_module_entries
             .iter()
             .map(|module| graph.add_node(ModuleOrBatch::Module(*module)))
@@ -848,14 +848,14 @@ pub async fn compute_module_batches(
 
         // Add all the edges to the graph
         for (i, pre_batch) in pre_batches.batches.into_iter().enumerate() {
-            let index = batch_indicies[i];
+            let index = batch_indices[i];
             let items = pre_batch.items;
             for item in items {
                 match item {
                     PreBatchItem::ParallelReference(idx) => {
                         graph.add_edge(
                             index,
-                            batch_indicies[idx],
+                            batch_indices[idx],
                             ModuleBatchesGraphEdge {
                                 ty: ChunkingType::Parallel {
                                     inherit_async: false,
@@ -871,7 +871,7 @@ pub async fn compute_module_batches(
                         {
                             graph.add_edge(
                                 index,
-                                batch_indicies[batch],
+                                batch_indices[batch],
                                 ModuleBatchesGraphEdge {
                                     ty,
                                     module: Some(module),
@@ -883,7 +883,7 @@ pub async fn compute_module_batches(
                             .single_module_entries
                             .get_index_of(&module)
                             .unwrap();
-                        let idx = single_module_indicies[idx];
+                        let idx = single_module_indices[idx];
                         graph.add_edge(
                             index,
                             idx,
@@ -901,21 +901,21 @@ pub async fn compute_module_batches(
         debug_assert_eq!(graph.capacity().0, graph.node_count());
         debug_assert_eq!(graph.capacity().1, graph.edge_count());
 
-        // Find the NodeIndicies for our entries of the graph
+        // Find the NodeIndices for our entries of the graph
         let mut entries = FxHashMap::default();
         for chunk_group in &chunk_group_info.chunk_groups {
             for module in chunk_group.entries() {
                 if let Some(chunkable_module) = ResolvedVc::try_downcast(module)
                     && let Some(batch) = pre_batches.entries.get(&chunkable_module).copied()
                 {
-                    entries.insert(module, batch_indicies[batch]);
+                    entries.insert(module, batch_indices[batch]);
                     continue;
                 }
                 let idx = pre_batches
                     .single_module_entries
                     .get_index_of(&module)
                     .unwrap();
-                let idx = single_module_indicies[idx];
+                let idx = single_module_indices[idx];
                 entries.insert(module, idx);
             }
         }

@@ -1,5 +1,5 @@
 import type { Corners } from '../../../shared'
-import { useRef } from 'react'
+import { useCallback, useLayoutEffect, useRef } from 'react'
 
 interface Point {
   x: number
@@ -18,6 +18,7 @@ export function Draggable({
   setPosition: setCurrentCorner,
   onDragStart,
   dragHandleSelector,
+  disableDrag = false,
   ...props
 }: {
   children: React.ReactElement
@@ -26,8 +27,10 @@ export function Draggable({
   setPosition: (position: Corners) => void
   onDragStart?: () => void
   dragHandleSelector?: string
+  disableDrag?: boolean
 }) {
   const { ref, animate, ...drag } = useDrag({
+    disabled: disableDrag,
     threshold: 5,
     onDragStart,
     onDragEnd,
@@ -36,6 +39,14 @@ export function Draggable({
   })
 
   function onDragEnd(translation: Point, velocity: Point) {
+    const distance = Math.sqrt(
+      translation.x * translation.x + translation.y * translation.y
+    )
+    if (distance === 0) {
+      ref.current?.style.removeProperty('translate')
+      return
+    }
+
     const projectedPosition = {
       x: translation.x + project(velocity.x),
       y: translation.y + project(velocity.y),
@@ -132,6 +143,7 @@ export function Draggable({
 }
 
 interface UseDragOptions {
+  disabled: boolean
   onDragStart?: () => void
   onDrag?: (translation: Point) => void
   onDragEnd?: (translation: Point, velocity: Point) => void
@@ -147,12 +159,44 @@ interface Velocity {
 
 export function useDrag(options: UseDragOptions) {
   const ref = useRef<HTMLDivElement>(null)
-  const state = useRef<'idle' | 'press' | 'drag' | 'drag-end'>('idle')
+  const machine = useRef<
+    | { state: 'idle' | 'press' | 'drag-end' }
+    | { state: 'drag'; pointerId: number }
+  >({
+    state: 'idle',
+  })
+  const cleanup = useRef<() => void>(null)
 
   const origin = useRef<Point>({ x: 0, y: 0 })
   const translation = useRef<Point>({ x: 0, y: 0 })
   const lastTimestamp = useRef(0)
   const velocities = useRef<Velocity[]>([])
+
+  const cancel = useCallback(() => {
+    if (machine.current.state === 'drag') {
+      ref.current?.releasePointerCapture(machine.current.pointerId)
+    }
+
+    machine.current =
+      machine.current.state === 'drag'
+        ? { state: 'drag-end' }
+        : { state: 'idle' }
+
+    if (cleanup.current !== null) {
+      cleanup.current()
+      cleanup.current = null
+    }
+
+    velocities.current = []
+
+    ref.current?.classList.remove('dev-tools-grabbing')
+  }, [])
+
+  useLayoutEffect(() => {
+    if (options.disabled) {
+      cancel()
+    }
+  }, [cancel, options.disabled])
 
   function set(position: Point) {
     if (ref.current) {
@@ -181,10 +225,10 @@ export function useDrag(options: UseDragOptions) {
   }
 
   function onClick(e: MouseEvent) {
-    if (state.current === 'drag-end') {
+    if (machine.current.state === 'drag-end') {
       e.preventDefault()
       e.stopPropagation()
-      state.current = 'idle'
+      machine.current = { state: 'idle' }
       ref.current?.removeEventListener('click', onClick)
     }
   }
@@ -215,27 +259,37 @@ export function useDrag(options: UseDragOptions) {
     }
 
     origin.current = { x: e.clientX, y: e.clientY }
-    state.current = 'press'
+    machine.current = { state: 'press' }
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
+
+    if (cleanup.current !== null) {
+      cleanup.current()
+      cleanup.current = null
+    }
+    cleanup.current = () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+
     ref.current?.addEventListener('click', onClick)
   }
 
   function onPointerMove(e: PointerEvent) {
-    if (state.current === 'press') {
+    if (machine.current.state === 'press') {
       const dx = e.clientX - origin.current.x
       const dy = e.clientY - origin.current.y
       const distance = Math.sqrt(dx * dx + dy * dy)
 
       if (distance >= options.threshold) {
-        state.current = 'drag'
+        machine.current = { state: 'drag', pointerId: e.pointerId }
         ref.current?.setPointerCapture(e.pointerId)
         ref.current?.classList.add('dev-tools-grabbing')
         options.onDragStart?.()
       }
     }
 
-    if (state.current !== 'drag') return
+    if (machine.current.state !== 'drag') return
 
     const currentPosition = { x: e.clientX, y: e.clientY }
 
@@ -265,17 +319,12 @@ export function useDrag(options: UseDragOptions) {
     options.onDrag?.(translation.current)
   }
 
-  function onPointerUp(e: PointerEvent) {
-    state.current = state.current === 'drag' ? 'drag-end' : 'idle'
-
-    window.removeEventListener('pointermove', onPointerMove)
-    window.removeEventListener('pointerup', onPointerUp)
-
+  function onPointerUp() {
     const velocity = calculateVelocity(velocities.current)
-    velocities.current = []
 
-    ref.current?.classList.remove('dev-tools-grabbing')
-    ref.current?.releasePointerCapture(e.pointerId)
+    cancel()
+
+    // TODO: This is the onDragEnd when the pointerdown event was fired not the onDragEnd when the pointerup event was fired
     options.onDragEnd?.(translation.current, velocity)
   }
 

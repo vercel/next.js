@@ -10,6 +10,7 @@ import {
   ACTION_ERROR_OVERLAY_TOGGLE,
   ACTION_DEVTOOLS_SCALE,
   INITIAL_OVERLAY_STATE,
+  ACTION_DEVTOOLS_PANEL_OPEN,
 } from '../shared'
 
 export const storybookDefaultOverlayState: OverlayState = {
@@ -41,6 +42,9 @@ export function useStorybookOverlayReducer(initialState?: OverlayState) {
         }
         case ACTION_DEVTOOLS_PANEL_CLOSE: {
           return { ...state, isDevToolsPanelOpen: false }
+        }
+        case ACTION_DEVTOOLS_PANEL_OPEN: {
+          return { ...state, isDevToolsPanelOpen: true }
         }
         case ACTION_DEVTOOLS_POSITION: {
           return { ...state, devToolsPosition: action.devToolsPosition }

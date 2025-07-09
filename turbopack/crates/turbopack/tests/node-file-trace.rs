@@ -42,6 +42,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    ident::Layer,
     output::OutputAsset,
     rebase::RebasedAsset,
     reference_type::ReferenceType,
@@ -59,6 +60,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::argon2("integration/argon2.js")]
 #[case::auth0("integration/auth0.js")]
 #[case::aws_sdk("integration/aws-sdk.js")]
+#[case::aws_sdk3("integration/aws-sdk3.js")]
 #[case::axios("integration/axios.js")]
 #[case::azure_cosmos("integration/azure-cosmos.js")]
 #[case::azure_storage("integration/azure-storage.js")]
@@ -84,6 +86,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
     should_panic(expected = "Error: Cannot find module '../../out/node-file-trace'"),
     case::dogfood("integration/dogfood.js")
 )]
+#[case::datadog_pprof("integration/datadog-pprof.js")]
 #[case::dynamic_in_package("integration/dynamic-in-package.js")]
 #[case::empty("integration/empty.js")]
 #[case::env_var("integration/env-var.js")]
@@ -104,6 +107,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::firestore("integration/firestore.js")]
 #[case::fluent_ffmpeg("integration/fluent-ffmpeg.js")]
 #[case::geo_tz("integration/geo-tz.js")]
+#[case::geoip_lite("integration/geoip-lite.js")]
 #[case::google_bigquery("integration/google-bigquery.js")]
 #[case::got("integration/got.js")]
 #[case::highlights("integration/highlights.js")]
@@ -131,6 +135,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // node-file-trace/node_modules/npm/node_modules/spdx-correct oracledb doesn't support non x86
 // architectures
 #[cfg_attr(target_arch = "x86_64", case::oracledb("integration/oracledb.js"))]
+#[case::otel_api("integration/otel-api.js")]
 #[case::paraphrase("integration/paraphrase.js")]
 #[case::passport_trakt("integration/passport-trakt.js")]
 #[case::passport("integration/passport.js")]
@@ -152,12 +157,14 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::semver("integration/semver.js")]
 #[case::sentry("integration/sentry.js")]
 #[case::sequelize("integration/sequelize.js")]
+#[case::serialport("integration/serialport.js")]
 #[cfg_attr(
     target_os = "windows",
     should_panic(expected = "Something went wrong installing the \"sharp\" module"),
     case::sharp("integration/sharp.js")
 )]
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
+#[case::shiki("integration/shiki.js")]
 #[case::simple("integration/simple.js")]
 #[case::socket_io("integration/socket.io.js")]
 #[case::source_map("integration/source-map/index.js")]
@@ -177,6 +184,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::webpack_target_node("integration/webpack-target-node/index.js")]
 #[case::whatwg_url("integration/whatwg-url.js")]
 #[case::when("integration/when.js")]
+// TODO PACK-4987
+// #[case::zeromq("integration/zeromq.js")]
 #[case::package_exports_alt_folders_base(
     CaseInput::new("integration/package-exports/pass/alt-folders.js").expected_stderr("Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath")
 )]
@@ -330,21 +339,22 @@ async fn node_file_trace_operation(
         package_root.clone(),
         vec![],
     ));
-    let input_dir = workspace_fs.root().to_resolved().await?;
-    let input = input_dir.join(format!("tests/{input}").into());
+    let input_dir = workspace_fs.root().await?.clone_value();
+    let input = input_dir.join(&format!("tests/{input}"))?;
 
     let output_fs = DiskFileSystem::new(rcstr!("output"), directory.clone(), vec![]);
-    let output_dir = output_fs.root().to_resolved().await?;
+    let output_dir = output_fs.root().await?.clone_value();
 
     let source = FileSource::new(input);
+    let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+        NodeJsEnvironment::default().resolved_cell(),
+    ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
         // TODO It's easy to make a mistake here as this should match the config in the
         // binary. TODO These test cases should move into the
         // `node-file-trace` crate and use the same config.
-        CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironment::default().resolved_cell(),
-        ))),
+        CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 enable_types: true,
@@ -354,27 +364,30 @@ async fn node_file_trace_operation(
                 enable_raw_css: true,
                 ..Default::default()
             },
+            // Environment is not passed in order to avoid downleveling JS / CSS for
+            // node-file-trace.
+            environment: None,
             ..Default::default()
         }
         .cell(),
         ResolveOptionsContext {
             enable_node_native_modules: true,
-            enable_node_modules: Some(input_dir),
+            enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
             ..Default::default()
         }
         .cell(),
-        rcstr!("test"),
+        Layer::new(rcstr!("test")),
     );
     let module = module_asset_context
         .process(Vc::upcast(source), ReferenceType::Undefined)
         .module();
 
-    let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)
+    let rebased = RebasedAsset::new(Vc::upcast(module), input_dir.clone(), output_dir.clone())
         .to_resolved()
         .await?;
 
-    let emit_op = emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+    let emit_op = emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir.clone());
     emit_op.read_strongly_consistent().await?;
     apply_effects(emit_op).await?;
 

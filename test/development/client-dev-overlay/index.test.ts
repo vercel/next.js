@@ -2,12 +2,12 @@ import { FileRef } from 'e2e-utils'
 import { Playwright } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { openDevToolsIndicatorPopover, retry } from 'next-test-utils'
+import { assertHasDevToolsIndicator, retry } from 'next-test-utils'
 
 describe('client-dev-overlay', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: {
-      pages: new FileRef(join(__dirname, 'app/pages')),
+      pages: new FileRef(join(__dirname, 'pages')),
     },
     env: {
       // Disable the cooldown period for the dev indicator so that hiding the indicator in a test doesn't
@@ -124,7 +124,14 @@ describe('client-dev-overlay', () => {
   it('should nudge to use Turbopack unless Turbopack is disabled', async () => {
     const browser = await next.browser('/')
 
-    await openDevToolsIndicatorPopover(browser)
+    // Don't use openDevToolsIndicatorPopover because this is asserting something in the old dev tools menu which isn't preset yet in the new UI.
+    const devToolsIndicator = await assertHasDevToolsIndicator(browser)
+    try {
+      await devToolsIndicator.click()
+    } catch (cause) {
+      const error = new Error('No DevTools Indicator to open.', { cause })
+      throw error
+    }
 
     const devtoolsMenu = await browser.elementByCss('#nextjs-dev-tools-menu')
     if (isTurbopack) {

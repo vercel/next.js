@@ -2,7 +2,7 @@ import type { OverlayDispatch, OverlayState, Corners } from '../../shared'
 import type { ReadyRuntimeError } from '../../utils/get-error-by-type'
 import type { HydrationErrorState } from '../../../shared/hydration-error'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import { DevToolsPanelFooter } from './devtools-panel-footer'
 import { DevToolsPanelTab } from './devtools-panel-tab/devtools-panel-tab'
@@ -14,6 +14,8 @@ import {
   ACTION_DEVTOOLS_SCALE,
   STORAGE_KEY_SCALE,
   STORAGE_KEY_POSITION,
+  ACTION_ERROR_OVERLAY_CLOSE,
+  STORAGE_KEY_ACTIVE_TAB,
 } from '../../shared'
 import { css } from '../../utils/css'
 import { OverlayBackdrop } from '../overlay'
@@ -22,8 +24,35 @@ import { INDICATOR_PADDING } from '../devtools-indicator/devtools-indicator'
 import { FullScreenIcon } from '../../icons/fullscreen'
 import { Cross } from '../../icons/cross'
 import { MinimizeIcon } from '../../icons/minimize'
+import { ResizeProvider } from './resize/resize-provider'
+import { ResizeHandle } from './resize/resize-handle'
 
 export type DevToolsPanelTabType = 'issues' | 'route' | 'settings'
+
+function useSessionState<T extends string>(
+  key: string,
+  initialValue: T
+): [T, (value: T) => void] {
+  const [value, setValue] = useState<T>(() => {
+    if (
+      typeof window !== 'undefined' &&
+      typeof sessionStorage !== 'undefined'
+    ) {
+      const stored = sessionStorage.getItem(key)
+      return (stored as T) ?? initialValue
+    }
+    return initialValue
+  })
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      typeof sessionStorage !== 'undefined'
+    ) {
+      sessionStorage.setItem(key, value)
+    }
+  }, [key, value])
+  return [value, setValue]
+}
 
 export function DevToolsPanel({
   state,
@@ -38,12 +67,31 @@ export function DevToolsPanel({
   runtimeErrors: ReadyRuntimeError[]
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
 }) {
-  const [activeTab, setActiveTab] = useState<DevToolsPanelTabType>('issues')
+  // Initialize active tab from session storage, fallback to 'issues'
+  const [activeTab, setActiveTab] = useSessionState<DevToolsPanelTabType>(
+    STORAGE_KEY_ACTIVE_TAB,
+    'issues'
+  )
+
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [prevIsErrorOverlayOpen, setPrevIsErrorOverlayOpen] = useState(false)
+  const resizeRef = useRef<HTMLDivElement>(null)
+
+  if (state.isErrorOverlayOpen !== prevIsErrorOverlayOpen) {
+    if (state.isErrorOverlayOpen) {
+      setIsFullscreen(true)
+      // We should always show the issues tab initially if we're
+      // programmatically opening the panel to highlight errors.
+      setActiveTab('issues')
+    }
+    setPrevIsErrorOverlayOpen(state.isErrorOverlayOpen)
+  }
+
   const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
 
   const onCloseDevToolsPanel = () => {
     dispatch({ type: ACTION_DEVTOOLS_PANEL_CLOSE })
+    dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
   }
 
   const handlePositionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -64,178 +112,202 @@ export function DevToolsPanel({
 
   const handleFullscreenToggle = () => {
     setIsFullscreen((prev) => !prev)
+    dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
   }
 
   return (
-    <Overlay
-      data-nextjs-devtools-panel-overlay
-      style={
-        !isFullscreen
-          ? {
-              [vertical]: `${INDICATOR_PADDING}px`,
-              [horizontal]: `${INDICATOR_PADDING}px`,
-              [vertical === 'top' ? 'bottom' : 'top']: 'auto',
-              [horizontal === 'left' ? 'right' : 'left']: 'auto',
-            }
-          : {}
-      }
+    <ResizeProvider
+      value={{
+        resizeRef,
+        minWidth: 400,
+        minHeight: 350,
+        devToolsPosition: state.devToolsPosition,
+      }}
     >
-      {/* TODO: Investigate why onCloseDevToolsPanel on Dialog doesn't close when clicked outside. */}
-      <OverlayBackdrop
-        data-nextjs-devtools-panel-overlay-backdrop={isFullscreen}
-        onClick={onCloseDevToolsPanel}
-      />
-      <Draggable
-        data-nextjs-devtools-panel-draggable
-        padding={INDICATOR_PADDING}
-        onDragStart={() => {}}
-        position={state.devToolsPosition}
-        setPosition={(p) => {
-          localStorage.setItem(STORAGE_KEY_POSITION, p)
-          dispatch({
-            type: ACTION_DEVTOOLS_POSITION,
-            devToolsPosition: p,
-          })
-        }}
-        dragHandleSelector="[data-nextjs-devtools-panel-header], [data-nextjs-devtools-panel-footer]"
+      <Overlay
+        ref={resizeRef}
+        data-nextjs-devtools-panel-overlay
+        style={
+          !isFullscreen
+            ? {
+                [vertical]: `${INDICATOR_PADDING}px`,
+                [horizontal]: `${INDICATOR_PADDING}px`,
+                [vertical === 'top' ? 'bottom' : 'top']: 'auto',
+                [horizontal === 'left' ? 'right' : 'left']: 'auto',
+              }
+            : {}
+        }
       >
-        <>
-          <Dialog
-            data-nextjs-devtools-panel-dialog
-            aria-labelledby="nextjs__container_dev_tools_panel_label"
-            aria-describedby="nextjs__container_dev_tools_panel_desc"
-            onClose={onCloseDevToolsPanel}
-          >
-            <DialogContent data-nextjs-devtools-panel-dialog-content>
-              <DialogHeader data-nextjs-devtools-panel-dialog-header>
-                <div data-nextjs-devtools-panel-header>
-                  <div data-nextjs-devtools-panel-header-tab-group>
-                    <button
-                      data-nextjs-devtools-panel-header-tab={
-                        activeTab === 'issues'
-                      }
-                      onClick={() => setActiveTab('issues')}
-                    >
-                      Issues
-                      <span data-nextjs-devtools-panel-header-tab-issues-badge>
-                        {issueCount}
-                      </span>
-                    </button>
-                    <button
-                      data-nextjs-devtools-panel-header-tab={
-                        activeTab === 'route'
-                      }
-                      onClick={() => setActiveTab('route')}
-                    >
-                      Route Info
-                    </button>
-                    <button
-                      data-nextjs-devtools-panel-header-tab={
-                        activeTab === 'settings'
-                      }
-                      onClick={() => setActiveTab('settings')}
-                    >
-                      Settings
-                    </button>
+        {/* TODO: Investigate why onCloseDevToolsPanel on Dialog doesn't close when clicked outside. */}
+        <OverlayBackdrop
+          data-nextjs-devtools-panel-overlay-backdrop={isFullscreen}
+          onClick={onCloseDevToolsPanel}
+        />
+
+        <Draggable
+          data-nextjs-devtools-panel-draggable
+          padding={INDICATOR_PADDING}
+          onDragStart={() => {}}
+          position={state.devToolsPosition}
+          setPosition={(p) => {
+            localStorage.setItem(STORAGE_KEY_POSITION, p)
+            dispatch({
+              type: ACTION_DEVTOOLS_POSITION,
+              devToolsPosition: p,
+            })
+          }}
+          dragHandleSelector="[data-nextjs-devtools-panel-header], [data-nextjs-devtools-panel-footer]"
+          disableDrag={isFullscreen}
+        >
+          <>
+            <Dialog
+              data-nextjs-devtools-panel-dialog
+              aria-labelledby="nextjs__container_dev_tools_panel_label"
+              aria-describedby="nextjs__container_dev_tools_panel_desc"
+              onClose={onCloseDevToolsPanel}
+            >
+              <DialogContent data-nextjs-devtools-panel-dialog-content>
+                <DialogHeader data-nextjs-devtools-panel-dialog-header>
+                  <div
+                    data-nextjs-devtools-panel-header
+                    data-nextjs-devtools-panel-draggable={!isFullscreen}
+                  >
+                    <div data-nextjs-devtools-panel-header-tab-group>
+                      <button
+                        data-nextjs-devtools-panel-header-tab={
+                          activeTab === 'issues'
+                        }
+                        onClick={() => setActiveTab('issues')}
+                      >
+                        Issues
+                        {issueCount > 0 ? (
+                          <span
+                            data-nextjs-devtools-panel-header-tab-issues-badge
+                          >
+                            {issueCount}
+                          </span>
+                        ) : null}
+                      </button>
+                      <button
+                        data-nextjs-devtools-panel-header-tab={
+                          activeTab === 'route'
+                        }
+                        onClick={() => setActiveTab('route')}
+                      >
+                        Route Info
+                      </button>
+                      <button
+                        data-nextjs-devtools-panel-header-tab={
+                          activeTab === 'settings'
+                        }
+                        onClick={() => setActiveTab('settings')}
+                      >
+                        Settings
+                      </button>
+                    </div>
+                    <div data-nextjs-devtools-panel-header-action-button-group>
+                      <button
+                        data-nextjs-devtools-panel-header-action-button
+                        onClick={handleFullscreenToggle}
+                      >
+                        {isFullscreen ? (
+                          <MinimizeIcon width={16} height={16} />
+                        ) : (
+                          <FullScreenIcon width={16} height={16} />
+                        )}
+                      </button>
+                      <button
+                        data-nextjs-devtools-panel-header-action-button
+                        onClick={onCloseDevToolsPanel}
+                      >
+                        <Cross width={16} height={16} />
+                      </button>
+                    </div>
                   </div>
-                  <div data-nextjs-devtools-panel-header-action-button-group>
-                    <button
-                      data-nextjs-devtools-panel-header-action-button
-                      onClick={handleFullscreenToggle}
-                    >
-                      {isFullscreen ? (
-                        <MinimizeIcon width={16} height={16} />
-                      ) : (
-                        <FullScreenIcon width={16} height={16} />
-                      )}
-                    </button>
-                    <button
-                      data-nextjs-devtools-panel-header-action-button
-                      onClick={onCloseDevToolsPanel}
-                    >
-                      <Cross width={16} height={16} />
-                    </button>
-                  </div>
-                </div>
-              </DialogHeader>
-              <DialogBody data-nextjs-devtools-panel-dialog-body>
-                <DevToolsPanelTab
-                  activeTab={activeTab}
-                  devToolsPosition={state.devToolsPosition}
-                  scale={state.scale}
-                  handlePositionChange={handlePositionChange}
-                  handleScaleChange={handleScaleChange}
-                  debugInfo={state.debugInfo}
-                  runtimeErrors={runtimeErrors}
-                  getSquashedHydrationErrorDetails={
-                    getSquashedHydrationErrorDetails
-                  }
-                  buildError={state.buildError}
-                />
-              </DialogBody>
-            </DialogContent>
-            <DevToolsPanelFooter versionInfo={state.versionInfo} />
-          </Dialog>
-        </>
-      </Draggable>
-    </Overlay>
+                </DialogHeader>
+                <DialogBody data-nextjs-devtools-panel-dialog-body>
+                  <DevToolsPanelTab
+                    page={state.page}
+                    activeTab={activeTab}
+                    devToolsPosition={state.devToolsPosition}
+                    scale={state.scale}
+                    routerType={state.routerType}
+                    handlePositionChange={handlePositionChange}
+                    handleScaleChange={handleScaleChange}
+                    debugInfo={state.debugInfo}
+                    runtimeErrors={runtimeErrors}
+                    getSquashedHydrationErrorDetails={
+                      getSquashedHydrationErrorDetails
+                    }
+                    buildError={state.buildError}
+                  />
+                </DialogBody>
+              </DialogContent>
+              <DevToolsPanelFooter
+                versionInfo={state.versionInfo}
+                isDraggable={!isFullscreen}
+                showRestartServerButton={state.showRestartServerButton}
+              />
+            </Dialog>
+
+            {!isFullscreen && (
+              <>
+                <ResizeHandle direction="top" />
+                <ResizeHandle direction="right" />
+                <ResizeHandle direction="bottom" />
+                <ResizeHandle direction="left" />
+                <ResizeHandle direction="top-left" />
+                <ResizeHandle direction="top-right" />
+                <ResizeHandle direction="bottom-left" />
+                <ResizeHandle direction="bottom-right" />
+              </>
+            )}
+          </>
+        </Draggable>
+      </Overlay>
+    </ResizeProvider>
   )
 }
 
 export const DEVTOOLS_PANEL_STYLES = css`
   /* TODO: Better override dialog header style. This conflicts with issues tab content. */
   [data-nextjs-devtools-panel-dialog-header] {
+    flex-shrink: 0;
     margin-bottom: 0 !important;
   }
 
   [data-nextjs-devtools-panel-dialog-content] {
-    /* Make DialogContent expand to push footer to bottom. */
     flex: 1;
-    /* Hide overflow of devtools panel dialog since we want it on the dialog body only. */
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; // what allows content to overflow
   }
 
   [data-nextjs-devtools-panel-dialog-body] {
+    flex: 1;
     overflow: auto;
-    /* Make DialogBody a flex container so its children can expand. */
-    display: flex;
-    flex-direction: column;
   }
 
   [data-nextjs-devtools-panel-overlay] {
     margin: auto;
-    width: 100%;
-
-    @media (max-width: 575px) {
-      left: 20px !important;
-      right: 20px !important;
-      width: auto;
-    }
-
-    @media (min-width: 576px) {
-      max-width: 540px;
-    }
-
-    @media (min-width: 768px) {
-      max-width: 720px;
-    }
-
-    @media (min-width: 992px) {
-      max-width: 960px;
-    }
+    width: 525px;
+    height: 375px;
   }
 
   [data-nextjs-devtools-panel-overlay-backdrop] {
     opacity: 0;
+    visibility: hidden;
   }
 
   [data-nextjs-devtools-panel-overlay-backdrop='true'] {
     opacity: 1;
+    visibility: visible;
   }
 
   [data-nextjs-devtools-panel-draggable] {
     /* For responsiveness */
     width: 100%;
+    height: 100%;
   }
 
   [data-nextjs-devtools-panel-dialog] {
@@ -249,8 +321,9 @@ export const DEVTOOLS_PANEL_STYLES = css`
     box-shadow: var(--shadow-lg);
     position: relative;
     width: 100%;
-    max-height: 50vh;
-    min-height: 450px;
+    height: 100%;
+    min-width: 400px;
+    min-height: 350px;
   }
 
   [data-nextjs-devtools-panel-header] {
@@ -258,15 +331,6 @@ export const DEVTOOLS_PANEL_STYLES = css`
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--color-gray-400);
-
-    /* For draggable */
-    cursor: move;
-    user-select: none;
-    & > * {
-      cursor: auto;
-      /* user-select: auto; follows the parent (parent none -> child none), so reset the direct child to text */
-      user-select: text;
-    }
   }
 
   [data-nextjs-devtools-panel-header-tab-group] {
@@ -284,8 +348,7 @@ export const DEVTOOLS_PANEL_STYLES = css`
     padding: 4px 12px;
     font-size: 14px;
     font-weight: 500;
-
-    transition: all 0.2s ease;
+    transition: background-color 200ms ease;
 
     &:hover {
       background-color: var(--color-gray-200);
@@ -302,7 +365,9 @@ export const DEVTOOLS_PANEL_STYLES = css`
   }
 
   [data-nextjs-devtools-panel-header-tab-issues-badge] {
-    display: inline-block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-left: 8px;
     background-color: var(--color-red-400);
     color: var(--color-red-900);
@@ -329,9 +394,11 @@ export const DEVTOOLS_PANEL_STYLES = css`
     align-items: center;
     justify-content: center;
     padding: 6px;
-    color: var(--color-gray-600);
+    color: var(--color-gray-1000);
     border-radius: 4px;
-    transition: all 0.2s ease;
+    transition-property: background-color, color;
+    transition-duration: 200ms;
+    transition-timing-function: ease;
 
     &:hover {
       background-color: var(--color-gray-200);
@@ -340,6 +407,16 @@ export const DEVTOOLS_PANEL_STYLES = css`
 
     &:active {
       background-color: var(--color-gray-300);
+    }
+  }
+
+  [data-nextjs-devtools-panel-draggable='true'] {
+    cursor: move;
+    user-select: none;
+    & > * {
+      cursor: auto;
+      /* user-select: auto; follows the parent (parent none -> child none), so reset the direct child to text */
+      user-select: text;
     }
   }
 `

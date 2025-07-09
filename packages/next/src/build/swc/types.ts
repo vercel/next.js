@@ -423,15 +423,21 @@ export interface ProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+
+  /**
+   * The version of Node.js that is available/currently running.
+   */
+  currentNodeJsVersion: string
 }
 
 export interface DefineEnv {
-  client: RustifiedEnv
-  edge: RustifiedEnv
-  nodejs: RustifiedEnv
+  client: RustifiedOptionalEnv
+  edge: RustifiedOptionalEnv
+  nodejs: RustifiedOptionalEnv
 }
 
 export type RustifiedEnv = { name: string; value: string }[]
+export type RustifiedOptionalEnv = { name: string; value: string | undefined }[]
 
 export interface GlobalEntrypoints {
   app: Endpoint | undefined

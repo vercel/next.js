@@ -1,19 +1,7 @@
 import type { OverlayState } from '../../../../shared'
-import type { DebugInfo } from '../../../../../shared/types'
 import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
-import type { ErrorType } from '../../../errors/error-type-label/error-type-label'
 
 import { Suspense, useMemo, useState } from 'react'
-
-import {
-  GenericErrorDescription,
-  HydrationErrorDescription,
-} from '../../../../container/errors'
-import { EnvironmentNameLabel } from '../../../errors/environment-name-label/environment-name-label'
-import { ErrorMessage } from '../../../errors/error-message/error-message'
-import { ErrorOverlayToolbar } from '../../../errors/error-overlay-toolbar/error-overlay-toolbar'
-import { ErrorTypeLabel } from '../../../errors/error-type-label/error-type-label'
-import { IssueFeedbackButton } from '../../../errors/error-overlay-toolbar/issue-feedback-button'
 import { Terminal } from '../../../terminal'
 import { HotlinkedText } from '../../../hot-linked-text'
 import { PseudoHtmlDiff } from '../../../../container/runtime-error/component-stack-pseudo-html'
@@ -23,16 +11,22 @@ import { CallStack } from '../../../call-stack/call-stack'
 import { NEXTJS_HYDRATION_ERROR_LINK } from '../../../../../shared/react-19-hydration-error'
 import { ErrorContentSkeleton } from '../../../../container/runtime-error/error-content-skeleton'
 import { css } from '../../../../utils/css'
+import { getErrorTextFromBuildErrorMessage } from '../../../../container/build-error'
+import { IssuesTabContentLayout } from './issues-tab-content-layout'
+import type { DebugInfo } from '../../../../../shared/types'
+import type { ErrorType } from '../../../errors/error-type-label/error-type-label'
+import { IssuesTabEmptyContent } from './issues-tab-empty-content'
 
+// This consists of the Build Error, Runtime Error, etc.
 export function IssuesTabContent({
   notes,
   buildError,
   hydrationWarning,
   errorDetails,
   activeError,
-  errorCode,
   errorType,
   debugInfo,
+  errorCode,
 }: {
   notes: string | null
   buildError: OverlayState['buildError']
@@ -41,49 +35,63 @@ export function IssuesTabContent({
     hydrationWarning: string | null
     notes: string | null
     reactOutputComponentDiff: string | null
-  }
-  activeError: ReadyRuntimeError
-  errorCode: string | undefined
-  errorType: ErrorType
+  } | null
+  activeError: ReadyRuntimeError | null
+  errorType: ErrorType | null
   debugInfo: DebugInfo
+  errorCode: string | null | undefined
 }) {
   if (buildError) {
-    return <Terminal content={buildError} />
+    return <BuildError message={buildError} debugInfo={debugInfo} />
   }
 
-  const errorMessage = hydrationWarning ? (
-    <HydrationErrorDescription message={hydrationWarning} />
-  ) : (
-    <GenericErrorDescription error={activeError.error} />
+  return (
+    <ErrorContent
+      notes={notes}
+      hydrationWarning={hydrationWarning}
+      errorDetails={errorDetails}
+      activeError={activeError}
+      errorType={errorType}
+      debugInfo={debugInfo}
+      errorCode={errorCode}
+    />
   )
+}
+
+function ErrorContent({
+  notes,
+  hydrationWarning,
+  errorDetails,
+  activeError,
+  errorType,
+  debugInfo,
+  errorCode,
+}: {
+  notes: string | null
+  hydrationWarning: string | null
+  errorDetails: {
+    hydrationWarning: string | null
+    notes: string | null
+    reactOutputComponentDiff: string | null
+  } | null
+  activeError: ReadyRuntimeError | null
+  errorType: ErrorType | null
+  debugInfo: DebugInfo
+  errorCode: string | null | undefined
+}) {
+  if (!activeError || !errorType) {
+    return <IssuesTabEmptyContent />
+  }
 
   return (
-    <div data-nextjs-devtools-panel-tab-issues-content-container>
-      <div className="nextjs-container-errors-header">
-        <div
-          className="nextjs__container_errors__error_title"
-          // allow assertion in tests before error rating is implemented
-          data-nextjs-error-code={errorCode}
-        >
-          <span data-nextjs-error-label-group>
-            <ErrorTypeLabel errorType={errorType} />
-            {activeError.error.environmentName && (
-              <EnvironmentNameLabel
-                environmentName={activeError.error.environmentName}
-              />
-            )}
-          </span>
-          <ErrorOverlayToolbar
-            error={activeError.error}
-            debugInfo={debugInfo}
-            // TODO: Move the button inside and remove the feedback on the footer of the error overlay.
-            feedbackButton={
-              errorCode && <IssueFeedbackButton errorCode={errorCode} />
-            }
-          />
-        </div>
-        <ErrorMessage errorMessage={errorMessage} />
-      </div>
+    <IssuesTabContentLayout
+      error={activeError.error}
+      errorType={errorType}
+      message={activeError.error.message}
+      debugInfo={debugInfo}
+      errorCode={errorCode}
+      environmentName={activeError.error.environmentName}
+    >
       <div className="error-overlay-notes-container">
         {notes ? (
           <>
@@ -106,7 +114,7 @@ export function IssuesTabContent({
           </p>
         ) : null}
       </div>
-      {errorDetails.reactOutputComponentDiff ? (
+      {errorDetails?.reactOutputComponentDiff ? (
         <PseudoHtmlDiff
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff || ''}
         />
@@ -114,7 +122,7 @@ export function IssuesTabContent({
       <Suspense fallback={<ErrorContentSkeleton />}>
         <RuntimeError key={activeError.id.toString()} error={activeError} />
       </Suspense>
-    </div>
+    </IssuesTabContentLayout>
   )
 }
 
@@ -161,14 +169,29 @@ function RuntimeError({ error }: { error: ReadyRuntimeError }) {
   )
 }
 
+function BuildError({
+  message,
+  debugInfo,
+}: {
+  message: string
+  debugInfo: DebugInfo
+}) {
+  const error = new Error(message)
+  const formattedMessage = useMemo(
+    () => getErrorTextFromBuildErrorMessage(message) || 'Failed to compile',
+    [message]
+  )
+  return (
+    <IssuesTabContentLayout
+      errorType={'Build Error'}
+      error={error}
+      message={formattedMessage}
+      debugInfo={debugInfo}
+    >
+      <Terminal content={message} />
+    </IssuesTabContentLayout>
+  )
+}
+
 // The components in this file shares the style with the Error Overlay.
-export const DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_STYLES = css`
-  [data-nextjs-devtools-panel-tab-issues-content-container] {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    min-height: 0;
-    padding: 14px;
-  }
-`
+export const DEVTOOLS_PANEL_TAB_ISSUES_CONTENT_STYLES = css``

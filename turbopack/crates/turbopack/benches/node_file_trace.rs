@@ -16,6 +16,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    ident::Layer,
     rebase::RebasedAsset,
     reference_type::ReferenceType,
 };
@@ -79,11 +80,11 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         async move {
             let task = tt.spawn_once_task(async move {
                 let input_fs = DiskFileSystem::new("tests".into(), tests_root.clone(), vec![]);
-                let input = input_fs.root().join(input.clone());
+                let input = input_fs.root().await?.join(&input)?;
 
                 let input_dir = input.parent().parent();
                 let output_fs: Vc<NullFileSystem> = NullFileSystem.into();
-                let output_dir = output_fs.root().to_resolved().await?;
+                let output_dir = output_fs.root().await?.clone_value();
 
                 let source = FileSource::new(input);
                 let compile_time_info = CompileTimeInfo::builder(
@@ -113,12 +114,12 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                         ..Default::default()
                     }
                     .cell(),
-                    rcstr!("node_file_trace"),
+                    Layer::new(rcstr!("node_file_trace")),
                 );
                 let module = module_asset_context
                     .process(Vc::upcast(source), ReferenceType::Undefined)
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, *output_dir)
+                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir.clone())
                     .to_resolved()
                     .await?;
 

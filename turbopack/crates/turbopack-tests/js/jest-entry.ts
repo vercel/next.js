@@ -35,7 +35,23 @@ export default async function run() {
 
   await import('TESTS')
 
-  const jestResult = await jest.run()
+  let jestResult = await jest.run()
+  // Jest test results can contain references to arbitrary objects.
+  // Defensively remove circular references to avoid breaking our serialization protocol.
+  const seen = new Set()
+  jestResult = JSON.parse(
+    JSON.stringify(jestResult, (k, v) => {
+      if (v != null && typeof v === 'object') {
+        if (!seen.has(v)) {
+          seen.add(v)
+          return v
+        } else {
+          return 'CIRCULAR_REFERENCE_REMOVED'
+        }
+      }
+      return v
+    })
+  )
 
   // Wait a full tick for unhandledRejection handlers to run -- a microtask is not sufficient.
   await new Promise((resolve) => setTimeout(resolve, 0))

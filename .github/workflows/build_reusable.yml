@@ -42,6 +42,11 @@ on:
         required: false
         description: 'if nextest rust dep is needed'
         type: string
+      rustBuildProfile:
+        required: false
+        description: 'The profile to use for the build, default is `release-with-assertions`, also supports `` for debug and `release` for normal release'
+        type: string
+        default: 'release-with-assertions'
       uploadSwcArtifact:
         required: false
         description: 'if swc artifact needs uploading'
@@ -179,7 +184,7 @@ jobs:
         with:
           cache-provider: 'turbo'
           save-if: ${{ github.ref_name == 'canary' }}
-          shared-key: ${{ inputs.rustCacheKey }}-${{ inputs.buildNativeTarget }}-build-${{ hashFiles('.cargo/config.toml') }}
+          shared-key: ${{ inputs.rustCacheKey }}-${{ inputs.buildNativeTarget }}-build-${{ inputs.rustBuildProfile }}-${{ hashFiles('.cargo/config.toml') }}
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
@@ -197,7 +202,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-release -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
+      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
         if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact

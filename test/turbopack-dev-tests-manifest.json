@@ -854,7 +854,9 @@
     "passed": [
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should prefer branch url in preview deployment if presents",
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return local url in local build mode",
+      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return localhost url in local build mode with experimental https",
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return localhost url in local dev mode",
+      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return localhost url in local dev mode with experimental https",
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return project production url in production deployment",
       "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return vercel url in preview deployment if only it presents",
       "metadata: resolveUrl should compose with metadataBase when url is relative or absolute",
@@ -909,7 +911,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/next-devtools/dev-overlay/segment-explorer.test.tsx": {
+  "packages/next/src/next-devtools/dev-overlay/segment-explorer-trie.test.tsx": {
     "passed": [
       "Segment Explorer add complex structure",
       "Segment Explorer remove node in the middle"
@@ -2675,12 +2677,30 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/segment-explorer-globals/segment-explorer-globals.test.ts": {
+    "passed": [
+      "segment-explorer - globals should display parallel routes default page when present",
+      "segment-explorer - globals should show global-error segment"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
     "passed": [
       "segment-explorer should cleanup on soft navigation",
+      "segment-explorer should display parallel routes default page when present",
       "segment-explorer should handle show file segments in order",
+      "segment-explorer should handle special built-in not-found segments",
+      "segment-explorer should indicate segment explorer is not available for pages router",
       "segment-explorer should render the segment explorer for nested routes",
-      "segment-explorer should render the segment explorer for parallel routes"
+      "segment-explorer should render the segment explorer for parallel routes",
+      "segment-explorer should render the segment explorer for parallel routes in edge runtime",
+      "segment-explorer should show global-error segment",
+      "segment-explorer should show navigation boundaries of the segment",
+      "segment-explorer should show the custom error boundary when present",
+      "segment-explorer should show the loading boundary when it is present"
     ],
     "failed": [],
     "pending": [],
@@ -2810,17 +2830,25 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-hmr/hmr-env.test.ts": {
+    "passed": [
+      "app-dir hmr-env should update server components pages when env files is changed (edge)",
+      "app-dir hmr-env should update server components pages when env files is changed (edge-module-var)",
+      "app-dir hmr-env should update server components pages when env files is changed (node)",
+      "app-dir hmr-env should update server components pages when env files is changed (node-module-var)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
-      "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge-module-var)",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (node)",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (node-module-var)"
+      "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
     ],
     "failed": [],
     "pending": [],
@@ -3494,6 +3522,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/experimental-https-server/https-server-opengraph-image.test.ts": {
+    "passed": [
+      "experimental-https-server OpenGraph image should generate https:// URLs for OpenGraph images when experimental HTTPS is enabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/experimental-https-server/https-server.generated-key.test.ts": {
     "passed": [
       "experimental-https-server (generated certificate) should successfully load the app in app dir",
@@ -4101,21 +4138,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/actions-deployment-skew/actions-deployment-skew.test.ts": {
-    "passed": [
-      "actions-deployment-skew in the node runtime with a form action and JavaScript disabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the node runtime with a form action and JavaScript enabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the node runtime with a normal action should respond with a 404 for an unknown server action"
-    ],
-    "failed": [],
-    "pending": [
-      "actions-deployment-skew in the edge runtime with a form action and JavaScript disabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the edge runtime with a form action and JavaScript enabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the edge runtime with a normal action should respond with a 404 for an unknown server action"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/actions-navigation/index.test.ts": {
     "passed": [
       "app-dir action handling should handle actions correctly after following a relative link",
@@ -4129,6 +4151,26 @@
   "test/e2e/app-dir/actions-revalidate-remount/actions-revalidate-remount.test.ts": {
     "passed": [
       "actions-revalidate-remount should not remount the page + loading component when revalidating"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-unrecognized/actions-unrecognized.test.ts": {
+    "passed": [
+      "unrecognized server actions should 404 when POSTing a non-server-action request to a nonexistent page",
+      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: form-data/multipart",
+      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: plaintext",
+      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: urlencoded",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with complex argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with simple argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js disabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js enabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with complex argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with simple argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js disabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js enabled"
     ],
     "failed": [],
     "pending": [],
@@ -4201,13 +4243,12 @@
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when route handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when route handler redirects with a 308 status code",
-      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
-      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `redirect`",
       "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
-      "app-dir action handling should 404 when POSTing an invalid server action",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
@@ -4218,7 +4259,6 @@
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
       "app-dir action handling should keep action instances identical",
-      "app-dir action handling should log a warning when a server action is not found but an id is provided",
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should not block router.back() while a server action is in flight",
       "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
@@ -4331,13 +4371,12 @@
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when route handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when route handler redirects with a 308 status code",
-      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
-      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `redirect`",
       "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
-      "app-dir action handling should 404 when POSTing an invalid server action",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
@@ -4348,7 +4387,6 @@
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
       "app-dir action handling should keep action instances identical",
-      "app-dir action handling should log a warning when a server action is not found but an id is provided",
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should not block router.back() while a server action is in flight",
       "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
@@ -5830,10 +5868,8 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.platform-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - Math.random() does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - Math.random() does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - Math.random() does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - Math.random() does not run in dev"
+      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - Math.random() should not show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - Math.random() should show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
@@ -5852,14 +5888,10 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO does not run in dev"
+      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
+      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
@@ -5868,18 +5900,12 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - server searchParams does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - server searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - server searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - server searchParams does not run in dev"
+      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - client searchParams should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - cookies should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - server searchParams should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - client searchParams should show a collapsed redbox with two errors",
+      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - cookies should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - server searchParams should show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
@@ -5888,24 +5914,15 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Dynamic Boundary does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Error Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Root does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Static Route does not run in dev",
-      "Dynamic IO Errors - With Minification Static Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Boundary does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Error Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Root does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Static Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Static Route does not run in dev"
+      "Dynamic IO Errors - Dev Dynamic Boundary should not show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Metadata - Dynamic Route should not show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Metadata - Error Route should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Metadata - Static Route With Suspense should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Metadata - Static Route should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Root should show a collapsed redbox with two errors",
+      "Dynamic IO Errors - Dev Dynamic Viewport - Dynamic Route should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Dynamic Viewport - Static Route should show a collapsed redbox error",
+      "Dynamic IO Errors - Dev Static Route should not show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
@@ -6804,6 +6821,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/mdx-no-mdx-components/mdx.test.ts": {
+    "passed": [
+      "mdx app directory should allow importing client components",
+      "mdx app directory should work in initial html",
+      "mdx app directory should work using browser",
+      "mdx pages directory should work in initial html"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/mdx/mdx.test.ts": {
     "passed": [
       "mdx with-mdx-rs app directory should allow importing client components",
@@ -7655,6 +7684,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/not-found-with-layout-and-group-not-found/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts and custom not-found should render the custom not-found page when notFound() is thrown from a page within the group"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/not-found-with-nested-layouts/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts should render the custom not-found page when notFound() is thrown from a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/not-found-with-pages-i18n/not-found-with-pages.test.ts": {
     "passed": [
       "not-found-with-pages should prefer the app router 404 over the pages router 404 when both are present"
@@ -7845,6 +7892,7 @@
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with prerendered dynamic routes  should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
@@ -8778,18 +8826,16 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
-    "passed": [],
+    "passed": ["Invalid Global CSS with Custom App should fail to build"],
     "failed": [],
-    "pending": [
-      "Invalid Global CSS with Custom App production only should fail to build"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
-    "passed": [],
+    "passed": ["Invalid Global CSS should fail to build"],
     "failed": [],
-    "pending": ["Invalid Global CSS production only should fail to build"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9012,11 +9058,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Valid and Invalid Global CSS with Custom App production only should fail to build"
+    "passed": [
+      "Valid and Invalid Global CSS with Custom App should fail to build"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10680,6 +10726,8 @@
       "react version App Router page headers with nodejs runtime",
       "react version App Router page with edge runtime",
       "react version App Router page with nodejs runtime",
+      "react version Pages Router API route with edge runtime",
+      "react version Pages Router API route with nodejs runtime",
       "react version Pages Router page headers with edge runtime",
       "react version Pages Router page headers with nodejs runtime",
       "react version Pages Router page with edge runtime",

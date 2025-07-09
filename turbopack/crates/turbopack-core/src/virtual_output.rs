@@ -10,7 +10,7 @@ use crate::{
 /// to other assets.
 #[turbo_tasks::value]
 pub struct VirtualOutputAsset {
-    pub path: ResolvedVc<FileSystemPath>,
+    pub path: FileSystemPath,
     pub content: ResolvedVc<AssetContent>,
     pub references: ResolvedVc<OutputAssets>,
 }
@@ -18,7 +18,7 @@ pub struct VirtualOutputAsset {
 #[turbo_tasks::value_impl]
 impl VirtualOutputAsset {
     #[turbo_tasks::function]
-    pub fn new(path: ResolvedVc<FileSystemPath>, content: ResolvedVc<AssetContent>) -> Vc<Self> {
+    pub fn new(path: FileSystemPath, content: ResolvedVc<AssetContent>) -> Vc<Self> {
         VirtualOutputAsset {
             path,
             content,
@@ -29,7 +29,7 @@ impl VirtualOutputAsset {
 
     #[turbo_tasks::function]
     pub fn new_with_references(
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
         content: ResolvedVc<AssetContent>,
         references: ResolvedVc<OutputAssets>,
     ) -> Vc<Self> {
@@ -46,7 +46,7 @@ impl VirtualOutputAsset {
 impl OutputAsset for VirtualOutputAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]

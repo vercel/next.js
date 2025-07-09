@@ -5,7 +5,7 @@ use turbopack_core::chunk::ChunkingContext;
 
 #[turbo_tasks::value]
 pub struct ExecutionContext {
-    pub project_path: ResolvedVc<FileSystemPath>,
+    pub project_path: FileSystemPath,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
 }
@@ -14,7 +14,7 @@ pub struct ExecutionContext {
 impl ExecutionContext {
     #[turbo_tasks::function]
     pub fn new(
-        project_path: ResolvedVc<FileSystemPath>,
+        project_path: FileSystemPath,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         env: ResolvedVc<Box<dyn ProcessEnv>>,
     ) -> Vc<Self> {
@@ -28,7 +28,7 @@ impl ExecutionContext {
 
     #[turbo_tasks::function]
     pub fn project_path(&self) -> Vc<FileSystemPath> {
-        *self.project_path
+        self.project_path.clone().cell()
     }
 
     #[turbo_tasks::function]

@@ -13,7 +13,6 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
@@ -61,7 +60,7 @@ impl WorkerAssetReference {
             *self.request,
             // TODO support more worker types
             ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
             self.in_try,
         );
 
@@ -74,7 +73,7 @@ impl WorkerAssetReference {
                 title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
                 message: StyledString::Text(rcstr!("asset is not placeable in ESM chunks"))
                     .resolved_cell(),
-                path: self.origin.origin_path().to_resolved().await?,
+                path: self.origin.origin_path().await?.clone_value(),
             }
             .resolved_cell()
             .emit();
@@ -134,7 +133,6 @@ pub struct WorkerAssetReferenceCodeGen {
 impl WorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let Some(loader) = self.reference.await?.worker_loader_module().await? else {
@@ -145,8 +143,8 @@ impl WorkerAssetReferenceCodeGen {
             .chunk_item_id_from_ident(loader.ident())
             .await?;
 
-        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-            let message = if let Expr::New(NewExpr { args, ..}) = expr {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+            let message = if let Expr::New(NewExpr { args, .. }) = expr {
                 if let Some(args) = args {
                     match args.first_mut() {
                         Some(ExprOrSpread { spread: None, expr }) => {
@@ -158,21 +156,21 @@ impl WorkerAssetReferenceCodeGen {
                             );
 
                             if let Some(opts) = args.get_mut(1)
-                                && opts.spread.is_none(){
-                                    *opts.expr = *quote_expr!(
-                                        "{...$opts, type: undefined}",
-                                        opts: Expr = (*opts.expr).take()
-                                    );
-                                }
+                                && opts.spread.is_none()
+                            {
+                                *opts.expr = *quote_expr!(
+                                    "{...$opts, type: undefined}",
+                                    opts: Expr = (*opts.expr).take()
+                                );
+                            }
                             return;
                         }
                         // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
-                        Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
-                            "spread operator is illegal in new Worker() expressions."
-                        }
-                        _ => {
-                            "new Worker() expressions require at least 1 argument"
-                        }
+                        Some(ExprOrSpread {
+                            spread: Some(_),
+                            expr: _,
+                        }) => "spread operator is illegal in new Worker() expressions.",
+                        _ => "new Worker() expressions require at least 1 argument",
                     }
                 } else {
                     "new Worker() expressions require at least 1 argument"

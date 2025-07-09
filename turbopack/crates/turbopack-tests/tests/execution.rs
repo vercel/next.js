@@ -30,20 +30,23 @@ use turbopack::{
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
-    chunk::ChunkingConfig,
+    chunk::{ChunkingConfig, MangleType, MinifyType},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    ident::Layer,
     issue::IssueDescriptionExt,
+    module_graph::{
+        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
+    },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
         options::{ImportMap, ImportMapping},
     },
-    source::Source,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{debug::should_debug, evaluate::evaluate};
@@ -60,7 +63,7 @@ use crate::util::REPO_ROOT;
 #[turbo_tasks::value]
 struct RunTestResult {
     js_result: ResolvedVc<JsResult>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
 #[turbo_tasks::value]
@@ -242,14 +245,17 @@ async fn run_inner_operation(
 struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
     remove_unused_exports: Option<bool>,
+    scope_hoisting: Option<bool>,
+    #[serde(default)]
+    minify: bool,
 }
 
 #[turbo_tasks::value]
 struct PreparedTest {
-    path: ResolvedVc<FileSystemPath>,
-    project_path: ResolvedVc<FileSystemPath>,
-    tests_path: ResolvedVc<FileSystemPath>,
-    project_root: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
+    project_path: FileSystemPath,
+    tests_path: FileSystemPath,
+    project_root: FileSystemPath,
     options: TestOptions,
 }
 
@@ -265,7 +271,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
 
     let root_fs = DiskFileSystem::new(rcstr!("workspace"), REPO_ROOT.clone(), vec![]);
     let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root().to_resolved().await?;
+    let project_root = project_fs.root().await?.clone_value();
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
         "stripping repo root {:?} from resource path {:?}",
@@ -273,13 +279,14 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         resource_path.display()
     ))?;
     let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
-    let path = root_fs.root().join(relative_path.clone());
-    let project_path = project_root.join(relative_path.clone());
+    let path = root_fs.root().await?.join(&relative_path.clone())?;
+    let project_path = project_root.join(&relative_path.clone())?;
     let tests_path = project_fs
         .root()
-        .join(rcstr!("turbopack/crates/turbopack-tests"));
+        .await?
+        .join("turbopack/crates/turbopack-tests")?;
 
-    let options_file = path.join(rcstr!("options.json"));
+    let options_file = path.join("options.json")?;
 
     let mut options = TestOptions::default();
     if matches!(*options_file.get_type().await?, FileSystemEntryType::File)
@@ -290,9 +297,9 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     }
 
     Ok(PreparedTest {
-        path: path.to_resolved().await?,
-        project_path: project_path.to_resolved().await?,
-        tests_path: tests_path.to_resolved().await?,
+        path: path.clone(),
+        project_path: project_path.clone(),
+        tests_path: tests_path.clone(),
         project_root,
         options,
     }
@@ -306,19 +313,18 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         project_path,
         tests_path,
         project_root,
-        ref options,
-    } = *prepared_test.await?;
+        options,
+    } = &*prepared_test.await?;
 
-    let jest_entry_path = tests_path.join(rcstr!("js/jest-entry.ts"));
-    let test_path = project_path.join(rcstr!("input/index.js"));
+    let jest_entry_path = tests_path.join("js/jest-entry.ts")?;
+    let test_path = project_path.join("input/index.js")?;
 
-    let chunk_root_path = path.join(rcstr!("output")).to_resolved().await?;
-    let static_root_path = path.join(rcstr!("static")).to_resolved().await?;
+    let chunk_root_path = path.join("output")?;
+    let static_root_path = path.join("static")?;
 
     let chunk_root_path_in_root_path_offset = project_path
-        .join(rcstr!("output"))
-        .await?
-        .get_relative_path_to(&*project_root.await?)
+        .join("output")?
+        .get_relative_path_to(project_root)
         .context("Project path is in root path")?;
 
     let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
@@ -373,29 +379,27 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env),
+            environment: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
-                    remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
-            remove_unused_exports,
             ..Default::default()
         }
         .into(),
         ResolveOptionsContext {
             enable_typescript: true,
-            enable_node_modules: Some(project_root),
+            enable_node_modules: Some(project_root.clone()),
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ResolveOptionsContext {
-                    enable_node_modules: Some(project_root),
+                    enable_node_modules: Some(project_root.clone()),
                     custom_conditions: vec![rcstr!("development")],
                     browser: true,
                     ..Default::default()
@@ -408,34 +412,8 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             ..Default::default()
         }
         .cell(),
-        rcstr!("test"),
+        Layer::new(rcstr!("test")),
     ));
-
-    let chunking_context = NodeJsChunkingContext::builder(
-        project_root,
-        chunk_root_path,
-        chunk_root_path_in_root_path_offset,
-        static_root_path,
-        chunk_root_path,
-        static_root_path,
-        env,
-        RuntimeType::Development,
-    )
-    .chunking_config(
-        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            min_chunk_size: 10_000,
-            ..Default::default()
-        },
-    )
-    .chunking_config(
-        Vc::<CssChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            max_merge_chunk_size: 100_000,
-            ..Default::default()
-        },
-    )
-    .build();
 
     let jest_entry_source = FileSource::new(jest_entry_path);
     let test_source = FileSource::new(test_path);
@@ -458,11 +436,62 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
+    // Keep this in sync with what `evaluate` does internally
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(vec![
+            jest_entry_asset.to_resolved().await?,
+        ])]),
+        false,
+    );
+
+    let chunking_context = NodeJsChunkingContext::builder(
+        project_root.clone(),
+        chunk_root_path.clone(),
+        chunk_root_path_in_root_path_offset,
+        static_root_path.clone(),
+        chunk_root_path,
+        static_root_path,
+        env,
+        RuntimeType::Development,
+    )
+    .chunking_config(
+        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+        ChunkingConfig {
+            min_chunk_size: 10_000,
+            ..Default::default()
+        },
+    )
+    .chunking_config(
+        Vc::<CssChunkType>::default().to_resolved().await?,
+        ChunkingConfig {
+            max_merge_chunk_size: 100_000,
+            ..Default::default()
+        },
+    )
+    .module_merging(options.scope_hoisting.unwrap_or(true))
+    .minify_type(if options.minify {
+        MinifyType::Minify {
+            mangle: Some(MangleType::OptimalSize),
+        }
+    } else {
+        MinifyType::NoMinify
+    })
+    .export_usage(if remove_unused_exports {
+        Some(
+            compute_export_usage_info(module_graph.to_resolved().await?)
+                .resolve_strongly_consistent()
+                .await?,
+        )
+    } else {
+        None
+    })
+    .build();
+
     let res = evaluate(
         jest_entry_asset,
-        *path,
+        path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
-        test_source.ident(),
+        Vc::upcast(test_source),
         asset_context,
         Vc::upcast(chunking_context),
         None,
@@ -487,14 +516,14 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 },
             }
             .resolved_cell(),
-            path,
+            path: path.clone(),
         }
         .cell());
     };
 
     Ok(RunTestResult {
         js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
-        path,
+        path: path.clone(),
     }
     .cell())
 }
@@ -504,20 +533,16 @@ async fn snapshot_issues(
     prepared_test: Vc<PreparedTest>,
     run_result_op: OperationVc<RunTestResult>,
 ) -> Result<Vc<()>> {
-    let PreparedTest { path, .. } = *prepared_test.await?;
+    let PreparedTest { path, .. } = &*prepared_test.await?;
     let _ = run_result_op.resolve_strongly_consistent().await;
 
     let captured_issues = run_result_op.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues.get_plain_issues().await?;
 
-    turbopack_test_utils::snapshot::snapshot_issues(
-        plain_issues,
-        path.join(rcstr!("issues")),
-        &REPO_ROOT,
-    )
-    .await
-    .context("Unable to handle issues")?;
+    turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
+        .await
+        .context("Unable to handle issues")?;
 
     Ok(Default::default())
 }

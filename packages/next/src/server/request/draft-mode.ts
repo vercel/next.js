@@ -19,6 +19,7 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 /**
  * In this version of Next.js `draftMode()` returns a Promise however you can still reference the properties of the underlying draftMode object
@@ -54,10 +55,7 @@ export function draftMode(): Promise<DraftMode> {
 
   switch (workUnitStore.type) {
     case 'request':
-      return createOrGetCachedExoticDraftMode(
-        workUnitStore.draftMode,
-        workStore
-      )
+      return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
 
     case 'cache':
     case 'unstable-cache':
@@ -70,7 +68,7 @@ export function draftMode(): Promise<DraftMode> {
       )
 
       if (draftModeProvider) {
-        return createOrGetCachedExoticDraftMode(draftModeProvider, workStore)
+        return createOrGetCachedDraftMode(draftModeProvider, workStore)
       }
 
     // Otherwise, we fall through to providing an empty draft mode.
@@ -80,15 +78,7 @@ export function draftMode(): Promise<DraftMode> {
     case 'prerender-ppr':
     case 'prerender-legacy':
       // Return empty draft mode
-      if (
-        process.env.NODE_ENV === 'development' &&
-        !workStore?.isPrefetchRequest
-      ) {
-        const route = workStore?.route
-        return createExoticDraftModeWithDevWarnings(null, route)
-      } else {
-        return createExoticDraftMode(null)
-      }
+      return createOrGetCachedDraftMode(null, workStore)
 
     default:
       const _exhaustiveCheck: never = workUnitStore
@@ -96,11 +86,12 @@ export function draftMode(): Promise<DraftMode> {
   }
 }
 
-function createOrGetCachedExoticDraftMode(
-  draftModeProvider: DraftModeProvider,
+function createOrGetCachedDraftMode(
+  draftModeProvider: DraftModeProvider | null,
   workStore: WorkStore | undefined
 ): Promise<DraftMode> {
-  const cachedDraftMode = CachedDraftModes.get(draftMode)
+  const cacheKey = draftModeProvider ?? NullDraftMode
+  const cachedDraftMode = CachedDraftModes.get(cacheKey)
 
   if (cachedDraftMode) {
     return cachedDraftMode
@@ -110,17 +101,27 @@ function createOrGetCachedExoticDraftMode(
 
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     const route = workStore?.route
+
+    if (process.env.__NEXT_DYNAMIC_IO) {
+      return createDraftModeWithDevWarnings(draftModeProvider, route)
+    }
+
     promise = createExoticDraftModeWithDevWarnings(draftModeProvider, route)
   } else {
+    if (process.env.__NEXT_DYNAMIC_IO) {
+      return Promise.resolve(new DraftMode(draftModeProvider))
+    }
+
     promise = createExoticDraftMode(draftModeProvider)
   }
 
-  CachedDraftModes.set(draftModeProvider, promise)
+  CachedDraftModes.set(cacheKey, promise)
 
   return promise
 }
 
 interface CacheLifetime {}
+const NullDraftMode = {}
 const CachedDraftModes = new WeakMap<CacheLifetime, Promise<DraftMode>>()
 
 function createExoticDraftMode(
@@ -176,6 +177,38 @@ function createExoticDraftModeWithDevWarnings(
   })
 
   return promise
+}
+
+// Similar to `createExoticDraftModeWithDevWarnings`, but just logging the sync
+// access without actually defining the draftMode properties on the promise.
+function createDraftModeWithDevWarnings(
+  underlyingProvider: null | DraftModeProvider,
+  route: undefined | string
+): Promise<DraftMode> {
+  const instance = new DraftMode(underlyingProvider)
+  const promise = Promise.resolve(instance)
+
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      switch (prop) {
+        case 'isEnabled':
+          warnForSyncAccess(route, `\`draftMode().${prop}\``)
+          break
+        case 'enable':
+        case 'disable': {
+          warnForSyncAccess(route, `\`draftMode().${prop}()\``)
+          break
+        }
+        default: {
+          // We only warn for well-defined properties of the draftMode object.
+        }
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+  })
+
+  return proxiedPromise
 }
 
 class DraftMode {

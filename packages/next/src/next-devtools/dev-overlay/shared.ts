@@ -36,12 +36,21 @@ export interface OverlayState {
   staticIndicator: boolean
   showIndicator: boolean
   disableDevIndicator: boolean
+  /** Whether to show the restart server button in the panel UI. Currently
+   *  only used when Turbopack + Persistent Cache is enabled.
+   */
+  showRestartServerButton: boolean
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
+  /** This flag is used to handle the Error Overlay state in the "old" overlay.
+   *  In the DevTools panel, this value will used for the "Error Overlay Mode"
+   *  which is viewing the "Issues Tab" as a fullscreen.
+   */
   isErrorOverlayOpen: boolean
   isDevToolsPanelOpen: boolean
   devToolsPosition: Corners
   scale: number
+  page: string
 }
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
@@ -71,10 +80,15 @@ export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'devtools-panel-toggle'
 
 export const ACTION_DEVTOOLS_POSITION = 'devtools-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
+export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
 export const STORAGE_KEY_SCALE = '__nextjs-dev-tools-scale'
+export const STORAGE_KEY_ACTIVE_TAB = '__nextjs-devtools-active-tab'
+
+export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
+  'segment-explorer-update-route-state'
 
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
@@ -163,6 +177,16 @@ export interface DevToolsScaleAction {
   scale: number
 }
 
+export interface DevToolUpdateRouteStateAction {
+  type: typeof ACTION_DEVTOOL_UPDATE_ROUTE_STATE
+  page: string
+}
+
+export interface RestartServerButtonAction {
+  type: typeof ACTION_RESTART_SERVER_BUTTON
+  showRestartServerButton: boolean
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -186,11 +210,15 @@ export type DispatcherEvent =
   | DevToolsPanelToggleAction
   | DevToolsIndicatorPositionAction
   | DevToolsScaleAction
+  | DevToolUpdateRouteStateAction
+  | RestartServerButtonAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
-  // 1st group: v8
-  // 2nd group: SpiderMonkey, JavaScriptCore
-  /\s+(at react-stack-bottom-frame.*)|(react-stack-bottom-frame@.*)/
+  // 1st group: new frame + v8
+  // 2nd group: new frame + SpiderMonkey, JavaScriptCore
+  // 3rd group: old frame + v8
+  // 4th group: old frame + SpiderMonkey, JavaScriptCore
+  /\s+(at Object\.react_stack_bottom_frame.*)|(react_stack_bottom_frame@.*)|(at react-stack-bottom-frame.*)|(react-stack-bottom-frame@.*)/
 
 // React calls user code starting from a special stack frame.
 // The basic stack will be different if the same error location is hit again
@@ -225,8 +253,10 @@ export const INITIAL_OVERLAY_STATE: Omit<
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
   isDevToolsPanelOpen: false,
+  showRestartServerButton: false,
   devToolsPosition: 'bottom-left',
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
+  page: '',
 }
 
 function getInitialState(
@@ -403,6 +433,15 @@ export function useErrorOverlayReducer(
         }
         case ACTION_DEVTOOLS_SCALE: {
           return { ...state, scale: action.scale }
+        }
+        case ACTION_DEVTOOL_UPDATE_ROUTE_STATE: {
+          return { ...state, page: action.page }
+        }
+        case ACTION_RESTART_SERVER_BUTTON: {
+          return {
+            ...state,
+            showRestartServerButton: action.showRestartServerButton,
+          }
         }
         default: {
           return state

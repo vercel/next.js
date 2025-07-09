@@ -1,3 +1,5 @@
+// Start CPU profile if it wasn't already started.
+import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
 
 if (performance.getEntriesByName('next-start').length === 0) {
@@ -348,6 +350,11 @@ export async function startServer(
       process.env.PORT = port + ''
 
       process.env.__NEXT_PRIVATE_ORIGIN = appUrl
+
+      // Set experimental HTTPS flag for metadata resolution
+      if (selfSignedCertificate) {
+        process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      }
 
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined

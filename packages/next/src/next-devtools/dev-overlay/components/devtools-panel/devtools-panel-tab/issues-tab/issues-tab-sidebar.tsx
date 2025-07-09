@@ -18,6 +18,10 @@ export function IssuesTabSidebar({
   activeIdx: number
   setActiveIndex: (idx: number) => void
 }) {
+  if (runtimeErrors.length === 0) {
+    return null
+  }
+
   return (
     <aside data-nextjs-devtools-panel-tab-issues-sidebar>
       {runtimeErrors.map((runtimeError, idx) => {

@@ -22,7 +22,6 @@ import mitt from '../mitt'
 import { getLocationOrigin, getURL, loadGetInitialProps, ST } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
-import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
@@ -45,6 +44,13 @@ import { interpolateAs } from './utils/interpolate-as'
 import { handleSmoothScroll } from './utils/handle-smooth-scroll'
 import type { Params } from '../../../server/request/params'
 import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+
+let resolveRewrites: typeof import('./utils/resolve-rewrites').default
+if (process.env.__NEXT_HAS_REWRITES) {
+  resolveRewrites = (
+    require('./utils/resolve-rewrites') as typeof import('./utils/resolve-rewrites')
+  ).default
+}
 
 declare global {
   interface Window {

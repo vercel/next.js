@@ -32,6 +32,7 @@ use crate::{
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
         chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
+        merged_modules::{MergedModuleInfo, compute_merged_modules},
         module_batches::{ModuleBatchesGraph, compute_module_batches},
         style_groups::{StyleGroups, StyleGroupsConfig, compute_style_groups},
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
@@ -42,6 +43,8 @@ use crate::{
 
 pub mod async_module_info;
 pub mod chunk_group_info;
+pub mod export_usage;
+pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
 pub(crate) mod style_groups;
@@ -77,7 +80,7 @@ pub struct VisitedModules {
 #[turbo_tasks::value_impl]
 impl VisitedModules {
     #[turbo_tasks::function]
-    pub async fn empty() -> Vc<Self> {
+    pub fn empty() -> Vc<Self> {
         Self {
             modules: Default::default(),
             next_graph_idx: 0,
@@ -110,7 +113,7 @@ impl VisitedModules {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_incremented_index(&self) -> Result<Vc<Self>> {
+    pub fn with_incremented_index(&self) -> Result<Vc<Self>> {
         Ok(Self {
             modules: self.modules.clone(),
             next_graph_idx: self.next_graph_idx + 1,
@@ -176,7 +179,7 @@ impl GraphEntries {
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
-    graph: TracedDiGraph<SingleModuleGraphNode, RefData>,
+    pub graph: TracedDiGraph<SingleModuleGraphNode, RefData>,
 
     /// The number of modules in the graph (excluding VisitedModule nodes)
     pub number_of_modules: usize,
@@ -344,16 +347,27 @@ impl SingleModuleGraph {
 
         #[cfg(debug_assertions)]
         {
-            let mut duplicates = Vec::new();
-            let mut set = FxHashSet::default();
-            for &module in modules.keys() {
-                let ident = module.ident().to_string().await?;
-                if !set.insert(ident.clone()) {
-                    duplicates.push(ident)
+            use once_cell::sync::Lazy;
+
+            // TODO(PACK-4578): This is temporary while the last issues are being addressed.
+            static CHECK_FOR_DUPLICATE_MODULES: Lazy<bool> = Lazy::new(|| {
+                match std::env::var_os("TURBOPACK_TEMP_DISABLE_DUPLICATE_MODULES_CHECK") {
+                    Some(v) => v != "1" && v != "true",
+                    None => true,
                 }
-            }
-            if !duplicates.is_empty() {
-                panic!("Duplicate module idents in graph: {duplicates:#?}");
+            });
+            if *CHECK_FOR_DUPLICATE_MODULES {
+                let mut duplicates = Vec::new();
+                let mut set = FxHashSet::default();
+                for &module in modules.keys() {
+                    let ident = module.ident().to_string().await?;
+                    if !set.insert(ident.clone()) {
+                        duplicates.push(ident)
+                    }
+                }
+                if !duplicates.is_empty() {
+                    panic!("Duplicate module idents in graph: {duplicates:#?}");
+                }
             }
         }
 
@@ -386,7 +400,19 @@ impl SingleModuleGraph {
         })
     }
 
-    /// Iterate over all nodes in the graph
+    /// Returns true if the given module is in this graph and is an entry module
+    pub fn has_entry_module(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
+        if let Some(index) = self.modules.get(&module) {
+            self.graph
+                .edges_directed(*index, petgraph::Direction::Incoming)
+                .next()
+                .is_none()
+        } else {
+            false
+        }
+    }
+
+    /// Iterate over graph entry points
     pub fn entry_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.entries.iter().flat_map(|e| e.entries())
     }
@@ -864,12 +890,9 @@ impl ModuleGraphImportTracer {
 #[turbo_tasks::value_impl]
 impl ImportTracer for ModuleGraphImportTracer {
     #[turbo_tasks::function]
-    async fn get_traces(
-        self: Vc<Self>,
-        path: ResolvedVc<FileSystemPath>,
-    ) -> Result<Vc<ImportTraces>> {
+    async fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<ImportTraces>> {
         let path_to_modules = self.path_to_modules().await?;
-        let Some(modules) = path_to_modules.map.get(&*path.await?) else {
+        let Some(modules) = path_to_modules.map.get(&path) else {
             return Ok(Vc::default()); // This isn't unusual, the file just might not be in this
             // graph.
         };
@@ -979,6 +1002,11 @@ impl ModuleGraph {
     #[turbo_tasks::function]
     pub async fn chunk_group_info(&self) -> Result<Vc<ChunkGroupInfo>> {
         compute_chunk_group_info(self).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn merged_modules(self: Vc<Self>) -> Result<Vc<MergedModuleInfo>> {
+        compute_merged_modules(self).await
     }
 
     #[turbo_tasks::function]

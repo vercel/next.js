@@ -16,6 +16,7 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use tokio::{runtime::Handle, select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
 use tracing::{Instrument, Level, Span, info_span, instrument, trace_span};
@@ -399,10 +400,13 @@ struct CurrentTaskState {
     /// Affected tasks, that are tracked during task execution. These tasks will
     /// be invalidated when the execution finishes or before reading a cell
     /// value.
-    tasks_to_notify: Vec<TaskId>,
+    tasks_to_notify: SmallVec<[TaskId; 4]>,
 
     /// True if the current task has state in cells
     stateful: bool,
+
+    /// True if the current task uses an external invalidator
+    has_invalidator: bool,
 
     /// Tracks how many cells of each type has been allocated so far during this task execution.
     /// When a task is re-executed, the cell count may not match the existing cell vec length.
@@ -429,8 +433,9 @@ impl CurrentTaskState {
         Self {
             task_id,
             execution_id,
-            tasks_to_notify: Vec::new(),
+            tasks_to_notify: SmallVec::new(),
             stateful: false,
+            has_invalidator: false,
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
             local_task_tracker: TaskTracker::new(),
@@ -603,7 +608,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 self.schedule_local_task(task_type, persistence)
             }
             TaskPersistence::Transient => {
-                let immutable = native_fn.function_meta.immutable;
                 let task_type = CachedTaskType {
                     native_fn,
                     this,
@@ -613,12 +617,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 RawVc::TaskOutput(self.backend.get_or_create_transient_task(
                     task_type,
                     current_task("turbo_function calls"),
-                    immutable,
                     self,
                 ))
             }
             TaskPersistence::Persistent => {
-                let immutable = native_fn.function_meta.immutable;
                 let task_type = CachedTaskType {
                     native_fn,
                     this,
@@ -628,7 +630,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
                     task_type,
                     current_task("turbo_function calls"),
-                    immutable,
                     self,
                 ))
             }
@@ -732,7 +733,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
                         };
 
                         this.backend.task_execution_result(task_id, result, &*this);
-                        let stateful = this.finish_current_task_state();
+                        let FinishedTaskState {
+                            stateful,
+                            has_invalidator,
+                        } = this.finish_current_task_state();
                         let cell_counters = CURRENT_TASK_STATE
                             .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
                         let schedule_again = this.backend.task_execution_completed(
@@ -741,6 +745,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             memory_usage,
                             &cell_counters,
                             stateful,
+                            has_invalidator,
                             &*this,
                         );
                         // task_execution_completed might need to notify tasks
@@ -1136,25 +1141,37 @@ impl<B: Backend + 'static> TurboTasks<B> {
         );
     }
 
-    fn finish_current_task_state(&self) -> bool {
-        let (stateful, tasks) = CURRENT_TASK_STATE.with(|cell| {
+    fn finish_current_task_state(&self) -> FinishedTaskState {
+        let (stateful, has_invalidator, tasks) = CURRENT_TASK_STATE.with(|cell| {
             let CurrentTaskState {
                 tasks_to_notify,
                 stateful,
+                has_invalidator,
                 ..
             } = &mut *cell.write().unwrap();
-            (*stateful, take(tasks_to_notify))
+            (*stateful, *has_invalidator, take(tasks_to_notify))
         });
 
         if !tasks.is_empty() {
             self.backend.invalidate_tasks(&tasks, self);
         }
-        stateful
+        FinishedTaskState {
+            stateful,
+            has_invalidator,
+        }
     }
 
     pub fn backend(&self) -> &B {
         &self.backend
     }
+}
+
+struct FinishedTaskState {
+    /// True if the task has state in cells
+    stateful: bool,
+
+    /// True if the task uses an external invalidator
+    has_invalidator: bool,
 }
 
 impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
@@ -1514,7 +1531,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             let CurrentTaskState {
                 tasks_to_notify, ..
             } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter());
+            tasks_to_notify.extend(tasks.iter().copied());
         });
         if result.is_err() {
             let _guard = trace_span!("schedule_notify_tasks", count = tasks.len()).entered();
@@ -1529,7 +1546,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             let CurrentTaskState {
                 tasks_to_notify, ..
             } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter());
+            tasks_to_notify.extend(tasks.iter().copied());
         });
         if result.is_err() {
             let _guard = trace_span!("schedule_notify_tasks_set", count = tasks.len()).entered();
@@ -1739,6 +1756,15 @@ pub fn mark_stateful() -> SerializationInvalidator {
         } = &mut *cell.write().unwrap();
         *stateful = true;
         SerializationInvalidator::new(*task_id)
+    })
+}
+
+pub fn mark_invalidator() {
+    CURRENT_TASK_STATE.with(|cell| {
+        let CurrentTaskState {
+            has_invalidator, ..
+        } = &mut *cell.write().unwrap();
+        *has_invalidator = true;
     })
 }
 

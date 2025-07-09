@@ -71,20 +71,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/actions-deployment-skew/actions-deployment-skew.test.ts": {
-    "passed": [
-      "actions-deployment-skew in the edge runtime with a form action and JavaScript disabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the edge runtime with a form action and JavaScript enabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the edge runtime with a normal action should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the node runtime with a form action and JavaScript disabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the node runtime with a form action and JavaScript enabled should respond with a 404 for an unknown server action",
-      "actions-deployment-skew in the node runtime with a normal action should respond with a 404 for an unknown server action"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/actions-navigation/index.test.ts": {
     "passed": [
       "app-dir action handling should handle actions correctly after following a relative link",
@@ -98,6 +84,26 @@
   "test/e2e/app-dir/actions-revalidate-remount/actions-revalidate-remount.test.ts": {
     "passed": [
       "actions-revalidate-remount should not remount the page + loading component when revalidating"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-unrecognized/actions-unrecognized.test.ts": {
+    "passed": [
+      "unrecognized server actions should 404 when POSTing a non-server-action request to a nonexistent page",
+      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: form-data/multipart",
+      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: plaintext",
+      "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: urlencoded",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with complex argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with simple argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js disabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js enabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with complex argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with simple argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js disabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js enabled"
     ],
     "failed": [],
     "pending": [],
@@ -168,13 +174,12 @@
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when route handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when route handler redirects with a 308 status code",
-      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
-      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `redirect`",
       "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
-      "app-dir action handling should 404 when POSTing an invalid server action",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
@@ -184,7 +189,6 @@
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
       "app-dir action handling should keep action instances identical",
-      "app-dir action handling should log a warning when a server action is not found but an id is provided",
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should not block router.back() while a server action is in flight",
       "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
@@ -302,13 +306,12 @@
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when route handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when route handler redirects with a 308 status code",
-      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
-      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when route handler uses `redirect`",
       "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
       "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
-      "app-dir action handling should 404 when POSTing an invalid server action",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
@@ -318,7 +321,6 @@
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
       "app-dir action handling should keep action instances identical",
-      "app-dir action handling should log a warning when a server action is not found but an id is provided",
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should not block router.back() while a server action is in flight",
       "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
@@ -2015,10 +2017,10 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.platform-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete"
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete"
     ],
     "failed": [],
     "pending": [],
@@ -2051,14 +2053,14 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access"
+      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access"
     ],
     "failed": [],
     "pending": [],
@@ -2067,18 +2069,18 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)"
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - cookies should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - server searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - client searchParams should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - cookies should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - server searchParams should error the build if dynamic IO happens in the root (outside a Suspense)"
     ],
     "failed": [],
     "pending": [],
@@ -2087,24 +2089,24 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Dynamic IO Errors - With Minification Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
-      "Dynamic IO Errors - With Minification Static Route should not error the build when all routes are static",
-      "Dynamic IO Errors - Without Minification Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Dynamic IO Errors - Without Minification Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
-      "Dynamic IO Errors - Without Minification Static Route should not error the build when all routes are static"
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
+      "Dynamic IO Errors - Build With --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
+      "Dynamic IO Errors - Build With --prerender-debug Static Route should not error the build when all routes are static",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
+      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
+      "Dynamic IO Errors - Build Without --prerender-debug Static Route should not error the build when all routes are static"
     ],
     "failed": [],
     "pending": [],
@@ -2963,6 +2965,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/mdx-no-mdx-components/mdx.test.ts": {
+    "passed": [
+      "mdx app directory should allow importing client components",
+      "mdx app directory should work in initial html",
+      "mdx app directory should work using browser",
+      "mdx pages directory should work in initial html"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/mdx/mdx.test.ts": {
     "passed": [
       "mdx with-mdx-rs app directory should allow importing client components",
@@ -3033,11 +3047,10 @@
   },
   "test/e2e/app-dir/metadata-edge/index.test.ts": {
     "passed": [
+      "app dir - Metadata API on the Edge runtime OG image route should not bundle `ImageResponse` into the page worker",
       "app dir - Metadata API on the Edge runtime should render OpenGraph image meta tag correctly"
     ],
-    "failed": [
-      "app dir - Metadata API on the Edge runtime OG image route should not bundle `ImageResponse` into the page worker"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3828,6 +3841,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/not-found-with-layout-and-group-not-found/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts and custom not-found should render the custom not-found page when notFound() is thrown from a page within the group"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/not-found-with-nested-layouts/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts should render the custom not-found page when notFound() is thrown from a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/not-found-with-pages-i18n/not-found-with-pages.test.ts": {
     "passed": [
       "not-found-with-pages should prefer the app router 404 over the pages router 404 when both are present",
@@ -4019,6 +4050,7 @@
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with prerendered dynamic routes  should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
@@ -5165,17 +5197,15 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
-    "passed": [],
-    "failed": [
-      "Invalid Global CSS with Custom App production only should fail to build"
-    ],
+    "passed": ["Invalid Global CSS with Custom App should fail to build"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
-    "passed": [],
-    "failed": ["Invalid Global CSS production only should fail to build"],
+    "passed": ["Invalid Global CSS should fail to build"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5397,10 +5427,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
-    "passed": [],
-    "failed": [
-      "Valid and Invalid Global CSS with Custom App production only should fail to build"
+    "passed": [
+      "Valid and Invalid Global CSS with Custom App should fail to build"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5473,6 +5503,7 @@
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
+      "segment cache (basic tests) prefetch interception route with params",
       "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
@@ -5486,7 +5517,7 @@
     "passed": [
       "segment cache (CDN cache busting) perform fully prefetched navigation when a third-party proxy performs a redirect",
       "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
-      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
+      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with a redirect to correct cache busting query param if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
     "failed": [],
     "pending": [],
@@ -7115,6 +7146,8 @@
       "react version App Router page headers with nodejs runtime",
       "react version App Router page with edge runtime",
       "react version App Router page with nodejs runtime",
+      "react version Pages Router API route with edge runtime",
+      "react version Pages Router API route with nodejs runtime",
       "react version Pages Router page headers with edge runtime",
       "react version Pages Router page headers with nodejs runtime",
       "react version Pages Router page with edge runtime",
@@ -8419,6 +8452,8 @@
       "Prerender should support prerendered catchall route",
       "Prerender should support prerendered catchall-explicit route (nested)",
       "Prerender should support prerendered catchall-explicit route (single)",
+      "Prerender should use correct caching headers for a fallback-true page (lazy)",
+      "Prerender should use correct caching headers for a fallback-true page (prerendered)",
       "Prerender should use correct caching headers for a no-revalidate page",
       "Prerender should use correct caching headers for a revalidate page"
     ],
@@ -9743,19 +9778,19 @@
     "runtimeError": false
   },
   "test/integration/build-trace-extra-entries-turbo/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "build trace with extra entries production mode should build and trace correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/build-trace-extra-entries/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "build trace with extra entries production mode should build and trace correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10318,11 +10353,11 @@
     "runtimeError": false
   },
   "test/integration/css-features/test/browserslist.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Browserslist: New production mode should've emitted a single CSS file",
       "Browserslist: Old production mode should've emitted a single CSS file"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18754,16 +18789,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/app-dir/resume-data-cache/resume-data-cache.test.ts": {
-    "passed": [
-      "resume-data-cache should have consistent data between static and dynamic renders with fetch cache",
-      "resume-data-cache should have consistent data between static and dynamic renders with use cache"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/production/app-dir/revalidate/revalidate.test.ts": {
     "passed": [
       "app-dir revalidate should be able to revalidate the cache via pages/api"
@@ -19039,10 +19064,10 @@
     "runtimeError": false
   },
   "test/production/edge-config-validations/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Edge config validations fails to build when unstable_allowDynamic is not a string"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19658,7 +19683,6 @@
   "test/production/standalone-mode/required-server-files/required-server-files-ppr.test.ts": {
     "passed": [
       "required server files app router middleware rewrite should work with a dynamic path with Next-Resume",
-      "required server files app router should de-dupe client segment tree revalidate requests",
       "required server files app router should handle RSC requests",
       "required server files app router should handle prefetch RSC requests",
       "required server files app router should handle revalidating the fallback page",
@@ -19669,8 +19693,7 @@
       "required server files app router should properly handle prerender for bot request",
       "required server files app router should properly stream resume with Next-Resume",
       "required server files app router should send cache tags in minimal mode for ISR",
-      "required server files app router should still render when postponed is corrupted with Next-Resume",
-      "required server files app router should use the postponed state for the RSC requests"
+      "required server files app router should still render when postponed is corrupted with Next-Resume"
     ],
     "failed": [],
     "pending": [],
