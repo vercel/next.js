@@ -55,7 +55,9 @@ export class PrerenderManifestMatcher {
    * @param pathname - The pathname to match.
    * @returns The dynamic route that matches the pathname.
    */
-  public match(pathname: string): DeepReadonly<DynamicPrerenderManifestRoute> {
+  public match(
+    pathname: string
+  ): DeepReadonly<DynamicPrerenderManifestRoute> | null {
     // Iterate over the matchers. They're already in the correct order of
     // specificity as they were inserted into the prerender manifest that way
     // and iterating over them with Object.entries guarantees that.
@@ -71,6 +73,6 @@ export class PrerenderManifestMatcher {
       }
     }
 
-    throw new Error('Unable to match pathname to a dynamic route')
+    return null
   }
 }

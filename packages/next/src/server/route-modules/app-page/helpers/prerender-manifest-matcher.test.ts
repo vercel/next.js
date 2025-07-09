@@ -74,5 +74,45 @@ describe('PrerenderManifestMatcher', () => {
         expect(result).toBe(specificRoute)
       })
     })
+
+    describe('no match scenarios', () => {
+      it('should return null when no matching route is found', () => {
+        const route = createMockDynamicRoute({
+          fallbackSourceRoute: '/[category]/[id]',
+        })
+
+        const manifest = createMockPrerenderManifest({
+          '/products/[id]': route,
+        })
+
+        const matcher = new PrerenderManifestMatcher(
+          '/[category]/[id]',
+          manifest
+        )
+
+        const result = matcher.match('/non-matching-path')
+
+        expect(result).toBe(null)
+      })
+
+      it('should return null when no routes match the fallback source route', () => {
+        const route = createMockDynamicRoute({
+          fallbackSourceRoute: '/products/[id]',
+        })
+
+        const manifest = createMockPrerenderManifest({
+          '/products/[id]': route,
+        })
+
+        const matcher = new PrerenderManifestMatcher(
+          '/[category]/[id]',
+          manifest
+        )
+
+        const result = matcher.match('/products/123')
+
+        expect(result).toBe(null)
+      })
+    })
   })
 })

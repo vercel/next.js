@@ -664,7 +664,7 @@ export async function handler(
 
         if (isRoutePPREnabled && !isRSCRequest) {
           const cacheKey =
-            typeof prerenderInfo.fallback === 'string'
+            typeof prerenderInfo?.fallback === 'string'
               ? prerenderInfo.fallback
               : isProduction
                 ? normalizedSrcPage
