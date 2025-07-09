@@ -145,7 +145,7 @@ describe('Dynamic IO Errors', () => {
             // square brackets.
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+               "description": "Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": null,
@@ -592,7 +592,7 @@ describe('Dynamic IO Errors', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
                  "source": null,
@@ -603,7 +603,7 @@ describe('Dynamic IO Errors', () => {
                  ],
                },
                {
-                 "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
                  "source": null,

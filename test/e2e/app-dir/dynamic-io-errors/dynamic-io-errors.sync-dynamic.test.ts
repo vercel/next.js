@@ -75,19 +75,19 @@ describe('Dynamic IO Errors', () => {
           const browser = await next.browser(`${pathname}?foo=test`)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-           "environmentLabel": null,
-           "label": "Console Error",
-           "source": "app/page.tsx (26:5) @ SearchParamsReadingComponent
-         > 26 |   ).foo
-              |     ^",
-           "stack": [
-             "SearchParamsReadingComponent app/page.tsx (26:5)",
-             "Page app/page.tsx (14:7)",
-           ],
-         }
-        `)
+           {
+             "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/sync-client-search/page.tsx (26:5) @ SearchParamsReadingComponent
+           > 26 |   ).foo
+                |     ^",
+             "stack": [
+               "SearchParamsReadingComponent app/sync-client-search/page.tsx (26:5)",
+               "Page app/sync-client-search/page.tsx (14:7)",
+             ],
+           }
+          `)
         })
       } else {
         it('should not error the build when synchronously reading `searchParams.foo`', async () => {
@@ -126,19 +126,19 @@ describe('Dynamic IO Errors', () => {
           const browser = await next.browser(`${pathname}?foo=test`)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "Route "/" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-           "environmentLabel": "Prerender",
-           "label": "Console Error",
-           "source": "app/page.tsx (30:5) @ SearchParamsReadingComponent
-         > 30 |   ).foo
-              |     ^",
-           "stack": [
-             "SearchParamsReadingComponent app/page.tsx (30:5)",
-             "Page app/page.tsx (15:7)",
-           ],
-         }
-        `)
+           {
+             "description": "Route "/sync-server-search" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/sync-server-search/page.tsx (30:5) @ SearchParamsReadingComponent
+           > 30 |   ).foo
+                |     ^",
+             "stack": [
+               "SearchParamsReadingComponent app/sync-server-search/page.tsx (30:5)",
+               "Page app/sync-server-search/page.tsx (15:7)",
+             ],
+           }
+          `)
         })
       } else {
         it('should not error the build when synchronously reading `searchParams.foo`', async () => {
@@ -170,60 +170,60 @@ describe('Dynamic IO Errors', () => {
 
           if (isTurbopack) {
             await expect(browser).toDisplayRedbox(`
-           [
-             {
-               "description": "Route "/" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
-               "label": "Console Error",
-               "source": "app/page.tsx (17:26) @ CookiesReadingComponent
-           > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                |                          ^",
-               "stack": [
-                 "CookiesReadingComponent app/page.tsx (17:26)",
-                 "Page app/page.tsx (11:7)",
-               ],
-             },
-             {
-               "description": "(0 , <turbopack-module-id>.cookies)(...).get is not a function",
-               "environmentLabel": "Prerender",
-               "label": "Runtime TypeError",
-               "source": "app/page.tsx (17:67) @ CookiesReadingComponent
-           > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                |                                                                   ^",
-               "stack": [
-                 "CookiesReadingComponent app/page.tsx (17:67)",
-               ],
-             },
-           ]
-          `)
+                        [
+                          {
+                            "description": "Route "/" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                            "environmentLabel": "Prerender",
+                            "label": "Console Error",
+                            "source": "app/page.tsx (17:26) @ CookiesReadingComponent
+                        > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                             |                          ^",
+                            "stack": [
+                              "CookiesReadingComponent app/page.tsx (17:26)",
+                              "Page app/page.tsx (11:7)",
+                            ],
+                          },
+                          {
+                            "description": "(0 , <turbopack-module-id>.cookies)(...).get is not a function",
+                            "environmentLabel": "Prerender",
+                            "label": "Runtime TypeError",
+                            "source": "app/page.tsx (17:67) @ CookiesReadingComponent
+                        > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                             |                                                                   ^",
+                            "stack": [
+                              "CookiesReadingComponent app/page.tsx (17:67)",
+                            ],
+                          },
+                        ]
+                      `)
           } else {
             await expect(browser).toDisplayRedbox(`
-           [
-             {
-               "description": "Route "/" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
-               "label": "Console Error",
-               "source": "app/page.tsx (17:18) @ CookiesReadingComponent
-           > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                |                  ^",
-               "stack": [
-                 "CookiesReadingComponent app/page.tsx (17:18)",
-                 "Page app/page.tsx (11:7)",
-               ],
-             },
-             {
-               "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
-               "environmentLabel": "Prerender",
-               "label": "Runtime TypeError",
-               "source": "app/page.tsx (17:67) @ CookiesReadingComponent
-           > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                |                                                                   ^",
-               "stack": [
-                 "CookiesReadingComponent app/page.tsx (17:67)",
-               ],
-             },
-           ]
-          `)
+             [
+               {
+                 "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                 "environmentLabel": "Prerender",
+                 "label": "Console Error",
+                 "source": "app/sync-cookies/page.tsx (17:18) @ CookiesReadingComponent
+             > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                  |                  ^",
+                 "stack": [
+                   "CookiesReadingComponent app/sync-cookies/page.tsx (17:18)",
+                   "Page app/sync-cookies/page.tsx (11:7)",
+                 ],
+               },
+               {
+                 "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+                 "environmentLabel": "Prerender",
+                 "label": "Runtime TypeError",
+                 "source": "app/sync-cookies/page.tsx (17:67) @ CookiesReadingComponent
+             > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                  |                                                                   ^",
+                 "stack": [
+                   "CookiesReadingComponent app/sync-cookies/page.tsx (17:67)",
+                 ],
+               },
+             ]
+            `)
           }
         })
       } else {
@@ -327,34 +327,34 @@ describe('Dynamic IO Errors', () => {
 
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Prerender",
-             "label": "Console Error",
-             "source": "app/page.tsx (23:31) @ DraftModeReadingComponent
-           > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
-                |                               ^",
-             "stack": [
-               "DraftModeReadingComponent app/page.tsx (23:31)",
-               "Page app/page.tsx (13:7)",
-             ],
-           }
-          `)
+                        {
+                          "description": "Route "/" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                          "environmentLabel": "Prerender",
+                          "label": "Console Error",
+                          "source": "app/page.tsx (23:31) @ DraftModeReadingComponent
+                        > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+                             |                               ^",
+                          "stack": [
+                            "DraftModeReadingComponent app/page.tsx (23:31)",
+                            "Page app/page.tsx (13:7)",
+                          ],
+                        }
+                      `)
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Prerender",
-             "label": "Console Error",
-             "source": "app/page.tsx (23:21) @ DraftModeReadingComponent
-           > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
-                |                     ^",
-             "stack": [
-               "DraftModeReadingComponent app/page.tsx (23:21)",
-               "Page app/page.tsx (13:7)",
-             ],
-           }
-          `)
+             {
+               "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": "app/sync-draft-mode/page.tsx (23:21) @ DraftModeReadingComponent
+             > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+                  |                     ^",
+               "stack": [
+                 "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:21)",
+                 "Page app/sync-draft-mode/page.tsx (13:7)",
+               ],
+             }
+            `)
           }
         })
       } else {
@@ -387,60 +387,60 @@ describe('Dynamic IO Errors', () => {
 
           if (isTurbopack) {
             await expect(browser).toDisplayRedbox(`
-           [
-             {
-               "description": "Route "/" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
-               "label": "Console Error",
-               "source": "app/page.tsx (17:29) @ HeadersReadingComponent
-           > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                |                             ^",
-               "stack": [
-                 "HeadersReadingComponent app/page.tsx (17:29)",
-                 "Page app/page.tsx (11:7)",
-               ],
-             },
-             {
-               "description": "(0 , <turbopack-module-id>.headers)(...).get is not a function",
-               "environmentLabel": "Prerender",
-               "label": "Runtime TypeError",
-               "source": "app/page.tsx (17:70) @ HeadersReadingComponent
-           > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                |                                                                      ^",
-               "stack": [
-                 "HeadersReadingComponent app/page.tsx (17:70)",
-               ],
-             },
-           ]
-          `)
+                        [
+                          {
+                            "description": "Route "/" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                            "environmentLabel": "Prerender",
+                            "label": "Console Error",
+                            "source": "app/page.tsx (17:29) @ HeadersReadingComponent
+                        > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                             |                             ^",
+                            "stack": [
+                              "HeadersReadingComponent app/page.tsx (17:29)",
+                              "Page app/page.tsx (11:7)",
+                            ],
+                          },
+                          {
+                            "description": "(0 , <turbopack-module-id>.headers)(...).get is not a function",
+                            "environmentLabel": "Prerender",
+                            "label": "Runtime TypeError",
+                            "source": "app/page.tsx (17:70) @ HeadersReadingComponent
+                        > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                             |                                                                      ^",
+                            "stack": [
+                              "HeadersReadingComponent app/page.tsx (17:70)",
+                            ],
+                          },
+                        ]
+                      `)
           } else {
             await expect(browser).toDisplayRedbox(`
-           [
-             {
-               "description": "Route "/" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
-               "label": "Console Error",
-               "source": "app/page.tsx (17:21) @ HeadersReadingComponent
-           > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                |                     ^",
-               "stack": [
-                 "HeadersReadingComponent app/page.tsx (17:21)",
-                 "Page app/page.tsx (11:7)",
-               ],
-             },
-             {
-               "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
-               "environmentLabel": "Prerender",
-               "label": "Runtime TypeError",
-               "source": "app/page.tsx (17:70) @ HeadersReadingComponent
-           > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-                |                                                                      ^",
-               "stack": [
-                 "HeadersReadingComponent app/page.tsx (17:70)",
-               ],
-             },
-           ]
-          `)
+             [
+               {
+                 "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                 "environmentLabel": "Prerender",
+                 "label": "Console Error",
+                 "source": "app/sync-headers/page.tsx (17:21) @ HeadersReadingComponent
+             > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                  |                     ^",
+                 "stack": [
+                   "HeadersReadingComponent app/sync-headers/page.tsx (17:21)",
+                   "Page app/sync-headers/page.tsx (11:7)",
+                 ],
+               },
+               {
+                 "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                 "environmentLabel": "Prerender",
+                 "label": "Runtime TypeError",
+                 "source": "app/sync-headers/page.tsx (17:70) @ HeadersReadingComponent
+             > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                  |                                                                      ^",
+                 "stack": [
+                   "HeadersReadingComponent app/sync-headers/page.tsx (17:70)",
+                 ],
+               },
+             ]
+            `)
           }
         })
       } else {
@@ -542,34 +542,34 @@ describe('Dynamic IO Errors', () => {
 
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/[slug]/page.tsx (20:39) @ ParamsReadingComponent
-           > 20 |       <span id="param">{String(params.slug)}</span>
-                |                                       ^",
-             "stack": [
-               "ParamsReadingComponent app/[slug]/page.tsx (20:39)",
-               "Page app/[slug]/page.tsx (11:7)",
-             ],
-           }
-          `)
+                        {
+                          "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
+                          "environmentLabel": null,
+                          "label": "Console Error",
+                          "source": "app/[slug]/page.tsx (20:39) @ ParamsReadingComponent
+                        > 20 |       <span id="param">{String(params.slug)}</span>
+                             |                                       ^",
+                          "stack": [
+                            "ParamsReadingComponent app/[slug]/page.tsx (20:39)",
+                            "Page app/[slug]/page.tsx (11:7)",
+                          ],
+                        }
+                      `)
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/[slug]/page.tsx (20:39) @ ParamsReadingComponent
-           > 20 |       <span id="param">{String(params.slug)}</span>
-                |                                       ^",
-             "stack": [
-               "ParamsReadingComponent app/[slug]/page.tsx (20:39)",
-               "Page app/[slug]/page.tsx (11:7)",
-             ],
-           }
-          `)
+             {
+               "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
+               "environmentLabel": null,
+               "label": "Console Error",
+               "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
+             > 20 |       <span id="param">{String(params.slug)}</span>
+                  |                                       ^",
+               "stack": [
+                 "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:39)",
+                 "Page app/sync-client-params/[slug]/page.tsx (11:7)",
+               ],
+             }
+            `)
           }
         })
       } else {
@@ -606,34 +606,34 @@ describe('Dynamic IO Errors', () => {
 
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Prerender",
-             "label": "Console Error",
-             "source": "app/[slug]/page.tsx (24:39) @ ParamsReadingComponent
-           > 24 |       <span id="param">{String(params.slug)}</span>
-                |                                       ^",
-             "stack": [
-               "ParamsReadingComponent app/[slug]/page.tsx (24:39)",
-               "Page app/[slug]/page.tsx (12:7)",
-             ],
-           }
-          `)
+                        {
+                          "description": "Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                          "environmentLabel": "Prerender",
+                          "label": "Console Error",
+                          "source": "app/[slug]/page.tsx (24:39) @ ParamsReadingComponent
+                        > 24 |       <span id="param">{String(params.slug)}</span>
+                             |                                       ^",
+                          "stack": [
+                            "ParamsReadingComponent app/[slug]/page.tsx (24:39)",
+                            "Page app/[slug]/page.tsx (12:7)",
+                          ],
+                        }
+                      `)
           } else {
             // TODO(veil): Source mapping breaks due to double-encoding of the
             // square brackets.
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-             "environmentLabel": "Prerender",
-             "label": "Console Error",
-             "source": null,
-             "stack": [
-               "ParamsReadingComponent rsc:/Prerender/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (51:41)",
-               "Page rsc:/Prerender/webpack-internal:///(rsc)/app/%5Bslug%5D/page.tsx (23:88)",
-             ],
-           }
-          `)
+             {
+               "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "ParamsReadingComponent rsc:/Prerender/webpack-internal:///(rsc)/app/sync-server-params/%5Bslug%5D/page.tsx (51:41)",
+                 "Page rsc:/Prerender/webpack-internal:///(rsc)/app/sync-server-params/%5Bslug%5D/page.tsx (23:88)",
+               ],
+             }
+            `)
           }
         })
       } else {

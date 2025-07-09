@@ -79,36 +79,36 @@ describe('Dynamic IO Errors', () => {
 
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/client.tsx (5:16) @ SyncIO
-           > 5 |   const data = new Date().toISOString()
-               |                ^",
-             "stack": [
-               "SyncIO app/client.tsx (5:16)",
-               "<FIXME-file-protocol>",
-               "LogSafely <anonymous>",
-             ],
-           }
-          `)
+                        {
+                          "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+                          "environmentLabel": "Server",
+                          "label": "Console Error",
+                          "source": "app/client.tsx (5:16) @ SyncIO
+                        > 5 |   const data = new Date().toISOString()
+                            |                ^",
+                          "stack": [
+                            "SyncIO app/client.tsx (5:16)",
+                            "<FIXME-file-protocol>",
+                            "LogSafely <anonymous>",
+                          ],
+                        }
+                      `)
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/client.tsx (5:16) @ SyncIO
-           > 5 |   const data = new Date().toISOString()
-               |                ^",
-             "stack": [
-               "SyncIO app/client.tsx (5:16)",
-               "Page app/page.tsx (22:9)",
-               "LogSafely <anonymous>",
-             ],
-           }
-          `)
+             {
+               "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+             > 5 |   const data = new Date().toISOString()
+                 |                ^",
+               "stack": [
+                 "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
+                 "Page app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx (22:9)",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           }
         })
       } else {
@@ -202,34 +202,34 @@ describe('Dynamic IO Errors', () => {
           // square brackets.
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": null,
-             "stack": [
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
-               "LogSafely <anonymous>",
-             ],
-           }
-          `)
+                        {
+                          "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                          "environmentLabel": "Server",
+                          "label": "Console Error",
+                          "source": null,
+                          "stack": [
+                            "<FIXME-file-protocol>",
+                            "<FIXME-file-protocol>",
+                            "LogSafely <anonymous>",
+                          ],
+                        }
+                      `)
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/page.tsx (33:16) @ RequestData
-           > 33 | async function RequestData() {
-                |                ^",
-             "stack": [
-               "RequestData app/page.tsx (33:16)",
-               "Page app/page.tsx (27:9)",
-               "LogSafely <anonymous>",
-             ],
-           }
-          `)
+             {
+               "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (33:16) @ RequestData
+             > 33 | async function RequestData() {
+                  |                ^",
+               "stack": [
+                 "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (33:16)",
+                 "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           }
         })
       } else {
@@ -404,36 +404,36 @@ describe('Dynamic IO Errors', () => {
 
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/client.tsx (5:16) @ SyncIO
-           > 5 |   const data = new Date().toISOString()
-               |                ^",
-             "stack": [
-               "SyncIO app/client.tsx (5:16)",
-               "<FIXME-file-protocol>",
-               "LogSafely <anonymous>",
-             ],
-           }
-          `)
+                        {
+                          "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+                          "environmentLabel": "Server",
+                          "label": "Console Error",
+                          "source": "app/client.tsx (5:16) @ SyncIO
+                        > 5 |   const data = new Date().toISOString()
+                            |                ^",
+                          "stack": [
+                            "SyncIO app/client.tsx (5:16)",
+                            "<FIXME-file-protocol>",
+                            "LogSafely <anonymous>",
+                          ],
+                        }
+                      `)
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Route "/" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/client.tsx (5:16) @ SyncIO
-           > 5 |   const data = new Date().toISOString()
-               |                ^",
-             "stack": [
-               "SyncIO app/client.tsx (5:16)",
-               "Page app/page.tsx (22:9)",
-               "LogSafely <anonymous>",
-             ],
-           }
-          `)
+             {
+               "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+             > 5 |   const data = new Date().toISOString()
+                 |                ^",
+               "stack": [
+                 "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
+                 "Page app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx (22:9)",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           }
         })
       } else {

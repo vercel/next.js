@@ -95,21 +95,21 @@ describe('Dynamic IO Errors', () => {
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "Route "/" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
-           "environmentLabel": "Server",
-           "label": "Console Error",
-           "source": "app/page.tsx (32:15) @ getRandomNumber
-         > 32 |   return Math.random()
-              |               ^",
-           "stack": [
-             "getRandomNumber app/page.tsx (32:15)",
-             "RandomReadingComponent app/page.tsx (40:18)",
-             "Page app/page.tsx (18:11)",
-             "LogSafely <anonymous>",
-           ],
-         }
-        `)
+           {
+             "description": "Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/sync-random-without-fallback/page.tsx (32:15) @ getRandomNumber
+           > 32 |   return Math.random()
+                |               ^",
+             "stack": [
+               "getRandomNumber app/sync-random-without-fallback/page.tsx (32:15)",
+               "RandomReadingComponent app/sync-random-without-fallback/page.tsx (40:18)",
+               "Page app/sync-random-without-fallback/page.tsx (18:11)",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
         })
       } else {
         it('should error the build if Math.random() happens before some component outside a Suspense boundary is complete', async () => {
