@@ -21,12 +21,7 @@ export class NextDevInstance extends NextInstance {
     return this._cliOutput || ''
   }
 
-  public async start(
-    options: {
-      env?: Record<string, string>
-      startArgs?: string[]
-    } = {}
-  ) {
+  public async start() {
     if (this.childProcess) {
       throw new Error('next already started')
     }
@@ -47,10 +42,6 @@ export class NextDevInstance extends NextInstance {
 
     if (this.startArgs) {
       startArgs.push(...this.startArgs)
-    }
-
-    if (options.startArgs) {
-      startArgs.push(...options.startArgs)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {

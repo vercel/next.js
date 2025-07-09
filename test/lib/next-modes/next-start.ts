@@ -38,14 +38,7 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  public async start(
-    options: {
-      env?: Record<string, string>
-      buildArgs?: string[]
-      startArgs?: string[]
-      skipBuild?: boolean
-    } = {}
-  ) {
+  public async start(options: { skipBuild?: boolean } = {}) {
     if (this.childProcess) {
       throw new Error('next already started')
     }
@@ -58,7 +51,6 @@ export class NextStartInstance extends NextInstance {
       env: {
         ...process.env,
         ...this.env,
-        ...options.env,
         NODE_ENV: this.env.NODE_ENV || ('' as any),
         ...(this.forcedPort
           ? {
@@ -82,20 +74,12 @@ export class NextStartInstance extends NextInstance {
       buildArgs.push(...this.buildArgs)
     }
 
-    if (options.buildArgs) {
-      buildArgs.push(...options.buildArgs)
-    }
-
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }
 
     if (this.startArgs) {
       startArgs.push(...this.startArgs)
-    }
-
-    if (options.startArgs) {
-      startArgs.push(...options.startArgs)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {
