@@ -217,30 +217,9 @@ describe('Dynamic IO Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-                   at c (<next-dist-dir>)
-                   at d (<next-dist-dir>)
-                   at e (<next-dist-dir>)
-                   at f (<next-dist-dir>)
-                   at g (<next-dist-dir>)
-                   at h (<next-dist-dir>)
-                   at i (<next-dist-dir>)
-                   at j (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at k (<next-dist-dir>)
-                   at l (<next-dist-dir>)
-                   at m (<next-dist-dir>)
-                   at n (<next-dist-dir>)
-                   at o (<next-dist-dir>)
-                   at p (<next-dist-dir>)
-                   at q (<next-dist-dir>)
-                   at r (<next-dist-dir>)
-                   at s (<next-dist-dir>)
-                   at t (<next-dist-dir>)
-                   at u (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -692,59 +671,21 @@ describe('Dynamic IO Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-                   at c (<next-dist-dir>)
-                   at d (<next-dist-dir>)
-                   at e (<next-dist-dir>)
-                   at f (<next-dist-dir>)
-                   at g (<next-dist-dir>)
-                   at h (<next-dist-dir>)
-                   at i (<next-dist-dir>)
-                   at j (<next-dist-dir>)
-                   at k (<next-dist-dir>)
+                   at c (turbopack:///[project]/app/dynamic-root/indirection.tsx:9:0)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at l (<next-dist-dir>)
-                   at m (<next-dist-dir>)
-                   at n (<next-dist-dir>)
-                   at o (<next-dist-dir>)
-                   at p (<next-dist-dir>)
-                   at q (<next-dist-dir>)
-                   at r (<next-dist-dir>)
-                   at s (<next-dist-dir>)
-                   at t (<next-dist-dir>)
-                   at u (<next-dist-dir>)
-                   at v (<next-dist-dir>)
+                  7 | export function IndirectionTwo({ children }) {
+                  8 |   return children
+               >  9 | }
+                 10 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at w (<next-dist-dir>)
-                   at x (<next-dist-dir>)
-                   at y (<next-dist-dir>)
-                   at z (<next-dist-dir>)
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-                   at c (<next-dist-dir>)
-                   at d (<next-dist-dir>)
-                   at e (<next-dist-dir>)
-                   at f (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at g (<next-dist-dir>)
-                   at h (<next-dist-dir>)
-                   at i (<next-dist-dir>)
-                   at j (<next-dist-dir>)
-                   at k (<next-dist-dir>)
-                   at l (<next-dist-dir>)
-                   at m (<next-dist-dir>)
-                   at n (<next-dist-dir>)
-                   at o (<next-dist-dir>)
-                   at p (<next-dist-dir>)
-                   at q (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1014,7 +955,14 @@ describe('Dynamic IO Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at a (<next-dist-dir>)
+                     at f (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:14)
+                   30 |
+                   31 | function getRandomNumber() {
+                 > 32 |   return Math.random()
+                      |              ^
+                   33 | }
+                   34 |
+                   35 | function RandomReadingComponent() {
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1269,8 +1217,15 @@ describe('Dynamic IO Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at e (turbopack:///[project]/app/sync-cookies/page.tsx:17:66)
+                     at a (<anonymous>)
+                   15 |
+                   16 | async function CookiesReadingComponent() {
+                 > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                      |                                                                  ^
+                   18 |   return <div>this component reads the \`token\` cookie synchronously</div>
+                   19 | }
+                   20 | {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-cookies/page: /sync-cookies, exiting the build."
@@ -1487,8 +1442,15 @@ describe('Dynamic IO Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at e (turbopack:///[project]/app/sync-headers/page.tsx:17:69)
+                     at a (<anonymous>)
+                   15 |
+                   16 | async function HeadersReadingComponent() {
+                 > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                      |                                                                     ^
+                   18 |     'user-agent'
+                   19 |   )
+                   20 |   return ( {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-headers/page: /sync-headers, exiting the build."
@@ -1766,7 +1728,14 @@ describe('Dynamic IO Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (<next-dist-dir>)
+                     at c (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:9:6)
+                    7 |   return (
+                    8 |     <main>
+                 >  9 |       <h1>Sync IO Access</h1>
+                      |      ^
+                   10 |       <p suppressHydrationWarning>Current date and time: {data}</p>
+                   11 |     </main>
+                   12 |   )
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1889,40 +1858,12 @@ describe('Dynamic IO Errors', () => {
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                      at a (<anonymous>)
                      at main (<anonymous>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<anonymous>)
-                     at k (<next-dist-dir>)
+                     at b (<anonymous>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<anonymous>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<anonymous>)
-                     at f (<next-dist-dir>)
+                     at c (<anonymous>)
+                     at d (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2114,7 +2055,14 @@ describe('Dynamic IO Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (<next-dist-dir>)
+                     at c (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:9:6)
+                    7 |   return (
+                    8 |     <main>
+                 >  9 |       <h1>Sync IO Access</h1>
+                      |      ^
+                   10 |       <p suppressHydrationWarning>Current date and time: {data}</p>
+                   11 |     </main>
+                   12 |   )
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
