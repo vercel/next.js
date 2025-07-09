@@ -1039,7 +1039,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                           entryData.absolutePagePath
                         ).replace(/\\/g, '/')
                       ),
-                      rootParams: (staticInfo as AppPageStaticInfo).rootParams!,
+                      rootParams:
+                        (staticInfo as AppPageStaticInfo).rootParams?.map(
+                          (p) => p.param
+                        ) || [],
                       appDir: this.appDir!,
                       pageExtensions: this.config.pageExtensions,
                       rootDir: this.dir,
@@ -1164,7 +1167,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     appPaths: entryData.appPaths,
                     allNormalizedAppPaths: null, // Not available in dev mode
                     pagePath,
-                    rootParams: (staticInfo as AppPageStaticInfo).rootParams!,
+                    rootParams:
+                      (staticInfo as AppPageStaticInfo).rootParams?.map(
+                        (p) => p.param
+                      ) || [],
                     appDir: this.appDir!,
                     pageExtensions: this.config.pageExtensions,
                     rootDir: this.dir,

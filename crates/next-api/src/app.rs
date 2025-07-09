@@ -3,8 +3,8 @@ use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
         AppPageLoaderTree, CollectedRootParams, Entrypoint as AppEntrypoint,
-        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, collect_root_params,
-        get_entrypoints,
+        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, RootParamVecOption,
+        collect_root_params, get_entrypoints,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
@@ -1029,7 +1029,10 @@ pub fn app_entry_point_to_route(
 ) -> Vc<Route> {
     match entrypoint {
         AppEntrypoint::AppPage {
-            pages, loader_tree, ..
+            pages,
+            loader_tree,
+            root_params,
+            ..
         } => Route::AppPage(
             pages
                 .into_iter()
@@ -1043,6 +1046,7 @@ pub fn app_entry_point_to_route(
                             },
                             app_project,
                             page: page.clone(),
+                            root_params,
                         }
                         .resolved_cell(),
                     ),
@@ -1054,6 +1058,7 @@ pub fn app_entry_point_to_route(
                             },
                             app_project,
                             page,
+                            root_params,
                         }
                         .resolved_cell(),
                     ),
@@ -1064,6 +1069,7 @@ pub fn app_entry_point_to_route(
             page,
             path,
             root_layouts,
+            root_params,
             ..
         } => Route::AppRoute {
             original_name: page.to_string().into(),
@@ -1072,17 +1078,24 @@ pub fn app_entry_point_to_route(
                     ty: AppEndpointType::Route { path, root_layouts },
                     app_project,
                     page,
+                    root_params,
                 }
                 .resolved_cell(),
             ),
         },
-        AppEntrypoint::AppMetadata { page, metadata, .. } => Route::AppRoute {
+        AppEntrypoint::AppMetadata {
+            page,
+            metadata,
+            root_params,
+            ..
+        } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Metadata { metadata },
                     app_project,
                     page,
+                    root_params,
                 }
                 .resolved_cell(),
             ),
@@ -1117,6 +1130,7 @@ struct AppEndpoint {
     ty: AppEndpointType,
     app_project: ResolvedVc<AppProject>,
     page: AppPage,
+    root_params: ResolvedVc<RootParamVecOption>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1163,6 +1177,7 @@ impl AppEndpoint {
             self.app_project.project().project_path().owned().await?,
             config,
             next_config,
+            *self.root_params,
         ))
     }
 

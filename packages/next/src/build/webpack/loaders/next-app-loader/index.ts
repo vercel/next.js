@@ -44,13 +44,12 @@ import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 
 import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-path-sep'
 import { installBindings } from '../../../swc/install-bindings'
-import type { ParamInfo } from '../next-root-params-loader'
 
 export type AppLoaderOptions = {
   name: string
   page: string
   pagePath: string
-  rootParams: ParamInfo[]
+  rootParams: string[]
   appDir: string
   appPaths: readonly string[] | null
   // All normalized app paths across the entire app, used for computing
