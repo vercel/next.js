@@ -9,6 +9,10 @@ describe('Dynamic IO Errors', () => {
     skipDeployment: true,
   })
 
+  if (skipped) {
+    return
+  }
+
   let cliOutputLength: number
 
   beforeEach(async () => {
@@ -75,10 +79,6 @@ describe('Dynamic IO Errors', () => {
 
     describe('Dynamic Metadata - Static Route', () => {
       const pathname = '/dynamic-metadata-static-route'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
@@ -148,10 +148,6 @@ describe('Dynamic IO Errors', () => {
 
     describe('Dynamic Metadata - Error Route', () => {
       const pathname = '/dynamic-metadata-error-route'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
@@ -335,10 +331,6 @@ describe('Dynamic IO Errors', () => {
     describe('Dynamic Metadata - Static Route With Suspense', () => {
       const pathname = '/dynamic-metadata-static-with-suspense'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
@@ -408,10 +400,6 @@ describe('Dynamic IO Errors', () => {
     describe('Dynamic Metadata - Dynamic Route', () => {
       const pathname = '/dynamic-metadata-dynamic-route'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should not show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
@@ -436,10 +424,6 @@ describe('Dynamic IO Errors', () => {
 
     describe('Dynamic Viewport - Static Route', () => {
       const pathname = '/dynamic-viewport-static-route'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
@@ -510,10 +494,6 @@ describe('Dynamic IO Errors', () => {
     describe('Dynamic Viewport - Dynamic Route', () => {
       const pathname = '/dynamic-viewport-dynamic-route'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
@@ -583,10 +563,6 @@ describe('Dynamic IO Errors', () => {
     describe('Static Route', () => {
       const pathname = '/static'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should not show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
@@ -605,10 +581,6 @@ describe('Dynamic IO Errors', () => {
 
     describe('Dynamic Root', () => {
       const pathname = '/dynamic-root'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a collapsed redbox with two errors', async () => {
@@ -925,10 +897,6 @@ describe('Dynamic IO Errors', () => {
 
     describe('Dynamic Boundary', () => {
       const pathname = '/dynamic-boundary'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should not show a collapsed redbox error', async () => {
