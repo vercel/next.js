@@ -866,12 +866,22 @@ impl PageEndpoint {
         let project = this.pages_project.project();
         let node_root = project.client_root().owned().await?;
         let client_relative_path = self.client_relative_path();
+        // In development mode, don't include a content hash and put the chunk at e.g.
+        // `static/chunks/pages/page2.js`, so that the dev runtime can request it at a known path.
+        // https://github.com/vercel/next.js/blob/84873e00874e096e6c4951dcf070e8219ed414e5/packages/next/src/client/route-loader.ts#L256-L271
+        let use_fixed_path = this
+            .pages_project
+            .project()
+            .next_mode()
+            .await?
+            .is_development();
         let page_loader = PageLoaderAsset::new(
             node_root,
             this.pathname.clone(),
             client_relative_path,
             client_chunks,
             project.client_chunking_context(),
+            use_fixed_path,
         );
         Ok(Vc::upcast(page_loader))
     }
