@@ -1,5 +1,6 @@
 import { connection } from 'next/server'
 import { Suspense } from 'react'
+import { Form } from './form'
 
 export default function Page() {
   return (
@@ -7,32 +8,25 @@ export default function Page() {
       <Suspense fallback={<h1>Loading...</h1>}>
         <Dynamic />
       </Suspense>
-      <GreetingForm subject="World" />
+      <CachedForm subject="World" />
     </div>
   )
 }
 
-async function GreetingForm({ subject }: { subject: string }) {
+async function CachedForm({ subject }: { subject: string }) {
   'use cache'
 
   return (
-    <form
-      action={async () => {
+    <Form
+      sayHi={async function hi() {
         'use server'
-        console.log(`Hello, ${subject}!`)
+        return `Hi, ${subject}!`
       }}
-    >
-      <button id="submit-button-arrow">Say Hello</button>{' '}
-      <button
-        id="submit-button-fn"
-        formAction={async function hi() {
-          'use server'
-          console.log(`Hi, ${subject}!`)
-        }}
-      >
-        Say Hi
-      </button>
-    </form>
+      sayHello={async () => {
+        'use server'
+        return `Hello, ${subject}!`
+      }}
+    />
   )
 }
 

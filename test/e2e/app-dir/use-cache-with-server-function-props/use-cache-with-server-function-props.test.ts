@@ -12,20 +12,18 @@ describe('use-cache-with-server-function-props', () => {
   it('should be able to use inline server actions as props', async () => {
     const browser = await next.browser('/server-action')
 
-    let cliOutputLength = next.cliOutput.length
-    await browser.elementById('submit-button-arrow').click()
-    await retry(() => {
-      expect(next.cliOutput.slice(cliOutputLength)).toContain('Hello, World!')
+    await browser.elementById('submit-button-hi').click()
+    await retry(async () => {
+      expect(await browser.elementById('hi').text()).toMatch('Hi, World!')
     })
 
-    cliOutputLength = next.cliOutput.length
-    await browser.elementById('submit-button-fn').click()
-    await retry(() => {
-      expect(next.cliOutput.slice(cliOutputLength)).toContain('Hi, World!')
+    await browser.elementById('submit-button-hello').click()
+    await retry(async () => {
+      expect(await browser.elementById('hello').text()).toMatch('Hello, World!')
     })
   })
 
-  it('should be able to use a nested caches as props', async () => {
+  it('should be able to use nested cache functions as props', async () => {
     const browser = await next.browser('/nested-cache')
 
     await browser.elementById('submit-button-date').click()
