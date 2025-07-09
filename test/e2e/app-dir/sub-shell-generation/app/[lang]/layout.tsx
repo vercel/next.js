@@ -1,5 +1,5 @@
-import { ReactNode } from 'react'
-import { setTimeout } from 'timers/promises'
+import { ReactNode, Suspense } from 'react'
+import { getSentinelValue } from '../sentinel'
 
 export default async function LangLayout({
   children,
@@ -10,18 +10,15 @@ export default async function LangLayout({
 }) {
   const { lang } = await params
 
-  if (lang === 'en') {
-    // Simulate uncached I/O. This should lead to a build-time error, because we
-    // expect a fallback shell to be generated for /en/[slug]. It would be a
-    // prerender error at runtime if we tried to generate a route shell at
-    // runtime for /en/foo instead.
-    await setTimeout(100)
-  }
-
   return (
     <>
+      <div id="lang-layout">Lang Layout: ({getSentinelValue()})</div>
       <h1>lang: {lang}</h1>
-      <main>{children}</main>
+      <main>
+        <Suspense fallback={<p id="loading">Loading...</p>}>
+          {children}
+        </Suspense>
+      </main>
     </>
   )
 }

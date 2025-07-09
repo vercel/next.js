@@ -1,28 +1,84 @@
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
+import * as cheerio from 'cheerio'
 
 describe('sub-shell-generation', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipStart: !isNextDev,
   })
 
-  if (isNextStart) {
-    it('should fail with a validation error at build time', async () => {
-      await expect(next.build()).toReject()
-    })
+  if (isNextDev) {
+    it.skip('skipping dev test', () => {})
+    return
   }
 
-  it('should not fail when requesting /en/foo', async () => {
-    if (isNextStart) {
-      try {
-        await next.start()
-      } catch {
-        // Ignoring for now, until the build actually fails, in which case this
-        // whole test will be obsolete, and the test above will be sufficient.
-      }
-    }
+  describe('should serve the correct shell', () => {
+    describe.each([
+      [
+        '/[lang]/[slug]',
+        {
+          page: 'Page: (runtime)',
+          langLayout: 'Lang Layout: (runtime)',
+          rootLayout: 'Root Layout: (buildtime)',
+        },
+        ['/es/1', '/es/2', '/jp/1', '/jp/2'],
+        true,
+      ],
+      [
+        '/en/[slug]',
+        {
+          page: 'Page: (runtime)',
+          langLayout: 'Lang Layout: (buildtime)',
+          rootLayout: 'Root Layout: (buildtime)',
+        },
+        ['/en/1', '/en/2', '/en/3', '/en/4'],
+        true,
+      ],
+      [
+        '/fr/[slug]',
+        {
+          page: 'Page: (runtime)',
+          langLayout: 'Lang Layout: (buildtime)',
+          rootLayout: 'Root Layout: (buildtime)',
+        },
+        ['/fr/2', '/fr/3', '/fr/4', '/fr/5'],
+        true,
+      ],
+      [
+        '/fr/1',
+        {
+          page: 'Page: (buildtime)',
+          langLayout: 'Lang Layout: (buildtime)',
+          rootLayout: 'Root Layout: (buildtime)',
+        },
+        ['/fr/1'],
+        false,
+      ],
+    ])('%s', (shell, { page, langLayout, rootLayout }, paths, isPostponed) => {
+      it.each(paths)('should serve the correct shell for %s', async (path) => {
+        const res = await next.fetch(path)
+        expect(res.status).toBe(200)
 
-    const res = await next.fetch('/en/foo')
-    expect(res.status).toBe(200)
+        if (isNextDeploy) {
+          expect(res.headers.get('x-matched-path')).toBe(shell)
+        } else {
+          expect(res.headers.get('x-nextjs-postponed')).toBe(
+            isPostponed ? '1' : null
+          )
+        }
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        expect({
+          page: $('#page').text(),
+          langLayout: $('#lang-layout').text(),
+          rootLayout: $('#root-layout').text(),
+        }).toEqual({
+          page,
+          langLayout,
+          rootLayout,
+        })
+      })
+    })
   })
 })

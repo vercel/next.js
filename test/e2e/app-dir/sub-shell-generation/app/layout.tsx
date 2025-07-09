@@ -1,9 +1,17 @@
-import { ReactNode } from 'react'
+'use cache'
 
-export default function Root({ children }: { children: ReactNode }) {
+import { ReactNode, Suspense } from 'react'
+import { getSentinelValue } from './sentinel'
+
+export default async function Root({ children }: { children: ReactNode }) {
   return (
     <html>
-      <body>{children}</body>
+      <body>
+        <div id="root-layout">Root Layout: ({getSentinelValue()})</div>
+        <Suspense fallback={<p id="loading">Loading...</p>}>
+          {children}
+        </Suspense>
+      </body>
     </html>
   )
 }

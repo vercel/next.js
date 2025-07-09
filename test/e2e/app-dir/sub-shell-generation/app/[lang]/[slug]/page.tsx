@@ -1,3 +1,5 @@
+import { getSentinelValue } from '../../sentinel'
+
 export default async function Page({
   params,
 }: {
@@ -5,7 +7,12 @@ export default async function Page({
 }) {
   const { slug } = await params
 
-  return <p>slug: {slug}</p>
+  return (
+    <>
+      <p id="page">Page: ({getSentinelValue()})</p>
+      <p>slug: {slug}</p>
+    </>
+  )
 }
 
 export function generateStaticParams({ params }: { params: { lang: string } }) {
