@@ -28,7 +28,6 @@ import {
 } from './dev-tools-info/preferences'
 import { Draggable } from './draggable'
 import { useShortcuts } from '../../../hooks/use-shortcuts'
-import { SegmentsExplorer } from './dev-tools-info/segments-explorer'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -96,6 +95,15 @@ const OVERLAYS = {
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
 
 const INDICATOR_PADDING = 20
+
+// Dynamic import for SegmentsExplorer which including base-ui that causing Edge browser crash
+// x-ref: https://github.com/vercel/next.js/pull/64602
+// TODO: remove this once the new base-ui version is released
+const SegmentsExplorer = process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
+  ? (
+      require('./dev-tools-info/segments-explorer') as typeof import('./dev-tools-info/segments-explorer')
+    ).SegmentsExplorer
+  : () => null
 
 function DevToolsPopover({
   routerType,
