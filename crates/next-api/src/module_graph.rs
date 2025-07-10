@@ -752,7 +752,7 @@ impl GlobalBuildInformation {
                 .collect::<FxIndexMap<_, _>>();
             let identifier_map = ModuleNameMap(identifier_map).cell();
 
-            let _ = graphs
+            graphs
                 .iter()
                 .map(|graph| {
                     validate_pages_css_imports(
@@ -762,6 +762,7 @@ impl GlobalBuildInformation {
                         app_module,
                         identifier_map,
                     )
+                    .as_side_effect()
                 })
                 .try_join()
                 .await?;

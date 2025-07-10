@@ -77,7 +77,7 @@ impl EcmascriptBuildNodeChunkContent {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
         }
 
@@ -90,7 +90,7 @@ impl EcmascriptBuildNodeChunkContent {
             self.chunking_context.output_root().await?.clone_value(),
             self.chunk.path().await?.clone_value(),
             *self.content,
-            self.chunking_context.await?.minify_type(),
+            *self.chunking_context.minify_type().await?,
         ))
     }
 }

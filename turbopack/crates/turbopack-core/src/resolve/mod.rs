@@ -76,7 +76,6 @@ pub enum ModuleResolveResultItem {
         /// uri, path, reference, etc.
         name: RcStr,
         ty: ExternalType,
-        traced: Option<ResolvedVc<ModuleResolveResult>>,
     },
     /// A module could not be created (according to the rules, e.g. no module type as assigned)
     Unknown(ResolvedVc<Box<dyn Source>>),
@@ -727,11 +726,7 @@ impl ResolveResult {
                                         // Should use map_primary_items instead
                                         bail!("map_module doesn't handle traced externals");
                                     }
-                                    ModuleResolveResultItem::External {
-                                        name,
-                                        ty,
-                                        traced: None,
-                                    }
+                                    ModuleResolveResultItem::External { name, ty }
                                 }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,

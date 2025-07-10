@@ -736,6 +736,11 @@ declare module 'next/dist/compiled/anser' {
   export = m
 }
 
+declare module 'next/dist/compiled/safe-stable-stringify' {
+  import * as m from 'safe-stable-stringify'
+  export = m
+}
+
 declare module 'next/dist/compiled/css.escape' {
   export = CSS.escape
 }

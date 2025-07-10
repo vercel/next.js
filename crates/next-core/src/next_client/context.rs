@@ -210,7 +210,6 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
-    no_mangling: Vc<bool>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -368,16 +367,6 @@ pub async fn get_client_module_options_context(
         },
         enable_webpack_loaders,
         enable_mdx_rs,
-        css: CssOptionsContext {
-            minify_type: if *next_config.turbo_minify(mode).await? {
-                MinifyType::Minify {
-                    mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-                }
-            } else {
-                MinifyType::NoMinify
-            },
-            ..module_options_context.css
-        },
         rules: vec![
             (
                 foreign_code_context_condition(next_config, project_path).await?,

@@ -350,30 +350,14 @@ export function getOverlayMiddleware({
       })
 
       const request = JSON.parse(body) as OriginalStackFramesRequest
-      const stackFrames = createStackFrames(request)
-      const result: OriginalStackFramesResponse = await Promise.all(
-        stackFrames.map(async (frame) => {
-          try {
-            const stackFrame = await createOriginalStackFrame(
-              project,
-              projectPath,
-              frame
-            )
-            if (stackFrame === null) {
-              return {
-                status: 'rejected',
-                reason: 'Failed to create original stack frame',
-              }
-            }
-            return { status: 'fulfilled', value: stackFrame }
-          } catch (error) {
-            return {
-              status: 'rejected',
-              reason: inspect(error, { colors: false }),
-            }
-          }
-        })
-      )
+      const result = await getOriginalStackFrames({
+        project,
+        projectPath,
+        frames: request.frames,
+        isServer: request.isServer,
+        isEdgeServer: request.isEdgeServer,
+        isAppDirectory: request.isAppDirectory,
+      })
 
       return middlewareResponse.json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {
@@ -472,4 +456,51 @@ export function getSourceMapMiddleware(project: Project) {
 
     middlewareResponse.noContent(res)
   }
+}
+
+export async function getOriginalStackFrames({
+  project,
+  projectPath,
+  frames,
+  isServer,
+  isEdgeServer,
+  isAppDirectory,
+}: {
+  project: Project
+  projectPath: string
+  frames: StackFrame[]
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+}): Promise<OriginalStackFramesResponse> {
+  const stackFrames = createStackFrames({
+    frames,
+    isServer,
+    isEdgeServer,
+    isAppDirectory,
+  })
+
+  return Promise.all(
+    stackFrames.map(async (frame) => {
+      try {
+        const stackFrame = await createOriginalStackFrame(
+          project,
+          projectPath,
+          frame
+        )
+        if (stackFrame === null) {
+          return {
+            status: 'rejected',
+            reason: 'Failed to create original stack frame',
+          }
+        }
+        return { status: 'fulfilled', value: stackFrame }
+      } catch (error) {
+        return {
+          status: 'rejected',
+          reason: inspect(error, { colors: false }),
+        }
+      }
+    })
+  )
 }

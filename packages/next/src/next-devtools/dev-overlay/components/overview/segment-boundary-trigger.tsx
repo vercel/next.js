@@ -1,3 +1,4 @@
+import './segment-boundary-trigger.css'
 import { useCallback, useState, useRef } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
 import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
@@ -5,9 +6,11 @@ import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-n
 export function SegmentBoundaryTrigger({
   onSelectBoundary,
   offset,
+  boundaries,
 }: {
   onSelectBoundary: SegmentNodeState['setBoundaryType']
   offset: number
+  boundaries: Record<'not-found' | 'loading' | 'error', string | null>
 }) {
   const [shadowRoot] = useState<ShadowRoot>(() => {
     const ownerDocument = document
@@ -17,9 +20,24 @@ export function SegmentBoundaryTrigger({
   const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
 
   const triggerOptions = [
-    { label: 'Trigger Loading', value: 'loading', icon: <LoadingIcon /> },
-    { label: 'Trigger Error', value: 'error', icon: <ErrorIcon /> },
-    { label: 'Trigger Not Found', value: 'not-found', icon: <NotFoundIcon /> },
+    {
+      label: 'Trigger Loading',
+      value: 'loading',
+      icon: <LoadingIcon />,
+      disabled: !boundaries.loading,
+    },
+    {
+      label: 'Trigger Error',
+      value: 'error',
+      icon: <ErrorIcon />,
+      disabled: !boundaries.error,
+    },
+    {
+      label: 'Trigger Not Found',
+      value: 'not-found',
+      icon: <NotFoundIcon />,
+      disabled: !boundaries['not-found'],
+    },
   ]
 
   const resetOption = {
@@ -74,6 +92,7 @@ export function SegmentBoundaryTrigger({
                   key={option.value}
                   className="segment-boundary-dropdown-item"
                   onClick={() => handleSelect(option.value)}
+                  disabled={option.disabled}
                 >
                   {option.icon}
                   {option.label}
@@ -216,86 +235,3 @@ function ResetIcon() {
     </svg>
   )
 }
-
-export const styles = `
-  .segment-boundary-trigger {
-    margin-left: auto;
-    gap: 8px;
-  }
-
-  .segment-boundary-trigger-button {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 500;
-    color: var(--color-gray-1000);
-    border-radius: 6px;
-    background: transparent;
-    border: none;
-  }
-
-  .segment-boundary-trigger-button svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .segment-boundary-trigger-button:hover {
-    background: var(--color-gray-400);
-    color: var(--color-gray-1000);
-  }
-
-  .segment-boundary-dropdown {
-    padding: 8px;
-    background: var(--color-background-100);
-    border: 1px solid var(--color-gray-400);
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    min-width: 120px;
-  }
-
-  .segment-boundary-dropdown-positioner {
-    z-index: 2147483648;
-  }
-
-  .segment-boundary-dropdown-item {
-    display: flex;
-    align-items: center;
-    padding: 10px 8px;
-    line-height: 20px;
-    font-size: 14px;
-    border-radius: 6px;
-    color: var(--color-gray-1000);
-    cursor: pointer;
-    min-width: 220px;
-    border: none;
-    background: none;
-    width: 100%;
-  }
-
-  .segment-boundary-dropdown-item svg {
-    margin-right: 12px;
-    color: var(--color-gray-900);
-  }
-
-  .segment-boundary-dropdown-item:hover {
-    background: var(--color-gray-200);
-  }
-
-  .segment-boundary-dropdown-item:first-child {
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-  }
-
-  .segment-boundary-dropdown-item:last-child {
-    border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
-  }
-
-  .segment-boundary-dropdown-divider {
-    height: 1px;
-    background: var(--color-gray-400);
-    margin: 8px 0;
-  }
-`

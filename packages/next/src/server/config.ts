@@ -1415,6 +1415,20 @@ export default async function loadConfig(
     }
 
     if (
+      userConfig.experimental &&
+      userConfig.experimental.enablePrerenderSourceMaps === undefined &&
+      userConfig.experimental.dynamicIO === true
+    ) {
+      userConfig.experimental.enablePrerenderSourceMaps = true
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'enablePrerenderSourceMaps',
+        true,
+        'enabled by `experimental.dynamicIO`'
+      )
+    }
+
+    if (
       debugPrerender &&
       (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
     ) {

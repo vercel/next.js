@@ -502,6 +502,16 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         globalNotFound: z.boolean().optional(),
         devtoolSegmentExplorer: z.boolean().optional(),
         devtoolNewPanelUI: z.boolean().optional(),
+        browserDebugInfoInTerminal: z
+          .union([
+            z.boolean(),
+            z.object({
+              depthLimit: z.number().int().positive().optional(),
+              edgeLimit: z.number().int().positive().optional(),
+              showSourceLocation: z.boolean().optional(),
+            }),
+          ])
+          .optional(),
       })
       .optional(),
     exportPathMap: z

@@ -1,12 +1,24 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use arbitrary::Arbitrary;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{self, NonLocalValue, TurboTasks, Vc, trace::TraceRawVcs};
+use turbo_tasks::{self, NonLocalValue, State, TaskInput, TurboTasks, Vc, trace::TraceRawVcs};
 use turbo_tasks_malloc::TurboMalloc;
 
 #[derive(
-    Arbitrary, Clone, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+    Arbitrary,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
 )]
 pub struct TaskReferenceSpec {
     task: u16,
@@ -16,11 +28,57 @@ pub struct TaskReferenceSpec {
 }
 
 #[derive(
-    Arbitrary, Clone, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+    Arbitrary,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
 )]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
     children: u8,
+    change: Option<Box<TaskSpec>>,
+}
+
+impl TaskSpec {
+    fn iter(&self) -> impl Iterator<Item = &TaskSpec> {
+        Iter::new(self)
+    }
+}
+
+struct Iter<'a> {
+    current: Option<&'a TaskSpec>,
+}
+
+impl<'a> Iter<'a> {
+    fn new(task: &'a TaskSpec) -> Self {
+        Self {
+            current: Some(task),
+        }
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = &'a TaskSpec;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(current) = self.current {
+            if let Some(change) = &current.change {
+                self.current = Some(change);
+            } else {
+                self.current = None;
+            }
+            Some(current)
+        } else {
+            None
+        }
+    }
 }
 
 static RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
@@ -38,21 +96,26 @@ pub fn init() {
 }
 
 pub fn run(data: Vec<TaskSpec>) {
-    let mut data = data;
     let len = data.len();
     if len == 0 {
         return;
     }
-    for (i, task) in data.iter_mut().enumerate() {
-        for reference in task.references.iter_mut() {
-            let task = reference.task as usize;
-            if task <= i {
-                return;
-            }
-            if task >= len {
-                return;
+    let mut max_count = 1;
+    for (i, task) in data.iter().enumerate() {
+        let mut count = 0;
+        for task in task.iter() {
+            count += 1;
+            for reference in task.references.iter() {
+                let task = reference.task as usize;
+                if task <= i {
+                    return;
+                }
+                if task >= len {
+                    return;
+                }
             }
         }
+        max_count = max_count.max(count);
     }
     let mut referenced = vec![false; data.len()];
     for task in &data {
@@ -63,10 +126,13 @@ pub fn run(data: Vec<TaskSpec>) {
     if !referenced.iter().skip(1).all(|&x| x) {
         return;
     }
-    actual_operation(data);
+    actual_operation(Arc::new(data), max_count);
 }
 
-fn actual_operation(data: Vec<TaskSpec>) {
+#[turbo_tasks::value(transparent)]
+struct Iteration(State<usize>);
+
+fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
     let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
         turbo_tasks_backend::BackendOptions {
             storage_mode: None,
@@ -77,47 +143,79 @@ fn actual_operation(data: Vec<TaskSpec>) {
     ));
     RUNTIME
         .block_on(async {
-            tt.run_once(async move {
-                let spec: Vc<TasksSpec> = Vc::cell(data);
-                run_task(spec, 0).strongly_consistent().await?;
-                Ok(())
-            })
-            .await
+            for i in 0..iterations {
+                let spec = spec.clone();
+                tt.run_once(async move {
+                    let it = create_state().resolve().await?;
+                    it.await?.set(i);
+                    let task = run_task(spec.clone(), it, 0);
+                    task.strongly_consistent().await?;
+                    Ok(())
+                })
+                .await?;
+            }
+            tt.stop_and_wait().await;
+            drop(tt);
+            anyhow::Ok(())
         })
         .unwrap();
 }
 
-#[turbo_tasks::value(transparent)]
-struct TasksSpec(Vec<TaskSpec>);
+#[turbo_tasks::function]
+fn create_state() -> Vc<Iteration> {
+    Vc::cell(State::new(0))
+}
 
 #[turbo_tasks::function]
 async fn run_task_chain(
-    spec: Vc<TasksSpec>,
+    spec: Arc<Vec<TaskSpec>>,
+    iteration: Vc<Iteration>,
     from: u16,
     ref_index: usize,
     to: u16,
     chain: u8,
 ) -> Result<Vc<()>> {
     if chain > 0 {
-        run_task_chain(spec, from, ref_index, to, chain - 1).await?;
+        run_task_chain(spec, iteration, from, ref_index, to, chain - 1).await?;
     } else {
-        run_task(spec, to).await?;
+        run_task(spec, iteration, to).await?;
     }
     Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::function]
-async fn run_task(spec: Vc<TasksSpec>, task_index: u16) -> Result<Vc<()>> {
-    let spec_ref = spec.await?;
-    let task = &spec_ref[task_index as usize];
+async fn run_task(
+    spec: Arc<Vec<TaskSpec>>,
+    iteration: Vc<Iteration>,
+    task_index: u16,
+) -> Result<Vc<()>> {
+    let mut task = &spec[task_index as usize];
+    if task.change.is_some() {
+        let iteration = iteration.await?;
+        let it = *iteration.get();
+        for _ in 0..it {
+            task = if let Some(change) = &task.change {
+                change
+            } else {
+                task
+            };
+        }
+    }
     for i in 0..task.children {
         run_task_child(task_index, i).await?;
     }
     for (i, reference) in task.references.iter().enumerate() {
         let call = if reference.chain > 0 {
-            run_task_chain(spec, task_index, i, reference.task, reference.chain)
+            run_task_chain(
+                spec.clone(),
+                iteration,
+                task_index,
+                i,
+                reference.task,
+                reference.chain,
+            )
         } else {
-            run_task(spec, reference.task)
+            run_task(spec.clone(), iteration, reference.task)
         };
         if reference.read {
             call.await?;

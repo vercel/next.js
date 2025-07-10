@@ -36,9 +36,9 @@ export interface NextInstanceOpts {
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
-  buildOptions?: string[]
+  buildArgs?: string[]
   startCommand?: string
-  startOptions?: string[]
+  startArgs?: string[]
   env?: Record<string, string>
   dirSuffix?: string
   turbo?: boolean
@@ -68,9 +68,9 @@ export class NextInstance {
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
   public buildCommand?: string
-  public buildOptions?: string
+  public buildArgs?: string[]
   protected startCommand?: string
-  protected startOptions?: string[]
+  protected startArgs?: string[]
   protected dependencies?: PackageJson['dependencies'] = {}
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
@@ -432,7 +432,10 @@ export class NextInstance {
     await this.writeInitialFiles()
   }
 
-  public async build(): Promise<{
+  public async build(options?: {
+    env?: Record<string, string>
+    args?: string[]
+  }): Promise<{
     exitCode: NodeJS.Signals | number | null
     cliOutput: string
   }> {
@@ -446,7 +449,7 @@ export class NextInstance {
     }
   }
 
-  public async start(useDirArg: boolean = false): Promise<void> {}
+  public async start(options?: { skipBuild?: boolean }): Promise<void> {}
 
   public async stop(
     signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'

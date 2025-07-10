@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('react-performance-track', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -21,7 +21,16 @@ describe('react-performance-track', () => {
     await browser.elementByCss('[data-react-server-requests-done]')
 
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
-    // FIXME: Should show await fetch
-    expect(track).toEqual([])
+    expect(track).toEqual([
+      {
+        // TODO(veil): Should always be `fetch (random)`
+        name: isTurbopack ? 'fetch (random)' : 'patched',
+        properties: expect.arrayContaining([
+          ['status', '200'],
+          // Not sure if this is useful to assert on. Feel free to remove is this breaks often
+          ['body', isTurbopack ? 'ReadableStream' : 'TeeReadableStream'],
+        ]),
+      },
+    ])
   })
 })
