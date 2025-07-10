@@ -21,6 +21,7 @@
   color: var(--color-gray-1000);
   font-family: var(--font-mono);
   white-space: nowrap;
+  line-height: 20px;
 }
 
 .segment-explorer-item {
@@ -99,13 +100,13 @@
   color: var(--color-amber-900);
 }
 
-.segment-explorer-file-label svg {
+.segment-explorer-file-label .code-icon {
   opacity: 0;
   margin-left: 0;
   width: 0;
   transition: all 0.15s ease-in-out;
 }
-.segment-explorer-file-label:hover svg {
+.segment-explorer-file-label:hover .code-icon {
   opacity: 1;
   width: 12px;
   margin-left: 4px;

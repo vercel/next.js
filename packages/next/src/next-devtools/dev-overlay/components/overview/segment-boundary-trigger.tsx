@@ -183,7 +183,7 @@ export function SegmentBoundaryTrigger({
             {
               <Menu.Group>
                 <Menu.GroupLabel className="segment-boundary-group-label">
-                  Trigger overrides
+                  Toggle Overrides
                 </Menu.GroupLabel>
                 {triggerOptions.map((option) => (
                   <Menu.Item

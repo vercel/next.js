@@ -6,7 +6,7 @@ import {
 import { cx } from '../../utils/cx'
 import { SegmentBoundaryTrigger, Trigger } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
-import { useRef, useState, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import {
   BUILTIN_PREFIX,
   getBoundaryOriginFileType,
@@ -149,13 +149,6 @@ function PageSegmentTreeLayerPresentation({
   node: SegmentTrieNode
   level: number
 }) {
-  const [shadowRoot] = useState<ShadowRoot | null>(() => {
-    const portal = document.querySelector('nextjs-portal')
-    if (!portal) return null
-    return portal.shadowRoot as ShadowRoot
-  })
-  // This is a workaround as base-ui popup container only accepts shadowRoot when it's in a ref.
-  const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
   const childrenKeys = Object.keys(node.children)
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
@@ -334,9 +327,6 @@ function PageSegmentTreeLayerPresentation({
                           }
                           direction={isBuiltin ? 'right' : 'top'}
                           title={tooltipMessage}
-                          // x-ref: https://github.com/mui/base-ui/issues/2224
-                          // @ts-expect-error remove this expect-error once shadowRoot is supported as container
-                          container={shadowRootRef}
                           offset={12}
                           bgcolor="var(--color-gray-1000)"
                           color="var(--color-gray-100)"
@@ -360,7 +350,7 @@ function PageSegmentTreeLayerPresentation({
                             {isBuiltin ? (
                               <InfoIcon />
                             ) : (
-                              <EditIcon className="edit-icon" />
+                              <CodeIcon className="code-icon" />
                             )}
                           </span>
                         </Tooltip>
@@ -455,8 +445,7 @@ function BackArrowIcon() {
   )
 }
 
-// Icon of edit pen
-function EditIcon(props: React.SVGProps<SVGSVGElement>) {
+function CodeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       width="12"
