@@ -3962,6 +3962,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/not-found-with-layout-and-group-not-found/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts and custom not-found should render the custom not-found page when notFound() is thrown from a page within the group"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/not-found-with-nested-layouts/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts should render the custom not-found page when notFound() is thrown from a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/not-found-with-pages-i18n/not-found-with-pages.test.ts": {
     "passed": [
       "not-found-with-pages should prefer the app router 404 over the pages router 404 when both are present",
@@ -16714,8 +16732,8 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/invalid-image-import/test/index.test.ts": {
-    "passed": [],
-    "failed": ["Missing Import Image Tests production mode should show error"],
+    "passed": ["Missing Import Image Tests production mode should show error"],
+    "failed": [],
     "pending": [
       "Missing Import Image Tests development mode should show error"
     ],
@@ -19643,11 +19661,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

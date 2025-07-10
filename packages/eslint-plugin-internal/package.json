@@ -1,7 +1,7 @@
 {
   "name": "@next/eslint-plugin-internal",
   "private": true,
-  "version": "15.4.0-canary.122",
+  "version": "15.4.0-canary.123",
   "description": "ESLint plugin for working on Next.js.",
   "exports": {
     ".": "./src/eslint-plugin-internal.js"

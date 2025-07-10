@@ -282,36 +282,6 @@ impl BrowserChunkingContext {
     }
 }
 
-impl BrowserChunkingContext {
-    /// Returns the kind of runtime to include in output chunks.
-    ///
-    /// This is defined directly on `BrowserChunkingContext` so it is zero-cost
-    /// when `RuntimeType` has a single variant.
-    pub fn runtime_type(&self) -> RuntimeType {
-        self.runtime_type
-    }
-
-    /// Returns the asset base path.
-    pub fn chunk_base_path(&self) -> Option<RcStr> {
-        self.chunk_base_path.clone()
-    }
-
-    /// Returns the asset suffix path.
-    pub fn chunk_suffix_path(&self) -> Option<RcStr> {
-        self.chunk_suffix_path.clone()
-    }
-
-    /// Returns the source map type.
-    pub fn source_maps_type(&self) -> SourceMapsType {
-        self.source_maps_type
-    }
-
-    /// Returns the minify type.
-    pub fn minify_type(&self) -> MinifyType {
-        self.minify_type
-    }
-}
-
 #[turbo_tasks::value_impl]
 impl BrowserChunkingContext {
     #[turbo_tasks::function]
@@ -372,6 +342,39 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn current_chunk_method(&self) -> Vc<CurrentChunkMethod> {
         self.current_chunk_method.cell()
+    }
+
+    /// Returns the kind of runtime to include in output chunks.
+    ///
+    /// This is defined directly on `BrowserChunkingContext` so it is zero-cost
+    /// when `RuntimeType` has a single variant.
+    #[turbo_tasks::function]
+    pub fn runtime_type(&self) -> Vc<RuntimeType> {
+        self.runtime_type.cell()
+    }
+
+    /// Returns the asset base path.
+    #[turbo_tasks::function]
+    pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.chunk_base_path.clone())
+    }
+
+    /// Returns the asset suffix path.
+    #[turbo_tasks::function]
+    pub fn chunk_suffix_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.chunk_suffix_path.clone())
+    }
+
+    /// Returns the source map type.
+    #[turbo_tasks::function]
+    pub fn source_maps_type(&self) -> Vc<SourceMapsType> {
+        self.source_maps_type.cell()
+    }
+
+    /// Returns the minify type.
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
     }
 }
 

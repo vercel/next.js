@@ -2,7 +2,10 @@
 @layer layer.foo {
 @media print and (orientation: landscape) {
 @supports not(display: inline-grid) and font-format(woff2) {
-.imported{color:red}
+.imported {
+  color: red;
+}
+
 }
 }
 }

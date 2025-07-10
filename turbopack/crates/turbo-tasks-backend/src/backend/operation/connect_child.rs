@@ -27,10 +27,9 @@ impl ConnectChildOperation {
         if !ctx.should_track_children() {
             let mut task = ctx.task(child_task_id, TaskDataCategory::All);
             if !task.has_key(&CachedDataItemKey::Output {}) {
-                let description = ctx.get_task_desc_fn(child_task_id);
                 let should_schedule = task.add(CachedDataItem::new_scheduled(
                     TaskExecutionReason::Connect,
-                    description,
+                    || ctx.get_task_desc_fn(child_task_id),
                 ));
                 drop(task);
                 if should_schedule {
@@ -80,10 +79,9 @@ impl ConnectChildOperation {
             let mut task = ctx.task(child_task_id, TaskDataCategory::All);
 
             if !task.has_key(&CachedDataItemKey::Output {}) {
-                let description = ctx.get_task_desc_fn(child_task_id);
                 let should_schedule = task.add(CachedDataItem::new_scheduled(
                     TaskExecutionReason::Connect,
-                    description,
+                    || ctx.get_task_desc_fn(child_task_id),
                 ));
                 drop(task);
                 if should_schedule {

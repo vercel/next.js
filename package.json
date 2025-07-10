@@ -307,7 +307,8 @@
       "stacktrace-parser@0.1.10": "patches/stacktrace-parser@0.1.10.patch",
       "@ampproject/toolbox-optimizer@2.8.3": "patches/@ampproject__toolbox-optimizer@2.8.3.patch",
       "@types/node@20.17.6": "patches/@types__node@20.17.6.patch",
-      "taskr@1.1.0": "patches/taskr@1.1.0.patch"
+      "taskr@1.1.0": "patches/taskr@1.1.0.patch",
+      "@base-ui-components/react@1.0.0-beta.1": "patches/@base-ui-components__react@1.0.0-beta.1.patch"
     }
   }
 }

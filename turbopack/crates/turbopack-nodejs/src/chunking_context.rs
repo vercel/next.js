@@ -188,27 +188,6 @@ impl NodeJsChunkingContext {
     }
 }
 
-impl NodeJsChunkingContext {
-    /// Returns the kind of runtime to include in output chunks.
-    ///
-    /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
-    /// when `RuntimeType` has a single variant.
-    pub fn runtime_type(&self) -> RuntimeType {
-        self.runtime_type
-    }
-
-    /// Returns the minify type.
-    pub fn minify_type(&self) -> MinifyType {
-        self.minify_type
-    }
-}
-
-impl NodeJsChunkingContext {
-    pub async fn asset_prefix(self: Vc<Self>) -> Result<Option<RcStr>> {
-        Ok(self.await?.asset_prefix.clone())
-    }
-}
-
 #[turbo_tasks::value_impl]
 impl NodeJsChunkingContext {
     #[turbo_tasks::function]
@@ -229,6 +208,26 @@ impl NodeJsChunkingContext {
                 bail!("Unable to generate output asset for chunk");
             },
         )
+    }
+
+    /// Returns the kind of runtime to include in output chunks.
+    ///
+    /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
+    /// when `RuntimeType` has a single variant.
+    #[turbo_tasks::function]
+    pub fn runtime_type(&self) -> Vc<RuntimeType> {
+        self.runtime_type.cell()
+    }
+
+    /// Returns the minify type.
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.asset_prefix.clone())
     }
 }
 
