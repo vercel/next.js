@@ -820,12 +820,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
         let task_type = self.lookup_task_type(task_id);
-        Box::new(move || {
+        move || {
             task_type.as_ref().map_or_else(
                 || format!("{task_id:?} transient"),
                 |task_type| format!("{task_id:?} {task_type}"),
             )
-        })
+        }
     }
 
     fn snapshot(&self) -> Option<(Instant, bool)> {
