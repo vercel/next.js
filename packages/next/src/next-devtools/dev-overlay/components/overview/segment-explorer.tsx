@@ -371,12 +371,8 @@ function PageSegmentTreeLayerPresentation({
               )}
               {firstChild && firstChild.value && isChildPageOrBoundary && (
                 <SegmentBoundaryTrigger
-                  nodeState={firstChild?.value || null}
+                  nodeState={firstChild.value}
                   boundaries={boundaries}
-                  // onSelectBoundary={firstChild.value.setBoundaryType}
-                  // pagePath={firstChild.value.pagePath}
-                  // boundaryType={firstChild.value.boundaryType}
-                  // fileType={firstChild.value.type}
                 />
               )}
               {!isChildPageOrBoundary && <Trigger disabled />}

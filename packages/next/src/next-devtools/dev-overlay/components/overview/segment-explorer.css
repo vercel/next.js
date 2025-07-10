@@ -1,7 +1,6 @@
 .segment-explorer-content {
   font-size: var(--size-14);
   padding: 0 8px;
-  width: 100%;
   width: 700px;
   height: 400px;
   max-width: calc(100vw - 40px);
@@ -86,7 +85,6 @@
   justify-content: center;
   padding: 4px 6px;
   border-radius: 16px;
-  font-size: 11px;
   line-height: 16px;
   font-size: var(--size-12);
   font-weight: 500;

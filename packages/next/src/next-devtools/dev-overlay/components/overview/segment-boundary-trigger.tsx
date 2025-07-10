@@ -122,7 +122,8 @@ export function SegmentBoundaryTrigger({
       `${
         process.env.__NEXT_ROUTER_BASEPATH || ''
       }/__nextjs_launch-editor?${params.toString()}`
-    )
+      // Log the failures to console, not track them as console errors in error overlay
+    ).catch(console.warn)
   }, [])
 
   const handleSelect = useCallback(
