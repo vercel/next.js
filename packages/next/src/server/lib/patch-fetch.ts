@@ -1051,6 +1051,10 @@ export function createPatchedFetcher(
   patched._nextOriginalFetch = originFetch
   ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = true
 
+  // Assign the function name also as a name property, so that it's preserved
+  // even when mangling is enabled.
+  Object.defineProperty(patched, 'name', { value: 'fetch', writable: false })
+
   return patched
 }
 // we patch fetch to collect cache information used for
