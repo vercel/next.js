@@ -3064,10 +3064,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-60b5271a-20250709",
+      version: "19.2.0-canary-96c61b7f-20250709",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-60b5271a-20250709",
+      reconcilerVersion: "19.2.0-canary-96c61b7f-20250709",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
