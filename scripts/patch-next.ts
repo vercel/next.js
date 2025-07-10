@@ -122,7 +122,9 @@ async function main(): Promise<void> {
   }
 
   if (!noNativeBuild) {
-    process.argv = [...process.argv.slice(0, 2), ...process.argv.slice(1)]
+    const originalArgs = process.argv.slice(2)
+    const nativeBuildArgs = originalArgs.filter((arg) => arg !== projectDir)
+    process.argv = [process.argv[0], process.argv[1], ...nativeBuildArgs]
     INFO('Building native modules...')
     await import('./build-native.js')
   }
