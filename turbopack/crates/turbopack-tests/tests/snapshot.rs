@@ -85,7 +85,7 @@ struct SnapshotOptions {
     browserslist: String,
     #[serde(default = "default_entry")]
     entry: String,
-    #[serde(default)]
+    #[serde(default = "default_minify_type")]
     minify_type: MinifyType,
     #[serde(default)]
     runtime: Runtime,
@@ -122,7 +122,7 @@ impl Default for SnapshotOptions {
         SnapshotOptions {
             browserslist: default_browserslist(),
             entry: default_entry(),
-            minify_type: Default::default(),
+            minify_type: default_minify_type(),
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
@@ -150,6 +150,10 @@ fn default_runtime_type() -> RuntimeType {
     // the runtime. Instead, we only include the runtime in snapshots that
     // specifically request it via "runtime": "Default".
     RuntimeType::Dummy
+}
+
+fn default_minify_type() -> MinifyType {
+    MinifyType::NoMinify
 }
 
 fn is_empty_dir_tree(dir_entries: impl IntoIterator<Item = io::Result<fs::DirEntry>>) -> bool {
@@ -446,6 +450,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
+            .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
             .export_usage(export_usage);
 
