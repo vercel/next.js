@@ -6,17 +6,14 @@
   background-color: red;
 }
 
-
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css [test] (css) */
 .bar {
   background-color: green;
 }
 
-
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/index.css [test] (css) */
 body {
   background-color: #00f;
 }
-
 
 /*# sourceMappingURL=4e721_crates_turbopack-tests_tests_snapshot_css_absolute-uri-import_input_b44448e2._.css.map*/

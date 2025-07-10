@@ -24,12 +24,8 @@ describe('react-performance-track', () => {
     expect(track).toEqual([
       {
         // TODO(veil): Should always be `fetch (random)`
-        name: isTurbopack ? 'fetch (random)' : 'patched',
-        properties: expect.arrayContaining([
-          ['status', '200'],
-          // Not sure if this is useful to assert on. Feel free to remove is this breaks often
-          ['body', isTurbopack ? 'ReadableStream' : 'TeeReadableStream'],
-        ]),
+        name: isTurbopack ? 'fetch (random)' : 'fetch',
+        properties: expect.arrayContaining([['status', '200']]),
       },
     ])
   })

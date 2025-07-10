@@ -111,7 +111,9 @@ impl CssChunk {
 
             body.push_source(&content.inner_code, source_map);
 
-            writeln!(body, "{close}")?;
+            if !close.is_empty() {
+                writeln!(body, "{close}")?;
+            }
             writeln!(body)?;
         }
 
