@@ -29,10 +29,10 @@ impl Event {
     /// When `hanging_detection` is disabled, `description` is never called.
     ///
     /// When `hanging_detection` is enabled, the outer closure is called immediately. The outer
-    /// closure can have an ephemeral lifetime. The inner closer must be `'static`, but is called
+    /// closure can have an ephemeral lifetime. The inner closure must be `'static`, but is called
     /// only when the `description` is actually read.
     ///
-    /// The outer closure allow avoiding extra lookups (e.g. task type info) that may be needed to
+    /// The outer closure allows avoiding extra lookups (e.g. task type info) that may be needed to
     /// capture information needed for constructing (moving into) the inner closure.
     #[inline(always)]
     pub fn new<InnerFn>(_description: impl FnOnce() -> InnerFn) -> Self
