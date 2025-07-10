@@ -2,7 +2,10 @@
 @layer layer {
 @media print {
 @supports not(display: inline-grid) {
-.imported{color:#0ff}
+.imported {
+  color: #0ff;
+}
+
 }
 }
 }
