@@ -14,7 +14,7 @@ export function trackDynamicImport<TExports extends Record<string, any>>(
 ): Promise<TExports> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
-      "Dynamic imports should not be instrumented in the edge runtime, because `dynamicIO` doesn't support it"
+      "Dynamic imports should not be instrumented in the edge runtime, because `dynamicIO` or `cacheComponents` doesn't support it"
     )
   }
 

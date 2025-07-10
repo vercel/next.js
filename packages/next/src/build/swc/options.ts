@@ -71,6 +71,7 @@ function getBaseSWCOptions({
   serverReferenceHashSalt,
   bundleLayer,
   isDynamicIo,
+  isCacheComponents,
   cacheHandlers,
   useCacheEnabled,
   trackDynamicImports,
@@ -92,6 +93,7 @@ function getBaseSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   isDynamicIo?: boolean
+  isCacheComponents?: boolean
   cacheHandlers?: ExperimentalConfig['cacheHandlers']
   useCacheEnabled?: boolean
   trackDynamicImports?: boolean
@@ -217,7 +219,7 @@ function getBaseSWCOptions({
       serverComponents && !jest
         ? {
             isReactServerLayer,
-            dynamicIoEnabled: isDynamicIo,
+            dynamicIoEnabled: isDynamicIo || isCacheComponents,
             useCacheEnabled,
           }
         : undefined,
@@ -385,6 +387,7 @@ export function getLoaderSWCOptions({
   serverReferenceHashSalt,
   bundleLayer,
   esm,
+  isCacheComponents,
   cacheHandlers,
   useCacheEnabled,
   trackDynamicImports,
@@ -399,6 +402,7 @@ export function getLoaderSWCOptions({
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
   isDynamicIo?: boolean
+  isCacheComponents?: boolean
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
   >['optimizePackageImports']
@@ -433,6 +437,7 @@ export function getLoaderSWCOptions({
     serverReferenceHashSalt,
     esm: !!esm,
     isDynamicIo,
+    isCacheComponents,
     cacheHandlers,
     useCacheEnabled,
     trackDynamicImports,

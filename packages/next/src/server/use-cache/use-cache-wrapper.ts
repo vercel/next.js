@@ -687,17 +687,18 @@ export function cache(
             originalFn.apply(null, [
               {
                 params: outerParams,
-                searchParams: workStore.dynamicIOEnabled
-                  ? innerSearchParams
-                  : // When dynamicIO is not enabled, we can not encode
-                    // searchParams as a hanging promise. To still avoid unused
-                    // search params from making a page dynamic, we define them
-                    // in `createComponentTree` as a promise that resolves to an
-                    // empty object. And here, we're creating an erroring
-                    // searchParams prop, when invoking the original function.
-                    // This ensures that used searchParams inside of cached
-                    // functions would still yield an error.
-                    makeErroringExoticSearchParamsForUseCache(workStore),
+                searchParams:
+                  workStore.dynamicIOEnabled || workStore.cacheComponentsEnabled
+                    ? innerSearchParams
+                    : // When dynamicIO (or cacheComponents) is not enabled, we can not encode
+                      // searchParams as a hanging promise. To still avoid unused
+                      // search params from making a page dynamic, we define them
+                      // in `createComponentTree` as a promise that resolves to an
+                      // empty object. And here, we're creating an erroring
+                      // searchParams prop, when invoking the original function.
+                      // This ensures that used searchParams inside of cached
+                      // functions would still yield an error.
+                      makeErroringExoticSearchParamsForUseCache(workStore),
               },
             ]),
         }[name] as (...args: unknown[]) => Promise<unknown>

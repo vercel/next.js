@@ -110,7 +110,7 @@ function revalidate(tags: string[], expression: string) {
 
     switch (workUnitStore.type) {
       case 'prerender':
-        // dynamicIO Prerender
+        // dynamicIO (or cacheComponents) Prerender
         const error = new Error(
           `Route ${store.route} used ${expression} without first calling \`await connection()\`.`
         )
@@ -126,7 +126,7 @@ function revalidate(tags: string[], expression: string) {
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
         )
       case 'prerender-ppr':
-        // PPR Prerender
+        // PPR Prerender (no dynamicIO or cacheComponents)
         postponeWithTracking(
           store.route,
           expression,

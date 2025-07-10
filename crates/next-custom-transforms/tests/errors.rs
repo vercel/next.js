@@ -2,12 +2,12 @@ use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::{next_font_loaders, Config as FontLoaderConfig},
+    dynamic::{NextDynamicMode, next_dynamic},
+    fonts::{Config as FontLoaderConfig, next_font_loaders},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
-    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    server_actions::{self, ServerActionsMode, server_actions},
+    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
@@ -16,7 +16,7 @@ use swc_core::{
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
-            testing::{test_fixture, FixtureTestConfig},
+            testing::{FixtureTestConfig, test_fixture},
         },
     },
 };
@@ -92,6 +92,7 @@ fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let dynamic_io_enabled = input.iter().any(|s| s.to_str() == Some("dynamic-io"));
+    let cache_components_enabled = input.iter().any(|s| s.to_str() == Some("cache-components"));
     let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
@@ -103,6 +104,7 @@ fn react_server_components_errors(input: PathBuf) {
                     is_react_server_layer,
                     dynamic_io_enabled,
                     use_cache_enabled,
+                    cache_components_enabled,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -155,6 +157,7 @@ fn react_server_actions_errors(input: PathBuf) {
                         is_react_server_layer,
                         dynamic_io_enabled: true,
                         use_cache_enabled: true,
+                        cache_components_enabled: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -219,6 +222,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         is_react_server_layer: true,
                         dynamic_io_enabled: false,
                         use_cache_enabled: false,
+                        cache_components_enabled: false,
                     }),
                     tr.comments.as_ref().clone(),
                     None,

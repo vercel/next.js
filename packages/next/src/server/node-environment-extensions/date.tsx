@@ -1,6 +1,6 @@
 /**
  * We extend `Date` during builds and revalidates to ensure that prerenders don't observe the clock as a source of IO
- * When dynamicIO is enabled. The current time is a form of IO even though it resolves synchronously. When dyanmicIO is
+ * When dynamicIO (or cacheComponents) is enabled. The current time is a form of IO even though it resolves synchronously. When dynamicIO (or cacheComponents) is
  * enabled we need to ensure that clock time is excluded from prerenders unless it is cached.
  *
  * There is tension here because time is used for both output and introspection. While arbitrary we intend to reserve

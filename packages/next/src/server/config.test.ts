@@ -122,6 +122,20 @@ describe('loadConfig', () => {
       )
     })
 
+    it('errors when using cacheComponents if not in canary', async () => {
+      await expect(
+        loadConfig('', __dirname, {
+          customConfig: {
+            experimental: {
+              cacheComponents: true,
+            },
+          },
+        })
+      ).rejects.toThrow(
+        /The experimental feature "experimental.cacheComponents" can only be enabled when using the latest canary version of Next.js./
+      )
+    })
+
     it('errors when using persistentCaching if not in canary', async () => {
       await expect(
         loadConfig('', __dirname, {
@@ -173,6 +187,21 @@ describe('loadConfig', () => {
         })
       ).rejects.toThrow(
         '`experimental.ppr` can not be `"incremental"` when `experimental.dynamicIO` is `true`. PPR is implicitly enabled when Dynamic IO is enabled.'
+      )
+    })
+
+    it('errors when cacheComponents is enabled but PPR set to "incremental"', async () => {
+      await expect(
+        loadConfig('', __dirname, {
+          customConfig: {
+            experimental: {
+              cacheComponents: true,
+              ppr: 'incremental',
+            },
+          },
+        })
+      ).rejects.toThrow(
+        '`experimental.ppr` can not be `"incremental"` when `experimental.cacheComponents` is `true`. PPR is implicitly enabled when Cache Components is enabled.'
       )
     })
   })

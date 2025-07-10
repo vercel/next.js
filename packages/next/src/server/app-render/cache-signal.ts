@@ -1,7 +1,7 @@
 /**
  * This class is used to detect when all cache reads for a given render are settled.
  * We do this to allow for cache warming the prerender without having to continue rendering
- * the remainder of the page. This feature is really only useful when the dynamicIO flag is on
+ * the remainder of the page. This feature is really only useful when the dynamicIO (or cacheComponents) flag is on
  * and should only be used in codepaths gated with this feature.
  */
 

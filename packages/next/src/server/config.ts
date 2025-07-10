@@ -255,6 +255,12 @@ function assignDefaults(
     )
   }
 
+  if (defaultConfig.experimental?.cacheComponents) {
+    Log.warn(
+      `\`experimental.cacheComponents\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\` was set to \`true\` during testing.`
+    )
+  }
+
   const result = {
     ...defaultConfig,
     ...config,
@@ -280,7 +286,9 @@ function assignDefaults(
 
   if (isStableBuild()) {
     // Prevents usage of certain experimental features outside of canary
-    if (result.experimental?.ppr) {
+    if (result.experimental?.cacheComponents) {
+      throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
+    } else if (result.experimental?.ppr) {
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.dynamicIO) {
       throw new CanaryOnlyError({ feature: 'experimental.dynamicIO' })
@@ -1112,7 +1120,8 @@ function assignDefaults(
   // we transfer the value for dynamicIO to the explicit useCache flag to ensure
   // backwards compatibility.
   if (result.experimental.useCache === undefined) {
-    result.experimental.useCache = result.experimental.dynamicIO
+    result.experimental.useCache =
+      result.experimental.dynamicIO || result.experimental.cacheComponents
   }
 
   // If dynamicIO is enabled, we also enable PPR.
@@ -1123,6 +1132,20 @@ function assignDefaults(
     ) {
       throw new Error(
         `\`experimental.ppr\` can not be \`${JSON.stringify(userConfig.experimental?.ppr)}\` when \`experimental.dynamicIO\` is \`true\`. PPR is implicitly enabled when Dynamic IO is enabled.`
+      )
+    }
+
+    result.experimental.ppr = true
+  }
+
+  // If cacheComponents is enabled, we also enable PPR.
+  if (result.experimental.cacheComponents) {
+    if (
+      userConfig.experimental?.ppr === false ||
+      userConfig.experimental?.ppr === 'incremental'
+    ) {
+      throw new Error(
+        `\`experimental.ppr\` can not be \`${JSON.stringify(userConfig.experimental?.ppr)}\` when \`experimental.cacheComponents\` is \`true\`. PPR is implicitly enabled when Cache Components is enabled.`
       )
     }
 
@@ -1421,6 +1444,18 @@ export default async function loadConfig(
     }
 
     if (
+      userConfig.experimental &&
+      userConfig.experimental.enablePrerenderSourceMaps === undefined &&
+      userConfig.experimental.cacheComponents === true
+    ) {
+      userConfig.experimental.enablePrerenderSourceMaps = true
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'enablePrerenderSourceMaps',
+        true,
+        'enabled by `experimental.cacheComponents`'
+      )
+    } else if (
       userConfig.experimental &&
       userConfig.experimental.enablePrerenderSourceMaps === undefined &&
       userConfig.experimental.dynamicIO === true

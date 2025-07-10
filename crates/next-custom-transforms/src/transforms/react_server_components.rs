@@ -11,19 +11,19 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        DUMMY_SP, FileName, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
         visit::{
-            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
-            VisitWith,
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
         },
     },
 };
@@ -53,6 +53,7 @@ pub struct Options {
     pub is_react_server_layer: bool,
     pub dynamic_io_enabled: bool,
     pub use_cache_enabled: bool,
+    pub cache_components_enabled: bool,
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
@@ -63,6 +64,7 @@ struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,
     dynamic_io_enabled: bool,
     use_cache_enabled: bool,
+    cache_components_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
@@ -96,6 +98,7 @@ enum RSCErrorKind {
 enum NextConfigProperty {
     DynamicIo,
     UseCache,
+    CacheComponents,
 }
 
 impl Display for NextConfigProperty {
@@ -103,6 +106,7 @@ impl Display for NextConfigProperty {
         match self {
             NextConfigProperty::DynamicIo => write!(f, "experimental.dynamicIO"),
             NextConfigProperty::UseCache => write!(f, "experimental.useCache"),
+            NextConfigProperty::CacheComponents => write!(f, "cacheComponents"),
         }
     }
 }
@@ -122,6 +126,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             self.is_react_server_layer,
             self.dynamic_io_enabled,
             self.use_cache_enabled,
+            self.cache_components_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
         );
@@ -549,6 +554,7 @@ struct ReactServerComponentValidator {
     is_react_server_layer: bool,
     dynamic_io_enabled: bool,
     use_cache_enabled: bool,
+    cache_components_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<Atom>,
@@ -568,6 +574,7 @@ impl ReactServerComponentValidator {
         is_react_server_layer: bool,
         dynamic_io_enabled: bool,
         use_cache_enabled: bool,
+        cache_components_enabled: bool,
         filename: String,
         app_dir: Option<PathBuf>,
     ) -> Self {
@@ -575,6 +582,7 @@ impl ReactServerComponentValidator {
             is_react_server_layer,
             dynamic_io_enabled,
             use_cache_enabled,
+            cache_components_enabled,
             filepath: filename,
             app_dir,
             directive_import_collection: None,
@@ -818,7 +826,17 @@ impl ReactServerComponentValidator {
                             .insert(export_name.clone(), (InvalidExportKind::Metadata, *span));
                     }
                     "runtime" => {
-                        if self.dynamic_io_enabled {
+                        if self.cache_components_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.clone(),
+                                (
+                                    InvalidExportKind::RouteSegmentConfig(
+                                        NextConfigProperty::CacheComponents,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        } else if self.dynamic_io_enabled {
                             possibly_invalid_exports.insert(
                                 export_name.clone(),
                                 (
@@ -841,7 +859,17 @@ impl ReactServerComponentValidator {
                         }
                     }
                     "dynamicParams" | "dynamic" | "fetchCache" | "revalidate" => {
-                        if self.dynamic_io_enabled {
+                        if self.cache_components_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.clone(),
+                                (
+                                    InvalidExportKind::RouteSegmentConfig(
+                                        NextConfigProperty::CacheComponents,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        } else if self.dynamic_io_enabled {
                             possibly_invalid_exports.insert(
                                 export_name.clone(),
                                 (
@@ -1062,6 +1090,10 @@ pub fn server_components_assert(
         Config::WithOptions(x) => x.dynamic_io_enabled,
         _ => false,
     };
+    let cache_components_enabled: bool = match &config {
+        Config::WithOptions(x) => x.cache_components_enabled,
+        _ => false,
+    };
     let use_cache_enabled: bool = match &config {
         Config::WithOptions(x) => x.use_cache_enabled,
         _ => false,
@@ -1074,6 +1106,7 @@ pub fn server_components_assert(
         is_react_server_layer,
         dynamic_io_enabled,
         use_cache_enabled,
+        cache_components_enabled,
         filename,
         app_dir,
     )
@@ -1095,6 +1128,10 @@ pub fn server_components<C: Comments>(
         Config::WithOptions(x) => x.dynamic_io_enabled,
         _ => false,
     };
+    let cache_components_enabled: bool = match &config {
+        Config::WithOptions(x) => x.cache_components_enabled,
+        _ => false,
+    };
     let use_cache_enabled: bool = match &config {
         Config::WithOptions(x) => x.use_cache_enabled,
         _ => false,
@@ -1103,6 +1140,7 @@ pub fn server_components<C: Comments>(
         is_react_server_layer,
         dynamic_io_enabled,
         use_cache_enabled,
+        cache_components_enabled,
         comments,
         filepath: match &*filename {
             FileName::Custom(path) => format!("<{path}>"),

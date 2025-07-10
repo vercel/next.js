@@ -717,5 +717,7 @@
   "716": "NEXT_DEVTOOLS_SIMULATED_ERROR",
   "717": "Unsupported environment condition \"%s\" and react condition \"%s\". This is a bug in Next.js.",
   "718": "Invariant: projectDir is required for node runtime",
-  "719": "Failed to get source map for '%s'. This is a bug in Next.js"
+  "719": "Failed to get source map for '%s'. This is a bug in Next.js",
+  "720": "\\`experimental.ppr\\` can not be \\`%s\\` when \\`experimental.cacheComponents\\` is \\`true\\`. PPR is implicitly enabled when Cache Components is enabled.",
+  "721": "Dynamic imports should not be instrumented in the edge runtime, because `dynamicIO` or `cacheComponents` doesn't support it"
 }

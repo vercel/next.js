@@ -1,6 +1,6 @@
 /**
  * We extend Web Crypto APIs during builds and revalidates to ensure that prerenders don't observe random bytes
- * When dynamicIO is enabled. Random bytes are a form of IO even if they resolve synchronously. When dyanmicIO is
+ * When dynamicIO (or cacheComponents) is enabled. Random bytes are a form of IO even if they resolve synchronously. When dynamicIO (or cacheComponents) is
  * enabled we need to ensure that random bytes are excluded from prerenders unless they are cached.
  *
  *

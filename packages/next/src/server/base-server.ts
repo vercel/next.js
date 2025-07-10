@@ -601,6 +601,7 @@ export default abstract class Server<
         staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
+        cacheComponents: this.nextConfig.experimental.cacheComponents ?? false,
         clientSegmentCache:
           this.nextConfig.experimental.clientSegmentCache === 'client-only'
             ? 'client-only'
@@ -2777,7 +2778,8 @@ export default abstract class Server<
               // If we're in dev, and this isn't a prefetch or a server action,
               // we should seed the resume data cache.
               if (
-                this.nextConfig.experimental.dynamicIO &&
+                (this.nextConfig.experimental.dynamicIO ||
+                  this.nextConfig.experimental.cacheComponents) &&
                 this.renderOpts.dev &&
                 !isPrefetchRSCRequest &&
                 !isPossibleServerAction

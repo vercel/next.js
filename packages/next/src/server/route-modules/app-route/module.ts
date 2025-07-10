@@ -311,6 +311,8 @@ export class AppRouteRouteModule extends RouteModule<
   ) {
     const isStaticGeneration = workStore.isStaticGeneration
     const dynamicIOEnabled = !!context.renderOpts.experimental?.dynamicIO
+    const cacheComponentsEnabled =
+      !!context.renderOpts.experimental?.cacheComponents
 
     // Patch the global fetch.
     patchFetch({
@@ -354,10 +356,10 @@ export class AppRouteRouteModule extends RouteModule<
             ? INFINITE_CACHE
             : userlandRevalidate
 
-        if (dynamicIOEnabled) {
+        if (dynamicIOEnabled || cacheComponentsEnabled) {
           /**
            * When we are attempting to statically prerender the GET handler of a route.ts module
-           * and dynamicIO is on we follow a similar pattern to rendering.
+           * and dynamicIO (or cacheComponents) is on we follow a similar pattern to rendering.
            *
            * We first run the handler letting caches fill. If something synchronously dynamic occurs
            * during this prospective render then we can infer it will happen on every render and we
@@ -1174,7 +1176,7 @@ function trackDynamic(
 
   if (workUnitStore) {
     if (workUnitStore.type === 'prerender') {
-      // dynamicIO Prerender
+      // dynamicIO (or cacheComponents) Prerender
       const error = new Error(
         `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-request`
       )
@@ -1185,7 +1187,7 @@ function trackDynamic(
         workUnitStore
       )
     } else if (workUnitStore.type === 'prerender-ppr') {
-      // PPR Prerender
+      // PPR Prerender (no dynamicIO or cacheComponents)
       postponeWithTracking(
         store.route,
         expression,

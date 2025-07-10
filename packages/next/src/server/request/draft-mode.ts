@@ -102,13 +102,13 @@ function createOrGetCachedDraftMode(
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     const route = workStore?.route
 
-    if (process.env.__NEXT_DYNAMIC_IO) {
+    if (process.env.__NEXT_DYNAMIC_IO || process.env.__NEXT_CACHE_COMPONENTS) {
       return createDraftModeWithDevWarnings(draftModeProvider, route)
     }
 
     promise = createExoticDraftModeWithDevWarnings(draftModeProvider, route)
   } else {
-    if (process.env.__NEXT_DYNAMIC_IO) {
+    if (process.env.__NEXT_DYNAMIC_IO || process.env.__NEXT_CACHE_COMPONENTS) {
       return Promise.resolve(new DraftMode(draftModeProvider))
     }
 
@@ -305,7 +305,7 @@ function trackDynamicDraftMode(expression: string) {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'prerender':
-          // dynamicIO Prerender
+          // dynamicIO (or cacheComponents) Prerender
           const error = new Error(
             `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-headers`
           )

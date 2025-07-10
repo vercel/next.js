@@ -109,6 +109,7 @@ export class EdgeRouteModuleWrapper {
         onAfterTaskError: undefined,
         experimental: {
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
+          cacheComponents: !!process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
         cacheLifeProfiles: this.nextConfig.experimental.cacheLife,

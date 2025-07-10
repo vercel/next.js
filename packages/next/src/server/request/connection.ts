@@ -57,11 +57,11 @@ export function connection(): Promise<void> {
         workUnitStore.type === 'prerender' ||
         workUnitStore.type === 'prerender-client'
       ) {
-        // dynamicIO Prerender
+        // dynamicIO (or cacheComponents) Prerender
         // We return a promise that never resolves to allow the prender to stall at this point
         return makeHangingPromise(workUnitStore.renderSignal, '`connection()`')
       } else if (workUnitStore.type === 'prerender-ppr') {
-        // PPR Prerender (no dynamicIO)
+        // PPR Prerender (no dynamicIO or cacheComponents)
         // We use React's postpone API to interrupt rendering here to create a dynamic hole
         postponeWithTracking(
           workStore.route,

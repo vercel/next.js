@@ -702,6 +702,14 @@ export interface ExperimentalConfig {
   dynamicIO?: boolean
 
   /**
+   * When enabled, will cause IO in App Router to be excluded from prerenders,
+   * unless explicitly cached. This also enables the experimental Partial
+   * Prerendering feature of Next.js, and it enables `react@experimental` being
+   * used for the `app` directory.
+   */
+  cacheComponents?: boolean
+
+  /**
    * Render <style> tags inline in the HTML for imported CSS assets.
    * Supports app-router in production mode only.
    */
@@ -822,9 +830,10 @@ export type ExportPathMap = {
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
-     * the app has `experimental.ppr` and `experimental.dynamicIO` enabled, and
-     * there are also routes prerendered with a more complete set of params.
-     * Prerendering those routes would catch any invalid dynamic accesses.
+     * the app has `experimental.ppr` and `experimental.dynamicIO` or
+     * `experimental.cacheComponents` enabled, and there are also routes
+     * prerendered with a more complete set of params. Prerendering those routes
+     * would catch any invalid dynamic accesses.
      *
      * @internal
      */
@@ -1478,6 +1487,15 @@ export const defaultConfig = {
       // TODO: remove once we've made dynamicIO the default
       // If we're testing, and the `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS` environment
       // variable has been set to `true`, enable the experimental dynamicIO feature so long as it
+      // wasn't explicitly disabled in the config.
+      !!(
+        process.env.__NEXT_TEST_MODE &&
+        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ),
+    cacheComponents:
+      // TODO: remove once we've made cacheComponents the default
+      // If we're testing, and the `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS` environment
+      // variable has been set to `true`, enable the experimental cacheComponents feature so long as it
       // wasn't explicitly disabled in the config.
       !!(
         process.env.__NEXT_TEST_MODE &&

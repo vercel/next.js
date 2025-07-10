@@ -170,6 +170,7 @@ export async function handler(
     renderOpts: {
       experimental: {
         dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
+        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
       },
       supportsDynamicResponse,

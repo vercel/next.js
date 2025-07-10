@@ -99,9 +99,9 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
         case 'prerender-ppr':
-          // PPR Prerender (no dynamicIO)
+          // PPR Prerender (no dynamicIO or cacheComponents)
           // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how cookies has worked in PPR without dynamicIO.
+          // to keep continuity with how cookies has worked in PPR without dynamicIO or cacheComponents.
           postponeWithTracking(
             workStore.route,
             callingExpression,
@@ -143,7 +143,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   }
 
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
-    if (process.env.__NEXT_DYNAMIC_IO) {
+    if (process.env.__NEXT_DYNAMIC_IO || process.env.__NEXT_CACHE_COMPONENTS) {
       return makeUntrackedCookiesWithDevWarnings(
         underlyingCookies,
         workStore?.route

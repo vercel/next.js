@@ -173,6 +173,7 @@ export type EventBuildFeatureUsage = {
     | 'next/font/local'
     | 'experimental/nextScriptWorkers'
     | 'experimental/dynamicIO'
+    | 'experimental/cacheComponents'
     | 'experimental/optimizeCss'
     | 'experimental/ppr'
     | 'swcLoader'

@@ -36,7 +36,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'dynamicIO' | 'authInterrupts'
+      'isRoutePPREnabled' | 'dynamicIO' | 'authInterrupts' | 'cacheComponents'
     >
 
     /**
@@ -138,6 +138,7 @@ export function createWorkStore({
 
     afterContext: createAfterContext(renderOpts),
     dynamicIOEnabled: renderOpts.experimental.dynamicIO,
+    cacheComponentsEnabled: renderOpts.experimental.cacheComponents,
     dev: renderOpts.dev ?? false,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),

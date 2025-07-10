@@ -1315,6 +1315,9 @@ export default async function build(
       )
 
       const isAppDynamicIOEnabled = Boolean(config.experimental.dynamicIO)
+      const isAppCacheComponentsEnabled = Boolean(
+        config.experimental.cacheComponents
+      )
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
@@ -1738,6 +1741,7 @@ export default async function build(
               configFileName,
               runtimeEnvConfig,
               dynamicIO: isAppDynamicIOEnabled,
+              cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
@@ -1977,6 +1981,7 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             dynamicIO: isAppDynamicIOEnabled,
+                            cacheComponents: isAppCacheComponentsEnabled,
                             authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
                             cacheHandlers: config.experimental.cacheHandlers,
@@ -2521,6 +2526,10 @@ export default async function build(
         {
           featureName: 'experimental/dynamicIO',
           invocationCount: config.experimental.dynamicIO ? 1 : 0,
+        },
+        {
+          featureName: 'experimental/cacheComponents',
+          invocationCount: config.experimental.cacheComponents ? 1 : 0,
         },
         {
           featureName: 'experimental/optimizeCss',
