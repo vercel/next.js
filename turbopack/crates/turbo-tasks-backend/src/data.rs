@@ -735,8 +735,8 @@ impl CachedDataItem {
         InnerFnDescription: Fn() -> String + Sync + Send + 'static,
     {
         let done_event = Event::new(move || {
-            let inner = (description)();
-            move || format!("{} done_event", (inner)())
+            let inner = description();
+            move || format!("{} done_event", inner())
         });
         CachedDataItem::InProgress {
             value: InProgressState::Scheduled { done_event, reason },
@@ -753,8 +753,8 @@ impl CachedDataItem {
         InnerFnNote: Fn() -> String + Sync + Send + 'static,
     {
         let done_event = Event::new(move || {
-            let inner = (description)();
-            move || format!("{} done_event", (inner)())
+            let inner = description();
+            move || format!("{} done_event", inner())
         });
         let listener = done_event.listen_with_note(note);
         (

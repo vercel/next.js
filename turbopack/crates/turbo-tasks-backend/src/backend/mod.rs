@@ -457,7 +457,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let reader_desc = reader.map(|r| this.get_task_desc_fn(r));
                 move || {
                     if let Some(reader_desc) = reader_desc.as_ref() {
-                        format!("try_read_task_output from {}", (reader_desc)())
+                        format!("try_read_task_output from {}", reader_desc())
                     } else {
                         "try_read_task_output (untracked)".to_string()
                     }
