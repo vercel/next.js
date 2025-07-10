@@ -29,9 +29,13 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          // TODO: Should include the URL.
-          name: 'fetch',
-          properties: expect.arrayContaining([['status', '200']]),
+          // React might decide to display the shorthand in round brackets differently.
+          // Double check with React changes if a shorthand change is intended.
+          name: 'fetch (random)',
+          properties: expect.arrayContaining([
+            ['status', '200'],
+            ['url', '"https://next-data-api-endpoint.vercel.app/api/random"'],
+          ]),
         },
       ])
     )
