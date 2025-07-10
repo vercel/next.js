@@ -71,7 +71,6 @@ export type MetadataErrorType =
   | 'forbidden'
   | 'unauthorized'
   | 'gone'
-  | 'gone'
 
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
