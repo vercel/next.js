@@ -115,7 +115,7 @@ impl Event {
 }
 
 impl Event {
-    /// see [event_listener::Event]::notify
+    /// see [`event_listener::Event::notify`]
     pub fn notify(&self, n: usize) {
         self.event.notify(n);
     }
@@ -214,5 +214,47 @@ impl Future for EventListener {
         }
         // EventListener was awaited again after completion
         Poll::Ready(())
+    }
+}
+
+#[cfg(all(test, not(feature = "hanging_detection")))]
+mod tests {
+    use std::hint::black_box;
+
+    use tokio::time::{Duration, timeout};
+
+    use super::*;
+
+    // The closures used for descriptions/notes should be eliminated. This may only happen at higher
+    // optimization levels (that would be okay), but in practice it seems to work even for
+    // opt-level=0.
+    #[tokio::test]
+    async fn ensure_dead_code_elimination() {
+        fn dead_fn() {
+            // This code triggers a build error when it's not removed.
+            unsafe {
+                unsafe extern "C" {
+                    fn trigger_link_error() -> !;
+                }
+                trigger_link_error();
+            }
+        }
+
+        let event = black_box(Event::new(|| {
+            dead_fn();
+            || {
+                dead_fn();
+                String::new()
+            }
+        }));
+        let listener = black_box(event.listen_with_note(|| {
+            dead_fn();
+            || {
+                dead_fn();
+                String::new()
+            }
+        }));
+
+        let _ = black_box(timeout(Duration::from_millis(10), listener)).await;
     }
 }
