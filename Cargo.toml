@@ -398,6 +398,7 @@ regex = "1.10.6"
 regress = "0.10.3"
 reqwest = { version = "0.12.20", default-features = false }
 ringmap = "0.1.3"
+roaring = "0.10.10"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
 semver = "1.0.16"

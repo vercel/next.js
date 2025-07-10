@@ -10,6 +10,7 @@ describe('initial-css-not-found', () => {
   it('should serve styles', async () => {
     const browser = await next.browser('/')
 
+    // Simply check that our css was served and applied.
     expect(
       await browser.eval(
         `window.getComputedStyle(document.querySelector('body')).color`

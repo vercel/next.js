@@ -4262,6 +4262,7 @@ dependencies = [
  "indexmap 2.9.0",
  "next-core",
  "regex",
+ "roaring",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",

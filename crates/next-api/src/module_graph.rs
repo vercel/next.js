@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use either::Either;
 use next_core::{
     next_client_reference::{
@@ -280,36 +280,37 @@ impl ClientReferencesGraph {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(ClientReferenceGraphResult::default().cell());
                 }
-                Either::Left(std::iter::once(entry))
+                vec![entry]
             } else {
-                Either::Right(graph.entry_modules())
+                graph.entry_modules().collect()
             };
 
-            let mut client_references = FxIndexSet::default();
-            // Make sure None (for the various internal next/dist/esm/client/components/*) is
-            // listed first
-            let mut client_references_by_server_component =
-                FxIndexMap::from_iter([(None, Vec::new())]);
+            // Because we care about 'evaluation order' we need to collect client references in the
+            // post_order callbacks which is the same as evaluation order
+            let mut client_references = Vec::new();
+            let mut client_reference_modules = Vec::new();
+            let mut server_components = FxIndexSet::default();
 
+            // Perform a DFS traversal to collect all client references and the set of server
+            // components for each module
+            // We collect in post order to respect 'evaluation order'
             graph.traverse_edges_from_entries_dfs(
                 entries,
-                // state_map is `module -> Option< the current so parent server component >`
+                // state_map is `module -> boolean`
                 &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
                     let module = node.module();
-                    let module_type = data.get(&module);
+                    let module_type = data.client_references.get(&module);
 
-                    let current_server_component = if let Some(
-                        ClientReferenceMapType::ServerComponent(module),
-                    ) = module_type
-                    {
-                        Some(*module)
-                    } else if let Some((parent_node, _)) = parent_info {
-                        *state_map.get(&parent_node.module).unwrap()
-                    } else {
-                        // a root node
-                        None
-                    };
+                    let current_server_component =
+                        if let Some(ClientReferenceMapType::ServerComponent(_)) = module_type {
+                            true
+                        } else if let Some((parent_node, _)) = parent_info {
+                            *state_map.get(&parent_node.module).unwrap()
+                        } else {
+                            // a root node
+                            false
+                        };
 
                     state_map.insert(module, current_server_component);
 
@@ -321,45 +322,59 @@ impl ClientReferencesGraph {
                         _ => GraphTraversalAction::Continue,
                     })
                 },
-                |parent_info, node, state_map| {
-                    let Some((parent_node, _)) = parent_info else {
+                |_, node, state_map| {
+                    let module = node.module();
+                    let Some(module_type) = data.client_references.get(&module) else {
                         return Ok(());
                     };
-                    let parent_module = parent_node.module;
+                    if let ClientReferenceMapType::ServerComponent(sc) = module_type {
+                        server_components.insert(*sc);
+                        return Ok(());
+                    }
 
-                    let parent_server_component = *state_map.get(&parent_module).unwrap();
-
-                    match data.get(&node.module()) {
-                        Some(ClientReferenceMapType::EcmascriptClientReference {
-                            module: module_ref,
-                            ssr_module,
-                        }) => {
-                            let client_reference: ClientReference = ClientReference {
-                                server_component: parent_server_component,
-                                ty: ClientReferenceType::EcmascriptClientReference(*module_ref),
-                            };
-                            client_references.insert(client_reference);
-                            client_references_by_server_component
-                                .entry(parent_server_component)
-                                .or_insert_with(Vec::new)
-                                .push(*ssr_module);
+                    let ty = match module_type {
+                        ClientReferenceMapType::EcmascriptClientReference {
+                            module,
+                            ssr_module: _,
+                        } => ClientReferenceType::EcmascriptClientReference(*module),
+                        ClientReferenceMapType::CssClientReference(module) => {
+                            ClientReferenceType::CssClientReference(*module)
                         }
-                        Some(ClientReferenceMapType::CssClientReference(module_ref)) => {
-                            let client_reference = ClientReference {
-                                server_component: parent_server_component,
-                                ty: ClientReferenceType::CssClientReference(*module_ref),
-                            };
-                            client_references.insert(client_reference);
+                        ClientReferenceMapType::ServerComponent(_) => {
+                            unreachable!()
                         }
-                        _ => {}
                     };
+
+                    if *state_map.get(&module).unwrap() {
+                        // there is a parent component, we need to wait to compute the client
+                        // references until we have seen all server components reachable by this
+                        // entrypoint
+                        client_reference_modules.push((module, ty));
+                    } else {
+                        client_references.push(ClientReference {
+                            server_component: None,
+                            ty,
+                        })
+                    }
+
                     Ok(())
                 },
             )?;
 
+            for (module, ty) in client_reference_modules {
+                for sc in data
+                    .server_components_for_client_reference(module)
+                    .filter(|sc| server_components.contains(sc))
+                {
+                    client_references.push(ClientReference {
+                        server_component: Some(sc),
+                        ty,
+                    })
+                }
+            }
+
             Ok(ClientReferenceGraphResult {
                 client_references: client_references.into_iter().collect(),
-                client_references_by_server_component,
                 server_utils: vec![],
                 server_component_entries: vec![],
             }
@@ -679,11 +694,7 @@ impl GlobalBuildInformation {
                 let results = self
                     .client_references
                     .iter()
-                    .map(|graph| async move {
-                        let get_client_references_for_endpoint =
-                            graph.get_client_references_for_endpoint(entry).await?;
-                        Ok(get_client_references_for_endpoint)
-                    })
+                    .map(|graph| graph.get_client_references_for_endpoint(entry))
                     .try_join()
                     .await?;
 
@@ -695,6 +706,10 @@ impl GlobalBuildInformation {
                 result
             };
 
+            // TODO(luke.sandberg): at least in the whole_app_module_graph case we should be able to
+            // collect server components and server utilities during the above traversals in the
+            // correct order.  `find_server_entries returns them in reverse topological order but
+            // the above traversals find them in DFS post order which is similar but different.
             if has_layout_segments {
                 // Do this separately for now, because the graph traversal order messes up the order
                 // of the server_component_entries.
