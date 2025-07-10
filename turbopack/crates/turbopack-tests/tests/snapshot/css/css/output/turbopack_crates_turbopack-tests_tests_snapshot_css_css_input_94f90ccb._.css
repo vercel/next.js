@@ -3,12 +3,10 @@
   color: green;
 }
 
-
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css) */
 .imported {
   color: #0ff;
 }
-
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css, layer(layer) print) */
 @layer layer {
@@ -25,12 +23,10 @@
   color: #ff0;
 }
 
-
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css) */
 .style-module__CEkn7G__foo-module-style {
   color: #00f;
 }
-
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css [test] (css) */
 .style-module__Iu_hLa__module-style {
@@ -48,6 +44,5 @@
 .style-module__Iu_hLa__another-composed-module-style {
   color: #ff0;
 }
-
 
 /*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_css_input_94f90ccb._.css.map*/
