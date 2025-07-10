@@ -256,6 +256,14 @@ impl Chunk for CssChunk {
 impl OutputChunk for CssChunk {
     #[turbo_tasks::function]
     async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
+        if !*self
+            .chunking_context
+            .is_hot_module_replacement_enabled()
+            .await?
+        {
+            return Ok(OutputChunkRuntimeInfo::empty());
+        }
+
         let content = self.content.await?;
         let entries_chunk_items = &content.chunk_items;
         let included_ids = entries_chunk_items
@@ -289,12 +297,7 @@ impl OutputChunk for CssChunk {
             .into_iter()
             .flatten()
             .collect();
-        let module_chunks = if content.chunk_items.len() > 1
-            && *self
-                .chunking_context
-                .is_hot_module_replacement_enabled()
-                .await?
-        {
+        let module_chunks = if content.chunk_items.len() > 1 {
             content
                 .chunk_items
                 .iter()

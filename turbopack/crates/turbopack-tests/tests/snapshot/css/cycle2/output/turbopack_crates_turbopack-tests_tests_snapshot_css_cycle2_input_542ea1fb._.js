@@ -4,19 +4,7 @@
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  {
-    "path": "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle2_input_ea25098c._.css",
-    "included": [
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/e.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/d.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/c.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/b.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/a.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/x.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/y.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/1.css [test] (css)"
-    ]
-  }
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle2_input_ea25098c._.css"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
 }),
@@ -24,19 +12,7 @@ __turbopack_context__.v((parentImport) => {
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  {
-    "path": "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle2_input_2bc55788._.css",
-    "included": [
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/b.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/a.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/e.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/d.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/c.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/y.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/x.css [test] (css)",
-      "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/2.css [test] (css)"
-    ]
-  }
+  "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle2_input_2bc55788._.css"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
 }),
