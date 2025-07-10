@@ -1411,7 +1411,7 @@ pub async fn get_source_map_rope(
                     },
                 )
             }
-            _ => bail!("Unknown url scheme"),
+            _ => bail!("Unknown url scheme '{}'", url.scheme()),
         },
         Err(_) => (file_path.to_string(), None),
     };
