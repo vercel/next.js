@@ -3349,7 +3349,8 @@ export default abstract class Server<
       // revalidate period from the value that trigged the not found
       // to be rendered. So if `getStaticProps` returns
       // { notFound: true, revalidate 60 } the revalidate period should
-      // be 60 but if a static asset 404s directly it should have a revalidate      // period of 0 so that it doesn't get cached unexpectedly by a CDN
+      // be 60 but if a static asset 404s directly it should have a revalidate
+      // period of 0 so that it doesn't get cached unexpectedly by a CDN
       else if (is404Page) {
         const notFoundRevalidate = getRequestMeta(req, 'notFoundRevalidate')
 
