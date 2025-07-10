@@ -151,12 +151,11 @@ export function createPatchedFetcher(
   originFetch: Fetcher,
   { workAsyncStorage, workUnitAsyncStorage }: PatchableModule
 ): PatchedFetcher {
-  // Create the patched fetch function. We don't set the type here, as it's
-  // verified as the return value of this function.
-  const patched = async (
+  // Create the patched fetch function.
+  const patched = async function fetch(
     input: RequestInfo | URL,
     init: RequestInit | undefined
-  ) => {
+  ): Promise<Response> {
     let url: URL | undefined
     try {
       url = new URL(input instanceof Request ? input.url : input)
