@@ -22,8 +22,8 @@ use turbopack::{
     ModuleAssetContext,
     ecmascript::{EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType},
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        ModuleRule, ModuleRuleEffect, RuleCondition,
+        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
+        ModuleRuleEffect, RuleCondition,
     },
 };
 use turbopack_browser::BrowserChunkingContext;
@@ -345,16 +345,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ignore_dynamic_requests: true,
                 ..Default::default()
             },
-            css: CssOptionsContext {
-                ..Default::default()
-            },
             environment: Some(env),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
-                    css: CssOptionsContext {
-                        ..Default::default()
-                    },
                     environment: Some(env),
                     tree_shaking_mode: options.tree_shaking_mode,
                     ..Default::default()
