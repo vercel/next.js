@@ -4,7 +4,6 @@ export default function GonePage() {
 
 export function getServerSideProps() {
   return {
-    props: {},
     gone: true,
   }
 }
