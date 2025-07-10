@@ -1,3 +1,4 @@
+import { dim } from '../../lib/picocolors'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
 type InterceptableConsoleMethod =
@@ -81,9 +82,8 @@ function formatConsoleArguments(maybeMessage: any, ...inputArgs: any[]): any[] {
   return [template, ...args]
 }
 
-// TODO: Only if colors are available
 // TODO: Breaks when complex objects are logged
-const ANSI_STYLE_DIMMING_TEMPLATE = '\x1b[2;38;2;124;124;124m%s\x1b[0m'
+const ANSI_STYLE_DIMMING_TEMPLATE = dim('%s')
 
 function dimConsoleCall(
   methodName: InterceptableConsoleMethod,
@@ -118,7 +118,7 @@ function dimConsoleCall(
 }
 
 // Based on https://github.com/facebook/react/blob/28dc0776be2e1370fe217549d32aee2519f0cf05/packages/react-server/src/ReactFlightServer.js#L248
-function patchConsoleMethod(
+function patchConsoleMethodDEV(
   methodName: InterceptableConsoleMethod
 ): () => void {
   const descriptor = Object.getOwnPropertyDescriptor(console, methodName)
@@ -161,34 +161,16 @@ function patchConsoleMethod(
   return () => {}
 }
 
-export function patchConsole(): () => void {
-  const cleanupConsoleError = patchConsoleMethod('error')
-  const cleanupConsoleAssert = patchConsoleMethod('assert')
-  const cleanupConsoleDebug = patchConsoleMethod('debug')
-  const cleanupConsoleDir = patchConsoleMethod('dir')
-  const cleanupConsoleDirxml = patchConsoleMethod('dirxml')
-  const cleanupConsoleGroup = patchConsoleMethod('group')
-  const cleanupConsoleGroupCollapsed = patchConsoleMethod('groupCollapsed')
-  const cleanupConsoleGroupEnd = patchConsoleMethod('groupEnd')
-  const cleanupConsoleInfo = patchConsoleMethod('info')
-  const cleanupConsoleLog = patchConsoleMethod('log')
-  const cleanupConsoleTable = patchConsoleMethod('table')
-  const cleanupConsoleTrace = patchConsoleMethod('trace')
-  const cleanupConsoleWarn = patchConsoleMethod('warn')
-
-  return () => {
-    cleanupConsoleError()
-    cleanupConsoleAssert()
-    cleanupConsoleDebug()
-    cleanupConsoleDir()
-    cleanupConsoleDirxml()
-    cleanupConsoleGroup()
-    cleanupConsoleGroupCollapsed()
-    cleanupConsoleGroupEnd()
-    cleanupConsoleInfo()
-    cleanupConsoleLog()
-    cleanupConsoleTable()
-    cleanupConsoleTrace()
-    cleanupConsoleWarn()
-  }
-}
+patchConsoleMethodDEV('error')
+patchConsoleMethodDEV('assert')
+patchConsoleMethodDEV('debug')
+patchConsoleMethodDEV('dir')
+patchConsoleMethodDEV('dirxml')
+patchConsoleMethodDEV('group')
+patchConsoleMethodDEV('groupCollapsed')
+patchConsoleMethodDEV('groupEnd')
+patchConsoleMethodDEV('info')
+patchConsoleMethodDEV('log')
+patchConsoleMethodDEV('table')
+patchConsoleMethodDEV('trace')
+patchConsoleMethodDEV('warn')

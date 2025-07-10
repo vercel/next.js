@@ -1743,35 +1743,24 @@ export const renderToHTMLOrFlight: AppPageRender = (
     previouslyRevalidatedTags,
   })
 
-  const cleanupConsole =
-    process.env.NODE_ENV === 'development'
-      ? (
-          require('./console-instrumentation-dev') as typeof import('./console-instrumentation-dev')
-        ).patchConsole()
-      : () => {}
-
-  return workAsyncStorage
-    .run(
-      workStore,
-      // The function to run
-      renderToHTMLOrFlightImpl,
-      // all of it's args
-      req,
-      res,
-      url,
-      pagePath,
-      query,
-      renderOpts,
-      workStore,
-      parsedRequestHeaders,
-      requestEndedState,
-      postponedState,
-      serverComponentsHmrCache,
-      sharedContext
-    )
-    .finally(() => {
-      cleanupConsole()
-    })
+  return workAsyncStorage.run(
+    workStore,
+    // The function to run
+    renderToHTMLOrFlightImpl,
+    // all of it's args
+    req,
+    res,
+    url,
+    pagePath,
+    query,
+    renderOpts,
+    workStore,
+    parsedRequestHeaders,
+    requestEndedState,
+    postponedState,
+    serverComponentsHmrCache,
+    sharedContext
+  )
 }
 
 async function renderToStream(
