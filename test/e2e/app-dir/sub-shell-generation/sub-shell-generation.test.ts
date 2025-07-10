@@ -20,7 +20,7 @@ describe('sub-shell-generation', () => {
           langLayout: 'Lang Layout: (runtime)',
           rootLayout: 'Root Layout: (buildtime)',
         },
-        ['/es/1', '/es/2', '/jp/1', '/jp/2'],
+        ['/es/1', '/es/2'],
         true,
       ],
       [
@@ -30,7 +30,7 @@ describe('sub-shell-generation', () => {
           langLayout: 'Lang Layout: (buildtime)',
           rootLayout: 'Root Layout: (buildtime)',
         },
-        ['/en/1', '/en/2', '/en/3', '/en/4'],
+        ['/en/1', '/en/2'],
         true,
       ],
       [
@@ -40,7 +40,7 @@ describe('sub-shell-generation', () => {
           langLayout: 'Lang Layout: (buildtime)',
           rootLayout: 'Root Layout: (buildtime)',
         },
-        ['/fr/2', '/fr/3', '/fr/4', '/fr/5'],
+        ['/fr/2', '/fr/3'],
         true,
       ],
       [

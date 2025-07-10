@@ -73,6 +73,22 @@ describe('PrerenderManifestMatcher', () => {
 
         expect(result).toBe(specificRoute)
       })
+
+      it('should handle when the fallbackSourceRoute is not set', () => {
+        const route = createMockDynamicRoute({
+          fallbackSourceRoute: undefined,
+        })
+
+        const manifest = createMockPrerenderManifest({
+          '/products/[id]': route,
+        })
+
+        const matcher = new PrerenderManifestMatcher('/products/[id]', manifest)
+
+        const result = matcher.match('/products/123')
+
+        expect(result).toBe(route)
+      })
     })
 
     describe('no match scenarios', () => {
