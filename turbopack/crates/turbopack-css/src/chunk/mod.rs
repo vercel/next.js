@@ -289,7 +289,12 @@ impl OutputChunk for CssChunk {
             .into_iter()
             .flatten()
             .collect();
-        let module_chunks = if entries_chunk_items.len() > 1 {
+        let module_chunks = if content.chunk_items.len() > 1
+            && *self
+                .chunking_context
+                .is_hot_module_replacement_enabled()
+                .await?
+        {
             content
                 .chunk_items
                 .iter()
@@ -332,14 +337,18 @@ impl OutputAsset for CssChunk {
         let this = self.await?;
         let content = this.content.await?;
         let mut references = content.referenced_output_assets.owned().await?;
-        let single_item_chunks = content.chunk_items.len() > 1;
+        let should_generate_single_item_chunks = content.chunk_items.len() > 1
+            && *this
+                .chunking_context
+                .is_hot_module_replacement_enabled()
+                .await?;
         references.extend(
             content
                 .chunk_items
                 .iter()
                 .map(|item| async {
                     let references = item.references().await?.into_iter().copied();
-                    Ok(if single_item_chunks {
+                    Ok(if should_generate_single_item_chunks {
                         Either::Left(
                             references.chain(std::iter::once(ResolvedVc::upcast(
                                 SingleItemCssChunk::new(*this.chunking_context, **item)
