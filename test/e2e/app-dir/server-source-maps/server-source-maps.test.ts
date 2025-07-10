@@ -495,8 +495,6 @@ describe('app-dir - server source maps', () => {
              "<FIXME-file-protocol>",
              "eval rsc:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:65)",
              "<FIXME-file-protocol>",
-             "Function.all <anonymous>",
-             "Function.all <anonymous>",
              "Page <anonymous>",
            ],
          }

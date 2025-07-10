@@ -109,7 +109,12 @@ export function filterStackFrameDEV(
     // Server Request track until we come up with a better heuristic.
     return (
       functionName !== 'new Promise' &&
-      functionName !== 'Function.withResolvers'
+      functionName !== 'Promise.then' &&
+      functionName !== 'Promise.catch' &&
+      functionName !== 'Promise.finally' &&
+      functionName !== 'Function.withResolvers' &&
+      functionName !== 'Function.all' &&
+      functionName !== 'Function.allSettled'
     )
   }
   if (sourceURL.startsWith('node:') || sourceURL.includes('node_modules')) {
