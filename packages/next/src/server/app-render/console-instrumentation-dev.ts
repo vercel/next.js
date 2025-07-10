@@ -1,0 +1,194 @@
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+
+type InterceptableConsoleMethod =
+  | 'error'
+  | 'assert'
+  | 'debug'
+  | 'dir'
+  | 'dirxml'
+  | 'group'
+  | 'groupCollapsed'
+  | 'groupEnd'
+  | 'info'
+  | 'log'
+  | 'table'
+  | 'trace'
+  | 'warn'
+
+// This function could be used from multiple places, including hook.
+// Skips CSS and object arguments, inlines other in the first argument as a template string
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+function formatConsoleArguments(maybeMessage: any, ...inputArgs: any[]): any[] {
+  if (inputArgs.length === 0 || typeof maybeMessage !== 'string') {
+    return [maybeMessage, ...inputArgs]
+  }
+
+  const args = inputArgs.slice()
+
+  let template = ''
+  let argumentsPointer = 0
+  for (let i = 0; i < maybeMessage.length; ++i) {
+    const currentChar = maybeMessage[i]
+    if (currentChar !== '%') {
+      template += currentChar
+      continue
+    }
+
+    const nextChar = maybeMessage[i + 1]
+    ++i
+
+    // Only keep CSS and objects, inline other arguments
+    switch (nextChar) {
+      case 'c':
+      case 'O':
+      case 'o': {
+        ++argumentsPointer
+        template += `%${nextChar}`
+
+        break
+      }
+      case 'd':
+      case 'i': {
+        const [arg] = args.splice(argumentsPointer, 1)
+        template += parseInt(arg, 10).toString()
+
+        break
+      }
+      case 'f': {
+        const [arg] = args.splice(argumentsPointer, 1)
+        template += parseFloat(arg).toString()
+
+        break
+      }
+      case 's': {
+        const [arg] = args.splice(argumentsPointer, 1)
+        template += String(arg)
+
+        break
+      }
+
+      default:
+        template += `%${nextChar}`
+    }
+  }
+
+  return [template, ...args]
+}
+
+// TODO: Only if colors are available
+// TODO: Breaks when complex objects are logged
+const ANSI_STYLE_DIMMING_TEMPLATE = '\x1b[2;38;2;124;124;124m%s\x1b[0m'
+
+function dimConsoleCall(
+  methodName: InterceptableConsoleMethod,
+  args: any[]
+): any[] {
+  switch (methodName) {
+    case 'dir':
+    case 'dirxml':
+    case 'groupEnd':
+    case 'table': {
+      // These methods cannot be colorized because they don't take a formatting string.
+      return args
+    }
+    case 'assert': {
+      // assert takes formatting options as the second argument.
+      return [args[0]].concat(
+        ANSI_STYLE_DIMMING_TEMPLATE,
+        ...formatConsoleArguments(
+          // @ts-expect-error Why?
+          ...args.slice(1)
+        )
+      )
+    }
+    default:
+      return [ANSI_STYLE_DIMMING_TEMPLATE].concat(
+        ...formatConsoleArguments(
+          // @ts-expect-error Why?
+          ...args
+        )
+      )
+  }
+}
+
+// Based on https://github.com/facebook/react/blob/28dc0776be2e1370fe217549d32aee2519f0cf05/packages/react-server/src/ReactFlightServer.js#L248
+function patchConsoleMethod(
+  methodName: InterceptableConsoleMethod
+): () => void {
+  const descriptor = Object.getOwnPropertyDescriptor(console, methodName)
+  if (
+    descriptor &&
+    (descriptor.configurable || descriptor.writable) &&
+    typeof descriptor.value === 'function'
+  ) {
+    const originalMethod = descriptor.value
+    const originalName = Object.getOwnPropertyDescriptor(originalMethod, 'name')
+    const wrapperMethod = function (this: typeof console, ...args: any[]) {
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      const isProspectivePrerender =
+        workUnitStore !== undefined &&
+        (workUnitStore.type === 'prerender-client' ||
+          workUnitStore.type === 'prerender')
+
+      if (isProspectivePrerender) {
+        originalMethod.apply(this, dimConsoleCall(methodName, args))
+      } else {
+        originalMethod.apply(this, args)
+      }
+    }
+    if (originalName) {
+      Object.defineProperty(wrapperMethod, 'name', originalName)
+    }
+    Object.defineProperty(console, methodName, {
+      value: wrapperMethod,
+    })
+
+    return () => {
+      Object.defineProperty(console, methodName, {
+        value: originalMethod,
+        writable: descriptor.writable,
+        configurable: descriptor.configurable,
+      })
+    }
+  }
+
+  return () => {}
+}
+
+export function patchConsole(): () => void {
+  const cleanupConsoleError = patchConsoleMethod('error')
+  const cleanupConsoleAssert = patchConsoleMethod('assert')
+  const cleanupConsoleDebug = patchConsoleMethod('debug')
+  const cleanupConsoleDir = patchConsoleMethod('dir')
+  const cleanupConsoleDirxml = patchConsoleMethod('dirxml')
+  const cleanupConsoleGroup = patchConsoleMethod('group')
+  const cleanupConsoleGroupCollapsed = patchConsoleMethod('groupCollapsed')
+  const cleanupConsoleGroupEnd = patchConsoleMethod('groupEnd')
+  const cleanupConsoleInfo = patchConsoleMethod('info')
+  const cleanupConsoleLog = patchConsoleMethod('log')
+  const cleanupConsoleTable = patchConsoleMethod('table')
+  const cleanupConsoleTrace = patchConsoleMethod('trace')
+  const cleanupConsoleWarn = patchConsoleMethod('warn')
+
+  return () => {
+    cleanupConsoleError()
+    cleanupConsoleAssert()
+    cleanupConsoleDebug()
+    cleanupConsoleDir()
+    cleanupConsoleDirxml()
+    cleanupConsoleGroup()
+    cleanupConsoleGroupCollapsed()
+    cleanupConsoleGroupEnd()
+    cleanupConsoleInfo()
+    cleanupConsoleLog()
+    cleanupConsoleTable()
+    cleanupConsoleTrace()
+    cleanupConsoleWarn()
+  }
+}
