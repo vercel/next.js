@@ -176,12 +176,3 @@ export async function packageFiles(path: string): Promise<string[]> {
     return true
   })
 }
-
-/**
- * Checks if a specific boolean argument is present in process.argv.
- * @param {string} argName The name of the argument to check (e.g., '--dry-run' or '-d').
- * @returns {boolean} True if the argument is found, false otherwise.
- */
-export function booleanArg(argName: string): boolean {
-  return process.argv.includes(argName)
-}
