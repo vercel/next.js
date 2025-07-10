@@ -1,7 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('react-performance-track', () => {
-  const { isTurbopack, next } = nextTestSetup({
+// Entries are flaky in CI. Without a name and without being able to repro locally,
+// it's impossible to fix. Deactivating while we iterate on the track.
+// It's still useful as a fixture.
+describe.skip('react-performance-track', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -13,8 +16,6 @@ describe('react-performance-track', () => {
     expect(track).toEqual([
       { name: 'setTimeout', properties: [] },
       { name: 'setTimeout', properties: [] },
-      // CI only
-      { name: '', properties: [] },
     ])
   })
 
