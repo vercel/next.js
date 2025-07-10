@@ -19,6 +19,7 @@
       }
     ],
     "paths": {
+      "@/.source": ["./.source/index.ts"],
       "@/*": ["./*"]
     }
   },

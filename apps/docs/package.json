@@ -6,9 +6,12 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
+    "fumadocs-core": "15.6.0",
+    "fumadocs-mdx": "11.6.10",
+    "fumadocs-ui": "15.6.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "next": "15.3.5"
