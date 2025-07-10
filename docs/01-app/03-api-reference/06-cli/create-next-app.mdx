@@ -10,7 +10,8 @@ The `create-next-app` CLI allow you to create a new Next.js application using th
 Basic usage:
 
 ```bash filename="Terminal"
-npx create-next-app@latest [project-name] [options]
+npx create-next-app@latest knowmanity-frontend --tailwind --ts
+cd knowmanity-frontend
 ```
 
 ## Reference
@@ -50,20 +51,22 @@ The following options are available:
 To create a new app using the default template, run the following command in your terminal:
 
 ```bash filename="Terminal"
-npx create-next-app@latest
+npx create-next-app@latest knowmanity-frontend --tailwind --ts
+cd knowmanity-frontend
+
 ```
 
 You will then be asked the following prompts:
 
 ```txt filename="Terminal"
-What is your project named?  my-app
-Would you like to use TypeScript?  No / Yes
-Would you like to use ESLint?  No / Yes
-Would you like to use Tailwind CSS?  No / Yes
-Would you like your code inside a `src/` directory?  No / Yes
-Would you like to use App Router? (recommended)  No / Yes
-Would you like to use Turbopack for `next dev`?  No / Yes
-Would you like to customize the import alias (`@/*` by default)?  No / Yes
+What is your project named?  Knowmanity
+Would you like to use TypeScript?  Yes
+Would you like to use ESLint?  Yes
+Would you like to use Tailwind CSS?  Yes
+Would you like your code inside a `src/` directory?  Yes
+Would you like to use App Router? (recommended)  Yes
+Would you like to use Turbopack for `next dev`?  Yes
+Would you like to customize the import alias (`@/*` by default)?  Yes
 ```
 
 Once you've answered the prompts, a new project will be created with your chosen configuration.
