@@ -38,7 +38,7 @@ export const revalidate = 60
 // We'll prerender only the params from `generateStaticParams` at build time.
 // If a request comes in for a path that hasn't been generated,
 // Next.js will server-render the page on-demand.
-export const dynamicParams = true // setting to false will 404 on unknown paths instead
+export const dynamicParams = true
 
 export async function generateStaticParams() {
   const posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) =>
@@ -76,7 +76,7 @@ export const revalidate = 60
 // We'll prerender only the params from `generateStaticParams` at build time.
 // If a request comes in for a path that hasn't been generated,
 // Next.js will server-render the page on-demand.
-export const dynamicParams = true // setting to false will 404 on unknown paths instead
+export const dynamicParams = true
 
 export async function generateStaticParams() {
   const posts = await fetch('https://api.vercel.app/blog').then((res) =>
@@ -130,7 +130,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
 
   // If a request comes in for a path that hasn't been generated (e.g. /blog/25),
   // Next.js will server-render the page on-demand.
-  return { paths, fallback: 'blocking' } // setting to false will 404 on unknown paths instead
+  return { paths, fallback: 'blocking' }
 }
 
 export const getStaticProps: GetStaticProps<Props> = async ({
@@ -172,7 +172,7 @@ export async function getStaticPaths() {
 
   // If a request comes in for a path that hasn't been generated (e.g. /blog/25),
   // Next.js will server-render the page on-demand.
-  return { paths, fallback: 'blocking' } // setting to false will 404 on unknown paths instead
+  return { paths, fallback: 'blocking' }
 }
 
 export async function getStaticProps({ params }) {
@@ -207,7 +207,7 @@ Here's how this example works:
 3. After 60 seconds has passed, the next request will still show the cached (stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
 5. Once generated successfully, the next request will show the updated page
-6. If `/blog/25` is requested (a post not generated at build time), the page will be generated on-demand, shown, and cached
+6. If `/blog/25` is requested (a post not generated at build time), the page will be generated on-demand, shown, and cached. If `dynamicParams` was set to `false`, the page would 404 instead.
 
 ## Reference
 
