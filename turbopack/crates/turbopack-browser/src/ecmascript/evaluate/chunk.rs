@@ -174,7 +174,7 @@ impl EcmascriptBrowserEvaluateChunk {
                     environment,
                     this.chunking_context.chunk_base_path(),
                     this.chunking_context.chunk_suffix_path(),
-                    *this.chunking_context.runtime_type().await?,
+                    runtime_type,
                     output_root_to_root_path,
                     source_maps,
                 );
