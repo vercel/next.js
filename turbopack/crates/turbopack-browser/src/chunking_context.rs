@@ -106,6 +106,15 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn dynamic_chunk_content_loading(
+        mut self,
+        enable_dynamic_chunk_content_loading: bool,
+    ) -> Self {
+        self.chunking_context.enable_dynamic_chunk_content_loading =
+            enable_dynamic_chunk_content_loading;
+        self
+    }
+
     pub fn asset_base_path(mut self, asset_base_path: Option<RcStr>) -> Self {
         self.chunking_context.asset_base_path = asset_base_path;
         self
@@ -218,6 +227,8 @@ pub struct BrowserChunkingContext {
     enable_tracing: bool,
     /// Enable module merging
     enable_module_merging: bool,
+    /// Enable dynamic chunk content loading.
+    enable_dynamic_chunk_content_loading: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -267,6 +278,7 @@ impl BrowserChunkingContext {
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
                 enable_module_merging: false,
+                enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -534,6 +546,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn is_module_merging_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_module_merging)
+    }
+
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_dynamic_chunk_content_loading)
     }
 
     #[turbo_tasks::function]

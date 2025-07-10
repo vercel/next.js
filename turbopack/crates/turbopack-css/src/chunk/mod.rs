@@ -258,7 +258,7 @@ impl OutputChunk for CssChunk {
     async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
         if !*self
             .chunking_context
-            .is_hot_module_replacement_enabled()
+            .is_dynamic_chunk_content_loading_enabled()
             .await?
         {
             return Ok(OutputChunkRuntimeInfo::empty());
@@ -343,7 +343,7 @@ impl OutputAsset for CssChunk {
         let should_generate_single_item_chunks = content.chunk_items.len() > 1
             && *this
                 .chunking_context
-                .is_hot_module_replacement_enabled()
+                .is_dynamic_chunk_content_loading_enabled()
                 .await?;
         references.extend(
             content
