@@ -7,7 +7,6 @@ import {
 } from '../../next-devtools/server/shared'
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
 import path from 'path'
-import url from 'url'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
@@ -21,7 +20,7 @@ import {
 } from '../lib/source-maps'
 import { getSourceMapFromFile } from './get-source-map-from-file'
 import { findSourceMap } from 'node:module'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 
 function shouldIgnorePath(modulePath: string): boolean {
@@ -302,7 +301,7 @@ async function createOriginalStackFrame(
   ) {
     normalizedStackFrameLocation = path.relative(
       projectPath,
-      url.fileURLToPath(normalizedStackFrameLocation)
+      fileURLToPath(normalizedStackFrameLocation)
     )
   }
 
@@ -437,7 +436,7 @@ export function getSourceMapMiddleware(project: Project) {
     }
 
     if (path.isAbsolute(filename)) {
-      filename = url.pathToFileURL(filename).href
+      filename = pathToFileURL(filename).href
     }
 
     try {
