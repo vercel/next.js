@@ -29,8 +29,6 @@ describe('react-performance-track', () => {
         name: '',
         properties: [],
       },
-      // CI only
-      { name: '', properties: [] },
     ])
   })
 })
