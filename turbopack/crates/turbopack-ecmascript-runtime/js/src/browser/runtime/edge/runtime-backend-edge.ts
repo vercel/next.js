@@ -33,14 +33,8 @@ interface TurbopackEdgeContext extends TurbopackBaseContext<Module> {
   y: ExternalImport
 }
 
-function augmentContext(
-  context: TurbopackBaseContext<Module>
-): TurbopackEdgeContext {
-  const nodejsContext = context as TurbopackEdgeContext
-  nodejsContext.x = externalRequire
-  nodejsContext.y = externalImport
-  return nodejsContext
-}
+Context.prototype.x = externalRequire
+Context.prototype.y = externalImport
 
 async function loadWebAssembly(
   sourceType: SourceType,

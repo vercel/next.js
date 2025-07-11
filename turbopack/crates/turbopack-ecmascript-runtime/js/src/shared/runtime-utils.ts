@@ -437,7 +437,7 @@ function wrapDeps(deps: Dep[]): AsyncModuleExt[] {
 }
 
 function asyncModule(
-  module: Module,
+  this: TurbopackBaseContext<Module>,
   body: (
     handleAsyncDependencies: (
       deps: Dep[]
@@ -446,6 +446,7 @@ function asyncModule(
   ) => void,
   hasAwait: boolean
 ) {
+  const module = this.m
   const queue: AsyncQueue | undefined = hasAwait
     ? Object.assign([], { status: QueueStatus.Unknown })
     : undefined
@@ -565,4 +566,17 @@ function invariant(never: never, computeMessage: (arg: any) => string): never {
  */
 function requireStub(_moduleId: ModuleId): never {
   throw new Error('dynamic usage of require is not supported')
+}
+
+/**
+ * Constructs the `__turbopack_context__` object for a module.
+ */
+function Context(this: TurbopackBaseContext<Module>, module: Module) {
+  this.m = module
+  this.e = module.exports
+}
+Context.prototype.a = asyncModule
+
+type ContextConstructor<M> = {
+  new (module: Module): TurbopackBaseContext<M>
 }

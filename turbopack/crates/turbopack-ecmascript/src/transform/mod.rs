@@ -27,6 +27,8 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{environment::Environment, source::Source};
 
+use crate::runtime_functions::TURBOPACK_REFRESH;
+
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
@@ -180,6 +182,7 @@ impl EcmascriptInputTransform {
                     development: Some(*development),
                     import_source: import_source.await?.as_deref().map(Atom::from),
                     refresh: if *refresh {
+                        debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
                             // __turbopack_context__.k is __turbopack_refresh__
                             refresh_reg: atom!("__turbopack_context__.k.register"),

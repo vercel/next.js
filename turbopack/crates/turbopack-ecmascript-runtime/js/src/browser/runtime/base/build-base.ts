@@ -1,8 +1,6 @@
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
 
-declare var augmentContext: (context: unknown) => unknown
-
 const moduleCache: ModuleCache<Module> = {}
 
 /**
@@ -105,10 +103,9 @@ function instantiateModule(
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
     const r = commonJsRequire.bind(null, module)
+    const context = new (Context as any as ContextConstructor<Module>)(module)
     moduleFactory(
-      augmentContext({
-        a: asyncModule.bind(null, module),
-        e: module.exports,
+      Object.assign(context, {
         r: commonJsRequire.bind(null, module),
         t: runtimeRequire,
         f: moduleContext,
@@ -117,7 +114,6 @@ function instantiateModule(
         j: dynamicExport.bind(null, module, module.exports, moduleCache),
         v: exportValue.bind(null, module, moduleCache),
         n: exportNamespace.bind(null, module, moduleCache),
-        m: module,
         c: moduleCache,
         M: moduleFactories,
         l: loadChunk.bind(null, SourceType.Parent, id),

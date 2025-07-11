@@ -20,10 +20,6 @@ type ChunkResolver = {
 
 let BACKEND: RuntimeBackend
 
-function augmentContext(context: unknown): unknown {
-  return context
-}
-
 function fetchWebAssembly(wasmChunkPath: ChunkPath) {
   return fetch(getChunkRelativeUrl(wasmChunkPath))
 }

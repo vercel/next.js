@@ -269,7 +269,8 @@ function wrapDeps(deps) {
         };
     });
 }
-function asyncModule(module, body, hasAwait) {
+function asyncModule(body, hasAwait) {
+    const module = this.m;
     const queue = hasAwait ? Object.assign([], {
         status: -1
     }) : undefined;
@@ -365,6 +366,13 @@ relativeURL.prototype = URL.prototype;
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
 }
+/**
+ * Constructs the `__turbopack_context__` object for a module.
+ */ function Context(module) {
+    this.m = module;
+    this.e = module.exports;
+}
+Context.prototype.a = asyncModule;
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
@@ -633,9 +641,8 @@ function instantiateModule(id, sourceType, sourceData) {
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
         const r = commonJsRequire.bind(null, module1);
-        moduleFactory.call(module1.exports, {
-            a: asyncModule.bind(null, module1),
-            e: module1.exports,
+        const context = new Context(module1);
+        moduleFactory.call(module1.exports, Object.assign(context, {
             r,
             t: runtimeRequire,
             x: externalRequire,
@@ -646,7 +653,6 @@ function instantiateModule(id, sourceType, sourceData) {
             j: dynamicExport.bind(null, module1, module1.exports, moduleCache),
             v: exportValue.bind(null, module1, moduleCache),
             n: exportNamespace.bind(null, module1, moduleCache),
-            m: module1,
             c: moduleCache,
             M: moduleFactories,
             l: loadChunkAsync.bind(null, 1, id),
@@ -659,7 +665,7 @@ function instantiateModule(id, sourceType, sourceData) {
             R: createResolvePathFromModule(r),
             b: getWorkerBlobURL,
             z: requireStub
-        });
+        }));
     } catch (error) {
         module1.error = error;
         throw error;

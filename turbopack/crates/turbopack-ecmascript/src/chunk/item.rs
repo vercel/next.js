@@ -20,6 +20,7 @@ use turbopack_core::{
 use crate::{
     EcmascriptModuleContent, EcmascriptOptions,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
+    runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::{FormatIter, StringifyJs},
 };
 
@@ -94,9 +95,6 @@ impl EcmascriptChunkItemContent {
     #[turbo_tasks::function]
     pub async fn module_factory(&self) -> Result<Vc<Code>> {
         let mut args = Vec::new();
-        if self.options.async_module.is_some() {
-            args.push("a: __turbopack_async_module__");
-        }
         if self.options.refresh {
             args.push("k: __turbopack_refresh__");
         }
@@ -128,8 +126,11 @@ impl EcmascriptChunkItemContent {
         }
 
         if self.options.async_module.is_some() {
-            code += "__turbopack_async_module__(async (__turbopack_handle_async_dependencies__, \
-                     __turbopack_async_result__) => { try {\n";
+            writeln!(
+                code,
+                "return {TURBOPACK_ASYNC_MODULE}(async (__turbopack_handle_async_dependencies__, \
+                 __turbopack_async_result__) => {{ try {{\n"
+            )?;
         } else if !args.is_empty() {
             code += "{\n";
         }

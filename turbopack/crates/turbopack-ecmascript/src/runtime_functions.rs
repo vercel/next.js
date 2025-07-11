@@ -36,6 +36,12 @@ impl From<&TurbopackRuntimeFunctionShortcut> for Expr {
     }
 }
 
+impl<'l> From<&'l TurbopackRuntimeFunctionShortcut> for &'l str {
+    fn from(val: &TurbopackRuntimeFunctionShortcut) -> Self {
+        val.full
+    }
+}
+
 pub const TURBOPACK_REQUIRE: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.r", "r");
 pub const TURBOPACK_MODULE_CONTEXT: &TurbopackRuntimeFunctionShortcut =
@@ -83,7 +89,7 @@ pub const TURBOPACK_REQUIRE_REAL: &TurbopackRuntimeFunctionShortcut =
 
 /// Adding an entry to this list will automatically ensure that `__turbopack_XXX__` can be called
 /// from user code (by inserting a replacement into free_var_references)
-pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 22] = [
+pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 21] = [
     ("__turbopack_require__", TURBOPACK_REQUIRE),
     ("__turbopack_module_context__", TURBOPACK_MODULE_CONTEXT),
     ("__turbopack_import__", TURBOPACK_IMPORT),
@@ -105,7 +111,6 @@ pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctio
         TURBOPACK_RESOLVE_MODULE_ID_PATH,
     ),
     ("__turbopack_worker_blob_url__", TURBOPACK_WORKER_BLOB_URL),
-    ("__turbopack_async_module__", TURBOPACK_ASYNC_MODULE),
     ("__turbopack_external_require__", TURBOPACK_EXTERNAL_REQUIRE),
     ("__turbopack_external_import__", TURBOPACK_EXTERNAL_IMPORT),
     ("__turbopack_refresh__", TURBOPACK_REFRESH),

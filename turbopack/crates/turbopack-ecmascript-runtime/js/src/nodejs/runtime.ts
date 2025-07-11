@@ -283,33 +283,34 @@ function instantiateModule(
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
     const r = commonJsRequire.bind(null, module)
-    moduleFactory.call(module.exports, {
-      a: asyncModule.bind(null, module),
-      e: module.exports,
-      r,
-      t: runtimeRequire,
-      x: externalRequire,
-      y: externalImport,
-      f: moduleContext,
-      i: esmImport.bind(null, module),
-      s: esmExport.bind(null, module, module.exports, moduleCache),
-      j: dynamicExport.bind(null, module, module.exports, moduleCache),
-      v: exportValue.bind(null, module, moduleCache),
-      n: exportNamespace.bind(null, module, moduleCache),
-      m: module,
-      c: moduleCache,
-      M: moduleFactories,
-      l: loadChunkAsync.bind(null, SourceType.Parent, id),
-      L: loadChunkAsyncByUrl.bind(null, SourceType.Parent, id),
-      C: clearChunkCache,
-      w: loadWebAssembly,
-      u: loadWebAssemblyModule,
-      P: resolveAbsolutePath,
-      U: relativeURL,
-      R: createResolvePathFromModule(r),
-      b: getWorkerBlobURL,
-      z: requireStub,
-    })
+    const context = new (Context as any as ContextConstructor<Module>)(module)
+    moduleFactory.call(
+      module.exports,
+      Object.assign(context, {
+        r,
+        t: runtimeRequire,
+        x: externalRequire,
+        y: externalImport,
+        f: moduleContext,
+        i: esmImport.bind(null, module),
+        s: esmExport.bind(null, module, module.exports, moduleCache),
+        j: dynamicExport.bind(null, module, module.exports, moduleCache),
+        v: exportValue.bind(null, module, moduleCache),
+        n: exportNamespace.bind(null, module, moduleCache),
+        c: moduleCache,
+        M: moduleFactories,
+        l: loadChunkAsync.bind(null, SourceType.Parent, id),
+        L: loadChunkAsyncByUrl.bind(null, SourceType.Parent, id),
+        C: clearChunkCache,
+        w: loadWebAssembly,
+        u: loadWebAssemblyModule,
+        P: resolveAbsolutePath,
+        U: relativeURL,
+        R: createResolvePathFromModule(r),
+        b: getWorkerBlobURL,
+        z: requireStub,
+      })
+    )
   } catch (error) {
     module.error = error as any
     throw error

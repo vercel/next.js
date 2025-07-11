@@ -203,10 +203,9 @@ function instantiateModule(
   try {
     runModuleExecutionHooks(module, (refresh) => {
       const r = commonJsRequire.bind(null, module)
+      const context = new (Context as any as ContextConstructor<Module>)(module)
       moduleFactory(
-        augmentContext({
-          a: asyncModule.bind(null, module),
-          e: module.exports,
+        Object.assign(context, {
           r: commonJsRequire.bind(null, module),
           t: runtimeRequire,
           f: moduleContext,
@@ -215,7 +214,6 @@ function instantiateModule(
           j: dynamicExport.bind(null, module, module.exports, devModuleCache),
           v: exportValue.bind(null, module, devModuleCache),
           n: exportNamespace.bind(null, module, devModuleCache),
-          m: module,
           c: devModuleCache,
           C: null,
           M: moduleFactories,
