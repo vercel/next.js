@@ -13,6 +13,7 @@ interface Options {
   noBuild: boolean
   nativeBuild: boolean
   noNativeBuild: boolean
+  verbose: number
   _: string[]
 }
 
@@ -46,18 +47,19 @@ const argv = yargs(hideBin(process.argv))
   })
   .option('verbose', {
     type: 'number',
+    choices: [0, 1, 2],
+    alias: 'V',
     description: 'Set the verbosity level (0: WARN, 1: INFO, 2: DEBUG)',
   })
   .help()
   .alias('help', 'h')
   .alias('version', 'v')
-  .alias('verbose', 'V')
   .strictCommands()
   .parse()
 
 const { project: projectDir, build, nativeBuild } = argv as Options
 
-const VERBOSE_LEVEL = argv.verbose
+const VERBOSE_LEVEL = argv.verbose ?? -1
 
 function WARN(...args: any[]) {
   VERBOSE_LEVEL >= 0 && console.warn(...args)
@@ -84,32 +86,28 @@ async function copy(src: string, dst: string): Promise<void> {
   const realDst = realPathIfAny(dst)
 
   if (!realDst) {
-    WARN(`Destination path ${dst} does not exist. Skipping copy.`)
+    WARN(`[x] Destination path ${dst} does not exist. Skipping copy.`)
     return
   }
 
   if (realDst && realDst === src) {
-    WARN(`Source and destination paths are the same: ${src}. Skipping copy.`)
+    WARN(
+      `[x] Source and destination paths are the same: ${src}. Skipping copy.`
+    )
     return
   }
 
   if (!fs.existsSync(src)) {
-    WARN(`Source path ${src} does not exist. Skipping copy.`)
+    WARN(`[x] Source path ${src} does not exist. Skipping copy.`)
     return
   }
 
   const files = await packageFiles(src)
-  DEBUG(`Found ${files.length} files to copy from ${src}`)
+  DEBUG(`[x] Found ${files.length} files to copy from ${src}`)
 
   for (const file of files) {
     const srcFile = path.join(src, file)
     const dstFile = path.join(realDst, file)
-
-    const destDir = path.dirname(dstFile)
-    if (!fs.existsSync(destDir)) {
-      DEBUG(`Creating directory: ${destDir}`)
-      fs.mkdirSync(destDir, { recursive: true })
-    }
 
     DEBUG(`Copying ${srcFile} to ${dstFile}`)
     fs.cpSync(srcFile, dstFile, {
@@ -125,8 +123,8 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  INFO(`Project Directory: ${PROJECT_DIR}`)
-  INFO(`Next.js Source: ${NEXT_PACKAGES}`)
+  INFO(`[x] Project Directory: ${PROJECT_DIR}`)
+  INFO(`[x] Next.js Source: ${NEXT_PACKAGES}`)
 
   if (build) {
     exec('Install Next.js build dependencies', 'pnpm i')
@@ -149,7 +147,7 @@ async function main(): Promise<void> {
   ]
 
   INFO(
-    `Patching packages: ${packagesToPatch.map((pkg) => pkg.name).join(', ')}`
+    `[x] Patching packages: ${packagesToPatch.map((pkg) => pkg.name).join(', ')}`
   )
   for (const pkg of packagesToPatch) {
     await execFn(`Patching ${pkg.name}`, () =>
