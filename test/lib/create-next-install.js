@@ -81,7 +81,12 @@ async function createNextInstall({
         )
         require('console').log('Creating temp repo dir', tmpRepoDir)
 
-        for (const item of ['package.json', 'packages']) {
+        for (const item of [
+          'package.json',
+          'packages',
+          // Otherwise pnpm will not recognize workspaces
+          'pnpm-workspace.yaml',
+        ]) {
           await rootSpan
             .traceChild(`copy ${item} to temp dir`)
             .traceAsyncFn(() =>
