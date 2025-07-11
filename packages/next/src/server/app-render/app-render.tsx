@@ -253,6 +253,12 @@ const flightDataPathHeadKey = 'h'
 const getFlightViewportKey = (requestId: string) => requestId + 'v'
 const getFlightMetadataKey = (requestId: string) => requestId + 'm'
 
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
+
 interface ParsedRequestHeaders {
   /**
    * Router state provided from the client-side router. Used to handle rendering
@@ -633,11 +639,6 @@ async function generateDynamicFlightRenderResult(
     )
   }
 
-  const filterStackFrame =
-    process.env.NODE_ENV !== 'production'
-      ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
-          .filterStackFrameDEV
-      : undefined
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   const flightReadableStream = workUnitAsyncStorage.run(
@@ -740,11 +741,6 @@ async function warmupDevRender(
     ctx
   )
 
-  const filterStackFrame =
-    process.env.NODE_ENV !== 'production'
-      ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
-          .filterStackFrameDEV
-      : undefined
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   workUnitAsyncStorage.run(
@@ -1877,11 +1873,6 @@ async function renderToStream(
   const setHeader = res.setHeader.bind(res)
   const appendHeader = res.appendHeader.bind(res)
 
-  const filterStackFrame =
-    process.env.NODE_ENV !== 'production'
-      ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
-          .filterStackFrameDEV
-      : undefined
   try {
     if (
       // We only want this behavior when running `next dev`
@@ -2368,11 +2359,6 @@ async function spawnDynamicValidationInDev(
     isNotFound
   )
 
-  const filterStackFrame =
-    process.env.NODE_ENV !== 'production'
-      ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
-          .filterStackFrameDEV
-      : undefined
   const pendingInitialServerResult = workUnitAsyncStorage.run(
     initialServerPrerenderStore,
     ComponentMod.prerender,
@@ -3004,12 +2990,6 @@ async function prerenderToStream(
         res.statusCode === 404
       )
 
-      const filterStackFrame =
-        process.env.NODE_ENV !== 'production'
-          ? (
-              require('../lib/source-maps') as typeof import('../lib/source-maps')
-            ).filterStackFrameDEV
-          : undefined
       const pendingInitialServerResult = workUnitAsyncStorage.run(
         initialServerPrerenderStore,
         ComponentMod.prerender,
@@ -3494,12 +3474,6 @@ async function prerenderToStream(
         ctx,
         res.statusCode === 404
       )
-      const filterStackFrame =
-        process.env.NODE_ENV !== 'production'
-          ? (
-              require('../lib/source-maps') as typeof import('../lib/source-maps')
-            ).filterStackFrameDEV
-          : undefined
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
@@ -3730,12 +3704,6 @@ async function prerenderToStream(
         res.statusCode === 404
       )
 
-      const filterStackFrame =
-        process.env.NODE_ENV !== 'production'
-          ? (
-              require('../lib/source-maps') as typeof import('../lib/source-maps')
-            ).filterStackFrameDEV
-          : undefined
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
@@ -3909,11 +3877,6 @@ async function prerenderToStream(
       errorType
     )
 
-    const filterStackFrame =
-      process.env.NODE_ENV !== 'production'
-        ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
-            .filterStackFrameDEV
-        : undefined
     const errorServerStream = workUnitAsyncStorage.run(
       prerenderLegacyStore,
       ComponentMod.renderToReadableStream,

@@ -80,6 +80,12 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? console.debug.bind(console, 'use-cache:')
   : undefined
 
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
+
 function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
@@ -446,6 +452,7 @@ async function generateCacheEntryImpl(
       clientReferenceManifest.clientModules,
       {
         environmentName: 'Cache',
+        filterStackFrame,
         signal: abortSignal,
         temporaryReferences,
         onError(error) {
@@ -490,12 +497,6 @@ async function generateCacheEntryImpl(
       stream = prelude
     }
   } else {
-    const filterStackFrame =
-      process.env.NODE_ENV !== 'production'
-        ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
-            .filterStackFrameDEV
-        : undefined
-
     stream = renderToReadableStream(
       resultPromise,
       clientReferenceManifest.clientModules,
