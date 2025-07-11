@@ -153,39 +153,21 @@ describe('Dynamic IO Errors', () => {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
 
-          if (isTurbopack) {
-            // TODO(veil): Source mapping breaks due to double-encoding of the
-            // square brackets.
-            await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": null,
-               "stack": [
-                 "<FIXME-file-protocol>",
-                 "<FIXME-file-protocol>",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
-          } else {
-            await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
-             > 21 |   await new Promise((r) => setTimeout(r))
-                  |         ^",
-               "stack": [
-                 "Dynamic app/dynamic-metadata-error-route/page.tsx (21:9)",
-                 "Page app/dynamic-metadata-error-route/page.tsx (15:7)",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
-          }
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
+           > 21 |   await new Promise((r) => setTimeout(r))
+                |         ^",
+             "stack": [
+               "Dynamic app/dynamic-metadata-error-route/page.tsx (21:9)",
+               "Page app/dynamic-metadata-error-route/page.tsx (15:7)",
+               "LogSafely <anonymous>",
+             ],
+           }
+          `)
         })
       } else {
         // This test is just here because there was a bug when dynamic metadata was used alongside another dynamic IO violation which caused the validation to be skipped.
@@ -566,18 +548,18 @@ describe('Dynamic IO Errors', () => {
           const browser = await next.browser(pathname)
 
           if (isTurbopack) {
-            // TODO(veil): Source mapping breaks due to double-encoding of the
-            // square brackets.
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
                  "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": null,
+                 "source": "app/dynamic-root/page.tsx (45:56) @ FetchingComponent
+             > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
+                  |                                                        ^",
                  "stack": [
-                   "<FIXME-file-protocol>",
-                   "<FIXME-file-protocol>",
+                   "FetchingComponent app/dynamic-root/page.tsx (45:56)",
+                   "Page app/dynamic-root/page.tsx (22:9)",
                    "LogSafely <anonymous>",
                  ],
                },
@@ -585,10 +567,12 @@ describe('Dynamic IO Errors', () => {
                  "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": null,
+                 "source": "app/dynamic-root/page.tsx (45:56) @ FetchingComponent
+             > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
+                  |                                                        ^",
                  "stack": [
-                   "<FIXME-file-protocol>",
-                   "<FIXME-file-protocol>",
+                   "FetchingComponent app/dynamic-root/page.tsx (45:56)",
+                   "Page app/dynamic-root/page.tsx (27:7)",
                    "LogSafely <anonymous>",
                  ],
                },
@@ -1574,37 +1558,20 @@ describe('Dynamic IO Errors', () => {
           it('should show a collapsed redbox with a sync access error', async () => {
             const browser = await next.browser(`${pathname}/test`)
 
-            if (isTurbopack) {
-              await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                              "environmentLabel": "Prerender",
-                              "label": "Console Error",
-                              "source": "app/sync-server-params/[slug]/page.tsx (24:39) @ ParamsReadingComponent
-                            > 24 |       <span id="param">{String(params.slug)}</span>
-                                 |                                       ^",
-                              "stack": [
-                                "ParamsReadingComponent app/sync-server-params/[slug]/page.tsx (24:39)",
-                                "Page app/sync-server-params/[slug]/page.tsx (12:7)",
-                              ],
-                            }
-                          `)
-            } else {
-              // TODO(veil): Source mapping breaks due to double-encoding of the
-              // square brackets.
-              await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                              "environmentLabel": "Prerender",
-                              "label": "Console Error",
-                              "source": null,
-                              "stack": [
-                                "ParamsReadingComponent rsc:/Prerender/webpack-internal:///(rsc)/app/sync-server-params/%5Bslug%5D/page.tsx (51:41)",
-                                "Page rsc:/Prerender/webpack-internal:///(rsc)/app/sync-server-params/%5Bslug%5D/page.tsx (23:88)",
-                              ],
-                            }
-                          `)
-            }
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": "app/sync-server-params/[slug]/page.tsx (24:39) @ ParamsReadingComponent
+             > 24 |       <span id="param">{String(params.slug)}</span>
+                  |                                       ^",
+               "stack": [
+                 "ParamsReadingComponent app/sync-server-params/[slug]/page.tsx (24:39)",
+                 "Page app/sync-server-params/[slug]/page.tsx (12:7)",
+               ],
+             }
+            `)
           })
         } else {
           it('should not error the build when synchronously reading `params.slug`', async () => {
@@ -1660,39 +1627,21 @@ describe('Dynamic IO Errors', () => {
           it('should show a collapsed redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            if (isTurbopack) {
-              await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-                              "environmentLabel": "Server",
-                              "label": "Console Error",
-                              "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-                            > 5 |   const data = new Date().toISOString()
-                                |                ^",
-                              "stack": [
-                                "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
-                                "<FIXME-file-protocol>",
-                                "LogSafely <anonymous>",
-                              ],
-                            }
-                          `)
-            } else {
-              await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-                              "environmentLabel": "Server",
-                              "label": "Console Error",
-                              "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-                            > 5 |   const data = new Date().toISOString()
-                                |                ^",
-                              "stack": [
-                                "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
-                                "Page app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx (22:9)",
-                                "LogSafely <anonymous>",
-                              ],
-                            }
-                          `)
-            }
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+             > 5 |   const data = new Date().toISOString()
+                 |                ^",
+               "stack": [
+                 "SyncIO app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16)",
+                 "Page app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx (22:9)",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build with a reason related to sync IO access', async () => {
@@ -1788,22 +1737,22 @@ describe('Dynamic IO Errors', () => {
           it('should show a collapsed redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            // TODO(veil): Source mapping breaks due to double-encoding of the
-            // square brackets.
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-                              "environmentLabel": "Server",
-                              "label": "Console Error",
-                              "source": null,
-                              "stack": [
-                                "<FIXME-file-protocol>",
-                                "<FIXME-file-protocol>",
-                                "LogSafely <anonymous>",
-                              ],
-                            }
-                          `)
+               {
+                 "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:17) @ RequestData
+               > 34 |   ;(await cookies()).get('foo')
+                    |                 ^",
+                 "stack": [
+                   "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:17)",
+                   "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
                             {
@@ -1987,39 +1936,21 @@ describe('Dynamic IO Errors', () => {
           it('should show a collapsed redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            if (isTurbopack) {
-              await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-                              "environmentLabel": "Server",
-                              "label": "Console Error",
-                              "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-                            > 5 |   const data = new Date().toISOString()
-                                |                ^",
-                              "stack": [
-                                "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
-                                "<FIXME-file-protocol>",
-                                "LogSafely <anonymous>",
-                              ],
-                            }
-                          `)
-            } else {
-              await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
-                              "environmentLabel": "Server",
-                              "label": "Console Error",
-                              "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
-                            > 5 |   const data = new Date().toISOString()
-                                |                ^",
-                              "stack": [
-                                "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
-                                "Page app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx (22:9)",
-                                "LogSafely <anonymous>",
-                              ],
-                            }
-                          `)
-            }
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
+             > 5 |   const data = new Date().toISOString()
+                 |                ^",
+               "stack": [
+                 "SyncIO app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16)",
+                 "Page app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx (22:9)",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build with a reason related to sync IO access', async () => {
