@@ -445,6 +445,21 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
+  const excludeCache: Record<string, boolean> = {}
+  function exclude(excludePath: string): boolean {
+    if (excludeCache[excludePath] !== undefined) {
+      return excludeCache[excludePath]
+    }
+
+    const shouldExclude =
+      !babelIncludeRegexes.some((r) => r.test(excludePath)) &&
+      !isResourceInPackages(excludePath, finalTranspilePackages) &&
+      excludePath.includes('node_modules')
+
+    excludeCache[excludePath] = shouldExclude
+    return shouldExclude
+  }
+
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
   const codeCondition = {
@@ -453,19 +468,7 @@ export default async function getBaseWebpackConfig(
       ? // Allowing importing TS/TSX files from outside of the root dir.
         {}
       : { include: [dir, ...babelIncludeRegexes] }),
-    exclude: (excludePath: string) => {
-      if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
-        return false
-      }
-
-      const shouldBeBundled = isResourceInPackages(
-        excludePath,
-        finalTranspilePackages
-      )
-      if (shouldBeBundled) return false
-
-      return excludePath.includes('node_modules')
-    },
+    exclude,
   }
 
   const babelLoader = getBabelLoader(
