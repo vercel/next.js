@@ -33,9 +33,8 @@ type RefreshContext = {
 
 type RefreshHelpers = RefreshRuntimeGlobals['$RefreshHelpers$']
 
-interface TurbopackDevBaseContext extends TurbopackBaseContext<Module> {
+interface TurbopackDevBaseContext extends TurbopackBrowserBaseContext {
   k: RefreshContext
-  R: ResolvePathFromModule
 }
 
 interface TurbopackDevContext extends TurbopackDevBaseContext {}
@@ -202,13 +201,9 @@ function instantiateModule(
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
     runModuleExecutionHooks(module, (refresh) => {
-      const r = commonJsRequire.bind(null, module)
       const context = new (Context as any as ContextConstructor<Module>)(module)
       moduleFactory(
         Object.assign(context, {
-          r: commonJsRequire.bind(null, module),
-          t: runtimeRequire,
-          f: moduleContext,
           i: esmImport.bind(null, module),
           s: esmExport.bind(null, module, module.exports, devModuleCache),
           j: dynamicExport.bind(null, module, module.exports, devModuleCache),
@@ -222,11 +217,7 @@ function instantiateModule(
           w: loadWebAssembly.bind(null, SourceType.Parent, id),
           u: loadWebAssemblyModule.bind(null, SourceType.Parent, id),
           P: resolveAbsolutePath,
-          U: relativeURL,
           k: refresh,
-          R: createResolvePathFromModule(r),
-          b: getWorkerBlobURL,
-          z: requireStub,
         })
       )
     })

@@ -102,13 +102,9 @@ function instantiateModule(
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
-    const r = commonJsRequire.bind(null, module)
     const context = new (Context as any as ContextConstructor<Module>)(module)
     moduleFactory(
       Object.assign(context, {
-        r: commonJsRequire.bind(null, module),
-        t: runtimeRequire,
-        f: moduleContext,
         i: esmImport.bind(null, module),
         s: esmExport.bind(null, module, module.exports, moduleCache),
         j: dynamicExport.bind(null, module, module.exports, moduleCache),
@@ -120,10 +116,6 @@ function instantiateModule(
         L: loadChunkByUrl.bind(null, SourceType.Parent, id),
         w: loadWebAssembly.bind(null, SourceType.Parent, id),
         u: loadWebAssemblyModule.bind(null, SourceType.Parent, id),
-        P: resolveAbsolutePath,
-        U: relativeURL,
-        R: createResolvePathFromModule(r),
-        b: getWorkerBlobURL,
       })
     )
   } catch (error) {

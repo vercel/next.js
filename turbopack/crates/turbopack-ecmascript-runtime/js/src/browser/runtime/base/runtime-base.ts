@@ -21,6 +21,12 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 declare var CHUNK_BASE_PATH: string
 declare var CHUNK_SUFFIX_PATH: string
 
+interface TurbopackBrowserBaseContext extends TurbopackBaseContext<Module> {
+  R: ResolvePathFromModule
+}
+
+const browserContextPrototype = Context.prototype as TurbopackBrowserBaseContext
+
 // Provided by build or dev base
 declare function instantiateModule(
   id: ModuleId,
@@ -261,14 +267,14 @@ async function loadChunkPath(
 /**
  * Returns an absolute url to an asset.
  */
-function createResolvePathFromModule(
-  resolver: (moduleId: string) => Exports
-): (moduleId: string) => string {
-  return function resolvePathFromModule(moduleId: string): string {
-    const exported = resolver(moduleId)
-    return exported?.default ?? exported
-  }
+function resolvePathFromModule(
+  this: TurbopackBaseContext<Module>,
+  moduleId: string
+): string {
+  const exported = this.r(moduleId)
+  return exported?.default ?? exported
 }
+browserContextPrototype.R = resolvePathFromModule
 
 /**
  * no-op for browser
@@ -277,6 +283,7 @@ function createResolvePathFromModule(
 function resolveAbsolutePath(modulePath?: string): string {
   return `/ROOT/${modulePath ?? ''}`
 }
+browserContextPrototype.P = resolveAbsolutePath
 
 /**
  * Returns a blob URL for the worker.
@@ -291,6 +298,7 @@ importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_L
   let blob = new Blob([bootstrap], { type: 'text/javascript' })
   return URL.createObjectURL(blob)
 }
+browserContextPrototype.b = getWorkerBlobURL
 
 /**
  * Adds a module to a chunk.

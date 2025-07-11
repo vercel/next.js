@@ -19,6 +19,15 @@ declare function getOrInstantiateModuleFromParent<M>(
 
 const REEXPORTED_OBJECTS = Symbol('reexported objects')
 
+/**
+ * Constructs the `__turbopack_context__` object for a module.
+ */
+function Context(this: TurbopackBaseContext<Module>, module: Module) {
+  this.m = module
+  this.e = module.exports
+}
+const contextPrototype = Context.prototype as TurbopackBaseContext<Module>
+
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 
 interface ModuleContextEntry {
@@ -286,12 +295,17 @@ const runtimeRequire =
     : function require() {
         throw new Error('Unexpected use of runtime require')
       }
+contextPrototype.t = runtimeRequire
 
-function commonJsRequire(sourceModule: Module, id: ModuleId): Exports {
-  const module = getOrInstantiateModuleFromParent(id, sourceModule)
+function commonJsRequire(
+  this: TurbopackBaseContext<Module>,
+  id: ModuleId
+): Exports {
+  const module = getOrInstantiateModuleFromParent(id, this.m)
   if (module.error) throw module.error
   return module.exports
 }
+contextPrototype.r = commonJsRequire
 
 /**
  * `require.context` and require/import expression runtime.
@@ -327,6 +341,7 @@ function moduleContext(map: ModuleContextMap): ModuleContext {
 
   return moduleContext
 }
+contextPrototype.f = moduleContext
 
 /**
  * Returns the path of a chunk defined by its data.
@@ -525,6 +540,7 @@ function asyncModule(
     queue.status = QueueStatus.Unresolved
   }
 }
+contextPrototype.a = asyncModule
 
 /**
  * A pseudo "fake" URL object to resolve to its relative path.
@@ -551,8 +567,8 @@ const relativeURL = function relativeURL(this: any, inputUrl: string) {
       value: values[key],
     })
 }
-
 relativeURL.prototype = URL.prototype
+contextPrototype.U = relativeURL
 
 /**
  * Utility function to ensure all variants of an enum are handled.
@@ -567,15 +583,7 @@ function invariant(never: never, computeMessage: (arg: any) => string): never {
 function requireStub(_moduleId: ModuleId): never {
   throw new Error('dynamic usage of require is not supported')
 }
-
-/**
- * Constructs the `__turbopack_context__` object for a module.
- */
-function Context(this: TurbopackBaseContext<Module>, module: Module) {
-  this.m = module
-  this.e = module.exports
-}
-Context.prototype.a = asyncModule
+contextPrototype.z = requireStub
 
 type ContextConstructor<M> = {
   new (module: Module): TurbopackBaseContext<M>

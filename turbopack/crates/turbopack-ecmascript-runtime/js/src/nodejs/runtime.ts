@@ -67,22 +67,22 @@ const moduleCache: ModuleCache<Module> = Object.create(null)
 /**
  * Returns an absolute path to the given module's id.
  */
-function createResolvePathFromModule(
-  resolver: (moduleId: string) => Exports
-): (moduleId: string) => string {
-  return function resolvePathFromModule(moduleId: string): string {
-    const exported = resolver(moduleId)
-    const exportedPath = exported?.default ?? exported
-    if (typeof exportedPath !== 'string') {
-      return exported as any
-    }
-
-    const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length)
-    const resolved = path.resolve(RUNTIME_ROOT, strippedAssetPrefix)
-
-    return url.pathToFileURL(resolved).href
+function resolvePathFromModule(
+  this: TurbopackBaseContext<Module>,
+  moduleId: string
+): string {
+  const exported = this.r(moduleId)
+  const exportedPath = exported?.default ?? exported
+  if (typeof exportedPath !== 'string') {
+    return exported as any
   }
+
+  const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length)
+  const resolved = path.resolve(RUNTIME_ROOT, strippedAssetPrefix)
+
+  return url.pathToFileURL(resolved).href
 }
+Context.prototype.R = resolvePathFromModule
 
 function loadChunk(
   sourceType: SourceType,
@@ -242,6 +242,8 @@ function getWorkerBlobURL(_chunks: ChunkPath[]): string {
   throw new Error('Worker blobs are not implemented yet for Node.js')
 }
 
+Context.prototype.b = getWorkerBlobURL
+
 function instantiateModule(
   id: ModuleId,
   sourceType: SourceType,
@@ -282,16 +284,12 @@ function instantiateModule(
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
-    const r = commonJsRequire.bind(null, module)
     const context = new (Context as any as ContextConstructor<Module>)(module)
     moduleFactory.call(
       module.exports,
       Object.assign(context, {
-        r,
-        t: runtimeRequire,
         x: externalRequire,
         y: externalImport,
-        f: moduleContext,
         i: esmImport.bind(null, module),
         s: esmExport.bind(null, module, module.exports, moduleCache),
         j: dynamicExport.bind(null, module, module.exports, moduleCache),
@@ -304,11 +302,6 @@ function instantiateModule(
         C: clearChunkCache,
         w: loadWebAssembly,
         u: loadWebAssemblyModule,
-        P: resolveAbsolutePath,
-        U: relativeURL,
-        R: createResolvePathFromModule(r),
-        b: getWorkerBlobURL,
-        z: requireStub,
       })
     )
   } catch (error) {

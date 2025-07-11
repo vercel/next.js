@@ -19,6 +19,13 @@ const RUNTIME_PUBLIC_PATH = "";
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
 const REEXPORTED_OBJECTS = Symbol('reexported objects');
+/**
+ * Constructs the `__turbopack_context__` object for a module.
+ */ function Context(module) {
+    this.m = module;
+    this.e = module.exports;
+}
+const contextPrototype = Context.prototype;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -184,11 +191,13 @@ const runtimeRequire = // @ts-ignore
 typeof require === 'function' ? require : function require1() {
     throw new Error('Unexpected use of runtime require');
 };
-function commonJsRequire(sourceModule, id) {
-    const module = getOrInstantiateModuleFromParent(id, sourceModule);
+contextPrototype.t = runtimeRequire;
+function commonJsRequire(id) {
+    const module = getOrInstantiateModuleFromParent(id, this.m);
     if (module.error) throw module.error;
     return module.exports;
 }
+contextPrototype.r = commonJsRequire;
 /**
  * `require.context` and require/import expression runtime.
  */ function moduleContext(map) {
@@ -216,6 +225,7 @@ function commonJsRequire(sourceModule, id) {
     };
     return moduleContext;
 }
+contextPrototype.f = moduleContext;
 /**
  * Returns the path of a chunk defined by its data.
  */ function getChunkPath(chunkData) {
@@ -343,6 +353,7 @@ function asyncModule(body, hasAwait) {
         queue.status = 0;
     }
 }
+contextPrototype.a = asyncModule;
 /**
  * A pseudo "fake" URL object to resolve to its relative path.
  *
@@ -367,6 +378,7 @@ function asyncModule(body, hasAwait) {
     });
 };
 relativeURL.prototype = URL.prototype;
+contextPrototype.U = relativeURL;
 /**
  * Utility function to ensure all variants of an enum are handled.
  */ function invariant(never, computeMessage) {
@@ -377,13 +389,7 @@ relativeURL.prototype = URL.prototype;
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
 }
-/**
- * Constructs the `__turbopack_context__` object for a module.
- */ function Context(module) {
-    this.m = module;
-    this.e = module.exports;
-}
-Context.prototype.a = asyncModule;
+contextPrototype.z = requireStub;
 /**
  * This file contains runtime types and functions that are shared between all
  * Turbopack *development* ECMAScript runtimes.
@@ -393,6 +399,7 @@ Context.prototype.a = asyncModule;
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk base path
+const browserContextPrototype = Context.prototype;
 var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
@@ -530,18 +537,18 @@ async function loadChunkPath(sourceType, sourceData, chunkPath) {
 }
 /**
  * Returns an absolute url to an asset.
- */ function createResolvePathFromModule(resolver) {
-    return function resolvePathFromModule(moduleId) {
-        const exported = resolver(moduleId);
-        return exported?.default ?? exported;
-    };
+ */ function resolvePathFromModule(moduleId) {
+    const exported = this.r(moduleId);
+    return exported?.default ?? exported;
 }
+browserContextPrototype.R = resolvePathFromModule;
 /**
  * no-op for browser
  * @param modulePath
  */ function resolveAbsolutePath(modulePath) {
     return `/ROOT/${modulePath ?? ''}`;
 }
+browserContextPrototype.P = resolveAbsolutePath;
 /**
  * Returns a blob URL for the worker.
  * @param chunks list of chunks to load
@@ -558,6 +565,7 @@ importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_L
     });
     return URL.createObjectURL(blob);
 }
+browserContextPrototype.b = getWorkerBlobURL;
 /**
  * Adds a module to a chunk.
  */ function addModuleToChunk(moduleId, chunkPath) {
@@ -768,12 +776,8 @@ function instantiateModule(moduleId, sourceType, sourceData) {
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
         runModuleExecutionHooks(module, (refresh)=>{
-            const r = commonJsRequire.bind(null, module);
             const context = new Context(module);
             moduleFactory(Object.assign(context, {
-                r: commonJsRequire.bind(null, module),
-                t: runtimeRequire,
-                f: moduleContext,
                 i: esmImport.bind(null, module),
                 s: esmExport.bind(null, module, module.exports, devModuleCache),
                 j: dynamicExport.bind(null, module, module.exports, devModuleCache),
@@ -787,11 +791,7 @@ function instantiateModule(moduleId, sourceType, sourceData) {
                 w: loadWebAssembly.bind(null, SourceType.Parent, id),
                 u: loadWebAssemblyModule.bind(null, SourceType.Parent, id),
                 P: resolveAbsolutePath,
-                U: relativeURL,
-                k: refresh,
-                R: createResolvePathFromModule(r),
-                b: getWorkerBlobURL,
-                z: requireStub
+                k: refresh
             }));
         });
     } catch (error) {
