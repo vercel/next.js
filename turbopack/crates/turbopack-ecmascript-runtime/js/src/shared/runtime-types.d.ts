@@ -88,6 +88,15 @@ type AsyncModule = (
 type ResolveAbsolutePath = (modulePath?: string) => string
 type GetWorkerBlobURL = (chunks: ChunkPath[]) => string
 
+type ExternalRequire = (
+  id: DependencySpecifier,
+  thunk: () => any,
+  esm?: boolean
+) => Exports | EsmNamespaceObject
+type ExternalImport = (
+  id: DependencySpecifier
+) => Promise<Exports | EsmNamespaceObject>
+
 interface Module {
   exports: Function | Exports | Promise<Exports> | AsyncModulePromise
   error: Error | undefined
@@ -126,5 +135,7 @@ interface TurbopackBaseContext<M> {
   P: ResolveAbsolutePath
   U: RelativeURL
   b: GetWorkerBlobURL
+  x: ExternalRequire
+  y: ExternalImport
   z: CommonJsRequire
 }

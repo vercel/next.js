@@ -410,6 +410,7 @@ async function externalImport(id) {
     }
     return raw;
 }
+contextPrototype.y = externalImport;
 function externalRequire(id, thunk, esm = false) {
     let raw;
     try {
@@ -429,6 +430,7 @@ function externalRequire(id, thunk, esm = false) {
 externalRequire.resolve = (id, options)=>{
     return require.resolve(id, options);
 };
+contextPrototype.x = externalRequire;
 /* eslint-disable @typescript-eslint/no-unused-vars */ const path = require('path');
 const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, '.');
 // Compute the relative path to the `distDir`.
@@ -518,11 +520,11 @@ nodeContextPrototype.c = moduleCache;
     return url.pathToFileURL(resolved).href;
 }
 nodeContextPrototype.R = resolvePathFromModule;
-function loadChunk(sourceType, sourceData, chunkData) {
+function loadRuntimeChunk(sourcePath, chunkData) {
     if (typeof chunkData === 'string') {
-        loadChunkPath(sourceType, sourceData, chunkData);
+        loadRuntimeChunkPath(sourcePath, chunkData);
     } else {
-        loadChunkPath(sourceType, sourceData, chunkData.path);
+        loadRuntimeChunkPath(sourcePath, chunkData.path);
     }
 }
 const loadedChunks = new Set();
@@ -532,7 +534,7 @@ const chunkCache = new Map();
 function clearChunkCache() {
     chunkCache.clear();
 }
-function loadChunkPath(sourceType, sourceData, chunkPath) {
+function loadRuntimeChunkPath(sourcePath, chunkPath) {
     if (!isJs(chunkPath)) {
         // We only support loading JS chunks in Node.js.
         // This branch can be hit when trying to load a CSS chunk.
@@ -560,8 +562,8 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
         loadedChunks.add(chunkPath);
     } catch (e) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
-        if (sourceType !== undefined) {
-            errorMessage += ` from ${stringifySourceInfo(sourceType, sourceData)}`;
+        if (sourcePath) {
+            errorMessage += ` from runtime for chunk ${sourcePath}`;
         }
         throw new Error(errorMessage, {
             cause: e
@@ -588,7 +590,7 @@ function loadChunkUncached(chunkPath) {
         }
     }
 }
-function loadChunkAsync(sourceType, sourceData, chunkData) {
+function loadChunkAsync(chunkData) {
     const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path;
     if (!isJs(chunkPath)) {
         // We only support loading JS chunks in Node.js.
@@ -602,10 +604,7 @@ function loadChunkAsync(sourceType, sourceData, chunkData) {
             loadChunkUncached(chunkPath);
             entry = loadedChunk;
         } catch (e) {
-            let errorMessage = `Failed to load chunk ${chunkPath}`;
-            if (sourceType !== undefined) {
-                errorMessage += ` from ${stringifySourceInfo(sourceType, sourceData)}`;
-            }
+            const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
             // Cache the failure promise, future requests will also get this same rejection
             entry = Promise.reject(new Error(errorMessage, {
                 cause: e
@@ -616,10 +615,12 @@ function loadChunkAsync(sourceType, sourceData, chunkData) {
     // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
     return entry;
 }
-function loadChunkAsyncByUrl(sourceType, sourceData, chunkUrl) {
+contextPrototype.l = loadChunkAsync;
+function loadChunkAsyncByUrl(chunkUrl) {
     const path1 = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
-    return loadChunkAsync(sourceType, sourceData, path1);
+    return loadChunkAsync.call(this, path1);
 }
+contextPrototype.L = loadChunkAsyncByUrl;
 function loadWebAssembly(chunkPath, _edgeModule, imports) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return instantiateWebAssemblyFromPath(resolved, imports);
@@ -664,13 +665,7 @@ function instantiateModule(id, sourceType, sourceData) {
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
         const context = new Context(module1);
-        moduleFactory.call(module1.exports, Object.assign(context, {
-            x: externalRequire,
-            y: externalImport,
-            l: loadChunkAsync.bind(null, 1, id),
-            L: loadChunkAsyncByUrl.bind(null, 1, id),
-            C: clearChunkCache
-        }));
+        moduleFactory.call(module1.exports, context);
     } catch (error) {
         module1.error = error;
         throw error;
@@ -718,7 +713,7 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 }
 module.exports = (sourcePath)=>({
         m: (id)=>getOrInstantiateRuntimeModule(sourcePath, id),
-        c: (chunkData)=>loadChunk(0, sourcePath, chunkData)
+        c: (chunkData)=>loadRuntimeChunk(sourcePath, chunkData)
     });
 
 

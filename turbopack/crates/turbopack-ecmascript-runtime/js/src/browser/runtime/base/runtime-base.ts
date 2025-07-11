@@ -142,11 +142,23 @@ const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
-async function loadChunk(
+function loadChunk(
+  this: TurbopackBrowserBaseContext<Module>,
+  chunkData: ChunkData
+): Promise<void> {
+  return loadChunkInternal(SourceType.Parent, this.m.id, chunkData)
+}
+browserContextPrototype.l = loadChunk
+
+function loadInitialChunk(chunkPath: ChunkPath, chunkData: ChunkData) {
+  return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData)
+}
+
+async function loadChunkInternal(
   sourceType: SourceType,
   sourceData: SourceData,
   chunkData: ChunkData
-): Promise<any> {
+): Promise<void> {
   if (typeof chunkData === 'string') {
     return loadChunkPath(sourceType, sourceData, chunkData)
   }
@@ -158,7 +170,8 @@ async function loadChunk(
   })
   if (modulesPromises.length > 0 && modulesPromises.every((p) => p)) {
     // When all included items are already loaded or loading, we can skip loading ourselves
-    return Promise.all(modulesPromises)
+    await Promise.all(modulesPromises)
+    return
   }
 
   const includedModuleChunksList = chunkData.moduleChunks || []
@@ -176,7 +189,8 @@ async function loadChunk(
 
     if (moduleChunksPromises.length === includedModuleChunksList.length) {
       // When all included module chunks are already loaded or loading, we can skip loading ourselves
-      return Promise.all(moduleChunksPromises)
+      await Promise.all(moduleChunksPromises)
+      return
     }
 
     const moduleChunksToLoad: Set<ChunkPath> = new Set()
@@ -214,7 +228,7 @@ async function loadChunk(
     }
   }
 
-  return promise
+  await promise
 }
 
 const loadedChunk = Promise.resolve(undefined)
@@ -224,6 +238,15 @@ const instrumentedBackendLoadChunks = new WeakMap<
 >()
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(
+  this: TurbopackBrowserBaseContext<Module>,
+  chunkUrl: ChunkUrl
+) {
+  return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkUrl)
+}
+browserContextPrototype.L = loadChunkByUrl
+
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkByUrlInternal(
   sourceType: SourceType,
   sourceData: SourceData,
   chunkUrl: ChunkUrl
@@ -271,13 +294,14 @@ function loadChunkByUrl(
   return entry
 }
 
-async function loadChunkPath(
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkPath(
   sourceType: SourceType,
   sourceData: SourceData,
   chunkPath: ChunkPath
-): Promise<any> {
+): Promise<void> {
   const url = getChunkRelativeUrl(chunkPath)
-  return loadChunkByUrl(sourceType, sourceData, url)
+  return loadChunkByUrlInternal(sourceType, sourceData, url)
 }
 
 /**

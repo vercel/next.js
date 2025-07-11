@@ -18,23 +18,6 @@ type ChunkRunner = {
 }
 
 let BACKEND: RuntimeBackend
-
-type ExternalRequire = (
-  id: DependencySpecifier,
-  thunk: () => any,
-  esm?: boolean
-) => Exports | EsmNamespaceObject
-type ExternalImport = (
-  id: DependencySpecifier
-) => Promise<Exports | EsmNamespaceObject>
-
-interface TurbopackEdgeContext extends TurbopackBaseContext<Module> {
-  x: ExternalRequire
-  y: ExternalImport
-}
-
-Context.prototype.x = externalRequire
-Context.prototype.y = externalImport
 ;(() => {
   BACKEND = {
     // The "none" runtime expects all chunks within the same chunk group to be

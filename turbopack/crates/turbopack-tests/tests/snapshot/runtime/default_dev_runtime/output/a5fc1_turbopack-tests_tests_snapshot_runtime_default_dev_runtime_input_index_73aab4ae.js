@@ -456,7 +456,14 @@ contextPrototype.M = moduleFactories;
  */ const chunkChunkListsMap = new Map();
 const availableModules = new Map();
 const availableModuleChunks = new Map();
-async function loadChunk(sourceType, sourceData, chunkData) {
+function loadChunk(chunkData) {
+    return loadChunkInternal(1, this.m.id, chunkData);
+}
+browserContextPrototype.l = loadChunk;
+function loadInitialChunk(chunkPath, chunkData) {
+    return loadChunkInternal(0, chunkPath, chunkData);
+}
+async function loadChunkInternal(sourceType, sourceData, chunkData) {
     if (typeof chunkData === 'string') {
         return loadChunkPath(sourceType, sourceData, chunkData);
     }
@@ -467,7 +474,8 @@ async function loadChunk(sourceType, sourceData, chunkData) {
     });
     if (modulesPromises.length > 0 && modulesPromises.every((p)=>p)) {
         // When all included items are already loaded or loading, we can skip loading ourselves
-        return Promise.all(modulesPromises);
+        await Promise.all(modulesPromises);
+        return;
     }
     const includedModuleChunksList = chunkData.moduleChunks || [];
     const moduleChunksPromises = includedModuleChunksList.map((included)=>{
@@ -480,7 +488,8 @@ async function loadChunk(sourceType, sourceData, chunkData) {
         // Some module chunks are already loaded or loading.
         if (moduleChunksPromises.length === includedModuleChunksList.length) {
             // When all included module chunks are already loaded or loading, we can skip loading ourselves
-            return Promise.all(moduleChunksPromises);
+            await Promise.all(moduleChunksPromises);
+            return;
         }
         const moduleChunksToLoad = new Set();
         for (const moduleChunk of includedModuleChunksList){
@@ -510,12 +519,17 @@ async function loadChunk(sourceType, sourceData, chunkData) {
             availableModules.set(included, promise);
         }
     }
-    return promise;
+    await promise;
 }
 const loadedChunk = Promise.resolve(undefined);
 const instrumentedBackendLoadChunks = new WeakMap();
 // Do not make this async. React relies on referential equality of the returned Promise.
-function loadChunkByUrl(sourceType, sourceData, chunkUrl) {
+function loadChunkByUrl(chunkUrl) {
+    return loadChunkByUrlInternal(1, this.m.id, chunkUrl);
+}
+browserContextPrototype.L = loadChunkByUrl;
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
     const thenable = BACKEND.loadChunkCached(sourceType, sourceData, chunkUrl);
     let entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
@@ -543,9 +557,10 @@ function loadChunkByUrl(sourceType, sourceData, chunkUrl) {
     }
     return entry;
 }
-async function loadChunkPath(sourceType, sourceData, chunkPath) {
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkPath(sourceType, sourceData, chunkPath) {
     const url = getChunkRelativeUrl(chunkPath);
-    return loadChunkByUrl(sourceType, sourceData, url);
+    return loadChunkByUrlInternal(sourceType, sourceData, url);
 }
 /**
  * Returns an absolute url to an asset.
@@ -738,6 +753,11 @@ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
     }
     return instantiateModule(id, SourceType.Parent, sourceModule.id);
 };
+function DevContext(module, refresh) {
+    Context.call(this, module);
+    this.k = refresh;
+}
+DevContext.prototype = Context.prototype;
 function instantiateModule(moduleId, sourceType, sourceData) {
     // We are in development, this is always a string.
     let id = moduleId;
@@ -798,14 +818,8 @@ function instantiateModule(moduleId, sourceType, sourceData) {
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
         runModuleExecutionHooks(module, (refresh)=>{
-            const context = new Context(module);
-            moduleFactory(Object.assign(context, {
-                l: loadChunk.bind(null, SourceType.Parent, id),
-                L: loadChunkByUrl.bind(null, SourceType.Parent, id),
-                C: null,
-                P: resolveAbsolutePath,
-                k: refresh
-            }));
+            const context = new DevContext(module, refresh);
+            moduleFactory(context);
         });
     } catch (error) {
         module.error = error;
@@ -818,6 +832,11 @@ function instantiateModule(moduleId, sourceType, sourceData) {
     }
     return module;
 }
+const DUMMY_REFRESH_CONTEXT = {
+    register: (_type, _id)=>{},
+    signature: ()=>(_type)=>{},
+    registerExports: (_module, _helpers)=>{}
+};
 /**
  * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
  * Next.js' React Refresh runtime hooks into to add module context to the
@@ -839,11 +858,7 @@ function instantiateModule(moduleId, sourceType, sourceData) {
         // If the react refresh hooks are not installed we need to bind dummy functions.
         // This is expected when running in a Web Worker.  It is also common in some of
         // our test environments.
-        executeModule({
-            register: (_type, _id)=>{},
-            signature: ()=>(_type)=>{},
-            registerExports: (_module, _helpers)=>{}
-        });
+        executeModule(DUMMY_REFRESH_CONTEXT);
     }
 }
 /**
@@ -1507,7 +1522,7 @@ let BACKEND;
                 getOrCreateResolver(otherChunkUrl);
             }
             // This waits for chunks to be loaded, but also marks included items as available.
-            await Promise.all(params.otherChunks.map((otherChunkData)=>loadChunk(SourceType.Runtime, chunkPath, otherChunkData)));
+            await Promise.all(params.otherChunks.map((otherChunkData)=>loadInitialChunk(chunkPath, otherChunkData)));
             if (params.runtimeModuleIds.length > 0) {
                 for (const moduleId of params.runtimeModuleIds){
                     getOrInstantiateRuntimeModule(chunkPath, moduleId);

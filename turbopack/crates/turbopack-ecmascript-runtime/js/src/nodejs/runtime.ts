@@ -40,13 +40,6 @@ function stringifySourceInfo(
   }
 }
 
-type ExternalRequire = (
-  id: ModuleId,
-  thunk: () => any,
-  esm?: boolean
-) => Exports | EsmNamespaceObject
-type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>
-
 interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
   R: ResolvePathFromModule
   x: ExternalRequire
@@ -88,15 +81,11 @@ function resolvePathFromModule(
 }
 nodeContextPrototype.R = resolvePathFromModule
 
-function loadChunk(
-  sourceType: SourceType,
-  sourceData: SourceData,
-  chunkData: ChunkData
-): void {
+function loadRuntimeChunk(sourcePath: ChunkPath, chunkData: ChunkData): void {
   if (typeof chunkData === 'string') {
-    loadChunkPath(sourceType, sourceData, chunkData)
+    loadRuntimeChunkPath(sourcePath, chunkData)
   } else {
-    loadChunkPath(sourceType, sourceData, chunkData.path)
+    loadRuntimeChunkPath(sourcePath, chunkData.path)
   }
 }
 
@@ -109,9 +98,8 @@ function clearChunkCache() {
   chunkCache.clear()
 }
 
-function loadChunkPath(
-  sourceType: SourceType,
-  sourceData: SourceData,
+function loadRuntimeChunkPath(
+  sourcePath: ChunkPath,
   chunkPath: ChunkPath
 ): void {
   if (!isJs(chunkPath)) {
@@ -145,8 +133,8 @@ function loadChunkPath(
   } catch (e) {
     let errorMessage = `Failed to load chunk ${chunkPath}`
 
-    if (sourceType !== undefined) {
-      errorMessage += ` from ${stringifySourceInfo(sourceType, sourceData)}`
+    if (sourcePath) {
+      errorMessage += ` from runtime for chunk ${sourcePath}`
     }
 
     throw new Error(errorMessage, {
@@ -178,8 +166,7 @@ function loadChunkUncached(chunkPath: ChunkPath) {
 }
 
 function loadChunkAsync(
-  sourceType: SourceType,
-  sourceData: SourceData,
+  this: TurbopackBaseContext<Module>,
   chunkData: ChunkData
 ): Promise<void> {
   const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
@@ -196,10 +183,7 @@ function loadChunkAsync(
       loadChunkUncached(chunkPath)
       entry = loadedChunk
     } catch (e) {
-      let errorMessage = `Failed to load chunk ${chunkPath}`
-      if (sourceType !== undefined) {
-        errorMessage += ` from ${stringifySourceInfo(sourceType, sourceData)}`
-      }
+      const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`
 
       // Cache the failure promise, future requests will also get this same rejection
       entry = Promise.reject(
@@ -213,15 +197,16 @@ function loadChunkAsync(
   // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
   return entry
 }
+contextPrototype.l = loadChunkAsync
 
 function loadChunkAsyncByUrl(
-  sourceType: SourceType,
-  sourceData: SourceData,
+  this: TurbopackBaseContext<Module>,
   chunkUrl: string
 ) {
   const path = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT)) as ChunkPath
-  return loadChunkAsync(sourceType, sourceData, path)
+  return loadChunkAsync.call(this, path)
 }
+contextPrototype.L = loadChunkAsyncByUrl
 
 function loadWebAssembly(
   chunkPath: ChunkPath,
@@ -291,16 +276,7 @@ function instantiateModule(
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
     const context = new (Context as any as ContextConstructor<Module>)(module)
-    moduleFactory.call(
-      module.exports,
-      Object.assign(context, {
-        x: externalRequire,
-        y: externalImport,
-        l: loadChunkAsync.bind(null, SourceType.Parent, id),
-        L: loadChunkAsyncByUrl.bind(null, SourceType.Parent, id),
-        C: clearChunkCache,
-      })
-    )
+    moduleFactory.call(module.exports, context)
   } catch (error) {
     module.error = error as any
     throw error
@@ -371,6 +347,5 @@ function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
 
 module.exports = (sourcePath: ChunkPath) => ({
   m: (id: ModuleId) => getOrInstantiateRuntimeModule(sourcePath, id),
-  c: (chunkData: ChunkData) =>
-    loadChunk(SourceType.Runtime, sourcePath, chunkData),
+  c: (chunkData: ChunkData) => loadRuntimeChunk(sourcePath, chunkData),
 })

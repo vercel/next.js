@@ -48,7 +48,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       // This waits for chunks to be loaded, but also marks included items as available.
       await Promise.all(
         params.otherChunks.map((otherChunkData) =>
-          loadChunk(SourceType.Runtime, chunkPath, otherChunkData)
+          loadInitialChunk(chunkPath, otherChunkData)
         )
       )
 

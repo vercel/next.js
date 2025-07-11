@@ -104,12 +104,7 @@ function instantiateModule(
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
     const context = new (Context as any as ContextConstructor<Module>)(module)
-    moduleFactory(
-      Object.assign(context, {
-        l: loadChunk.bind(null, SourceType.Parent, id),
-        L: loadChunkByUrl.bind(null, SourceType.Parent, id),
-      })
-    )
+    moduleFactory.call(module.exports, context)
   } catch (error) {
     module.error = error as any
     throw error

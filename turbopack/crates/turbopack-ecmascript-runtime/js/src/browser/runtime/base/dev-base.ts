@@ -126,6 +126,20 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   return instantiateModule(id, SourceType.Parent, sourceModule.id)
 }
 
+function DevContext(
+  this: TurbopackDevContext,
+  module: HotModule,
+  refresh: RefreshContext
+) {
+  Context.call(this, module)
+  this.k = refresh
+}
+DevContext.prototype = Context.prototype
+
+type DevContextConstructor = {
+  new (module: HotModule, refresh: RefreshContext): TurbopackDevContext
+}
+
 function instantiateModule(
   moduleId: ModuleId,
   sourceType: SourceType,
@@ -202,16 +216,11 @@ function instantiateModule(
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
     runModuleExecutionHooks(module, (refresh) => {
-      const context = new (Context as any as ContextConstructor<Module>)(module)
-      moduleFactory(
-        Object.assign(context, {
-          l: loadChunk.bind(null, SourceType.Parent, id),
-          L: loadChunkByUrl.bind(null, SourceType.Parent, id),
-          C: null,
-          P: resolveAbsolutePath,
-          k: refresh,
-        })
+      const context = new (DevContext as any as DevContextConstructor)(
+        module,
+        refresh
       )
+      moduleFactory(context)
     })
   } catch (error) {
     module.error = error as any
@@ -225,6 +234,12 @@ function instantiateModule(
   }
 
   return module
+}
+
+const DUMMY_REFRESH_CONTEXT = {
+  register: (_type: unknown, _id: unknown) => {},
+  signature: () => (_type: unknown) => {},
+  registerExports: (_module: unknown, _helpers: unknown) => {},
 }
 
 /**
@@ -253,11 +268,7 @@ function runModuleExecutionHooks(
     // If the react refresh hooks are not installed we need to bind dummy functions.
     // This is expected when running in a Web Worker.  It is also common in some of
     // our test environments.
-    executeModule({
-      register: (_type, _id) => {},
-      signature: () => (_type) => {},
-      registerExports: (_module, _helpers) => {},
-    })
+    executeModule(DUMMY_REFRESH_CONTEXT)
   }
 }
 
