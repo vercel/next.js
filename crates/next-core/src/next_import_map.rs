@@ -516,6 +516,32 @@ pub async fn get_next_edge_import_map(
     Ok(import_map.cell())
 }
 
+/// Computes the Next-specific server-side and edge-side fallback import map.
+#[turbo_tasks::function]
+pub async fn get_next_edge_and_server_fallback_import_map(
+    project_path: FileSystemPath,
+    runtime: NextRuntime,
+) -> Result<Vc<ImportMap>> {
+    let mut fallback_import_map = ImportMap::empty();
+
+    let external_cjs_if_node = move |context_dir: FileSystemPath, request: &str| match runtime {
+        NextRuntime::Edge => request_to_import_mapping(context_dir, request),
+        NextRuntime::NodeJs => external_request_to_cjs_import_mapping(context_dir, request),
+    };
+
+    fallback_import_map.insert_exact_alias(
+        "@opentelemetry/api",
+        // It needs to prefer the local version of @opentelemetry/api, so put this in the fallback
+        // import map
+        ImportMapping::Alternatives(vec![external_cjs_if_node(
+            project_path,
+            "next/dist/compiled/@opentelemetry/api",
+        )])
+        .resolved_cell(),
+    );
+    Ok(fallback_import_map.cell())
+}
+
 /// Insert default aliases for the node.js's internal to raise unsupported
 /// runtime errors. User may provide polyfills for their own by setting user
 /// config's alias.
@@ -600,19 +626,6 @@ async fn insert_next_server_special_aliases(
         ImportMapping::Alternatives(vec![
             request_to_import_mapping(project_path.clone(), "react-dom/server.edge"),
             request_to_import_mapping(project_path.clone(), "react-dom/server.browser"),
-        ])
-        .resolved_cell(),
-    );
-
-    import_map.insert_exact_alias(
-        "@opentelemetry/api",
-        // It needs to prefer the local version of @opentelemetry/api
-        ImportMapping::Alternatives(vec![
-            external_cjs_if_node(project_path.clone(), "@opentelemetry/api"),
-            external_cjs_if_node(
-                project_path.clone(),
-                "next/dist/compiled/@opentelemetry/api",
-            ),
         ])
         .resolved_cell(),
     );
