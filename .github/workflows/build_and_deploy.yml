@@ -352,7 +352,7 @@ jobs:
         if: ${{ matrix.settings.setup }}
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.8
+        uses: ijjk/rust-cache@turbo-cache-v1.0.9
         with:
           save-if: 'true'
           cache-provider: 'turbo'

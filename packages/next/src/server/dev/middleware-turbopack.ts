@@ -16,6 +16,7 @@ import {
 import type { Project, TurbopackStackFrame } from '../../build/swc/types'
 import {
   type ModernSourceMapPayload,
+  devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
 } from '../lib/source-maps'
 import { getSourceMapFromFile } from './get-source-map-from-file'
@@ -121,13 +122,13 @@ async function batchedTraceSource(
     source,
   }
 }
+
 function parseFile(fileParam: string | null): string | undefined {
   if (!fileParam) {
     return undefined
   }
 
-  // rsc://React/Server/file://<filename>?42 => file://<filename>
-  return fileParam.replace(/^rsc:\/\/React\/[^/]+\//, '').replace(/\?\d+$/, '')
+  return devirtualizeReactServerURL(fileParam)
 }
 
 function createStackFrames(
@@ -178,8 +179,7 @@ function createStackFrame(
 async function nativeTraceSource(
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
-  const sourceURL = // TODO(veil): Why are the frames sent encoded?
-    decodeURIComponent(frame.file)
+  const sourceURL = frame.file
   let sourceMapPayload: ModernSourceMapPayload | undefined
   try {
     sourceMapPayload = findSourceMap(sourceURL)?.payload

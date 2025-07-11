@@ -5,6 +5,7 @@ import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from './get-source-map-from-file'
 import {
+  devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
   sourceMapIgnoreListsEverything,
   type BasicSourceMapPayload,
@@ -298,8 +299,7 @@ async function getSource(
   let sourceURL = frame.file ?? ''
   const { getCompilations } = options
 
-  // Rspack is now using file:// URLs for source maps. Remove the rsc prefix to produce the file:/// url.
-  sourceURL = sourceURL.replace(/(.*)\/(?=file:\/\/)/, '')
+  sourceURL = devirtualizeReactServerURL(sourceURL)
 
   let nativeSourceMap: SourceMap | undefined
   try {
@@ -346,13 +346,9 @@ async function getSource(
   }
 
   // webpack-internal:///./src/hello.tsx => ./src/hello.tsx
-  // rsc://React/Server/webpack-internal:///(rsc)/./src/hello.tsx?42 => (rsc)/./src/hello.tsx
   // webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
   const moduleId = sourceURL
-    .replace(
-      /^(rsc:\/\/React\/[^/]+\/)?(webpack-internal:\/\/\/|webpack:\/\/(_N_E\/)?)/,
-      ''
-    )
+    .replace(/^(webpack-internal:\/\/\/|webpack:\/\/(_N_E\/)?)/, '')
     .replace(/\?\d+$/, '')
 
   // (rsc)/./src/hello.tsx => ./src/hello.tsx
