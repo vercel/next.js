@@ -764,7 +764,7 @@ impl SingleModuleGraph {
     ) -> Result<FxHashMap<ResolvedVc<Box<dyn Issue>>, Vec<ImportTrace>>> {
         let issue_paths = issues
             .iter()
-            .map(|issue| async move { Ok((*issue.file_path().await?).clone()) })
+            .map(|issue| issue.file_path().owned())
             .try_join()
             .await?;
         let mut file_path_to_traces: FxHashMap<FileSystemPath, Vec<ImportTrace>> =
@@ -775,14 +775,14 @@ impl SingleModuleGraph {
         }
 
         {
-            let modules = self
-                .modules
-                .iter()
-                .map(|(module, &index)| async move {
-                    Ok(((*module.ident().path().await?).clone(), index))
-                })
-                .try_join()
-                .await?;
+            let modules =
+                self.modules
+                    .iter()
+                    .map(|(module, &index)| async move {
+                        Ok((module.ident().path().owned().await?, index))
+                    })
+                    .try_join()
+                    .await?;
             // Reverse the graph so we can find paths to roots
             let reversed_graph = Reversed(&self.graph.0);
             for (path, module_idx) in modules {

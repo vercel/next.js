@@ -935,7 +935,7 @@ async fn emit_aggregated_assets(
 pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
     asset
         .content()
-        .write(asset.path().await?.clone_value())
+        .write(asset.path().owned().await?)
         .as_side_effect()
         .await?;
 

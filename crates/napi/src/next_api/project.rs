@@ -454,7 +454,7 @@ pub async fn project_new(
     turbo_tasks.spawn_once_task({
         let tt = turbo_tasks.clone();
         async move {
-            benchmark_file_io(tt, container.project().node_root().await?.clone_value())
+            benchmark_file_io(tt, container.project().node_root().owned().await?)
                 .await
                 .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
         }
@@ -1501,12 +1501,8 @@ pub async fn project_trace_source_operation(
         }
     };
 
-    let project_root_uri = uri_from_file(
-        container.project().project_root_path().await?.clone_value(),
-        None,
-    )
-    .await?
-        + "/";
+    let project_root_uri =
+        uri_from_file(container.project().project_root_path().owned().await?, None).await? + "/";
     let (file, original_file, is_internal) =
         if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
             // Client code uses file://

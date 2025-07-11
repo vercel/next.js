@@ -624,7 +624,7 @@ async fn insert_next_server_special_aliases(
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
         | ServerContextType::AppRoute { app_dir, .. } => {
-            let next_package = get_next_package(app_dir.clone()).await?.clone_value();
+            let next_package = get_next_package(app_dir.clone()).owned().await?;
             import_map.insert_exact_alias(
                 "styled-jsx",
                 request_to_import_mapping(next_package.clone(), "styled-jsx"),
@@ -966,7 +966,7 @@ async fn insert_next_shared_aliases(
     next_mode: Vc<NextMode>,
     is_runtime_edge: bool,
 ) -> Result<()> {
-    let package_root = next_js_fs().root().await?.clone_value();
+    let package_root = next_js_fs().root().owned().await?;
 
     insert_alias_to_alternatives(
         import_map,
@@ -1033,7 +1033,7 @@ async fn insert_next_shared_aliases(
         .resolved_cell(),
     );
 
-    let next_package = get_next_package(project_path.clone()).await?.clone_value();
+    let next_package = get_next_package(project_path.clone()).owned().await?;
     import_map.insert_singleton_alias("@swc/helpers", next_package.clone());
     import_map.insert_singleton_alias("styled-jsx", next_package.clone());
     import_map.insert_singleton_alias("next", project_path.clone());
@@ -1108,10 +1108,7 @@ async fn insert_next_shared_aliases(
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
-        turbopack_node::embed_js::embed_fs()
-            .root()
-            .await?
-            .clone_value(),
+        turbopack_node::embed_js::embed_fs().root().owned().await?,
     );
 
     let image_config = next_config.image_config().await?;
@@ -1138,7 +1135,7 @@ pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<Fi
         context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
-        node_cjs_resolve_options(context_directory.root().await?.clone_value()),
+        node_cjs_resolve_options(context_directory.root().owned().await?),
     );
     let source = result
         .first_source()
@@ -1248,8 +1245,8 @@ async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
         "@vercel/turbopack-ecmascript-runtime/",
         turbopack_ecmascript_runtime::embed_fs()
             .root()
-            .await?
-            .clone_value(),
+            .owned()
+            .await?,
     );
     Ok(())
 }
