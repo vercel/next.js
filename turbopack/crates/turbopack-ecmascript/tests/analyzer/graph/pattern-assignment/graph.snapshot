@@ -1,0 +1,188 @@
+[
+    (
+        "arrPatternBool",
+        Alternatives {
+            total_nodes: 4,
+            values: [
+                Constant(
+                    True,
+                ),
+                Array {
+                    total_nodes: 2,
+                    items: [
+                        Constant(
+                            False,
+                        ),
+                    ],
+                    mutable: true,
+                },
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "nestedPatternBool",
+        Alternatives {
+            total_nodes: 18,
+            values: [
+                Member(
+                    8,
+                    Member(
+                        6,
+                        Object {
+                            total_nodes: 4,
+                            parts: [
+                                KeyValue(
+                                    Constant(
+                                        Str(
+                                            Atom(
+                                                "inner",
+                                            ),
+                                        ),
+                                    ),
+                                    Array {
+                                        total_nodes: 2,
+                                        items: [
+                                            Constant(
+                                                True,
+                                            ),
+                                        ],
+                                        mutable: true,
+                                    },
+                                ),
+                            ],
+                            mutable: true,
+                        },
+                        Constant(
+                            Str(
+                                Atom(
+                                    "inner",
+                                ),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                0.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Member(
+                    9,
+                    Member(
+                        7,
+                        Array {
+                            total_nodes: 5,
+                            items: [
+                                Object {
+                                    total_nodes: 4,
+                                    parts: [
+                                        KeyValue(
+                                            Constant(
+                                                Str(
+                                                    Atom(
+                                                        "inner",
+                                                    ),
+                                                ),
+                                            ),
+                                            Array {
+                                                total_nodes: 2,
+                                                items: [
+                                                    Constant(
+                                                        False,
+                                                    ),
+                                                ],
+                                                mutable: true,
+                                            },
+                                        ),
+                                    ],
+                                    mutable: true,
+                                },
+                            ],
+                            mutable: true,
+                        },
+                        Constant(
+                            Str(
+                                Atom(
+                                    "inner",
+                                ),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                0.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "objPatternBool",
+        Member(
+            5,
+            Object {
+                total_nodes: 3,
+                parts: [
+                    KeyValue(
+                        Constant(
+                            Str(
+                                Atom(
+                                    "objPatternBool",
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            True,
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+            Constant(
+                Str(
+                    Atom(
+                        "objPatternBool",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "singleAssignBool",
+        Member(
+            5,
+            Object {
+                total_nodes: 3,
+                parts: [
+                    KeyValue(
+                        Constant(
+                            Str(
+                                Atom(
+                                    "singleAssignBool",
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            True,
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+            Constant(
+                Str(
+                    Atom(
+                        "singleAssignBool",
+                    ),
+                ),
+            ),
+        ),
+    ),
+]
