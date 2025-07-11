@@ -2942,10 +2942,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6080,16 +6080,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.platform-dynamic.test.ts": {
-    "passed": [
-      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - Math.random() should not show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - Math.random() should show a collapsed redbox error"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-errors.test.ts": {
     "passed": [
       "Dynamic IO Prospective Render Errors - Debug Build should error on the first visit to each page",
@@ -6100,52 +6090,38 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
-    "passed": [
-      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
-      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should show a collapsed redbox error"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
-    "passed": [
-      "Dynamic IO Errors - Dev Sync Dynamic - client params should return `undefined` for `params.slug`",
-      "Dynamic IO Errors - Dev Sync Dynamic - client params should show a collapsed redbox with a sync access error",
-      "Dynamic IO Errors - Dev Sync Dynamic - client searchParams should return `undefined` for `searchParams.foo`",
-      "Dynamic IO Errors - Dev Sync Dynamic - client searchParams should show a collapsed redbox with a sync access error",
-      "Dynamic IO Errors - Dev Sync Dynamic - draftMode should return `undefined` for `draftMode().isEnabled`",
-      "Dynamic IO Errors - Dev Sync Dynamic - server params should return `undefined` for `params.slug`",
-      "Dynamic IO Errors - Dev Sync Dynamic - server params should show a collapsed redbox with a sync access error",
-      "Dynamic IO Errors - Dev Sync Dynamic - server searchParams should return `undefined` for `searchParams.foo`",
-      "Dynamic IO Errors - Dev Sync Dynamic - server searchParams should show a collapsed redbox with a sync access error"
-    ],
-    "failed": [
-      "Dynamic IO Errors - Dev Sync Dynamic - cookies should show a redbox with a sync access error and a runtime error",
-      "Dynamic IO Errors - Dev Sync Dynamic - draftMode should show a collapsed redbox with a sync access error",
-      "Dynamic IO Errors - Dev Sync Dynamic - headers should show a redbox with a sync access error and a runtime error"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.test.ts": {
     "passed": [
-      "Dynamic IO Errors - Dev Dynamic Boundary should not show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Metadata - Dynamic Route should not show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Metadata - Error Route should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Metadata - Static Route With Suspense should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Metadata - Static Route should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Root should show a collapsed redbox with two errors",
-      "Dynamic IO Errors - Dev Dynamic Viewport - Dynamic Route should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Viewport - Static Route should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Static Route should not show a collapsed redbox error"
+      "Dynamic IO Errors Dev Dynamic Boundary should not show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Metadata - Dynamic Route should not show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Metadata - Error Route should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Metadata - Static Route With Suspense should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Metadata - Static Route should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Root should show a collapsed redbox with two errors",
+      "Dynamic IO Errors Dev Dynamic Viewport - Dynamic Route should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Viewport - Static Route should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Error Attribution with Sync IO Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
+      "Dynamic IO Errors Dev Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Static Route should not show a collapsed redbox error",
+      "Dynamic IO Errors Dev Sync Dynamic Platform With Fallback - Math.random() should not show a collapsed redbox error",
+      "Dynamic IO Errors Dev Sync Dynamic Platform Without Fallback - Math.random() should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Sync Dynamic Request client params should return `undefined` for `params.slug`",
+      "Dynamic IO Errors Dev Sync Dynamic Request client params should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should return `undefined` for `searchParams.foo`",
+      "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors Dev Sync Dynamic Request draftMode should return `undefined` for `draftMode().isEnabled`",
+      "Dynamic IO Errors Dev Sync Dynamic Request server params should return `undefined` for `params.slug`",
+      "Dynamic IO Errors Dev Sync Dynamic Request server params should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors Dev Sync Dynamic Request server searchParams should return `undefined` for `searchParams.foo`",
+      "Dynamic IO Errors Dev Sync Dynamic Request server searchParams should show a collapsed redbox with a sync access error"
     ],
-    "failed": [],
+    "failed": [
+      "Dynamic IO Errors Dev Sync Dynamic Request cookies should show a redbox with a sync access error and a runtime error",
+      "Dynamic IO Errors Dev Sync Dynamic Request draftMode should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors Dev Sync Dynamic Request headers should show a redbox with a sync access error and a runtime error"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9852,6 +9828,16 @@
       "use-cache-unknown-cache-kind should recover from the build error if the cache handler is defined"
     ],
     "failed": ["use-cache-unknown-cache-kind should show a build error"],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-with-server-function-props/use-cache-with-server-function-props.test.ts": {
+    "passed": [
+      "use-cache-with-server-function-props should be able to use inline server actions as props",
+      "use-cache-with-server-function-props should be able to use nested cache functions as props"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

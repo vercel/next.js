@@ -173,25 +173,17 @@ impl EcmascriptModulePartReference {
             ));
         }
 
-        if merged_index.is_some() && matches!(*this.export_usage.await?, ExportUsage::Evaluation) {
+        let export_usage = this.export_usage.await?;
+        if merged_index.is_some() && matches!(*export_usage, ExportUsage::Evaluation) {
             // No need to import, the module was already executed and is available in the same scope
             // hoisting group (unless it's a namespace import)
         } else {
             let ident = referenced_asset
                 .get_ident(
                     chunking_context,
-                    match &this.part {
-                        ModulePart::Export(export)
-                        | ModulePart::RenamedExport {
-                            original_export: export,
-                            ..
-                        }
-                        | ModulePart::RenamedNamespace { export } => Some(export.clone()),
-                        ModulePart::Internal(_)
-                        | ModulePart::Locals
-                        | ModulePart::Exports
-                        | ModulePart::Facade
-                        | ModulePart::Evaluation => None,
+                    match &*export_usage {
+                        ExportUsage::Named(export) => Some(export.clone()),
+                        ExportUsage::All | ExportUsage::Evaluation => None,
                     },
                     scope_hoisting_context,
                 )

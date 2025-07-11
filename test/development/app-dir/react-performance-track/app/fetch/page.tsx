@@ -1,16 +1,10 @@
 async function abstraction() {
-  const response = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random'
-  )
-  await response.json()
+  await fetch('https://next-data-api-endpoint.vercel.app/api/random')
 }
 
 export default async function FetchPage() {
   await abstraction()
-  const response = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random'
-  )
-  await response.json()
+  await fetch('https://next-data-api-endpoint.vercel.app/api/random')
 
   return <p>Done</p>
 }

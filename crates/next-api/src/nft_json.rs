@@ -234,7 +234,7 @@ impl Asset for NftJsonAsset {
         // Apply outputFileTracingIncludes and outputFileTracingExcludes
         // Extract route from chunk path for pattern matching
         if let Some(route) = &this.page_name {
-            let project_path = this.project.project_path().await?.clone_value();
+            let project_path = this.project.project_path().owned().await?;
             let mut combined_includes = BTreeSet::new();
 
             // Process includes

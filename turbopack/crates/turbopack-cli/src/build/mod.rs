@@ -210,7 +210,7 @@ async fn build_internal(
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
-    let root_path = project_fs.root().await?.clone_value();
+    let root_path = project_fs.root().owned().await?;
     let project_path = root_path.join(&project_relative)?;
     let build_output_root = output_fs.root().await?.join("dist")?;
 
@@ -502,7 +502,7 @@ async fn build_internal(
 
     chunks
         .iter()
-        .map(|c| async move { c.content().write(c.path().await?.clone_value()).await })
+        .map(|c| async move { c.content().write(c.path().owned().await?).await })
         .try_join()
         .await?;
 

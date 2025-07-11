@@ -46,7 +46,7 @@ async fn emit(
     for asset in internal_assets(intermediate_asset, intermediate_output_path).await? {
         let _ = asset
             .content()
-            .write(asset.path().await?.clone_value())
+            .write(asset.path().owned().await?)
             .resolve()
             .await?;
     }
@@ -222,7 +222,7 @@ pub async fn get_renderer_pool_operation(
     let assets_for_source_mapping =
         internal_assets_for_source_mapping(*intermediate_asset, output_root.clone());
 
-    let entrypoint = intermediate_asset.path().await?.clone_value();
+    let entrypoint = intermediate_asset.path().owned().await?;
 
     let Some(cwd) = to_sys_path(cwd.clone()).await? else {
         bail!(
@@ -267,8 +267,8 @@ pub async fn get_intermediate_asset(
         chunking_context.root_entry_chunk_group_asset(
             chunking_context
                 .chunk_path(None, main_entry.ident(), rcstr!(".js"))
-                .await?
-                .clone_value(),
+                .owned()
+                .await?,
             other_entries.with_entry(*main_entry),
             ModuleGraph::from_modules(
                 Vc::cell(vec![ChunkGroupEntry::Entry(
