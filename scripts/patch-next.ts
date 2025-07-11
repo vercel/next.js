@@ -38,12 +38,12 @@ const argv = yargs(hideBin(process.argv))
   .option('build', {
     type: 'boolean',
     default: true,
-    description: 'Skip the Next.js build step (`pnpm i` and `pnpm build`).',
+    description: 'Run the Next.js build step (`pnpm i` and `pnpm build`).',
   })
   .option('native-build', {
     type: 'boolean',
     default: true,
-    description: 'Skip the native modules build step.',
+    description: 'Run the native modules build step.',
   })
   .option('verbose', {
     type: 'number',
