@@ -61,10 +61,10 @@ impl Event {
             description: self.description.clone(),
             note: Arc::new(String::new),
             future: Some(Box::pin(timeout(
-                Duration::from_secs(10),
+                Duration::from_secs(30),
                 self.event.listen(),
             ))),
-            duration: Duration::from_secs(10),
+            duration: Duration::from_secs(30),
         };
     }
 
@@ -93,10 +93,10 @@ impl Event {
             description: self.description.clone(),
             note: Arc::new((_note)()),
             future: Some(Box::pin(timeout(
-                Duration::from_secs(10),
+                Duration::from_secs(30),
                 self.event.listen(),
             ))),
-            duration: Duration::from_secs(10),
+            duration: Duration::from_secs(30),
         };
     }
 
@@ -193,12 +193,22 @@ impl Future for EventListener {
                     return Poll::Ready(());
                 }
                 Err(_) => {
-                    use crate::util::FormatDuration;
-                    eprintln!(
-                        "{:?} is potentially hanging (waiting for {})",
-                        self,
-                        FormatDuration(self.duration)
-                    );
+                    let note = (self.note)();
+                    let description = (self.description)();
+                    if note.is_empty() {
+                        eprintln!(
+                            "EventListener({}) is potentially hanging, waiting for {}s",
+                            description,
+                            self.duration.as_secs(),
+                        );
+                    } else {
+                        eprintln!(
+                            "EventListener({}) is potentially hanging, waiting for {}s from {}",
+                            description,
+                            self.duration.as_secs(),
+                            note
+                        );
+                    }
                     self.duration *= 2;
                     // SAFETY: Taking from Option is safe because the value is inside of a pinned
                     // Box. Pinning must continue until dropped.

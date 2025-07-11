@@ -15,6 +15,7 @@ workspace = true
 [features]
 default = []
 print_cache_item_size = []
+no_fast_stale = []
 verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []

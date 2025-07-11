@@ -2143,18 +2143,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.platform-dynamic.test.ts": {
-    "passed": [
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-errors.test.ts": {
     "passed": [
       "Dynamic IO Prospective Render Errors - Debug Build should log an error when the prospective render errors with a string in a Page",
@@ -2179,64 +2167,52 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
-    "passed": [
-      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
-      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
-      "Dynamic IO Errors - Build With --prerender-debug Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
-      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
-      "Dynamic IO Errors - Build Without --prerender-debug Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
-    "passed": [
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - client params should not error the build when synchronously reading `params.slug`",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - client searchParams should not error the build when synchronously reading `searchParams.foo`",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - cookies should error the build with a runtime error",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - headers should error the build with a runtime error",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - server params should not error the build when synchronously reading `params.slug`",
-      "Dynamic IO Errors - Build With --prerender-debug Sync Dynamic - server searchParams should not error the build when synchronously reading `searchParams.foo`",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - client params should not error the build when synchronously reading `params.slug`",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - client searchParams should not error the build when synchronously reading `searchParams.foo`",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - cookies should error the build with a runtime error",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - headers should error the build with a runtime error",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - server params should not error the build when synchronously reading `params.slug`",
-      "Dynamic IO Errors - Build Without --prerender-debug Sync Dynamic - server searchParams should not error the build when synchronously reading `searchParams.foo`"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.test.ts": {
     "passed": [
-      "Dynamic IO Errors - Build With --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
-      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Dynamic IO Errors - Build With --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Dynamic IO Errors - Build With --prerender-debug Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Build With --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
-      "Dynamic IO Errors - Build With --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
-      "Dynamic IO Errors - Build With --prerender-debug Static Route should not error the build when all routes are static",
-      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
-      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
-      "Dynamic IO Errors - Build Without --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
-      "Dynamic IO Errors - Build Without --prerender-debug Static Route should not error the build when all routes are static"
+      "Dynamic IO Errors Build With --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors Build With --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors Build With --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
+      "Dynamic IO Errors Build With --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors Build With --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors Build With --prerender-debug Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors Build With --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
+      "Dynamic IO Errors Build With --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
+      "Dynamic IO Errors Build With --prerender-debug Error Attribution with Sync IO Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors Build With --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors Build With --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors Build With --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors Build With --prerender-debug Static Route should not error the build when all routes are static",
+      "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
+      "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
+      "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
+      "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
+      "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
+      "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
+      "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Dynamic IO Errors Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors Build Without --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
+      "Dynamic IO Errors Build Without --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors Build Without --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Dynamic IO Errors Build Without --prerender-debug Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
+      "Dynamic IO Errors Build Without --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
+      "Dynamic IO Errors Build Without --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
+      "Dynamic IO Errors Build Without --prerender-debug Error Attribution with Sync IO Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors Build Without --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors Build Without --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors Build Without --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors Build Without --prerender-debug Static Route should not error the build when all routes are static",
+      "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
+      "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
+      "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
+      "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
+      "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
+      "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
+      "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`"
     ],
     "failed": [],
     "pending": [],
@@ -6178,6 +6154,16 @@
     "passed": [
       "use-cache-unknown-cache-kind should fail the build with an error",
       "use-cache-unknown-cache-kind should not fail the build for default cache kinds"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-with-server-function-props/use-cache-with-server-function-props.test.ts": {
+    "passed": [
+      "use-cache-with-server-function-props should be able to use inline server actions as props",
+      "use-cache-with-server-function-props should be able to use nested cache functions as props"
     ],
     "failed": [],
     "pending": [],

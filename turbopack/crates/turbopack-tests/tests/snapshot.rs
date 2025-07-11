@@ -233,11 +233,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
-    let out_vc = out_op
-        .resolve_strongly_consistent()
-        .await?
-        .await?
-        .clone_value();
+    let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
     let captured_issues = out_op.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues.get_plain_issues().await?;
@@ -265,7 +261,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
     let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root().await?.clone_value();
+    let project_root = project_fs.root().owned().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
     let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
@@ -552,7 +548,7 @@ async fn walk_asset(
     seen: &mut FxHashSet<FileSystemPath>,
     queue: &mut VecDeque<ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
-    let path = asset.path().await?.clone_value();
+    let path = asset.path().owned().await?;
 
     if !seen.insert(path.clone()) {
         return Ok(());

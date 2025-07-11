@@ -267,7 +267,7 @@ pub async fn tsconfig_resolve_options(
     let configs = read_tsconfigs(
         tsconfig.read(),
         ResolvedVc::upcast(FileSource::new(tsconfig.clone()).to_resolved().await?),
-        node_cjs_resolve_options(tsconfig.root().await?.clone_value()),
+        node_cjs_resolve_options(tsconfig.root().owned().await?),
     )
     .await?;
 
@@ -282,7 +282,7 @@ pub async fn tsconfig_resolve_options(
     })
     .await?
     {
-        (*base_url.await?).clone()
+        base_url.owned().await?
     } else {
         None
     };
@@ -473,7 +473,7 @@ pub async fn type_resolve(
     handle_resolve_error(
         result,
         ty,
-        origin.origin_path().await?.clone_value(),
+        origin.origin_path().owned().await?,
         request,
         options,
         false,

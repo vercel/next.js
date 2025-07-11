@@ -102,7 +102,7 @@ impl CssChunk {
             {
                 fileify_source_map(
                     content.source_map.as_ref(),
-                    self.chunking_context().root_path().await?.clone_value(),
+                    self.chunking_context().root_path().owned().await?,
                 )
                 .await?
             } else {
@@ -154,7 +154,7 @@ impl CssChunk {
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let CssChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
-            let path = chunk_item.asset_ident().path().await?.clone_value();
+            let path = chunk_item.asset_ident().path().owned().await?;
             Some((path.clone(), path))
         } else {
             None
@@ -191,7 +191,7 @@ impl CssChunk {
             path: if let Some((common_path, _)) = common_path {
                 common_path
             } else {
-                ServerFileSystem::new().root().await?.clone_value()
+                ServerFileSystem::new().root().owned().await?
             },
             query: RcStr::default(),
             fragment: RcStr::default(),
@@ -243,7 +243,7 @@ pub struct CssChunkContent {
 impl Chunk for CssChunk {
     #[turbo_tasks::function]
     async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(self.path().await?.clone_value()))
+        Ok(AssetIdent::from_path(self.path().owned().await?))
     }
 
     #[turbo_tasks::function]

@@ -88,7 +88,7 @@ export default async function Layout({ children, params }) {
 
 ### Root Layout
 
-The `app` directory **must** include a root `app/layout.js`.
+The `app` directory **must** include a **root layout**, which is the top-most layout in the root `app` directory. Typically, the root layout is `app/layout.js`.
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -116,8 +116,9 @@ export default function RootLayout({ children }) {
 
 - The root layout **must** define `<html>` and `<body>` tags.
   - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/getting-started/metadata-and-og-images) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
-- You can use [route groups](/docs/app/api-reference/file-conventions/route-groups) to create multiple root layouts.
+- You can use [route groups](/docs/app/api-reference/file-conventions/route-groups) to create **multiple root layouts**.
   - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
+- The root layout can be under a **dynamic segment**, for example when implementing [internationalization](/docs/app/guides/internationalization) with `app/[lang]/layout.js`.
 
 ## Caveats
 
