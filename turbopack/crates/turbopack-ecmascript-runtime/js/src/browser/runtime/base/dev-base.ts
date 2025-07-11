@@ -199,16 +199,10 @@ function instantiateModule(
       )
   }
 
-  const module: HotModule = {
-    exports: {},
-    error: undefined,
-    loaded: false,
-    id: id,
-    parents,
-    children: [],
-    namespaceObject: undefined,
-    hot,
-  }
+  const module: HotModule = createModuleObject(id) as HotModule
+  module.parents = parents
+  module.children = []
+  module.hot = hot
 
   devModuleCache[id] = module
   moduleHotState.set(module, hotState)

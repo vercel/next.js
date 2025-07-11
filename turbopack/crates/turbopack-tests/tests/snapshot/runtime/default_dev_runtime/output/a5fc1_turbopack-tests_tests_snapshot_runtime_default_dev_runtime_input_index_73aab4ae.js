@@ -36,16 +36,22 @@ function getOverwrittenModule(moduleCache, id) {
     if (!module) {
         // This is invoked when a module is merged into another module, thus it wasn't invoked via
         // instantiateModule and the cache entry wasn't created yet.
-        module = {
-            exports: {},
-            error: undefined,
-            loaded: false,
-            id,
-            namespaceObject: undefined
-        };
+        module = createModuleObject(id);
         moduleCache[id] = module;
     }
     return module;
+}
+/**
+ * Creates the module object. Only done here to ensure all module objects have the same shape.
+ */ function createModuleObject(id) {
+    return {
+        exports: {},
+        error: undefined,
+        loaded: false,
+        id,
+        namespaceObject: undefined,
+        [REEXPORTED_OBJECTS]: undefined
+    };
 }
 /**
  * Adds the getters to the exports object.
@@ -803,16 +809,10 @@ function instantiateModule(moduleId, sourceType, sourceData) {
         default:
             invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
     }
-    const module = {
-        exports: {},
-        error: undefined,
-        loaded: false,
-        id: id,
-        parents,
-        children: [],
-        namespaceObject: undefined,
-        hot
-    };
+    const module = createModuleObject(id);
+    module.parents = parents;
+    module.children = [];
+    module.hot = hot;
     devModuleCache[id] = module;
     moduleHotState.set(module, hotState);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.

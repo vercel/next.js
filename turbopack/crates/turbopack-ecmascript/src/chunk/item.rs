@@ -18,7 +18,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    EcmascriptModuleContent, EcmascriptOptions,
+    EcmascriptModuleContent,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::{FormatIter, StringifyJs},
@@ -41,10 +41,8 @@ impl EcmascriptChunkItemContent {
     pub async fn new(
         content: Vc<EcmascriptModuleContent>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        options: Vc<EcmascriptOptions>,
         async_module_options: Vc<OptionAsyncModuleOptions>,
     ) -> Result<Vc<Self>> {
-        let refresh = options.await?.refresh;
         let externals = *chunking_context
             .environment()
             .supports_commonjs_externals()
@@ -66,7 +64,6 @@ impl EcmascriptChunkItemContent {
             options: if content.is_esm {
                 EcmascriptChunkItemOptions {
                     strict: true,
-                    refresh,
                     externals,
                     async_module,
                     stub_require: true,
@@ -79,7 +76,6 @@ impl EcmascriptChunkItemContent {
 
                 EcmascriptChunkItemOptions {
                     strict,
-                    refresh,
                     externals,
                     // These things are not available in ESM
                     module: true,
@@ -95,10 +91,7 @@ impl EcmascriptChunkItemContent {
     #[turbo_tasks::function]
     pub async fn module_factory(&self) -> Result<Vc<Code>> {
         let mut args = Vec::new();
-        if self.options.refresh {
-            args.push("k: __turbopack_refresh__");
-        }
-        if self.options.module || self.options.refresh {
+        if self.options.module {
             args.push("m: module");
         }
         if self.options.exports {
@@ -169,9 +162,6 @@ impl EcmascriptChunkItemContent {
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
-    /// Whether this chunk item's module factory should include a
-    /// `__turbopack_refresh__` argument.
-    pub refresh: bool,
     /// Whether this chunk item's module factory should include a `module`
     /// argument.
     pub module: bool,

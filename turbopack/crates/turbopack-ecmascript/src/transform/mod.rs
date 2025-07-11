@@ -27,7 +27,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{environment::Environment, source::Source};
 
-use crate::runtime_functions::TURBOPACK_REFRESH;
+use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
 
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
@@ -184,7 +184,6 @@ impl EcmascriptInputTransform {
                     refresh: if *refresh {
                         debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
-                            // __turbopack_context__.k is __turbopack_refresh__
                             refresh_reg: atom!("__turbopack_context__.k.register"),
                             refresh_sig: atom!("__turbopack_context__.k.signature"),
                             ..Default::default()
@@ -210,12 +209,14 @@ impl EcmascriptInputTransform {
                 );
 
                 if *refresh {
+                    debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
+                    debug_assert_eq!(TURBOPACK_MODULE.full, "__turbopack_context__.m");
                     let stmt = quote!(
                         // AMP / No-JS mode does not inject these helpers
-                        "\nif (typeof globalThis.$RefreshHelpers$ === 'object' && \
+                        "if (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
-                         __turbopack_context__.k.registerExports(module, \
-                         globalThis.$RefreshHelpers$); }\n" as Stmt
+                         __turbopack_context__.k.registerExports(__turbopack_context__.m, \
+                         globalThis.$RefreshHelpers$); }" as Stmt
                     );
 
                     match program {

@@ -12,6 +12,13 @@ impl TurbopackRuntimeFunctionShortcut {
     pub const fn new(full: &'static str, shortcut: &'static str) -> Self {
         Self { full, shortcut }
     }
+
+    pub fn bound(&self) -> String {
+        format!(
+            "__turbopack_context__.{}.bind(__turbopack_context__)",
+            self.shortcut
+        )
+    }
 }
 
 impl Display for TurbopackRuntimeFunctionShortcut {
@@ -42,6 +49,10 @@ impl<'l> From<&'l TurbopackRuntimeFunctionShortcut> for &'l str {
     }
 }
 
+pub const TURBOPACK_EXPORTS: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.e", "e");
+pub const TURBOPACK_MODULE: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.m", "m");
 pub const TURBOPACK_REQUIRE: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.r", "r");
 pub const TURBOPACK_MODULE_CONTEXT: &TurbopackRuntimeFunctionShortcut =

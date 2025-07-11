@@ -76,16 +76,24 @@ function getOverwrittenModule(
   if (!module) {
     // This is invoked when a module is merged into another module, thus it wasn't invoked via
     // instantiateModule and the cache entry wasn't created yet.
-    module = {
-      exports: {},
-      error: undefined,
-      loaded: false,
-      id,
-      namespaceObject: undefined,
-    }
+    module = createModuleObject(id)
     moduleCache[id] = module
   }
   return module
+}
+
+/**
+ * Creates the module object. Only done here to ensure all module objects have the same shape.
+ */
+function createModuleObject(id: ModuleId): Module {
+  return {
+    exports: {},
+    error: undefined,
+    loaded: false,
+    id,
+    namespaceObject: undefined,
+    [REEXPORTED_OBJECTS]: undefined,
+  }
 }
 
 /**
