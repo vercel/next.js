@@ -1,4 +1,4 @@
-export async function measure(fn) {
+export async function measure(name, fn) {
   let module
   let loadDuration
   {
@@ -18,7 +18,10 @@ export async function measure(fn) {
     executeDuration = end - start
   }
 
-  return { loadDuration, executeDuration, files }
+  const result = { loadDuration, executeDuration, files }
+  console.log(`${name} Measurement: ${format(result)}`)
+
+  return result
 }
 
 export function format(result) {

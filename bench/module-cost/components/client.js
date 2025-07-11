@@ -2,17 +2,27 @@
 
 import { format, measure } from '../lib/measure'
 
-async function measureClientButton(element, fn) {
+async function measureClientButton(element, name, fn) {
   if (element.textContent.includes('Loading time')) {
     return
   }
 
-  const result = await measure(fn)
+  const result = await measure(name, fn)
 
   element.textContent += ` (${format(result)})`
 }
 
-async function measureServerButton(element, url) {
+async function measureActionButton(element, action) {
+  if (element.textContent.includes('Loading time')) {
+    return
+  }
+
+  const result = await action()
+
+  element.textContent += ` (${format(result)})`
+}
+
+async function measureApiButton(element, url) {
   if (element.textContent.includes('Loading time')) {
     return
   }
@@ -22,13 +32,17 @@ async function measureServerButton(element, url) {
   element.textContent += ` (${format(result)})`
 }
 
-export function Client({ prefix }) {
+export function Client({ prefix, commonjsAction, esmAction }) {
   return (
     <>
       <p>
         <button
           onClick={(e) =>
-            measureClientButton(e.target, () => import('../lib/commonjs.js'))
+            measureClientButton(
+              e.target,
+              'client commonjs',
+              () => import('../lib/commonjs.js')
+            )
           }
         >
           CommonJs client
@@ -37,21 +51,41 @@ export function Client({ prefix }) {
       <p>
         <button
           onClick={(e) =>
-            measureClientButton(e.target, () => import('../lib/esm.js'))
+            measureClientButton(
+              e.target,
+              'client esm',
+              () => import('../lib/esm.js')
+            )
           }
         >
           ESM client
         </button>
       </p>
+      {commonjsAction && (
+        <p>
+          <button
+            onClick={(e) => measureActionButton(e.target, commonjsAction)}
+          >
+            CommonJs server action
+          </button>
+        </p>
+      )}
+      {esmAction && (
+        <p>
+          <button onClick={(e) => measureActionButton(e.target, esmAction)}>
+            ESM server action
+          </button>
+        </p>
+      )}
       <p>
         <button
-          onClick={(e) => measureServerButton(e.target, `${prefix}/commonjs`)}
+          onClick={(e) => measureApiButton(e.target, `${prefix}/commonjs`)}
         >
           CommonJs API
         </button>
       </p>
       <p>
-        <button onClick={(e) => measureServerButton(e.target, `${prefix}/esm`)}>
+        <button onClick={(e) => measureApiButton(e.target, `${prefix}/esm`)}>
           ESM API
         </button>
       </p>
