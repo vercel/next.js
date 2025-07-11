@@ -55,8 +55,9 @@ function LongRunningComponent() {
   }
   return (
     <div>
-      this component took a long time to resolve (but still before the cacheComponents
-      cutoff). It might not be done before the Math.random() access happens.
+      this component took a long time to resolve (but still before the
+      cacheComponents cutoff). It might not be done before the Math.random()
+      access happens.
     </div>
   )
 }

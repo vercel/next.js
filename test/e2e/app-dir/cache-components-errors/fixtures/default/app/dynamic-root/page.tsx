@@ -9,8 +9,8 @@ export default async function Page() {
         This page calls fetches eight times. Four are cached and Four are not.
         In each set of Four, two are wrapped in Suspense. This leaves two
         fetches that are uncached and not wrapped in Suspense which is
-        considered an error when cacheComponents is enabled. We expect the build to
-        fail with two component stacks that point to the offending IO
+        considered an error when cacheComponents is enabled. We expect the build
+        to fail with two component stacks that point to the offending IO
       </p>
       <IndirectionOne>
         <FetchingComponent nonce="a" cached={true} />

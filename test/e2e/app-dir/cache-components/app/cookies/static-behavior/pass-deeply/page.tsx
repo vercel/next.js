@@ -16,9 +16,9 @@ export default async function Page() {
         at the page root.
       </p>
       <p>
-        If cacheComponents is turned off the `cookies()` call would trigger a dynamic
-        point at the callsite and the suspense boundary would also be blocked
-        for over one second
+        If cacheComponents is turned off the `cookies()` call would trigger a
+        dynamic point at the callsite and the suspense boundary would also be
+        blocked for over one second
       </p>
       <Suspense
         fallback={
