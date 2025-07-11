@@ -141,7 +141,7 @@ pub async fn get_server_resolve_options_context(
     .await?;
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path.clone()).await?;
-    let root_dir = project_path.root().await?.clone_value();
+    let root_dir = project_path.root().owned().await?;
     let module_feature_report_resolve_plugin =
         ModuleFeatureReportResolvePlugin::new(project_path.clone())
             .to_resolved()
@@ -194,7 +194,7 @@ pub async fn get_server_resolve_options_context(
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path.clone(),
-        project_path.root().await?.clone_value(),
+        project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
     )
@@ -219,7 +219,7 @@ pub async fn get_server_resolve_options_context(
     } else {
         ExternalCjsModulesResolvePlugin::new(
             project_path.clone(),
-            project_path.root().await?.clone_value(),
+            project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )

@@ -84,8 +84,8 @@ pub async fn get_client_runtime_entries(
         RuntimeEntry::Source(ResolvedVc::upcast(
             FileSource::new(
                 embed_file_path(rcstr!("entry/bootstrap.ts"))
-                    .await?
-                    .clone_value(),
+                    .owned()
+                    .await?,
             )
             .to_resolved()
             .await?,

@@ -80,7 +80,7 @@ async fn resolve_reference_from_dir(
     let matches = match (abs_path, rel_path) {
         (Some(abs_path), Some(rel_path)) => Either::Right(
             read_matches(
-                parent_path.root().await?.clone_value(),
+                parent_path.root().owned().await?,
                 rcstr!("/ROOT/"),
                 true,
                 Pattern::new(abs_path.or_any_nested_file()),
@@ -101,7 +101,7 @@ async fn resolve_reference_from_dir(
         (Some(abs_path), None) => Either::Left(
             // absolute path only
             read_matches(
-                parent_path.root().await?.clone_value(),
+                parent_path.root().owned().await?,
                 rcstr!("/ROOT/"),
                 true,
                 Pattern::new(abs_path.or_any_nested_file()),

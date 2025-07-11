@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
                 ResolveOptionsContext {
                     enable_typescript: true,
                     enable_react: true,
-                    enable_node_modules: Some(fs.root().await?.clone_value()),
+                    enable_node_modules: Some(fs.root().owned().await?),
                     custom_conditions: vec![rcstr!("development")],
                     ..Default::default()
                 }

@@ -649,7 +649,7 @@ impl Issue for ConflictIssue {
 impl Project {
     #[turbo_tasks::function]
     pub async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
-        let app_dir = find_app_dir(self.project_path().await?.clone_value()).await?;
+        let app_dir = find_app_dir(self.project_path().owned().await?).await?;
 
         Ok(match &*app_dir {
             Some(app_dir) => Vc::cell(Some(
@@ -804,12 +804,12 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
-        let node_root = self.node_root().await?.clone_value();
+        let node_root = self.node_root().owned().await?;
         let next_mode = self.next_mode().await?;
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
-                self.project_root_path().await?.clone_value(),
+                self.project_root_path().owned().await?,
                 node_root.clone(),
                 self.node_root_to_root_path().owned().await?,
                 node_root.clone(),
@@ -827,7 +827,7 @@ impl Project {
         );
 
         Ok(ExecutionContext::new(
-            self.project_path().await?.clone_value(),
+            self.project_path().owned().await?,
             node_execution_chunking_context,
             self.env(),
         ))
@@ -1008,7 +1008,7 @@ impl Project {
     pub(super) async fn edge_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_edge_compile_time_info(
-            self.project_path().await?.clone_value(),
+            self.project_path().owned().await?,
             this.define_env.edge(),
             self.current_node_js_version(),
         ))
@@ -1032,8 +1032,8 @@ impl Project {
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
-            root_path: self.project_root_path().await?.clone_value(),
-            client_root: self.client_relative_path().await?.clone_value(),
+            root_path: self.project_root_path().owned().await?,
+            client_root: self.client_relative_path().owned().await?,
             client_root_to_root_path: rcstr!("/ROOT"),
             asset_prefix: self.next_config().computed_asset_prefix(),
             chunk_suffix_path: self.next_config().chunk_suffix_path(),
@@ -1054,8 +1054,8 @@ impl Project {
     ) -> Result<Vc<NodeJsChunkingContext>> {
         let options = ServerChunkingContextOptions {
             mode: self.next_mode(),
-            root_path: self.project_root_path().await?.clone_value(),
-            node_root: self.node_root().await?.clone_value(),
+            root_path: self.project_root_path().owned().await?,
+            node_root: self.node_root().owned().await?,
             node_root_to_root_path: self.node_root_to_root_path().owned().await?,
             environment: self.server_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
@@ -1068,7 +1068,7 @@ impl Project {
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(
                 options,
-                self.client_relative_path().await?.clone_value(),
+                self.client_relative_path().owned().await?,
                 self.next_config().computed_asset_prefix().owned().await?,
             )
         } else {
@@ -1083,8 +1083,8 @@ impl Project {
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let options = EdgeChunkingContextOptions {
             mode: self.next_mode(),
-            root_path: self.project_root_path().await?.clone_value(),
-            node_root: self.node_root().await?.clone_value(),
+            root_path: self.project_root_path().owned().await?,
+            node_root: self.node_root().owned().await?,
             output_root_to_root_path: self.node_root_to_root_path(),
             environment: self.edge_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
@@ -1097,7 +1097,7 @@ impl Project {
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(
                 options,
-                self.client_relative_path().await?.clone_value(),
+                self.client_relative_path().owned().await?,
                 self.next_config().computed_asset_prefix(),
             )
         } else {
@@ -1221,7 +1221,7 @@ impl Project {
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
                     ConflictIssue {
-                        path: self.project_path().await?.clone_value(),
+                        path: self.project_path().owned().await?,
                         title: StyledString::Text(
                             format!("App Router and Pages Router both match path: {pathname}")
                                 .into(),
@@ -1288,7 +1288,7 @@ impl Project {
     async fn edge_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+        let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
         let app_project = *self.app_project().await?;
@@ -1314,7 +1314,7 @@ impl Project {
             .cell(),
             self.edge_compile_time_info(),
             get_server_module_options_context(
-                self.project_path().await?.clone_value(),
+                self.project_path().owned().await?,
                 self.execution_context(),
                 ServerContextType::Middleware {
                     app_dir: app_dir.clone(),
@@ -1328,7 +1328,7 @@ impl Project {
                 self.edge_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
-                self.project_path().await?.clone_value(),
+                self.project_path().owned().await?,
                 ServerContextType::Middleware {
                     app_dir: app_dir.clone(),
                     ecmascript_client_reference_transition_name:
@@ -1349,7 +1349,7 @@ impl Project {
     async fn node_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+        let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
         let app_project = *self.app_project().await?;
@@ -1375,7 +1375,7 @@ impl Project {
             .cell(),
             self.server_compile_time_info(),
             get_server_module_options_context(
-                self.project_path().await?.clone_value(),
+                self.project_path().owned().await?,
                 self.execution_context(),
                 ServerContextType::Middleware {
                     app_dir: app_dir.clone(),
@@ -1389,7 +1389,7 @@ impl Project {
                 self.server_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
-                self.project_path().await?.clone_value(),
+                self.project_path().owned().await?,
                 ServerContextType::Middleware {
                     app_dir: app_dir.clone(),
                     ecmascript_client_reference_transition_name,
@@ -1431,7 +1431,7 @@ impl Project {
     #[turbo_tasks::function]
     async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
-            self.project_path().await?.clone_value(),
+            self.project_path().owned().await?,
             middleware_files(self.next_config().page_extensions()),
         ))
     }
@@ -1443,7 +1443,7 @@ impl Project {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
-        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+        let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
@@ -1465,7 +1465,7 @@ impl Project {
     async fn node_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+        let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
         let app_project = &*self.app_project().await?;
@@ -1492,7 +1492,7 @@ impl Project {
             .cell(),
             self.server_compile_time_info(),
             get_server_module_options_context(
-                self.project_path().await?.clone_value(),
+                self.project_path().owned().await?,
                 self.execution_context(),
                 ServerContextType::Instrumentation {
                     app_dir: app_dir.clone(),
@@ -1506,7 +1506,7 @@ impl Project {
                 self.server_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
-                self.project_path().await?.clone_value(),
+                self.project_path().owned().await?,
                 ServerContextType::Instrumentation {
                     app_dir: app_dir.clone(),
                     ecmascript_client_reference_transition_name,
@@ -1526,7 +1526,7 @@ impl Project {
     async fn edge_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+        let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
         let app_project = &*self.app_project().await?;
@@ -1553,7 +1553,7 @@ impl Project {
             .cell(),
             self.edge_compile_time_info(),
             get_server_module_options_context(
-                self.project_path().await?.clone_value(),
+                self.project_path().owned().await?,
                 self.execution_context(),
                 ServerContextType::Instrumentation {
                     app_dir: app_dir.clone(),
@@ -1567,7 +1567,7 @@ impl Project {
                 self.edge_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
-                self.project_path().await?.clone_value(),
+                self.project_path().owned().await?,
                 ServerContextType::Instrumentation {
                     app_dir: app_dir.clone(),
                     ecmascript_client_reference_transition_name,
@@ -1586,7 +1586,7 @@ impl Project {
     #[turbo_tasks::function]
     async fn find_instrumentation(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
-            self.project_path().await?.clone_value(),
+            self.project_path().owned().await?,
             instrumentation_files(self.next_config().page_extensions()),
         ))
     }
@@ -1601,7 +1601,7 @@ impl Project {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
-        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+        let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
@@ -1633,8 +1633,8 @@ impl Project {
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
 
-            let client_relative_path = self.client_relative_path().await?.clone_value();
-            let node_root = self.node_root().await?.clone_value();
+            let client_relative_path = self.client_relative_path().owned().await?;
+            let node_root = self.node_root().owned().await?;
 
             if let Some(map) = self.await?.versioned_content_map {
                 map.insert_output_assets(
@@ -1734,7 +1734,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
-            Ok(map.keys_in_path(self.client_relative_path().await?.clone_value()))
+            Ok(map.keys_in_path(self.client_relative_path().owned().await?))
         } else {
             bail!("must be in dev mode to hmr")
         }
@@ -1744,7 +1744,7 @@ impl Project {
     /// referenced from the roots
     #[turbo_tasks::function]
     pub async fn server_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Result<Vc<Completion>> {
-        let path = self.node_root().await?.clone_value();
+        let path = self.node_root().owned().await?;
         Ok(any_output_changed(roots, path, true))
     }
 
@@ -1752,7 +1752,7 @@ impl Project {
     /// referenced from the roots
     #[turbo_tasks::function]
     pub async fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Result<Vc<Completion>> {
-        let path = self.client_root().await?.clone_value();
+        let path = self.client_root().owned().await?;
         Ok(any_output_changed(roots, path, false))
     }
 

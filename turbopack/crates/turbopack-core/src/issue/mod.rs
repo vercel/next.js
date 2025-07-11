@@ -910,7 +910,7 @@ impl PlainIssue {
                     into_plain_trace(
                         tracer
                             .await?
-                            .get_traces(issue.file_path().await?.clone_value())
+                            .get_traces(issue.file_path().owned().await?)
                             .await?,
                     )
                     .await?

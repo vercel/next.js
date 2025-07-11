@@ -31,8 +31,8 @@ pub async fn create_page_loader_entry_module(
     writeln!(result, "const PAGE_PATH = {};\n", StringifyJs(&pathname))?;
 
     let page_loader_path = next_js_file_path(rcstr!("entry/page-loader.ts"))
-        .await?
-        .clone_value();
+        .owned()
+        .await?;
     let base_code = page_loader_path.read();
     if let FileContent::Content(base_file) = &*base_code.await? {
         result += base_file.content()
@@ -103,7 +103,7 @@ impl PageLoaderAsset {
         // If we are provided a prefix path, we need to rewrite our chunk paths to
         // remove that prefix.
         if let Some(rebase_path) = &*rebase_prefix_path.await? {
-            let root_path = rebase_path.root().await?.clone_value();
+            let root_path = rebase_path.root().owned().await?;
             let rebased = chunks
                 .await?
                 .iter()
@@ -114,12 +114,12 @@ impl PageLoaderAsset {
                         Vc::upcast::<Box<dyn OutputAsset>>(ProxiedAsset::new(
                             *chunk,
                             FileSystemPath::rebase(
-                                chunk.path().await?.clone_value(),
+                                chunk.path().owned().await?,
                                 rebase_path.clone(),
                                 root_path.clone(),
                             )
-                            .await?
-                            .clone_value(),
+                            .owned()
+                            .await?,
                         ))
                         .to_resolved()
                         .await

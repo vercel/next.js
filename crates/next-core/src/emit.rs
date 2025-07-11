@@ -55,7 +55,7 @@ pub async fn emit_assets(
             let client_output_path = client_output_path.clone();
 
             async move {
-                let path = asset.path().await?.clone_value();
+                let path = asset.path().owned().await?;
                 let span = tracing::info_span!("emit asset", name = %path.value_to_string().await?);
                 async move {
                     Ok(if path.is_inside_ref(&node_root) {
@@ -88,7 +88,7 @@ async fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
         .content()
         .resolve()
         .await?
-        .write(asset.path().await?.clone_value())
+        .write(asset.path().owned().await?)
         .as_side_effect()
         .await?;
     Ok(())
@@ -100,9 +100,9 @@ async fn emit_rebase(
     from: FileSystemPath,
     to: FileSystemPath,
 ) -> Result<()> {
-    let path = rebase(asset.path().await?.clone_value(), from, to)
-        .await?
-        .clone_value();
+    let path = rebase(asset.path().owned().await?, from, to)
+        .owned()
+        .await?;
     let content = asset.content();
     content
         .resolve()
