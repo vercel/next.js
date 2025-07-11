@@ -1316,7 +1316,11 @@ export default async function build(
             rewrites: config.rewrites,
           })
 
-          await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath)
+          await writeRouteTypesManifest(
+            routeTypesManifest,
+            routeTypesFilePath,
+            config
+          )
         })
 
       // Turbopack already handles conflicting app and page routes.

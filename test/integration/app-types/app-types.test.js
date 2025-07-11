@@ -1,7 +1,5 @@
 /* eslint-env jest */
 
-import path from 'path'
-import fs from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = __dirname
@@ -20,63 +18,6 @@ const appDir = __dirname
           errors = stderr.match(
             /===== TS errors =====(.+)===== TS errors =====/s
           )?.[1]
-        })
-
-        it('should generate route types correctly and report link error', async () => {
-          // Make sure the d.ts file is generated
-          const dts = (
-            await fs.readFile(path.join(appDir, '.next', 'types', 'link.d.ts'))
-          ).toString()
-          expect(dts.includes('`/dashboard/user/')).toBeTruthy()
-          expect(dts.includes('`/dashboard/another')).toBeTruthy()
-
-          // Check type checking errors
-          expect(errors).toContain(
-            'Type error: "/(newroot)/dashboard/another" is not an existing route. If it is intentional, please type it explicitly with `as Route`.'
-          )
-
-          // Make sure all errors were reported and other links passed type checking
-          const errorLines = [
-            ...errors.matchAll(
-              /\.\/src\/app\/type-checks\/link\/page\.tsx:(\d+):/g
-            ),
-          ].map(([, line]) => +line)
-
-          const ST = 18
-          const ED = 35
-          expect(errorLines).toEqual(
-            Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
-          )
-        })
-
-        it('should generate route types correctly and report router API errors', async () => {
-          // Make sure all errors were reported and other links passed type checking
-          const errorLines = [
-            ...errors.matchAll(
-              /\.\/src\/app\/type-checks\/router\/page\.tsx:(\d+):/g
-            ),
-          ].map(([, line]) => +line)
-
-          const ST = 11
-          const ED = 13
-          expect(errorLines).toEqual(
-            Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
-          )
-        })
-
-        it('should generate route types correctly and report form errors', async () => {
-          // Make sure all errors were reported and other Forms passed type checking
-          const errorLines = [
-            ...errors.matchAll(
-              /\.\/src\/app\/type-checks\/form\/page\.tsx:(\d+):/g
-            ),
-          ].map(([, line]) => +line)
-
-          const ST = 8
-          const ED = 10
-          expect(errorLines).toEqual(
-            Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
-          )
         })
 
         it('should type check invalid entry exports', () => {

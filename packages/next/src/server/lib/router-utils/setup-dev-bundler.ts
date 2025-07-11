@@ -222,7 +222,8 @@ async function startWatcher(
       redirectRoutes: {},
       rewriteRoutes: {},
     },
-    path.join(distTypesDir, 'routes.d.ts')
+    path.join(distTypesDir, 'routes.d.ts'),
+    opts.nextConfig
   )
 
   const usingTypeScript = await verifyTypeScript(opts)
@@ -1023,7 +1024,11 @@ async function startWatcher(
             rewrites: opts.nextConfig.rewrites,
           })
 
-          await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath)
+          await writeRouteTypesManifest(
+            routeTypesManifest,
+            routeTypesFilePath,
+            opts.nextConfig
+          )
         }
 
         if (!resolved) {
