@@ -20,7 +20,7 @@
 
 /* start really fast because we start super hidden initially behind the panel, otherwise feels like an unintended animation delay */
 .resize-container:hover ~ .resize-line {
-  transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 0.9);
 }
 
 .resize-container.right,
@@ -102,7 +102,7 @@
   top: -7px;
   left: calc(-1 * var(--border-left, 2px));
   width: calc(100% + var(--border-horizontal, 4px));
-  border-radius: var(--rounded-md) var(--rounded-md) 0 0;
+  border-radius: var(--rounded-lg) var(--rounded-lg) 0 0;
   transform: translateY(18px);
 }
 
@@ -110,7 +110,7 @@
   bottom: -7px;
   left: calc(-1 * var(--border-left, 2px));
   width: calc(100% + var(--border-horizontal, 4px));
-  border-radius: 0 0 var(--rounded-md) var(--rounded-md);
+  border-radius: 0 0 var(--rounded-lg) var(--rounded-lg);
   transform: translateY(-18px);
 }
 
@@ -118,7 +118,7 @@
   top: calc(-1 * var(--border-top, 2px));
   left: -7px;
   height: calc(100% + var(--border-vertical, 4px));
-  border-radius: var(--rounded-md) 0 0 var(--rounded-md);
+  border-radius: var(--rounded-lg) 0 0 var(--rounded-lg);
   transform: translateX(18px);
 }
 
@@ -126,7 +126,7 @@
   top: calc(-1 * var(--border-top, 2px));
   right: -7px;
   height: calc(100% + var(--border-vertical, 4px));
-  border-radius: 0 var(--rounded-md) var(--rounded-md) 0;
+  border-radius: 0 var(--rounded-lg) var(--rounded-lg) 0;
   transform: translateX(-18px);
 }
 
