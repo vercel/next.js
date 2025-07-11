@@ -100,7 +100,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           )
         case 'prerender-ppr':
           // We need track dynamic access here eagerly to keep continuity with
-          // how cookies has worked in PPR without dynamicIO.
+          // how cookies has worked in PPR without cacheComponents.
           return postponeWithTracking(
             workStore.route,
             callingExpression,
@@ -139,7 +139,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   }
 
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
-    if (process.env.__NEXT_DYNAMIC_IO) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       return makeUntrackedCookiesWithDevWarnings(
         underlyingCookies,
         workStore?.route

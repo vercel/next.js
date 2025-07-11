@@ -102,13 +102,13 @@ function createOrGetCachedDraftMode(
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     const route = workStore?.route
 
-    if (process.env.__NEXT_DYNAMIC_IO) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       return createDraftModeWithDevWarnings(draftModeProvider, route)
     }
 
     promise = createExoticDraftModeWithDevWarnings(draftModeProvider, route)
   } else {
-    if (process.env.__NEXT_DYNAMIC_IO) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       return Promise.resolve(new DraftMode(draftModeProvider))
     }
 

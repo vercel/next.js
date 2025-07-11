@@ -157,7 +157,7 @@ async function createCachedPrerenderResponse(
   revalidate: number,
   handleUnlock: () => Promise<void> | void
 ): Promise<Response> {
-  // We are prerendering at build time or revalidate time with dynamicIO so we
+  // We are prerendering at build time or revalidate time with cacheComponents so we
   // need to buffer the response so we can guarantee it can be read in a
   // microtask.
   const bodyBuffer = await res.arrayBuffer()
@@ -551,7 +551,7 @@ export function createPatchedFetcher(
           switch (workUnitStore.type) {
             case 'prerender':
             // While we don't want to do caching in the client scope we know the
-            // fetch will be dynamic for dynamicIO so we may as well avoid the
+            // fetch will be dynamic for cacheComponents so we may as well avoid the
             // call here. (fallthrough)
             case 'prerender-client':
               if (cacheSignal) {
@@ -909,7 +909,7 @@ export function createPatchedFetcher(
                   // We sometimes use the cache to dedupe fetches that do not
                   // specify a cache configuration. In these cases we want to
                   // make sure we still exclude them from prerenders if
-                  // dynamicIO is on so we introduce an artificial task boundary
+                  // cacheComponents is on so we introduce an artificial task boundary
                   // here.
                   await waitAtLeastOneReactRenderTask()
                   break
@@ -1096,13 +1096,13 @@ export function createPatchedFetcher(
           }
 
           // We used to just resolve the Response and clone it however for
-          // static generation with dynamicIO we need the response to be able to
+          // static generation with cacheComponents we need the response to be able to
           // be resolved in a microtask and cloning the response will never have
           // a body that can resolve in a microtask in node (as observed through
           // experimentation) So instead we await the body and then when it is
           // available we construct manually cloned Response objects with the
           // body as an ArrayBuffer. This will be resolvable in a microtask
-          // making it compatible with dynamicIO.
+          // making it compatible with cacheComponents.
           const pendingResponse = doOriginalFetch(true, cacheReasonOverride)
             // We're cloning the response using this utility because there
             // exists a bug in the undici library around response cloning.

@@ -400,7 +400,7 @@ async function exportAppImpl(
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      dynamicIO: nextConfig.experimental.dynamicIO ?? false,
+      cacheComponents: nextConfig.experimental.cacheComponents ?? false,
       clientSegmentCache:
         nextConfig.experimental.clientSegmentCache === 'client-only'
           ? 'client-only'
@@ -628,7 +628,7 @@ async function exportAppImpl(
   let initialPhaseExportPaths: ExportPathEntry[] = []
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
-  if (renderOpts.experimental.dynamicIO) {
+  if (renderOpts.experimental.cacheComponents) {
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)

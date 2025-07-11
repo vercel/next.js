@@ -145,7 +145,7 @@ export function createPrerenderParamsForClientSegment(
             if (fallbackParams.has(key)) {
               // This params object has one or more fallback params, so we need
               // to consider the awaiting of this params object "dynamic". Since
-              // we are in dynamicIO mode we encode this as a promise that never
+              // we are in cacheComponents mode we encode this as a promise that never
               // resolves.
               return makeHangingPromise(workUnitStore.renderSignal, '`params`')
             }
@@ -188,7 +188,7 @@ function createPrerenderParams(
       switch (prerenderStore.type) {
         case 'prerender':
         case 'prerender-client':
-          // We are in a dynamicIO prerender
+          // We are in a cacheComponents prerender
           return makeHangingParams(underlyingParams, prerenderStore)
         case 'prerender-ppr':
         case 'prerender-legacy':
@@ -213,7 +213,7 @@ function createRenderParams(
   workStore: WorkStore
 ): Promise<Params> {
   if (process.env.NODE_ENV === 'development' && !workStore.isPrefetchRequest) {
-    if (process.env.__NEXT_DYNAMIC_IO) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       return makeDynamicallyTrackedParamsWithDevWarnings(
         underlyingParams,
         workStore
@@ -225,7 +225,7 @@ function createRenderParams(
       workStore
     )
   } else {
-    if (process.env.__NEXT_DYNAMIC_IO) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       return makeUntrackedParams(underlyingParams)
     }
 
@@ -314,10 +314,10 @@ function makeErroringExoticParams(
             // for params is only dynamic when we're generating a fallback shell
             // and even when `dynamic = "error"` we still support generating dynamic
             // fallback shells
-            // TODO remove this comment when dynamicIO is the default since there
+            // TODO remove this comment when cacheComponents is the default since there
             // will be no `dynamic = "error"`
             if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no dynamicIO)
+              // PPR Prerender (no cacheComponents)
               postponeWithTracking(
                 workStore.route,
                 expression,
@@ -341,10 +341,10 @@ function makeErroringExoticParams(
             // for params is only dynamic when we're generating a fallback shell
             // and even when `dynamic = "error"` we still support generating dynamic
             // fallback shells
-            // TODO remove this comment when dynamicIO is the default since there
+            // TODO remove this comment when cacheComponents is the default since there
             // will be no `dynamic = "error"`
             if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no dynamicIO)
+              // PPR Prerender (no cacheComponents)
               postponeWithTracking(
                 workStore.route,
                 expression,

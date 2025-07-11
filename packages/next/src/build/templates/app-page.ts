@@ -350,7 +350,7 @@ export async function handler(
       // we should seed the resume data cache.
       if (process.env.NODE_ENV === 'development') {
         if (
-          nextConfig.experimental.dynamicIO &&
+          nextConfig.experimental.cacheComponents &&
           !isPrefetchRSCRequest &&
           !context.renderOpts.isPossibleServerAction
         ) {
@@ -497,7 +497,7 @@ export async function handler(
             isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
-            dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
+            cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
             clientSegmentCache: Boolean(
               nextConfig.experimental.clientSegmentCache
             ),

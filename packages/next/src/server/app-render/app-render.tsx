@@ -607,7 +607,7 @@ async function generateDynamicFlightRenderResult(
   )
 
   const RSCPayload: RSCPayload & {
-    /** Only available during dynamicIO development builds. Used for logging errors. */
+    /** Only available during cacheComponents development builds. Used for logging errors. */
     _validation?: Promise<React.ReactNode>
   } = await workUnitAsyncStorage.run(
     requestStore,
@@ -621,8 +621,8 @@ async function generateDynamicFlightRenderResult(
     renderOpts.dev &&
     // We only want this behavior when we have React's dev builds available
     process.env.NODE_ENV === 'development' &&
-    // We only have a Prerender environment for projects opted into dynamicIO
-    renderOpts.experimental.dynamicIO
+    // We only have a Prerender environment for projects opted into cacheComponents
+    renderOpts.experimental.cacheComponents
   ) {
     const [resolveValidation, validationOutlet] = createValidationOutlet()
     RSCPayload._validation = validationOutlet
@@ -1224,7 +1224,7 @@ async function renderToHTMLOrFlightImpl(
     // module loading from causing a prerender to abort too early.
 
     const shouldTrackModuleLoading = () => {
-      if (!renderOpts.experimental.dynamicIO) {
+      if (!renderOpts.experimental.cacheComponents) {
         return false
       }
       if (renderOpts.dev) {
@@ -1892,12 +1892,12 @@ async function renderToStream(
       process.env.NODE_ENV === 'development' &&
       // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
       process.env.NEXT_RUNTIME !== 'edge' &&
-      // We only have a Prerender environment for projects opted into dynamicIO
-      experimental.dynamicIO
+      // We only have a Prerender environment for projects opted into cacheComponents
+      experimental.cacheComponents
     ) {
       // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
       const RSCPayload: InitialRSCPayload & {
-        /** Only available during dynamicIO development builds. Used for logging errors. */
+        /** Only available during cacheComponents development builds. Used for logging errors. */
         _validation?: Promise<React.ReactNode>
       } = await workUnitAsyncStorage.run(
         requestStore,
@@ -2276,7 +2276,7 @@ function createValidationOutlet() {
 }
 
 /**
- * This function is a fork of prerenderToStream dynamicIO branch.
+ * This function is a fork of prerenderToStream cacheComponents branch.
  * While it doesn't return a stream we want it to have identical
  * prerender semantics to prerenderToStream and should update it
  * in conjunction with any changes to that function.
@@ -2713,7 +2713,7 @@ async function spawnDynamicValidationInDev(
       />
     )
   } catch (thrownValue) {
-    // Even if the root errors we still want to report any dynamic IO errors
+    // Even if the root errors we still want to report any cache components errors
     // that were discovered before the root errored.
 
     let loggingFunction = throwIfDisallowedDynamic.bind(
@@ -2918,9 +2918,9 @@ async function prerenderToStream(
   let prerenderStore: PrerenderStore | null = null
 
   try {
-    if (experimental.dynamicIO) {
+    if (experimental.cacheComponents) {
       /**
-       * dynamicIO with PPR
+       * cacheComponents with PPR
        *
        * The general approach is to render the RSC stream first allowing any cache reads to resolve.
        * Once we have settled all cache reads we restart the render and abort after a single Task.

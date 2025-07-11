@@ -116,9 +116,9 @@ export function headers(): Promise<ReadonlyHeaders> {
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
         case 'prerender-ppr':
-          // PPR Prerender (no dynamicIO)
+          // PPR Prerender (no cacheComponents)
           // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how headers has worked in PPR without dynamicIO.
+          // to keep continuity with how headers has worked in PPR without cacheComponents.
           // TODO consider switching the semantic to throw on property access instead
           return postponeWithTracking(
             workStore.route,
@@ -146,7 +146,7 @@ export function headers(): Promise<ReadonlyHeaders> {
 
   const requestStore = getExpectedRequestStore('headers')
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
-    if (process.env.__NEXT_DYNAMIC_IO) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       return makeUntrackedHeadersWithDevWarnings(
         requestStore.headers,
         workStore?.route

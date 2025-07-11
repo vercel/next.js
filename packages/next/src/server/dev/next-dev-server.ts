@@ -820,7 +820,9 @@ export default class DevServer extends Server {
             configFileName,
             publicRuntimeConfig,
             serverRuntimeConfig,
-            dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
+            cacheComponents: Boolean(
+              this.nextConfig.experimental.cacheComponents
+            ),
           },
           httpAgentOptions,
           locales,

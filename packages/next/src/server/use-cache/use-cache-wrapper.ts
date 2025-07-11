@@ -733,9 +733,9 @@ export function cache(
             originalFn.apply(null, [
               {
                 params: outerParams,
-                searchParams: workStore.dynamicIOEnabled
+                searchParams: workStore.cacheComponentsEnabled
                   ? innerSearchParams
-                  : // When dynamicIO is not enabled, we can not encode
+                  : // When cacheComponents is not enabled, we can not encode
                     // searchParams as a hanging promise. To still avoid unused
                     // search params from making a page dynamic, we define them
                     // in `createComponentTree` as a promise that resolves to an

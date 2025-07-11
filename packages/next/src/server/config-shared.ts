@@ -700,6 +700,11 @@ export interface ExperimentalConfig {
    * Prerendering feature of Next.js, and it enables `react@experimental` being
    * used for the `app` directory.
    */
+  cacheComponents?: boolean
+
+  /**
+   * @deprecated Use `experimental.cacheComponents` instead.
+   */
   dynamicIO?: boolean
 
   /**
@@ -827,7 +832,7 @@ export type ExportPathMap = {
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
-     * the app has `experimental.ppr` and `experimental.dynamicIO` enabled, and
+     * the app has `experimental.ppr` and `experimental.cacheComponents` enabled, and
      * there are also routes prerendered with a more complete set of params.
      * Prerendering those routes would catch any invalid dynamic accesses.
      *
@@ -1388,7 +1393,7 @@ export const defaultConfig = Object.freeze({
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
-    // Will default to dynamicIO value.
+    // Will default to cacheComponents value.
     enablePrerenderSourceMaps: undefined,
     serverSourceMaps: false,
     linkNoTouchStart: false,
@@ -1459,7 +1464,7 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
-    dynamicIO: false,
+    cacheComponents: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,

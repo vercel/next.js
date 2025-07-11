@@ -311,7 +311,8 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ) {
     const isStaticGeneration = workStore.isStaticGeneration
-    const dynamicIOEnabled = !!context.renderOpts.experimental?.dynamicIO
+    const cacheComponentsEnabled =
+      !!context.renderOpts.experimental?.cacheComponents
 
     // Patch the global fetch.
     patchFetch({
@@ -355,10 +356,10 @@ export class AppRouteRouteModule extends RouteModule<
             ? INFINITE_CACHE
             : userlandRevalidate
 
-        if (dynamicIOEnabled) {
+        if (cacheComponentsEnabled) {
           /**
            * When we are attempting to statically prerender the GET handler of a route.ts module
-           * and dynamicIO is on we follow a similar pattern to rendering.
+           * and cacheComponents is on we follow a similar pattern to rendering.
            *
            * We first run the handler letting caches fill. If something synchronously dynamic occurs
            * during this prospective render then we can infer it will happen on every render and we
@@ -536,7 +537,7 @@ export class AppRouteRouteModule extends RouteModule<
                   if (!bodyHandled) {
                     bodyHandled = true
                     finalController.abort()
-                    reject(createDynamicIOError(workStore.route))
+                    reject(createCacheComponentsError(workStore.route))
                   }
                 })
               } catch (err) {
@@ -547,13 +548,13 @@ export class AppRouteRouteModule extends RouteModule<
               if (!responseHandled) {
                 responseHandled = true
                 finalController.abort()
-                reject(createDynamicIOError(workStore.route))
+                reject(createCacheComponentsError(workStore.route))
               }
             })
           })
           if (finalController.signal.aborted) {
             // We aborted from within the execution
-            throw createDynamicIOError(workStore.route)
+            throw createCacheComponentsError(workStore.route)
           } else {
             // We didn't abort during the execution. We can abort now as a matter of semantics
             // though at the moment nothing actually consumes this signal so it won't halt any
@@ -1144,9 +1145,9 @@ const requireStaticNextUrlHandlers = {
   },
 }
 
-function createDynamicIOError(route: string) {
+function createCacheComponentsError(route: string) {
   return new DynamicServerError(
-    `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/dynamic-io`
+    `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/cache-components`
   )
 }
 
