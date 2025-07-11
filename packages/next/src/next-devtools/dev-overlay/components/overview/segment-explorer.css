@@ -1,6 +1,10 @@
 .segment-explorer-content {
   font-size: var(--size-14);
   padding: 0 8px;
+  width: 700px;
+  height: 400px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 240px);
 }
 
 .segment-explorer-page-route-bar {
@@ -17,6 +21,7 @@
   color: var(--color-gray-1000);
   font-family: var(--font-mono);
   white-space: nowrap;
+  line-height: 20px;
 }
 
 .segment-explorer-item {
@@ -54,7 +59,7 @@
 }
 
 .segment-explorer-filename--path {
-  margin-right: 8px;
+  margin-right: auto;
 }
 .segment-explorer-filename--path small {
   display: inline-block;
@@ -68,57 +73,118 @@
 .segment-explorer-files {
   display: inline-flex;
   gap: 8px;
+  margin-left: auto;
+}
+
+.segment-explorer-files + .segment-boundary-trigger {
+  margin-left: 8px;
 }
 
 .segment-explorer-file-label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 20px;
-  padding: 2px 6px;
+  padding: 4px 6px;
   border-radius: 16px;
+  line-height: 16px;
   font-size: var(--size-12);
   font-weight: 500;
   user-select: none;
   cursor: pointer;
-}
-
-.segment-explorer-file-label:hover {
-  filter: brightness(1.05);
-}
-
-.segment-explorer-file-label--layout,
-.segment-explorer-file-label--template,
-.segment-explorer-file-label--default {
   background-color: var(--color-gray-300);
   color: var(--color-gray-1000);
 }
-.segment-explorer-file-label--page {
-  background-color: var(--color-blue-300);
-  color: var(--color-blue-900);
-}
-.segment-explorer-file-label--not-found,
-.segment-explorer-file-label--forbidden,
-.segment-explorer-file-label--unauthorized {
+
+.segment-explorer-file-label--overridden {
   background-color: var(--color-amber-300);
   color: var(--color-amber-900);
 }
-.segment-explorer-file-label--loading {
-  background-color: var(--color-green-300);
-  color: var(--color-green-900);
+
+.segment-explorer-file-label .code-icon {
+  opacity: 0;
+  margin-left: 0;
+  width: 0;
+  transition: all 0.15s ease-in-out;
 }
-.segment-explorer-file-label--error,
-.segment-explorer-file-label--global-error {
-  background-color: var(--color-red-300);
-  color: var(--color-red-900);
+.segment-explorer-file-label:hover .code-icon {
+  opacity: 1;
+  width: 12px;
+  margin-left: 4px;
 }
+
+.segment-explorer-file-label:hover {
+  filter: brightness(0.95);
+}
+
 .segment-explorer-file-label--builtin {
   background-color: transparent;
   color: var(--color-gray-900);
   border: 1px dashed var(--color-gray-500);
+  height: 24px;
   cursor: default;
 }
 .segment-explorer-file-label--builtin svg {
   margin-left: 4px;
   margin-right: -4px;
+}
+
+/* Footer styles */
+.segment-explorer-footer {
+  padding: 8px;
+  border-top: 1px solid var(--color-gray-400);
+  background-color: var(--color-background-100);
+  user-select: none;
+}
+
+.segment-explorer-footer-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: 6px;
+  color: var(--color-gray-1000);
+  font-size: var(--size-14);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.segment-explorer-footer-button:hover:not(:disabled) {
+  background: var(--color-gray-200);
+}
+
+.segment-explorer-footer-button--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.segment-explorer-footer-text {
+  text-align: center;
+}
+
+.segment-explorer-footer-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--color-amber-300);
+  color: var(--color-amber-900);
+  border-radius: 10px;
+  font-size: var(--size-12);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.segment-explorer-file-label-tooltip--sm {
+  white-space: nowrap;
+}
+
+.segment-explorer-file-label-tooltip--lg {
+  min-width: 200px;
 }
