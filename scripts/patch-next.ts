@@ -9,7 +9,9 @@ import { NEXT_DIR, exec, execFn, packageFiles } from './pack-util.js'
 
 interface Options {
   project: string
+  build: boolean
   noBuild: boolean
+  nativeBuild: boolean
   noNativeBuild: boolean
   _: string[]
 }
@@ -28,29 +30,32 @@ const argv = yargs(hideBin(process.argv))
     })
   })
   .example(
-    '$0 ../my-app',
+    '$0 ../my-app --no-build',
     'Patch Next.js packages in the "my-next-project" directory'
   )
   .demandCommand(1, 'A project directory is required.')
-  .option('no-build', {
+  .option('build', {
     type: 'boolean',
-    default: false,
+    default: true,
     description: 'Skip the Next.js build step (`pnpm i` and `pnpm build`).',
   })
-  .option('no-native-build', {
+  .option('native-build', {
     type: 'boolean',
-    default: false,
+    default: true,
     description: 'Skip the native modules build step.',
+  })
+  .option('verbose', {
+    type: 'number',
+    description: 'Set the verbosity level (0: WARN, 1: INFO, 2: DEBUG)',
   })
   .help()
   .alias('help', 'h')
   .alias('version', 'v')
-  .count('verbose')
   .alias('verbose', 'V')
   .strictCommands()
   .parse()
 
-const { project: projectDir, noBuild, noNativeBuild } = argv as Options
+const { project: projectDir, build, nativeBuild } = argv as Options
 
 const VERBOSE_LEVEL = argv.verbose
 
@@ -77,8 +82,19 @@ function realPathIfAny(path: string): string | null {
 
 async function copy(src: string, dst: string): Promise<void> {
   const realDst = realPathIfAny(dst)
+
   if (!realDst) {
     WARN(`Destination path ${dst} does not exist. Skipping copy.`)
+    return
+  }
+
+  if (realDst && realDst === src) {
+    WARN(`Source and destination paths are the same: ${src}. Skipping copy.`)
+    return
+  }
+
+  if (!fs.existsSync(src)) {
+    WARN(`Source path ${src} does not exist. Skipping copy.`)
     return
   }
 
@@ -89,10 +105,6 @@ async function copy(src: string, dst: string): Promise<void> {
     const srcFile = path.join(src, file)
     const dstFile = path.join(realDst, file)
 
-    // Ensure the destination directory exists
-    /**
-     * @CASE_2 : when directory is not present, we create it
-     */
     const destDir = path.dirname(dstFile)
     if (!fs.existsSync(destDir)) {
       DEBUG(`Creating directory: ${destDir}`)
@@ -116,12 +128,12 @@ async function main(): Promise<void> {
   INFO(`Project Directory: ${PROJECT_DIR}`)
   INFO(`Next.js Source: ${NEXT_PACKAGES}`)
 
-  if (!noBuild) {
+  if (build) {
     exec('Install Next.js build dependencies', 'pnpm i')
     exec('Build Next.js', 'pnpm run build')
   }
 
-  if (!noNativeBuild) {
+  if (nativeBuild) {
     const originalArgs = process.argv.slice(2)
     const nativeBuildArgs = originalArgs.filter((arg) => arg !== projectDir)
     process.argv = [process.argv[0], process.argv[1], ...nativeBuildArgs]
