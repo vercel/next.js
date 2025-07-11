@@ -475,7 +475,6 @@ describe('Error recovery app', () => {
     )
 
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -487,7 +486,6 @@ describe('Error recovery app', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
-           "Set.forEach <anonymous>",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Index index.js (6:7)",
@@ -733,7 +731,6 @@ describe('Error recovery app', () => {
 
     // We get an error because Foo didn't import React. Fair.
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -745,7 +742,6 @@ describe('Error recovery app', () => {
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
-           "Set.forEach <anonymous>",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "FunctionDefault index.js (4:10)",
@@ -968,7 +964,6 @@ describe('Error recovery app', () => {
     )
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -980,7 +975,6 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "Set.forEach <anonymous>",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Page index.js (10:16)",
