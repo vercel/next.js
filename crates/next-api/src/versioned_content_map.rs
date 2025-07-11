@@ -264,7 +264,7 @@ async fn get_entries(assets: OperationVc<OutputAssets>) -> Result<Vc<GetEntriesR
     let entries = assets_ref
         .iter()
         .map(|&asset| async move {
-            let path = asset.path().await?.clone_value();
+            let path = asset.path().owned().await?;
             Ok((path, asset))
         })
         .try_join()

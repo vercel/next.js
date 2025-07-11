@@ -249,6 +249,12 @@ function assignDefaults(
     )
   }
 
+  if (defaultConfig.experimental?.dynamicIO) {
+    Log.warn(
+      `\`experimental.dynamicIO\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\` was set to \`true\` during testing.`
+    )
+  }
+
   const result = {
     ...defaultConfig,
     ...config,

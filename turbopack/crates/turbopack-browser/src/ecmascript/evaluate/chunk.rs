@@ -70,7 +70,7 @@ impl EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
-            self.chunking_context.output_root().await?.clone_value(),
+            self.chunking_context.output_root().owned().await?,
             *self.other_chunks,
         ))
     }
@@ -206,7 +206,7 @@ impl EcmascriptBrowserEvaluateChunk {
         ident.modifiers.extend(
             evaluatable_assets
                 .iter()
-                .map(|entry| async move { Ok((*entry.ident().to_string().await?).clone()) })
+                .map(|entry| entry.ident().to_string().owned())
                 .try_join()
                 .await?,
         );
@@ -215,7 +215,7 @@ impl EcmascriptBrowserEvaluateChunk {
             self.other_chunks
                 .await?
                 .iter()
-                .map(|chunk| async move { Ok((*chunk.path().to_string().await?).clone()) })
+                .map(|chunk| chunk.path().to_string().owned())
                 .try_join()
                 .await?,
         );

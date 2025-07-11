@@ -149,7 +149,7 @@ pub async fn get_client_resolve_options_context(
             .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().await?.clone_value()),
+        enable_node_modules: Some(project_path.root().owned().await?),
         custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
@@ -431,9 +431,7 @@ pub async fn get_client_chunking_context(
         client_root_to_root_path,
         client_root.clone(),
         client_root.join("static/chunks")?,
-        get_client_assets_path(client_root.clone())
-            .await?
-            .clone_value(),
+        get_client_assets_path(client_root.clone()).owned().await?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )

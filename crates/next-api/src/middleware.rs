@@ -82,7 +82,7 @@ impl MiddlewareEndpoint {
 
         let module = get_middleware_module(
             *self.asset_context,
-            self.project.project_path().await?.clone_value(),
+            self.project.project_path().owned().await?,
             userland_module,
         );
 
@@ -94,7 +94,7 @@ impl MiddlewareEndpoint {
         }
         Ok(wrap_edge_entry(
             *self.asset_context,
-            self.project.project_path().await?.clone_value(),
+            self.project.project_path().owned().await?,
             module,
             rcstr!("middleware"),
         ))
@@ -282,7 +282,7 @@ impl MiddlewareEndpoint {
             let edge_files = self.edge_files();
             let mut output_assets = edge_files.owned().await?;
 
-            let node_root = this.project.node_root().await?.clone_value();
+            let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
 
             let file_paths_from_root =
@@ -362,11 +362,11 @@ impl Endpoint for MiddlewareEndpoint {
             let output_assets = self.output_assets();
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
-                let node_root = this.project.node_root().await?.clone_value();
+                let node_root = this.project.node_root().owned().await?;
                 let server_paths = all_server_paths(output_assets, node_root).owned().await?;
 
                 // Middleware could in theory have a client path (e.g. `new URL`).
-                let client_relative_root = this.project.client_relative_path().await?.clone_value();
+                let client_relative_root = this.project.client_relative_path().owned().await?;
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .into_future()
                     .owned()

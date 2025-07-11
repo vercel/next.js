@@ -7,7 +7,6 @@ import {
 } from '../../next-devtools/server/shared'
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
 import path from 'path'
-import url from 'url'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
@@ -21,7 +20,7 @@ import {
 } from '../lib/source-maps'
 import { getSourceMapFromFile } from './get-source-map-from-file'
 import { findSourceMap } from 'node:module'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 
 function shouldIgnorePath(modulePath: string): boolean {
@@ -302,7 +301,7 @@ async function createOriginalStackFrame(
   ) {
     normalizedStackFrameLocation = path.relative(
       projectPath,
-      url.fileURLToPath(normalizedStackFrameLocation)
+      fileURLToPath(normalizedStackFrameLocation)
     )
   }
 
@@ -432,11 +431,15 @@ export function getSourceMapMiddleware(project: Project) {
     try {
       // Turbopack chunk filenames might be URL-encoded.
       filename = decodeURI(filename)
+    } catch {
+      return middlewareResponse.badRequest(res)
+    }
 
-      if (path.isAbsolute(filename)) {
-        filename = url.pathToFileURL(filename).href
-      }
+    if (path.isAbsolute(filename)) {
+      filename = pathToFileURL(filename).href
+    }
 
+    try {
       const sourceMapString = await project.getSourceMap(filename)
 
       if (sourceMapString) {
@@ -450,8 +453,16 @@ export function getSourceMapMiddleware(project: Project) {
           return middlewareResponse.json(res, sourceMap)
         }
       }
-    } catch (error) {
-      console.error('Failed to get source map:', error)
+    } catch (cause) {
+      return middlewareResponse.internalServerError(
+        res,
+        new Error(
+          `Failed to get source map for '${filename}'. This is a bug in Next.js`,
+          {
+            cause,
+          }
+        )
+      )
     }
 
     middlewareResponse.noContent(res)

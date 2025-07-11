@@ -85,7 +85,7 @@ impl Chunk for SingleItemCssChunk {
     async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         let self_as_output_asset: Vc<Box<dyn OutputAsset>> = Vc::upcast(self);
         Ok(AssetIdent::from_path(
-            self_as_output_asset.path().await?.clone_value(),
+            self_as_output_asset.path().owned().await?,
         ))
     }
 

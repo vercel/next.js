@@ -1,3 +1,9 @@
+// Edge runtime does not implement `module`
+const findSourceMap =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? () => undefined
+    : (require('module') as typeof import('module')).findSourceMap
+
 /**
  * https://tc39.es/source-map/#index-map
  */
@@ -48,8 +54,8 @@ export function sourceMapIgnoreListsEverything(
  * Equal to the input unless an Index Source Map is used.
  */
 export function findApplicableSourceMapPayload(
-  line: number,
-  column: number,
+  line0: number,
+  column0: number,
   payload: ModernSourceMapPayload
 ): BasicSourceMapPayload | undefined {
   if ('sections' in payload) {
@@ -71,8 +77,8 @@ export function findApplicableSourceMapPayload(
       const offset = section.offset
 
       if (
-        offset.line < line ||
-        (offset.line === line && offset.column <= column)
+        offset.line < line0 ||
+        (offset.line === line0 && offset.column <= column0)
       ) {
         result = section
         left = middle + 1
@@ -84,5 +90,69 @@ export function findApplicableSourceMapPayload(
     return result === null ? undefined : result.map
   } else {
     return payload
+  }
+}
+
+const didWarnAboutInvalidSourceMapDEV = new Set<string>()
+
+export function filterStackFrameDEV(
+  sourceURL: string,
+  functionName: string,
+  line1: number,
+  column1: number
+): boolean {
+  if (sourceURL === '') {
+    // The default implementation filters out <anonymous> stack frames
+    // but we want to retain them because current Server Components and
+    // built-in Components in parent stacks don't have source location.
+    // Filter out frames that show up in Promises to get good names in React's
+    // Server Request track until we come up with a better heuristic.
+    return (
+      functionName !== 'new Promise' &&
+      functionName !== 'Promise.then' &&
+      functionName !== 'Promise.catch' &&
+      functionName !== 'Promise.finally' &&
+      functionName !== 'Function.withResolvers' &&
+      functionName !== 'Function.all' &&
+      functionName !== 'Function.allSettled'
+    )
+  }
+  if (sourceURL.startsWith('node:') || sourceURL.includes('node_modules')) {
+    return false
+  }
+  try {
+    // Node.js loads source maps eagerly so this call is cheap.
+    // TODO: ESM sourcemaps are O(1) but CommonJS sourcemaps are O(Number of CJS modules).
+    // Make sure this doesn't adversely affect performance when CJS is used by Next.js.
+    const sourceMap = findSourceMap(sourceURL)
+    if (sourceMap === undefined) {
+      // No source map assoicated.
+      // TODO: Node.js types should reflect that `findSourceMap` can return `undefined`.
+      return true
+    }
+    const sourceMapPayload = findApplicableSourceMapPayload(
+      line1 - 1,
+      column1 - 1,
+      sourceMap.payload
+    )
+    if (sourceMapPayload === undefined) {
+      // No source map section applicable to the frame.
+      return true
+    }
+    return !sourceMapIgnoreListsEverything(sourceMapPayload)
+  } catch (cause) {
+    if (process.env.NODE_ENV !== 'production') {
+      // TODO: Share cache with patch-error-inspect
+      if (!didWarnAboutInvalidSourceMapDEV.has(sourceURL)) {
+        didWarnAboutInvalidSourceMapDEV.add(sourceURL)
+        // We should not log an actual error instance here because that will re-enter
+        // this codepath during error inspection and could lead to infinite recursion.
+        console.error(
+          `${sourceURL}: Invalid source map. Only conformant source maps can be used to filter stack frames. Cause: ${cause}`
+        )
+      }
+    }
+
+    return true
   }
 }

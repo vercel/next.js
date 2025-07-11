@@ -100,9 +100,7 @@ async fn emit_evaluate_pool_assets_operation(
     let runtime_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(
-                embed_file_path(rcstr!("ipc/evaluate.ts"))
-                    .await?
-                    .clone_value(),
+                embed_file_path(rcstr!("ipc/evaluate.ts")).owned().await?,
             )),
             ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
@@ -141,7 +139,7 @@ async fn emit_evaluate_pool_assets_operation(
         let globals_module = asset_context
             .process(
                 Vc::upcast(FileSource::new(
-                    embed_file_path(rcstr!("globals.ts")).await?.clone_value(),
+                    embed_file_path(rcstr!("globals.ts")).owned().await?,
                 )),
                 ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
             )
@@ -179,7 +177,7 @@ async fn emit_evaluate_pool_assets_operation(
         OutputAssets::empty(),
     );
 
-    let output_root = chunking_context.output_root().await?.clone_value();
+    let output_root = chunking_context.output_root().owned().await?;
     emit_package_json(output_root.clone())?
         .as_side_effect()
         .await?;
@@ -289,7 +287,7 @@ pub async fn get_evaluate_pool(
         env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
         assets_for_source_mapping,
         output_root.clone(),
-        chunking_context.root_path().await?.clone_value(),
+        chunking_context.root_path().owned().await?,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     );
@@ -664,7 +662,7 @@ impl EvaluateContext for BasicEvaluateContext {
             source: IssueSource::from_source_only(self.context_source_for_issue),
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
-            root_path: self.chunking_context.root_path().await?.clone_value(),
+            root_path: self.chunking_context.root_path().owned().await?,
         }
         .resolved_cell()
         .emit();
@@ -711,7 +709,7 @@ async fn print_error(
         .print(
             *pool.assets_for_source_mapping,
             pool.assets_root.clone(),
-            evaluate_context.cwd().await?.clone_value(),
+            evaluate_context.cwd().owned().await?,
             FormattingMode::Plain,
         )
         .await
