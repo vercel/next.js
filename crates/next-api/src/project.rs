@@ -1288,7 +1288,9 @@ impl Project {
     async fn edge_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        let app_dir = (*find_app_dir(self.project_path().await?.clone_value()).await?).clone();
+        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+            .owned()
+            .await?;
         let app_project = *self.app_project().await?;
 
         let ecmascript_client_reference_transition_name =
@@ -1347,7 +1349,9 @@ impl Project {
     async fn node_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        let app_dir = (*find_app_dir(self.project_path().await?.clone_value()).await?).clone();
+        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+            .owned()
+            .await?;
         let app_project = *self.app_project().await?;
 
         let ecmascript_client_reference_transition_name =
@@ -1439,7 +1443,9 @@ impl Project {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
-        let app_dir = (*find_app_dir(self.project_path().await?.clone_value()).await?).clone();
+        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+            .owned()
+            .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
             .map(|_| AppProject::client_transition_name());
@@ -1459,7 +1465,9 @@ impl Project {
     async fn node_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        let app_dir = (*find_app_dir(self.project_path().await?.clone_value()).await?).clone();
+        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+            .owned()
+            .await?;
         let app_project = &*self.app_project().await?;
 
         let ecmascript_client_reference_transition_name = app_project
@@ -1518,7 +1526,9 @@ impl Project {
     async fn edge_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        let app_dir = (*find_app_dir(self.project_path().await?.clone_value()).await?).clone();
+        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+            .owned()
+            .await?;
         let app_project = &*self.app_project().await?;
 
         let ecmascript_client_reference_transition_name = app_project
@@ -1591,7 +1601,9 @@ impl Project {
             return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
-        let app_dir = (*find_app_dir(self.project_path().await?.clone_value()).await?).clone();
+        let app_dir = find_app_dir(self.project_path().await?.clone_value())
+            .owned()
+            .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
             .map(|_| AppProject::client_transition_name());

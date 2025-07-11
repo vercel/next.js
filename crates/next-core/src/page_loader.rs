@@ -138,8 +138,10 @@ impl PageLoaderAsset {
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        let root = (*self.rebase_prefix_path.await?)
-            .clone()
+        let root = self
+            .rebase_prefix_path
+            .owned()
+            .await?
             .map_or(self.server_root.clone(), |path| path);
         Ok(root
             .join(&format!(

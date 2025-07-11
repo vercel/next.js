@@ -282,7 +282,7 @@ pub async fn tsconfig_resolve_options(
     })
     .await?
     {
-        (*base_url.await?).clone()
+        base_url.owned().await?
     } else {
         None
     };
