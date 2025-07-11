@@ -193,10 +193,19 @@ describe('Prefetching Links in viewport', () => {
           let foundFirst = false
           let foundAnother = false
 
+          let chunkFirst = getClientBuildManifestLoaderChunkPath(
+            appDir,
+            '/first'
+          )
+          let chunkAnother = getClientBuildManifestLoaderChunkPath(
+            appDir,
+            '/another'
+          )
+
           for (const link of links) {
             const href = await link.getAttribute('href')
-            if (href.includes('another')) foundAnother = true
-            if (href.includes('first')) foundFirst = true
+            if (href.includes(chunkAnother)) foundAnother = true
+            if (href.includes(chunkFirst)) foundFirst = true
           }
           expect(foundFirst).toBe(true)
           expect(foundAnother).toBe(true)
@@ -278,18 +287,20 @@ describe('Prefetching Links in viewport', () => {
         try {
           browser = await webdriver(appPort, '/prefetch-disabled')
 
+          let chunkAnother = getClientBuildManifestLoaderChunkPath(
+            appDir,
+            '/another'
+          )
           await retry(async () => {
             const links = await browser.elementsByCss('link[rel=prefetch]')
 
             const hrefs = await Promise.all(
               links.map((link) => link.getAttribute('href'))
             )
-            let chunk = getClientBuildManifestLoaderChunkPath(
-              appDir,
-              '/another'
-            )
             expect(hrefs).toEqual(
-              expect.not.arrayContaining([expect.stringContaining(chunk)])
+              expect.not.arrayContaining([
+                expect.stringContaining(chunkAnother),
+              ])
             )
           })
 
@@ -301,7 +312,7 @@ describe('Prefetching Links in viewport', () => {
             let scriptFound = false
             for (const aScript of scripts) {
               const href = await aScript.getAttribute('src')
-              if (href.includes('another')) {
+              if (href.includes(chunkAnother)) {
                 scriptFound = true
                 break
               }
@@ -323,6 +334,10 @@ describe('Prefetching Links in viewport', () => {
         try {
           browser = await webdriver(appPort, '/prefetch-disabled-ssg')
 
+          let chunkBasic = getClientBuildManifestLoaderChunkPath(
+            appDir,
+            '/ssg/basic'
+          )
           async function hasSsgScript() {
             const scripts = await browser.elementsByCss(
               // Mouse hover is a high-priority fetch
@@ -331,7 +346,7 @@ describe('Prefetching Links in viewport', () => {
             let scriptFound = false
             for (const aScript of scripts) {
               const href = await aScript.getAttribute('src')
-              if (href.includes('basic')) {
+              if (href.includes(chunkBasic)) {
                 scriptFound = true
                 break
               }
@@ -464,8 +479,12 @@ describe('Prefetching Links in viewport', () => {
         // Ensure no duplicates
         expect(hrefs).toEqual([...new Set(hrefs)])
 
+        let chunk = getClientBuildManifestLoaderChunkPath(
+          appDir,
+          '/dynamic/[hello]'
+        )
         // Verify encoding
-        expect(hrefs.some((e) => e.includes(`%5Bhello%5D`))).toBe(true)
+        expect(hrefs.some((e) => e.includes(chunk))).toBe(true)
       })
 
       it('should not re-prefetch for an already prefetched page', async () => {
