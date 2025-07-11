@@ -117,9 +117,7 @@ function dimConsoleCall(
 }
 
 // Based on https://github.com/facebook/react/blob/28dc0776be2e1370fe217549d32aee2519f0cf05/packages/react-server/src/ReactFlightServer.js#L248
-function patchConsoleMethodDEV(
-  methodName: InterceptableConsoleMethod
-): () => void {
+function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
   const descriptor = Object.getOwnPropertyDescriptor(console, methodName)
   if (
     descriptor &&
@@ -147,17 +145,7 @@ function patchConsoleMethodDEV(
     Object.defineProperty(console, methodName, {
       value: wrapperMethod,
     })
-
-    return () => {
-      Object.defineProperty(console, methodName, {
-        value: originalMethod,
-        writable: descriptor.writable,
-        configurable: descriptor.configurable,
-      })
-    }
   }
-
-  return () => {}
 }
 
 patchConsoleMethodDEV('error')
