@@ -213,7 +213,6 @@ function onDefaultTransitionIndicator() {
 }
 
 const reactRootOptions: ReactDOMClient.RootOptions = {
-  // @ts-expect-error: Should pass on `@types/react` bump.
   onDefaultTransitionIndicator: onDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,
