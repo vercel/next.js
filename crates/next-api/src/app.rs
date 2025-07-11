@@ -1437,7 +1437,7 @@ impl AppEndpoint {
                 .runtime_chunking_context(process_client_assets, runtime),
         )
         .await?;
-        if emit_manifests == EmitManifests::Full {
+        if emit_rsc_manifests {
             server_assets.insert(server_action_manifest.manifest);
         }
 
@@ -1507,16 +1507,17 @@ impl AppEndpoint {
                 // global variables defined in these files
                 //
                 // they are created in `setup-dev-bundler.ts`
-                let mut file_paths_from_root = if emit_manifests == EmitManifests::Full {
-                    fxindexset![
-                        rcstr!("server/interception-route-rewrite-manifest.js"),
-                        rcstr!("server/middleware-build-manifest.js"),
-                        rcstr!("server/server-reference-manifest.js"),
-                        rcstr!("server/next-font-manifest.js"),
-                    ]
-                } else {
-                    fxindexset![]
+                let mut file_paths_from_root = fxindexset![
+                    rcstr!("server/middleware-build-manifest.js"),
+                    rcstr!("server/interception-route-rewrite-manifest.js"),
+                ];
+                if emit_manifests == EmitManifests::Full {
+                    file_paths_from_root.insert(rcstr!("server/next-font-manifest.js"));
                 };
+                if emit_rsc_manifests {
+                    file_paths_from_root.insert(rcstr!("server/server-reference-manifest.js"));
+                }
+
                 let mut wasm_paths_from_root = fxindexset![];
 
                 let node_root_value = node_root.clone();
