@@ -36,8 +36,13 @@ For example, the `<Page>` component is a Server Component that fetches data abou
 import LikeButton from '@/app/ui/like-button'
 import { getPost } from '@/lib/data'
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const post = await getPost(params.id)
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const post = await getPost(id)
 
   return (
     <div>
@@ -240,8 +245,13 @@ You can pass data from Server Components to Client Components using props.
 import LikeButton from '@/app/ui/like-button'
 import { getPost } from '@/lib/data'
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const post = await getPost(params.id)
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const post = await getPost(id)
 
   return <LikeButton likes={post.likes} />
 }
