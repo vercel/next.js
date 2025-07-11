@@ -162,7 +162,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  console.error('An unexpected error occured:')
+  console.error('An unexpected error occurred:')
   console.error(e)
   process.exit(1)
 })
