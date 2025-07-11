@@ -7,6 +7,7 @@ import {
   assertNoRedbox,
   check,
   fetchViaHTTP,
+  getClientBuildManifestLoaderChunkPath,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -130,13 +131,15 @@ describe('basePath', () => {
       const browser = await webdriver(next.url, `${basePath}/other-page`)
       await browser.eval('window.next.router.prefetch("/gssp")')
 
+      let chunk = getClientBuildManifestLoaderChunkPath(next.testDir, '/gssp')
+
       await check(
         async () => {
           const links = await browser.elementsByCss('link[rel=prefetch]')
 
           for (const link of links) {
             const href = await link.getAttribute('href')
-            if (href.includes('gssp')) {
+            if (href.includes(chunk)) {
               return true
             }
           }
@@ -145,7 +148,7 @@ describe('basePath', () => {
 
           for (const script of scripts) {
             const src = await script.getAttribute('src')
-            if (src.includes('gssp')) {
+            if (src.includes(chunk)) {
               return true
             }
           }
@@ -178,17 +181,26 @@ describe('basePath', () => {
           ]
         )
 
+        let chunkGsp = getClientBuildManifestLoaderChunkPath(
+          next.testDir,
+          '/gsp'
+        )
+        let chunkGssp = getClientBuildManifestLoaderChunkPath(
+          next.testDir,
+          '/gssp'
+        )
+        let chunkOtherPage = getClientBuildManifestLoaderChunkPath(
+          next.testDir,
+          '/other-page'
+        )
+
         const prefetches = await browser.eval(
           `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
         )
+        expect(prefetches).toContainEqual(expect.stringContaining(chunkGsp))
+        expect(prefetches).toContainEqual(expect.stringContaining(chunkGssp))
         expect(prefetches).toContainEqual(
-          expect.stringMatching(/\/gsp-?([^./]+)?\.js/)
-        )
-        expect(prefetches).toContainEqual(
-          expect.stringMatching(/\/gssp-?([^./]+)?\.js/)
-        )
-        expect(prefetches).toContainEqual(
-          expect.stringMatching(/\/other-page-?([^./]+)?\.js/)
+          expect.stringContaining(chunkOtherPage)
         )
         return 'yes'
       }, 'yes')

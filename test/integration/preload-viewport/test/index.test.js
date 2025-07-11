@@ -8,6 +8,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  getClientBuildManifestLoaderChunkPath,
 } from 'next-test-utils'
 import http from 'http'
 import httpProxy from 'http-proxy'
@@ -108,8 +109,9 @@ describe('Prefetching Links in viewport', () => {
             const hrefs = await Promise.all(
               links.map((link) => link.getAttribute('href'))
             )
+            let chunk = getClientBuildManifestLoaderChunkPath(appDir, '/first')
             expect(hrefs).toEqual(
-              expect.arrayContaining([expect.stringContaining('first')])
+              expect.arrayContaining([expect.stringContaining(chunk)])
             )
           })
         } finally {
@@ -161,8 +163,12 @@ describe('Prefetching Links in viewport', () => {
               links.map((link) => link.getAttribute('href'))
             )
 
+            let chunk = getClientBuildManifestLoaderChunkPath(
+              appDir,
+              '/ssg/dynamic/[slug]'
+            )
             expect(hrefs).toEqual(
-              expect.arrayContaining([expect.stringContaining('%5Bslug%5D')])
+              expect.arrayContaining([expect.stringContaining(chunk)])
             )
           })
           const hrefs = await browser.eval(
@@ -211,8 +217,12 @@ describe('Prefetching Links in viewport', () => {
             const hrefs = await Promise.all(
               links.map((link) => link.getAttribute('href'))
             )
+            let chunk = getClientBuildManifestLoaderChunkPath(
+              appDir,
+              '/another'
+            )
             expect(hrefs).toEqual(
-              expect.arrayContaining([expect.stringContaining('another')])
+              expect.arrayContaining([expect.stringContaining(chunk)])
             )
           })
         } finally {
@@ -232,8 +242,12 @@ describe('Prefetching Links in viewport', () => {
             const hrefs = await Promise.all(
               links.map((link) => link.getAttribute('href'))
             )
+            let chunk = getClientBuildManifestLoaderChunkPath(
+              appDir,
+              '/another'
+            )
             expect(hrefs).toEqual(
-              expect.arrayContaining([expect.stringContaining('another')])
+              expect.arrayContaining([expect.stringContaining(chunk)])
             )
           })
 
@@ -246,8 +260,12 @@ describe('Prefetching Links in viewport', () => {
             const srcProps = await Promise.all(
               scripts.map((script) => script.getAttribute('src'))
             )
+            let chunk = getClientBuildManifestLoaderChunkPath(
+              appDir,
+              '/another'
+            )
             expect(srcProps).toEqual(
-              expect.arrayContaining([expect.stringContaining('another')])
+              expect.arrayContaining([expect.stringContaining(chunk)])
             )
           })
         } finally {
@@ -266,8 +284,12 @@ describe('Prefetching Links in viewport', () => {
             const hrefs = await Promise.all(
               links.map((link) => link.getAttribute('href'))
             )
+            let chunk = getClientBuildManifestLoaderChunkPath(
+              appDir,
+              '/another'
+            )
             expect(hrefs).toEqual(
-              expect.not.arrayContaining([expect.stringContaining('another')])
+              expect.not.arrayContaining([expect.stringContaining(chunk)])
             )
           })
 
@@ -350,8 +372,12 @@ describe('Prefetching Links in viewport', () => {
             const srcProps = await Promise.all(
               scripts.map((script) => script.getAttribute('src'))
             )
+            let chunk = getClientBuildManifestLoaderChunkPath(
+              appDir,
+              '/another'
+            )
             expect(srcProps).toEqual(
-              expect.arrayContaining([expect.stringContaining('another')])
+              expect.arrayContaining([expect.stringContaining(chunk)])
             )
           })
         } finally {
@@ -383,8 +409,9 @@ describe('Prefetching Links in viewport', () => {
           const hrefs = await Promise.all(
             links.map((link) => link.getAttribute('href'))
           )
+          let chunk = getClientBuildManifestLoaderChunkPath(appDir, '/another')
           expect(hrefs).toEqual(
-            expect.not.arrayContaining([expect.stringContaining('another')])
+            expect.not.arrayContaining([expect.stringContaining(chunk)])
           )
         })
       })
@@ -451,8 +478,9 @@ describe('Prefetching Links in viewport', () => {
           const hrefs = await Promise.all(
             links.map((link) => link.getAttribute('href'))
           )
+          let chunk = getClientBuildManifestLoaderChunkPath(appDir, '/first')
           expect(hrefs).toEqual(
-            expect.arrayContaining([expect.stringContaining('first')])
+            expect.arrayContaining([expect.stringContaining(chunk)])
           )
         })
 
