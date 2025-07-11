@@ -1162,30 +1162,33 @@ impl AppEndpoint {
             None,
             /// Emit the manifest for basic Next.js functionality (e.g. app-build-manifest.json)
             Minimal,
-            /// All manifests: `Minimal` plus client-references, next-dynamic, ...
+            /// All manifests: `Minimal` plus next-font, next-dynamic, ...
             Full,
         }
-        let (process_client_assets, process_ssr, emit_manifests) = match &this.ty {
-            AppEndpointType::Page { ty, .. } => (
-                true,
-                matches!(ty, AppPageEndpointType::Html),
-                if matches!(ty, AppPageEndpointType::Html) {
-                    EmitManifests::Full
-                } else {
-                    EmitManifests::None
-                },
-            ),
-            AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal),
-            AppEndpointType::Metadata { metadata } => (
-                false,
-                false,
-                if matches!(metadata, MetadataItem::Dynamic { .. }) {
-                    EmitManifests::Full
-                } else {
-                    EmitManifests::Minimal
-                },
-            ),
-        };
+        let (process_client_assets, process_ssr, emit_manifests, emit_rsc_manifests) =
+            match &this.ty {
+                AppEndpointType::Page { ty, .. } => (
+                    true,
+                    matches!(ty, AppPageEndpointType::Html),
+                    if matches!(ty, AppPageEndpointType::Html) {
+                        EmitManifests::Full
+                    } else {
+                        EmitManifests::None
+                    },
+                    matches!(ty, AppPageEndpointType::Html),
+                ),
+                AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal, true),
+                AppEndpointType::Metadata { metadata } => (
+                    false,
+                    false,
+                    if matches!(metadata, MetadataItem::Dynamic { .. }) {
+                        EmitManifests::Full
+                    } else {
+                        EmitManifests::Minimal
+                    },
+                    matches!(metadata, MetadataItem::Dynamic { .. }),
+                ),
+            };
 
         let node_root = project.node_root().owned().await?;
         let client_relative_path = project.client_relative_path().owned().await?;
@@ -1460,7 +1463,7 @@ impl AppEndpoint {
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
 
-        if emit_manifests == EmitManifests::Full {
+        if emit_rsc_manifests {
             let entry_manifest =
                 ClientReferenceManifest::build_output(ClientReferenceManifestOptions {
                     node_root: node_root.clone(),
@@ -1482,7 +1485,8 @@ impl AppEndpoint {
                 middleware_assets.insert(entry_manifest);
             }
             client_reference_manifest = Some(entry_manifest);
-
+        }
+        if emit_manifests == EmitManifests::Full {
             let next_font_manifest_output = create_font_manifest(
                 project.client_root().owned().await?,
                 node_root.clone(),
