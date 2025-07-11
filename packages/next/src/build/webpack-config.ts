@@ -452,9 +452,9 @@ export default async function getBaseWebpackConfig(
     }
 
     const shouldExclude =
+      excludePath.includes('node_modules') &&
       !babelIncludeRegexes.some((r) => r.test(excludePath)) &&
-      !isResourceInPackages(excludePath, finalTranspilePackages) &&
-      excludePath.includes('node_modules')
+      !isResourceInPackages(excludePath, finalTranspilePackages)
 
     excludeCache[excludePath] = shouldExclude
     return shouldExclude
