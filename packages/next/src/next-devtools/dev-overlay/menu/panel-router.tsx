@@ -1,0 +1,319 @@
+import {
+  usePanelRouterContext,
+  type PanelStateKind as PanelNameKind,
+} from './context'
+import { ChevronRight, DevtoolMenu, IssueCount } from './dev-overlay-menu'
+import { DynamicPanel } from '../panel/panel'
+import { RouteInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
+import { PageSegmentTree } from '../components/overview/segment-explorer'
+import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
+import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
+import { useDelayedRender } from '../hooks/use-delayed-render'
+import {
+  MENU_CURVE,
+  MENU_DURATION_MS,
+} from '../components/errors/dev-tools-indicator/utils'
+import { useDevOverlayContext } from '../../dev-overlay.browser'
+import { createContext, useContext, useRef } from 'react'
+import { useRenderErrorContext } from '../dev-overlay'
+import {
+  ACTION_DEV_INDICATOR_SET,
+  ACTION_DEVTOOLS_POSITION,
+  ACTION_DEVTOOLS_SCALE,
+  ACTION_ERROR_OVERLAY_OPEN,
+} from '../shared'
+import GearIcon from '../icons/gear-icon'
+import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
+import { useHideShortcutStorage } from '../components/errors/dev-tools-indicator/dev-tools-info/preferences'
+import { useShortcuts } from '../hooks/use-shortcuts'
+
+const MenuPanel = () => {
+  const { setPanel } = usePanelRouterContext()
+  const { state, dispatch } = useDevOverlayContext()
+  const { totalErrorCount } = useRenderErrorContext()
+  return (
+    <DevtoolMenu
+      closeOnClickOutside
+      items={[
+        totalErrorCount > 0 && {
+          title: `${totalErrorCount} ${totalErrorCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`,
+          label: 'Issues',
+          value: <IssueCount>{totalErrorCount}</IssueCount>,
+          onClick: () => {
+            setPanel(null)
+            if (totalErrorCount > 0) {
+              dispatch({
+                type: ACTION_ERROR_OVERLAY_OPEN,
+              })
+            }
+          },
+        },
+        {
+          title: `Current route is ${state.staticIndicator ? 'static' : 'dynamic'}.`,
+          label: 'Route',
+          value: state.staticIndicator ? 'Static' : 'Dynamic',
+          onClick: () => setPanel('route-info'),
+          attributes: {
+            'data-nextjs-route-type': state.staticIndicator
+              ? 'static'
+              : 'dynamic',
+          },
+        },
+        !!process.env.TURBOPACK
+          ? {
+              title: 'Turbopack is enabled.',
+              label: 'Turbopack',
+              value: 'Enabled',
+            }
+          : {
+              title:
+                'Learn about Turbopack and how to enable it in your application.',
+              label: 'Try Turbopack',
+              value: <ChevronRight />,
+              onClick: () => setPanel('turbo-info'),
+            },
+        {
+          label: 'Route Info',
+          value: <ChevronRight />,
+          onClick: () => setPanel('segment-explorer'),
+          attributes: {
+            'data-segment-explorer': true,
+          },
+        },
+        {
+          label: 'Preferences',
+          value: <GearIcon />,
+          onClick: () => setPanel('preferences'),
+          footer: true,
+          attributes: {
+            'data-preferences': true,
+          },
+        },
+      ]}
+    />
+  )
+}
+
+export const PanelRouter = () => {
+  const { setPanel } = usePanelRouterContext()
+  const { state } = useDevOverlayContext()
+
+  return (
+    // TODO: determine for each panel if it: resizes, drags, closes on click outside
+    <>
+      <PanelRoute name="panel-selector">
+        <MenuPanel />
+      </PanelRoute>
+
+      <PanelRoute name="preferences">
+        <DynamicPanel
+          sizeConfig={{
+            kind: 'fixed',
+            // maybe to dynamic sizing automatically? little tricky
+            height: 656,
+            width: 480 + 32,
+          }}
+          closeOnClickOutside
+          header={
+            <DevToolsHeader
+              title="Preferences"
+              onBack={() => setPanel('panel-selector')}
+            />
+          }
+        >
+          {/* todo: we broke recording key binds and hiding the devtools */}
+          <UserPreferencesWrapper />
+        </DynamicPanel>
+      </PanelRoute>
+
+      <PanelRoute name="route-info">
+        <DynamicPanel
+          sizeConfig={{
+            kind: 'resizable',
+            // todo till refactor for strings
+            maxHeight: 1500,
+            maxWidth: 1500,
+            minHeight: 200,
+            minWidth: 200,
+          }}
+          closeOnClickOutside
+          header={
+            <DevToolsHeader
+              title={`${state.staticIndicator ? 'Static' : 'Dynamic'} Route`}
+              onBack={() => setPanel('panel-selector')}
+            />
+          }
+        >
+          <RouteInfoBody
+            routerType={state.routerType}
+            isStaticRoute={state.staticIndicator}
+            style={{
+              padding: '20px',
+            }}
+          />
+        </DynamicPanel>
+      </PanelRoute>
+
+      <PanelRoute name="segment-explorer">
+        <DynamicPanel
+          sizeConfig={{
+            kind: 'resizable',
+            // todo till refactor for strings
+            maxHeight: 1500,
+            maxWidth: 1500,
+            minHeight: 200,
+            minWidth: 200,
+          }}
+          header={
+            <DevToolsHeader
+              title="Segment Explorer"
+              onBack={() => setPanel('panel-selector')}
+            />
+          }
+        >
+          <PageSegmentTree
+            isAppRouter={state.routerType === 'app'}
+            page={state.page}
+          />
+        </DynamicPanel>
+      </PanelRoute>
+
+      <PanelRoute name="turbo-info">
+        {/* todo dedupe all these names */}
+        <DynamicPanel
+          sizeConfig={{
+            kind: 'resizable',
+            // todo till refactor for strings
+            maxHeight: 1500,
+            maxWidth: 1500,
+            minHeight: 200,
+            minWidth: 200,
+          }}
+          // todo: fix scroll on header so its fixed and body scrolls
+          closeOnClickOutside
+          header={
+            <DevToolsHeader
+              title="Turbopack Info"
+              onBack={() => setPanel('panel-selector')}
+            />
+          }
+        >
+          <TurbopackInfoBody
+            style={{
+              padding: '20px',
+            }}
+          />
+        </DynamicPanel>
+      </PanelRoute>
+    </>
+  )
+}
+
+const UserPreferencesWrapper = () => {
+  const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
+  const { dispatch, state } = useDevOverlayContext()
+  const { triggerRef } = usePanelRouterContext()
+
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // todo, need:
+  /**
+   * shortcut listener (i broke it because i was playing around with hide toolbar state should be easy fix)
+   * focus trap
+   * the select index stuff
+   * maybe?
+   * all defined in devtools popover in dev-tools-indicator.tsx
+   */
+  function hideDevTools() {
+    dispatch({
+      type: ACTION_DEV_INDICATOR_SET,
+      disabled: true,
+    })
+    const root = rootRef.current
+    // Toggle custom hidden attribute, no need
+    // to close the menu in case you want to quickly get it
+    // out the way to see an element behind it.
+    if (root) {
+      root.dataset.hidden = root.dataset.hidden === 'true' ? 'false' : 'true'
+    }
+  }
+
+  useShortcuts(hideShortcut ? { [hideShortcut]: hideDevTools } : {}, triggerRef)
+  return (
+    <div
+      ref={rootRef}
+      style={{
+        padding: '16px',
+        // paddingTop: '0px'
+        background: 'var(--color-background-100)',
+      }}
+    >
+      <UserPreferencesBody
+        position={state.devToolsPosition}
+        scale={state.scale}
+        setScale={(scale) => {
+          dispatch({
+            type: ACTION_DEVTOOLS_SCALE,
+            scale,
+          })
+        }}
+        setPosition={(devToolsPosition) => {
+          dispatch({
+            type: ACTION_DEVTOOLS_POSITION,
+            devToolsPosition,
+          })
+        }}
+        hideShortcut={hideShortcut}
+        setHideShortcut={setHideShortcut}
+        hide={() => {
+          dispatch({
+            type: ACTION_DEV_INDICATOR_SET,
+            disabled: true,
+          })
+
+          fetch('/__nextjs_disable_dev_indicator', {
+            method: 'POST',
+          })
+        }}
+      />
+    </div>
+  )
+}
+
+export const usePanelContext = () => useContext(PanelContext)
+export const PanelContext = createContext<{
+  name: string
+}>(null!)
+
+function PanelRoute({
+  children,
+  name,
+}: {
+  children: React.ReactNode
+  name: PanelNameKind
+}) {
+  const { panel } = usePanelRouterContext()
+  const { mounted, rendered } = useDelayedRender(name === panel, {
+    enterDelay: 0,
+    exitDelay: MENU_DURATION_MS,
+  })
+
+  if (!mounted) return null
+
+  return (
+    <PanelContext
+      value={{
+        name,
+      }}
+    >
+      <div
+        style={{
+          opacity: rendered ? 1 : 0,
+          transition: `opacity ${MENU_DURATION_MS}ms ${MENU_CURVE}`,
+        }}
+      >
+        {children}
+      </div>
+    </PanelContext>
+  )
+}

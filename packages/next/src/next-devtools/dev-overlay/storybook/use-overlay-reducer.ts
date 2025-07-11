@@ -10,6 +10,7 @@ import {
   ACTION_DEBUG_INFO,
   ACTION_DEV_INDICATOR,
   ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
+  ACTION_DEVTOOLS_PANEL_POSITION,
   ACTION_DEVTOOLS_PANEL_CLOSE,
   ACTION_DEVTOOLS_PANEL_OPEN,
   ACTION_DEVTOOLS_PANEL_TOGGLE,
@@ -32,7 +33,7 @@ import {
 export const storybookDefaultOverlayState: OverlayState = {
   ...INITIAL_OVERLAY_STATE,
   routerType: 'app',
-  isErrorOverlayOpen: true,
+  isErrorOverlayOpen: false,
   showIndicator: true,
   versionInfo: {
     installed: '15.4.0',
@@ -64,6 +65,13 @@ export function useStorybookOverlayReducer(initialState?: OverlayState) {
         }
         case ACTION_DEVTOOLS_POSITION: {
           return { ...state, devToolsPosition: action.devToolsPosition }
+        }
+        // todo remove
+        case ACTION_DEVTOOLS_PANEL_POSITION: {
+          return {
+            ...state,
+            devToolsPanelPosition: action.devToolsPanelPosition,
+          }
         }
         case ACTION_DEVTOOLS_SCALE: {
           return { ...state, scale: action.scale }

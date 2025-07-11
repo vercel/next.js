@@ -5,7 +5,7 @@ import {
   type OverlayState,
 } from './shared'
 
-import { useState } from 'react'
+import { createContext, useContext, useRef, useState } from 'react'
 
 import { ShadowPortal } from './components/shadow-portal'
 import { Base } from './styles/base'
@@ -18,8 +18,17 @@ import { RenderError } from './container/runtime-error/render-error'
 import { DarkTheme } from './styles/dark-theme'
 import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-tools-info/preferences'
 import type { HydrationErrorState } from '../shared/hydration-error'
-import { DevToolsIndicator as DevToolsIndicatorNew } from './components/devtools-indicator/devtools-indicator'
-import { DevToolsPanel } from './components/devtools-panel/devtools-panel'
+import type { ReadyRuntimeError } from './utils/get-error-by-type'
+import { DevToolsIndicatorNew } from './components/devtools-indicator/devtools-indicator'
+import { PanelRouter } from './menu/panel-router'
+import { PanelRouterContext, type PanelStateKind } from './menu/context'
+
+export const RenderErrorContext = createContext<{
+  runtimeErrors: ReadyRuntimeError[]
+  totalErrorCount: number
+}>(null!)
+
+export const useRenderErrorContext = () => useContext(RenderErrorContext)
 
 export function DevOverlay({
   state,
@@ -32,6 +41,8 @@ export function DevOverlay({
 }) {
   const [scale, setScale] = useDevToolsScale()
   const [isPrevBuildError, setIsPrevBuildError] = useState(false)
+  const [panel, setPanel] = useState<null | PanelStateKind>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   const isBuildError = state.buildError !== null
 
@@ -63,50 +74,54 @@ export function DevOverlay({
           return (
             <>
               {state.showIndicator &&
-                (process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? (
-                  <>
-                    <DevToolsIndicatorNew
-                      state={state}
-                      dispatch={dispatch}
-                      errorCount={totalErrorCount}
-                      isBuildError={isBuildError}
-                    />
-
-                    {(state.isDevToolsPanelOpen ||
-                      state.isErrorOverlayOpen) && (
-                      <DevToolsPanel
+              process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? (
+                <>
+                  <RenderErrorContext
+                    value={{ runtimeErrors, totalErrorCount }}
+                  >
+                    <PanelRouterContext
+                      value={{
+                        panel,
+                        setPanel,
+                        triggerRef,
+                      }}
+                    >
+                      <ErrorOverlay
                         state={state}
                         dispatch={dispatch}
-                        issueCount={totalErrorCount}
-                        runtimeErrors={runtimeErrors}
                         getSquashedHydrationErrorDetails={
                           getSquashedHydrationErrorDetails
                         }
+                        runtimeErrors={runtimeErrors}
+                        errorCount={totalErrorCount}
                       />
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <DevToolsIndicator
-                      scale={scale}
-                      setScale={setScale}
-                      state={state}
-                      dispatch={dispatch}
-                      errorCount={totalErrorCount}
-                      isBuildError={isBuildError}
-                    />
+                      <PanelRouter />
+                      <DevToolsIndicatorNew />
+                    </PanelRouterContext>
+                  </RenderErrorContext>
+                </>
+              ) : (
+                <>
+                  <DevToolsIndicator
+                    scale={scale}
+                    setScale={setScale}
+                    state={state}
+                    dispatch={dispatch}
+                    errorCount={totalErrorCount}
+                    isBuildError={isBuildError}
+                  />
 
-                    <ErrorOverlay
-                      state={state}
-                      dispatch={dispatch}
-                      getSquashedHydrationErrorDetails={
-                        getSquashedHydrationErrorDetails
-                      }
-                      runtimeErrors={runtimeErrors}
-                      errorCount={totalErrorCount}
-                    />
-                  </>
-                ))}
+                  <ErrorOverlay
+                    state={state}
+                    dispatch={dispatch}
+                    getSquashedHydrationErrorDetails={
+                      getSquashedHydrationErrorDetails
+                    }
+                    runtimeErrors={runtimeErrors}
+                    errorCount={totalErrorCount}
+                  />
+                </>
+              )}
             </>
           )
         }}

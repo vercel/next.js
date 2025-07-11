@@ -3,14 +3,18 @@ import type { Corners } from '../../../shared'
 import { useResize, type ResizeDirection } from './resize-provider'
 import './resize-handle.css'
 
-const STORAGE_KEY_DIMENSIONS = 'nextjs-devtools-dimensions'
-
-export const ResizeHandle = ({ direction }: { direction: ResizeDirection }) => {
+export const ResizeHandle = ({
+  direction,
+  position,
+}: {
+  direction: ResizeDirection
+  position: Corners
+}) => {
   const {
     resizeRef,
     minWidth,
     minHeight,
-    devToolsPosition,
+    storageKey,
     draggingDirection,
     setDraggingDirection,
   } = useResize()
@@ -44,13 +48,13 @@ export const ResizeHandle = ({ direction }: { direction: ResizeDirection }) => {
     // we block the sides of the corner its in (bottom-left has bottom and left sides blocked from resizing)
     // because there shouldn't be anywhere to resize, and if the user decides to resize from that point it
     // would be unhandled/slightly janky (the component would have to re-magnetic-snap after the resize)
-    if (devToolsPosition.split('-').includes(direction)) return false
+    if (position.split('-').includes(direction)) return false
 
     // same logic as above, but the only corner resize that makes
     // sense is the corner fully exposed (the opposing corner)
     const isCorner = direction.includes('-')
     if (isCorner) {
-      const opposite = getOppositeCorner(devToolsPosition)
+      const opposite = getOppositeCorner(position)
       return direction === opposite
     }
 
@@ -123,10 +127,7 @@ export const ResizeHandle = ({ direction }: { direction: ResizeDirection }) => {
 
       // invariant ref exists
       const { width, height } = resizeRef.current!.getBoundingClientRect()
-      localStorage.setItem(
-        STORAGE_KEY_DIMENSIONS,
-        JSON.stringify({ width, height })
-      )
+      localStorage.setItem(storageKey, JSON.stringify({ width, height }))
     }
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)

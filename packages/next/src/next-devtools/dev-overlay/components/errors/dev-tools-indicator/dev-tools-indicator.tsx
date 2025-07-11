@@ -77,12 +77,12 @@ export function DevToolsIndicator({
 //////////////////////////////////////////////////////////////////////////////////////
 
 interface C {
-  closeMenu: () => void
+  closeMenu?: () => void
   selectedIndex: number
   setSelectedIndex: Dispatch<SetStateAction<number>>
 }
 
-const Context = createContext({} as C)
+export const MenuContext = createContext({} as C)
 
 const OVERLAYS = {
   Root: 'root',
@@ -397,7 +397,7 @@ function DevToolsPopover({
           data-rendered={menuRendered}
           style={popover}
         >
-          <Context.Provider
+          <MenuContext.Provider
             value={{
               closeMenu,
               selectedIndex,
@@ -457,7 +457,7 @@ function DevToolsPopover({
                 />
               ) : null}
             </div>
-          </Context.Provider>
+          </MenuContext.Provider>
         </div>
       )}
     </Toast>
@@ -483,7 +483,7 @@ function ChevronRight() {
   )
 }
 
-function MenuItem({
+export function MenuItem({
   index,
   label,
   value,
@@ -500,13 +500,13 @@ function MenuItem({
 }) {
   const isInteractive =
     typeof onClick === 'function' || typeof href === 'string'
-  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(Context)
+  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(MenuContext)
   const selected = selectedIndex === index
 
   function click() {
     if (isInteractive) {
       onClick?.()
-      closeMenu()
+      closeMenu?.()
       if (href) {
         window.open(href, '_blank', 'noopener, noreferrer')
       }

@@ -22,9 +22,9 @@ interface ResizeContextValue {
   resizeRef: RefObject<HTMLElement | null>
   minWidth: number
   minHeight: number
-  devToolsPosition: Corners
   draggingDirection: ResizeDirection | null
   setDraggingDirection: (direction: ResizeDirection | null) => void
+  storageKey: string
 }
 
 const ResizeContext = createContext<ResizeContextValue>(null!)
@@ -44,8 +44,8 @@ const constrainDimensions = (params: {
   }
 }
 
-const parseResizeLocalStorage = () => {
-  const savedDimensions = localStorage.getItem(STORAGE_KEY_DIMENSIONS)
+const parseResizeLocalStorage = (key: string) => {
+  const savedDimensions = localStorage.getItem(key)
   if (!savedDimensions) return null
   try {
     const parsed = JSON.parse(savedDimensions)
@@ -59,7 +59,7 @@ const parseResizeLocalStorage = () => {
     }
     return null
   } catch (e) {
-    localStorage.removeItem(STORAGE_KEY_DIMENSIONS)
+    localStorage.removeItem(key)
     return null
   }
 }
@@ -70,6 +70,7 @@ interface ResizeProviderProps {
     minWidth?: number
     minHeight?: number
     devToolsPosition: Corners
+    storageKey?: string
   }
   children: React.ReactNode
 }
@@ -79,6 +80,8 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
   const minHeight = value.minHeight ?? 80
   const [draggingDirection, setDraggingDirection] =
     useState<ResizeDirection | null>(null)
+
+  const storageKey = value.storageKey ?? STORAGE_KEY_DIMENSIONS
 
   useLayoutEffect(() => {
     const applyConstrainedDimensions = () => {
@@ -91,7 +94,7 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
       // an optimization if this is too expensive is to maintain the current
       // container size in a ref and update it on resize, which is essentially
       // what we're doing here, just dumber
-      const dim = parseResizeLocalStorage()
+      const dim = parseResizeLocalStorage(storageKey)
       if (!dim) {
         return
       }
@@ -110,7 +113,7 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
     window.addEventListener('resize', applyConstrainedDimensions)
     return () =>
       window.removeEventListener('resize', applyConstrainedDimensions)
-  }, [value.resizeRef, minWidth, minHeight])
+  }, [value.resizeRef, minWidth, minHeight, storageKey])
 
   return (
     <ResizeContext.Provider
@@ -118,9 +121,9 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
         resizeRef: value.resizeRef,
         minWidth,
         minHeight,
-        devToolsPosition: value.devToolsPosition,
         draggingDirection,
         setDraggingDirection,
+        storageKey,
       }}
     >
       {children}

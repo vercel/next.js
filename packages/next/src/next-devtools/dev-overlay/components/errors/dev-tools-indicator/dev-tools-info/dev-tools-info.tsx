@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { MENU_DURATION_MS, useClickOutside, useFocusTrap } from '../utils'
 import { useDelayedRender } from '../../../../hooks/use-delayed-render'
+import { css } from '../../../../utils/css'
 
 export interface DevToolsInfoPropsCore {
   isOpen: boolean
@@ -84,7 +85,7 @@ export function DevToolsInfo({
   )
 }
 
-export const DEV_TOOLS_INFO_STYLES = `
+export const DEV_TOOLS_INFO_STYLES = css`
   [data-info-popover] {
     -webkit-font-smoothing: antialiased;
     display: flex;
@@ -135,7 +136,7 @@ export const DEV_TOOLS_INFO_STYLES = `
   .dev-tools-info-close-button {
     all: unset;
     width: 20px;
-    height: 20px;    
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;

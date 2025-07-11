@@ -100,19 +100,28 @@ export function useClickOutside(
         return
       }
 
+      const cushion = 10
+
       if (
         !(rootRef.current?.getBoundingClientRect()
-          ? event.clientX >= rootRef.current.getBoundingClientRect()!.left &&
-            event.clientX <= rootRef.current.getBoundingClientRect()!.right &&
-            event.clientY >= rootRef.current.getBoundingClientRect()!.top &&
-            event.clientY <= rootRef.current.getBoundingClientRect()!.bottom
+          ? event.clientX >=
+              rootRef.current.getBoundingClientRect()!.left - cushion &&
+            event.clientX <=
+              rootRef.current.getBoundingClientRect()!.right + cushion &&
+            event.clientY >=
+              rootRef.current.getBoundingClientRect()!.top - cushion &&
+            event.clientY <=
+              rootRef.current.getBoundingClientRect()!.bottom + cushion
           : false) &&
         !(triggerRef.current?.getBoundingClientRect()
-          ? event.clientX >= triggerRef.current.getBoundingClientRect()!.left &&
+          ? event.clientX >=
+              triggerRef.current.getBoundingClientRect()!.left - cushion &&
             event.clientX <=
-              triggerRef.current.getBoundingClientRect()!.right &&
-            event.clientY >= triggerRef.current.getBoundingClientRect()!.top &&
-            event.clientY <= triggerRef.current.getBoundingClientRect()!.bottom
+              triggerRef.current.getBoundingClientRect()!.right + cushion &&
+            event.clientY >=
+              triggerRef.current.getBoundingClientRect()!.top - cushion &&
+            event.clientY <=
+              triggerRef.current.getBoundingClientRect()!.bottom + cushion
           : false)
       ) {
         close()
