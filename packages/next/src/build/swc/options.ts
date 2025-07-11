@@ -220,6 +220,7 @@ function getBaseSWCOptions({
         ? {
             isReactServerLayer,
             dynamicIoEnabled: isDynamicIo || isCacheComponents,
+            cacheComponentsEnabled: isDynamicIo || isCacheComponents,
             useCacheEnabled,
           }
         : undefined,
