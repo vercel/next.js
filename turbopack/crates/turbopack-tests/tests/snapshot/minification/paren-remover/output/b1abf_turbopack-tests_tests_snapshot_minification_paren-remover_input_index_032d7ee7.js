@@ -1,30 +1,3 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/b1abf_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_032d7ee7.js", {
-
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/paren-remover/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
-
-var { m: module, e: exports } = __turbopack_context__;
-{
-function toFixed(value, maxDecimals, roundingFunction, optionals) {
-    var splitValue = value.toString().split('.'), minDecimals = maxDecimals - (optionals || 0), optionalsRegExp, power, output;
-    var boundedPrecisions;
-    // var unused = 'xxxx';
-    // Use the smallest precision value possible to avoid errors from floating point representation
-    if (splitValue.length === 2) {
-        boundedPrecisions = Math.min(Math.max(splitValue[1].length, minDecimals), maxDecimals);
-    } else {
-        boundedPrecisions = minDecimals;
-    }
-    power = Math.pow(10, boundedPrecisions);
-    // Multiply up by precision, round accurately, then divide and use native toFixed():
-    output = (roundingFunction(value + 'e+' + boundedPrecisions) / power).toFixed(boundedPrecisions);
-    if (optionals > maxDecimals - boundedPrecisions) {
-        optionalsRegExp = new RegExp('\\.?0{1,' + (optionals - (maxDecimals - boundedPrecisions)) + '}$');
-        output = output.replace(optionalsRegExp, '');
-    }
-    return output;
-}
-toFixed(1.2345, 2, Math.round, 1);
-}}),
-}]);
+(globalThis.TURBOPACK=globalThis.TURBOPACK||[]).push(["output/b1abf_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_032d7ee7.js",{"[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/paren-remover/input/index.js [test] (ecmascript)":t=>{var{m:e,e:a}=t;!function(t,e,a,s){var i,n,o,p,r="1.2345".split(".");o=Math.pow(10,i=2===r.length?Math.min(Math.max(r[1].length,1),2):1),p=(a("1.2345e+"+i)/o).toFixed(i),1>e-i&&(n=RegExp("\\.?0{1,"+(s-(e-i))+"}$"),p=p.replace(n,""))}(1.2345,2,Math.round,1)}}]);
 
 //# sourceMappingURL=b1abf_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_032d7ee7.js.map

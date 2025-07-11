@@ -1,7 +1,6 @@
 use std::mem::take;
 
 use anyhow::{Context, Result, bail};
-use async_trait::async_trait;
 use base64::Engine;
 use either::Either;
 use futures::try_join;
@@ -315,10 +314,10 @@ impl WebpackLoadersProcessedAsset {
 }
 
 #[turbo_tasks::function]
-pub(crate) fn evaluate_webpack_loader(
+pub(crate) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
-) -> Vc<JavaScriptEvaluation> {
-    custom_evaluate(webpack_loader_context)
+) -> Result<Vc<JavaScriptEvaluation>> {
+    custom_evaluate(webpack_loader_context).await
 }
 
 #[turbo_tasks::function]
@@ -426,15 +425,16 @@ pub struct WebpackLoaderContext {
     pub additional_invalidation: ResolvedVc<Completion>,
 }
 
-#[async_trait]
 impl EvaluateContext for WebpackLoaderContext {
     type InfoMessage = InfoMessage;
     type RequestMessage = RequestMessage;
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 
-    fn compute(self, sender: Vc<JavaScriptStreamSender>) {
-        let _ = compute_webpack_loader_evaluation(self, sender);
+    async fn compute(self, sender: Vc<JavaScriptStreamSender>) -> Result<()> {
+        compute_webpack_loader_evaluation(self, sender)
+            .as_side_effect()
+            .await
     }
 
     fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {

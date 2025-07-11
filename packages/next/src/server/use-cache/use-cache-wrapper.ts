@@ -490,11 +490,18 @@ async function generateCacheEntryImpl(
       stream = prelude
     }
   } else {
+    const filterStackFrame =
+      process.env.NODE_ENV !== 'production'
+        ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+            .filterStackFrameDEV
+        : undefined
+
     stream = renderToReadableStream(
       resultPromise,
       clientReferenceManifest.clientModules,
       {
         environmentName: 'Cache',
+        filterStackFrame,
         temporaryReferences,
         onError: handleError,
       }

@@ -1,5 +1,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
+use std::vec;
+
 use anyhow::{Result, bail};
 
 pub fn register() {
@@ -116,7 +118,7 @@ impl EsRegex {
         })
     }
 
-    /// Returns true if there is any match for this regex in the `haystac`
+    /// Returns true if there is any match for this regex in the `haystack`.
     pub fn is_match(&self, haystack: &str) -> bool {
         match &self.delegate {
             EsRegexImpl::Regex(r) => r.is_match(haystack),
@@ -124,18 +126,84 @@ impl EsRegex {
         }
     }
 
-    pub fn captures<'h>(&self, haystack: &'h str) -> Option<Vec<&'h str>> {
-        match &self.delegate {
-            EsRegexImpl::Regex(r) => r.captures(haystack).map(|caps| {
-                caps.iter()
-                    .map(|m| m.map(|m| m.as_str()).unwrap_or(""))
-                    .collect::<Vec<_>>()
-            }),
-            EsRegexImpl::Regress(r) => r.find(haystack).map(|m| {
-                m.groups()
-                    .map(|range_opt| range_opt.map(|range| &haystack[range]).unwrap_or(""))
-                    .collect::<Vec<_>>()
-            }),
+    /// Searches for the first match of the regex in the `haystack`, and iterates over the capture
+    /// groups within that first match.
+    ///
+    /// `None` is returned if there is no match. Individual capture groups may be `None` if the
+    /// capture group wasn't included in the match.
+    ///
+    /// The first capture group is always present ([`Some`]) and represents the entire match.
+    ///
+    /// Capture groups are represented as string slices of the `haystack`, and live for the lifetime
+    /// of `haystack`.
+    pub fn captures<'h>(&self, haystack: &'h str) -> Option<Captures<'h>> {
+        let delegate = match &self.delegate {
+            EsRegexImpl::Regex(r) => CapturesImpl::Regex {
+                captures: r.captures(haystack)?,
+                idx: 0,
+            },
+            EsRegexImpl::Regress(r) => {
+                let re_match = r.find(haystack)?;
+                CapturesImpl::Regress {
+                    captures_iter: re_match.captures.into_iter(),
+                    haystack,
+                    match_range: Some(re_match.range),
+                }
+            }
+        };
+        Some(Captures { delegate })
+    }
+}
+
+pub struct Captures<'h> {
+    delegate: CapturesImpl<'h>,
+}
+
+enum CapturesImpl<'h> {
+    // We have to use `regex::Captures` (which is not an iterator) here instead of
+    // `regex::SubCaptureMatches` (an iterator) because `SubCaptureMatches` must have a reference
+    // to `Capture`, and that would require a self-referential struct.
+    //
+    // Ideally, `regex::Capture` would implement `IntoIterator`, and we could use that here
+    // instead.
+    Regex {
+        captures: regex::Captures<'h>,
+        idx: usize,
+    },
+    // We can't use the iterator from `regress::Match::groups()` due to similar lifetime issues.
+    Regress {
+        captures_iter: vec::IntoIter<Option<regress::Range>>,
+        haystack: &'h str,
+        match_range: Option<regress::Range>,
+    },
+}
+
+impl<'h> Iterator for Captures<'h> {
+    type Item = Option<&'h str>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &mut self.delegate {
+            CapturesImpl::Regex { captures, idx } => {
+                if *idx >= captures.len() {
+                    None
+                } else {
+                    let capture = Some(captures.get(*idx).map(|sub_match| sub_match.as_str()));
+                    *idx += 1;
+                    capture
+                }
+            }
+            CapturesImpl::Regress {
+                captures_iter,
+                haystack,
+                match_range,
+            } => {
+                if let Some(range) = match_range.take() {
+                    // always yield range first
+                    Some(Some(&haystack[range]))
+                } else {
+                    Some(captures_iter.next()?.map(|range| &haystack[range]))
+                }
+            }
         }
     }
 }
@@ -178,17 +246,18 @@ mod tests {
 
     #[test]
     fn captures_with_regex() {
-        let regex = EsRegex::new(r"(\d{4})-(\d{2})-(\d{2})", "").unwrap();
+        let regex = EsRegex::new(r"(notmatched)|(\d{4})-(\d{2})-(\d{2})", "").unwrap();
         assert!(matches!(regex.delegate, EsRegexImpl::Regex { .. }));
 
         let captures = regex.captures("Today is 2024-01-15");
         assert!(captures.is_some());
-        let caps: Vec<&str> = captures.unwrap();
-        assert_eq!(caps.len(), 4); // full match + 3 groups
-        assert_eq!(caps[0], "2024-01-15"); // full match
-        assert_eq!(caps[1], "2024"); // year
-        assert_eq!(caps[2], "01"); // month
-        assert_eq!(caps[3], "15"); // day
+        let caps: Vec<_> = captures.unwrap().collect();
+        assert_eq!(caps.len(), 5); // full match + 4 groups
+        assert_eq!(caps[0], Some("2024-01-15")); // full match
+        assert_eq!(caps[1], None); // 'notmatched' -- this branch isn't taken
+        assert_eq!(caps[2], Some("2024")); // year
+        assert_eq!(caps[3], Some("01")); // month
+        assert_eq!(caps[4], Some("15")); // day
     }
 
     #[test]
@@ -201,9 +270,9 @@ mod tests {
 
         let captures = regex.captures("foobaz");
         assert!(captures.is_some());
-        let caps: Vec<&str> = captures.unwrap();
+        let caps: Vec<_> = captures.unwrap().collect();
         assert_eq!(caps.len(), 2); // full match + 1 group
-        assert_eq!(caps[0], "foo"); // full match
-        assert_eq!(caps[1], "foo"); // captured group
+        assert_eq!(caps[0], Some("foo")); // full match
+        assert_eq!(caps[1], Some("foo")); // captured group
     }
 }

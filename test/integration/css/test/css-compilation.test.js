@@ -498,14 +498,12 @@ module.exports = {
                 expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
                   .toMatchInlineSnapshot(`
                  ".other{color:#00f}
-
                  .test{color:red}"
                 `)
               } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
                 expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
                   .toMatchInlineSnapshot(`
                  ".other{color:#00f}
-
                  .test{color:red}"
                 `)
               } else if (useLightningcss) {

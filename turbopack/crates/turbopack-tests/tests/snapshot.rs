@@ -3,7 +3,7 @@
 
 mod util;
 
-use std::{collections::VecDeque, fs, path::PathBuf};
+use std::{collections::VecDeque, fs, io, path::PathBuf, sync::Once};
 
 use anyhow::{Context, Result, bail};
 use dunce::canonicalize;
@@ -22,8 +22,8 @@ use turbopack::{
     ModuleAssetContext,
     ecmascript::{EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType},
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        ModuleRule, ModuleRuleEffect, RuleCondition,
+        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
+        ModuleRuleEffect, RuleCondition,
     },
 };
 use turbopack_browser::BrowserChunkingContext;
@@ -85,7 +85,7 @@ struct SnapshotOptions {
     browserslist: String,
     #[serde(default = "default_entry")]
     entry: String,
-    #[serde(default)]
+    #[serde(default = "default_minify_type")]
     minify_type: MinifyType,
     #[serde(default)]
     runtime: Runtime,
@@ -122,7 +122,7 @@ impl Default for SnapshotOptions {
         SnapshotOptions {
             browserslist: default_browserslist(),
             entry: default_entry(),
-            minify_type: Default::default(),
+            minify_type: default_minify_type(),
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
@@ -152,9 +152,51 @@ fn default_runtime_type() -> RuntimeType {
     RuntimeType::Dummy
 }
 
+fn default_minify_type() -> MinifyType {
+    MinifyType::NoMinify
+}
+
+fn is_empty_dir_tree(dir_entries: impl IntoIterator<Item = io::Result<fs::DirEntry>>) -> bool {
+    for entry in dir_entries.into_iter() {
+        let entry = entry.unwrap();
+        if !entry.file_type().unwrap().is_dir()
+            || !is_empty_dir_tree(fs::read_dir(entry.path()).unwrap())
+        {
+            return false;
+        }
+    }
+    true
+}
+
 #[testing::fixture("tests/snapshot/*/*/", exclude("node_modules"))]
 fn test(resource: PathBuf) {
     let resource = canonicalize(resource).unwrap();
+
+    let mut has_output_dir = false;
+    let contents = fs::read_dir(&resource)
+        .unwrap()
+        .filter(|entry| {
+            if entry.as_ref().unwrap().file_name() == "output" {
+                has_output_dir = true;
+                false
+            } else {
+                true
+            }
+        })
+        .collect::<Vec<_>>();
+    if is_empty_dir_tree(contents) {
+        // a directory without input or config is invalid
+        if *UPDATE {
+            fs::remove_dir_all(&resource).unwrap();
+        } else if has_output_dir {
+            let output_dir = resource.join("output");
+            if !is_empty_dir_tree(fs::read_dir(output_dir).unwrap()) {
+                panic!("{resource:?} contains a non-empty output directory, but no input files");
+            }
+        }
+        return;
+    }
+
     // Separating this into a different function fixes my IDE's types for some
     // reason...
     run(resource).unwrap();
@@ -162,7 +204,8 @@ fn test(resource: PathBuf) {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(resource: PathBuf) -> Result<()> {
-    register();
+    static REGISTER_ONCE: Once = Once::new();
+    REGISTER_ONCE.call_once(register);
 
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -306,16 +349,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ignore_dynamic_requests: true,
                 ..Default::default()
             },
-            css: CssOptionsContext {
-                ..Default::default()
-            },
             environment: Some(env),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
-                    css: CssOptionsContext {
-                        ..Default::default()
-                    },
                     environment: Some(env),
                     tree_shaking_mode: options.tree_shaking_mode,
                     ..Default::default()
@@ -413,6 +450,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
+            .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
             .export_usage(export_usage);
 

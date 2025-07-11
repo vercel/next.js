@@ -1,17 +1,18 @@
+import './segment-explorer.css'
 import {
   useSegmentTree,
   type SegmentTrieNode,
 } from '../../segment-explorer-trie'
-import { css } from '../../utils/css'
 import { cx } from '../../utils/cx'
-import {
-  SegmentBoundaryTrigger,
-  styles as segmentBoundaryTriggerStyles,
-} from './segment-boundary-trigger'
+import { SegmentBoundaryTrigger } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
 import { useRef, useState } from 'react'
-
-const BUILTIN_PREFIX = '__next_builtin__'
+import {
+  BUILTIN_PREFIX,
+  getBoundaryOriginFileType,
+  isBoundaryFile,
+  normalizeBoundaryFilename,
+} from '../../../../server/app-render/segment-explorer-path'
 
 const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
@@ -133,6 +134,24 @@ function PageSegmentTreeLayerPresentation({
   }
 
   const hasFilesChildren = filesChildrenKeys.length > 0
+  const boundaries: Record<'not-found' | 'loading' | 'error', string | null> = {
+    'not-found': null,
+    loading: null,
+    error: null,
+  }
+
+  filesChildrenKeys.forEach((childKey) => {
+    const childNode = node.children[childKey]
+    if (!childNode || !childNode.value) return
+    if (isBoundaryFile(childNode.value.type)) {
+      const boundaryType = getBoundaryOriginFileType(childNode.value.type)
+
+      if (boundaryType in boundaries) {
+        boundaries[boundaryType as keyof typeof boundaries] =
+          childNode.value.pagePath || null
+      }
+    }
+  })
 
   return (
     <>
@@ -165,10 +184,15 @@ function PageSegmentTreeLayerPresentation({
                     if (!childNode || !childNode.value) {
                       return null
                     }
+                    // If it's boundary node, which marks the existence of the boundary not the rendered status,
+                    // we don't need to present in the rendered files.
+                    if (isBoundaryFile(childNode.value.type)) {
+                      return null
+                    }
                     const filePath = childNode.value.pagePath
                     const lastSegment = filePath.split('/').pop() || ''
                     const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
-                    const fileName = lastSegment.replace(BUILTIN_PREFIX, '')
+                    const fileName = normalizeBoundaryFilename(lastSegment)
 
                     return (
                       <span
@@ -208,6 +232,7 @@ function PageSegmentTreeLayerPresentation({
                 <SegmentBoundaryTrigger
                   offset={6}
                   onSelectBoundary={pageChild.value.setBoundaryType}
+                  boundaries={boundaries}
                 />
               )}
             </div>
@@ -238,135 +263,6 @@ function PageSegmentTreeLayerPresentation({
     </>
   )
 }
-
-export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
-  .segment-explorer-content {
-    font-size: var(--size-14);
-    padding: 0 8px;
-  }
-
-  .segment-explorer-page-route-bar {
-    display: flex;
-    align-items: center;
-    padding: 14px 16px;
-    background-color: var(--color-background-200);
-    gap: 12px;
-  }
-
-  .segment-explorer-page-route-bar-path {
-    font-size: var(--size-14);
-    font-weight: 500;
-    color: var(--color-gray-1000);
-    font-family: var(--font-mono);
-    white-space: nowrap;
-  }
-
-  .segment-explorer-item {
-    margin: 4px 0;
-    border-radius: 6px;
-  }
-
-  .segment-explorer-item:nth-child(even) {
-    background-color: var(--color-background-200);
-  }
-
-  .segment-explorer-item-row {
-    display: flex;
-    align-items: center;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    padding-right: 4px;
-    white-space: pre;
-    cursor: default;
-    color: var(--color-gray-1000);
-  }
-
-  .segment-explorer-children--intended {
-    padding-left: 16px;
-  }
-
-  .segment-explorer-filename {
-    display: inline-flex;
-    width: 100%;
-    align-items: center;
-  }
-
-  .segment-explorer-filename select {
-    margin-left: auto;
-  }
-
-  .segment-explorer-filename--path {
-    margin-right: 8px;
-  }
-  .segment-explorer-filename--path small {
-    display: inline-block;
-    width: 0;
-    opacity: 0;
-  }
-  .segment-explorer-filename--name {
-    color: var(--color-gray-800);
-  }
-
-  .segment-explorer-files {
-    display: inline-flex;
-    gap: 8px;
-  }
-
-  .segment-explorer-file-label {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 20px;
-    padding: 2px 6px;
-    border-radius: 16px;
-    font-size: var(--size-12);
-    font-weight: 500;
-    user-select: none;
-    cursor: pointer;
-  }
-
-  .segment-explorer-file-label:hover {
-    filter: brightness(1.05);
-  }
-
-  .segment-explorer-file-label--layout,
-  .segment-explorer-file-label--template,
-  .segment-explorer-file-label--default {
-    background-color: var(--color-gray-300);
-    color: var(--color-gray-1000);
-  }
-  .segment-explorer-file-label--page {
-    background-color: var(--color-blue-300);
-    color: var(--color-blue-900);
-  }
-  .segment-explorer-file-label--not-found,
-  .segment-explorer-file-label--forbidden,
-  .segment-explorer-file-label--unauthorized {
-    background-color: var(--color-amber-300);
-    color: var(--color-amber-900);
-  }
-  .segment-explorer-file-label--loading {
-    background-color: var(--color-green-300);
-    color: var(--color-green-900);
-  }
-  .segment-explorer-file-label--error,
-  .segment-explorer-file-label--global-error {
-    background-color: var(--color-red-300);
-    color: var(--color-red-900);
-  }
-  .segment-explorer-file-label--builtin {
-    background-color: transparent;
-    color: var(--color-gray-900);
-    border: 1px dashed var(--color-gray-500);
-    cursor: default;
-  }
-  .segment-explorer-file-label--builtin svg {
-    margin-left: 4px;
-    margin-right: -4px;
-  }
-
-  ${segmentBoundaryTriggerStyles}
-`
 
 function openInEditor({ filePath }: { filePath: string }) {
   const params = new URLSearchParams({
