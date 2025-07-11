@@ -41,7 +41,7 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
     }
     return (
       <BaseTooltip.Provider>
-        <BaseTooltip.Root delay={0}>
+        <BaseTooltip.Root delay={400}>
           <BaseTooltip.Trigger
             ref={ref}
             render={(triggerProps) => {
