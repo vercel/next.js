@@ -43,12 +43,18 @@ function augmentContext(
 }
 
 async function loadWebAssembly(
-  source: SourceInfo,
+  sourceType: SourceType,
+  sourceData: SourceData,
   chunkPath: ChunkPath,
   edgeModule: () => WebAssembly.Module,
   imports: WebAssembly.Imports
 ): Promise<Exports> {
-  const module = await loadWebAssemblyModule(source, chunkPath, edgeModule)
+  const module = await loadWebAssemblyModule(
+    sourceType,
+    sourceData,
+    chunkPath,
+    edgeModule
+  )
 
   return await WebAssembly.instantiate(module, imports)
 }
@@ -66,7 +72,8 @@ function getFileStem(path: string): string {
 }
 
 async function loadWebAssemblyModule(
-  _source: SourceInfo,
+  _sourceType: SourceType,
+  _sourceData: SourceData,
   chunkPath: ChunkPath,
   edgeModule: () => WebAssembly.Module
 ): Promise<WebAssembly.Module> {
@@ -117,7 +124,11 @@ async function loadWebAssemblyModule(
       }
     },
 
-    loadChunkCached(_chunkUrl, _source) {
+    loadChunkCached(
+      _sourceType: SourceType,
+      _sourceData: SourceData,
+      _chunkUrl: ChunkUrl
+    ) {
       throw new Error('chunk loading is not supported')
     },
   }
@@ -189,7 +200,7 @@ async function loadWebAssemblyModule(
     chunkPath: ChunkPath
   ) {
     for (const moduleId of runtimeModuleIds) {
-      getOrInstantiateRuntimeModule(moduleId, chunkPath)
+      getOrInstantiateRuntimeModule(chunkPath, moduleId)
     }
   }
 })()

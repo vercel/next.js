@@ -389,13 +389,16 @@ var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
    * runtime.
+   * SourceData is a ChunkPath.
    */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
     /**
    * The module was instantiated because a parent module imported it.
+   * SourceData is a ModuleId.
    */ SourceType[SourceType["Parent"] = 1] = "Parent";
     /**
    * The module was instantiated because it was included in a chunk's hot module
    * update.
+   * SourceData is an array of ModuleIds or undefined.
    */ SourceType[SourceType["Update"] = 2] = "Update";
     return SourceType;
 }(SourceType || {});
@@ -426,9 +429,9 @@ const moduleFactories = Object.create(null);
  */ const chunkChunkListsMap = new Map();
 const availableModules = new Map();
 const availableModuleChunks = new Map();
-async function loadChunk(source, chunkData) {
+async function loadChunk(sourceType, sourceData, chunkData) {
     if (typeof chunkData === 'string') {
-        return loadChunkPath(source, chunkData);
+        return loadChunkPath(sourceType, sourceData, chunkData);
     }
     const includedList = chunkData.included || [];
     const modulesPromises = includedList.map((included)=>{
@@ -459,13 +462,13 @@ async function loadChunk(source, chunkData) {
             }
         }
         for (const moduleChunkToLoad of moduleChunksToLoad){
-            const promise = loadChunkPath(source, moduleChunkToLoad);
+            const promise = loadChunkPath(sourceType, sourceData, moduleChunkToLoad);
             availableModuleChunks.set(moduleChunkToLoad, promise);
             moduleChunksPromises.push(promise);
         }
         promise = Promise.all(moduleChunksPromises);
     } else {
-        promise = loadChunkPath(source, chunkData.path);
+        promise = loadChunkPath(sourceType, sourceData, chunkData.path);
         // Mark all included module chunks as loading if they are not already loaded or loading.
         for (const includedModuleChunk of includedModuleChunksList){
             if (!availableModuleChunks.has(includedModuleChunk)) {
@@ -485,25 +488,25 @@ async function loadChunk(source, chunkData) {
 const loadedChunk = Promise.resolve(undefined);
 const instrumentedBackendLoadChunks = new WeakMap();
 // Do not make this async. React relies on referential equality of the returned Promise.
-function loadChunkByUrl(source, chunkUrl) {
-    const thenable = BACKEND.loadChunkCached(chunkUrl, source);
+function loadChunkByUrl(sourceType, sourceData, chunkUrl) {
+    const thenable = BACKEND.loadChunkCached(sourceType, sourceData, chunkUrl);
     let entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
         const resolve = instrumentedBackendLoadChunks.set.bind(instrumentedBackendLoadChunks, thenable, loadedChunk);
         entry = thenable.then(resolve).catch((error)=>{
             let loadReason;
-            switch(source.type){
+            switch(sourceType){
                 case 0:
-                    loadReason = `as a runtime dependency of chunk ${source.chunkPath}`;
+                    loadReason = `as a runtime dependency of chunk ${sourceData}`;
                     break;
                 case 1:
-                    loadReason = `from module ${source.parentId}`;
+                    loadReason = `from module ${sourceData}`;
                     break;
                 case 2:
                     loadReason = 'from an HMR update';
                     break;
                 default:
-                    invariant(source, (source)=>`Unknown source type: ${source?.type}`);
+                    invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
             }
             throw new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${error ? `: ${error}` : ''}`, error ? {
                 cause: error
@@ -513,9 +516,9 @@ function loadChunkByUrl(source, chunkUrl) {
     }
     return entry;
 }
-async function loadChunkPath(source, chunkPath) {
+async function loadChunkPath(sourceType, sourceData, chunkPath) {
     const url = getChunkRelativeUrl(chunkPath);
-    return loadChunkByUrl(source, url);
+    return loadChunkByUrl(sourceType, sourceData, url);
 }
 /**
  * Returns an absolute url to an asset.
@@ -583,10 +586,7 @@ importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_L
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
-    return instantiateModule(moduleId, {
-        type: 0,
-        chunkPath
-    });
+    return instantiateModule(moduleId, 0, chunkPath);
 }
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
@@ -670,7 +670,7 @@ class UpdateApplyError extends Error {
 /**
  * Gets or instantiates a runtime module.
  */ // @ts-ignore
-function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
+function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
     const module = devModuleCache[moduleId];
     if (module) {
         if (module.error) {
@@ -679,10 +679,7 @@ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
         return module;
     }
     // @ts-ignore
-    return instantiateModule(moduleId, {
-        type: SourceType.Runtime,
-        chunkPath
-    });
+    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
@@ -701,12 +698,9 @@ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
         }
         return module;
     }
-    return instantiateModule(id, {
-        type: SourceType.Parent,
-        parentId: sourceModule.id
-    });
+    return instantiateModule(id, SourceType.Parent, sourceModule.id);
 };
-function instantiateModule(moduleId, source) {
+function instantiateModule(moduleId, sourceType, sourceData) {
     // We are in development, this is always a string.
     let id = moduleId;
     const moduleFactory = moduleFactories[id];
@@ -715,25 +709,25 @@ function instantiateModule(moduleId, source) {
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
         let instantiationReason;
-        switch(source.type){
+        switch(sourceType){
             case SourceType.Runtime:
-                instantiationReason = `as a runtime entry of chunk ${source.chunkPath}`;
+                instantiationReason = `as a runtime entry of chunk ${sourceData}`;
                 break;
             case SourceType.Parent:
-                instantiationReason = `because it was required from module ${source.parentId}`;
+                instantiationReason = `because it was required from module ${sourceData}`;
                 break;
             case SourceType.Update:
                 instantiationReason = 'because of an HMR update';
                 break;
             default:
-                invariant(source, (source)=>`Unknown source type: ${source?.type}`);
+                invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
         }
         throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
     }
     const hotData = moduleHotData.get(id);
     const { hot, hotState } = createModuleHot(id, hotData);
     let parents;
-    switch(source.type){
+    switch(sourceType){
         case SourceType.Runtime:
             runtimeModules.add(id);
             parents = [];
@@ -742,14 +736,14 @@ function instantiateModule(moduleId, source) {
             // No need to add this module as a child of the parent module here, this
             // has already been taken care of in `getOrInstantiateModuleFromParent`.
             parents = [
-                source.parentId
+                sourceData
             ];
             break;
         case SourceType.Update:
-            parents = source.parents || [];
+            parents = sourceData || [];
             break;
         default:
-            invariant(source, (source)=>`Unknown source type: ${source?.type}`);
+            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
     }
     const module = {
         exports: {},
@@ -765,10 +759,6 @@ function instantiateModule(moduleId, source) {
     moduleHotState.set(module, hotState);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
-        const sourceInfo = {
-            type: SourceType.Parent,
-            parentId: id
-        };
         runModuleExecutionHooks(module, (refresh)=>{
             const r = commonJsRequire.bind(null, module);
             moduleFactory(augmentContext({
@@ -786,10 +776,10 @@ function instantiateModule(moduleId, source) {
                 c: devModuleCache,
                 C: null,
                 M: moduleFactories,
-                l: loadChunk.bind(null, sourceInfo),
-                L: loadChunkByUrl.bind(null, sourceInfo),
-                w: loadWebAssembly.bind(null, sourceInfo),
-                u: loadWebAssemblyModule.bind(null, sourceInfo),
+                l: loadChunk.bind(null, SourceType.Parent, id),
+                L: loadChunkByUrl.bind(null, SourceType.Parent, id),
+                w: loadWebAssembly.bind(null, SourceType.Parent, id),
+                u: loadWebAssemblyModule.bind(null, SourceType.Parent, id),
                 P: resolveAbsolutePath,
                 U: relativeURL,
                 k: refresh,
@@ -1043,10 +1033,7 @@ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedMod
     // Re-instantiate all outdated self-accepted modules.
     for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules){
         try {
-            instantiateModule(moduleId, {
-                type: SourceType.Update,
-                parents: outdatedModuleParents.get(moduleId)
-            });
+            instantiateModule(moduleId, SourceType.Update, outdatedModuleParents.get(moduleId));
         } catch (err) {
             if (typeof errorHandler === 'function') {
                 try {
@@ -1090,9 +1077,7 @@ function applyChunkListUpdate(update) {
             const chunkUrl = getChunkRelativeUrl(chunkPath);
             switch(chunkUpdate.type){
                 case 'added':
-                    BACKEND.loadChunkCached(chunkUrl, {
-                        type: SourceType.Update
-                    });
+                    BACKEND.loadChunkCached(SourceType.Update, undefined, chunkUrl);
                     break;
                 case 'total':
                     DEV_BACKEND.reloadChunk?.(chunkUrl);
@@ -1490,12 +1475,12 @@ function augmentContext(context) {
 function fetchWebAssembly(wasmChunkPath) {
     return fetch(getChunkRelativeUrl(wasmChunkPath));
 }
-async function loadWebAssembly(_source, wasmChunkPath, _edgeModule, importsObj) {
+async function loadWebAssembly(_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
     const req = fetchWebAssembly(wasmChunkPath);
     const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
     return instance.exports;
 }
-async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
+async function loadWebAssemblyModule(_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
     const req = fetchWebAssembly(wasmChunkPath);
     return await WebAssembly.compileStreaming(req);
 }
@@ -1518,21 +1503,18 @@ async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
                 getOrCreateResolver(otherChunkUrl);
             }
             // This waits for chunks to be loaded, but also marks included items as available.
-            await Promise.all(params.otherChunks.map((otherChunkData)=>loadChunk({
-                    type: SourceType.Runtime,
-                    chunkPath
-                }, otherChunkData)));
+            await Promise.all(params.otherChunks.map((otherChunkData)=>loadChunk(SourceType.Runtime, chunkPath, otherChunkData)));
             if (params.runtimeModuleIds.length > 0) {
                 for (const moduleId of params.runtimeModuleIds){
-                    getOrInstantiateRuntimeModule(moduleId, chunkPath);
+                    getOrInstantiateRuntimeModule(chunkPath, moduleId);
                 }
             }
         },
         /**
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
-     */ loadChunkCached (chunkUrl, source) {
-            return doLoadChunk(chunkUrl, source);
+     */ loadChunkCached (sourceType, sourceData, chunkUrl) {
+            return doLoadChunk(sourceType, sourceData, chunkUrl);
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -1561,12 +1543,12 @@ async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
     /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
-   */ function doLoadChunk(chunkUrl, source) {
+   */ function doLoadChunk(sourceType, _sourceData, chunkUrl) {
         const resolver = getOrCreateResolver(chunkUrl);
         if (resolver.loadingStarted) {
             return resolver.promise;
         }
-        if (source.type === SourceType.Runtime) {
+        if (sourceType === SourceType.Runtime) {
             // We don't need to load chunks references from runtime code, as they're already
             // present in the DOM.
             resolver.loadingStarted = true;
