@@ -24,6 +24,7 @@ type InterceptableConsoleMethod =
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
+ * @source https://github.com/facebook/react/blob/b44a99bf58d69d52b5288d9eadcc6d226d705e11/packages/react-devtools-shared/src/backend/utils/formatConsoleArguments.js#L14
  */
 function formatConsoleArguments(maybeMessage: any, ...inputArgs: any[]): any[] {
   if (inputArgs.length === 0 || typeof maybeMessage !== 'string') {
@@ -82,8 +83,12 @@ function formatConsoleArguments(maybeMessage: any, ...inputArgs: any[]): any[] {
   return [template, ...args]
 }
 
+const isColorSupported = dim('test') !== 'test'
 // TODO: Breaks when complex objects are logged
-const ANSI_STYLE_DIMMING_TEMPLATE = dim('%s')
+// dim("%s") does not work in Chrome
+const ANSI_STYLE_DIMMING_TEMPLATE = isColorSupported
+  ? '\x1b[2;38;2;124;124;124m%s\x1b[0m'
+  : '%s'
 
 function dimConsoleCall(
   methodName: InterceptableConsoleMethod,
