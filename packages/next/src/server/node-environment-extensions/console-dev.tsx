@@ -106,18 +106,12 @@ function dimConsoleCall(
       // assert takes formatting options as the second argument.
       return [args[0]].concat(
         ANSI_STYLE_DIMMING_TEMPLATE,
-        ...formatConsoleArguments(
-          // @ts-expect-error Why?
-          ...args.slice(1)
-        )
+        ...formatConsoleArguments(args[1], ...args.slice(2))
       )
     }
     default:
       return [ANSI_STYLE_DIMMING_TEMPLATE].concat(
-        ...formatConsoleArguments(
-          // @ts-expect-error Why?
-          ...args
-        )
+        ...formatConsoleArguments(args[0], ...args.slice(1))
       )
   }
 }
@@ -136,12 +130,12 @@ function patchConsoleMethodDEV(
     const originalName = Object.getOwnPropertyDescriptor(originalMethod, 'name')
     const wrapperMethod = function (this: typeof console, ...args: any[]) {
       const workUnitStore = workUnitAsyncStorage.getStore()
-      const isProspectivePrerender =
+      const isPrerenderValidation =
         workUnitStore !== undefined &&
         (workUnitStore.type === 'prerender-client' ||
           workUnitStore.type === 'prerender')
 
-      if (isProspectivePrerender) {
+      if (isPrerenderValidation) {
         originalMethod.apply(this, dimConsoleCall(methodName, args))
       } else {
         originalMethod.apply(this, args)
