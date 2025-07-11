@@ -3,7 +3,7 @@ import {
   type PanelStateKind as PanelNameKind,
 } from './context'
 import { ChevronRight, DevtoolMenu, IssueCount } from './dev-overlay-menu'
-import { DynamicPanel } from '../panel/panel'
+import { DynamicPanel } from '../panel/dynamic-panel'
 import { RouteInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { PageSegmentTree } from '../components/overview/segment-explorer'
 import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
@@ -135,6 +135,8 @@ export const PanelRouter = () => {
             maxWidth: 1500,
             minHeight: 200,
             minWidth: 200,
+            defaultHeight: 300,
+            defaultWidth: 400,
           }}
           closeOnClickOutside
           header={
@@ -163,6 +165,8 @@ export const PanelRouter = () => {
             maxWidth: 1500,
             minHeight: 200,
             minWidth: 200,
+            defaultHeight: 300,
+            defaultWidth: 400,
           }}
           header={
             <DevToolsHeader
@@ -188,6 +192,8 @@ export const PanelRouter = () => {
             maxWidth: 1500,
             minHeight: 200,
             minWidth: 200,
+            defaultHeight: 300,
+            defaultWidth: 400,
           }}
           // todo: fix scroll on header so its fixed and body scrolls
           closeOnClickOutside

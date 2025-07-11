@@ -28,6 +28,8 @@ export function DynamicPanel({
     minHeight: 350,
     maxWidth: 1000,
     maxHeight: 1000,
+    defaultHeight: 400,
+    defaultWidth: 500,
   },
   closeOnClickOutside = false,
   ...containerProps
@@ -43,6 +45,8 @@ export function DynamicPanel({
         minHeight: number
         maxWidth: number
         maxHeight: number
+        defaultHeight: number
+        defaultWidth: number
       }
     | {
         kind: 'fixed'
@@ -146,8 +150,12 @@ export function DynamicPanel({
                 minHeight,
                 maxWidth,
                 maxHeight,
-                width: storedWidth ? `${storedWidth}px` : undefined,
-                height: storedHeight ? `${storedHeight}px` : undefined,
+                width: storedWidth
+                  ? `${storedWidth}px`
+                  : sizeConfig.defaultWidth,
+                height: storedHeight
+                  ? `${storedHeight}px`
+                  : sizeConfig.defaultHeight,
               }
             : {
                 height: storedHeight ? `${storedHeight}px` : fixedHeight,
