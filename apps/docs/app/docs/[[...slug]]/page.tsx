@@ -18,16 +18,22 @@ export default async function Page(props: {
 
   const MDXContent = page.data.body
 
+  const isApp = params.slug?.includes('01-app')
+  const isPages = params.slug?.includes('02-pages')
+
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
         <MDXContent
-          components={getMDXComponents({
-            // this allows you to link to other pages with relative file paths
-            a: createRelativeLink(source, page),
-          })}
+          components={getMDXComponents(
+            {
+              // this allows you to link to other pages with relative file paths
+              a: createRelativeLink(source, page),
+            },
+            { isApp, isPages }
+          )}
         />
       </DocsBody>
     </DocsPage>
