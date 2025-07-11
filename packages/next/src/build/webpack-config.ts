@@ -447,8 +447,9 @@ export default async function getBaseWebpackConfig(
 
   const excludeCache: Record<string, boolean> = {}
   function exclude(excludePath: string): boolean {
-    if (excludeCache[excludePath] !== undefined) {
-      return excludeCache[excludePath]
+    const cached = excludeCache[excludePath]
+    if (cached !== undefined) {
+      return cached
     }
 
     const shouldExclude =
