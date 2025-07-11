@@ -1367,7 +1367,21 @@ impl PageEndpoint {
             PageEndpointType::Api => self.api_chunk(),
             PageEndpointType::SsrOnly => self.ssr_chunk(),
         };
-        let emit_manifests = !matches!(this.ty, PageEndpointType::Data);
+
+        #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+        enum EmitManifests {
+            /// Don't emit any manifests
+            None,
+            /// Emit the manifest for basic Next.js functionality (e.g. pages-manifest.json)
+            Minimal,
+            /// All manifests: `Minimal` plus server-reference-manifest, next/font, next/dynamic
+            Full,
+        }
+        let emit_manifests = match this.ty {
+            PageEndpointType::Html | PageEndpointType::SsrOnly => EmitManifests::Full,
+            PageEndpointType::Api => EmitManifests::Minimal,
+            PageEndpointType::Data => EmitManifests::None,
+        };
 
         let pathname = &this.pathname;
         let original_name = &this.original_name;
@@ -1376,18 +1390,21 @@ impl PageEndpoint {
 
         let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
         let node_root = this.pages_project.project().node_root().owned().await?;
-        let next_font_manifest_output = create_font_manifest(
-            this.pages_project.project().client_root().owned().await?,
-            node_root.clone(),
-            this.pages_project.pages_dir().owned().await?,
-            original_name,
-            &manifest_path_prefix,
-            pathname,
-            *client_assets,
-            false,
-        )
-        .await?;
-        server_assets.push(next_font_manifest_output);
+
+        if emit_manifests == EmitManifests::Full {
+            let next_font_manifest_output = create_font_manifest(
+                this.pages_project.project().client_root().owned().await?,
+                node_root.clone(),
+                this.pages_project.pages_dir().owned().await?,
+                original_name,
+                &manifest_path_prefix,
+                pathname,
+                *client_assets,
+                false,
+            )
+            .await?;
+            server_assets.push(next_font_manifest_output);
+        }
 
         if *this
             .pages_project
@@ -1425,10 +1442,11 @@ impl PageEndpoint {
                     server_assets.push(*server_asset_trace_file);
                 }
 
-                if emit_manifests {
+                if emit_manifests != EmitManifests::None {
                     let pages_manifest = self.pages_manifest(*entry).to_resolved().await?;
                     server_assets.push(pages_manifest);
-
+                }
+                if emit_manifests == EmitManifests::Full {
                     let loadable_manifest_output =
                         self.react_loadable_manifest(*dynamic_import_entries, NextRuntime::NodeJs);
                     server_assets.extend(loadable_manifest_output.await?.iter().copied());
@@ -1446,47 +1464,48 @@ impl PageEndpoint {
                 ref regions,
             } => {
                 let node_root = this.pages_project.project().node_root().owned().await?;
-                if emit_manifests {
+                if emit_manifests != EmitManifests::None {
+                    // the next-edge-ssr-loader templates expect the manifests to be stored in
+                    // global variables defined in these files
+                    //
+                    // they are created in `setup-dev-bundler.ts`
+                    let mut file_paths_from_root = if emit_manifests == EmitManifests::Full {
+                        fxindexset![
+                            rcstr!("server/server-reference-manifest.js"),
+                            rcstr!("server/middleware-build-manifest.js"),
+                            rcstr!("server/next-font-manifest.js"),
+                        ]
+                    } else {
+                        fxindexset![]
+                    };
+
                     let files_value = files.await?;
                     if let Some(&file) = files_value.first() {
                         let pages_manifest = self.pages_manifest(*file).to_resolved().await?;
                         server_assets.push(pages_manifest);
                     }
                     server_assets.extend(files_value.iter().copied());
-
-                    let loadable_manifest_output = self
-                        .react_loadable_manifest(*dynamic_import_entries, NextRuntime::Edge)
-                        .await?;
-                    server_assets.extend(loadable_manifest_output.iter().copied());
-
-                    // the next-edge-ssr-loader templates expect the manifests to be stored in
-                    // global variables defined in these files
-                    //
-                    // they are created in `setup-dev-bundler.ts`
-                    let mut file_paths_from_root = vec![
-                        rcstr!("server/server-reference-manifest.js"),
-                        rcstr!("server/middleware-build-manifest.js"),
-                        rcstr!("server/next-font-manifest.js"),
-                    ];
-                    let mut wasm_paths_from_root = fxindexset![];
-
-                    let node_root_value = node_root.clone();
-
-                    file_paths_from_root.extend(
-                        get_js_paths_from_root(&node_root_value, &loadable_manifest_output).await?,
-                    );
-
                     file_paths_from_root
-                        .extend(get_js_paths_from_root(&node_root_value, &files_value).await?);
+                        .extend(get_js_paths_from_root(&node_root, &files_value).await?);
+
+                    if emit_manifests == EmitManifests::Full {
+                        let loadable_manifest_output = self
+                            .react_loadable_manifest(*dynamic_import_entries, NextRuntime::Edge)
+                            .await?;
+                        server_assets.extend(loadable_manifest_output.iter().copied());
+                        file_paths_from_root.extend(
+                            get_js_paths_from_root(&node_root, &loadable_manifest_output).await?,
+                        );
+                    }
 
                     let all_output_assets = all_assets_from_entries(*files).await?;
 
-                    wasm_paths_from_root.extend(
-                        get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?,
-                    );
+                    let mut wasm_paths_from_root = fxindexset![];
+                    wasm_paths_from_root
+                        .extend(get_wasm_paths_from_root(&node_root, &all_output_assets).await?);
 
                     let all_assets =
-                        get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
+                        get_asset_paths_from_root(&node_root, &all_output_assets).await?;
 
                     let named_regex = get_named_middleware_regex(pathname).into();
                     let matchers = MiddlewareMatcher {
@@ -1507,7 +1526,7 @@ impl PageEndpoint {
                     };
 
                     let edge_function_definition = EdgeFunctionDefinition {
-                        files: file_paths_from_root,
+                        files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: pathname.clone(),

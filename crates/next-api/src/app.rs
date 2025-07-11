@@ -1175,7 +1175,7 @@ impl AppEndpoint {
                     EmitManifests::None
                 },
             ),
-            AppEndpointType::Route { .. } => (false, false, EmitManifests::Full),
+            AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal),
             AppEndpointType::Metadata { metadata } => (
                 false,
                 false,
@@ -1503,12 +1503,16 @@ impl AppEndpoint {
                 // global variables defined in these files
                 //
                 // they are created in `setup-dev-bundler.ts`
-                let mut file_paths_from_root = fxindexset![
-                    rcstr!("server/server-reference-manifest.js"),
-                    rcstr!("server/middleware-build-manifest.js"),
-                    rcstr!("server/next-font-manifest.js"),
-                    rcstr!("server/interception-route-rewrite-manifest.js"),
-                ];
+                let mut file_paths_from_root = if emit_manifests == EmitManifests::Full {
+                    fxindexset![
+                        rcstr!("server/interception-route-rewrite-manifest.js"),
+                        rcstr!("server/middleware-build-manifest.js"),
+                        rcstr!("server/server-reference-manifest.js"),
+                        rcstr!("server/next-font-manifest.js"),
+                    ]
+                } else {
+                    fxindexset![]
+                };
                 let mut wasm_paths_from_root = fxindexset![];
 
                 let node_root_value = node_root.clone();
@@ -1556,7 +1560,8 @@ impl AppEndpoint {
                     file_paths_from_root.extend(
                         get_js_paths_from_root(&node_root_value, &loadable_manifest_output).await?,
                     );
-
+                }
+                if emit_manifests != EmitManifests::None {
                     // create middleware manifest
                     let named_regex = get_named_middleware_regex(&app_entry.pathname);
                     let matchers = MiddlewareMatcher {
