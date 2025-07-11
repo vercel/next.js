@@ -30,7 +30,7 @@ pub async fn get_swc_ecma_transform_plugin_rule(
 }
 
 #[cfg(feature = "plugin")]
-pub async fn get_swc_ecma_transform_rule_impl(
+async fn get_swc_ecma_transform_rule_impl(
     project_path: FileSystemPath,
     plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
@@ -78,11 +78,14 @@ pub async fn get_swc_ecma_transform_rule_impl(
                         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
                         request,
                         resolve_options,
+                        // TODO proper error location, should point at the next config?
+                        project_path.clone(),
+                        None,
                     )
                     .as_raw_module_result(),
                     ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
                     // TODO proper error location
-                    project_path.clone(),
+                    project_path,
                     request,
                     resolve_options,
                     false,

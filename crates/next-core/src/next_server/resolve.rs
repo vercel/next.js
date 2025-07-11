@@ -14,7 +14,7 @@ use turbopack_core::{
         parse::Request,
         pattern::Pattern,
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
-        resolve,
+        resolve_without_source,
     },
     source::Source,
 };
@@ -220,7 +220,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             node_cjs_resolve_options(lookup_path.root().await?.clone_value())
         };
         let result_from_original_location = loop {
-            let node_resolved_from_original_location = resolve(
+            let node_resolved_from_original_location = resolve_without_source(
                 lookup_path.clone(),
                 reference_type.clone(),
                 request,
@@ -253,7 +253,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             };
             break result_from_original_location;
         };
-        let node_resolved = resolve(
+        let node_resolved = resolve_without_source(
             self.project_path.clone(),
             reference_type.clone(),
             request,
@@ -371,7 +371,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // but we need to verify if that would be correct (as in resolves to the same file).
                 let node_resolve_options =
                     node_cjs_resolve_options(lookup_path.root().await?.clone_value());
-                let node_resolved = resolve(
+                let node_resolved = resolve_without_source(
                     self.project_path.clone(),
                     reference_type.clone(),
                     request,

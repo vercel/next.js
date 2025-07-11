@@ -143,7 +143,8 @@ async fn resolve_extends(
     extends: &str,
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<OptionSource>> {
-    let parent_dir = tsconfig.ident().path().await?.parent();
+    let ts_config_path = tsconfig.ident().path().owned().await?;
+    let parent_dir = ts_config_path.parent();
     let request = Request::parse_string(extends.into());
 
     // TS's resolution is weird, and has special behavior for different import
@@ -156,7 +157,7 @@ async fn resolve_extends(
         Request::Windows { path: Pattern::Constant(path), .. } |
         // Server relative is treated as absolute
         Request::ServerRelative { path: Pattern::Constant(path), .. } => {
-            resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path).await
+            resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path, ts_config_path).await
         }
 
         // TS has special behavior for (explicitly) './' and '../', but not '.' nor '..':
@@ -165,23 +166,23 @@ async fn resolve_extends(
             path: Pattern::Constant(path),
             ..
         } if path.starts_with("./") || path.starts_with("../") => {
-            resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path).await
+            resolve_extends_rooted_or_relative(parent_dir, request, resolve_options, path, ts_config_path).await
         }
 
         // An empty extends is treated as "./tsconfig"
         Request::Empty => {
             let request = Request::parse_string(rcstr!("./tsconfig"));
             Ok(resolve(parent_dir,
-                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source())
+                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options, ts_config_path, None).first_source())
         }
 
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let mut result = resolve(parent_dir.clone(), ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
+            let mut result = resolve(parent_dir.clone(), ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options, ts_config_path.clone(), None).first_source();
             if result.await?.is_none() {
                 let request = Request::parse_string(format!("{extends}/tsconfig").into());
-                result = resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
+                result = resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options, ts_config_path, None).first_source();
             }
             Ok(result)
         }
@@ -193,12 +194,15 @@ async fn resolve_extends_rooted_or_relative(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     path: &str,
+    ts_config_path: FileSystemPath,
 ) -> Result<Vc<OptionSource>> {
     let mut result = resolve(
         lookup_path.clone(),
         ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
         request,
         resolve_options,
+        ts_config_path.clone(),
+        None,
     )
     .first_source();
 
@@ -212,6 +216,8 @@ async fn resolve_extends_rooted_or_relative(
             ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
             request,
             resolve_options,
+            ts_config_path,
+            None,
         )
         .first_source();
     }
@@ -416,7 +422,8 @@ pub async fn type_resolve(
     request: Vc<Request>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
-    let context_path = origin.origin_path().await?.parent();
+    let origin_path = origin.origin_path().owned().await?;
+    let context_path = origin_path.parent();
     let options = origin.resolve_options(ty.clone()).await?;
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
@@ -446,6 +453,8 @@ pub async fn type_resolve(
             ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
             request,
             options,
+            origin_path.clone(),
+            None,
         );
         if !*result1.is_unresolvable().await? {
             result1
@@ -455,6 +464,8 @@ pub async fn type_resolve(
                 ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
                 types_request,
                 options,
+                origin_path,
+                None,
             )
         }
     } else {
@@ -463,6 +474,8 @@ pub async fn type_resolve(
             ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
             request,
             options,
+            origin_path,
+            None,
         )
     };
     let result = as_typings_result(

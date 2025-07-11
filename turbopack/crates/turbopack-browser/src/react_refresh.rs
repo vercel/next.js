@@ -61,6 +61,8 @@ pub async fn assert_can_resolve_react_refresh(
             ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
             request,
             resolve_options,
+            path.clone(),
+            None,
         )
         .first_source();
 

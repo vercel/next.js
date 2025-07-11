@@ -3532,11 +3532,14 @@ async fn resolve_as_webpack_runtime(
 
     let options = apply_cjs_specific_options(options);
 
+    let origin_path = origin.origin_path().owned().await?;
     let resolved = resolve(
-        origin.origin_path().await?.parent(),
+        origin_path.parent(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         request,
         options,
+        origin_path,
+        None,
     );
 
     if let Some(source) = *resolved.first_source().await? {

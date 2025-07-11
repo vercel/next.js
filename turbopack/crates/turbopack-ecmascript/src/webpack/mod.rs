@@ -163,12 +163,14 @@ impl ModuleReference for WebpackRuntimeAssetReference {
         let options = self.origin.resolve_options(ty.clone()).await?;
 
         let options = apply_cjs_specific_options(options);
-
+        let origin_path = self.origin.origin_path().owned().await?;
         let resolved = resolve(
-            self.origin.origin_path().await?.parent(),
+            origin_path.parent(),
             ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
             *self.request,
             options,
+            origin_path,
+            None,
         );
 
         Ok(resolved

@@ -581,6 +581,10 @@ impl EvaluateContext for WebpackLoaderContext {
                     ReferenceType::Undefined,
                     request,
                     options,
+                    // TODO(PACK-4879): This is not an ideal path for issues, getting detailed
+                    // source information out of the loader might be impossible though.
+                    lookup_path.clone(),
+                    None,
                 );
 
                 if let Some(source) = *resolved.first_source().await? {
