@@ -2,6 +2,12 @@
 /// <reference path="./dev-protocol.d.ts" />
 /// <reference path="./dev-extensions.ts" />
 
+interface TurbopackDevContext extends TurbopackBrowserBaseContext<HotModule> {
+  k: RefreshContext
+}
+
+const devContextPrototype = Context.prototype as TurbopackDevContext
+
 /**
  * This file contains runtime types and functions that are shared between all
  * Turbopack *development* ECMAScript runtimes.
@@ -13,6 +19,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 const devModuleCache: ModuleCache<HotModule> = Object.create(null)
+devContextPrototype.c = devModuleCache
 
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
@@ -33,15 +40,9 @@ type RefreshContext = {
 
 type RefreshHelpers = RefreshRuntimeGlobals['$RefreshHelpers$']
 
-interface TurbopackDevBaseContext extends TurbopackBrowserBaseContext {
-  k: RefreshContext
-}
-
-interface TurbopackDevContext extends TurbopackDevBaseContext {}
-
 type ModuleFactory = (
   this: Module['exports'],
-  context: TurbopackDevBaseContext
+  context: TurbopackDevContext
 ) => unknown
 
 interface DevRuntimeBackend {
@@ -204,18 +205,9 @@ function instantiateModule(
       const context = new (Context as any as ContextConstructor<Module>)(module)
       moduleFactory(
         Object.assign(context, {
-          i: esmImport.bind(null, module),
-          s: esmExport.bind(null, module, module.exports, devModuleCache),
-          j: dynamicExport.bind(null, module, module.exports, devModuleCache),
-          v: exportValue.bind(null, module, devModuleCache),
-          n: exportNamespace.bind(null, module, devModuleCache),
-          c: devModuleCache,
-          C: null,
-          M: moduleFactories,
           l: loadChunk.bind(null, SourceType.Parent, id),
           L: loadChunkByUrl.bind(null, SourceType.Parent, id),
-          w: loadWebAssembly.bind(null, SourceType.Parent, id),
-          u: loadWebAssemblyModule.bind(null, SourceType.Parent, id),
+          C: null,
           P: resolveAbsolutePath,
           k: refresh,
         })

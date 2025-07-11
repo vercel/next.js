@@ -64,14 +64,17 @@ function getOverwrittenModule(moduleCache, id) {
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(module, exports, moduleCache, getters, id) {
+ */ function esmExport(getters, id) {
+    let module = this.m;
+    let exports = this.e;
     if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+        module = getOverwrittenModule(this.c, id);
         exports = module.exports;
     }
     module.namespaceObject = module.exports;
     esm(exports, getters);
 }
+contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = module[REEXPORTED_OBJECTS];
     if (!reexportedObjects) {
@@ -101,9 +104,11 @@ function ensureDynamicExports(module, exports) {
 }
 /**
  * Dynamically exports properties from an object
- */ function dynamicExport(module, exports, moduleCache, object, id) {
+ */ function dynamicExport(object, id) {
+    let module = this.m;
+    let exports = this.e;
     if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+        module = getOverwrittenModule(this.c, id);
         exports = module.exports;
     }
     ensureDynamicExports(module, exports);
@@ -111,18 +116,23 @@ function ensureDynamicExports(module, exports) {
         module[REEXPORTED_OBJECTS].push(object);
     }
 }
-function exportValue(module, moduleCache, value, id) {
+contextPrototype.j = dynamicExport;
+function exportValue(value, id) {
+    let module = this.m;
     if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+        module = getOverwrittenModule(this.c, id);
     }
     module.exports = value;
 }
-function exportNamespace(module, moduleCache, namespace, id) {
+contextPrototype.v = exportValue;
+function exportNamespace(namespace, id) {
+    let module = this.m;
     if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+        module = getOverwrittenModule(this.c, id);
     }
     module.exports = module.namespaceObject = namespace;
 }
+contextPrototype.n = exportNamespace;
 function createGetter(obj, key) {
     return ()=>obj[key];
 }
@@ -165,8 +175,8 @@ function createNS(raw) {
         return Object.create(null);
     }
 }
-function esmImport(sourceModule, id) {
-    const module = getOrInstantiateModuleFromParent(id, sourceModule);
+function esmImport(id) {
+    const module = getOrInstantiateModuleFromParent(id, this.m);
     if (module.error) throw module.error;
     // any ES module has to have `module.namespaceObject` defined.
     if (module.namespaceObject) return module.namespaceObject;
@@ -174,6 +184,7 @@ function esmImport(sourceModule, id) {
     const raw = module.exports;
     return module.namespaceObject = interopEsm(raw, createNS(raw), raw && raw.__esModule);
 }
+contextPrototype.i = esmImport;
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
 const runtimeRequire = // @ts-ignore
@@ -487,10 +498,13 @@ function stringifySourceInfo(sourceType, sourceData) {
             invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
     }
 }
+const nodeContextPrototype = Context.prototype;
 const url = require('url');
 const fs = require('fs/promises');
 const moduleFactories = Object.create(null);
+nodeContextPrototype.M = moduleFactories;
 const moduleCache = Object.create(null);
+nodeContextPrototype.c = moduleCache;
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
@@ -503,7 +517,7 @@ const moduleCache = Object.create(null);
     const resolved = path.resolve(RUNTIME_ROOT, strippedAssetPrefix);
     return url.pathToFileURL(resolved).href;
 }
-Context.prototype.R = resolvePathFromModule;
+nodeContextPrototype.R = resolvePathFromModule;
 function loadChunk(sourceType, sourceData, chunkData) {
     if (typeof chunkData === 'string') {
         loadChunkPath(sourceType, sourceData, chunkData);
@@ -610,14 +624,16 @@ function loadWebAssembly(chunkPath, _edgeModule, imports) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return instantiateWebAssemblyFromPath(resolved, imports);
 }
+contextPrototype.w = loadWebAssembly;
 function loadWebAssemblyModule(chunkPath, _edgeModule) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return compileWebAssemblyFromPath(resolved);
 }
+contextPrototype.u = loadWebAssemblyModule;
 function getWorkerBlobURL(_chunks) {
     throw new Error('Worker blobs are not implemented yet for Node.js');
 }
-Context.prototype.b = getWorkerBlobURL;
+nodeContextPrototype.b = getWorkerBlobURL;
 function instantiateModule(id, sourceType, sourceData) {
     const moduleFactory = moduleFactories[id];
     if (typeof moduleFactory !== 'function') {
@@ -651,18 +667,9 @@ function instantiateModule(id, sourceType, sourceData) {
         moduleFactory.call(module1.exports, Object.assign(context, {
             x: externalRequire,
             y: externalImport,
-            i: esmImport.bind(null, module1),
-            s: esmExport.bind(null, module1, module1.exports, moduleCache),
-            j: dynamicExport.bind(null, module1, module1.exports, moduleCache),
-            v: exportValue.bind(null, module1, moduleCache),
-            n: exportNamespace.bind(null, module1, moduleCache),
-            c: moduleCache,
-            M: moduleFactories,
             l: loadChunkAsync.bind(null, 1, id),
             L: loadChunkAsyncByUrl.bind(null, 1, id),
-            C: clearChunkCache,
-            w: loadWebAssembly,
-            u: loadWebAssemblyModule
+            C: clearChunkCache
         }));
     } catch (error) {
         module1.error = error;

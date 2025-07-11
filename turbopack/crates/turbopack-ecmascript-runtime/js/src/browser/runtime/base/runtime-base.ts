@@ -21,11 +21,12 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 declare var CHUNK_BASE_PATH: string
 declare var CHUNK_SUFFIX_PATH: string
 
-interface TurbopackBrowserBaseContext extends TurbopackBaseContext<Module> {
+interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
 }
 
-const browserContextPrototype = Context.prototype as TurbopackBrowserBaseContext
+const browserContextPrototype =
+  Context.prototype as TurbopackBrowserBaseContext<unknown>
 
 // Provided by build or dev base
 declare function instantiateModule(
@@ -82,6 +83,19 @@ interface RuntimeBackend {
     sourceData: SourceData,
     chunkUrl: ChunkUrl
   ) => Promise<void>
+  loadWebAssembly: (
+    sourceType: SourceType,
+    sourceData: SourceData,
+    wasmChunkPath: ChunkPath,
+    edgeModule: () => WebAssembly.Module,
+    importsObj: WebAssembly.Imports
+  ) => Promise<Exports>
+  loadWebAssemblyModule: (
+    sourceType: SourceType,
+    sourceData: SourceData,
+    wasmChunkPath: ChunkPath,
+    edgeModule: () => WebAssembly.Module
+  ) => Promise<WebAssembly.Module>
 }
 
 interface DevRuntimeBackend {
@@ -91,6 +105,8 @@ interface DevRuntimeBackend {
 }
 
 const moduleFactories: ModuleFactories = Object.create(null)
+contextPrototype.M = moduleFactories
+
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
  */
@@ -426,3 +442,33 @@ const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/
 function isCss(chunkUrl: ChunkUrl): boolean {
   return regexCssUrl.test(chunkUrl)
 }
+
+function loadWebAssembly(
+  this: TurbopackBaseContext<Module>,
+  chunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module,
+  importsObj: WebAssembly.Imports
+): Promise<Exports> {
+  return BACKEND.loadWebAssembly(
+    SourceType.Parent,
+    this.m.id,
+    chunkPath,
+    edgeModule,
+    importsObj
+  )
+}
+contextPrototype.w = loadWebAssembly
+
+function loadWebAssemblyModule(
+  this: TurbopackBaseContext<Module>,
+  chunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module
+): Promise<WebAssembly.Module> {
+  return BACKEND.loadWebAssemblyModule(
+    SourceType.Parent,
+    this.m.id,
+    chunkPath,
+    edgeModule
+  )
+}
+contextPrototype.u = loadWebAssemblyModule

@@ -53,6 +53,8 @@ interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
   y: ExternalImport
 }
 
+const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
+
 type ModuleFactory = (
   this: Module['exports'],
   context: TurbopackNodeBuildContext
@@ -62,7 +64,9 @@ const url = require('url') as typeof import('url')
 const fs = require('fs/promises') as typeof import('fs/promises')
 
 const moduleFactories: ModuleFactories = Object.create(null)
+nodeContextPrototype.M = moduleFactories
 const moduleCache: ModuleCache<Module> = Object.create(null)
+nodeContextPrototype.c = moduleCache
 
 /**
  * Returns an absolute path to the given module's id.
@@ -82,7 +86,7 @@ function resolvePathFromModule(
 
   return url.pathToFileURL(resolved).href
 }
-Context.prototype.R = resolvePathFromModule
+nodeContextPrototype.R = resolvePathFromModule
 
 function loadChunk(
   sourceType: SourceType,
@@ -228,6 +232,7 @@ function loadWebAssembly(
 
   return instantiateWebAssemblyFromPath(resolved, imports)
 }
+contextPrototype.w = loadWebAssembly
 
 function loadWebAssemblyModule(
   chunkPath: ChunkPath,
@@ -237,12 +242,13 @@ function loadWebAssemblyModule(
 
   return compileWebAssemblyFromPath(resolved)
 }
+contextPrototype.u = loadWebAssemblyModule
 
 function getWorkerBlobURL(_chunks: ChunkPath[]): string {
   throw new Error('Worker blobs are not implemented yet for Node.js')
 }
 
-Context.prototype.b = getWorkerBlobURL
+nodeContextPrototype.b = getWorkerBlobURL
 
 function instantiateModule(
   id: ModuleId,
@@ -290,18 +296,9 @@ function instantiateModule(
       Object.assign(context, {
         x: externalRequire,
         y: externalImport,
-        i: esmImport.bind(null, module),
-        s: esmExport.bind(null, module, module.exports, moduleCache),
-        j: dynamicExport.bind(null, module, module.exports, moduleCache),
-        v: exportValue.bind(null, module, moduleCache),
-        n: exportNamespace.bind(null, module, moduleCache),
-        c: moduleCache,
-        M: moduleFactories,
         l: loadChunkAsync.bind(null, SourceType.Parent, id),
         L: loadChunkAsyncByUrl.bind(null, SourceType.Parent, id),
         C: clearChunkCache,
-        w: loadWebAssembly,
-        u: loadWebAssemblyModule,
       })
     )
   } catch (error) {

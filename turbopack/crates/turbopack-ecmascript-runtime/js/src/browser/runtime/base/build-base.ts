@@ -2,6 +2,7 @@
 /// <reference path="./dummy.ts" />
 
 const moduleCache: ModuleCache<Module> = {}
+contextPrototype.c = moduleCache
 
 /**
  * Gets or instantiates a runtime module.
@@ -105,17 +106,8 @@ function instantiateModule(
     const context = new (Context as any as ContextConstructor<Module>)(module)
     moduleFactory(
       Object.assign(context, {
-        i: esmImport.bind(null, module),
-        s: esmExport.bind(null, module, module.exports, moduleCache),
-        j: dynamicExport.bind(null, module, module.exports, moduleCache),
-        v: exportValue.bind(null, module, moduleCache),
-        n: exportNamespace.bind(null, module, moduleCache),
-        c: moduleCache,
-        M: moduleFactories,
         l: loadChunk.bind(null, SourceType.Parent, id),
         L: loadChunkByUrl.bind(null, SourceType.Parent, id),
-        w: loadWebAssembly.bind(null, SourceType.Parent, id),
-        u: loadWebAssemblyModule.bind(null, SourceType.Parent, id),
       })
     )
   } catch (error) {

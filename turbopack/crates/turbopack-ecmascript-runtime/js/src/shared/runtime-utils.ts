@@ -116,19 +116,20 @@ function esm(
  * Makes the module an ESM with exports
  */
 function esmExport(
-  module: Module,
-  exports: Exports,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   getters: Record<string, () => any>,
   id: ModuleId | undefined
 ) {
+  let module = this.m
+  let exports = this.e
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
     exports = module.exports
   }
   module.namespaceObject = module.exports
   esm(exports, getters)
 }
+contextPrototype.s = esmExport
 
 function ensureDynamicExports(module: Module, exports: Exports) {
   let reexportedObjects = module[REEXPORTED_OBJECTS]
@@ -167,14 +168,14 @@ function ensureDynamicExports(module: Module, exports: Exports) {
  * Dynamically exports properties from an object
  */
 function dynamicExport(
-  module: Module,
-  exports: Exports,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   object: Record<string, any>,
   id: ModuleId | undefined
 ) {
+  let module = this.m
+  let exports = this.e
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
     exports = module.exports
   }
   ensureDynamicExports(module, exports)
@@ -183,30 +184,33 @@ function dynamicExport(
     module[REEXPORTED_OBJECTS]!.push(object)
   }
 }
+contextPrototype.j = dynamicExport
 
 function exportValue(
-  module: Module,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   value: any,
   id: ModuleId | undefined
 ) {
+  let module = this.m
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
   }
   module.exports = value
 }
+contextPrototype.v = exportValue
 
 function exportNamespace(
-  module: Module,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   namespace: any,
   id: ModuleId | undefined
 ) {
+  let module = this.m
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
   }
   module.exports = module.namespaceObject = namespace
 }
+contextPrototype.n = exportNamespace
 
 function createGetter(obj: Record<string | symbol, any>, key: string | symbol) {
   return () => obj[key]
@@ -267,10 +271,10 @@ function createNS(raw: Module['exports']): EsmNamespaceObject {
 }
 
 function esmImport(
-  sourceModule: Module,
+  this: TurbopackBaseContext<Module>,
   id: ModuleId
 ): Exclude<Module['namespaceObject'], undefined> {
-  const module = getOrInstantiateModuleFromParent(id, sourceModule)
+  const module = getOrInstantiateModuleFromParent(id, this.m)
   if (module.error) throw module.error
 
   // any ES module has to have `module.namespaceObject` defined.
@@ -284,6 +288,7 @@ function esmImport(
     raw && (raw as any).__esModule
   ))
 }
+contextPrototype.i = esmImport
 
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.

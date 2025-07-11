@@ -75,14 +75,17 @@ function getOverwrittenModule(moduleCache, id) {
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(module, exports, moduleCache, getters, id) {
+ */ function esmExport(getters, id) {
+    let module = this.m;
+    let exports = this.e;
     if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+        module = getOverwrittenModule(this.c, id);
         exports = module.exports;
     }
     module.namespaceObject = module.exports;
     esm(exports, getters);
 }
+contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = module[REEXPORTED_OBJECTS];
     if (!reexportedObjects) {
@@ -112,9 +115,11 @@ function ensureDynamicExports(module, exports) {
 }
 /**
  * Dynamically exports properties from an object
- */ function dynamicExport(module, exports, moduleCache, object, id) {
+ */ function dynamicExport(object, id) {
+    let module = this.m;
+    let exports = this.e;
     if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+        module = getOverwrittenModule(this.c, id);
         exports = module.exports;
     }
     ensureDynamicExports(module, exports);
@@ -122,18 +127,23 @@ function ensureDynamicExports(module, exports) {
         module[REEXPORTED_OBJECTS].push(object);
     }
 }
-function exportValue(module, moduleCache, value, id) {
+contextPrototype.j = dynamicExport;
+function exportValue(value, id) {
+    let module = this.m;
     if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+        module = getOverwrittenModule(this.c, id);
     }
     module.exports = value;
 }
-function exportNamespace(module, moduleCache, namespace, id) {
+contextPrototype.v = exportValue;
+function exportNamespace(namespace, id) {
+    let module = this.m;
     if (id != null) {
-        module = getOverwrittenModule(moduleCache, id);
+        module = getOverwrittenModule(this.c, id);
     }
     module.exports = module.namespaceObject = namespace;
 }
+contextPrototype.n = exportNamespace;
 function createGetter(obj, key) {
     return ()=>obj[key];
 }
@@ -176,8 +186,8 @@ function createNS(raw) {
         return Object.create(null);
     }
 }
-function esmImport(sourceModule, id) {
-    const module = getOrInstantiateModuleFromParent(id, sourceModule);
+function esmImport(id) {
+    const module = getOrInstantiateModuleFromParent(id, this.m);
     if (module.error) throw module.error;
     // any ES module has to have `module.namespaceObject` defined.
     if (module.namespaceObject) return module.namespaceObject;
@@ -185,6 +195,7 @@ function esmImport(sourceModule, id) {
     const raw = module.exports;
     return module.namespaceObject = interopEsm(raw, createNS(raw), raw && raw.__esModule);
 }
+contextPrototype.i = esmImport;
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
 const runtimeRequire = // @ts-ignore
@@ -418,6 +429,7 @@ var SourceType = /*#__PURE__*/ function(SourceType) {
     return SourceType;
 }(SourceType || {});
 const moduleFactories = Object.create(null);
+contextPrototype.M = moduleFactories;
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
  */ const runtimeModules = new Set();
@@ -655,9 +667,18 @@ const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/;
  */ function isCss(chunkUrl) {
     return regexCssUrl.test(chunkUrl);
 }
+function loadWebAssembly(chunkPath, edgeModule, importsObj) {
+    return BACKEND.loadWebAssembly(1, this.m.id, chunkPath, edgeModule, importsObj);
+}
+contextPrototype.w = loadWebAssembly;
+function loadWebAssemblyModule(chunkPath, edgeModule) {
+    return BACKEND.loadWebAssemblyModule(1, this.m.id, chunkPath, edgeModule);
+}
+contextPrototype.u = loadWebAssemblyModule;
 /// <reference path="./dev-globals.d.ts" />
 /// <reference path="./dev-protocol.d.ts" />
 /// <reference path="./dev-extensions.ts" />
+const devContextPrototype = Context.prototype;
 /**
  * This file contains runtime types and functions that are shared between all
  * Turbopack *development* ECMAScript runtimes.
@@ -665,6 +686,7 @@ const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/;
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ const devModuleCache = Object.create(null);
+devContextPrototype.c = devModuleCache;
 class UpdateApplyError extends Error {
     name = 'UpdateApplyError';
     dependencyChain;
@@ -778,18 +800,9 @@ function instantiateModule(moduleId, sourceType, sourceData) {
         runModuleExecutionHooks(module, (refresh)=>{
             const context = new Context(module);
             moduleFactory(Object.assign(context, {
-                i: esmImport.bind(null, module),
-                s: esmExport.bind(null, module, module.exports, devModuleCache),
-                j: dynamicExport.bind(null, module, module.exports, devModuleCache),
-                v: exportValue.bind(null, module, devModuleCache),
-                n: exportNamespace.bind(null, module, devModuleCache),
-                c: devModuleCache,
-                C: null,
-                M: moduleFactories,
                 l: loadChunk.bind(null, SourceType.Parent, id),
                 L: loadChunkByUrl.bind(null, SourceType.Parent, id),
-                w: loadWebAssembly.bind(null, SourceType.Parent, id),
-                u: loadWebAssemblyModule.bind(null, SourceType.Parent, id),
+                C: null,
                 P: resolveAbsolutePath,
                 k: refresh
             }));
@@ -1475,18 +1488,6 @@ globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime-types.d.ts" />
 let BACKEND;
-function fetchWebAssembly(wasmChunkPath) {
-    return fetch(getChunkRelativeUrl(wasmChunkPath));
-}
-async function loadWebAssembly(_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
-    const req = fetchWebAssembly(wasmChunkPath);
-    const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
-    return instance.exports;
-}
-async function loadWebAssemblyModule(_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
-    const req = fetchWebAssembly(wasmChunkPath);
-    return await WebAssembly.compileStreaming(req);
-}
 /**
  * Maps chunk paths to the corresponding resolver.
  */ const chunkResolvers = new Map();
@@ -1518,6 +1519,15 @@ async function loadWebAssemblyModule(_sourceType, _sourceData, wasmChunkPath, _e
      * has been loaded.
      */ loadChunkCached (sourceType, sourceData, chunkUrl) {
             return doLoadChunk(sourceType, sourceData, chunkUrl);
+        },
+        async loadWebAssembly (_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
+            const req = fetchWebAssembly(wasmChunkPath);
+            const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
+            return instance.exports;
+        },
+        async loadWebAssemblyModule (_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
+            const req = fetchWebAssembly(wasmChunkPath);
+            return await WebAssembly.compileStreaming(req);
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -1627,6 +1637,9 @@ async function loadWebAssemblyModule(_sourceType, _sourceData, wasmChunkPath, _e
         }
         resolver.loadingStarted = true;
         return resolver.promise;
+    }
+    function fetchWebAssembly(wasmChunkPath) {
+        return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
 /**

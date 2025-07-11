@@ -208,7 +208,7 @@ impl SinglePatternMapping {
                 &format!("Unsupported external type {ty:?} for dynamic import reference"),
             ),
             Self::ModuleLoader(module_id) => {
-                quote!("($turbopack_require($id))($turbopack_import)" as Expr,
+                quote!("($turbopack_require($id))(i => $turbopack_import(i))" as Expr,
                     turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                     turbopack_import: Expr = TURBOPACK_IMPORT.into(),
                     id: Expr = module_id_to_lit(module_id)

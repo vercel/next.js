@@ -34,6 +34,7 @@ type ChunkData =
     }
 
 type CommonJsRequire = (moduleId: ModuleId) => Exports
+type RuntimeRequire = (request: string) => Exports
 type ModuleContextFactory = (map: ModuleContextMap) => ModuleContext
 type EsmImport = (
   moduleId: ModuleId,
@@ -108,7 +109,7 @@ interface TurbopackBaseContext<M> {
   a: AsyncModule
   e: Module['exports']
   r: CommonJsRequire
-  t: CommonJsRequire
+  t: RuntimeRequire
   f: ModuleContextFactory
   i: EsmImport
   s: EsmExport
