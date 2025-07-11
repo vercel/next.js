@@ -316,6 +316,26 @@
       {
         "message": "substr() is deprecated, use slice() or substring() instead",
         "selector": "MemberExpression > Identifier[name='substr']"
+      },
+      {
+        "message": "Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using `if` statements.",
+        "selector": "IfStatement[test.left.object.name='workUnitStore'][test.left.property.name='type']"
+      },
+      {
+        "message": "Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using `if` statements.",
+        "selector": "IfStatement[test.left.expression.object.name='workUnitStore'][test.left.expression.property.name='type']"
+      },
+      {
+        "message": "Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using a ternary.",
+        "selector": "ConditionalExpression[test.left.object.name='workUnitStore'][test.left.property.name='type']"
+      },
+      {
+        "message": "Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using a ternary.",
+        "selector": "ConditionalExpression[test.type='LogicalExpression'][test.operator='&&'][test.left.name='workUnitStore'][test.right.left.object.name='workUnitStore'][test.right.left.property.name='type']"
+      },
+      {
+        "message": "Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using a ternary.",
+        "selector": "ConditionalExpression[test.left.expression.object.name='workUnitStore'][test.left.expression.property.name='type']"
       }
     ],
     "no-script-url": "error",
