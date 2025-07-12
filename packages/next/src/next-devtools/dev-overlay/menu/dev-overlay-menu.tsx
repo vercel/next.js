@@ -71,8 +71,6 @@ export const DevtoolMenu = ({
   const { setSelectedIndex, selectedIndex } = usePanelRouterContext()
 
   function onMenuKeydown(e: React.KeyboardEvent<HTMLDivElement | null>) {
-    console.log('i got a key down', e)
-
     e.preventDefault()
 
     const totalItems = definedItems.length
@@ -110,8 +108,6 @@ export const DevtoolMenu = ({
         break
     }
   }
-
-  console.log('mounting menu again', onMenuKeydown)
 
   return (
     <div
@@ -255,7 +251,6 @@ export function selectMenuItem({
   const el = menuRef.current?.querySelector(
     `[data-index="${index}"]`
   ) as HTMLElement
-  console.log('do we hav el to focus?', el)
 
   if (el) {
     setSelectedIndex(index)

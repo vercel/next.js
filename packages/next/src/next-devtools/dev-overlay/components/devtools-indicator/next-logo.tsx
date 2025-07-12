@@ -22,7 +22,7 @@ export function NextLogoNew({
   const { state, dispatch } = useDevOverlayContext()
   const { totalErrorCount } = useRenderErrorContext()
   const SIZE = 36 / state.scale
-  const { panel } = usePanelRouterContext()
+  const { panel, triggerRef } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'
 
   const hasError = totalErrorCount > 0
@@ -33,7 +33,6 @@ export function NextLogoNew({
     SHORT_DURATION_MS
   )
 
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
 
