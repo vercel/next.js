@@ -54,8 +54,10 @@ export async function unstable_rootParams(): Promise<Params> {
         workStore,
         workUnitStore
       )
-    default:
+    case 'request':
       return Promise.resolve(workUnitStore.rootParams)
+    default:
+      return workUnitStore satisfies never
   }
 }
 
@@ -96,8 +98,8 @@ function createPrerenderRootParams(
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
-        default:
-          // remaining cases are prerender-ppr and prerender-legacy
+        case 'prerender-ppr':
+        case 'prerender-legacy':
           // We aren't in a dynamicIO prerender but we do have fallback params at this
           // level so we need to make an erroring params object which will postpone
           // if you access the fallback params
@@ -107,6 +109,8 @@ function createPrerenderRootParams(
             workStore,
             prerenderStore
           )
+        default:
+          prerenderStore satisfies never
       }
     }
   }

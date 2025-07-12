@@ -17,6 +17,7 @@ import { unstable_prerender as prerender } from 'react-server-dom-webpack/static
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import type {
+  RequestStore,
   UseCacheStore,
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
@@ -26,6 +27,7 @@ import {
   getPrerenderResumeDataCache,
   workUnitAsyncStorage,
   getDraftModeProviderForCacheScope,
+  getCacheSignal,
 } from '../app-render/work-unit-async-storage.external'
 
 import { makeHangingPromise } from '../dynamic-rendering-utils'
@@ -162,11 +164,24 @@ function generateCacheEntryWithCacheContext(
     )
   }
 
-  const useCacheOrRequestStore =
-    outerWorkUnitStore?.type === 'request' ||
-    outerWorkUnitStore?.type === 'cache'
-      ? outerWorkUnitStore
-      : undefined
+  let useCacheOrRequestStore: RequestStore | UseCacheStore | undefined
+
+  if (outerWorkUnitStore) {
+    switch (outerWorkUnitStore?.type) {
+      case 'cache':
+      case 'request':
+        useCacheOrRequestStore = outerWorkUnitStore
+        break
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'unstable-cache':
+        break
+      default:
+        outerWorkUnitStore satisfies never
+    }
+  }
 
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
@@ -209,30 +224,37 @@ function propagateCacheLifeAndTags(
   workUnitStore: WorkUnitStore | undefined,
   entry: CacheEntry
 ): void {
-  if (
-    workUnitStore &&
-    (workUnitStore.type === 'cache' ||
-      workUnitStore.type === 'prerender' ||
-      workUnitStore.type === 'prerender-ppr' ||
-      workUnitStore.type === 'prerender-legacy')
-  ) {
-    // Propagate tags and revalidate upwards
-    const outerTags = workUnitStore.tags ?? (workUnitStore.tags = [])
-    const entryTags = entry.tags
-    for (let i = 0; i < entryTags.length; i++) {
-      const tag = entryTags[i]
-      if (!outerTags.includes(tag)) {
-        outerTags.push(tag)
-      }
-    }
-    if (workUnitStore.stale > entry.stale) {
-      workUnitStore.stale = entry.stale
-    }
-    if (workUnitStore.revalidate > entry.revalidate) {
-      workUnitStore.revalidate = entry.revalidate
-    }
-    if (workUnitStore.expire > entry.expire) {
-      workUnitStore.expire = entry.expire
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        // Propagate tags and revalidate upwards
+        const outerTags = workUnitStore.tags ?? (workUnitStore.tags = [])
+        const entryTags = entry.tags
+        for (let i = 0; i < entryTags.length; i++) {
+          const tag = entryTags[i]
+          if (!outerTags.includes(tag)) {
+            outerTags.push(tag)
+          }
+        }
+        if (workUnitStore.stale > entry.stale) {
+          workUnitStore.stale = entry.stale
+        }
+        if (workUnitStore.revalidate > entry.revalidate) {
+          workUnitStore.revalidate = entry.revalidate
+        }
+        if (workUnitStore.expire > entry.expire) {
+          workUnitStore.expire = entry.expire
+        }
+        break
+      case 'prerender-client':
+      case 'request':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 }
@@ -314,10 +336,9 @@ async function collectResult(
   // Propagate tags/revalidate to the parent context.
   propagateCacheLifeAndTags(outerWorkUnitStore, entry)
 
-  const cacheSignal =
-    outerWorkUnitStore && outerWorkUnitStore.type === 'prerender'
-      ? outerWorkUnitStore.cacheSignal
-      : null
+  const cacheSignal = outerWorkUnitStore
+    ? getCacheSignal(outerWorkUnitStore)
+    : null
 
   if (cacheSignal) {
     cacheSignal.endRead()
@@ -362,22 +383,36 @@ async function generateCacheEntryImpl(
                 yield entry
               }
 
-              // The encoded arguments might contain hanging promises. In this
-              // case we don't want to reject with "Error: Connection closed.",
-              // so we intentionally keep the iterable alive. This is similar to
-              // the halting trick that we do while rendering.
-              if (outerWorkUnitStore?.type === 'prerender') {
-                await new Promise<void>((resolve) => {
-                  if (outerWorkUnitStore.renderSignal.aborted) {
-                    resolve()
-                  } else {
-                    outerWorkUnitStore.renderSignal.addEventListener(
-                      'abort',
-                      () => resolve(),
-                      { once: true }
-                    )
-                  }
-                })
+              if (outerWorkUnitStore) {
+                switch (outerWorkUnitStore.type) {
+                  case 'prerender':
+                    // The encoded arguments might contain hanging promises. In
+                    // this case we don't want to reject with "Error: Connection
+                    // closed.", so we intentionally keep the iterable alive.
+                    // This is similar to the halting trick that we do while
+                    // rendering.
+                    await new Promise<void>((resolve) => {
+                      if (outerWorkUnitStore.renderSignal.aborted) {
+                        resolve()
+                      } else {
+                        outerWorkUnitStore.renderSignal.addEventListener(
+                          'abort',
+                          () => resolve(),
+                          { once: true }
+                        )
+                      }
+                    })
+                    break
+                  case 'prerender-client':
+                  case 'prerender-ppr':
+                  case 'prerender-legacy':
+                  case 'request':
+                  case 'cache':
+                  case 'unstable-cache':
+                    break
+                  default:
+                    outerWorkUnitStore satisfies never
+                }
               }
             },
           },
@@ -425,88 +460,99 @@ async function generateCacheEntryImpl(
 
   let stream: ReadableStream<Uint8Array>
 
-  if (outerWorkUnitStore?.type === 'prerender') {
-    const timeoutAbortController = new AbortController()
+  switch (outerWorkUnitStore?.type) {
+    case 'prerender':
+      const timeoutAbortController = new AbortController()
 
-    // If we're prerendering, we give you 50 seconds to fill a cache entry.
-    // Otherwise we assume you stalled on hanging input and de-opt. This needs
-    // to be lower than just the general timeout of 60 seconds.
-    const timer = setTimeout(() => {
-      workStore.invalidDynamicUsageError = timeoutError
-      timeoutAbortController.abort(timeoutError)
-    }, 50000)
+      // If we're prerendering, we give you 50 seconds to fill a cache entry.
+      // Otherwise we assume you stalled on hanging input and de-opt. This needs
+      // to be lower than just the general timeout of 60 seconds.
+      const timer = setTimeout(() => {
+        workStore.invalidDynamicUsageError = timeoutError
+        timeoutAbortController.abort(timeoutError)
+      }, 50000)
 
-    const dynamicAccessAbortSignal =
-      dynamicAccessAsyncStorage.getStore()?.abortController.signal
+      const dynamicAccessAbortSignal =
+        dynamicAccessAsyncStorage.getStore()?.abortController.signal
 
-    const abortSignal = dynamicAccessAbortSignal
-      ? AbortSignal.any([
-          dynamicAccessAbortSignal,
-          outerWorkUnitStore.renderSignal,
-          timeoutAbortController.signal,
-        ])
-      : timeoutAbortController.signal
+      const abortSignal = dynamicAccessAbortSignal
+        ? AbortSignal.any([
+            dynamicAccessAbortSignal,
+            outerWorkUnitStore.renderSignal,
+            timeoutAbortController.signal,
+          ])
+        : timeoutAbortController.signal
 
-    const { prelude } = await prerender(
-      resultPromise,
-      clientReferenceManifest.clientModules,
-      {
-        environmentName: 'Cache',
-        filterStackFrame,
-        signal: abortSignal,
-        temporaryReferences,
-        onError(error) {
-          if (abortSignal.aborted && abortSignal.reason === error) {
-            return undefined
-          }
+      const { prelude } = await prerender(
+        resultPromise,
+        clientReferenceManifest.clientModules,
+        {
+          environmentName: 'Cache',
+          filterStackFrame,
+          signal: abortSignal,
+          temporaryReferences,
+          onError(error) {
+            if (abortSignal.aborted && abortSignal.reason === error) {
+              return undefined
+            }
 
-          return handleError(error)
-        },
-      }
-    )
-
-    clearTimeout(timer)
-
-    if (timeoutAbortController.signal.aborted) {
-      // When the timeout is reached we always error the stream. Even for
-      // fallback shell prerenders we don't want to return a hanging promise,
-      // which would allow the function to become a dynamic hole. Because that
-      // would mean that a non-empty shell could be generated which would be
-      // subject to revalidation, and we don't want to create long revalidation
-      // times.
-      stream = new ReadableStream({
-        start(controller) {
-          controller.error(timeoutError)
-        },
-      })
-    } else if (dynamicAccessAbortSignal?.aborted) {
-      // If the prerender is aborted because of dynamic access (e.g. reading
-      // fallback params), we return a hanging promise. This essentially makes
-      // the "use cache" function dynamic.
-      const hangingPromise = makeHangingPromise<never>(
-        outerWorkUnitStore.renderSignal,
-        abortSignal.reason
+            return handleError(error)
+          },
+        }
       )
 
-      if (outerWorkUnitStore?.type === 'prerender') {
-        outerWorkUnitStore.cacheSignal?.endRead()
-      }
+      clearTimeout(timer)
 
-      return { type: 'prerender-dynamic', hangingPromise }
-    } else {
-      stream = prelude
-    }
-  } else {
-    stream = renderToReadableStream(
-      resultPromise,
-      clientReferenceManifest.clientModules,
-      {
-        environmentName: 'Cache',
-        filterStackFrame,
-        temporaryReferences,
-        onError: handleError,
+      if (timeoutAbortController.signal.aborted) {
+        // When the timeout is reached we always error the stream. Even for
+        // fallback shell prerenders we don't want to return a hanging promise,
+        // which would allow the function to become a dynamic hole. Because that
+        // would mean that a non-empty shell could be generated which would be
+        // subject to revalidation, and we don't want to create long
+        // revalidation times.
+        stream = new ReadableStream({
+          start(controller) {
+            controller.error(timeoutError)
+          },
+        })
+      } else if (dynamicAccessAbortSignal?.aborted) {
+        // If the prerender is aborted because of dynamic access (e.g. reading
+        // fallback params), we return a hanging promise. This essentially makes
+        // the "use cache" function dynamic.
+        const hangingPromise = makeHangingPromise<never>(
+          outerWorkUnitStore.renderSignal,
+          abortSignal.reason
+        )
+
+        if (outerWorkUnitStore.cacheSignal) {
+          outerWorkUnitStore.cacheSignal.endRead()
+        }
+
+        return { type: 'prerender-dynamic', hangingPromise }
+      } else {
+        stream = prelude
       }
-    )
+      break
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
+    case 'unstable-cache':
+    case undefined:
+      stream = renderToReadableStream(
+        resultPromise,
+        clientReferenceManifest.clientModules,
+        {
+          environmentName: 'Cache',
+          filterStackFrame,
+          temporaryReferences,
+          onError: handleError,
+        }
+      )
+      break
+    default:
+      return outerWorkUnitStore satisfies never
   }
 
   const [returnStream, savedStream] = stream.tee()
@@ -657,10 +703,9 @@ export function cache(
       const hmrRefreshHash =
         workUnitStore && getHmrRefreshHash(workStore, workUnitStore)
 
-      const hangingInputAbortSignal =
-        workUnitStore?.type === 'prerender'
-          ? createHangingInputAbortSignal(workUnitStore)
-          : undefined
+      const hangingInputAbortSignal = workUnitStore
+        ? createHangingInputAbortSignal(workUnitStore)
+        : undefined
 
       let isPageOrLayout = false
 
@@ -758,29 +803,43 @@ export function cache(
 
       let encodedCacheKeyParts: FormData | string
 
-      if (workUnitStore?.type === 'prerender' && !isPageOrLayout) {
-        // If the "use cache" function is not a page or a layout, we need to
-        // track dynamic access already when encoding the arguments. If params
-        // are passed explicitly into a "use cache" function (as opposed to
-        // receiving them automatically in a page or layout), we assume that the
-        // params are also accessed. This allows us to abort early, and treat
-        // the function as dynamic, instead of waiting for the timeout to be
-        // reached.
-        const dynamicAccessAbortController = new AbortController()
+      switch (workUnitStore?.type) {
+        case 'prerender':
+          if (!isPageOrLayout) {
+            // If the "use cache" function is not a page or a layout, we need to
+            // track dynamic access already when encoding the arguments. If
+            // params are passed explicitly into a "use cache" function (as
+            // opposed to receiving them automatically in a page or layout), we
+            // assume that the params are also accessed. This allows us to abort
+            // early, and treat the function as dynamic, instead of waiting for
+            // the timeout to be reached.
+            const dynamicAccessAbortController = new AbortController()
 
-        encodedCacheKeyParts = await dynamicAccessAsyncStorage.run(
-          { abortController: dynamicAccessAbortController },
-          encodeCacheKeyParts
-        )
+            encodedCacheKeyParts = await dynamicAccessAsyncStorage.run(
+              { abortController: dynamicAccessAbortController },
+              encodeCacheKeyParts
+            )
 
-        if (dynamicAccessAbortController.signal.aborted) {
-          return makeHangingPromise(
-            workUnitStore.renderSignal,
-            dynamicAccessAbortController.signal.reason.message
-          )
-        }
-      } else {
-        encodedCacheKeyParts = await encodeCacheKeyParts()
+            if (dynamicAccessAbortController.signal.aborted) {
+              return makeHangingPromise(
+                workUnitStore.renderSignal,
+                dynamicAccessAbortController.signal.reason.message
+              )
+            }
+            break
+          }
+        // fallthrough
+        case 'prerender-client':
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'cache':
+        case 'unstable-cache':
+        case undefined:
+          encodedCacheKeyParts = await encodeCacheKeyParts()
+          break
+        default:
+          return workUnitStore satisfies never
       }
 
       const serializedCacheKey =
@@ -801,10 +860,7 @@ export function cache(
         : null
 
       if (renderResumeDataCache) {
-        const cacheSignal =
-          workUnitStore && workUnitStore.type === 'prerender'
-            ? workUnitStore.cacheSignal
-            : null
+        const cacheSignal = workUnitStore ? getCacheSignal(workUnitStore) : null
 
         if (cacheSignal) {
           cacheSignal.beginRead()
@@ -815,22 +871,35 @@ export function cache(
           propagateCacheLifeAndTags(workUnitStore, existingEntry)
           if (
             workUnitStore !== undefined &&
-            workUnitStore.type === 'prerender' &&
             existingEntry !== undefined &&
             (existingEntry.revalidate === 0 ||
               existingEntry.expire < DYNAMIC_EXPIRE)
           ) {
-            // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
-            // expire time is under 5 minutes, then we consider this cache entry dynamic
-            // as it's not worth generating static pages for such data. It's better to leave
-            // a PPR hole that can be filled in dynamically with a potentially cached entry.
-            if (cacheSignal) {
-              cacheSignal.endRead()
+            switch (workUnitStore.type) {
+              case 'prerender':
+                // In a Dynamic I/O prerender, if the cache entry has
+                // revalidate: 0 or if the expire time is under 5 minutes, then
+                // we consider this cache entry dynamic as it's not worth
+                // generating static pages for such data. It's better to leave a
+                // PPR hole that can be filled in dynamically with a potentially
+                // cached entry.
+                if (cacheSignal) {
+                  cacheSignal.endRead()
+                }
+                return makeHangingPromise(
+                  workUnitStore.renderSignal,
+                  'dynamic "use cache"'
+                )
+              case 'prerender-client':
+              case 'prerender-ppr':
+              case 'prerender-legacy':
+              case 'request':
+              case 'cache':
+              case 'unstable-cache':
+                break
+              default:
+                workUnitStore satisfies never
             }
-            return makeHangingPromise(
-              workUnitStore.renderSignal,
-              'dynamic "use cache"'
-            )
           }
           const [streamA, streamB] = existingEntry.value.tee()
           existingEntry.value = streamB
@@ -847,37 +916,47 @@ export function cache(
             cacheSignal.endRead()
           }
 
-          // If `allowEmptyStaticShell` is true, and a prefilled resume data
-          // cache was provided, then a cache miss means that params were part
-          // of the cache key. In this case, we can make this cache function a
-          // dynamic hole in the shell (or produce an empty shell if there's no
-          // parent suspense boundary). Currently, this also includes layouts
-          // and pages that don't read params, which will be improved when we
-          // implement NAR-136. Otherwise, we assume that if params are passed
-          // explicitly into a "use cache" function, that the params are also
-          // accessed. This allows us to abort early, and treat the function as
-          // dynamic, instead of waiting for the timeout to be reached. Compared
-          // to the instrumentation-based params bailout we do here, this also
-          // covers the case where params are transformed with an async
-          // function, before being passed into the "use cache" function, which
-          // escapes the instrumentation.
-          if (
-            workUnitStore?.type === 'prerender' &&
-            workUnitStore.allowEmptyStaticShell
-          ) {
-            return makeHangingPromise(
-              workUnitStore.renderSignal,
-              'dynamic "use cache"'
-            )
+          if (workUnitStore) {
+            switch (workUnitStore.type) {
+              case 'prerender':
+                // If `allowEmptyStaticShell` is true, and thus a prefilled
+                // resume data cache was provided, then a cache miss means that
+                // params were part of the cache key. In this case, we can make
+                // this cache function a dynamic hole in the shell (or produce
+                // an empty shell if there's no parent suspense boundary).
+                // Currently, this also includes layouts and pages that don't
+                // read params, which will be improved when we implement
+                // NAR-136. Otherwise, we assume that if params are passed
+                // explicitly into a "use cache" function, that the params are
+                // also accessed. This allows us to abort early, and treat the
+                // function as dynamic, instead of waiting for the timeout to be
+                // reached. Compared to the instrumentation-based params bailout
+                // we do here, this also covers the case where params are
+                // transformed with an async function, before being passed into
+                // the "use cache" function, which escapes the instrumentation.
+                if (workUnitStore.allowEmptyStaticShell) {
+                  return makeHangingPromise(
+                    workUnitStore.renderSignal,
+                    'dynamic "use cache"'
+                  )
+                }
+                break
+              case 'prerender-client':
+              case 'prerender-ppr':
+              case 'prerender-legacy':
+              case 'request':
+              case 'cache':
+              case 'unstable-cache':
+                break
+              default:
+                workUnitStore satisfies never
+            }
           }
         }
       }
 
       if (stream === undefined) {
-        const cacheSignal =
-          workUnitStore && workUnitStore.type === 'prerender'
-            ? workUnitStore.cacheSignal
-            : null
+        const cacheSignal = workUnitStore ? getCacheSignal(workUnitStore) : null
         if (cacheSignal) {
           // Either the cache handler or the generation can be using I/O at this point.
           // We need to track when they start and when they complete.
@@ -937,23 +1016,36 @@ export function cache(
         const currentTime = performance.timeOrigin + performance.now()
         if (
           workUnitStore !== undefined &&
-          workUnitStore.type === 'prerender' &&
           entry !== undefined &&
           (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
         ) {
-          // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
-          // expire time is under 5 minutes, then we consider this cache entry dynamic
-          // as it's not worth generating static pages for such data. It's better to leave
-          // a PPR hole that can be filled in dynamically with a potentially cached entry.
-          if (cacheSignal) {
-            cacheSignal.endRead()
+          switch (workUnitStore.type) {
+            case 'prerender':
+              // In a Dynamic I/O prerender, if the cache entry has revalidate:
+              // 0 or if the expire time is under 5 minutes, then we consider
+              // this cache entry dynamic as it's not worth generating static
+              // pages for such data. It's better to leave a PPR hole that can
+              // be filled in dynamically with a potentially cached entry.
+              if (cacheSignal) {
+                cacheSignal.endRead()
+              }
+              return makeHangingPromise(
+                workUnitStore.renderSignal,
+                'dynamic "use cache"'
+              )
+            case 'prerender-client':
+            case 'prerender-ppr':
+            case 'prerender-legacy':
+            case 'request':
+            case 'cache':
+            case 'unstable-cache':
+              break
+            default:
+              workUnitStore satisfies never
           }
+        }
 
-          return makeHangingPromise(
-            workUnitStore.renderSignal,
-            'dynamic "use cache"'
-          )
-        } else if (
+        if (
           entry === undefined ||
           currentTime > entry.timestamp + entry.expire * 1000 ||
           (workStore.isStaticGeneration &&
@@ -1170,12 +1262,19 @@ function shouldForceRevalidate(
   }
 
   if (workStore.dev && workUnitStore) {
-    if (workUnitStore.type === 'request') {
-      return workUnitStore.headers.get('cache-control') === 'no-cache'
-    }
-
-    if (workUnitStore.type === 'cache') {
-      return workUnitStore.forceRevalidate
+    switch (workUnitStore.type) {
+      case 'request':
+        return workUnitStore.headers.get('cache-control') === 'no-cache'
+      case 'cache':
+        return workUnitStore.forceRevalidate
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 

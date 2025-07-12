@@ -15,11 +15,16 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
-import type { WorkUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  getCacheSignal,
+  type WorkUnitAsyncStorage,
+  type WorkUnitStore,
+} from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedFetchData,
+  type ServerComponentsHmrCache,
 } from '../response-cache'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import { cloneResponse } from './clone-response'
@@ -184,10 +189,7 @@ export function createPatchedFetcher(
     const workUnitStore = workUnitAsyncStorage.getStore()
 
     // During static generation we track cache reads so we can reason about when they fill
-    let cacheSignal =
-      workUnitStore && workUnitStore.type === 'prerender'
-        ? workUnitStore.cacheSignal
-        : null
+    let cacheSignal = workUnitStore ? getCacheSignal(workUnitStore) : null
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
@@ -252,16 +254,25 @@ export function createPatchedFetcher(
           `fetch ${input.toString()}`
         )
 
-        const revalidateStore =
-          workUnitStore &&
-          (workUnitStore.type === 'cache' ||
-            workUnitStore.type === 'prerender' ||
-            // TODO: stop accumulating tags in client prerender
-            workUnitStore.type === 'prerender-client' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy')
-            ? workUnitStore
-            : undefined
+        let revalidateStore: Extract<WorkUnitStore, { tags: any }> | undefined
+
+        if (workUnitStore) {
+          switch (workUnitStore.type) {
+            case 'prerender':
+            // TODO: Stop accumulating tags in client prerender. (fallthrough)
+            case 'prerender-client':
+            case 'prerender-ppr':
+            case 'prerender-legacy':
+            case 'cache':
+              revalidateStore = workUnitStore
+              break
+            case 'request':
+            case 'unstable-cache':
+              break
+            default:
+              workUnitStore satisfies never
+          }
+        }
 
         if (revalidateStore) {
           if (Array.isArray(tags)) {
@@ -278,12 +289,26 @@ export function createPatchedFetcher(
 
         const implicitTags = workUnitStore?.implicitTags
 
-        // Inside unstable-cache we treat it the same as force-no-store on the
-        // page.
-        const pageFetchCacheMode =
-          workUnitStore && workUnitStore.type === 'unstable-cache'
-            ? 'force-no-store'
-            : workStore.fetchCache
+        let pageFetchCacheMode = workStore.fetchCache
+
+        if (workUnitStore) {
+          switch (workUnitStore.type) {
+            case 'unstable-cache':
+              // Inside unstable-cache we treat it the same as force-no-store on
+              // the page.
+              pageFetchCacheMode = 'force-no-store'
+              break
+            case 'prerender':
+            case 'prerender-client':
+            case 'prerender-ppr':
+            case 'prerender-legacy':
+            case 'request':
+            case 'cache':
+              break
+            default:
+              workUnitStore satisfies never
+          }
+        }
 
         const isUsingNoStore = !!workStore.isUnstableNoStore
 
@@ -409,25 +434,33 @@ export function createPatchedFetcher(
           }
         }
 
-        if (
-          hasNoExplicitCacheConfig &&
-          workUnitStore !== undefined &&
-          (workUnitStore.type === 'prerender' ||
-            // While we don't want to do caching in the client scope
-            // we know the fetch will be dynamic for dynamicIO so we
-            // may as well avoid the call here
-            workUnitStore.type === 'prerender-client')
-        ) {
-          // If we have no cache config, and we're in Dynamic I/O prerendering, it'll be a dynamic call.
-          // We don't have to issue that dynamic call.
-          if (cacheSignal) {
-            cacheSignal.endRead()
-            cacheSignal = null
+        // If we have no cache config, and we're in Dynamic I/O prerendering,
+        // it'll be a dynamic call. We don't have to issue that dynamic call.
+        if (hasNoExplicitCacheConfig && workUnitStore !== undefined) {
+          switch (workUnitStore.type) {
+            case 'prerender':
+            // While we don't want to do caching in the client scope we know the
+            // fetch will be dynamic for dynamicIO so we may as well avoid the
+            // call here. (fallthrough)
+            case 'prerender-client':
+              if (cacheSignal) {
+                cacheSignal.endRead()
+                cacheSignal = null
+              }
+
+              return makeHangingPromise<Response>(
+                workUnitStore.renderSignal,
+                'fetch()'
+              )
+            case 'prerender-ppr':
+            case 'prerender-legacy':
+            case 'request':
+            case 'cache':
+            case 'unstable-cache':
+              break
+            default:
+              workUnitStore satisfies never
           }
-          return makeHangingPromise<Response>(
-            workUnitStore.renderSignal,
-            'fetch()'
-          )
         }
 
         switch (pageFetchCacheMode) {
@@ -523,8 +556,14 @@ export function createPatchedFetcher(
                     workUnitStore.renderSignal,
                     'fetch()'
                   )
+                case 'prerender-ppr':
+                case 'prerender-legacy':
+                case 'request':
+                case 'cache':
+                case 'unstable-cache':
+                  break
                 default:
-                // fallthrough
+                  workUnitStore satisfies never
               }
             }
 
@@ -548,16 +587,30 @@ export function createPatchedFetcher(
 
         let cacheKey: string | undefined
         const { incrementalCache } = workStore
+        let isHmrRefresh = false
+        let serverComponentsHmrCache: ServerComponentsHmrCache | undefined
 
-        const useCacheOrRequestStore =
-          workUnitStore?.type === 'request' || workUnitStore?.type === 'cache'
-            ? workUnitStore
-            : undefined
+        if (workUnitStore) {
+          switch (workUnitStore.type) {
+            case 'request':
+            case 'cache':
+              isHmrRefresh = workUnitStore.isHmrRefresh ?? false
+              serverComponentsHmrCache = workUnitStore.serverComponentsHmrCache
+              break
+            case 'prerender':
+            case 'prerender-client':
+            case 'prerender-ppr':
+            case 'prerender-legacy':
+            case 'unstable-cache':
+              break
+            default:
+              workUnitStore satisfies never
+          }
+        }
 
         if (
           incrementalCache &&
-          (isCacheableRevalidate ||
-            useCacheOrRequestStore?.serverComponentsHmrCache)
+          (isCacheableRevalidate || serverComponentsHmrCache)
         ) {
           try {
             cacheKey = await incrementalCache.generateCacheKey(
@@ -643,21 +696,17 @@ export function createPatchedFetcher(
                 res.status === 200 &&
                 incrementalCache &&
                 cacheKey &&
-                (isCacheableRevalidate ||
-                  useCacheOrRequestStore?.serverComponentsHmrCache)
+                (isCacheableRevalidate || serverComponentsHmrCache)
               ) {
                 const normalizedRevalidate =
                   finalRevalidate >= INFINITE_CACHE
                     ? CACHE_ONE_YEAR
                     : finalRevalidate
 
-                if (
-                  workUnitStore &&
-                  (workUnitStore.type === 'prerender' ||
-                    workUnitStore.type === 'prerender-client')
-                ) {
-                  // We are prerendering at build time or revalidate time with dynamicIO so we need to
-                  // buffer the response so we can guarantee it can be read in a microtask
+                const createCachedPrerenderResponse = async () => {
+                  // We are prerendering at build time or revalidate time with
+                  // dynamicIO so we need to buffer the response so we can
+                  // guarantee it can be read in a microtask.
                   const bodyBuffer = await res.arrayBuffer()
 
                   const fetchedData = {
@@ -669,7 +718,6 @@ export function createPatchedFetcher(
 
                   // We can skip checking the serverComponentsHmrCache because we aren't in
                   // dev mode.
-
                   await incrementalCache.set(
                     cacheKey,
                     {
@@ -693,7 +741,9 @@ export function createPatchedFetcher(
                     status: res.status,
                     statusText: res.statusText,
                   })
-                } else {
+                }
+
+                const createCachedDynamicResponse = async () => {
                   // We're cloning the response using this utility because there
                   // exists a bug in the undici library around response cloning.
                   // See the following pull request for more details:
@@ -716,10 +766,7 @@ export function createPatchedFetcher(
                         url: cloned1.url,
                       }
 
-                      useCacheOrRequestStore?.serverComponentsHmrCache?.set(
-                        cacheKey,
-                        fetchedData
-                      )
+                      serverComponentsHmrCache?.set(cacheKey, fetchedData)
 
                       if (isCacheableRevalidate) {
                         await incrementalCache.set(
@@ -766,6 +813,21 @@ export function createPatchedFetcher(
 
                   return cloned2
                 }
+
+                switch (workUnitStore?.type) {
+                  case 'prerender':
+                  case 'prerender-client':
+                    return createCachedPrerenderResponse()
+                  case 'prerender-ppr':
+                  case 'prerender-legacy':
+                  case 'request':
+                  case 'cache':
+                  case 'unstable-cache':
+                  case undefined:
+                    return createCachedDynamicResponse()
+                  default:
+                    workUnitStore satisfies never
+                }
               }
 
               // we had response that we determined shouldn't be cached so we return it
@@ -787,13 +849,8 @@ export function createPatchedFetcher(
         if (cacheKey && incrementalCache) {
           let cachedFetchData: CachedFetchData | undefined
 
-          if (
-            useCacheOrRequestStore?.isHmrRefresh &&
-            useCacheOrRequestStore.serverComponentsHmrCache
-          ) {
-            cachedFetchData =
-              useCacheOrRequestStore.serverComponentsHmrCache.get(cacheKey)
-
+          if (isHmrRefresh && serverComponentsHmrCache) {
+            cachedFetchData = serverComponentsHmrCache.get(cacheKey)
             isHmrRefreshCache = true
           }
 
@@ -810,16 +867,25 @@ export function createPatchedFetcher(
                   softTags: implicitTags?.tags,
                 })
 
-            if (hasNoExplicitCacheConfig) {
-              // We sometimes use the cache to dedupe fetches that do not specify a cache configuration
-              // In these cases we want to make sure we still exclude them from prerenders if dynamicIO is on
-              // so we introduce an artificial Task boundary here.
-              if (
-                workUnitStore &&
-                (workUnitStore.type === 'prerender' ||
-                  workUnitStore.type === 'prerender-client')
-              ) {
-                await waitAtLeastOneReactRenderTask()
+            if (hasNoExplicitCacheConfig && workUnitStore) {
+              switch (workUnitStore.type) {
+                case 'prerender':
+                case 'prerender-client':
+                  // We sometimes use the cache to dedupe fetches that do not
+                  // specify a cache configuration. In these cases we want to
+                  // make sure we still exclude them from prerenders if
+                  // dynamicIO is on so we introduce an artificial task boundary
+                  // here.
+                  await waitAtLeastOneReactRenderTask()
+                  break
+                case 'prerender-ppr':
+                case 'prerender-legacy':
+                case 'request':
+                case 'cache':
+                case 'unstable-cache':
+                  break
+                default:
+                  workUnitStore satisfies never
               }
             }
 

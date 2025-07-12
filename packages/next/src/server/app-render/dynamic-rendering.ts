@@ -122,14 +122,20 @@ export function markCurrentScopeAsDynamic(
   expression: string
 ): void {
   if (workUnitStore) {
-    if (
-      workUnitStore.type === 'cache' ||
-      workUnitStore.type === 'unstable-cache'
-    ) {
-      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
-      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
-      // forbidden inside a cache scope.
-      return
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'unstable-cache':
+        // Inside cache scopes, marking a scope as dynamic has no effect,
+        // because the outer cache scope creates a cache boundary. This is
+        // subtly different from reading a dynamic data source, which is
+        // forbidden inside a cache scope.
+        return
+      case 'prerender-legacy':
+      case 'prerender-ppr':
+      case 'request':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 
@@ -145,49 +151,34 @@ export function markCurrentScopeAsDynamic(
   }
 
   if (workUnitStore) {
-    if (workUnitStore.type === 'prerender-ppr') {
-      postponeWithTracking(
-        store.route,
-        expression,
-        workUnitStore.dynamicTracking
-      )
-    } else if (workUnitStore.type === 'prerender-legacy') {
-      workUnitStore.revalidate = 0
+    switch (workUnitStore.type) {
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
+      case 'prerender-legacy':
+        workUnitStore.revalidate = 0
 
-      // We aren't prerendering but we are generating a static page. We need to bail out of static generation
-      const err = new DynamicServerError(
-        `Route ${store.route} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-      )
-      store.dynamicUsageDescription = expression
-      store.dynamicUsageStack = err.stack
+        // We aren't prerendering, but we are generating a static page. We need
+        // to bail out of static generation.
+        const err = new DynamicServerError(
+          `Route ${store.route} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        )
+        store.dynamicUsageDescription = expression
+        store.dynamicUsageStack = err.stack
 
-      throw err
-    } else if (
-      process.env.NODE_ENV === 'development' &&
-      workUnitStore &&
-      workUnitStore.type === 'request'
-    ) {
-      workUnitStore.usedDynamic = true
+        throw err
+      case 'request':
+        if (process.env.NODE_ENV !== 'production') {
+          workUnitStore.usedDynamic = true
+        }
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
-}
-
-/**
- * This function communicates that some dynamic path parameter was read. This
- * differs from the more general `trackDynamicDataAccessed` in that it is will
- * not error when `dynamic = "error"` is set.
- *
- * @param store The static generation store
- * @param expression The expression that was accessed dynamically
- */
-export function trackFallbackParamAccessed(
-  store: WorkStore,
-  expression: string
-): void {
-  const prerenderStore = workUnitAsyncStorage.getStore()
-  if (!prerenderStore || prerenderStore.type !== 'prerender-ppr') return
-
-  postponeWithTracking(store.route, expression, prerenderStore.dynamicTracking)
 }
 
 /**
@@ -221,34 +212,27 @@ export function throwToInterruptStaticGeneration(
  *
  * @internal
  */
-export function trackDynamicDataInDynamicRender(
-  _store: WorkStore,
-  workUnitStore: void | WorkUnitStore
-) {
-  if (workUnitStore) {
-    if (
-      workUnitStore.type === 'cache' ||
-      workUnitStore.type === 'unstable-cache'
-    ) {
-      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
-      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
+  switch (workUnitStore.type) {
+    case 'cache':
+    case 'unstable-cache':
+      // Inside cache scopes, marking a scope as dynamic has no effect,
+      // because the outer cache scope creates a cache boundary. This is
+      // subtly different from reading a dynamic data source, which is
       // forbidden inside a cache scope.
       return
-    }
-    // TODO: it makes no sense to have these work unit store types during a dev render.
-    if (
-      workUnitStore.type === 'prerender' ||
-      workUnitStore.type === 'prerender-client' ||
-      workUnitStore.type === 'prerender-legacy'
-    ) {
-      workUnitStore.revalidate = 0
-    }
-    if (
-      process.env.NODE_ENV === 'development' &&
-      workUnitStore.type === 'request'
-    ) {
-      workUnitStore.usedDynamic = true
-    }
+    case 'prerender':
+    case 'prerender-legacy':
+    case 'prerender-ppr':
+    case 'prerender-client':
+      break
+    case 'request':
+      if (process.env.NODE_ENV !== 'production') {
+        workUnitStore.usedDynamic = true
+      }
+      break
+    default:
+      workUnitStore satisfies never
   }
 }
 
@@ -529,27 +513,40 @@ export function createPostponedAbortSignal(reason: string): AbortSignal {
  * case we need to abort the encoding of arguments since they'll never complete.
  */
 export function createHangingInputAbortSignal(
-  workUnitStore: PrerenderStoreModern
-): AbortSignal {
-  const controller = new AbortController()
+  workUnitStore: WorkUnitStore
+): AbortSignal | undefined {
+  switch (workUnitStore.type) {
+    case 'prerender':
+      const controller = new AbortController()
 
-  if (workUnitStore.cacheSignal) {
-    // If we have a cacheSignal it means we're in a prospective render. If the input
-    // we're waiting on is coming from another cache, we do want to wait for it so that
-    // we can resolve this cache entry too.
-    workUnitStore.cacheSignal.inputReady().then(() => {
-      controller.abort()
-    })
-  } else {
-    // Otherwise we're in the final render and we should already have all our caches
-    // filled. We might still be waiting on some microtasks so we wait one tick before
-    // giving up. When we give up, we still want to render the content of this cache
-    // as deeply as we can so that we can suspend as deeply as possible in the tree
-    // or not at all if we don't end up waiting for the input.
-    scheduleOnNextTick(() => controller.abort())
+      if (workUnitStore.cacheSignal) {
+        // If we have a cacheSignal it means we're in a prospective render. If
+        // the input we're waiting on is coming from another cache, we do want
+        // to wait for it so that we can resolve this cache entry too.
+        workUnitStore.cacheSignal.inputReady().then(() => {
+          controller.abort()
+        })
+      } else {
+        // Otherwise we're in the final render and we should already have all
+        // our caches filled. We might still be waiting on some microtasks so we
+        // wait one tick before giving up. When we give up, we still want to
+        // render the content of this cache as deeply as we can so that we can
+        // suspend as deeply as possible in the tree or not at all if we don't
+        // end up waiting for the input.
+        scheduleOnNextTick(() => controller.abort())
+      }
+
+      return controller.signal
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
+    case 'unstable-cache':
+      return undefined
+    default:
+      workUnitStore satisfies never
   }
-
-  return controller.signal
 }
 
 export function annotateDynamicAccess(
@@ -580,21 +577,32 @@ export function useDynamicRouteParams(expression: string) {
     // accesses.
     const workUnitStore = workUnitAsyncStorage.getStore()
     if (workUnitStore) {
-      // We're prerendering with dynamicIO or PPR or both
-      if (workUnitStore.type === 'prerender-client') {
-        // We are in a prerender with dynamicIO semantics
-        // We are going to hang here and never resolve. This will cause the currently
-        // rendering component to effectively be a dynamic hole
-        React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
-      } else if (workUnitStore.type === 'prerender-ppr') {
-        // We're prerendering with PPR
-        postponeWithTracking(
-          workStore.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
-      } else if (workUnitStore.type === 'prerender-legacy') {
-        throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
+      switch (workUnitStore.type) {
+        case 'prerender-client':
+          // We are in a prerender with dynamicIO semantics. We are going to
+          // hang here and never resolve. This will cause the currently
+          // rendering component to effectively be a dynamic hole.
+          React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
+          break
+        case 'prerender':
+        case 'prerender-ppr':
+          return postponeWithTracking(
+            workStore.route,
+            expression,
+            workUnitStore.dynamicTracking
+          )
+        case 'prerender-legacy':
+          return throwToInterruptStaticGeneration(
+            expression,
+            workStore,
+            workUnitStore
+          )
+        case 'request':
+        case 'cache':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
       }
     }
   }

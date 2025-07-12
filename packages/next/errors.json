@@ -717,5 +717,6 @@
   "716": "NEXT_DEVTOOLS_SIMULATED_ERROR",
   "717": "Unsupported environment condition \"%s\" and react condition \"%s\". This is a bug in Next.js.",
   "718": "Invariant: projectDir is required for node runtime",
-  "719": "Failed to get source map for '%s'. This is a bug in Next.js"
+  "719": "Failed to get source map for '%s'. This is a bug in Next.js",
+  "720": "A client prerender store should not be used for a route handler."
 }

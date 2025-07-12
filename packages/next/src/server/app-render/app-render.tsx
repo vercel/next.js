@@ -1233,12 +1233,24 @@ async function renderToHTMLOrFlightImpl(
         return true
       }
       const workUnitStore = workUnitAsyncStorage.getStore()
-      return !!(
-        workUnitStore &&
-        (workUnitStore.type === 'prerender' ||
-          workUnitStore.type === 'prerender-client' ||
-          workUnitStore.type === 'cache')
-      )
+
+      if (!workUnitStore) {
+        return false
+      }
+
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-client':
+        case 'cache':
+          return true
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'unstable-cache':
+          return false
+        default:
+          workUnitStore satisfies never
+      }
     }
 
     const __next_require__: typeof instrumented.require = (...args) => {
