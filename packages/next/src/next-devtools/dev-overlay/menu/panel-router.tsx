@@ -167,13 +167,28 @@ export const PanelRouter = () => {
             />
           }
         >
-          <RouteInfoBody
-            routerType={state.routerType}
-            isStaticRoute={state.staticIndicator}
+          <div
             style={{
               padding: '16px',
+              paddingTop: '8px',
             }}
-          />
+          >
+            <RouteInfoBody
+              routerType={state.routerType}
+              isStaticRoute={state.staticIndicator}
+            />
+            <InfoFooter
+              href={
+                state.staticIndicator
+                  ? state.routerType === 'pages'
+                    ? 'https://nextjs.org/docs/pages/building-your-application/rendering/static-site-generation'
+                    : 'https://nextjs.org/docs/app/building-your-application/rendering/server-components#static-rendering-default'
+                  : state.routerType === 'pages'
+                    ? 'https://nextjs.org/docs/pages/building-your-application/rendering/server-side-rendering'
+                    : 'https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering'
+              }
+            />
+          </div>
         </DynamicPanel>
       </PanelRoute>
 
@@ -213,7 +228,7 @@ export const PanelRouter = () => {
             width: 400 / state.scale,
           }}
           closeOnClickOutside
-          header={<DevToolsHeader title="Turbopack Info" />}
+          header={<DevToolsHeader title="Try Turbopack" />}
         >
           <div
             style={{
@@ -222,20 +237,26 @@ export const PanelRouter = () => {
             }}
           >
             <TurbopackInfoBody />
-            <div className="dev-tools-info-button-container">
-              <a
-                className="dev-tools-info-learn-more-button"
-                href="https://nextjs.org/docs/app/api-reference/turbopack"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                Learn More
-              </a>
-            </div>
+            <InfoFooter href="https://nextjs.org/docs/app/api-reference/turbopack" />
           </div>
         </DynamicPanel>
       </PanelRoute>
     </>
+  )
+}
+
+const InfoFooter = ({ href }: { href: string }) => {
+  return (
+    <div className="dev-tools-info-button-container">
+      <a
+        className="dev-tools-info-learn-more-button"
+        href={href}
+        target="_blank"
+        rel="noreferrer noopener"
+      >
+        Learn More
+      </a>
+    </div>
   )
 }
 

@@ -23,17 +23,18 @@ export function DevToolsHeader({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '8px 16px',
-        borderBottom: '1px solid var(--color-gray-200)',
+        padding: '8px 20px',
         userSelect: 'none',
+        borderBottom: '1px solid var(--color-gray-alpha-400)',
       }}
       ref={ref}
     >
       <h3
         style={{
           margin: 0,
-          fontSize: '16px',
+          fontSize: '14px',
           color: 'var(--color-text-primary)',
+          fontWeight: 'normal',
         }}
       >
         {title}
