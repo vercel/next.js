@@ -83,16 +83,8 @@ export function DevOverlay({
                     <PanelRouterContext
                       value={{
                         panel,
-                        // this makes sure if the user moves the logo while the panel is open it will eventually sync
-                        // we don't want to
                         setPanel,
                         triggerRef,
-                        onTriggerClick: (newPanel) => {
-                          if (!newPanel) {
-                            setSelectedIndex(-1)
-                            return
-                          }
-                        },
                         selectedIndex,
                         setSelectedIndex,
                       }}

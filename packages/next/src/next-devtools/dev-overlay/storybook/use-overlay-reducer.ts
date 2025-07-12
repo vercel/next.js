@@ -66,11 +66,13 @@ export function useStorybookOverlayReducer(initialState?: OverlayState) {
         case ACTION_DEVTOOLS_POSITION: {
           return { ...state, devToolsPosition: action.devToolsPosition }
         }
-        // todo remove
         case ACTION_DEVTOOLS_PANEL_POSITION: {
           return {
             ...state,
-            devToolsPanelPosition: action.devToolsPanelPosition,
+            devToolsPanelPosition: {
+              ...state.devToolsPanelPosition,
+              [action.key]: action.devToolsPanelPosition,
+            },
           }
         }
         case ACTION_DEVTOOLS_SCALE: {

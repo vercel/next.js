@@ -21,7 +21,7 @@ export const INDICATOR_PADDING = 20
 
 export function DevToolsIndicatorNew() {
   const { state, dispatch } = useDevOverlayContext()
-  const { panel, setPanel, onTriggerClick } = usePanelRouterContext()
+  const { panel, setPanel, setSelectedIndex } = usePanelRouterContext()
 
   const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
 
@@ -86,7 +86,10 @@ export function DevToolsIndicatorNew() {
             const newPanel =
               panel === 'panel-selector' ? null : 'panel-selector'
             setPanel(newPanel)
-            onTriggerClick(newPanel)
+            if (!newPanel) {
+              setSelectedIndex(-1)
+              return
+            }
           }}
         />
       </Draggable>

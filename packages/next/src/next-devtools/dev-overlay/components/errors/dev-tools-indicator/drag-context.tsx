@@ -2,8 +2,11 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
+  type Ref,
+  type RefObject,
 } from 'react'
 
 interface DragContextValue {
@@ -48,7 +51,7 @@ export function DragHandle({
   children,
   ref,
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> }) {
+}: React.HTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement> }) {
   const internalRef = useRef<HTMLDivElement>(null)
   const ctx = useDragContext()
 
@@ -58,13 +61,13 @@ export function DragHandle({
       if (typeof ref === 'function') {
         ref(node)
       } else if (ref && typeof ref === 'object') {
-        ;(ref as React.MutableRefObject<HTMLDivElement | null>).current = node
+        ;(ref as RefObject<HTMLDivElement | null>).current = node
       }
     },
     [ref]
   )
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!ctx || !internalRef.current || ctx.disabled) return
     const el = internalRef.current
     ctx.register(el)

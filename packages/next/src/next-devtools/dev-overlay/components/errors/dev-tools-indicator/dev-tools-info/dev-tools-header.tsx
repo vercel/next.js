@@ -16,7 +16,6 @@ export function DevToolsHeader({
     buttonRef.current?.focus()
   }, [])
 
-  // }
   return (
     <div
       style={{
@@ -26,6 +25,7 @@ export function DevToolsHeader({
         justifyContent: 'space-between',
         padding: '8px 16px',
         borderBottom: '1px solid var(--color-gray-200)',
+        userSelect: 'none',
       }}
       ref={ref}
     >

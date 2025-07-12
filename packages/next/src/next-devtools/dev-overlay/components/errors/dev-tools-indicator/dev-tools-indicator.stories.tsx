@@ -2,7 +2,11 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { DevOverlayStoryWrapper } from '../../../storybook/DevOverlayStoryWrapper'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
-import type { OverlayState } from '../../../shared'
+import {
+  getStoredPanelPosition,
+  STORE_KEY_SHARED_PANEL_LOCATION,
+  type OverlayState,
+} from '../../../shared'
 
 const meta: Meta<typeof DevOverlayStoryWrapper> = {
   component: DevOverlayStoryWrapper,
@@ -46,7 +50,9 @@ const mockVersionInfo: VersionInfo = {
 
 const state: OverlayState = {
   routerType: 'app',
-  devToolsPanelPosition: 'bottom-left',
+  devToolsPanelPosition: {
+    [STORE_KEY_SHARED_PANEL_LOCATION]: getStoredPanelPosition(),
+  },
   nextId: 1,
   buildError: null,
   errors: [],

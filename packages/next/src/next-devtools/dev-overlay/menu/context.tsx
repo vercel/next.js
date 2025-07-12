@@ -16,7 +16,6 @@ export const PanelRouterContext = createContext<{
   panel: PanelStateKind | null
   setPanel: Dispatch<SetStateAction<PanelStateKind | null>>
   triggerRef: React.RefObject<HTMLButtonElement | null>
-  onTriggerClick: (panel: PanelStateKind | null) => void
   selectedIndex: number
   setSelectedIndex: Dispatch<SetStateAction<number>>
 }>(null!)

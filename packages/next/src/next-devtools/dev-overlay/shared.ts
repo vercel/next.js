@@ -275,7 +275,7 @@ function getStoredPosition(): Corners {
   return (process.env.__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 }
 
-function getStoredPanelPosition() {
+export function getStoredPanelPosition() {
   if (typeof localStorage === 'undefined') {
     return 'bottom-left' as const
   }

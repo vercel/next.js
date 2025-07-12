@@ -92,13 +92,14 @@ const MenuPanel = () => {
 }
 
 const useGoBackOnEscape = () => {
-  const { setPanel } = usePanelRouterContext()
+  const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const { panel } = usePanelRouterContext()
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && document.activeElement === document.body) {
         if (panel === 'panel-selector') {
           setPanel(null)
+          setSelectedIndex(-1)
         } else {
           setPanel('panel-selector')
         }
@@ -109,7 +110,7 @@ const useGoBackOnEscape = () => {
     return () => {
       window.removeEventListener('keydown', handleKeydown)
     }
-  }, [setPanel, panel])
+  }, [setPanel, panel, setSelectedIndex])
 }
 // a little hacky but it does the trick
 const useToggleDevtoolsVisibility = () => {
@@ -144,11 +145,11 @@ const useToggleDevtoolsVisibility = () => {
 export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
   const { triggerRef } = usePanelRouterContext()
-  const toggleDevtools = useToggleDevtoolsVisibility
+  const toggleDevtools = useToggleDevtoolsVisibility()
 
   const [hideShortcut] = useHideShortcutStorage()
   useShortcuts(
-    hideShortcut ? { [hideShortcut]: toggleDevtools() } : {},
+    hideShortcut ? { [hideShortcut]: toggleDevtools } : {},
     triggerRef
   )
   useGoBackOnEscape()
@@ -253,15 +254,6 @@ const UserPreferencesWrapper = () => {
 
   const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
 
-  // todo, need:
-  /**
-   * shortcut listener (i broke it because i was playing around with hide toolbar state should be easy fix)
-   * focus trap
-   * the select index stuff
-   * maybe?
-   * all defined in devtools popover in dev-tools-indicator.tsx
-   */
-
   return (
     <div
       style={{
@@ -306,7 +298,7 @@ export const PanelContext = createContext<{
   name: PanelStateKind
   mounted: boolean
 }>(null!)
-// this router should be able to be enhanced by Activity and ViewTransition trivially when we want to use them
+// this router can be enhanced by Activity and ViewTransition trivially when we want to use them
 function PanelRoute({
   children,
   name,
