@@ -1,8 +1,8 @@
 /* eslint-env jest */
 
-import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
 import fs from 'fs-extra'
+import { nextBuild } from 'next-test-utils'
+import { join } from 'path'
 
 const appDir = join(__dirname, '../')
 
@@ -43,8 +43,7 @@ describe('Webpack - Bun Externals', () => {
       // Check that the module name appears in require() calls
       // This indicates it was externalized, not bundled
       const escapedMod = mod.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const requirePattern = new RegExp(`require\\(["']${escapedMod}["']\\)`)
-      expect(serverBundle).toMatch(requirePattern)
+      expect(serverBundle).toInclude(`require("${escapedMod}")`)
     })
   })
 
