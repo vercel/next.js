@@ -153,10 +153,7 @@ import { createMutableActionQueue } from '../../client/components/app-router-ins
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { FallbackRouteParams } from '../request/fallback-params'
-import {
-  ServerPrerenderStreamResult,
-  processPrelude,
-} from './app-render-prerender-utils'
+import { processPrelude } from './app-render-prerender-utils'
 import {
   type ReactServerPrerenderResult,
   ReactServerResult,
@@ -2889,10 +2886,7 @@ async function prerenderToStream(
     onHTMLRenderSSRError
   )
 
-  let reactServerPrerenderResult:
-    | null
-    | ReactServerPrerenderResult
-    | ServerPrerenderStreamResult = null
+  let reactServerPrerenderResult: null | ReactServerPrerenderResult = null
   const setMetadataHeader = (name: string) => {
     metadata.headers ??= {}
     metadata.headers[name] = res.getHeader(name)
@@ -3945,10 +3939,7 @@ async function prerenderToStream(
 
       // This is intentionally using the readable datastream from the main
       // render rather than the flight data from the error page render
-      const flightStream =
-        reactServerPrerenderResult instanceof ServerPrerenderStreamResult
-          ? reactServerPrerenderResult.asStream()
-          : reactServerPrerenderResult.consumeAsStream()
+      const flightStream = reactServerPrerenderResult.consumeAsStream()
 
       return {
         // Returning the error that was thrown so it can be used to handle

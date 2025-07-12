@@ -52,8 +52,20 @@ export function pageBootstrap(assetPrefix: string) {
               })
             break
           }
-          default:
+          case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
+          case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE:
+          case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES:
+          case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
+          case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+          case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING:
+          case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE:
+          case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED:
+          case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST:
+            // Most of these action types are handled in
+            // src/client/dev/hot-reloader/pages/hot-reloader-pages.ts
             break
+          default:
+            payload satisfies never
         }
       } else if ('event' in payload) {
         switch (payload.event) {
@@ -116,7 +128,7 @@ export function pageBootstrap(assetPrefix: string) {
             break
           }
           default:
-            break
+            payload satisfies never
         }
       }
     })

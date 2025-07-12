@@ -754,9 +754,14 @@ export class AppRouteRouteModule extends RouteModule<
                 if (workStore.isStaticGeneration)
                   request = new Proxy(req, requireStaticRequestHandlers)
                 break
-              default:
-                // We proxy `NextRequest` to track dynamic access, and potentially bail out of static generation
+              case undefined:
+              case 'auto':
+                // We proxy `NextRequest` to track dynamic access, and
+                // potentially bail out of static generation.
                 request = proxyNextRequest(req, workStore)
+                break
+              default:
+                this.dynamic satisfies never
             }
 
             // TODO: propagate this pathname from route matcher

@@ -609,11 +609,17 @@ export function createPatchedFetcher(
             }
             break
           }
+          case 'default-cache':
+          case 'default-no-store':
+          case 'auto':
+          case undefined:
+            // sometimes we won't match the above cases. the reason we don't move
+            // everything to this switch is the use of autoNoCache which is not a fetchCacheMode
+            // I suspect this could be unified with fetchCacheMode however in which case we could
+            // simplify the switch case and ensure we have an exhaustive switch handling all modes
+            break
           default:
-          // sometimes we won't match the above cases. the reason we don't move
-          // everything to this switch is the use of autoNoCache which is not a fetchCacheMode
-          // I suspect this could be unified with fetchCacheMode however in which case we could
-          // simplify the switch case and ensure we have an exhaustive switch handling all modes
+            pageFetchCacheMode satisfies never
         }
 
         if (typeof finalRevalidate === 'undefined') {
