@@ -48,7 +48,7 @@ const MenuPanel = () => {
           title: `Current route is ${state.staticIndicator ? 'static' : 'dynamic'}.`,
           label: 'Route',
           value: state.staticIndicator ? 'Static' : 'Dynamic',
-          onClick: () => setPanel('route-info'),
+          onClick: () => setPanel('route-type'),
           attributes: {
             'data-nextjs-route-type': state.staticIndicator
               ? 'static'
@@ -138,7 +138,7 @@ export const PanelRouter = () => {
         </DynamicPanel>
       </PanelRoute>
 
-      <PanelRoute name="route-info">
+      <PanelRoute name="route-type">
         <DynamicPanel
           sharePanelSizeGlobally={false}
           sizeConfig={{

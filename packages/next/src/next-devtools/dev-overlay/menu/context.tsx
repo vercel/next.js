@@ -7,7 +7,7 @@ import {
 
 export type PanelStateKind =
   | 'preferences'
-  | 'route-info'
+  | 'route-type'
   | 'segment-explorer'
   | 'panel-selector'
   | 'turbo-info'
