@@ -28,6 +28,7 @@ export function DevToolsIndicatorNew() {
   return (
     // TODO: why is this called a toast
     <Toast
+      id="devtools-indicator"
       data-nextjs-toast
       style={
         {

@@ -7,11 +7,12 @@ import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
 import { useDelayedRender } from '../hooks/use-delayed-render'
 import {
+  getShadowRoot,
   MENU_CURVE,
   MENU_DURATION_MS,
 } from '../components/errors/dev-tools-indicator/utils'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
-import { createContext, useContext, useEffect, useRef } from 'react'
+import { createContext, useContext, useEffect } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
   ACTION_DEV_INDICATOR_SET,
@@ -110,9 +111,46 @@ const useGoBackOnEscape = () => {
     }
   }, [setPanel, panel])
 }
+// a little hacky but it does the trick
+const useToggleDevtoolsVisibility = () => {
+  const { state, dispatch } = useDevOverlayContext()
+  return () => {
+    console.log('hiding shortcut')
+    dispatch({
+      type: ACTION_DEV_INDICATOR_SET,
+      disabled: !state.disableDevIndicator,
+    })
+    const portal = getShadowRoot()
+    if (portal) {
+      const menuElement = portal.getElementById('panel-route') as HTMLElement
+      const indicatorElement = portal.getElementById(
+        'data-devtools-indicator'
+      ) as HTMLElement
+
+      if (menuElement && menuElement.firstElementChild) {
+        const firstChild = menuElement.firstElementChild as HTMLElement
+        const isCurrentlyHidden = firstChild.style.display === 'none'
+        firstChild.style.display = isCurrentlyHidden ? '' : 'none'
+      }
+
+      if (indicatorElement) {
+        const isCurrentlyHidden = indicatorElement.style.display === 'none'
+        indicatorElement.style.display = isCurrentlyHidden ? '' : 'none'
+      }
+    }
+  }
+}
 
 export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
+  const { triggerRef } = usePanelRouterContext()
+  const toggleDevtools = useToggleDevtoolsVisibility
+
+  const [hideShortcut] = useHideShortcutStorage()
+  useShortcuts(
+    hideShortcut ? { [hideShortcut]: toggleDevtools() } : {},
+    triggerRef
+  )
   useGoBackOnEscape()
   // todo: hard coded panel sizes will get jank with scale changes, we should just auto calculate dynamically initially
   return (
@@ -216,11 +254,9 @@ export const PanelRouter = () => {
 }
 
 const UserPreferencesWrapper = () => {
-  const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
   const { dispatch, state } = useDevOverlayContext()
-  const { triggerRef, setPanel } = usePanelRouterContext()
 
-  const rootRef = useRef<HTMLDivElement>(null)
+  const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
 
   // todo, need:
   /**
@@ -230,25 +266,9 @@ const UserPreferencesWrapper = () => {
    * maybe?
    * all defined in devtools popover in dev-tools-indicator.tsx
    */
-  function hideDevTools() {
-    dispatch({
-      type: ACTION_DEV_INDICATOR_SET,
-      disabled: true,
-    })
-    const root = rootRef.current
-    // Toggle custom hidden attribute, no need
-    // to close the menu in case you want to quickly get it
-    // out the way to see an element behind it.
-    if (root) {
-      root.dataset.hidden = root.dataset.hidden === 'true' ? 'false' : 'true'
-    }
-    setPanel(null)
-  }
 
-  useShortcuts(hideShortcut ? { [hideShortcut]: hideDevTools } : {}, triggerRef)
   return (
     <div
-      ref={rootRef}
       style={{
         padding: '16px',
         paddingTop: '8px',
@@ -315,6 +335,7 @@ function PanelRoute({
       }}
     >
       <div
+        id="panel-route"
         style={{
           opacity: rendered ? 1 : 0,
           transition: `opacity ${MENU_DURATION_MS}ms ${MENU_CURVE}`,

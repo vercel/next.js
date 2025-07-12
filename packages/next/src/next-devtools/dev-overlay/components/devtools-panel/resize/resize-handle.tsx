@@ -117,9 +117,12 @@ export const ResizeHandle = ({
       setDraggingDirection(null)
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      if (!resizeRef.current) {
+        // possible if the user closes during drag
+        return
+      }
 
-      // invariant ref exists
-      const { width, height } = resizeRef.current!.getBoundingClientRect()
+      const { width, height } = resizeRef.current.getBoundingClientRect()
       localStorage.setItem(storageKey, JSON.stringify({ width, height }))
     }
     document.addEventListener('mousemove', handleMouseMove)
