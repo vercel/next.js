@@ -152,9 +152,7 @@ export const PanelRouter = () => {
     triggerRef
   )
   useGoBackOnEscape()
-  // todo: hard coded panel sizes will get jank with scale changes, we should just auto calculate dynamically initially
   return (
-    // TODO: determine for each panel if it: resizes, drags, closes on click outside
     <>
       <PanelRoute name="panel-selector">
         <MenuPanel />
@@ -165,7 +163,7 @@ export const PanelRouter = () => {
           sharePanelSizeGlobally={false}
           sizeConfig={{
             kind: 'fixed',
-            height: 750,
+            height: 500 / state.scale,
             width: 480 + 32,
           }}
           closeOnClickOutside
@@ -180,8 +178,8 @@ export const PanelRouter = () => {
           sharePanelSizeGlobally={false}
           sizeConfig={{
             kind: 'fixed',
-            height: 300,
-            width: 400,
+            height: 300 / state.scale,
+            width: 400 / state.scale,
           }}
           closeOnClickOutside
           header={
@@ -210,11 +208,11 @@ export const PanelRouter = () => {
               kind: 'resizable',
               maxHeight: '90vh',
               maxWidth: '90vw',
-              minHeight: 200,
-              minWidth: 250,
+              minHeight: 200 / state.scale,
+              minWidth: 250 / state.scale,
               initialSize: {
-                height: 300,
-                width: 400,
+                height: 300 / state.scale,
+                width: 400 / state.scale,
               },
             }}
             header={<DevToolsHeader title="Route Info" />}
@@ -228,15 +226,13 @@ export const PanelRouter = () => {
       )}
 
       <PanelRoute name="turbo-info">
-        {/* todo dedupe all these names */}
         <DynamicPanel
           sharePanelSizeGlobally={false}
           sizeConfig={{
             kind: 'fixed',
-            height: 425,
-            width: 400,
+            height: 440 / state.scale,
+            width: 400 / state.scale,
           }}
-          // todo: fix scroll on header so its fixed and body scrolls
           closeOnClickOutside
           header={<DevToolsHeader title="Turbopack Info" />}
         >
