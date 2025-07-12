@@ -49,7 +49,7 @@ function getStoredPanelSize(name?: string) {
 export function DynamicPanel({
   header,
   children,
-  draggable = true,
+  draggable = false,
   sizeConfig = {
     kind: 'resizable',
     minWidth: 400,
@@ -102,7 +102,7 @@ export function DynamicPanel({
 
   const { dispatch, state } = useDevOverlayContext()
   const devtoolsPanelPosition =
-    state.devToolsPanelPosition[positionStorageKey] ?? 'bottom-left'
+    state.devToolsPanelPosition[positionStorageKey] ?? state.devToolsPosition
   const [panelVertical, panelHorizontal] = devtoolsPanelPosition.split('-', 2)
   const resizeRef = useRef<HTMLDivElement>(null)
   const { triggerRef } = usePanelRouterContext()

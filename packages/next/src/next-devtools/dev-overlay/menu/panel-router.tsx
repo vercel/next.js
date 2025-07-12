@@ -125,8 +125,6 @@ export const PanelRouter = () => {
       <PanelRoute name="preferences">
         <DynamicPanel
           sharePanelSizeGlobally={false}
-          sharePanelPositionGlobally={false}
-          draggable={false}
           sizeConfig={{
             kind: 'fixed',
             height: 750,
@@ -143,7 +141,6 @@ export const PanelRouter = () => {
       <PanelRoute name="route-info">
         <DynamicPanel
           sharePanelSizeGlobally={false}
-          sharePanelPositionGlobally={false}
           sizeConfig={{
             kind: 'fixed',
             height: 300,
@@ -168,6 +165,9 @@ export const PanelRouter = () => {
 
       <PanelRoute name="segment-explorer">
         <DynamicPanel
+          sharePanelSizeGlobally={false}
+          sharePanelPositionGlobally={false}
+          draggable
           sizeConfig={{
             kind: 'resizable',
             // todo till refactor for strings
@@ -193,7 +193,6 @@ export const PanelRouter = () => {
         {/* todo dedupe all these names */}
         <DynamicPanel
           sharePanelSizeGlobally={false}
-          sharePanelPositionGlobally={false}
           sizeConfig={{
             kind: 'fixed',
             height: 425,
