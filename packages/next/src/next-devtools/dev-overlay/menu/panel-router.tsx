@@ -174,7 +174,7 @@ export const PanelRouter = () => {
             maxHeight: 1500,
             maxWidth: 1500,
             minHeight: 200,
-            minWidth: 200,
+            minWidth: 250,
             initialSize: {
               height: 300,
               width: 400,
