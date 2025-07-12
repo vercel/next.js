@@ -27,6 +27,7 @@ import GearIcon from '../icons/gear-icon'
 import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
 import { useHideShortcutStorage } from '../components/errors/dev-tools-indicator/dev-tools-info/preferences'
 import { useShortcuts } from '../hooks/use-shortcuts'
+import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
@@ -266,6 +267,7 @@ const InfoFooter = ({ href }: { href: string }) => {
 const UserPreferencesWrapper = () => {
   const { dispatch, state } = useDevOverlayContext()
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
+  const updateAllPanelPositions = useUpdateAllPanelPositions()
 
   const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
 
@@ -290,6 +292,7 @@ const UserPreferencesWrapper = () => {
             type: ACTION_DEVTOOLS_POSITION,
             devToolsPosition,
           })
+          updateAllPanelPositions(devToolsPosition)
         }}
         hideShortcut={hideShortcut}
         setHideShortcut={setHideShortcut}

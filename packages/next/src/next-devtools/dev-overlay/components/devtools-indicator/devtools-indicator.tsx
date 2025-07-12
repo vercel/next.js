@@ -16,12 +16,14 @@ import {
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { usePanelRouterContext } from '../../menu/context'
+import type { DevToolsIndicatorPosition } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
 
 export const INDICATOR_PADDING = 20
 
 export function DevToolsIndicatorNew() {
   const { state, dispatch } = useDevOverlayContext()
   const { panel, setPanel, setSelectedIndex } = usePanelRouterContext()
+  const updateAllPanelPositions = useUpdateAllPanelPositions()
 
   const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
 
@@ -53,32 +55,7 @@ export function DevToolsIndicatorNew() {
           })
           localStorage.setItem(STORAGE_KEY_POSITION, p)
 
-          /**
-           * makes sure we eventually sync the panel to the logo, otherwise
-           * it will be jarring if the panels start appearing on the other
-           * side of the logo. This wont teleport the panel because the indicator
-           * cannot be dragged when any panel is open
-           */
-          dispatch({
-            type: ACTION_DEVTOOLS_PANEL_POSITION,
-            devToolsPanelPosition: p,
-            key: STORE_KEY_SHARED_PANEL_LOCATION,
-          })
-
-          localStorage.setItem(STORE_KEY_SHARED_PANEL_LOCATION, p)
-
-          const panelPositionKeys = Object.keys(localStorage).filter((key) =>
-            key.startsWith(STORAGE_KEY_PANEL_POSITION_PREFIX)
-          )
-
-          panelPositionKeys.forEach((key) => {
-            dispatch({
-              type: ACTION_DEVTOOLS_PANEL_POSITION,
-              devToolsPanelPosition: p,
-              key: STORE_KEY_SHARED_PANEL_LOCATION,
-            })
-            localStorage.setItem(key, p)
-          })
+          updateAllPanelPositions(p)
         }}
       >
         <NextLogoNew
@@ -95,4 +72,36 @@ export function DevToolsIndicatorNew() {
       </Draggable>
     </Toast>
   )
+}
+
+/**
+ * makes sure we eventually sync the panel to the logo, otherwise
+ * it will be jarring if the panels start appearing on the other
+ * side of the logo. This wont teleport the panel because the indicator
+ * cannot be dragged when any panel is open
+ */
+export const useUpdateAllPanelPositions = () => {
+  const { dispatch } = useDevOverlayContext()
+  return (position: DevToolsIndicatorPosition) => {
+    dispatch({
+      type: ACTION_DEVTOOLS_PANEL_POSITION,
+      devToolsPanelPosition: position,
+      key: STORE_KEY_SHARED_PANEL_LOCATION,
+    })
+
+    localStorage.setItem(STORE_KEY_SHARED_PANEL_LOCATION, position)
+
+    const panelPositionKeys = Object.keys(localStorage).filter((key) =>
+      key.startsWith(STORAGE_KEY_PANEL_POSITION_PREFIX)
+    )
+
+    panelPositionKeys.forEach((key) => {
+      dispatch({
+        type: ACTION_DEVTOOLS_PANEL_POSITION,
+        devToolsPanelPosition: position,
+        key: STORE_KEY_SHARED_PANEL_LOCATION,
+      })
+      localStorage.setItem(key, position)
+    })
+  }
 }
