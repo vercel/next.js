@@ -227,7 +227,7 @@ export function ignoreListAnonymousStackFramesIfSandwiched<Frame>(
       }
 
       if (ignoreSandwich) {
-        for (i; i <= j; i++) {
+        for (i; i < j; i++) {
           ignoreFrame(frames[i])
         }
       }

@@ -624,7 +624,6 @@ describe('app-dir - server source maps', () => {
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '' +
           '\nError: rsc-anonymous-stack-frame-sandwich: external' +
-          '\n    at Set.forEach (<anonymous>)' +
           '\n    at Page (app/rsc-anonymous-stack-frame-sandwich/page.js:5:29)' +
           '\n  3 |' +
           '\n  4 | export default function Page() {' +
@@ -697,7 +696,6 @@ describe('app-dir - server source maps', () => {
          > 6 |   runHiddenSetOfSetsExternal('ssr-anonymous-stack-frame-sandwich: external')
              |                             ^",
              "stack": [
-               "Set.forEach <anonymous>",
                "Page app/ssr-anonymous-stack-frame-sandwich/page.js (6:29)",
              ],
            },
@@ -726,7 +724,6 @@ describe('app-dir - server source maps', () => {
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '' +
           '\nError: ssr-anonymous-stack-frame-sandwich: external' +
-          '\n    at Set.forEach (<anonymous>)' +
           '\n    at Page (app/ssr-anonymous-stack-frame-sandwich/page.js:6:29)' +
           '\n  4 |' +
           '\n  5 | export default function Page() {' +

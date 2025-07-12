@@ -57,6 +57,28 @@ test('hides big sandwiches', () => {
   ])
 })
 
+it('hides big macs', () => {
+  const frames: StackFrame[] = [
+    { ignored: true, file: 'file1.js', methodName: 'query' },
+    { ignored: false, file: '<anonymous>', methodName: 'Set.forEach' },
+    { ignored: true, file: 'file1.js', methodName: 'tryUser' },
+    { ignored: false, file: '<anonymous>', methodName: 'Array.forEach' },
+    { ignored: true, file: 'file1.js', methodName: 'getUser' },
+    { ignored: false, file: 'page.js', methodName: 'Component' },
+  ]
+
+  ignoreList(frames)
+
+  expect(frames).toEqual([
+    { ignored: true, file: 'file1.js', methodName: 'query' },
+    { ignored: true, file: '<anonymous>', methodName: 'Set.forEach' },
+    { ignored: true, file: 'file1.js', methodName: 'tryUser' },
+    { ignored: true, file: '<anonymous>', methodName: 'Array.forEach' },
+    { ignored: true, file: 'file1.js', methodName: 'getUser' },
+    { ignored: false, file: 'page.js', methodName: 'Component' },
+  ])
+})
+
 test('does not hide sandwiches without a lid', () => {
   const frames: StackFrame[] = [
     { ignored: false, file: '<anonymous>', methodName: 'JSON.parse' },
