@@ -322,7 +322,7 @@
         "selector": "BinaryExpression[left.object.name='workUnitStore'][left.property.name='type'][operator=/^(?:===|!==)$/]",
         "message": "Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using if statements or ternaries."
       },
-      // band optional-chained workUnitStore?.type if statements and ternaries
+      // ban optional-chained workUnitStore?.type if statements and ternaries
       {
         "selector": "BinaryExpression[left.type='ChainExpression'][left.expression.object.name='workUnitStore'][left.expression.property.name='type'][operator=/^(?:===|!==)$/]",
         "message": "Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using if statements or ternaries."
