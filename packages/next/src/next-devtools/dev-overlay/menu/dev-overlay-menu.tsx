@@ -43,8 +43,6 @@ export const DevtoolMenu = ({
     triggerRef,
     closeOnClickOutside && mounted,
     () => {
-      console.log('outside menu')
-
       setPanel(null)
       setSelectedIndex(-1)
     }
