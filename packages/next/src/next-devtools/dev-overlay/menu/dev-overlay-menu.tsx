@@ -181,7 +181,11 @@ export const DevtoolMenu = ({
               label={item.label}
               value={item.value}
               onClick={item.onClick}
-              index={index}
+              index={
+                item.onClick
+                  ? getAdjustedIndex(itemsAboveFooter, index)
+                  : undefined
+              }
               {...item.attributes}
             />
           ))}
@@ -195,13 +199,42 @@ export const DevtoolMenu = ({
               value={item.value}
               onClick={item.onClick}
               {...item.attributes}
-              index={itemsAboveFooter.length + index}
+              index={
+                item.onClick
+                  ? getAdjustedIndex(itemsBelowFooter, index) +
+                    getClickableItemsCount(itemsAboveFooter)
+                  : undefined
+              }
             />
           ))}
         </div>
       </MenuContext>
     </div>
   )
+}
+
+export function getAdjustedIndex(
+  items: Array<{ onClick?: () => void }>,
+  targetIndex: number
+): number {
+  let adjustedIndex = 0
+
+  for (let i = 0; i <= targetIndex && i < items.length; i++) {
+    if (items[i].onClick) {
+      if (i === targetIndex) {
+        return adjustedIndex
+      }
+      adjustedIndex++
+    }
+  }
+
+  return adjustedIndex
+}
+
+export function getClickableItemsCount(
+  items: Array<{ onClick?: () => void }>
+): number {
+  return items.filter((item) => item.onClick).length
 }
 
 export function IssueCount({ children }: { children: number }) {
