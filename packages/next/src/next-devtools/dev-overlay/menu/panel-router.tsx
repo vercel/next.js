@@ -291,7 +291,7 @@ export const PanelContext = createContext<{
   name: PanelStateKind
   mounted: boolean
 }>(null!)
-
+// this router should be able to be enhanced by Activity and ViewTransition trivially when we want to use them
 function PanelRoute({
   children,
   name,
