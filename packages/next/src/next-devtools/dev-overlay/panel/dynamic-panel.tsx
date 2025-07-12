@@ -287,7 +287,7 @@ export function DynamicPanel({
                   position: 'relative',
                   width: '100%',
                   height: '100%',
-                  border: '1px solid var(--color-gray-200)',
+                  border: '1px solid var(--color-gray-alpha-400)',
                   borderRadius: 'var(--rounded-xl)',
                   background: 'var(--color-background-100)',
                   display: 'flex',

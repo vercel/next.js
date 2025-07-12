@@ -147,7 +147,7 @@ export const DevtoolMenu = ({
         minWidth: '248px',
         transition:
           'opacity var(--animate-out-duration-ms) var(--animate-out-timing-function)',
-        border: '1px solid var(--color-gray-200)',
+        border: '1px solid var(--color-gray-alpha-400)',
         ...positionStyle,
       }}
     >
