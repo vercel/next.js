@@ -99,7 +99,7 @@ export const useUpdateAllPanelPositions = () => {
       dispatch({
         type: ACTION_DEVTOOLS_PANEL_POSITION,
         devToolsPanelPosition: position,
-        key: STORE_KEY_SHARED_PANEL_LOCATION,
+        key,
       })
       localStorage.setItem(key, position)
     })
