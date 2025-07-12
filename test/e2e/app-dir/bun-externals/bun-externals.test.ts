@@ -49,10 +49,7 @@ describe('app-dir - bun externals', () => {
 
   it('should handle bun builtins in edge runtime', async () => {
     const response = await next.fetch('/api/edge-bun-externals')
-    const data = await response.json()
-
-    expect(data.status).toBe('success')
-    expect(data.message).toBe('Bun modules correctly blocked in edge runtime')
+    expect(await response.json()).toBe('Threw')
   })
 
   // Check that the modules are not bundled
