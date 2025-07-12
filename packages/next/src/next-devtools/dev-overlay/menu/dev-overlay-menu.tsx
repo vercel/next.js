@@ -180,10 +180,7 @@ export const DevtoolMenu = ({
               title={item.title}
               label={item.label}
               value={item.value}
-              onClick={() => {
-                // we explicitly keep the previous selected state for quick peeking and reverting
-                item.onClick?.()
-              }}
+              onClick={item.onClick}
               index={index}
               {...item.attributes}
             />
@@ -196,9 +193,7 @@ export const DevtoolMenu = ({
               title={item.title}
               label={item.label}
               value={item.value}
-              onClick={() => {
-                item.onClick?.()
-              }}
+              onClick={item.onClick}
               {...item.attributes}
               index={itemsAboveFooter.length + index}
             />
