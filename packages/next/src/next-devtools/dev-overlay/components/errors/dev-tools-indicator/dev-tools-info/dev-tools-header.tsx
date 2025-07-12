@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef } from 'react'
 import { usePanelRouterContext } from '../../../../menu/context'
+import { css } from '../../../../utils/css'
 
 interface DevToolsHeaderProps {
   title: React.ReactNode
@@ -43,10 +44,11 @@ export function DevToolsHeader({
       <button
         ref={buttonRef}
         id="_next-devtools-panel-close"
+        className="dev-tools-info-close-button"
         onClick={() => {
           setPanel('panel-selector')
         }}
-        aria-label="Go back"
+        aria-label="Close devtools panel"
         style={{
           background: 'none',
           border: 'none',
@@ -61,6 +63,11 @@ export function DevToolsHeader({
       >
         <XIcon />
       </button>
+      <style>{css`
+        .dev-tools-info-close-button:focus-visible {
+          outline: var(--focus-ring);
+        }
+      `}</style>
     </div>
   )
 }
