@@ -26,7 +26,7 @@ import { useHideShortcutStorage } from '../components/errors/dev-tools-indicator
 import { useShortcuts } from '../hooks/use-shortcuts'
 
 const MenuPanel = () => {
-  const { setPanel } = usePanelRouterContext()
+  const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const { state, dispatch } = useDevOverlayContext()
   const { totalErrorCount } = useRenderErrorContext()
   return (
@@ -38,6 +38,7 @@ const MenuPanel = () => {
           value: <IssueCount>{totalErrorCount}</IssueCount>,
           onClick: () => {
             setPanel(null)
+            setSelectedIndex(-1)
             if (totalErrorCount > 0) {
               dispatch({
                 type: ACTION_ERROR_OVERLAY_OPEN,
@@ -251,7 +252,7 @@ export const PanelRouter = () => {
 
 const UserPreferencesWrapper = () => {
   const { dispatch, state } = useDevOverlayContext()
-  const { setPanel } = usePanelRouterContext()
+  const { setPanel, setSelectedIndex } = usePanelRouterContext()
 
   const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
 
@@ -284,6 +285,7 @@ const UserPreferencesWrapper = () => {
             type: ACTION_DEV_INDICATOR_SET,
             disabled: true,
           })
+          setSelectedIndex(-1)
           setPanel(null)
           fetch('/__nextjs_disable_dev_indicator', {
             method: 'POST',

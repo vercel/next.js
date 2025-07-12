@@ -30,7 +30,8 @@ export const DevtoolMenu = ({
   >
 }) => {
   const { state } = useDevOverlayContext()
-  const { setPanel, triggerRef } = usePanelRouterContext()
+  const { setPanel, triggerRef, setSelectedIndex, selectedIndex } =
+    usePanelRouterContext()
   const { mounted } = usePanelContext()
 
   const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
@@ -39,6 +40,7 @@ export const DevtoolMenu = ({
 
   useClickOutside(menuRef, triggerRef, closeOnClickOutside && mounted, () => {
     setPanel(null)
+    setSelectedIndex(-1)
   })
   useLayoutEffect(() => {
     menuRef.current?.focus() // allows keydown to be captured
@@ -71,7 +73,6 @@ export const DevtoolMenu = ({
   const definedItems = items.filter((item) => !!item)
   const itemsAboveFooter = definedItems.filter((item) => !item.footer)
   const itemsBelowFooter = definedItems.filter((item) => item.footer)
-  const { setSelectedIndex, selectedIndex } = usePanelRouterContext()
 
   function onMenuKeydown(e: React.KeyboardEvent<HTMLDivElement | null>) {
     e.preventDefault()
