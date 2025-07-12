@@ -98,15 +98,18 @@ export const DevtoolMenu = ({
   function onMenuKeydown(e: React.KeyboardEvent<HTMLDivElement | null>) {
     e.preventDefault()
 
-    const totalItems = definedItems.length
+    const clickableItems = definedItems.filter((item) => item.onClick)
+    const totalClickableItems = clickableItems.length
 
     switch (e.key) {
       case 'ArrowDown':
-        const next = selectedIndex >= totalItems - 1 ? 0 : selectedIndex + 1
+        const next =
+          selectedIndex >= totalClickableItems - 1 ? 0 : selectedIndex + 1
         selectMenuItem({ index: next, menuRef, setSelectedIndex })
         break
       case 'ArrowUp':
-        const prev = selectedIndex <= 0 ? totalItems - 1 : selectedIndex - 1
+        const prev =
+          selectedIndex <= 0 ? totalClickableItems - 1 : selectedIndex - 1
         selectMenuItem({ index: prev, menuRef, setSelectedIndex })
         break
       case 'Home':
@@ -118,14 +121,14 @@ export const DevtoolMenu = ({
       case 'n':
         if (e.ctrlKey) {
           const nextCtrl =
-            selectedIndex >= totalItems - 1 ? 0 : selectedIndex + 1
+            selectedIndex >= totalClickableItems - 1 ? 0 : selectedIndex + 1
           selectMenuItem({ index: nextCtrl, menuRef, setSelectedIndex })
         }
         break
       case 'p':
         if (e.ctrlKey) {
           const prevCtrl =
-            selectedIndex <= 0 ? totalItems - 1 : selectedIndex - 1
+            selectedIndex <= 0 ? totalClickableItems - 1 : selectedIndex - 1
           selectMenuItem({ index: prevCtrl, menuRef, setSelectedIndex })
         }
         break
