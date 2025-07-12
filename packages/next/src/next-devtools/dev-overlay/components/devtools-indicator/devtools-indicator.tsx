@@ -11,11 +11,11 @@ import {
   ACTION_DEVTOOLS_POSITION,
   STORE_KEY_SHARED_PANEL_LOCATION,
   STORAGE_KEY_PANEL_POSITION_PREFIX,
+  ACTION_DEVTOOLS_PANEL_POSITION,
 } from '../../shared'
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { usePanelRouterContext } from '../../menu/context'
-import { flushSync } from 'react-dom'
 
 export const INDICATOR_PADDING = 20
 
@@ -52,34 +52,44 @@ export function DevToolsIndicatorNew() {
             devToolsPosition: p,
           })
           localStorage.setItem(STORAGE_KEY_POSITION, p)
+
+          /**
+           * makes sure we eventually sync the panel to the logo, otherwise
+           * it will be jarring if the panels start appearing on the other
+           * side of the logo. This wont teleport the panel because the indicator
+           * cannot be dragged when any panel is open
+           */
+          dispatch({
+            type: ACTION_DEVTOOLS_PANEL_POSITION,
+            devToolsPanelPosition: p,
+            key: STORE_KEY_SHARED_PANEL_LOCATION,
+          })
+
+          localStorage.setItem(STORE_KEY_SHARED_PANEL_LOCATION, p)
+
+          const panelPositionKeys = Object.keys(localStorage).filter((key) =>
+            key.startsWith(STORAGE_KEY_PANEL_POSITION_PREFIX)
+          )
+
+          panelPositionKeys.forEach((key) => {
+            dispatch({
+              type: ACTION_DEVTOOLS_PANEL_POSITION,
+              devToolsPanelPosition: p,
+              key: STORE_KEY_SHARED_PANEL_LOCATION,
+            })
+            localStorage.setItem(key, p)
+          })
         }}
       >
         <NextLogoNew
           onTriggerClick={() => {
             const newPanel =
               panel === 'panel-selector' ? null : 'panel-selector'
-            flushSync(() => {
-              setPanel(newPanel)
-            })
+            // flushSync(() => {
+            setPanel(newPanel)
+            // })
 
             onTriggerClick(newPanel)
-            /**
-             * makes sure we eventually sync the panel to the logo, otherwise
-             * it will be jarring if the panels start appearing on the other
-             * side of the logo
-             */
-            const sharedLocation = localStorage.getItem(
-              STORE_KEY_SHARED_PANEL_LOCATION
-            )
-            if (sharedLocation) {
-              const panelPositionKeys = Object.keys(localStorage).filter(
-                (key) => key.startsWith(STORAGE_KEY_PANEL_POSITION_PREFIX)
-              )
-
-              panelPositionKeys.forEach((key) => {
-                localStorage.setItem(key, sharedLocation)
-              })
-            }
           }}
           ref={triggerRef}
         />

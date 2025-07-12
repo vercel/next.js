@@ -114,7 +114,7 @@ const useGoBackOnEscape = () => {
 export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
   useGoBackOnEscape()
-
+  // todo: hard coded panel sizes will get jank with scale changes, we should just auto calculate dynamically initially
   return (
     // TODO: determine for each panel if it: resizes, drags, closes on click outside
     <>
@@ -126,10 +126,10 @@ export const PanelRouter = () => {
         <DynamicPanel
           sharePanelSizeGlobally={false}
           sharePanelPositionGlobally={false}
+          draggable={false}
           sizeConfig={{
             kind: 'fixed',
-            // maybe to dynamic sizing automatically? little tricky
-            height: 656,
+            height: 750,
             width: 480 + 32,
           }}
           closeOnClickOutside
@@ -153,7 +153,6 @@ export const PanelRouter = () => {
           header={
             <DevToolsHeader
               title={`${state.staticIndicator ? 'Static' : 'Dynamic'} Route`}
-              // onBack={() => setPanel('panel-selector')}
             />
           }
         >
@@ -197,7 +196,7 @@ export const PanelRouter = () => {
           sharePanelPositionGlobally={false}
           sizeConfig={{
             kind: 'fixed',
-            height: 300,
+            height: 425,
             width: 400,
           }}
           // todo: fix scroll on header so its fixed and body scrolls

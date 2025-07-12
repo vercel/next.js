@@ -81,6 +81,7 @@ export function DynamicPanel({
         maxWidth: number
         maxHeight: number
         initialSize: { height: number; width: number }
+        sides?: Array<'horizontal' | 'vertical' | 'diagonal'>
       }
     | {
         kind: 'fixed'
@@ -130,11 +131,14 @@ export function DynamicPanel({
     [panelHorizontal === 'left' ? 'right' : 'left']: 'auto',
   } as CSSProperties
 
-  const isResizable = sizeConfig.kind === 'resizable'
-  const minWidth = isResizable ? sizeConfig.minWidth : undefined
-  const minHeight = isResizable ? sizeConfig.minHeight : undefined
-  const maxWidth = isResizable ? sizeConfig.maxWidth : undefined
-  const maxHeight = isResizable ? sizeConfig.maxHeight : undefined
+  const minWidth =
+    sizeConfig.kind === 'resizable' ? sizeConfig.minWidth : undefined
+  const minHeight =
+    sizeConfig.kind === 'resizable' ? sizeConfig.minHeight : undefined
+  const maxWidth =
+    sizeConfig.kind === 'resizable' ? sizeConfig.maxWidth : undefined
+  const maxHeight =
+    sizeConfig.kind === 'resizable' ? sizeConfig.maxHeight : undefined
 
   const panelSize = useMemo(() => getStoredPanelSize(name), [name])
 
@@ -159,7 +163,7 @@ export function DynamicPanel({
           outline: 'none',
 
           ...positionStyle,
-          ...(isResizable
+          ...(sizeConfig.kind === 'resizable'
             ? {
                 minWidth,
                 minHeight,
@@ -216,40 +220,55 @@ export function DynamicPanel({
                 <DragHandle>{header}</DragHandle>
                 {children}
               </div>
-              {isResizable && (
+              {sizeConfig.kind === 'resizable' && (
                 <>
-                  <ResizeHandle
-                    position={devtoolsPanelPosition}
-                    direction="top"
-                  />
-                  <ResizeHandle
-                    position={devtoolsPanelPosition}
-                    direction="right"
-                  />
-                  <ResizeHandle
-                    position={devtoolsPanelPosition}
-                    direction="bottom"
-                  />
-                  <ResizeHandle
-                    position={devtoolsPanelPosition}
-                    direction="left"
-                  />
-                  <ResizeHandle
-                    position={devtoolsPanelPosition}
-                    direction="top-left"
-                  />
-                  <ResizeHandle
-                    position={devtoolsPanelPosition}
-                    direction="top-right"
-                  />
-                  <ResizeHandle
-                    position={devtoolsPanelPosition}
-                    direction="bottom-left"
-                  />
-                  <ResizeHandle
-                    position={devtoolsPanelPosition}
-                    direction="bottom-right"
-                  />
+                  {(!sizeConfig.sides ||
+                    sizeConfig.sides.includes('vertical')) && (
+                    <>
+                      <ResizeHandle
+                        position={devtoolsPanelPosition}
+                        direction="top"
+                      />
+                      <ResizeHandle
+                        position={devtoolsPanelPosition}
+                        direction="bottom"
+                      />
+                    </>
+                  )}
+                  {(!sizeConfig.sides ||
+                    sizeConfig.sides.includes('horizontal')) && (
+                    <>
+                      <ResizeHandle
+                        position={devtoolsPanelPosition}
+                        direction="right"
+                      />
+                      <ResizeHandle
+                        position={devtoolsPanelPosition}
+                        direction="left"
+                      />
+                    </>
+                  )}
+                  {(!sizeConfig.sides ||
+                    sizeConfig.sides.includes('diagonal')) && (
+                    <>
+                      <ResizeHandle
+                        position={devtoolsPanelPosition}
+                        direction="top-left"
+                      />
+                      <ResizeHandle
+                        position={devtoolsPanelPosition}
+                        direction="top-right"
+                      />
+                      <ResizeHandle
+                        position={devtoolsPanelPosition}
+                        direction="bottom-left"
+                      />
+                      <ResizeHandle
+                        position={devtoolsPanelPosition}
+                        direction="bottom-right"
+                      />
+                    </>
+                  )}
                 </>
               )}
             </>

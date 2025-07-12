@@ -89,8 +89,6 @@ export const ResizeHandle = ({
 
     const element = resizeRef.current
     const initialRect = element.getBoundingClientRect()
-    const initialLeft = element.offsetLeft
-    const initialTop = element.offsetTop
     const startX = mouseDownEvent.clientX
     const startY = mouseDownEvent.clientY
 
@@ -98,25 +96,20 @@ export const ResizeHandle = ({
       const deltaX = mouseMoveEvent.clientX - startX
       const deltaY = mouseMoveEvent.clientY - startY
 
-      const { newWidth, newHeight, newLeft, newTop } = getNewDimensions(
+      const { newWidth, newHeight } = getNewDimensions(
         direction,
         deltaX,
         deltaY,
         initialRect,
-        initialLeft,
-        initialTop,
         minWidth,
         minHeight
       )
 
-      element.style.width = `${newWidth}px`
-      element.style.height = `${newHeight}px`
-
-      if (direction.includes('left') || direction === 'left') {
-        element.style.left = `${newLeft}px`
+      if (newWidth !== undefined) {
+        element.style.width = `${newWidth}px`
       }
-      if (direction.includes('top') || direction === 'top') {
-        element.style.top = `${newTop}px`
+      if (newHeight !== undefined) {
+        element.style.height = `${newHeight}px`
       }
     }
 
@@ -177,8 +170,6 @@ const getNewDimensions = (
   deltaX: number,
   deltaY: number,
   initialRect: DOMRect,
-  initialLeft: number,
-  initialTop: number,
   minWidth: number,
   minHeight: number
 ) => {
@@ -193,21 +184,15 @@ const getNewDimensions = (
           Math.max(minWidth, initialRect.width + deltaX)
         ),
         newHeight: initialRect.height,
-        newLeft: initialLeft,
-        newTop: initialTop,
       }
 
     case 'left': {
-      const newWidth = Math.min(
-        maxWidth,
-        Math.max(minWidth, initialRect.width - deltaX)
-      )
-      const widthDiff = newWidth - initialRect.width
       return {
-        newWidth,
+        newWidth: Math.min(
+          maxWidth,
+          Math.max(minWidth, initialRect.width - deltaX)
+        ),
         newHeight: initialRect.height,
-        newLeft: initialLeft - widthDiff,
-        newTop: initialTop,
       }
     }
 
@@ -218,74 +203,54 @@ const getNewDimensions = (
           maxHeight,
           Math.max(minHeight, initialRect.height + deltaY)
         ),
-        newLeft: initialLeft,
-        newTop: initialTop,
       }
 
     case 'top': {
-      const newHeight = Math.min(
-        maxHeight,
-        Math.max(minHeight, initialRect.height - deltaY)
-      )
-      const heightDiff = newHeight - initialRect.height
       return {
         newWidth: initialRect.width,
-        newHeight,
-        newLeft: initialLeft,
-        newTop: initialTop - heightDiff,
+        newHeight: Math.min(
+          maxHeight,
+          Math.max(minHeight, initialRect.height - deltaY)
+        ),
       }
     }
 
     case 'top-left': {
-      const newWidth = Math.min(
-        maxWidth,
-        Math.max(minWidth, initialRect.width - deltaX)
-      )
-      const newHeight = Math.min(
-        maxHeight,
-        Math.max(minHeight, initialRect.height - deltaY)
-      )
-      const widthDiff = newWidth - initialRect.width
-      const heightDiff = newHeight - initialRect.height
       return {
-        newWidth,
-        newHeight,
-        newLeft: initialLeft - widthDiff,
-        newTop: initialTop - heightDiff,
+        newWidth: Math.min(
+          maxWidth,
+          Math.max(minWidth, initialRect.width - deltaX)
+        ),
+        newHeight: Math.min(
+          maxHeight,
+          Math.max(minHeight, initialRect.height - deltaY)
+        ),
       }
     }
 
     case 'top-right': {
-      const newHeight = Math.min(
-        maxHeight,
-        Math.max(minHeight, initialRect.height - deltaY)
-      )
-      const heightDiff = newHeight - initialRect.height
       return {
         newWidth: Math.min(
           maxWidth,
           Math.max(minWidth, initialRect.width + deltaX)
         ),
-        newHeight,
-        newLeft: initialLeft,
-        newTop: initialTop - heightDiff,
+        newHeight: Math.min(
+          maxHeight,
+          Math.max(minHeight, initialRect.height - deltaY)
+        ),
       }
     }
 
     case 'bottom-left': {
-      const newWidth = Math.min(
-        maxWidth,
-        Math.max(minWidth, initialRect.width - deltaX)
-      )
-      const widthDiff = newWidth - initialRect.width
       return {
-        newWidth,
+        newWidth: Math.min(
+          maxWidth,
+          Math.max(minWidth, initialRect.width - deltaX)
+        ),
         newHeight: Math.min(
           maxHeight,
           Math.max(minHeight, initialRect.height + deltaY)
         ),
-        newLeft: initialLeft - widthDiff,
-        newTop: initialTop,
       }
     }
 
@@ -299,8 +264,6 @@ const getNewDimensions = (
           maxHeight,
           Math.max(minHeight, initialRect.height + deltaY)
         ),
-        newLeft: initialLeft,
-        newTop: initialTop,
       }
     default: {
       direction satisfies never
