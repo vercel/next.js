@@ -85,11 +85,12 @@ function getFocusableNodes(node: HTMLElement): [HTMLElement, HTMLElement] | [] {
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-export function useClickOutside(
+// TODO: split up escape and click outside logic
+export function useClickOutsideAndEscape(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   active: boolean,
-  close: () => void,
+  close: (reason: 'escape' | 'outside') => void,
   ownerDocument?: Document
 ) {
   useEffect(() => {
@@ -129,17 +130,18 @@ export function useClickOutside(
               triggerRef.current.getBoundingClientRect()!.bottom + cushion
           : false)
       ) {
-        close()
+        close('outside')
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        close()
+        close('outside')
       }
     }
 
     ownerDocumentEl?.addEventListener('mousedown', handleClickOutside)
+
     ownerDocumentEl?.addEventListener('keydown', handleKeyDown)
 
     return () => {

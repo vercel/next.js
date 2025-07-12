@@ -1,5 +1,5 @@
 import { useDevOverlayContext } from '../../dev-overlay.browser'
-import { useClickOutside } from '../components/errors/dev-tools-indicator/utils'
+import { useClickOutsideAndEscape } from '../components/errors/dev-tools-indicator/utils'
 import { useLayoutEffect, useRef, type CSSProperties } from 'react'
 import { getIndicatorOffset } from '../utils/indicator-metrics'
 import { INDICATOR_PADDING } from '../components/devtools-indicator/devtools-indicator'
@@ -38,10 +38,17 @@ export const DevtoolMenu = ({
 
   const menuRef = useRef<HTMLDivElement>(null)
 
-  useClickOutside(menuRef, triggerRef, closeOnClickOutside && mounted, () => {
-    setPanel(null)
-    setSelectedIndex(-1)
-  })
+  useClickOutsideAndEscape(
+    menuRef,
+    triggerRef,
+    closeOnClickOutside && mounted,
+    () => {
+      console.log('outside menu')
+
+      setPanel(null)
+      setSelectedIndex(-1)
+    }
+  )
   useLayoutEffect(() => {
     menuRef.current?.focus() // allows keydown to be captured
     selectMenuItem({

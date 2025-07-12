@@ -12,7 +12,7 @@ import {
   MENU_DURATION_MS,
 } from '../components/errors/dev-tools-indicator/utils'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
-import { createContext, useContext, useEffect } from 'react'
+import { createContext, useContext } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
   ACTION_DEV_INDICATOR_SET,
@@ -92,27 +92,6 @@ const MenuPanel = () => {
   )
 }
 
-const useGoBackOnEscape = () => {
-  const { setPanel, setSelectedIndex } = usePanelRouterContext()
-  const { panel } = usePanelRouterContext()
-  useEffect(() => {
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && document.activeElement === document.body) {
-        if (panel === 'panel-selector') {
-          setPanel(null)
-          setSelectedIndex(-1)
-        } else {
-          setPanel('panel-selector')
-        }
-      }
-    }
-    window.addEventListener('keydown', handleKeydown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeydown)
-    }
-  }, [setPanel, panel, setSelectedIndex])
-}
 // a little hacky but it does the trick
 const useToggleDevtoolsVisibility = () => {
   const { state, dispatch } = useDevOverlayContext()
@@ -153,7 +132,6 @@ export const PanelRouter = () => {
     hideShortcut ? { [hideShortcut]: toggleDevtools } : {},
     triggerRef
   )
-  useGoBackOnEscape()
   return (
     <>
       <PanelRoute name="panel-selector">

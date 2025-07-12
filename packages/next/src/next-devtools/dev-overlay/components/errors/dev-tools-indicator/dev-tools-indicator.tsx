@@ -18,7 +18,7 @@ import { UserPreferences } from './dev-tools-info/user-preferences'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
-  useClickOutside,
+  useClickOutsideAndEscape,
   useFocusTrap,
 } from './utils'
 import {
@@ -164,7 +164,7 @@ function DevToolsPopover({
 
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
-  useClickOutside(menuRef, triggerRef, menuMounted, closeMenu)
+  useClickOutsideAndEscape(menuRef, triggerRef, menuMounted, closeMenu)
   useShortcuts(hideShortcut ? { [hideShortcut]: hideDevTools } : {}, triggerRef)
 
   useEffect(() => {

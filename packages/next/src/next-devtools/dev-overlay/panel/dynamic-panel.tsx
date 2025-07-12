@@ -8,7 +8,7 @@ import {
   DragProvider,
 } from '../components/errors/dev-tools-indicator/drag-context'
 import { Draggable } from '../components/errors/dev-tools-indicator/draggable'
-import { useClickOutside } from '../components/errors/dev-tools-indicator/utils'
+import { useClickOutsideAndEscape } from '../components/errors/dev-tools-indicator/utils'
 import { usePanelRouterContext } from '../menu/context'
 import { usePanelContext } from '../menu/panel-router'
 import {
@@ -159,12 +159,26 @@ export function DynamicPanel({
   const resizeContainerRef = useRef<HTMLDivElement>(null)
   const { triggerRef } = usePanelRouterContext()
 
-  useClickOutside(
+  useClickOutsideAndEscape(
     resizeContainerRef,
     triggerRef,
-    closeOnClickOutside && mounted,
-    () => {
-      setPanel('panel-selector')
+    mounted,
+    (reason) => {
+      switch (reason) {
+        case 'escape': {
+          setPanel('panel-selector')
+          return
+        }
+        case 'outside': {
+          if (closeOnClickOutside) {
+            setPanel('panel-selector')
+          }
+          return
+        }
+        default: {
+          return null!
+        }
+      }
     }
   )
 
