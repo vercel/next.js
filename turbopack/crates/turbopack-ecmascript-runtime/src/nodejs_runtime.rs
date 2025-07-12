@@ -13,7 +13,7 @@ pub async fn get_nodejs_runtime_code(
     environment: ResolvedVc<Environment>,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
-    let asset_context = get_runtime_asset_context(environment).await?;
+    let asset_context = get_runtime_asset_context(*environment).resolve().await?;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,

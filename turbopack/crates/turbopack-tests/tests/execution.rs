@@ -5,7 +5,7 @@
 
 mod util;
 
-use std::path::PathBuf;
+use std::{env, path::PathBuf, sync::Once};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
@@ -39,6 +39,9 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::IssueDescriptionExt,
+    module_graph::{
+        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
+    },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
@@ -167,7 +170,8 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
-    register();
+    static REGISTER_ONCE: Once = Once::new();
+    REGISTER_ONCE.call_once(register);
 
     // Clean up old output files.
     let output_path = resource.join("output");
@@ -183,12 +187,27 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     std::fs::create_dir_all(&output_path)
         .context("Unable to create output directory")
         .unwrap();
-    let trace_file = output_path.join("trace-turbopack");
-    let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-    let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
-    let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-    subscriber.init();
+    // Set up a `tracing_subscriber` for debugging -- We can only do this when using nextest, as
+    // `cargo test` runs all execution test cases in the same process.
+    //
+    // Configuring `tracing_subscriber` requires proces-global side-effects. We can't use a
+    // thread-local subscriber because we're not fully single-threaded, even with the
+    // `current_thread` tokio executor.
+    //
+    // https://nexte.st/docs/configuration/env-vars/#environment-variables-nextest-sets
+    let _trace_writer_guard = if env::var_os("NEXTEST").is_some() {
+        let trace_file = output_path.join("trace-turbopack");
+        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
+        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+        subscriber.init();
+
+        Some(trace_writer_guard)
+    } else {
+        None
+    };
 
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -198,19 +217,15 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         },
         noop_backing_storage(),
     ));
-    let result = tt
-        .run_once(async move {
-            let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
-            let result = emit_op.read_strongly_consistent().owned().await?;
-            apply_effects(emit_op).await?;
 
-            Ok(result)
-        })
-        .await;
+    tt.run_once(async move {
+        let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
+        let result = emit_op.read_strongly_consistent().owned().await?;
+        apply_effects(emit_op).await?;
 
-    drop(trace_writer_guard);
-
-    result
+        Ok(result)
+    })
+    .await
 }
 
 #[turbo_tasks::function(operation)]
@@ -268,7 +283,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
 
     let root_fs = DiskFileSystem::new(rcstr!("workspace"), REPO_ROOT.clone(), vec![]);
     let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root().await?.clone_value();
+    let project_root = project_fs.root().owned().await?;
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
         "stripping repo root {:?} from resource path {:?}",
@@ -382,12 +397,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
-                    remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
-            remove_unused_exports,
             ..Default::default()
         }
         .into(),
@@ -413,6 +426,35 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .cell(),
         Layer::new(rcstr!("test")),
     ));
+
+    let jest_entry_source = FileSource::new(jest_entry_path);
+    let test_source = FileSource::new(test_path);
+
+    let test_asset = asset_context
+        .process(
+            Vc::upcast(test_source),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+        )
+        .module()
+        .to_resolved()
+        .await?;
+
+    let jest_entry_asset = asset_context
+        .process(
+            Vc::upcast(jest_entry_source),
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+                rcstr!("TESTS") => test_asset,
+            })),
+        )
+        .module();
+
+    // Keep this in sync with what `evaluate` does internally
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(vec![
+            jest_entry_asset.to_resolved().await?,
+        ])]),
+        false,
+    );
 
     let chunking_context = NodeJsChunkingContext::builder(
         project_root.clone(),
@@ -446,28 +488,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
+    .export_usage(if remove_unused_exports {
+        Some(
+            compute_export_usage_info(module_graph.to_resolved().await?)
+                .resolve_strongly_consistent()
+                .await?,
+        )
+    } else {
+        None
+    })
     .build();
-
-    let jest_entry_source = FileSource::new(jest_entry_path);
-    let test_source = FileSource::new(test_path);
-
-    let test_asset = asset_context
-        .process(
-            Vc::upcast(test_source),
-            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
-        )
-        .module()
-        .to_resolved()
-        .await?;
-
-    let jest_entry_asset = asset_context
-        .process(
-            Vc::upcast(jest_entry_source),
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("TESTS") => test_asset,
-            })),
-        )
-        .module();
 
     let res = evaluate(
         jest_entry_asset,

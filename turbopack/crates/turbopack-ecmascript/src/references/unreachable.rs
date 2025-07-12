@@ -24,7 +24,7 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     code_gen::{AstModifier, CodeGen, CodeGeneration},
@@ -139,7 +139,6 @@ impl Unreachable {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let comments = SwcComments::default();

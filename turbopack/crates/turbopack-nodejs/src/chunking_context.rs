@@ -16,7 +16,11 @@ use turbopack_core::{
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{
+        ModuleGraph,
+        chunk_group_info::ChunkGroup,
+        export_usage::{ExportUsageInfo, ModuleExportUsageInfo},
+    },
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
@@ -61,6 +65,15 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn dynamic_chunk_content_loading(
+        mut self,
+        enable_dynamic_chunk_content_loading: bool,
+    ) -> Self {
+        self.chunking_context.enable_dynamic_chunk_content_loading =
+            enable_dynamic_chunk_content_loading;
+        self
+    }
+
     pub fn runtime_type(mut self, runtime_type: RuntimeType) -> Self {
         self.chunking_context.runtime_type = runtime_type;
         self
@@ -81,6 +94,11 @@ impl NodeJsChunkingContextBuilder {
         module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     ) -> Self {
         self.chunking_context.module_id_strategy = module_id_strategy;
+        self
+    }
+
+    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<ExportUsageInfo>>) -> Self {
+        self.chunking_context.export_usage = export_usage;
         self
     }
 
@@ -126,6 +144,8 @@ pub struct NodeJsChunkingContext {
     enable_file_tracing: bool,
     /// Enable module merging
     enable_module_merging: bool,
+    /// Enable dynamic chunk content loading.
+    enable_dynamic_chunk_content_loading: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
     /// Whether to generate source maps
@@ -134,6 +154,8 @@ pub struct NodeJsChunkingContext {
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    /// The module export usage info, if available.
+    export_usage: Option<ResolvedVc<ExportUsageInfo>>,
     /// Whether to use file:// uris for source map sources
     should_use_file_source_map_uris: bool,
     /// The chunking configs
@@ -163,6 +185,7 @@ impl NodeJsChunkingContext {
                 asset_prefix: None,
                 enable_file_tracing: false,
                 enable_module_merging: false,
+                enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -170,30 +193,10 @@ impl NodeJsChunkingContext {
                 manifest_chunks: false,
                 should_use_file_source_map_uris: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
+                export_usage: None,
                 chunking_configs: Default::default(),
             },
         }
-    }
-}
-
-impl NodeJsChunkingContext {
-    /// Returns the kind of runtime to include in output chunks.
-    ///
-    /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
-    /// when `RuntimeType` has a single variant.
-    pub fn runtime_type(&self) -> RuntimeType {
-        self.runtime_type
-    }
-
-    /// Returns the minify type.
-    pub fn minify_type(&self) -> MinifyType {
-        self.minify_type
-    }
-}
-
-impl NodeJsChunkingContext {
-    pub async fn asset_prefix(self: Vc<Self>) -> Result<Option<RcStr>> {
-        Ok(self.await?.asset_prefix.clone())
     }
 }
 
@@ -217,6 +220,26 @@ impl NodeJsChunkingContext {
                 bail!("Unable to generate output asset for chunk");
             },
         )
+    }
+
+    /// Returns the kind of runtime to include in output chunks.
+    ///
+    /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
+    /// when `RuntimeType` has a single variant.
+    #[turbo_tasks::function]
+    pub fn runtime_type(&self) -> Vc<RuntimeType> {
+        self.runtime_type.cell()
+    }
+
+    /// Returns the minify type.
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.asset_prefix.clone())
     }
 }
 
@@ -255,6 +278,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn is_module_merging_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_module_merging)
+    }
+
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_dynamic_chunk_content_loading)
     }
 
     #[turbo_tasks::function]
@@ -496,5 +524,17 @@ impl ChunkingContext for NodeJsChunkingContext {
         } else {
             self.chunk_item_id_from_ident(AsyncLoaderModule::asset_ident_for(module))
         })
+    }
+
+    #[turbo_tasks::function]
+    async fn module_export_usage(
+        self: Vc<Self>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ModuleExportUsageInfo>> {
+        if let Some(export_usage) = self.await?.export_usage {
+            Ok(export_usage.await?.used_exports(module))
+        } else {
+            Ok(ModuleExportUsageInfo::all())
+        }
     }
 }

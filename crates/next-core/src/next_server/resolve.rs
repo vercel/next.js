@@ -169,35 +169,32 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         ) -> Result<FileType> {
             // node.js only supports these file extensions
             // mjs is an esm module and we can't bundle that yet
-            let ext = raw_fs_path.extension_ref();
-            if matches!(ext, Some("cjs" | "node" | "json")) {
-                return Ok(FileType::CommonJs);
-            }
-            if matches!(ext, Some("mjs")) {
-                return Ok(FileType::EcmaScriptModule);
-            }
-            if matches!(ext, Some("js")) {
-                // for .js extension in cjs context, we need to check the actual module type via
-                // package.json
-                let FindContextFileResult::Found(package_json, _) =
-                    &*find_context_file(fs_path.parent(), package_json()).await?
-                else {
-                    // can't find package.json
-                    return Ok(FileType::CommonJs);
-                };
-                let FileJsonContent::Content(package) = &*package_json.read_json().await? else {
-                    // can't parse package.json
-                    return Ok(FileType::InvalidPackageJson);
-                };
+            Ok(match raw_fs_path.extension_ref() {
+                Some("cjs" | "node" | "json") => FileType::CommonJs,
+                Some("mjs") => FileType::EcmaScriptModule,
+                Some("js") => {
+                    // for .js extension in cjs context, we need to check the actual module type via
+                    // package.json
+                    let FindContextFileResult::Found(package_json, _) =
+                        &*find_context_file(fs_path.parent(), package_json()).await?
+                    else {
+                        // can't find package.json
+                        return Ok(FileType::CommonJs);
+                    };
+                    let FileJsonContent::Content(package) = &*package_json.read_json().await?
+                    else {
+                        // can't parse package.json
+                        return Ok(FileType::InvalidPackageJson);
+                    };
 
-                if let Some("module") = package["type"].as_str() {
-                    return Ok(FileType::EcmaScriptModule);
+                    if let Some("module") = package["type"].as_str() {
+                        FileType::EcmaScriptModule
+                    } else {
+                        FileType::CommonJs
+                    }
                 }
-
-                return Ok(FileType::CommonJs);
-            }
-
-            Ok(FileType::UnsupportedExtension)
+                _ => FileType::UnsupportedExtension,
+            })
         }
 
         let unable_to_externalize = |reason: Vec<StyledString>| {
@@ -218,9 +215,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let mut request_str = request_str.to_string();
 
         let node_resolve_options = if is_esm {
-            node_esm_resolve_options(lookup_path.root().await?.clone_value())
+            node_esm_resolve_options(lookup_path.root().owned().await?)
         } else {
-            node_cjs_resolve_options(lookup_path.root().await?.clone_value())
+            node_cjs_resolve_options(lookup_path.root().owned().await?)
         };
         let result_from_original_location = loop {
             let node_resolved_from_original_location = resolve(
@@ -351,7 +348,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 )]);
             }
         }
-        let path = result.ident().path().await?.clone_value();
+        let path = result.ident().path().owned().await?;
         let file_type = get_file_type(path.clone(), &path).await?;
 
         let external_type = match (file_type, is_esm) {
@@ -373,7 +370,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // It would be more efficient to use an CJS external instead of an ESM external,
                 // but we need to verify if that would be correct (as in resolves to the same file).
                 let node_resolve_options =
-                    node_cjs_resolve_options(lookup_path.root().await?.clone_value());
+                    node_cjs_resolve_options(lookup_path.root().owned().await?);
                 let node_resolved = resolve(
                     self.project_path.clone(),
                     reference_type.clone(),
@@ -381,7 +378,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     node_resolve_options,
                 );
                 let resolves_equal = if let Some(result) = *node_resolved.first_source().await? {
-                    let cjs_path = result.ident().path().await?.clone_value();
+                    let cjs_path = result.ident().path().owned().await?;
                     cjs_path == path
                 } else {
                     false

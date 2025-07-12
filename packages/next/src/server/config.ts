@@ -249,6 +249,12 @@ function assignDefaults(
     )
   }
 
+  if (defaultConfig.experimental?.dynamicIO) {
+    Log.warn(
+      `\`experimental.dynamicIO\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\` was set to \`true\` during testing.`
+    )
+  }
+
   const result = {
     ...defaultConfig,
     ...config,
@@ -1045,11 +1051,10 @@ function assignDefaults(
       '@effect/sql-mssql',
       '@effect/sql-mysql2',
       '@effect/sql-pg',
-      '@effect/sql-squlite-node',
-      '@effect/sql-squlite-bun',
-      '@effect/sql-squlite-wasm',
-      '@effect/sql-squlite-react-native',
-      '@effect/sql-squlite-wasm',
+      '@effect/sql-sqlite-node',
+      '@effect/sql-sqlite-bun',
+      '@effect/sql-sqlite-wasm',
+      '@effect/sql-sqlite-react-native',
       '@effect/rpc',
       '@effect/rpc-http',
       '@effect/typeclass',
@@ -1413,6 +1418,20 @@ export default async function loadConfig(
     if (userConfig?.htmlLimitedBots instanceof RegExp) {
       // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
       userConfig.htmlLimitedBots = userConfig.htmlLimitedBots.source
+    }
+
+    if (
+      userConfig.experimental &&
+      userConfig.experimental.enablePrerenderSourceMaps === undefined &&
+      userConfig.experimental.dynamicIO === true
+    ) {
+      userConfig.experimental.enablePrerenderSourceMaps = true
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'enablePrerenderSourceMaps',
+        true,
+        'enabled by `experimental.dynamicIO`'
+      )
     }
 
     if (

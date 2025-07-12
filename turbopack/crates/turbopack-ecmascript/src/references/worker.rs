@@ -13,7 +13,6 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
@@ -74,7 +73,7 @@ impl WorkerAssetReference {
                 title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
                 message: StyledString::Text(rcstr!("asset is not placeable in ESM chunks"))
                     .resolved_cell(),
-                path: self.origin.origin_path().await?.clone_value(),
+                path: self.origin.origin_path().owned().await?,
             }
             .resolved_cell()
             .emit();
@@ -134,7 +133,6 @@ pub struct WorkerAssetReferenceCodeGen {
 impl WorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let Some(loader) = self.reference.await?.worker_loader_module().await? else {

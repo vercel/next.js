@@ -82,7 +82,7 @@ impl NextDynamicGraph {
             }
 
             let entries = if !self.is_single_page {
-                if !graph.entry_modules().any(|m| m == entry) {
+                if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(vec![]));
                 }
@@ -185,7 +185,7 @@ impl ServerActionsGraph {
                 // The graph contains the whole app, traverse and collect all reachable imports.
                 let graph = &*self.graph.await?;
 
-                if !graph.entry_modules().any(|m| m == entry) {
+                if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(Default::default()));
                 }
@@ -266,7 +266,7 @@ impl ClientReferencesGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_client_references_for_endpoint(
+    async fn get_client_references_for_endpoint(
         &self,
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
@@ -276,7 +276,7 @@ impl ClientReferencesGraph {
             let graph = &*self.graph.await?;
 
             let entries = if !self.is_single_page {
-                if !graph.entry_modules().any(|m| m == entry) {
+                if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(ClientReferenceGraphResult::default().cell());
                 }
@@ -408,8 +408,8 @@ impl Issue for CssGlobalImportIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let parent_path = self.parent_module.ident().path().await?.clone_value();
-        let module_path = self.module.ident().path().await?.clone_value();
+        let parent_path = self.parent_module.ident().path().owned().await?;
+        let module_path = self.module.ident().path().owned().await?;
         let relative_import_location = parent_path.parent();
 
         let import_path = match relative_import_location.get_relative_path_to(&module_path) {
@@ -467,9 +467,7 @@ async fn validate_pages_css_imports(
     let module_name_map = module_name_map.await?;
 
     let entries = if !is_single_page {
-        // TODO: Optimize this code by checking if the node is an entry using `get_module` and then
-        // checking if the node is an entry in the graph by looking for the reverse edges.
-        if !graph.entry_modules().any(|m| m == entry) {
+        if !graph.has_entry_module(entry) {
             // the graph doesn't contain the entry, e.g. for the additional module graph
             return Ok(());
         }
@@ -754,7 +752,7 @@ impl GlobalBuildInformation {
                 .collect::<FxIndexMap<_, _>>();
             let identifier_map = ModuleNameMap(identifier_map).cell();
 
-            let _ = graphs
+            graphs
                 .iter()
                 .map(|graph| {
                     validate_pages_css_imports(
@@ -764,6 +762,7 @@ impl GlobalBuildInformation {
                         app_module,
                         identifier_map,
                     )
+                    .as_side_effect()
                 })
                 .try_join()
                 .await?;

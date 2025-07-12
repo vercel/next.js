@@ -33,11 +33,11 @@ export function DevToolsInfo({
     exitDelay: MENU_DURATION_MS,
   })
 
-  useFocusTrap(ref, triggerRef, isOpen, () => {
+  useFocusTrap(ref, triggerRef, mounted, () => {
     // Bring focus to close button, so the user can easily close the overlay
     closeButtonRef.current?.focus()
   })
-  useClickOutside(ref, triggerRef, isOpen, close)
+  useClickOutside(ref, triggerRef, mounted, close)
 
   if (!mounted) {
     return null

@@ -218,7 +218,7 @@ async fn parse_internal(
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
-    let fs_path_vc = source.ident().path().await?.clone_value();
+    let fs_path_vc = source.ident().path().owned().await?;
     let fs_path = fs_path_vc.clone();
     let ident = &*source.ident().to_string().await?;
     let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;

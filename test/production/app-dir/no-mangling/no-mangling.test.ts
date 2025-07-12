@@ -29,7 +29,7 @@ Error: Kaputt!
   describe('with `next build --no-mangling`', () => {
     const { next } = nextTestSetup({
       files: __dirname,
-      buildOptions: ['--no-mangling'],
+      buildArgs: ['--no-mangling'],
       skipStart: true,
     })
 

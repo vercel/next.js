@@ -15,7 +15,7 @@ use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
 use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
 
 use super::utils::{
-    NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, VcArc,
+    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
     strongly_consistent_catch_collectables, subscribe,
 };
 
@@ -86,10 +86,10 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
 //    some async functions (in this case `endpoint_write_to_disk`) can cause
 //    higher-ranked lifetime errors. See https://github.com/rust-lang/rust/issues/102211
 // 2. the type_complexity clippy lint.
-pub struct ExternalEndpoint(pub VcArc<OptionEndpoint>);
+pub struct ExternalEndpoint(pub DetachedVc<OptionEndpoint>);
 
 impl Deref for ExternalEndpoint {
-    type Target = VcArc<OptionEndpoint>;
+    type Target = DetachedVc<OptionEndpoint>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -125,9 +125,10 @@ async fn get_written_endpoint_with_issues_operation(
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
     let endpoint_op = ***endpoint;
-    let (written, issues, diags) = turbo_tasks
+    let (written, issues, diags) = endpoint
+        .turbopack_ctx()
+        .turbo_tasks()
         .run_once(async move {
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
@@ -158,10 +159,10 @@ pub fn endpoint_server_changed_subscribe(
     issues: bool,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
+    let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint = ***endpoint;
     subscribe(
-        turbo_tasks,
+        turbopack_ctx,
         func,
         move || {
             async move {
@@ -247,10 +248,10 @@ pub fn endpoint_client_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
+    let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint_op = ***endpoint;
     subscribe(
-        turbo_tasks,
+        turbopack_ctx,
         func,
         move || {
             async move {

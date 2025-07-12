@@ -5018,8 +5018,7 @@
       renderState.nextSegmentId = postponedState.nextSegmentId;
       if ("number" === typeof postponedState.replaySlots)
         return (
-          (onError = postponedState.replaySlots),
-          (onAllReady = createPendingSegment(
+          (onError = createPendingSegment(
             renderState,
             0,
             null,
@@ -5027,15 +5026,14 @@
             !1,
             !1
           )),
-          (onAllReady.id = onError),
-          (onAllReady.parentFlushed = !0),
+          (onError.parentFlushed = !0),
           (children = createRenderTask(
             renderState,
             null,
             children,
             -1,
             null,
-            onAllReady,
+            onError,
             null,
             null,
             renderState.abortableTasks,
@@ -5329,14 +5327,16 @@
           if ("number" === typeof info.time) break;
           if (null != info.awaited) {
             var bestStack = null == info.debugStack ? info.awaited : info;
-            void 0 !== bestStack.debugStack &&
-              ((task.componentStack = {
+            if (void 0 !== bestStack.debugStack) {
+              task.componentStack = {
                 parent: task.componentStack,
                 type: info,
                 owner: bestStack.owner,
                 stack: bestStack.debugStack
-              }),
-              (task.debugTask = bestStack.debugTask));
+              };
+              task.debugTask = bestStack.debugTask;
+              break;
+            }
           }
         }
     }
@@ -5379,6 +5379,18 @@
             "function" === typeof node.then &&
               pushServerComponentStack(task, node._debugInfo);
         }
+    }
+    function replaceSuspenseComponentStackWithSuspenseFallbackStack(
+      componentStack
+    ) {
+      return null === componentStack
+        ? null
+        : {
+            parent: componentStack.parent,
+            type: "Suspense Fallback",
+            owner: componentStack.owner,
+            stack: componentStack.stack
+          };
     }
     function getThrownInfo(node$jscomp$0) {
       var errorInfo = {};
@@ -6208,27 +6220,18 @@
               !1
             );
             segment.preambleChildren.push(preambleSegment);
-            var preambleTask = createRenderTask(
-              request,
-              null,
-              _children,
-              -1,
-              task.blockedBoundary,
-              preambleSegment,
-              task.blockedPreamble,
-              task.hoistableState,
-              request.abortableTasks,
-              task.keyPath,
-              task.formatContext,
-              task.context,
-              task.treeContext,
-              task.row,
-              task.componentStack,
-              emptyContextObject,
-              task.debugTask
-            );
-            pushComponentStack(preambleTask);
-            request.pingedTasks.push(preambleTask);
+            task.blockedSegment = preambleSegment;
+            try {
+              (preambleSegment.status = 6),
+                renderNode(request, task, _children, -1),
+                preambleSegment.lastPushedText &&
+                  preambleSegment.textEmbedded &&
+                  preambleSegment.chunks.push(textSeparator),
+                (preambleSegment.status = COMPLETED),
+                finishedSegment(request, task.blockedBoundary, preambleSegment);
+            } finally {
+              task.blockedSegment = segment;
+            }
           } else renderNode(request, task, _children, -1);
           task.formatContext = _prevContext2;
           task.keyPath = _prevKeyPath3;
@@ -6563,7 +6566,8 @@
               );
               contentRootSegment.parentFlushed = !0;
               if (null !== request.trackedPostpones) {
-                var fallbackKeyPath = [
+                var suspenseComponentStack = task.componentStack,
+                  fallbackKeyPath = [
                     keyPath[0],
                     "Suspense Fallback",
                     keyPath[2]
@@ -6586,6 +6590,10 @@
                   request.resumableState,
                   prevContext$jscomp$1
                 );
+                task.componentStack =
+                  replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                    suspenseComponentStack
+                  );
                 boundarySegment.status = 6;
                 try {
                   renderNode(request, task, fallback, -1),
@@ -6624,7 +6632,7 @@
                   task.context,
                   task.treeContext,
                   null,
-                  task.componentStack,
+                  suspenseComponentStack,
                   emptyContextObject,
                   task.debugTask
                 );
@@ -6733,7 +6741,9 @@
                   task.context,
                   task.treeContext,
                   task.row,
-                  task.componentStack,
+                  replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                    task.componentStack
+                  ),
                   emptyContextObject,
                   task.debugTask
                 );
@@ -7063,7 +7073,9 @@
                 task.context,
                 task.treeContext,
                 task.row,
-                task.componentStack,
+                replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                  task.componentStack
+                ),
                 emptyContextObject,
                 task.debugTask
               );
@@ -9444,13 +9456,15 @@
         (request.completedRootSegment.status !== POSTPONED &&
           null !== request.completedPreambleSegments)
       ) {
+        var nextSegmentId = request.nextSegmentId;
         var replaySlots = trackedPostpones.rootSlots;
         var resumableState = request.resumableState;
         resumableState.bootstrapScriptContent = void 0;
         resumableState.bootstrapScripts = void 0;
         resumableState.bootstrapModules = void 0;
       } else {
-        replaySlots = request.completedRootSegment.id;
+        nextSegmentId = 0;
+        replaySlots = -1;
         resumableState = request.resumableState;
         var renderState = request.renderState;
         resumableState.nextFormID = 0;
@@ -9467,7 +9481,7 @@
         resumableState.instructions = NothingSent;
       }
       return {
-        nextSegmentId: request.nextSegmentId,
+        nextSegmentId: nextSegmentId,
         rootFormatContext: request.rootFormatContext,
         progressiveChunkSize: request.progressiveChunkSize,
         resumableState: request.resumableState,
@@ -9477,11 +9491,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-73aa744b-20250702" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-97cdd5d3-20250710" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-73aa744b-20250702\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-97cdd5d3-20250710\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11300,5 +11314,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-experimental-73aa744b-20250702";
+    exports.version = "19.2.0-experimental-97cdd5d3-20250710";
   })();

@@ -10,6 +10,7 @@ store
   .get()
   .then(
     () => {
+      console.log('ok')
       process.exit(0)
     },
     (e) => {

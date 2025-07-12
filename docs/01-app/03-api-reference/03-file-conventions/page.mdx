@@ -83,6 +83,30 @@ export default async function Page({ searchParams }) {
 }
 ```
 
+Client Component **pages** can also access `searchParams` using React’s [`use`](https://react.dev/reference/react/use) hook:
+
+```tsx filename="app/shop/page.tsx" switcher
+'use client'
+import { use } from 'react'
+
+export default function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const filters = use(searchParams).filters
+}
+```
+
+```jsx filename="app/page.jsx" switcher
+'use client'
+import { use } from 'react'
+
+export default function Page({ searchParams }) {
+  const filters = use(searchParams).filters
+}
+```
+
 | Example URL     | `searchParams`                |
 | --------------- | ----------------------------- |
 | `/shop?a=1`     | `Promise<{ a: '1' }>`         |

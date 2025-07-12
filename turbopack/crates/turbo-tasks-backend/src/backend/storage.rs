@@ -441,7 +441,7 @@ macro_rules! generate_inner_storage {
                 self.dynamic.count(ty)
             }
 
-            pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef> {
+            pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref, get(): $($config)*);
                 self.dynamic.get(key)
@@ -453,7 +453,7 @@ macro_rules! generate_inner_storage {
                 self.dynamic.contains_key(key)
             }
 
-            pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut> {
+            pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref_mut, get_mut(): $($config)*);
                 self.dynamic.get_mut(key)

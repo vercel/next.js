@@ -64,3 +64,15 @@ export const NoSource: Story = {
     frame,
   },
 }
+
+export const AnonymousSource: Story = {
+  args: {
+    frame: {
+      ...frame,
+      originalStackFrame: {
+        ...frame.originalStackFrame,
+        file: '<anonymous>',
+      },
+    },
+  },
+}

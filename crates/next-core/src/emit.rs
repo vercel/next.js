@@ -22,13 +22,13 @@ pub async fn emit_all_assets(
     client_relative_path: FileSystemPath,
     client_output_path: FileSystemPath,
 ) -> Result<()> {
-    let _ = emit_assets(
+    emit_assets(
         all_assets_from_entries(assets),
         node_root,
         client_relative_path,
         client_output_path,
     )
-    .resolve()
+    .as_side_effect()
     .await?;
     Ok(())
 }
@@ -45,7 +45,7 @@ pub async fn emit_assets(
     client_relative_path: FileSystemPath,
     client_output_path: FileSystemPath,
 ) -> Result<()> {
-    let _: Vec<Vc<()>> = assets
+    let _: Vec<()> = assets
         .await?
         .iter()
         .copied()
@@ -55,20 +55,20 @@ pub async fn emit_assets(
             let client_output_path = client_output_path.clone();
 
             async move {
-                let path = asset.path().await?.clone_value();
+                let path = asset.path().owned().await?;
                 let span = tracing::info_span!("emit asset", name = %path.value_to_string().await?);
                 async move {
                     Ok(if path.is_inside_ref(&node_root) {
-                        Some(emit(*asset))
+                        Some(emit(*asset).as_side_effect().await?)
                     } else if path.is_inside_ref(&client_relative_path) {
                         // Client assets are emitted to the client output path, which is prefixed
                         // with _next. We need to rebase them to remove that
                         // prefix.
-                        Some(emit_rebase(
-                            *asset,
-                            client_relative_path,
-                            client_output_path,
-                        ))
+                        Some(
+                            emit_rebase(*asset, client_relative_path, client_output_path)
+                                .as_side_effect()
+                                .await?,
+                        )
                     } else {
                         None
                     })
@@ -84,10 +84,12 @@ pub async fn emit_assets(
 
 #[turbo_tasks::function]
 async fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
-    let _ = asset
+    asset
         .content()
-        .write(asset.path().await?.clone_value())
         .resolve()
+        .await?
+        .write(asset.path().owned().await?)
+        .as_side_effect()
         .await?;
     Ok(())
 }
@@ -98,11 +100,16 @@ async fn emit_rebase(
     from: FileSystemPath,
     to: FileSystemPath,
 ) -> Result<()> {
-    let path = rebase(asset.path().await?.clone_value(), from, to)
-        .await?
-        .clone_value();
+    let path = rebase(asset.path().owned().await?, from, to)
+        .owned()
+        .await?;
     let content = asset.content();
-    let _ = content.resolve().await?.write(path).resolve().await?;
+    content
+        .resolve()
+        .await?
+        .write(path)
+        .as_side_effect()
+        .await?;
     Ok(())
 }
 

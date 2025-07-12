@@ -777,7 +777,6 @@ export default async function getBaseWebpackConfig(
       appDir,
       dir,
       reactProductionProfiling,
-      hasRewrites,
     }),
     ...(isClient
       ? {

@@ -2,7 +2,6 @@ use std::{borrow::Cow, iter, ops::ControlFlow, thread::available_parallelism, ti
 
 use anyhow::{Result, anyhow, bail};
 use async_stream::try_stream as generator;
-use async_trait::async_trait;
 use futures::{
     SinkExt, StreamExt,
     channel::mpsc::{UnboundedSender, unbounded},
@@ -101,9 +100,7 @@ async fn emit_evaluate_pool_assets_operation(
     let runtime_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(
-                embed_file_path(rcstr!("ipc/evaluate.ts"))
-                    .await?
-                    .clone_value(),
+                embed_file_path(rcstr!("ipc/evaluate.ts")).owned().await?,
             )),
             ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
@@ -142,7 +139,7 @@ async fn emit_evaluate_pool_assets_operation(
         let globals_module = asset_context
             .process(
                 Vc::upcast(FileSource::new(
-                    embed_file_path(rcstr!("globals.ts")).await?.clone_value(),
+                    embed_file_path(rcstr!("globals.ts")).owned().await?,
                 )),
                 ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
             )
@@ -180,9 +177,13 @@ async fn emit_evaluate_pool_assets_operation(
         OutputAssets::empty(),
     );
 
-    let output_root = chunking_context.output_root().await?.clone_value();
-    let _ = emit_package_json(output_root.clone())?.resolve().await?;
-    let _ = emit(bootstrap, output_root.clone()).resolve().await?;
+    let output_root = chunking_context.output_root().owned().await?;
+    emit_package_json(output_root.clone())?
+        .as_side_effect()
+        .await?;
+    emit(bootstrap, output_root.clone())
+        .as_side_effect()
+        .await?;
 
     Ok(EmittedEvaluatePoolAssets {
         bootstrap: bootstrap.to_resolved().await?,
@@ -286,7 +287,7 @@ pub async fn get_evaluate_pool(
         env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
         assets_for_source_mapping,
         output_root.clone(),
-        chunking_context.root_path().await?.clone_value(),
+        chunking_context.root_path().owned().await?,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     );
@@ -331,37 +332,47 @@ impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
     }
 }
 
-#[async_trait]
 pub trait EvaluateContext {
     type InfoMessage: DeserializeOwned;
     type RequestMessage: DeserializeOwned;
     type ResponseMessage: Serialize;
     type State: Default;
 
-    fn compute(self, sender: Vc<JavaScriptStreamSender>);
+    fn compute(self, sender: Vc<JavaScriptStreamSender>)
+    -> impl Future<Output = Result<()>> + Send;
     fn pool(&self) -> OperationVc<NodeJsPool>;
     fn keep_alive(&self) -> bool {
         false
     }
     fn args(&self) -> &[ResolvedVc<JsonValue>];
     fn cwd(&self) -> Vc<FileSystemPath>;
-    async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()>;
-    async fn info(
+    fn emit_error(
+        &self,
+        error: StructuredError,
+        pool: &NodeJsPool,
+    ) -> impl Future<Output = Result<()>> + Send;
+    fn info(
         &self,
         state: &mut Self::State,
         data: Self::InfoMessage,
         pool: &NodeJsPool,
-    ) -> Result<()>;
-    async fn request(
+    ) -> impl Future<Output = Result<()>> + Send;
+    fn request(
         &self,
         state: &mut Self::State,
         data: Self::RequestMessage,
         pool: &NodeJsPool,
-    ) -> Result<Self::ResponseMessage>;
-    async fn finish(&self, _state: Self::State, _pool: &NodeJsPool) -> Result<()>;
+    ) -> impl Future<Output = Result<Self::ResponseMessage>> + Send;
+    fn finish(
+        &self,
+        state: Self::State,
+        pool: &NodeJsPool,
+    ) -> impl Future<Output = Result<()>> + Send;
 }
 
-pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptEvaluation> {
+pub async fn custom_evaluate(
+    evaluate_context: impl EvaluateContext,
+) -> Result<Vc<JavaScriptEvaluation>> {
     // TODO: The way we invoke compute_evaluate_stream as side effect is not
     // GC-safe, so we disable GC for this task.
     prevent_gc();
@@ -385,34 +396,36 @@ pub fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Vc<JavaScriptE
     let initial = Mutex::new(Some(sender));
 
     // run the evaluation as side effect
-    evaluate_context.compute(
-        JavaScriptStreamSender {
-            get: Box::new(move || {
-                if let Some(sender) = initial.lock().take() {
-                    sender
-                } else {
-                    // In cases when only [compute_evaluate_stream] is (re)executed, we need to
-                    // update the old stream with a new value.
-                    let (sender, receiver) = unbounded();
-                    cell.update(JavaScriptEvaluation(JavaScriptStream::new_open(
-                        vec![],
-                        Box::new(receiver),
-                    )));
-                    sender
-                }
-            }),
-        }
-        .cell(),
-    );
+    evaluate_context
+        .compute(
+            JavaScriptStreamSender {
+                get: Box::new(move || {
+                    if let Some(sender) = initial.lock().take() {
+                        sender
+                    } else {
+                        // In cases when only [compute_evaluate_stream] is (re)executed, we need to
+                        // update the old stream with a new value.
+                        let (sender, receiver) = unbounded();
+                        cell.update(JavaScriptEvaluation(JavaScriptStream::new_open(
+                            vec![],
+                            Box::new(receiver),
+                        )));
+                        sender
+                    }
+                }),
+            }
+            .cell(),
+        )
+        .await?;
 
     let raw: RawVc = cell.into();
-    raw.into()
+    Ok(raw.into())
 }
 
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 #[turbo_tasks::function]
-pub fn evaluate(
+pub async fn evaluate(
     module_asset: ResolvedVc<Box<dyn Module>>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
@@ -423,7 +436,7 @@ pub fn evaluate(
     args: Vec<ResolvedVc<JsonValue>>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
-) -> Vc<JavaScriptEvaluation> {
+) -> Result<Vc<JavaScriptEvaluation>> {
     custom_evaluate(BasicEvaluateContext {
         module_asset,
         cwd,
@@ -436,6 +449,7 @@ pub fn evaluate(
         additional_invalidation,
         debug,
     })
+    .await
 }
 
 pub async fn compute(
@@ -606,15 +620,14 @@ struct BasicEvaluateContext {
     debug: bool,
 }
 
-#[async_trait]
 impl EvaluateContext for BasicEvaluateContext {
     type InfoMessage = ();
     type RequestMessage = ();
     type ResponseMessage = ();
     type State = ();
 
-    fn compute(self, sender: Vc<JavaScriptStreamSender>) {
-        let _ = basic_compute(self, sender);
+    async fn compute(self, sender: Vc<JavaScriptStreamSender>) -> Result<()> {
+        basic_compute(self, sender).as_side_effect().await
     }
 
     fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
@@ -649,7 +662,7 @@ impl EvaluateContext for BasicEvaluateContext {
             source: IssueSource::from_source_only(self.context_source_for_issue),
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
-            root_path: self.chunking_context.root_path().await?.clone_value(),
+            root_path: self.chunking_context.root_path().owned().await?,
         }
         .resolved_cell()
         .emit();
@@ -696,7 +709,7 @@ async fn print_error(
         .print(
             *pool.assets_for_source_mapping,
             pool.assets_root.clone(),
-            evaluate_context.cwd().await?.clone_value(),
+            evaluate_context.cwd().owned().await?,
             FormattingMode::Plain,
         )
         .await

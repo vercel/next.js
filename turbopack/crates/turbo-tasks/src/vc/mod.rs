@@ -421,6 +421,13 @@ where
         }
     }
 
+    /// Runs the operation, but ignores the returned Vc. Use that when only interested in running
+    /// the task for side effects.
+    pub async fn as_side_effect(self) -> Result<()> {
+        self.node.resolve().await?;
+        Ok(())
+    }
+
     /// Do not use this: Use [`Vc::to_resolved`] instead. If you must have a resolved [`Vc`] type
     /// and not a [`ResolvedVc`] type, simply deref the result of [`Vc::to_resolved`].
     pub async fn resolve(self) -> Result<Vc<T>> {
@@ -560,7 +567,7 @@ impl<T> ValueDebugFormat for Vc<T>
 where
     T: Upcast<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         ValueDebugFormatString::Async(Box::pin(async move {
             Ok({
                 let vc_value_debug = Vc::upcast::<Box<dyn ValueDebug>>(*self);

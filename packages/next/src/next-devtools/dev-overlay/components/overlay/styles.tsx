@@ -5,7 +5,8 @@ const styles = `
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 3;
+    /* secondary z-index, -1 than toast z-index */
+    z-index: 2147483646;
 
     display: flex;
     align-content: center;

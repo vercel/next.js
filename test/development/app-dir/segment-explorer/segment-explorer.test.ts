@@ -206,4 +206,18 @@ describe('segment-explorer', () => {
      default.tsx"
     `)
   })
+
+  it('should display boundary selector when a segment has only boundary files', async () => {
+    const browser = await next.browser('/no-layout/framework/blog')
+    expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
+     "app/
+     layout.tsx
+     no-layout/
+     framework/
+     layout.tsx
+     blog/
+     layout.tsx
+     page.tsx"
+    `)
+  })
 })

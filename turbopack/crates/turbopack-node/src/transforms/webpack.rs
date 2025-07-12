@@ -1,7 +1,6 @@
 use std::mem::take;
 
 use anyhow::{Context, Result, bail};
-use async_trait::async_trait;
 use base64::Engine;
 use either::Either;
 use futures::try_join;
@@ -193,8 +192,8 @@ async fn webpack_loaders_executor(
     Ok(evaluate_context.process(
         Vc::upcast(FileSource::new(
             embed_file_path(rcstr!("transforms/webpack-loaders.ts"))
-                .await?
-                .clone_value(),
+                .owned()
+                .await?,
         )),
         ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
     ))
@@ -244,7 +243,7 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-        let resource_fs_path = this.source.ident().path().await?.clone_value();
+        let resource_fs_path = this.source.ident().path().owned().await?;
         let resource_fs_path_ref = resource_fs_path.clone();
         let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path_ref) else {
             bail!(format!(
@@ -315,10 +314,10 @@ impl WebpackLoadersProcessedAsset {
 }
 
 #[turbo_tasks::function]
-pub(crate) fn evaluate_webpack_loader(
+pub(crate) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
-) -> Vc<JavaScriptEvaluation> {
-    custom_evaluate(webpack_loader_context)
+) -> Result<Vc<JavaScriptEvaluation>> {
+    custom_evaluate(webpack_loader_context).await
 }
 
 #[turbo_tasks::function]
@@ -426,15 +425,16 @@ pub struct WebpackLoaderContext {
     pub additional_invalidation: ResolvedVc<Completion>,
 }
 
-#[async_trait]
 impl EvaluateContext for WebpackLoaderContext {
     type InfoMessage = InfoMessage;
     type RequestMessage = RequestMessage;
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 
-    fn compute(self, sender: Vc<JavaScriptStreamSender>) {
-        let _ = compute_webpack_loader_evaluation(self, sender);
+    async fn compute(self, sender: Vc<JavaScriptStreamSender>) -> Result<()> {
+        compute_webpack_loader_evaluation(self, sender)
+            .as_side_effect()
+            .await
     }
 
     fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
@@ -472,7 +472,7 @@ impl EvaluateContext for WebpackLoaderContext {
             source: IssueSource::from_source_only(self.context_source_for_issue),
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
-            root_path: self.chunking_context.root_path().await?.clone_value(),
+            root_path: self.chunking_context.root_path().owned().await?,
         }
         .resolved_cell()
         .emit();
@@ -543,7 +543,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     severity,
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root.clone(),
-                    project_dir: self.chunking_context.root_path().await?.clone_value(),
+                    project_dir: self.chunking_context.root_path().owned().await?,
                 }
                 .resolved_cell()
                 .emit();
@@ -635,7 +635,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 },
                 assets_for_source_mapping: pool.assets_for_source_mapping,
                 assets_root: pool.assets_root.clone(),
-                project_dir: self.chunking_context.root_path().await?.clone_value(),
+                project_dir: self.chunking_context.root_path().owned().await?,
             }
             .resolved_cell()
             .emit();

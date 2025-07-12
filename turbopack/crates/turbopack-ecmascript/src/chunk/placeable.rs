@@ -34,7 +34,7 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
         Ok(is_marked_as_side_effect_free(
-            self.ident().path().await?.clone_value(),
+            self.ident().path().owned().await?,
             side_effect_free_packages,
         ))
     }
@@ -211,11 +211,19 @@ pub async fn is_marked_as_side_effect_free(
 
 #[turbo_tasks::value(shared)]
 pub enum EcmascriptExports {
+    /// A module using ESM exports.
     EsmExports(ResolvedVc<EsmExports>),
+    /// A module using `__turbopack_export_namespace__`, used by custom module types.
     DynamicNamespace,
+    /// A module using CommonJS exports.
     CommonJs,
+    /// No exports at all, and falling back to CommonJS semantics.
     EmptyCommonJs,
+    /// A value that is made available as both the CommonJS `exports` and the ESM default export.
     Value,
+    /// Some error occurred while determining exports.
+    Unknown,
+    /// No exports, used by custom module types.
     None,
 }
 

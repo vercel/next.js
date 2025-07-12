@@ -7,16 +7,18 @@ export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUN
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     console.log(secret, $$ACTION_ARG_0);
 };
+registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "e0951c375b4a6a6e89d67b743ec5808127cfde405d", 0, async function getCachedRandom(x, children) {
     return {
         x,
         y: Math.random(),
-        z: <Button action={registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", x))}/>,
+        z: <Button action={$$RSC_SERVER_ACTION_0.bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", x))}/>,
         r: children
     };
 });
+registerServerReference($$RSC_SERVER_CACHE_1, "e0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
     value: "getCachedRandom",
     writable: false
 });
-var getCachedRandom = registerServerReference($$RSC_SERVER_CACHE_1, "e0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
+var getCachedRandom = $$RSC_SERVER_CACHE_1;

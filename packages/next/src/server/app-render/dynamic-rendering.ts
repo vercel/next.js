@@ -71,7 +71,6 @@ export type DynamicTrackingState = {
    */
   readonly dynamicAccesses: Array<DynamicAccess>
 
-  syncDynamicExpression: undefined | string
   syncDynamicErrorWithStack: null | Error
 }
 
@@ -90,7 +89,6 @@ export function createDynamicTrackingState(
   return {
     isDebugDynamicAccesses,
     dynamicAccesses: [],
-    syncDynamicExpression: undefined,
     syncDynamicErrorWithStack: null,
   }
 }
@@ -292,7 +290,6 @@ export function abortOnSynchronousPlatformIOAccess(
   // called the sync IO expression in the first place.
   if (dynamicTracking) {
     if (dynamicTracking.syncDynamicErrorWithStack === null) {
-      dynamicTracking.syncDynamicExpression = expression
       dynamicTracking.syncDynamicErrorWithStack = errorWithStack
     }
   }
@@ -337,7 +334,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
     const dynamicTracking = prerenderStore.dynamicTracking
     if (dynamicTracking) {
       if (dynamicTracking.syncDynamicErrorWithStack === null) {
-        dynamicTracking.syncDynamicExpression = expression
         dynamicTracking.syncDynamicErrorWithStack = errorWithStack
       }
     }
@@ -616,7 +612,7 @@ const hasViewportRegex = new RegExp(
 const hasOutletRegex = new RegExp(`\\n\\s+at ${OUTLET_BOUNDARY_NAME}[\\n\\s]`)
 
 export function trackAllowedDynamicAccess(
-  route: string,
+  workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState
@@ -648,19 +644,28 @@ export function trackAllowedDynamicAccess(
     )
     return
   } else {
-    const message = `Route "${route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
-    const error = createErrorWithComponentStack(message, componentStack)
+    const message = `Route "${workStore.route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return
   }
 }
 
-function createErrorWithComponentStack(
+/**
+ * In dev mode, we prefer using the owner stack, otherwise the provided
+ * component stack is used.
+ */
+function createErrorWithComponentOrOwnerStack(
   message: string,
   componentStack: string
 ) {
+  const ownerStack =
+    process.env.NODE_ENV !== 'production' && React.captureOwnerStack
+      ? React.captureOwnerStack()
+      : null
+
   const error = new Error(message)
-  error.stack = 'Error: ' + message + componentStack
+  error.stack = error.name + ': ' + message + (ownerStack ?? componentStack)
   return error
 }
 
@@ -670,6 +675,22 @@ export enum PreludeState {
   Errored = 2,
 }
 
+function logDisallowedDynamicError(workStore: WorkStore, error: Error): void {
+  console.error(error)
+
+  if (!workStore.dev) {
+    if (workStore.hasReadableErrorStacks) {
+      console.error(
+        `To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.`
+      )
+    } else {
+      console.error(`To get a more detailed stack trace and pinpoint the issue, try one of the following:
+  - Start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.
+  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.`)
+    }
+  }
+}
+
 export function throwIfDisallowedDynamic(
   workStore: WorkStore,
   prelude: PreludeState,
@@ -677,7 +698,7 @@ export function throwIfDisallowedDynamic(
   serverDynamic: DynamicTrackingState
 ): void {
   if (workStore.invalidDynamicUsageError) {
-    console.error(workStore.invalidDynamicUsageError)
+    logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
     throw new StaticGenBailoutError()
   }
 
@@ -692,9 +713,11 @@ export function throwIfDisallowedDynamic(
     if (serverDynamic.syncDynamicErrorWithStack) {
       // There is no shell and the server did something sync dynamic likely
       // leading to an early termination of the prerender before the shell
-      // could be completed.
-      console.error(serverDynamic.syncDynamicErrorWithStack)
-      // We terminate the build/validating render
+      // could be completed. We terminate the build/validating render.
+      logDisallowedDynamicError(
+        workStore,
+        serverDynamic.syncDynamicErrorWithStack
+      )
       throw new StaticGenBailoutError()
     }
 
@@ -704,7 +727,7 @@ export function throwIfDisallowedDynamic(
     const dynamicErrors = dynamicValidation.dynamicErrors
     if (dynamicErrors.length > 0) {
       for (let i = 0; i < dynamicErrors.length; i++) {
-        console.error(dynamicErrors[i])
+        logDisallowedDynamicError(workStore, dynamicErrors[i])
       }
 
       throw new StaticGenBailoutError()

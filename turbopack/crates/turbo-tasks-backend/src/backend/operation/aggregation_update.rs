@@ -12,7 +12,7 @@ use std::{
 use anyhow::Result;
 use indexmap::map::Entry;
 use ringmap::RingSet;
-use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 use smallvec::{SmallVec, smallvec};
 #[cfg(any(
@@ -346,10 +346,10 @@ impl AggregatedDataUpdate {
                 {
                     // When the current task is no longer dirty, we need to fire the
                     // aggregate root events and do some cleanup
-                    if let Some(root_state) = get_mut!(task, Activeness) {
-                        root_state.all_clean_event.notify(usize::MAX);
-                        root_state.unset_active_until_clean();
-                        if root_state.is_empty() {
+                    if let Some(activeness_state) = get_mut!(task, Activeness) {
+                        activeness_state.all_clean_event.notify(usize::MAX);
+                        activeness_state.unset_active_until_clean();
+                        if activeness_state.is_empty() {
                             task.remove(&CachedDataItemKey::Activeness {});
                         }
                     }
@@ -613,7 +613,6 @@ pub struct AggregationUpdateQueue {
     number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
     done_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
     find_and_schedule: FxRingSet<FindAndScheduleJob>,
-    done_find_and_schedule: FxHashSet<TaskId>,
     balance_queue: FxRingSet<BalanceJob>,
     optimize_queue: FxRingSet<OptimizeJob>,
 }
@@ -626,7 +625,6 @@ impl AggregationUpdateQueue {
             number_updates: FxIndexMap::default(),
             done_number_updates: FxHashMap::default(),
             find_and_schedule: FxRingSet::default(),
-            done_find_and_schedule: FxHashSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
         }
@@ -640,7 +638,6 @@ impl AggregationUpdateQueue {
             find_and_schedule,
             balance_queue,
             optimize_queue,
-            done_find_and_schedule: _,
             done_number_updates: _,
         } = self;
         jobs.is_empty()
@@ -718,20 +715,14 @@ impl AggregationUpdateQueue {
 
     /// Pushes a job to find and schedule dirty tasks.
     pub fn push_find_and_schedule_dirty(&mut self, task_id: TaskId) {
-        if !self.done_find_and_schedule.contains(&task_id) {
-            self.find_and_schedule
-                .push_back(FindAndScheduleJob::new(task_id));
-        }
+        self.find_and_schedule
+            .push_back(FindAndScheduleJob::new(task_id));
     }
 
     /// Extends the queue with multiple jobs to find and schedule dirty tasks.
     pub fn extend_find_and_schedule_dirty(&mut self, task_ids: impl IntoIterator<Item = TaskId>) {
-        self.find_and_schedule.extend(
-            task_ids
-                .into_iter()
-                .filter(|task_id| !self.done_find_and_schedule.contains(task_id))
-                .map(FindAndScheduleJob::new),
-        );
+        self.find_and_schedule
+            .extend(task_ids.into_iter().map(FindAndScheduleJob::new));
     }
 
     /// Pushes a job to optimize a task.
@@ -1228,27 +1219,23 @@ impl AggregationUpdateQueue {
             None
         };
         if let Some(reason) = should_schedule {
-            let description = ctx.get_task_desc_fn(task_id);
+            let description = || ctx.get_task_desc_fn(task_id);
             if task.add(CachedDataItem::new_scheduled(reason, description)) {
                 ctx.schedule(task_id);
             }
         }
-        let aggregation_number = get_aggregation_number(&task);
-        if is_aggregating_node(aggregation_number) {
-            // if it has `Activeness` we can skip visiting the nested nodes since
-            // this would already be scheduled by the `Activeness`
-            let is_active_until_clean =
-                get!(task, Activeness).is_some_and(|a| a.active_until_clean);
-            if !is_active_until_clean {
-                let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task);
-                if !dirty_containers.is_empty() || dirty {
-                    let activeness_state =
-                        get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
-                    activeness_state.set_active_until_clean();
-                    drop(task);
+        // if it has `Activeness` we can skip visiting the nested nodes since
+        // this would already be scheduled by the `Activeness`
+        let is_active_until_clean = get!(task, Activeness).is_some_and(|a| a.active_until_clean);
+        if !is_active_until_clean {
+            let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task);
+            if !dirty_containers.is_empty() || dirty {
+                let activeness_state =
+                    get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
+                activeness_state.set_active_until_clean();
+                drop(task);
 
-                    self.extend_find_and_schedule_dirty(dirty_containers);
-                }
+                self.extend_find_and_schedule_dirty(dirty_containers);
             }
         }
     }

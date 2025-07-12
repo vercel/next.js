@@ -179,7 +179,7 @@ jobs:
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.8
+        uses: ijjk/rust-cache@turbo-cache-v1.0.9
         if: ${{ inputs.rustCacheKey }}
         with:
           cache-provider: 'turbo'
