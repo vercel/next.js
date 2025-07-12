@@ -47,7 +47,6 @@ export interface OverlayState {
    *  which is viewing the "Issues Tab" as a fullscreen.
    */
   isErrorOverlayOpen: boolean
-  isDevToolsPanelOpen: boolean
   devToolsPosition: Corners
   devToolsPanelPosition: Record<DevtoolsPanelName, Corners>
   scale: number
@@ -174,16 +173,6 @@ export interface RenderingIndicatorHideAction {
   type: typeof ACTION_RENDERING_INDICATOR_HIDE
 }
 
-export interface DevToolsPanelOpenAction {
-  type: typeof ACTION_DEVTOOLS_PANEL_OPEN
-}
-export interface DevToolsPanelCloseAction {
-  type: typeof ACTION_DEVTOOLS_PANEL_CLOSE
-}
-export interface DevToolsPanelToggleAction {
-  type: typeof ACTION_DEVTOOLS_PANEL_TOGGLE
-}
-
 export interface DevToolsIndicatorPositionAction {
   type: typeof ACTION_DEVTOOLS_POSITION
   devToolsPosition: Corners
@@ -228,9 +217,6 @@ export type DispatcherEvent =
   | BuildingIndicatorHideAction
   | RenderingIndicatorShowAction
   | RenderingIndicatorHideAction
-  | DevToolsPanelOpenAction
-  | DevToolsPanelCloseAction
-  | DevToolsPanelToggleAction
   | DevToolsIndicatorPositionAction
   | DevToolsPanelPositionAction
   | DevToolsScaleAction
@@ -312,7 +298,6 @@ export const INITIAL_OVERLAY_STATE: Omit<
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
-  isDevToolsPanelOpen: false,
   showRestartServerButton: false,
   devToolsPosition: getStoredPosition(),
   devToolsPanelPosition: {
@@ -486,15 +471,7 @@ export function useErrorOverlayReducer(
         case ACTION_RENDERING_INDICATOR_HIDE: {
           return { ...state, renderingIndicator: false }
         }
-        case ACTION_DEVTOOLS_PANEL_OPEN: {
-          return { ...state, isDevToolsPanelOpen: true }
-        }
-        case ACTION_DEVTOOLS_PANEL_CLOSE: {
-          return { ...state, isDevToolsPanelOpen: false }
-        }
-        case ACTION_DEVTOOLS_PANEL_TOGGLE: {
-          return { ...state, isDevToolsPanelOpen: !state.isDevToolsPanelOpen }
-        }
+
         case ACTION_DEVTOOLS_POSITION: {
           return { ...state, devToolsPosition: action.devToolsPosition }
         }

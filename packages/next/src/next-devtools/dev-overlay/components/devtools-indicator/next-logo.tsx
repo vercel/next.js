@@ -7,10 +7,7 @@ import { Warning } from '../../icons/warning'
 import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
-import {
-  ACTION_DEVTOOLS_PANEL_OPEN,
-  ACTION_ERROR_OVERLAY_OPEN,
-} from '../../shared'
+import { ACTION_ERROR_OVERLAY_OPEN } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
 
 const SHORT_DURATION_MS = 150
@@ -22,7 +19,7 @@ export function NextLogoNew({
   const { state, dispatch } = useDevOverlayContext()
   const { totalErrorCount } = useRenderErrorContext()
   const SIZE = 36 / state.scale
-  const { panel, triggerRef } = usePanelRouterContext()
+  const { panel, triggerRef, setPanel } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'
 
   const hasError = totalErrorCount > 0
@@ -422,8 +419,7 @@ export function NextLogoNew({
                 onClick={() => {
                   // wait this is wrong
                   dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-                  // Open the DevTools panel to view as error overlay mode.
-                  dispatch({ type: ACTION_DEVTOOLS_PANEL_OPEN })
+                  setPanel(null)
                 }}
               >
                 {state.disableDevIndicator && (
