@@ -6,7 +6,9 @@ import { join } from 'path'
 
 const appDir = join(__dirname, '../')
 
-describe('Webpack - Bun Externals', () => {
+const IS_TURBOPACK = process.env.IS_TURBOPACK_TEST === '1'
+
+;(IS_TURBOPACK ? describe.skip : describe)('Webpack - Bun Externals', () => {
   let buildResult
 
   beforeAll(async () => {
