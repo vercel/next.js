@@ -135,8 +135,12 @@ export function useClickOutsideAndEscape(
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      console.log('keydown')
+
       if (event.key === 'Escape') {
-        close('outside')
+        console.log('closing outside')
+
+        close('escape')
       }
     }
 

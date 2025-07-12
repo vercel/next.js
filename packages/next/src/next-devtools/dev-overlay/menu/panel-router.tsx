@@ -272,7 +272,7 @@ const UserPreferencesWrapper = () => {
   return (
     <div
       style={{
-        padding: '16px',
+        padding: '20px',
         paddingTop: '8px',
       }}
     >
