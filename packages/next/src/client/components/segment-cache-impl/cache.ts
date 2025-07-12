@@ -1466,7 +1466,7 @@ function writeDynamicTreeResponseIntoCache(
     entry,
     convertRootFlightRouterStateToRouteTree(flightRouterState),
     flightData.head,
-    isResponsePartial,
+    flightData.isHeadPartial,
     now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
