@@ -251,6 +251,7 @@ export const PanelRouter = () => {
 
 const UserPreferencesWrapper = () => {
   const { dispatch, state } = useDevOverlayContext()
+  const { setPanel } = usePanelRouterContext()
 
   const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
 
@@ -283,7 +284,7 @@ const UserPreferencesWrapper = () => {
             type: ACTION_DEV_INDICATOR_SET,
             disabled: true,
           })
-
+          setPanel(null)
           fetch('/__nextjs_disable_dev_indicator', {
             method: 'POST',
           })
