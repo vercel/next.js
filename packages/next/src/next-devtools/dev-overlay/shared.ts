@@ -49,10 +49,11 @@ export interface OverlayState {
   isErrorOverlayOpen: boolean
   isDevToolsPanelOpen: boolean
   devToolsPosition: Corners
-  devToolsPanelPosition: Corners
+  devToolsPanelPosition: Record<DevtoolsPanelName, Corners>
   scale: number
   page: string
 }
+type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
@@ -82,12 +83,19 @@ export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'devtools-panel-toggle'
 
 export const ACTION_DEVTOOLS_POSITION = 'devtools-position'
 export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
+export const ACTION_DEVTOOLS_PANEL_SIZE = 'devtools-panel-size'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
-export const STORAGE_KEY_PANEL_POSITION = '__nextjs-dev-tools-panel-position'
+export const STORAGE_KEY_PANEL_POSITION_PREFIX =
+  '__nextjs-dev-tools-panel-position'
+export const STORE_KEY_PANEL_SIZE_PREFIX = '__nextjs-dev-tools-panel-size'
+export const STORE_KEY_SHARED_PANEL_SIZE =
+  '__nextjs-dev-tools-shared-panel-size'
+export const STORE_KEY_SHARED_PANEL_LOCATION =
+  '__nextjs-dev-tools-shared-panel-location'
 export const STORAGE_KEY_SCALE = '__nextjs-dev-tools-scale'
 export const STORAGE_KEY_ACTIVE_TAB = '__nextjs-devtools-active-tab'
 
@@ -183,6 +191,7 @@ export interface DevToolsIndicatorPositionAction {
 
 export interface DevToolsPanelPositionAction {
   type: typeof ACTION_DEVTOOLS_PANEL_POSITION
+  key: string
   devToolsPanelPosition: Corners
 }
 
@@ -249,38 +258,33 @@ const shouldDisableDevIndicator =
 
 // TODO: change local storage impl
 function getStoredPosition(): Corners {
-  if (typeof localStorage !== 'undefined') {
-    const stored = localStorage.getItem(STORAGE_KEY_POSITION)
-    if (
-      stored &&
-      ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
-    ) {
-      return stored as Corners
-    }
+  if (typeof localStorage === 'undefined') {
+    return 'bottom-left' as const
   }
-  const envPosition = process.env.__NEXT_DEV_INDICATOR_POSITION
+  const stored = localStorage.getItem(STORAGE_KEY_POSITION)
   if (
-    envPosition &&
-    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(
-      envPosition
-    )
+    stored &&
+    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
   ) {
-    return envPosition as Corners
+    return stored as Corners
   }
-  return 'bottom-left'
+
+  // we give priority to local storage over next.config
+  return (process.env.__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 }
 
-function getStoredPanelPosition(): Corners | null {
-  if (typeof localStorage !== 'undefined') {
-    const stored = localStorage.getItem(STORAGE_KEY_PANEL_POSITION)
-    if (
-      stored &&
-      ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
-    ) {
-      return stored as Corners
-    }
+function getStoredPanelPosition() {
+  if (typeof localStorage === 'undefined') {
+    return 'bottom-left' as const
   }
-  return null
+  const stored = localStorage.getItem(STORE_KEY_SHARED_PANEL_LOCATION)
+  if (
+    stored &&
+    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
+  ) {
+    return stored as Corners
+  }
+  return 'bottom-left' as const
 }
 
 export const INITIAL_OVERLAY_STATE: Omit<
@@ -307,7 +311,10 @@ export const INITIAL_OVERLAY_STATE: Omit<
   isDevToolsPanelOpen: false,
   showRestartServerButton: false,
   devToolsPosition: getStoredPosition(),
-  devToolsPanelPosition: getStoredPanelPosition() ?? 'bottom-left',
+  devToolsPanelPosition: {
+    [STORE_KEY_SHARED_PANEL_LOCATION]: getStoredPanelPosition(),
+  },
+
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
 }
@@ -490,9 +497,13 @@ export function useErrorOverlayReducer(
         case ACTION_DEVTOOLS_PANEL_POSITION: {
           return {
             ...state,
-            devToolsPanelPosition: action.devToolsPanelPosition,
+            devToolsPanelPosition: {
+              ...state.devToolsPanelPosition,
+              [action.key]: action.devToolsPanelPosition,
+            },
           }
         }
+
         case ACTION_DEVTOOLS_SCALE: {
           return { ...state, scale: action.scale }
         }

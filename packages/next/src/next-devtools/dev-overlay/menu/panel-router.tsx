@@ -107,6 +107,8 @@ export const PanelRouter = () => {
 
       <PanelRoute name="preferences">
         <DynamicPanel
+          sharePanelSizeGlobally={false}
+          sharePanelPositionGlobally={false}
           sizeConfig={{
             kind: 'fixed',
             // maybe to dynamic sizing automatically? little tricky
@@ -128,15 +130,12 @@ export const PanelRouter = () => {
 
       <PanelRoute name="route-info">
         <DynamicPanel
+          sharePanelSizeGlobally={false}
+          sharePanelPositionGlobally={false}
           sizeConfig={{
-            kind: 'resizable',
-            // todo till refactor for strings
-            maxHeight: 1500,
-            maxWidth: 1500,
-            minHeight: 200,
-            minWidth: 200,
-            defaultHeight: 300,
-            defaultWidth: 400,
+            kind: 'fixed',
+            height: 300,
+            width: 400,
           }}
           closeOnClickOutside
           header={
@@ -150,7 +149,7 @@ export const PanelRouter = () => {
             routerType={state.routerType}
             isStaticRoute={state.staticIndicator}
             style={{
-              padding: '20px',
+              padding: '16px',
             }}
           />
         </DynamicPanel>
@@ -165,8 +164,10 @@ export const PanelRouter = () => {
             maxWidth: 1500,
             minHeight: 200,
             minWidth: 200,
-            defaultHeight: 300,
-            defaultWidth: 400,
+            initialSize: {
+              height: 300,
+              width: 400,
+            },
           }}
           header={
             <DevToolsHeader
@@ -185,15 +186,12 @@ export const PanelRouter = () => {
       <PanelRoute name="turbo-info">
         {/* todo dedupe all these names */}
         <DynamicPanel
+          sharePanelSizeGlobally={false}
+          sharePanelPositionGlobally={false}
           sizeConfig={{
-            kind: 'resizable',
-            // todo till refactor for strings
-            maxHeight: 1500,
-            maxWidth: 1500,
-            minHeight: 200,
-            minWidth: 200,
-            defaultHeight: 300,
-            defaultWidth: 400,
+            kind: 'fixed',
+            height: 300,
+            width: 400,
           }}
           // todo: fix scroll on header so its fixed and body scrolls
           closeOnClickOutside
@@ -206,7 +204,8 @@ export const PanelRouter = () => {
         >
           <TurbopackInfoBody
             style={{
-              padding: '20px',
+              padding: '16px',
+              paddingTop: '8px',
             }}
           />
         </DynamicPanel>
@@ -250,7 +249,7 @@ const UserPreferencesWrapper = () => {
       ref={rootRef}
       style={{
         padding: '16px',
-        // paddingTop: '0px'
+        paddingTop: '8px',
         background: 'var(--color-background-100)',
       }}
     >

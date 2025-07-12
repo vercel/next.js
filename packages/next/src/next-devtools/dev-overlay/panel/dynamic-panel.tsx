@@ -1,22 +1,50 @@
 import { useMemo, useRef, type CSSProperties } from 'react'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
-import { ResizeProvider } from '../components/devtools-panel/resize/resize-provider'
-import { usePanelRouterContext } from '../menu/context'
 import { INDICATOR_PADDING } from '../components/devtools-indicator/devtools-indicator'
-import { getIndicatorOffset } from '../utils/indicator-metrics'
-import { Draggable } from '../components/errors/dev-tools-indicator/draggable'
-import {
-  ACTION_DEVTOOLS_PANEL_POSITION,
-  STORAGE_KEY_PANEL_POSITION,
-  type Corners,
-} from '../shared'
 import { ResizeHandle } from '../components/devtools-panel/resize/resize-handle'
+import { ResizeProvider } from '../components/devtools-panel/resize/resize-provider'
 import {
   DragHandle,
   DragProvider,
 } from '../components/errors/dev-tools-indicator/drag-context'
+import { Draggable } from '../components/errors/dev-tools-indicator/draggable'
 import { useClickOutside } from '../components/errors/dev-tools-indicator/utils'
+import { usePanelRouterContext } from '../menu/context'
 import { usePanelContext } from '../menu/panel-router'
+import {
+  ACTION_DEVTOOLS_PANEL_POSITION,
+  STORAGE_KEY_PANEL_POSITION_PREFIX,
+  STORE_KEY_PANEL_SIZE_PREFIX,
+  STORE_KEY_SHARED_PANEL_LOCATION,
+  STORE_KEY_SHARED_PANEL_SIZE,
+} from '../shared'
+import { getIndicatorOffset } from '../utils/indicator-metrics'
+
+function getStoredPanelSize(name?: string) {
+  const key = name ? name : `${STORE_KEY_PANEL_SIZE_PREFIX}_${name}`
+  const defaultSize = { width: 450, height: 350 }
+  try {
+    const stored = JSON.parse(localStorage.getItem(key) ?? 'null')
+    if (!stored) {
+      return defaultSize
+    }
+    if (
+      typeof stored === 'object' &&
+      'height' in stored &&
+      'width' in stored &&
+      typeof stored.height === 'number' &&
+      typeof stored.width === 'number'
+    ) {
+      return {
+        width: stored.width as number,
+        height: stored.height as number,
+      }
+    }
+    return defaultSize
+  } catch {
+    return defaultSize
+  }
+}
 
 export function DynamicPanel({
   header,
@@ -28,15 +56,22 @@ export function DynamicPanel({
     minHeight: 350,
     maxWidth: 1000,
     maxHeight: 1000,
-    defaultHeight: 400,
-    defaultWidth: 500,
+    initialSize: {
+      height: 400,
+      width: 500,
+    },
   },
   closeOnClickOutside = false,
-  ...containerProps
+  sharePanelSizeGlobally = true,
+  sharePanelPositionGlobally = true,
+  containerProps,
 }: {
   header: React.ReactNode
   children: React.ReactNode
   draggable?: boolean
+  sharePanelSizeGlobally?: boolean
+  sharePanelPositionGlobally?: boolean
+  containerProps?: React.HTMLProps<HTMLDivElement>
   // todo: allow strings w/ css units
   sizeConfig?:
     | {
@@ -45,8 +80,7 @@ export function DynamicPanel({
         minHeight: number
         maxWidth: number
         maxHeight: number
-        defaultHeight: number
-        defaultWidth: number
+        initialSize: { height: number; width: number }
       }
     | {
         kind: 'fixed'
@@ -54,25 +88,21 @@ export function DynamicPanel({
         width: number
       }
   closeOnClickOutside?: boolean
-} & React.HTMLProps<HTMLDivElement>) {
+}) {
   const { setPanel } = usePanelRouterContext()
   const { name } = usePanelContext()
+  const resizeStorageKey = sharePanelSizeGlobally
+    ? STORE_KEY_SHARED_PANEL_SIZE
+    : `${STORE_KEY_PANEL_SIZE_PREFIX}_${name}`
+
+  const positionStorageKey = sharePanelPositionGlobally
+    ? STORE_KEY_SHARED_PANEL_LOCATION
+    : `${STORAGE_KEY_PANEL_POSITION_PREFIX}_${name}`
 
   const { dispatch, state } = useDevOverlayContext()
-  const storagePositionKey = `${STORAGE_KEY_PANEL_POSITION}-${name}`
-
-  const panelPosition: string = useMemo(() => {
-    if (typeof window !== 'undefined') {
-      return (
-        localStorage.getItem(storagePositionKey) ||
-        state.devToolsPanelPosition ||
-        state.devToolsPosition
-      )
-    }
-    return state.devToolsPosition
-  }, [storagePositionKey, state.devToolsPanelPosition, state.devToolsPosition])
-
-  const [vertical, horizontal] = panelPosition.split('-', 2)
+  const devtoolsPanelPosition =
+    state.devToolsPanelPosition[positionStorageKey] ?? 'bottom-left'
+  const [panelVertical, panelHorizontal] = devtoolsPanelPosition.split('-', 2)
   const resizeRef = useRef<HTMLDivElement>(null)
   const { triggerRef } = usePanelRouterContext()
 
@@ -88,15 +118,16 @@ export function DynamicPanel({
   )
 
   const verticalOffset =
-    vertical === indicatorVertical && horizontal === indicatorHorizontal
+    panelVertical === indicatorVertical &&
+    panelHorizontal === indicatorHorizontal
       ? indicatorOffset
       : INDICATOR_PADDING
 
   const positionStyle = {
-    [vertical]: `${verticalOffset}px`,
-    [horizontal]: `${INDICATOR_PADDING}px`,
-    [vertical === 'top' ? 'bottom' : 'top']: 'auto',
-    [horizontal === 'left' ? 'right' : 'left']: 'auto',
+    [panelVertical]: `${verticalOffset}px`,
+    [panelHorizontal]: `${INDICATOR_PADDING}px`,
+    [panelVertical === 'top' ? 'bottom' : 'top']: 'auto',
+    [panelHorizontal === 'left' ? 'right' : 'left']: 'auto',
   } as CSSProperties
 
   const isResizable = sizeConfig.kind === 'resizable'
@@ -105,32 +136,14 @@ export function DynamicPanel({
   const maxWidth = isResizable ? sizeConfig.maxWidth : undefined
   const maxHeight = isResizable ? sizeConfig.maxHeight : undefined
 
-  const fixedWidth = !isResizable ? sizeConfig.width : undefined
-  const fixedHeight = !isResizable ? sizeConfig.height : undefined
-
-  const resizeStorageKey = `${name}-panel-resize`
-
-  const { storedWidth, storedHeight } = useMemo(() => {
-    if (typeof window === 'undefined')
-      return { storedWidth: undefined, storedHeight: undefined }
-    try {
-      const stored = JSON.parse(
-        window.localStorage.getItem(resizeStorageKey) || 'null'
-      ) as { width?: number; height?: number } | null
-      return {
-        storedWidth: stored?.width,
-        storedHeight: stored?.height,
-      }
-    } catch {
-      return { storedWidth: undefined, storedHeight: undefined }
-    }
-  }, [resizeStorageKey])
+  const panelSize = useMemo(() => getStoredPanelSize(name), [name])
 
   return (
     <ResizeProvider
       value={{
         resizeRef,
-
+        initialSize:
+          sizeConfig.kind === 'resizable' ? sizeConfig.initialSize : sizeConfig,
         minWidth,
         minHeight,
         devToolsPosition: state.devToolsPosition,
@@ -150,20 +163,10 @@ export function DynamicPanel({
                 minHeight,
                 maxWidth,
                 maxHeight,
-                width: storedWidth
-                  ? `${storedWidth}px`
-                  : sizeConfig.defaultWidth,
-                height: storedHeight
-                  ? `${storedHeight}px`
-                  : sizeConfig.defaultHeight,
               }
             : {
-                height: storedHeight ? `${storedHeight}px` : fixedHeight,
-                width: storedWidth
-                  ? `${storedWidth}px`
-                  : fixedWidth !== undefined
-                    ? fixedWidth
-                    : '100%',
+                height: panelSize.height,
+                width: panelSize.width,
               }),
         }}
       >
@@ -176,13 +179,15 @@ export function DynamicPanel({
               padding: INDICATOR_PADDING,
             }}
             padding={INDICATOR_PADDING}
-            onDragStart={() => {}}
-            position={panelPosition as Corners}
+            position={devtoolsPanelPosition}
             setPosition={(p) => {
-              localStorage.setItem(storagePositionKey, p)
+              if (sizeConfig.kind === 'resizable') {
+                localStorage.setItem(positionStorageKey, p)
+              }
               dispatch({
                 type: ACTION_DEVTOOLS_PANEL_POSITION,
                 devToolsPanelPosition: p,
+                key: positionStorageKey,
               })
             }}
             style={{
@@ -203,7 +208,7 @@ export function DynamicPanel({
                   borderRadius: 'var(--rounded-xl)',
                   background: 'var(--color-background-100)',
                   overflow: 'auto',
-                  ...containerProps.style,
+                  ...containerProps?.style,
                 }}
               >
                 <DragHandle>{header}</DragHandle>
@@ -212,35 +217,35 @@ export function DynamicPanel({
               {isResizable && (
                 <>
                   <ResizeHandle
-                    position={state.devToolsPanelPosition}
+                    position={devtoolsPanelPosition}
                     direction="top"
                   />
                   <ResizeHandle
-                    position={state.devToolsPanelPosition}
+                    position={devtoolsPanelPosition}
                     direction="right"
                   />
                   <ResizeHandle
-                    position={state.devToolsPanelPosition}
+                    position={devtoolsPanelPosition}
                     direction="bottom"
                   />
                   <ResizeHandle
-                    position={state.devToolsPanelPosition}
+                    position={devtoolsPanelPosition}
                     direction="left"
                   />
                   <ResizeHandle
-                    position={state.devToolsPanelPosition}
+                    position={devtoolsPanelPosition}
                     direction="top-left"
                   />
                   <ResizeHandle
-                    position={state.devToolsPanelPosition}
+                    position={devtoolsPanelPosition}
                     direction="top-right"
                   />
                   <ResizeHandle
-                    position={state.devToolsPanelPosition}
+                    position={devtoolsPanelPosition}
                     direction="bottom-left"
                   />
                   <ResizeHandle
-                    position={state.devToolsPanelPosition}
+                    position={devtoolsPanelPosition}
                     direction="bottom-right"
                   />
                 </>

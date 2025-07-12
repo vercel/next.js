@@ -5,8 +5,7 @@ import {
   useState,
   type RefObject,
 } from 'react'
-import type { Corners } from '../../../shared'
-const STORAGE_KEY_DIMENSIONS = 'nextjs-devtools-dimensions'
+import { STORE_KEY_SHARED_PANEL_SIZE, type Corners } from '../../../shared'
 
 export type ResizeDirection =
   | 'top'
@@ -71,6 +70,7 @@ interface ResizeProviderProps {
     minHeight?: number
     devToolsPosition: Corners
     storageKey?: string
+    initialSize?: { height: number; width: number }
   }
   children: React.ReactNode
 }
@@ -81,9 +81,13 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
   const [draggingDirection, setDraggingDirection] =
     useState<ResizeDirection | null>(null)
 
-  const storageKey = value.storageKey ?? STORAGE_KEY_DIMENSIONS
+  const storageKey = value.storageKey ?? STORE_KEY_SHARED_PANEL_SIZE
 
   useLayoutEffect(() => {
+    if (value.resizeRef.current && value.initialSize) {
+      value.resizeRef.current.style.width = `${value.initialSize.width}px`
+      value.resizeRef.current.style.height = `${value.initialSize.height}px`
+    }
     const applyConstrainedDimensions = () => {
       if (!value.resizeRef.current) return
 
@@ -113,7 +117,7 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
     window.addEventListener('resize', applyConstrainedDimensions)
     return () =>
       window.removeEventListener('resize', applyConstrainedDimensions)
-  }, [value.resizeRef, minWidth, minHeight, storageKey])
+  }, [value.resizeRef, minWidth, minHeight, storageKey, value.initialSize])
 
   return (
     <ResizeContext.Provider
