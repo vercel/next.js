@@ -1,7 +1,14 @@
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <html>
-      <body>{children}</body>
+      <body
+        style={{
+          backgroundColor: 'black',
+          color: 'white',
+        }}
+      >
+        {children}
+      </body>
     </html>
   )
 }

@@ -15,7 +15,7 @@
   /* immediately responsive so we don't need a bespoke curve */
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   /* todo: better var? */
-  border: 1px solid var(--color-gray-100);
+  border: 1px solid var(--color-gray-400);
 }
 
 /* start really fast because we start super hidden initially behind the panel, otherwise feels like an unintended animation delay */
