@@ -217,7 +217,7 @@ export const PanelRouter = () => {
 const UserPreferencesWrapper = () => {
   const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
   const { dispatch, state } = useDevOverlayContext()
-  const { triggerRef } = usePanelRouterContext()
+  const { triggerRef, setPanel } = usePanelRouterContext()
 
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -241,6 +241,7 @@ const UserPreferencesWrapper = () => {
     if (root) {
       root.dataset.hidden = root.dataset.hidden === 'true' ? 'false' : 'true'
     }
+    setPanel(null)
   }
 
   useShortcuts(hideShortcut ? { [hideShortcut]: hideDevTools } : {}, triggerRef)
