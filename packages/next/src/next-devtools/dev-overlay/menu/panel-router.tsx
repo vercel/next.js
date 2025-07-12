@@ -215,12 +215,24 @@ export const PanelRouter = () => {
           closeOnClickOutside
           header={<DevToolsHeader title="Turbopack Info" />}
         >
-          <TurbopackInfoBody
+          <div
             style={{
               padding: '16px',
               paddingTop: '8px',
             }}
-          />
+          >
+            <TurbopackInfoBody />
+            <div className="dev-tools-info-button-container">
+              <a
+                className="dev-tools-info-learn-more-button"
+                href="https://nextjs.org/docs/app/api-reference/turbopack"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Learn More
+              </a>
+            </div>
+          </div>
         </DynamicPanel>
       </PanelRoute>
     </>
