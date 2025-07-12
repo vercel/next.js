@@ -979,8 +979,14 @@ export function createPatchedFetcher(
                     workUnitStore.renderSignal,
                     'fetch()'
                   )
+                case 'prerender-ppr':
+                case 'prerender-legacy':
+                case 'request':
+                case 'cache':
+                case 'unstable-cache':
+                  break
                 default:
-                // fallthrough
+                  workUnitStore satisfies never
               }
             }
             markCurrentScopeAsDynamic(
@@ -1007,8 +1013,14 @@ export function createPatchedFetcher(
                       workUnitStore.renderSignal,
                       'fetch()'
                     )
+                  case 'request':
+                  case 'cache':
+                  case 'unstable-cache':
+                  case 'prerender-legacy':
+                  case 'prerender-ppr':
+                    break
                   default:
-                  // fallthrough
+                    workUnitStore satisfies never
                 }
               }
               markCurrentScopeAsDynamic(

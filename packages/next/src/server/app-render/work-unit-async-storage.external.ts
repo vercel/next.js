@@ -313,8 +313,12 @@ export function getRenderResumeDataCache(
       // Otherwise we return the mutable resume data cache here as an immutable
       // version of the cache as it can also be used for reading.
       return workUnitStore.prerenderResumeDataCache
-    default:
+    case 'cache':
+    case 'unstable-cache':
+    case 'prerender-legacy':
       return null
+    default:
+      return workUnitStore satisfies never
   }
 }
 
