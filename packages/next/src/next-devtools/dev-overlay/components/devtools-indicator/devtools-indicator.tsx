@@ -6,7 +6,12 @@ import {
   MENU_CURVE,
   MENU_DURATION_MS,
 } from '../errors/dev-tools-indicator/utils'
-import { STORAGE_KEY_POSITION, ACTION_DEVTOOLS_POSITION } from '../../shared'
+import {
+  STORAGE_KEY_POSITION,
+  ACTION_DEVTOOLS_POSITION,
+  STORE_KEY_SHARED_PANEL_LOCATION,
+  STORAGE_KEY_PANEL_POSITION_PREFIX,
+} from '../../shared'
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { usePanelRouterContext } from '../../menu/context'
@@ -37,6 +42,8 @@ export function DevToolsIndicatorNew() {
       }
     >
       <Draggable
+        // avoids a lot of weird edge cases that would cause jank if the logo and panel were de-synced
+        disableDrag={panel !== null}
         padding={INDICATOR_PADDING}
         position={state.devToolsPosition}
         setPosition={(p) => {
@@ -54,9 +61,25 @@ export function DevToolsIndicatorNew() {
             flushSync(() => {
               setPanel(newPanel)
             })
-            console.log('current panel', panel)
 
             onTriggerClick(newPanel)
+            /**
+             * makes sure we eventually sync the panel to the logo, otherwise
+             * it will be jarring if the panels start appearing on the other
+             * side of the logo
+             */
+            const sharedLocation = localStorage.getItem(
+              STORE_KEY_SHARED_PANEL_LOCATION
+            )
+            if (sharedLocation) {
+              const panelPositionKeys = Object.keys(localStorage).filter(
+                (key) => key.startsWith(STORAGE_KEY_PANEL_POSITION_PREFIX)
+              )
+
+              panelPositionKeys.forEach((key) => {
+                localStorage.setItem(key, sharedLocation)
+              })
+            }
           }}
           ref={triggerRef}
         />

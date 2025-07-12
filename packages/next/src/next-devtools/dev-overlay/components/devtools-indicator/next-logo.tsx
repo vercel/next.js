@@ -421,6 +421,7 @@ export function NextLogoNew({
                 data-issues-open
                 aria-label="Open issues overlay"
                 onClick={() => {
+                  // wait this is wrong
                   dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
                   // Open the DevTools panel to view as error overlay mode.
                   dispatch({ type: ACTION_DEVTOOLS_PANEL_OPEN })
