@@ -39,6 +39,7 @@ export const DevtoolMenu = ({
     setPanel(null)
   })
   useLayoutEffect(() => {
+    menuRef.current?.focus() // allows keydown to be captured
     selectMenuItem({
       index: selectedIndex === -1 ? 'first' : selectedIndex,
       menuRef,

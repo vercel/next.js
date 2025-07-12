@@ -104,12 +104,17 @@ export function DynamicPanel({
   const devtoolsPanelPosition =
     state.devToolsPanelPosition[positionStorageKey] ?? state.devToolsPosition
   const [panelVertical, panelHorizontal] = devtoolsPanelPosition.split('-', 2)
-  const resizeRef = useRef<HTMLDivElement>(null)
+  const resizeContainerRef = useRef<HTMLDivElement>(null)
   const { triggerRef } = usePanelRouterContext()
 
-  useClickOutside(resizeRef, triggerRef, closeOnClickOutside && mounted, () => {
-    setPanel('panel-selector')
-  })
+  useClickOutside(
+    resizeContainerRef,
+    triggerRef,
+    closeOnClickOutside && mounted,
+    () => {
+      setPanel('panel-selector')
+    }
+  )
 
   const indicatorOffset = getIndicatorOffset(state)
 
@@ -145,7 +150,7 @@ export function DynamicPanel({
   return (
     <ResizeProvider
       value={{
-        resizeRef,
+        resizeRef: resizeContainerRef,
         initialSize:
           sizeConfig.kind === 'resizable' ? sizeConfig.initialSize : sizeConfig,
         minWidth,
@@ -156,12 +161,11 @@ export function DynamicPanel({
     >
       <div
         tabIndex={-1}
-        ref={resizeRef}
+        ref={resizeContainerRef}
         style={{
           position: 'fixed',
           zIndex: 2147483646,
           outline: 'none',
-
           ...positionStyle,
           ...(sizeConfig.kind === 'resizable'
             ? {
