@@ -93,9 +93,9 @@ function getStoredPanelSize(panelName?: string) {
         height: stored.height as number,
       }
     }
-    return defaultSize
+    return null
   } catch {
-    return defaultSize
+    return null
   }
 }
 
@@ -234,8 +234,8 @@ export function DynamicPanel({
                 maxHeight,
               }
             : {
-                height: panelSize.height,
-                width: panelSize.width,
+                height: panelSize ? panelSize.height : sizeConfig.height,
+                width: panelSize ? panelSize.width : sizeConfig.width,
               }),
         }}
       >
