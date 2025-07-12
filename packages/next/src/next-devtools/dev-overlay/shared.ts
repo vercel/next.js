@@ -267,6 +267,8 @@ function getStoredPosition(): Corners {
     ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
   ) {
     return stored as Corners
+  } else {
+    localStorage.removeItem(STORAGE_KEY_POSITION)
   }
 
   // we give priority to local storage over next.config
@@ -283,6 +285,8 @@ function getStoredPanelPosition() {
     ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
   ) {
     return stored as Corners
+  } else {
+    localStorage.removeItem(STORE_KEY_SHARED_PANEL_LOCATION)
   }
   return 'bottom-left' as const
 }
