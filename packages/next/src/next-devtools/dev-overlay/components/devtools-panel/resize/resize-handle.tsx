@@ -127,6 +127,7 @@ export const ResizeHandle = ({
       }
 
       const { width, height } = resizeRef.current.getBoundingClientRect()
+
       localStorage.setItem(storageKey, JSON.stringify({ width, height }))
     }
     document.addEventListener('mousemove', handleMouseMove)

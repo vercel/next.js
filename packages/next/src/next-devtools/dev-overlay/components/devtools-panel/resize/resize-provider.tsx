@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useLayoutEffect,
   useState,
@@ -89,41 +90,66 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
 
   const storageKey = value.storageKey ?? STORE_KEY_SHARED_PANEL_SIZE
 
-  useLayoutEffect(() => {
-    if (value.resizeRef.current && value.initialSize) {
-      value.resizeRef.current.style.width = `${value.initialSize.width}px`
-      value.resizeRef.current.style.height = `${value.initialSize.height}px`
+  const applyConstrainedDimensions = useCallback(() => {
+    if (!value.resizeRef.current) return
+
+    // this feels weird to read local storage on resize, but we don't
+    // track the dimensions of the container, and this is better than
+    // getBoundingClientReact
+
+    // an optimization if this is too expensive is to maintain the current
+    // container size in a ref and update it on resize, which is essentially
+    // what we're doing here, just dumber
+    if (draggingDirection !== null) {
+      // Don't override live resizing operation with stale cached values.
+      return
     }
-    const applyConstrainedDimensions = () => {
-      if (!value.resizeRef.current) return
 
-      // this feels weird to read local storage on resize, but we don't
-      // track the dimensions of the container, and this is better than
-      // getBoundingClientReact
+    const dim = parseResizeLocalStorage(storageKey)
+    if (!dim) {
+      return
+    }
+    const { height, width } = constrainDimensions({
+      ...dim,
+      minWidth: minWidth ?? 100,
+      minHeight: minHeight ?? 80,
+    })
 
-      // an optimization if this is too expensive is to maintain the current
-      // container size in a ref and update it on resize, which is essentially
-      // what we're doing here, just dumber
-      const dim = parseResizeLocalStorage(storageKey)
-      if (!dim) {
-        return
-      }
+    value.resizeRef.current.style.width = `${width}px`
+    value.resizeRef.current.style.height = `${height}px`
+    return true
+  }, [value.resizeRef, draggingDirection, storageKey, minWidth, minHeight])
+
+  useLayoutEffect(() => {
+    const applied = applyConstrainedDimensions()
+    if (
+      !applied &&
+      value.resizeRef.current &&
+      value.initialSize?.height &&
+      value.initialSize.width
+    ) {
       const { height, width } = constrainDimensions({
-        ...dim,
+        height: value.initialSize.height,
+        width: value.initialSize.width,
         minWidth: minWidth ?? 100,
         minHeight: minHeight ?? 80,
       })
-
       value.resizeRef.current.style.width = `${width}px`
       value.resizeRef.current.style.height = `${height}px`
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-    applyConstrainedDimensions()
-
+  useLayoutEffect(() => {
     window.addEventListener('resize', applyConstrainedDimensions)
     return () =>
       window.removeEventListener('resize', applyConstrainedDimensions)
-  }, [value.resizeRef, minWidth, minHeight, storageKey, value.initialSize])
+  }, [
+    applyConstrainedDimensions,
+    value.initialSize?.height,
+    value.initialSize?.width,
+    value.resizeRef,
+  ])
 
   return (
     <ResizeContext.Provider
