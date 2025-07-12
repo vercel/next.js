@@ -96,7 +96,6 @@ const MenuPanel = () => {
 const useToggleDevtoolsVisibility = () => {
   const { state, dispatch } = useDevOverlayContext()
   return () => {
-    console.log('hiding shortcut')
     dispatch({
       type: ACTION_DEV_INDICATOR_SET,
       disabled: !state.disableDevIndicator,
