@@ -42,9 +42,25 @@ export const DevtoolMenu = ({
     menuRef,
     triggerRef,
     closeOnClickOutside && mounted,
-    () => {
-      setPanel(null)
-      setSelectedIndex(-1)
+    (reason) => {
+      switch (reason) {
+        case 'escape': {
+          setPanel(null)
+          setSelectedIndex(-1)
+          return
+        }
+        case 'outside': {
+          if (!closeOnClickOutside) {
+            return
+          }
+          setPanel(null)
+          setSelectedIndex(-1)
+          return
+        }
+        default: {
+          return null!
+        }
+      }
     }
   )
   useLayoutEffect(() => {

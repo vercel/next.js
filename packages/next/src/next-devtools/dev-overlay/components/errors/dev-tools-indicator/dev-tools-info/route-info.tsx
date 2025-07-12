@@ -100,7 +100,7 @@ function DynamicRouteContent({
   )
 }
 
-const learnMoreLink = {
+export const learnMoreLink = {
   pages: {
     static:
       'https://nextjs.org/docs/pages/building-your-application/rendering/static-site-generation',

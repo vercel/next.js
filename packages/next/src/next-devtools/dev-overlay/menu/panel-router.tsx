@@ -1,7 +1,10 @@
 import { usePanelRouterContext, type PanelStateKind } from './context'
 import { ChevronRight, DevtoolMenu, IssueCount } from './dev-overlay-menu'
 import { DynamicPanel } from '../panel/dynamic-panel'
-import { RouteInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
+import {
+  learnMoreLink,
+  RouteInfoBody,
+} from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { PageSegmentTree } from '../components/overview/segment-explorer'
 import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
@@ -182,13 +185,9 @@ export const PanelRouter = () => {
             />
             <InfoFooter
               href={
-                state.staticIndicator
-                  ? state.routerType === 'pages'
-                    ? 'https://nextjs.org/docs/pages/building-your-application/rendering/static-site-generation'
-                    : 'https://nextjs.org/docs/app/building-your-application/rendering/server-components#static-rendering-default'
-                  : state.routerType === 'pages'
-                    ? 'https://nextjs.org/docs/pages/building-your-application/rendering/server-side-rendering'
-                    : 'https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering'
+                learnMoreLink[state.routerType][
+                  state.staticIndicator ? 'static' : 'dynamic'
+                ]
               }
             />
           </div>
