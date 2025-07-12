@@ -1,4 +1,4 @@
-import { useMemo, useRef, type CSSProperties } from 'react'
+import { useMemo, useRef, useState, useEffect, type CSSProperties } from 'react'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { INDICATOR_PADDING } from '../components/devtools-indicator/devtools-indicator'
 import { ResizeHandle } from '../components/devtools-panel/resize/resize-handle'
@@ -20,8 +20,61 @@ import {
 } from '../shared'
 import { getIndicatorOffset } from '../utils/indicator-metrics'
 
-function getStoredPanelSize(name?: string) {
-  const key = name ? name : `${STORE_KEY_PANEL_SIZE_PREFIX}_${name}`
+function resolveCSSValue(
+  value: string | number,
+  dimension: 'width' | 'height' = 'width'
+): number {
+  if (typeof value === 'number') return value
+
+  // kinda hacky, might be a better way to do this
+  const temp = document.createElement('div')
+  temp.style.position = 'absolute'
+  temp.style.visibility = 'hidden'
+  if (dimension === 'width') {
+    temp.style.width = value
+  } else {
+    temp.style.height = value
+  }
+  document.body.appendChild(temp)
+  const pixels = dimension === 'width' ? temp.offsetWidth : temp.offsetHeight
+  document.body.removeChild(temp)
+  return pixels
+}
+
+function useResolvedDimensions(
+  minWidth?: string | number,
+  minHeight?: string | number,
+  maxWidth?: string | number,
+  maxHeight?: string | number
+) {
+  const [dimensions, setDimensions] = useState(() => ({
+    minWidth: minWidth ? resolveCSSValue(minWidth, 'width') : undefined,
+    minHeight: minHeight ? resolveCSSValue(minHeight, 'height') : undefined,
+    maxWidth: maxWidth ? resolveCSSValue(maxWidth, 'width') : undefined,
+    maxHeight: maxHeight ? resolveCSSValue(maxHeight, 'height') : undefined,
+  }))
+
+  useEffect(() => {
+    const updateDimensions = () => {
+      setDimensions({
+        minWidth: minWidth ? resolveCSSValue(minWidth, 'width') : undefined,
+        minHeight: minHeight ? resolveCSSValue(minHeight, 'height') : undefined,
+        maxWidth: maxWidth ? resolveCSSValue(maxWidth, 'width') : undefined,
+        maxHeight: maxHeight ? resolveCSSValue(maxHeight, 'height') : undefined,
+      })
+    }
+
+    window.addEventListener('resize', updateDimensions)
+    return () => window.removeEventListener('resize', updateDimensions)
+  }, [minWidth, minHeight, maxWidth, maxHeight])
+
+  return dimensions
+}
+
+function getStoredPanelSize(panelName?: string) {
+  const key = panelName
+    ? `${STORE_KEY_PANEL_SIZE_PREFIX}_${panelName}`
+    : STORE_KEY_SHARED_PANEL_SIZE
   const defaultSize = { width: 450, height: 350 }
   try {
     const stored = JSON.parse(localStorage.getItem(key) ?? 'null')
@@ -72,14 +125,13 @@ export function DynamicPanel({
   sharePanelSizeGlobally?: boolean
   sharePanelPositionGlobally?: boolean
   containerProps?: React.HTMLProps<HTMLDivElement>
-  // todo: allow strings w/ css units
   sizeConfig?:
     | {
         kind: 'resizable'
-        minWidth: number
-        minHeight: number
-        maxWidth: number
-        maxHeight: number
+        minWidth: string | number
+        minHeight: string | number
+        maxWidth: string | number
+        maxHeight: string | number
         initialSize: { height: number; width: number }
         sides?: Array<'horizontal' | 'vertical' | 'diagonal'>
       }
@@ -136,14 +188,19 @@ export function DynamicPanel({
     [panelHorizontal === 'left' ? 'right' : 'left']: 'auto',
   } as CSSProperties
 
-  const minWidth =
-    sizeConfig.kind === 'resizable' ? sizeConfig.minWidth : undefined
-  const minHeight =
-    sizeConfig.kind === 'resizable' ? sizeConfig.minHeight : undefined
-  const maxWidth =
-    sizeConfig.kind === 'resizable' ? sizeConfig.maxWidth : undefined
-  const maxHeight =
-    sizeConfig.kind === 'resizable' ? sizeConfig.maxHeight : undefined
+  const isResizable = sizeConfig.kind === 'resizable'
+
+  const resolvedDimensions = useResolvedDimensions(
+    isResizable ? sizeConfig.minWidth : undefined,
+    isResizable ? sizeConfig.minHeight : undefined,
+    isResizable ? sizeConfig.maxWidth : undefined,
+    isResizable ? sizeConfig.maxHeight : undefined
+  )
+
+  const minWidth = resolvedDimensions.minWidth
+  const minHeight = resolvedDimensions.minHeight
+  const maxWidth = resolvedDimensions.maxWidth
+  const maxHeight = resolvedDimensions.maxHeight
 
   const panelSize = useMemo(() => getStoredPanelSize(name), [name])
 
@@ -155,6 +212,8 @@ export function DynamicPanel({
           sizeConfig.kind === 'resizable' ? sizeConfig.initialSize : sizeConfig,
         minWidth,
         minHeight,
+        maxWidth,
+        maxHeight,
         devToolsPosition: state.devToolsPosition,
         storageKey: resizeStorageKey,
       }}
@@ -167,7 +226,7 @@ export function DynamicPanel({
           zIndex: 2147483646,
           outline: 'none',
           ...positionStyle,
-          ...(sizeConfig.kind === 'resizable'
+          ...(isResizable
             ? {
                 minWidth,
                 minHeight,
@@ -225,7 +284,7 @@ export function DynamicPanel({
                 <DragHandle>{header}</DragHandle>
                 <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
               </div>
-              {sizeConfig.kind === 'resizable' && (
+              {isResizable && (
                 <>
                   {(!sizeConfig.sides ||
                     sizeConfig.sides.includes('vertical')) && (

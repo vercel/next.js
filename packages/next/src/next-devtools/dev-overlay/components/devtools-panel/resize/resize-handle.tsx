@@ -14,6 +14,8 @@ export const ResizeHandle = ({
     resizeRef,
     minWidth,
     minHeight,
+    maxWidth,
+    maxHeight,
     storageKey,
     draggingDirection,
     setDraggingDirection,
@@ -102,7 +104,9 @@ export const ResizeHandle = ({
         deltaY,
         initialRect,
         minWidth,
-        minHeight
+        minHeight,
+        maxWidth,
+        maxHeight
       )
 
       if (newWidth !== undefined) {
@@ -174,16 +178,18 @@ const getNewDimensions = (
   deltaY: number,
   initialRect: DOMRect,
   minWidth: number,
-  minHeight: number
+  minHeight: number,
+  maxWidth?: number,
+  maxHeight?: number
 ) => {
-  const maxWidth = window.innerWidth * 0.95
-  const maxHeight = window.innerHeight * 0.95
+  const effectiveMaxWidth = maxWidth ?? window.innerWidth * 0.95
+  const effectiveMaxHeight = maxHeight ?? window.innerHeight * 0.95
 
   switch (direction) {
     case 'right':
       return {
         newWidth: Math.min(
-          maxWidth,
+          effectiveMaxWidth,
           Math.max(minWidth, initialRect.width + deltaX)
         ),
         newHeight: initialRect.height,
@@ -192,7 +198,7 @@ const getNewDimensions = (
     case 'left': {
       return {
         newWidth: Math.min(
-          maxWidth,
+          effectiveMaxWidth,
           Math.max(minWidth, initialRect.width - deltaX)
         ),
         newHeight: initialRect.height,
@@ -203,7 +209,7 @@ const getNewDimensions = (
       return {
         newWidth: initialRect.width,
         newHeight: Math.min(
-          maxHeight,
+          effectiveMaxHeight,
           Math.max(minHeight, initialRect.height + deltaY)
         ),
       }
@@ -212,7 +218,7 @@ const getNewDimensions = (
       return {
         newWidth: initialRect.width,
         newHeight: Math.min(
-          maxHeight,
+          effectiveMaxHeight,
           Math.max(minHeight, initialRect.height - deltaY)
         ),
       }
@@ -221,11 +227,11 @@ const getNewDimensions = (
     case 'top-left': {
       return {
         newWidth: Math.min(
-          maxWidth,
+          effectiveMaxWidth,
           Math.max(minWidth, initialRect.width - deltaX)
         ),
         newHeight: Math.min(
-          maxHeight,
+          effectiveMaxHeight,
           Math.max(minHeight, initialRect.height - deltaY)
         ),
       }
@@ -234,11 +240,11 @@ const getNewDimensions = (
     case 'top-right': {
       return {
         newWidth: Math.min(
-          maxWidth,
+          effectiveMaxWidth,
           Math.max(minWidth, initialRect.width + deltaX)
         ),
         newHeight: Math.min(
-          maxHeight,
+          effectiveMaxHeight,
           Math.max(minHeight, initialRect.height - deltaY)
         ),
       }
@@ -247,11 +253,11 @@ const getNewDimensions = (
     case 'bottom-left': {
       return {
         newWidth: Math.min(
-          maxWidth,
+          effectiveMaxWidth,
           Math.max(minWidth, initialRect.width - deltaX)
         ),
         newHeight: Math.min(
-          maxHeight,
+          effectiveMaxHeight,
           Math.max(minHeight, initialRect.height + deltaY)
         ),
       }
@@ -260,11 +266,11 @@ const getNewDimensions = (
     case 'bottom-right':
       return {
         newWidth: Math.min(
-          maxWidth,
+          effectiveMaxWidth,
           Math.max(minWidth, initialRect.width + deltaX)
         ),
         newHeight: Math.min(
-          maxHeight,
+          effectiveMaxHeight,
           Math.max(minHeight, initialRect.height + deltaY)
         ),
       }

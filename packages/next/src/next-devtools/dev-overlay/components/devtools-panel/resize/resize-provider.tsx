@@ -21,6 +21,8 @@ interface ResizeContextValue {
   resizeRef: RefObject<HTMLElement | null>
   minWidth: number
   minHeight: number
+  maxWidth?: number
+  maxHeight?: number
   draggingDirection: ResizeDirection | null
   setDraggingDirection: (direction: ResizeDirection | null) => void
   storageKey: string
@@ -68,6 +70,8 @@ interface ResizeProviderProps {
     resizeRef: RefObject<HTMLElement | null>
     minWidth?: number
     minHeight?: number
+    maxWidth?: number
+    maxHeight?: number
     devToolsPosition: Corners
     storageKey?: string
     initialSize?: { height: number; width: number }
@@ -78,6 +82,8 @@ interface ResizeProviderProps {
 export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
   const minWidth = value.minWidth ?? 100
   const minHeight = value.minHeight ?? 80
+  const maxWidth = value.maxWidth
+  const maxHeight = value.maxHeight
   const [draggingDirection, setDraggingDirection] =
     useState<ResizeDirection | null>(null)
 
@@ -125,6 +131,8 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
         resizeRef: value.resizeRef,
         minWidth,
         minHeight,
+        maxWidth,
+        maxHeight,
         draggingDirection,
         setDraggingDirection,
         storageKey,

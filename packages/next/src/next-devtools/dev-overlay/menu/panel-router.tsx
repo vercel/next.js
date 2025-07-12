@@ -208,9 +208,8 @@ export const PanelRouter = () => {
             draggable
             sizeConfig={{
               kind: 'resizable',
-              // todo till refactor for strings
-              maxHeight: 1500,
-              maxWidth: 1500,
+              maxHeight: '90vh',
+              maxWidth: '90vw',
               minHeight: 200,
               minWidth: 250,
               initialSize: {
