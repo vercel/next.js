@@ -133,7 +133,6 @@ export const PanelRouter = () => {
           closeOnClickOutside
           header={<DevToolsHeader title="Preferences" />}
         >
-          {/* todo: we broke recording key binds and hiding the devtools */}
           <UserPreferencesWrapper />
         </DynamicPanel>
       </PanelRoute>

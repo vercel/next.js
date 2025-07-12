@@ -144,8 +144,6 @@ export const DevtoolMenu = ({
         border: '1px solid var(--color-gray-200)',
         ...positionStyle,
       }}
-      // TODO: bring over keydown logic from old impl
-      // onKeyDown={onMenuKeydown}
     >
       <MenuContext
         value={{
