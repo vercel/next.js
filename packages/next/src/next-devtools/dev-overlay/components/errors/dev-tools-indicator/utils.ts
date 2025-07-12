@@ -102,8 +102,6 @@ export function useClickOutside(
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as HTMLElement
       if (rootRef.current && rootRef.current.contains(target)) {
-        console.log('it contains!')
-
         return
       }
 
