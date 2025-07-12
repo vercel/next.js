@@ -26,7 +26,6 @@ export function DevToolsHeader({
         justifyContent: 'space-between',
         padding: '8px 16px',
         borderBottom: '1px solid var(--color-gray-200)',
-        backgroundColor: 'var(--color-background-100)',
       }}
       ref={ref}
     >

@@ -217,12 +217,13 @@ export function DynamicPanel({
                   border: '1px solid var(--color-gray-200)',
                   borderRadius: 'var(--rounded-xl)',
                   background: 'var(--color-background-100)',
-                  overflow: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
                   ...containerProps?.style,
                 }}
               >
                 <DragHandle>{header}</DragHandle>
-                {children}
+                <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
               </div>
               {sizeConfig.kind === 'resizable' && (
                 <>

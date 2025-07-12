@@ -180,7 +180,7 @@ export const PanelRouter = () => {
               width: 400,
             },
           }}
-          header={<DevToolsHeader title="Segment Explorer" />}
+          header={<DevToolsHeader title="Route Info" />}
         >
           <PageSegmentTree
             isAppRouter={state.routerType === 'app'}
@@ -251,7 +251,6 @@ const UserPreferencesWrapper = () => {
       style={{
         padding: '16px',
         paddingTop: '8px',
-        background: 'var(--color-background-100)',
       }}
     >
       <UserPreferencesBody
