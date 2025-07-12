@@ -17,6 +17,8 @@ export const DevtoolMenu = ({
   closeOnClickOutside?: boolean
   items: Array<
     | false
+    | undefined
+    | null
     | {
         onClick?: () => void
         title?: string

@@ -68,7 +68,7 @@ const MenuPanel = () => {
               value: <ChevronRight />,
               onClick: () => setPanel('turbo-info'),
             },
-        {
+        !!process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && {
           label: 'Route Info',
           value: <ChevronRight />,
           onClick: () => setPanel('segment-explorer'),
@@ -163,31 +163,33 @@ export const PanelRouter = () => {
         </DynamicPanel>
       </PanelRoute>
 
-      <PanelRoute name="segment-explorer">
-        <DynamicPanel
-          sharePanelSizeGlobally={false}
-          sharePanelPositionGlobally={false}
-          draggable
-          sizeConfig={{
-            kind: 'resizable',
-            // todo till refactor for strings
-            maxHeight: 1500,
-            maxWidth: 1500,
-            minHeight: 200,
-            minWidth: 250,
-            initialSize: {
-              height: 300,
-              width: 400,
-            },
-          }}
-          header={<DevToolsHeader title="Route Info" />}
-        >
-          <PageSegmentTree
-            isAppRouter={state.routerType === 'app'}
-            page={state.page}
-          />
-        </DynamicPanel>
-      </PanelRoute>
+      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && (
+        <PanelRoute name="segment-explorer">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sharePanelPositionGlobally={false}
+            draggable
+            sizeConfig={{
+              kind: 'resizable',
+              // todo till refactor for strings
+              maxHeight: 1500,
+              maxWidth: 1500,
+              minHeight: 200,
+              minWidth: 250,
+              initialSize: {
+                height: 300,
+                width: 400,
+              },
+            }}
+            header={<DevToolsHeader title="Route Info" />}
+          >
+            <PageSegmentTree
+              isAppRouter={state.routerType === 'app'}
+              page={state.page}
+            />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
 
       <PanelRoute name="turbo-info">
         {/* todo dedupe all these names */}
