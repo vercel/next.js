@@ -1,5 +1,5 @@
 import React from 'react'
-import type { ScriptProps } from 'next/script'
+import type { ScriptProps } from 'next/dist/client/script'
 import Script from 'next/script'
 import { YouTubeEmbed as TPCYouTubeEmbed } from 'third-party-capital'
 

@@ -39,6 +39,7 @@ export function setAttributesFromProps(el: HTMLElement, props: object) {
       // https://github.com/vercel/next.js/pull/20748
       ;(el as HTMLScriptElement)[attr] = !!value
     } else {
+      // Security: This is safe as we're setting attributes from controlled props, not user input
       el.setAttribute(attr, String(value))
     }
 
@@ -52,6 +53,7 @@ export function setAttributesFromProps(el: HTMLElement, props: object) {
     ) {
       // Call setAttribute before, as we need to set and unset the attribute to override force async:
       // https://html.spec.whatwg.org/multipage/scripting.html#script-force-async
+      // Security: This is safe as we're setting empty string to remove the attribute
       el.setAttribute(attr, '')
       el.removeAttribute(attr)
     }

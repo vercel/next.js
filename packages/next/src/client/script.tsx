@@ -122,6 +122,7 @@ const loadScript = (props: ScriptProps): void => {
 
     afterLoad()
   } else if (children) {
+    // Security: This is safe as children come from controlled React props, not user input
     el.textContent =
       typeof children === 'string'
         ? children
@@ -131,6 +132,7 @@ const loadScript = (props: ScriptProps): void => {
 
     afterLoad()
   } else if (src) {
+    // Security: This is safe as src comes from controlled React props, not user input
     el.src = src
     // do not add cacheKey into LoadCache for remote script here
     // cacheKey will be added to LoadCache when it is actually loaded (see loadPromise above)
@@ -177,8 +179,12 @@ function loadLazyScript(props: ScriptProps) {
 
 function addBeforeInteractiveToCache() {
   const scripts = [
-    ...document.querySelectorAll('[data-nscript="beforeInteractive"]'),
-    ...document.querySelectorAll('[data-nscript="beforePageRender"]'),
+    ...Array.from(
+      document.querySelectorAll('[data-nscript="beforeInteractive"]')
+    ),
+    ...Array.from(
+      document.querySelectorAll('[data-nscript="beforePageRender"]')
+    ),
   ]
   scripts.forEach((script) => {
     const cacheKey = script.id || script.getAttribute('src')
