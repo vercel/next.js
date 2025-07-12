@@ -1,7 +1,4 @@
-import {
-  usePanelRouterContext,
-  type PanelStateKind as PanelNameKind,
-} from './context'
+import { usePanelRouterContext, type PanelStateKind } from './context'
 import { ChevronRight, DevtoolMenu, IssueCount } from './dev-overlay-menu'
 import { DynamicPanel } from '../panel/dynamic-panel'
 import { RouteInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
@@ -14,7 +11,7 @@ import {
   MENU_DURATION_MS,
 } from '../components/errors/dev-tools-indicator/utils'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
-import { createContext, useContext, useRef } from 'react'
+import { createContext, useContext, useEffect, useRef } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
   ACTION_DEV_INDICATOR_SET,
@@ -33,7 +30,6 @@ const MenuPanel = () => {
   const { totalErrorCount } = useRenderErrorContext()
   return (
     <DevtoolMenu
-      closeOnClickOutside
       items={[
         totalErrorCount > 0 && {
           title: `${totalErrorCount} ${totalErrorCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`,
@@ -94,9 +90,30 @@ const MenuPanel = () => {
   )
 }
 
-export const PanelRouter = () => {
+const useGoBackOnEscape = () => {
   const { setPanel } = usePanelRouterContext()
+  const { panel } = usePanelRouterContext()
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && document.activeElement === document.body) {
+        if (panel === 'panel-selector') {
+          setPanel(null)
+        } else {
+          setPanel('panel-selector')
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeydown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeydown)
+    }
+  }, [setPanel, panel])
+}
+
+export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
+  useGoBackOnEscape()
 
   return (
     // TODO: determine for each panel if it: resizes, drags, closes on click outside
@@ -116,12 +133,7 @@ export const PanelRouter = () => {
             width: 480 + 32,
           }}
           closeOnClickOutside
-          header={
-            <DevToolsHeader
-              title="Preferences"
-              onBack={() => setPanel('panel-selector')}
-            />
-          }
+          header={<DevToolsHeader title="Preferences" />}
         >
           {/* todo: we broke recording key binds and hiding the devtools */}
           <UserPreferencesWrapper />
@@ -141,7 +153,7 @@ export const PanelRouter = () => {
           header={
             <DevToolsHeader
               title={`${state.staticIndicator ? 'Static' : 'Dynamic'} Route`}
-              onBack={() => setPanel('panel-selector')}
+              // onBack={() => setPanel('panel-selector')}
             />
           }
         >
@@ -169,12 +181,7 @@ export const PanelRouter = () => {
               width: 400,
             },
           }}
-          header={
-            <DevToolsHeader
-              title="Segment Explorer"
-              onBack={() => setPanel('panel-selector')}
-            />
-          }
+          header={<DevToolsHeader title="Segment Explorer" />}
         >
           <PageSegmentTree
             isAppRouter={state.routerType === 'app'}
@@ -195,12 +202,7 @@ export const PanelRouter = () => {
           }}
           // todo: fix scroll on header so its fixed and body scrolls
           closeOnClickOutside
-          header={
-            <DevToolsHeader
-              title="Turbopack Info"
-              onBack={() => setPanel('panel-selector')}
-            />
-          }
+          header={<DevToolsHeader title="Turbopack Info" />}
         >
           <TurbopackInfoBody
             style={{
@@ -287,7 +289,8 @@ const UserPreferencesWrapper = () => {
 
 export const usePanelContext = () => useContext(PanelContext)
 export const PanelContext = createContext<{
-  name: string
+  name: PanelStateKind
+  mounted: boolean
 }>(null!)
 
 function PanelRoute({
@@ -295,7 +298,7 @@ function PanelRoute({
   name,
 }: {
   children: React.ReactNode
-  name: PanelNameKind
+  name: PanelStateKind
 }) {
   const { panel } = usePanelRouterContext()
   const { mounted, rendered } = useDelayedRender(name === panel, {
@@ -309,6 +312,7 @@ function PanelRoute({
     <PanelContext
       value={{
         name,
+        mounted,
       }}
     >
       <div

@@ -90,7 +90,7 @@ export function DynamicPanel({
   closeOnClickOutside?: boolean
 }) {
   const { setPanel } = usePanelRouterContext()
-  const { name } = usePanelContext()
+  const { name, mounted } = usePanelContext()
   const resizeStorageKey = sharePanelSizeGlobally
     ? STORE_KEY_SHARED_PANEL_SIZE
     : `${STORE_KEY_PANEL_SIZE_PREFIX}_${name}`
@@ -106,7 +106,7 @@ export function DynamicPanel({
   const resizeRef = useRef<HTMLDivElement>(null)
   const { triggerRef } = usePanelRouterContext()
 
-  useClickOutside(resizeRef, triggerRef, closeOnClickOutside, () => {
+  useClickOutside(resizeRef, triggerRef, closeOnClickOutside && mounted, () => {
     setPanel('panel-selector')
   })
 
@@ -151,10 +151,12 @@ export function DynamicPanel({
       }}
     >
       <div
+        tabIndex={-1}
         ref={resizeRef}
         style={{
           position: 'fixed',
           zIndex: 2147483646,
+          outline: 'none',
 
           ...positionStyle,
           ...(isResizable

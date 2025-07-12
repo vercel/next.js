@@ -10,12 +10,14 @@ import { STORAGE_KEY_POSITION, ACTION_DEVTOOLS_POSITION } from '../../shared'
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { usePanelRouterContext } from '../../menu/context'
+import { flushSync } from 'react-dom'
 
 export const INDICATOR_PADDING = 20
 
 export function DevToolsIndicatorNew() {
   const { state, dispatch } = useDevOverlayContext()
-  const { triggerRef, setPanel } = usePanelRouterContext()
+  const { triggerRef, panel, setPanel, onTriggerClick } =
+    usePanelRouterContext()
 
   const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
 
@@ -47,9 +49,14 @@ export function DevToolsIndicatorNew() {
       >
         <NextLogoNew
           onTriggerClick={() => {
-            setPanel((prev) =>
-              prev === 'panel-selector' ? null : 'panel-selector'
-            )
+            const newPanel =
+              panel === 'panel-selector' ? null : 'panel-selector'
+            flushSync(() => {
+              setPanel(newPanel)
+            })
+            console.log('current panel', panel)
+
+            onTriggerClick(newPanel)
           }}
           ref={triggerRef}
         />

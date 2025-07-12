@@ -58,6 +58,7 @@ export function DevOverlay({
     }
     setIsPrevBuildError(isBuildError)
   }
+  const [selectedIndex, setSelectedIndex] = useState(-1)
 
   return (
     <ShadowPortal>
@@ -84,6 +85,14 @@ export function DevOverlay({
                         panel,
                         setPanel,
                         triggerRef,
+                        onTriggerClick: (newPanel) => {
+                          if (!newPanel) {
+                            setSelectedIndex(-1)
+                            return
+                          }
+                        },
+                        selectedIndex,
+                        setSelectedIndex,
                       }}
                     >
                       <ErrorOverlay

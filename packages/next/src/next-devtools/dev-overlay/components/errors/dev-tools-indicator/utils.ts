@@ -1,5 +1,10 @@
 import { useEffect } from 'react'
 
+export const getShadowRoot = () => {
+  const portal = document.querySelector('nextjs-portal')
+  return portal?.shadowRoot
+}
+
 export function useFocusTrap(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null> | null,
@@ -97,6 +102,8 @@ export function useClickOutside(
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as HTMLElement
       if (rootRef.current && rootRef.current.contains(target)) {
+        console.log('it contains!')
+
         return
       }
 

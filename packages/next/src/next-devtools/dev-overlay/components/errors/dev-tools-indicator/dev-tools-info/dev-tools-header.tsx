@@ -1,16 +1,22 @@
-import React from 'react'
+import React, { useLayoutEffect, useRef } from 'react'
+import { usePanelRouterContext } from '../../../../menu/context'
 
 interface DevToolsHeaderProps {
   title: React.ReactNode
-  onBack: () => void
   children?: React.ReactNode
 }
 export function DevToolsHeader({
   title,
-  onBack,
   children,
   ref,
 }: DevToolsHeaderProps & { ref?: React.Ref<HTMLDivElement> }) {
+  const { setPanel } = usePanelRouterContext()
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  useLayoutEffect(() => {
+    buttonRef.current?.focus()
+  }, [])
+
+  // }
   return (
     <div
       style={{
@@ -35,7 +41,11 @@ export function DevToolsHeader({
       </h3>
       {children}
       <button
-        onClick={onBack}
+        ref={buttonRef}
+        id="_next-devtools-panel-close"
+        onClick={() => {
+          setPanel('panel-selector')
+        }}
         aria-label="Go back"
         style={{
           background: 'none',
