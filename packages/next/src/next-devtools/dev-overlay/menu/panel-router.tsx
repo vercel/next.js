@@ -154,10 +154,13 @@ export const PanelRouter = () => {
 
       <PanelRoute name="route-type">
         <DynamicPanel
+          key={state.staticIndicator ? 'static' : 'dynamic'}
           sharePanelSizeGlobally={false}
           sizeConfig={{
             kind: 'fixed',
-            height: 300 / state.scale,
+            height: state.staticIndicator
+              ? 300 / state.scale
+              : 325 / state.scale,
             width: 400 / state.scale,
           }}
           closeOnClickOutside
@@ -222,9 +225,10 @@ export const PanelRouter = () => {
       <PanelRoute name="turbo-info">
         <DynamicPanel
           sharePanelSizeGlobally={false}
+          // this size config is really silly, should calculate initial size dynamically
           sizeConfig={{
             kind: 'fixed',
-            height: 440 / state.scale,
+            height: 470 / state.scale,
             width: 400 / state.scale,
           }}
           closeOnClickOutside
