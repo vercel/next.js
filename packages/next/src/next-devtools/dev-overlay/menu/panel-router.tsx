@@ -208,7 +208,7 @@ export const PanelRouter = () => {
               minHeight: 200 / state.scale,
               minWidth: 250 / state.scale,
               initialSize: {
-                height: 300 / state.scale,
+                height: 375 / state.scale,
                 width: 400 / state.scale,
               },
             }}

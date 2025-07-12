@@ -9,6 +9,7 @@ import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
 import { ACTION_ERROR_OVERLAY_OPEN } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
+import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 
 const SHORT_DURATION_MS = 150
 
@@ -18,7 +19,7 @@ export function NextLogoNew({
 }: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
   const { state, dispatch } = useDevOverlayContext()
   const { totalErrorCount } = useRenderErrorContext()
-  const SIZE = 36 / state.scale
+  const SIZE = BASE_LOGO_SIZE / state.scale
   const { panel, triggerRef, setPanel } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'
 

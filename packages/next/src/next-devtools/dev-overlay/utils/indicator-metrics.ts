@@ -1,8 +1,7 @@
 import { INDICATOR_PADDING } from '../components/devtools-indicator/devtools-indicator'
 import type { OverlayState } from '../shared'
 
-// TODO(rob): these numbers are very wrong but right because de-sync
-const BASE_LOGO_SIZE = 36
+export const BASE_LOGO_SIZE = 36
 const INDICATOR_GAP = 9
 
 export function getIndicatorSquare(state: OverlayState): number {
