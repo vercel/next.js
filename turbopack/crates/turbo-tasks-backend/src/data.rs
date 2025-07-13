@@ -94,7 +94,9 @@ impl ActivenessState {
             active_counter: 0,
             root_ty: None,
             active_until_clean: false,
-            all_clean_event: Event::new(move || format!("ActivenessState::all_clean_event {id:?}")),
+            all_clean_event: Event::new(move || {
+                move || format!("ActivenessState::all_clean_event {id:?}")
+            }),
         }
     }
 
@@ -536,7 +538,9 @@ impl Eq for InProgressCellState {}
 impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
         InProgressCellState {
-            event: Event::new(move || format!("InProgressCellState::event ({task_id} {cell:?})")),
+            event: Event::new(move || {
+                move || format!("InProgressCellState::event ({task_id} {cell:?})")
+            }),
         }
     }
 }
@@ -723,24 +727,35 @@ impl CachedDataItem {
         }
     }
 
-    pub fn new_scheduled(
+    pub fn new_scheduled<InnerFnDescription>(
         reason: TaskExecutionReason,
-        description: impl Fn() -> String + Sync + Send + 'static,
-    ) -> Self {
+        description: impl FnOnce() -> InnerFnDescription,
+    ) -> Self
+    where
+        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
+    {
+        let done_event = Event::new(move || {
+            let inner = description();
+            move || format!("{} done_event", inner())
+        });
         CachedDataItem::InProgress {
-            value: InProgressState::Scheduled {
-                done_event: Event::new(move || format!("{} done_event", description())),
-                reason,
-            },
+            value: InProgressState::Scheduled { done_event, reason },
         }
     }
 
-    pub fn new_scheduled_with_listener(
+    pub fn new_scheduled_with_listener<InnerFnDescription, InnerFnNote>(
         reason: TaskExecutionReason,
-        description: impl Fn() -> String + Sync + Send + 'static,
-        note: impl Fn() -> String + Sync + Send + 'static,
-    ) -> (Self, EventListener) {
-        let done_event = Event::new(move || format!("{} done_event", description()));
+        description: impl FnOnce() -> InnerFnDescription,
+        note: impl FnOnce() -> InnerFnNote,
+    ) -> (Self, EventListener)
+    where
+        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
+        InnerFnNote: Fn() -> String + Sync + Send + 'static,
+    {
+        let done_event = Event::new(move || {
+            let inner = description();
+            move || format!("{} done_event", inner())
+        });
         let listener = done_event.listen_with_note(note);
         (
             CachedDataItem::InProgress {

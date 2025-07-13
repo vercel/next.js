@@ -1219,7 +1219,7 @@ impl AggregationUpdateQueue {
             None
         };
         if let Some(reason) = should_schedule {
-            let description = ctx.get_task_desc_fn(task_id);
+            let description = || ctx.get_task_desc_fn(task_id);
             if task.add(CachedDataItem::new_scheduled(reason, description)) {
                 ctx.schedule(task_id);
             }

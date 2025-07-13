@@ -52,6 +52,7 @@ pub async fn get_client_chunking_context(
         )
         .hot_module_replacement()
         .use_file_source_map_uris()
+        .dynamic_chunk_content_loading(true)
         .build(),
     ))
 }
@@ -84,8 +85,8 @@ pub async fn get_client_runtime_entries(
         RuntimeEntry::Source(ResolvedVc::upcast(
             FileSource::new(
                 embed_file_path(rcstr!("entry/bootstrap.ts"))
-                    .await?
-                    .clone_value(),
+                    .owned()
+                    .await?,
             )
             .to_resolved()
             .await?,

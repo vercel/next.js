@@ -57,10 +57,10 @@ impl EcmascriptBuildNodeEntryChunk {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
-        let output_root = this.chunking_context.output_root().await?.clone_value();
-        let chunk_path = self.path().await?.clone_value();
+        let output_root = this.chunking_context.output_root().owned().await?;
+        let chunk_path = self.path().owned().await?;
         let chunk_directory = self.path().await?.parent();
-        let runtime_path = self.runtime_chunk().path().await?.clone_value();
+        let runtime_path = self.runtime_chunk().path().owned().await?;
         let runtime_relative_path =
             if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
                 path

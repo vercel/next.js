@@ -84,14 +84,15 @@ export function useClickOutside(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   active: boolean,
-  close: () => void
+  close: () => void,
+  ownerDocument?: Document
 ) {
   useEffect(() => {
     if (!active) {
       return
     }
 
-    const ownerDocument = rootRef.current?.ownerDocument
+    const ownerDocumentEl = ownerDocument || rootRef.current?.ownerDocument
 
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as HTMLElement
@@ -124,15 +125,15 @@ export function useClickOutside(
       }
     }
 
-    ownerDocument?.addEventListener('mousedown', handleClickOutside)
-    ownerDocument?.addEventListener('keydown', handleKeyDown)
+    ownerDocumentEl?.addEventListener('mousedown', handleClickOutside)
+    ownerDocumentEl?.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      ownerDocument?.removeEventListener('mousedown', handleClickOutside)
-      ownerDocument?.removeEventListener('keydown', handleKeyDown)
+      ownerDocumentEl?.removeEventListener('mousedown', handleClickOutside)
+      ownerDocumentEl?.removeEventListener('keydown', handleKeyDown)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
+  }, [active, rootRef, triggerRef])
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

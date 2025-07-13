@@ -24,6 +24,3 @@ export function SegmentsExplorerTab({
 }) {
   return <SegmentsExplorer routerType={routerType} page={page} />
 }
-
-export const SEGMENTS_EXPLORER_TAB_STYLES = `
-`

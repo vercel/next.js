@@ -38,7 +38,7 @@ pub async fn get_app_route_entry(
 ) -> Result<Vc<AppEntry>> {
     let segment_from_source = parse_segment_config_from_source(source);
     let config = if let Some(original_segment_config) = original_segment_config {
-        let mut segment_config = (*segment_from_source.await?).clone();
+        let mut segment_config = segment_from_source.owned().await?;
         segment_config.apply_parent_config(&*original_segment_config.await?);
         segment_config.into()
     } else {
@@ -55,7 +55,7 @@ pub async fn get_app_route_entry(
     let original_name: RcStr = page.to_string().into();
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
-    let path = source.ident().path().await?.clone_value();
+    let path = source.ident().path().owned().await?;
 
     const INNER: &str = "INNER_APP_ROUTE";
 

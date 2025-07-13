@@ -47,7 +47,7 @@ use crate::{
     next_client::RuntimeEntries,
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
-    next_import_map::get_next_server_import_map,
+    next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
@@ -139,9 +139,14 @@ pub async fn get_server_resolve_options_context(
     )
     .to_resolved()
     .await?;
+    let next_server_fallback_import_map =
+        get_next_edge_and_server_fallback_import_map(project_path.clone(), NextRuntime::NodeJs)
+            .to_resolved()
+            .await?;
+
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path.clone()).await?;
-    let root_dir = project_path.root().await?.clone_value();
+    let root_dir = project_path.root().owned().await?;
     let module_feature_report_resolve_plugin =
         ModuleFeatureReportResolvePlugin::new(project_path.clone())
             .to_resolved()
@@ -194,7 +199,7 @@ pub async fn get_server_resolve_options_context(
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path.clone(),
-        project_path.root().await?.clone_value(),
+        project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
     )
@@ -219,7 +224,7 @@ pub async fn get_server_resolve_options_context(
     } else {
         ExternalCjsModulesResolvePlugin::new(
             project_path.clone(),
-            project_path.root().await?.clone_value(),
+            project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
@@ -319,6 +324,7 @@ pub async fn get_server_resolve_options_context(
         module: true,
         custom_conditions,
         import_map: Some(next_server_import_map),
+        fallback_import_map: Some(next_server_fallback_import_map),
         before_resolve_plugins,
         after_resolve_plugins,
         ..Default::default()

@@ -237,7 +237,7 @@ impl<'a> StaticSortedFileBuilder<'a> {
         // Last block is Index block
 
         // Store the locations of the values
-        let mut value_locations: Vec<(usize, usize)> = Vec::with_capacity(entries.len());
+        let mut value_locations: Vec<(u16, u32)> = Vec::with_capacity(entries.len());
 
         // Split the values into blocks
         let mut current_block_start = 0;
@@ -249,7 +249,7 @@ impl<'a> StaticSortedFileBuilder<'a> {
                     if current_block_size + value.len() > MAX_SMALL_VALUE_BLOCK_SIZE
                         || current_block_count + 1 >= MAX_SMALL_VALUE_BLOCK_ENTRIES
                     {
-                        let block_index = self.blocks.len();
+                        let block_index = self.blocks.len().try_into().unwrap();
                         let mut block = Vec::with_capacity(current_block_size);
                         for j in current_block_start..i {
                             if let EntryValue::Small { value } = &entries[j].value() {
@@ -262,12 +262,13 @@ impl<'a> StaticSortedFileBuilder<'a> {
                         current_block_size = 0;
                         current_block_count = 0;
                     }
-                    value_locations.push((0, current_block_size));
+                    value_locations.push((0, current_block_size.try_into().unwrap()));
                     current_block_size += value.len();
                     current_block_count += 1;
                 }
                 EntryValue::Medium { value } => {
-                    value_locations.push((self.blocks.len(), value.len()));
+                    let block_index = self.blocks.len().try_into().unwrap();
+                    value_locations.push((block_index, 0));
                     self.blocks.push(self.compress_value_block(value));
                 }
                 _ => {
@@ -276,7 +277,7 @@ impl<'a> StaticSortedFileBuilder<'a> {
             }
         }
         if current_block_count > 0 {
-            let block_index = self.blocks.len();
+            let block_index = self.blocks.len().try_into().unwrap();
             let mut block = Vec::with_capacity(current_block_size);
             for j in current_block_start..entries.len() {
                 if let EntryValue::Small { value } = &entries[j].value() {
@@ -292,20 +293,20 @@ impl<'a> StaticSortedFileBuilder<'a> {
         // Split the keys into blocks
         fn add_entry_to_block<E: Entry>(
             entry: &E,
-            value_location: &(usize, usize),
+            value_location: &(u16, u32),
             block: &mut KeyBlockBuilder,
         ) {
             match entry.value() {
                 EntryValue::Small { value } => {
                     block.put_small(
                         entry,
-                        value_location.0.try_into().unwrap(),
-                        value_location.1.try_into().unwrap(),
+                        value_location.0,
+                        value_location.1,
                         value.len().try_into().unwrap(),
                     );
                 }
                 EntryValue::Medium { .. } => {
-                    block.put_medium(entry, value_location.0.try_into().unwrap());
+                    block.put_medium(entry, value_location.0);
                 }
                 EntryValue::Large { blob } => {
                     block.put_blob(entry, blob);

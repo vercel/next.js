@@ -238,11 +238,6 @@ async fn apply_module_type(
                 *source,
                 Vc::upcast(module_asset_context),
                 *ty,
-                module_asset_context
-                    .module_options_context()
-                    .await?
-                    .css
-                    .minify_type,
                 css_import_context,
                 environment.as_deref().copied(),
             )
@@ -940,7 +935,7 @@ async fn emit_aggregated_assets(
 pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
     asset
         .content()
-        .write(asset.path().await?.clone_value())
+        .write(asset.path().owned().await?)
         .as_side_effect()
         .await?;
 

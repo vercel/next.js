@@ -408,11 +408,12 @@ describe('app-dir - server source maps', () => {
         )
         // Expect the invalid sourcemap warning only once per render.
         // Dynamic I/O renders three times.
+        // One from filterStackFrameDEV.
         expect(
           normalizeCliOutput(next.cliOutput.slice(outputIndex)).split(
             'Invalid source map.'
           ).length - 1
-        ).toEqual(3)
+        ).toEqual(4)
       }
     } else {
       // Bundlers silently drop invalid sourcemaps.
@@ -494,8 +495,6 @@ describe('app-dir - server source maps', () => {
              "<FIXME-file-protocol>",
              "eval rsc:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:65)",
              "<FIXME-file-protocol>",
-             "Function.all <anonymous>",
-             "Function.all <anonymous>",
              "Page <anonymous>",
            ],
          }

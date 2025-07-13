@@ -11,6 +11,7 @@ use turbopack_core::{
 use turbopack_ecmascript::TreeShakingMode;
 
 /// Returns the runtime asset context to use to process runtime code assets.
+#[turbo_tasks::function]
 pub async fn get_runtime_asset_context(
     environment: ResolvedVc<Environment>,
 ) -> Result<Vc<Box<dyn AssetContext>>> {

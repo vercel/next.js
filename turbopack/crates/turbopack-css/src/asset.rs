@@ -39,7 +39,6 @@ pub struct CssModuleAsset {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
-    minify_type: MinifyType,
     environment: Option<ResolvedVc<Environment>>,
 }
 
@@ -51,7 +50,6 @@ impl CssModuleAsset {
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: CssModuleAssetType,
-        minify_type: MinifyType,
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
     ) -> Vc<Self> {
@@ -60,7 +58,6 @@ impl CssModuleAsset {
             asset_context,
             import_context,
             ty,
-            minify_type,
             environment,
         })
     }
@@ -325,7 +322,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         let result = self
             .module
-            .finalize_css(*chunking_context, self.module.await?.minify_type)
+            .finalize_css(*chunking_context, *chunking_context.minify_type().await?)
             .await?;
 
         if let FinalCssResult::Ok {

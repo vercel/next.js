@@ -91,7 +91,7 @@ async fn base_resolve_options(
 ) -> Result<Vc<ResolveOptions>> {
     let opt = options_context.await?;
     let emulating = opt.emulate_environment;
-    let root = fs.root().await?.clone_value();
+    let root = fs.root().owned().await?;
     let mut direct_mappings = AliasMap::new();
     let node_externals = if let Some(environment) = emulating {
         environment.node_externals().owned().await?

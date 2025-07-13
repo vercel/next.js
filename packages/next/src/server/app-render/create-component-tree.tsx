@@ -28,6 +28,7 @@ import type {
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
   BOUNDARY_PREFIX,
+  BOUNDARY_SUFFIX,
   getConventionPathByType,
 } from './segment-explorer-path'
 
@@ -565,7 +566,7 @@ async function createComponentTreeInternal({
         // Add a suffix to avoid conflict with the segment view node representing rendered file.
         // existence: not-found.tsx@boundary
         // rendered: not-found.tsx
-        const fileNameSuffix = '@boundary'
+        const fileNameSuffix = BOUNDARY_SUFFIX
         const segmentViewBoundaries = isSegmentViewEnabled ? (
           <>
             {notFoundFilePath && (

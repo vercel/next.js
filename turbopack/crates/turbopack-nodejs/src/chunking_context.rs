@@ -65,6 +65,15 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn dynamic_chunk_content_loading(
+        mut self,
+        enable_dynamic_chunk_content_loading: bool,
+    ) -> Self {
+        self.chunking_context.enable_dynamic_chunk_content_loading =
+            enable_dynamic_chunk_content_loading;
+        self
+    }
+
     pub fn runtime_type(mut self, runtime_type: RuntimeType) -> Self {
         self.chunking_context.runtime_type = runtime_type;
         self
@@ -135,6 +144,8 @@ pub struct NodeJsChunkingContext {
     enable_file_tracing: bool,
     /// Enable module merging
     enable_module_merging: bool,
+    /// Enable dynamic chunk content loading.
+    enable_dynamic_chunk_content_loading: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
     /// Whether to generate source maps
@@ -174,6 +185,7 @@ impl NodeJsChunkingContext {
                 asset_prefix: None,
                 enable_file_tracing: false,
                 enable_module_merging: false,
+                enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -185,27 +197,6 @@ impl NodeJsChunkingContext {
                 chunking_configs: Default::default(),
             },
         }
-    }
-}
-
-impl NodeJsChunkingContext {
-    /// Returns the kind of runtime to include in output chunks.
-    ///
-    /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
-    /// when `RuntimeType` has a single variant.
-    pub fn runtime_type(&self) -> RuntimeType {
-        self.runtime_type
-    }
-
-    /// Returns the minify type.
-    pub fn minify_type(&self) -> MinifyType {
-        self.minify_type
-    }
-}
-
-impl NodeJsChunkingContext {
-    pub async fn asset_prefix(self: Vc<Self>) -> Result<Option<RcStr>> {
-        Ok(self.await?.asset_prefix.clone())
     }
 }
 
@@ -229,6 +220,26 @@ impl NodeJsChunkingContext {
                 bail!("Unable to generate output asset for chunk");
             },
         )
+    }
+
+    /// Returns the kind of runtime to include in output chunks.
+    ///
+    /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
+    /// when `RuntimeType` has a single variant.
+    #[turbo_tasks::function]
+    pub fn runtime_type(&self) -> Vc<RuntimeType> {
+        self.runtime_type.cell()
+    }
+
+    /// Returns the minify type.
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.asset_prefix.clone())
     }
 }
 
@@ -267,6 +278,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn is_module_merging_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_module_merging)
+    }
+
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_dynamic_chunk_content_loading)
     }
 
     #[turbo_tasks::function]
