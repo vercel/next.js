@@ -250,17 +250,9 @@ module.exports = {
 
 <AppOnly>
 
-When implementing redirects with internationalization in the App Router, handle locales using [dynamic route segments and middleware](/docs/app/guides/internationalization). This means you must include the locale directly in your redirect paths:
+When implementing redirects with internationalization in the App Router, you can include locales in `next.config.js` redirects, but only as hardcoded paths.
 
-</AppOnly>
-
-<PagesOnly>
-
-When leveraging [`i18n` support](/docs/pages/guides/internationalization) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
-
-</PagesOnly>
-
-<AppOnly>
+For dynamic or per-request locale handling, use [dynamic route segments and middleware](/docs/app/guides/internationalization), which can redirect based on the user's preferred language.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -298,6 +290,8 @@ module.exports = {
 </AppOnly>
 
 <PagesOnly>
+
+When leveraging [`i18n` support](/docs/pages/guides/internationalization) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
 
 ```js filename="next.config.js"
 module.exports = {
