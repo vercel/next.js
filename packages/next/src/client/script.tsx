@@ -20,11 +20,6 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   stylesheets?: string[]
 }
 
-/**
- * @deprecated Use `ScriptProps` instead.
- */
-export type Props = ScriptProps
-
 const insertStylesheets = (stylesheets: string[]) => {
   // Case 1: Styles for afterInteractive/lazyOnload with appDir injected via handleClientScriptLoad
   //
