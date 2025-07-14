@@ -131,8 +131,10 @@ describe('Prefetching Links in viewport', () => {
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36'
             )}`
           )
-          const links = await browser.elementsByCss('link[rel=prefetch]')
-          expect(links).toHaveLength(1)
+          await retry(async () => {
+            const links = await browser.elementsByCss('link[rel=prefetch]')
+            expect(links).toHaveLength(1)
+          })
         } finally {
           if (browser) await browser.close()
         }
