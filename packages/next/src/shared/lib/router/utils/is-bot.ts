@@ -1,17 +1,16 @@
-import { HTML_LIMITED_BOT_UA_RE } from './html-bots'
+import { BOT_UA_RE } from './bots'
 
-export const HTML_LIMITED_BOT_UA_RE_STRING = HTML_LIMITED_BOT_UA_RE.source
+export const HTML_LIMITED_BOT_UA_RE_STRING = BOT_UA_RE.source
 
-export { HTML_LIMITED_BOT_UA_RE }
+// Treat all bots as html-limited bots
+export { BOT_UA_RE as HTML_LIMITED_BOT_UA_RE }
 
-function isHtmlLimitedBotUA(userAgent: string) {
-  return HTML_LIMITED_BOT_UA_RE.test(userAgent)
+export function isBot(userAgent: string) {
+  return BOT_UA_RE.test(userAgent)
 }
 
-export { isBot } from '../../../../server/web/spec-extension/user-agent'
-
 export function getBotType(userAgent: string): 'html' | undefined {
-  if (isHtmlLimitedBotUA(userAgent)) {
+  if (isBot(userAgent)) {
     return 'html'
   }
   return undefined

@@ -23,7 +23,7 @@ module.exports = {
 
 ## Default list
 
-Next.js identifies certain user agent patterns as [bots](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/web/spec-extension/user-agent.ts).
+Next.js identifies certain user agent patterns as [bots](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/bots.ts).
 They're all classified them as HTML-limited bots and served with blocking metadata in the HTML.
 
 Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior. However, this is advanced behavior, and the default should be sufficient for most cases.
