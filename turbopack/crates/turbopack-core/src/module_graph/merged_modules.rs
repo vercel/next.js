@@ -126,7 +126,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                  node: &'_ SingleModuleGraphModuleNode,
                  _|
                  -> Result<GraphTraversalAction> {
-                    // On the down traversal, establish which edges are mergable and set the list
+                    // On the down traversal, establish which edges are mergeable and set the list
                     // indices.
                     let (parent_module, hoisted) =
                         parent_info.map_or((None, false), |(node, ty)| {
@@ -203,7 +203,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         span.record("visit_count", visit_count);
 
         #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-        struct ListOccurence {
+        struct ListOccurrence {
             // The field order here is important, these structs will get ordered by the entry
             // index.
             entry: usize,
@@ -216,7 +216,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut lists = vec![];
         let mut lists_reverse_indices: FxIndexMap<
             ResolvedVc<Box<dyn MergeableModule>>,
-            FxIndexSet<ListOccurence>,
+            FxIndexSet<ListOccurrence>,
         > = FxIndexMap::default();
 
         // A map of all references between modules with the same bitmap. These are all references,
@@ -282,7 +282,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                     lists_reverse_indices
                                         .entry(mergeable_module)
                                         .or_default()
-                                        .insert(ListOccurence {
+                                        .insert(ListOccurrence {
                                             list: idx,
                                             entry: 0,
                                         });
@@ -294,7 +294,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                     lists_reverse_indices
                                         .entry(mergeable_module)
                                         .or_default()
-                                        .insert(ListOccurence {
+                                        .insert(ListOccurrence {
                                             list: list_idx,
                                             entry: list.len() - 1,
                                         });
@@ -371,25 +371,26 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             )
             .await?;
 
-        while let Some((_, common_occurences)) = lists_reverse_indices.pop() {
-            if common_occurences.len() < 2 {
+        while let Some((_, common_occurrences)) = lists_reverse_indices.pop() {
+            if common_occurrences.len() < 2 {
                 // Module exists only in one list, no need to split
                 continue;
             }
             // The module occurs in multiple lists, which need to split up so that there is exactly
             // one list containing the module.
 
-            let first_occurence = &common_occurences[0];
+            let first_occurrence = &common_occurrences[0];
 
             // Find the longest common sequence in the lists, starting from the given module.
             let mut common_length = 2;
             loop {
-                let m = lists[first_occurence.list].get(first_occurence.entry + common_length - 1);
+                let m =
+                    lists[first_occurrence.list].get(first_occurrence.entry + common_length - 1);
                 if m.is_some()
-                    && common_occurences
+                    && common_occurrences
                         .iter()
                         .skip(1)
-                        .all(|ListOccurence { list, entry }| {
+                        .all(|ListOccurrence { list, entry }| {
                             lists[*list].get(*entry + common_length - 1) == m
                         })
                 {
@@ -406,31 +407,31 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             // - "common" [occurrence.entry .. occurrence.entry + common_length) -- same for all
             // - "before" [0 .. occurrence.entry)
             // - "after"  [occurrence.entry + common_length .. ]
-            let common_list = lists[first_occurence.list]
-                [first_occurence.entry..first_occurence.entry + common_length]
+            let common_list = lists[first_occurrence.list]
+                [first_occurrence.entry..first_occurrence.entry + common_length]
                 .to_vec();
 
             let common_list_index = lists.len();
             lists.push(common_list.clone());
 
-            // Insert occurences for the "common" list, skip the first because that is now
+            // Insert occurrences for the "common" list, skip the first because that is now
             // guaranteed to exist only once
             for (i, &m) in common_list.iter().enumerate().skip(1) {
                 let occurrences = lists_reverse_indices.get_mut(&m).unwrap();
-                for common_occurrence in &common_occurences {
-                    let removed = occurrences.swap_remove(&ListOccurence {
+                for common_occurrence in &common_occurrences {
+                    let removed = occurrences.swap_remove(&ListOccurrence {
                         list: common_occurrence.list,
                         entry: common_occurrence.entry + i,
                     });
                     debug_assert!(removed);
                 }
-                occurrences.insert(ListOccurence {
+                occurrences.insert(ListOccurrence {
                     list: common_list_index,
                     entry: i,
                 });
             }
 
-            for common_occurrence in &common_occurences {
+            for common_occurrence in &common_occurrences {
                 let list = &mut lists[common_occurrence.list];
                 let after_list = list.split_off(common_occurrence.entry + common_length);
                 list.truncate(common_occurrence.entry);
@@ -485,8 +486,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     exposed_modules_imported.extend(modules_to_expose);
                 }
 
-                // The occurences for the "before" list (`list`) are still valid, need to update the
-                // occurences for the "after" list
+                // The occurrences for the "before" list (`list`) are still valid, need to update
+                // the occurrences for the "after" list
                 if !after_list.is_empty() {
                     let after_index = lists.len();
                     lists.push(after_list.clone());
@@ -495,13 +496,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             .get_mut(&m)
                             .context(format!("{:?}", m.ident().to_string().await?))?;
 
-                        let removed = occurrences.swap_remove(&ListOccurence {
+                        let removed = occurrences.swap_remove(&ListOccurrence {
                             list: common_occurrence.list,
                             entry: common_occurrence.entry + common_length + i,
                         });
                         debug_assert!(removed);
 
-                        occurrences.insert(ListOccurence {
+                        occurrences.insert(ListOccurrence {
                             list: after_index,
                             entry: i,
                         });

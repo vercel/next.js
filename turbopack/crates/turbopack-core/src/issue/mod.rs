@@ -4,7 +4,6 @@ pub mod module;
 pub mod resolve;
 
 use std::{
-    borrow::Cow,
     cmp::{Ordering, min},
     fmt::{Display, Formatter},
 };
@@ -94,7 +93,7 @@ pub enum StyledString {
     /// Some prose text.
     Text(RcStr),
     /// Code snippet.
-    // TODO add language to support syntax hightlighting
+    // TODO add language to support syntax highlighting
     Code(RcStr),
     /// Some important text.
     Strong(RcStr),
@@ -421,7 +420,17 @@ impl CapturedIssues {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, TaskInput, TraceRawVcs, NonLocalValue,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
@@ -430,7 +439,17 @@ pub struct IssueSource {
 
 /// The end position is the first character after the range
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, TaskInput, TraceRawVcs, NonLocalValue,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
@@ -458,33 +477,40 @@ impl IssueSource {
         }
     }
 
-    pub async fn resolve_source_map(&self) -> Result<Cow<'_, Self>> {
-        if let Some(range) = &self.range {
-            let (start, end) = match range {
-                SourceRange::LineColumn(start, end) => (*start, *end),
+    async fn into_plain(self) -> Result<PlainIssueSource> {
+        let Self { mut source, range } = self;
+
+        let range = if let Some(range) = range {
+            let mut range = match range {
+                SourceRange::LineColumn(start, end) => Some((start, end)),
                 SourceRange::ByteOffset(start, end) => {
                     if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
-                        let start = find_line_and_column(lines.as_ref(), *start);
-                        let end = find_line_and_column(lines.as_ref(), *end);
-                        (start, end)
+                        let start = find_line_and_column(lines.as_ref(), start);
+                        let end = find_line_and_column(lines.as_ref(), end);
+                        Some((start, end))
                     } else {
-                        return Ok(Cow::Borrowed(self));
+                        None
                     }
                 }
             };
 
             // If we have a source map, map the line/column to the original source.
-            let mapped = source_pos(self.source, start, end).await?;
+            if let Some((start, end)) = range {
+                let mapped = source_pos(source, start, end).await?;
 
-            if let Some((source, start, end)) = mapped {
-                return Ok(Cow::Owned(IssueSource {
-                    source,
-                    range: Some(SourceRange::LineColumn(start, end)),
-                }));
+                if let Some((mapped_source, start, end)) = mapped {
+                    range = Some((start, end));
+                    source = mapped_source;
+                }
             }
-        }
-
-        Ok(Cow::Borrowed(self))
+            range
+        } else {
+            None
+        };
+        Ok(PlainIssueSource {
+            asset: PlainSource::from_source(*source).await?,
+            range,
+        })
     }
 
     /// Create a [`IssueSource`] from byte offsets given by an swc ast node
@@ -852,11 +878,11 @@ impl PlainIssue {
         processing_path: Vc<OptionIssueProcessingPathItems>,
     ) -> Result<Vc<Self>> {
         let description: Option<StyledString> = match *issue.description().await? {
-            Some(description) => Some((*description.await?).clone()),
+            Some(description) => Some(description.owned().await?),
             None => None,
         };
         let detail = match *issue.detail().await? {
-            Some(detail) => Some((*detail.await?).clone()),
+            Some(detail) => Some(detail.owned().await?),
             None => None,
         };
         let trait_ref = issue.into_trait_ref().await?;
@@ -884,7 +910,7 @@ impl PlainIssue {
                     into_plain_trace(
                         tracer
                             .await?
-                            .get_traces(issue.file_path().await?.clone_value())
+                            .get_traces(issue.file_path().owned().await?)
                             .await?,
                     )
                     .await?
@@ -900,31 +926,6 @@ impl PlainIssue {
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
     pub range: Option<(SourcePos, SourcePos)>,
-}
-
-impl IssueSource {
-    pub async fn into_plain(&self) -> Result<PlainIssueSource> {
-        Ok(PlainIssueSource {
-            asset: PlainSource::from_source(*self.source).await?,
-            range: match &self.range {
-                Some(range) => match range {
-                    SourceRange::LineColumn(start, end) => Some((*start, *end)),
-                    SourceRange::ByteOffset(start, end) => {
-                        if let FileLinesContent::Lines(lines) =
-                            &*self.source.content().lines().await?
-                        {
-                            let start = find_line_and_column(lines.as_ref(), *start);
-                            let end = find_line_and_column(lines.as_ref(), *end);
-                            Some((start, end))
-                        } else {
-                            None
-                        }
-                    }
-                },
-                _ => None,
-            },
-        })
-    }
 }
 
 #[turbo_tasks::value(serialization = "none")]

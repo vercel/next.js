@@ -11,18 +11,12 @@ pub enum KeySpace {
     TaskData = 2,
     ForwardTaskCache = 3,
     ReverseTaskCache = 4,
-    StringInternMap = 5,
-    ReverseStringInternMap = 6,
 }
 
 pub trait KeyValueDatabase {
     type ReadTransaction<'l>
     where
         Self: 'l;
-
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i>;
 
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>>;
 

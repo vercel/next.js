@@ -60,7 +60,7 @@ export function useFocusTrap(
   }, [active])
 }
 
-function getActiveElement(node: HTMLElement | null) {
+export function getActiveElement(node: HTMLElement | null) {
   const root = node?.getRootNode()
   return root instanceof ShadowRoot
     ? (root?.activeElement as HTMLElement)
@@ -84,14 +84,22 @@ export function useClickOutside(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   active: boolean,
-  close: () => void
+  close: () => void,
+  ownerDocument?: Document
 ) {
   useEffect(() => {
     if (!active) {
       return
     }
 
+    const ownerDocumentEl = ownerDocument || rootRef.current?.ownerDocument
+
     function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement
+      if (rootRef.current && rootRef.current.contains(target)) {
+        return
+      }
+
       if (
         !(rootRef.current?.getBoundingClientRect()
           ? event.clientX >= rootRef.current.getBoundingClientRect()!.left &&
@@ -117,15 +125,15 @@ export function useClickOutside(
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
+    ownerDocumentEl?.addEventListener('mousedown', handleClickOutside)
+    ownerDocumentEl?.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
+      ownerDocumentEl?.removeEventListener('mousedown', handleClickOutside)
+      ownerDocumentEl?.removeEventListener('keydown', handleKeyDown)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
+  }, [active, rootRef, triggerRef])
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

@@ -677,15 +677,16 @@
             return null;
           };
     deprecatedAPIs = {
-      "react-stack-bottom-frame": function (callStackForError) {
+      react_stack_bottom_frame: function (callStackForError) {
         return callStackForError();
       }
     };
     var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
-    var unknownOwnerDebugStack = deprecatedAPIs[
-      "react-stack-bottom-frame"
-    ].bind(deprecatedAPIs, UnknownOwner)();
+    var unknownOwnerDebugStack = deprecatedAPIs.react_stack_bottom_frame.bind(
+      deprecatedAPIs,
+      UnknownOwner
+    )();
     var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g,
@@ -1243,7 +1244,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.2.0-canary-4db4b21c-20250626";
+    exports.version = "19.2.0-canary-97cdd5d3-20250710";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

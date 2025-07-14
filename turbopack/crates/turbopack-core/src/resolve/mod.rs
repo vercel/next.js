@@ -76,7 +76,6 @@ pub enum ModuleResolveResultItem {
         /// uri, path, reference, etc.
         name: RcStr,
         ty: ExternalType,
-        traced: Option<ResolvedVc<ModuleResolveResult>>,
     },
     /// A module could not be created (according to the rules, e.g. no module type as assigned)
     Unknown(ResolvedVc<Box<dyn Source>>),
@@ -112,6 +111,16 @@ pub enum ExportUsage {
     All,
     /// Only side effects are used.
     Evaluation,
+}
+
+impl Display for ExportUsage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExportUsage::Named(name) => write!(f, "export {name}"),
+            ExportUsage::All => write!(f, "all"),
+            ExportUsage::Evaluation => write!(f, "evaluation"),
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -717,11 +726,7 @@ impl ResolveResult {
                                         // Should use map_primary_items instead
                                         bail!("map_module doesn't handle traced externals");
                                     }
-                                    ModuleResolveResultItem::External {
-                                        name,
-                                        ty,
-                                        traced: None,
-                                    }
+                                    ModuleResolveResultItem::External { name, ty }
                                 }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
@@ -1128,20 +1133,20 @@ async fn type_exists(
     ty: FileSystemEntryType,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<FileSystemPath>> {
-    let result = fs_path.realpath_with_links().await?;
+    let result = fs_path.realpath_with_links().owned().await?;
     refs.extend(
         result
             .symlinks
-            .iter()
+            .into_iter()
             .map(|path| async move {
                 Ok(ResolvedVc::upcast(
-                    FileSource::new(path.clone()).to_resolved().await?,
+                    FileSource::new(path).to_resolved().await?,
                 ))
             })
             .try_join()
             .await?,
     );
-    let path = result.clone_value().path;
+    let path = result.path;
     Ok(if *path.get_type().await? == ty {
         Some(path)
     } else {
@@ -1153,20 +1158,20 @@ async fn any_exists(
     fs_path: FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<(FileSystemEntryType, FileSystemPath)>> {
-    let result = fs_path.realpath_with_links().await?;
+    let result = fs_path.realpath_with_links().owned().await?;
     refs.extend(
         result
             .symlinks
-            .iter()
+            .into_iter()
             .map(|path| async move {
                 Ok(ResolvedVc::upcast(
-                    FileSource::new(path.clone()).to_resolved().await?,
+                    FileSource::new(path).to_resolved().await?,
                 ))
             })
             .try_join()
             .await?,
     );
-    let path = result.clone_value().path;
+    let path = result.path;
     let ty = *path.get_type().await?;
     Ok(
         if matches!(
@@ -1189,8 +1194,10 @@ enum ExportsFieldResult {
 /// Extracts the "exports" field out of the package.json, parsing it into an
 /// appropriate [AliasMap] for lookups.
 #[turbo_tasks::function]
-async fn exports_field(package_json_path: FileSystemPath) -> Result<Vc<ExportsFieldResult>> {
-    let read = read_package_json(package_json_path.clone()).await?;
+async fn exports_field(
+    package_json_path: ResolvedVc<Box<dyn Source>>,
+) -> Result<Vc<ExportsFieldResult>> {
+    let read = read_package_json(*package_json_path).await?;
     let package_json = match &*read {
         Some(json) => json,
         None => return Ok(ExportsFieldResult::None.cell()),
@@ -1203,8 +1210,9 @@ async fn exports_field(package_json_path: FileSystemPath) -> Result<Vc<ExportsFi
         Ok(exports) => Ok(ExportsFieldResult::Some(exports).cell()),
         Err(err) => {
             PackageJsonIssue {
-                path: package_json_path,
                 error_message: err.to_string().into(),
+                // TODO(PACK-4879): add line column information
+                source: IssueSource::from_source_only(package_json_path),
             }
             .resolved_cell()
             .emit();
@@ -1230,8 +1238,11 @@ async fn imports_field(lookup_path: FileSystemPath) -> Result<Vc<ImportsFieldRes
     let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context else {
         return Ok(ImportsFieldResult::None.cell());
     };
+    let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(package_json_path.clone()))
+        .to_resolved()
+        .await?;
 
-    let read = read_package_json(package_json_path.clone()).await?;
+    let read = read_package_json(*source).await?;
     let package_json = match &*read {
         Some(json) => json,
         None => return Ok(ImportsFieldResult::None.cell()),
@@ -1244,8 +1255,9 @@ async fn imports_field(lookup_path: FileSystemPath) -> Result<Vc<ImportsFieldRes
         Ok(imports) => Ok(ImportsFieldResult::Some(imports, package_json_path.clone()).cell()),
         Err(err) => {
             PackageJsonIssue {
-                path: package_json_path.clone(),
                 error_message: err.to_string().into(),
+                // TODO(PACK-4879): Add line-column information
+                source: IssueSource::from_source_only(source),
             }
             .resolved_cell()
             .emit();
@@ -1314,7 +1326,8 @@ pub async fn find_context_file_or_package_key(
     let mut refs = Vec::new();
     let package_json_path = lookup_path.join("package.json")?;
     if let Some(package_json_path) = exists(package_json_path, &mut refs).await?
-        && let Some(json) = &*read_package_json(package_json_path.clone()).await?
+        && let Some(json) =
+            &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?
         && json.get(&*package_key).is_some()
     {
         return Ok(FindContextFileResult::Found(package_json_path, refs).into());
@@ -1495,7 +1508,7 @@ pub async fn resolve_raw(
     {
         let path = Pattern::new(pat);
         let matches = read_matches(
-            lookup_dir.root().await?.clone_value(),
+            lookup_dir.root().owned().await?,
             rcstr!("/ROOT/"),
             true,
             path,
@@ -1631,7 +1644,7 @@ pub async fn url_resolve(
     handle_resolve_error(
         result,
         reference_type,
-        origin.origin_path().await?.clone_value(),
+        origin.origin_path().owned().await?,
         request,
         resolve_options,
         is_optional,
@@ -1704,7 +1717,7 @@ async fn handle_after_resolve_plugins(
 
     for (key, primary) in result_value.primary.iter() {
         if let &ResolveResultItem::Source(source) = primary {
-            let path = source.ident().path().await?.clone_value();
+            let path = source.ident().path().owned().await?;
             if let Some(new_result) = apply_plugins_to_path(
                 path.clone(),
                 lookup_path.clone(),
@@ -1931,7 +1944,7 @@ async fn resolve_internal_inline(
                 }
 
                 Box::pin(resolve_internal_inline(
-                    lookup_path.root().await?.clone_value(),
+                    lookup_path.root().owned().await?,
                     relative,
                     options,
                 ))
@@ -2090,7 +2103,9 @@ async fn resolve_into_folder(
     for resolve_into_package in options_value.into_package.iter() {
         match resolve_into_package {
             ResolveIntoPackage::MainField { field: name } => {
-                if let Some(package_json) = &*read_package_json(package_json_path.clone()).await?
+                if let Some(package_json) =
+                    &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone())))
+                        .await?
                     && let Some(field_value) = package_json[name.as_str()].as_str()
                 {
                     let normalized_request: RcStr = normalize_request(field_value).into();
@@ -2381,7 +2396,8 @@ async fn apply_in_package(
             continue;
         };
 
-        let read = read_package_json(package_json_path.clone()).await?;
+        let read =
+            read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?;
         let Some(package_json) = &*read else {
             continue;
         };
@@ -2474,7 +2490,8 @@ async fn find_self_reference(
 ) -> Result<Vc<FindSelfReferencePackageResult>> {
     let package_json_context = find_context_file(lookup_path, package_json()).await?;
     if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
-        let read = read_package_json(package_json_path.clone()).await?;
+        let read =
+            read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?;
         if let Some(json) = &*read
             && json.get("exports").is_some()
             && let Some(name) = json["name"].as_str()
@@ -2639,7 +2656,7 @@ async fn resolve_into_package(
             } => {
                 let package_json_path = package_path.join("package.json")?;
                 let ExportsFieldResult::Some(exports_field) =
-                    &*exports_field(package_json_path.clone()).await?
+                    &*exports_field(Vc::upcast(FileSource::new(package_json_path.clone()))).await?
                 else {
                     continue;
                 };
@@ -2751,10 +2768,10 @@ async fn resolve_import_map_result(
                     match ty {
                         // TODO is that root correct?
                         ExternalType::CommonJs => {
-                            node_cjs_resolve_options(alias_lookup_path.root().await?.clone_value())
+                            node_cjs_resolve_options(alias_lookup_path.root().owned().await?)
                         }
                         ExternalType::EcmaScriptModule => {
-                            node_esm_resolve_options(alias_lookup_path.root().await?.clone_value())
+                            node_esm_resolve_options(alias_lookup_path.root().owned().await?)
                         }
                         ExternalType::Script | ExternalType::Url | ExternalType::Global => options,
                     },

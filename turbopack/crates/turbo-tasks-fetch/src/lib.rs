@@ -139,20 +139,19 @@ impl FetchError {
 #[turbo_tasks::value_impl]
 impl FetchError {
     #[turbo_tasks::function]
-    pub async fn to_issue(
-        self: Vc<Self>,
+    pub fn to_issue(
+        &self,
         severity: IssueSeverity,
         issue_context: FileSystemPath,
-    ) -> Result<Vc<FetchIssue>> {
-        let this = &*self.await?;
-        Ok(FetchIssue {
+    ) -> Vc<FetchIssue> {
+        FetchIssue {
             issue_context,
             severity,
-            url: this.url,
-            kind: this.kind,
-            detail: this.detail,
+            url: self.url,
+            kind: self.kind,
+            detail: self.detail,
         }
-        .cell())
+        .cell()
     }
 }
 

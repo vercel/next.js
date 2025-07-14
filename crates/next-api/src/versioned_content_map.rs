@@ -151,13 +151,13 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let _ = emit_assets(
+        emit_assets(
             assets_operation.connect(),
             node_root,
             client_relative_path,
             client_output_path,
         )
-        .resolve()
+        .as_side_effect()
         .await?;
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation,
@@ -213,7 +213,7 @@ impl VersionedContentMap {
         Ok(Vc::cell(None))
     }
 
-    #[turbo_tasks::function(invalidator)]
+    #[turbo_tasks::function]
     pub async fn keys_in_path(&self, root: FileSystemPath) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
             let map = &self.map_path_to_op.get().0;
@@ -230,7 +230,7 @@ impl VersionedContentMap {
         Ok(Vc::cell(keys))
     }
 
-    #[turbo_tasks::function(invalidator)]
+    #[turbo_tasks::function]
     fn raw_get(&self, path: FileSystemPath) -> Vc<OptionMapEntry> {
         let assets = {
             let map = &self.map_path_to_op.get().0;
@@ -264,7 +264,7 @@ async fn get_entries(assets: OperationVc<OutputAssets>) -> Result<Vc<GetEntriesR
     let entries = assets_ref
         .iter()
         .map(|&asset| async move {
-            let path = asset.path().await?.clone_value();
+            let path = asset.path().owned().await?;
             Ok((path, asset))
         })
         .try_join()

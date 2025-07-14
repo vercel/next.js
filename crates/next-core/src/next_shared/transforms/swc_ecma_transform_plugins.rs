@@ -21,7 +21,7 @@ pub async fn get_swc_ecma_transform_plugin_rule(
 
         #[cfg(not(feature = "plugin"))]
         {
-            let _ = project_path; // To satisfiy lint
+            let _ = project_path; // To satisfy lint
             Ok(None)
         }
     } else {
@@ -65,7 +65,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
                 let resolve_options = resolve_options(
                     project_path.clone(),
                     ResolveOptionsContext {
-                        enable_node_modules: Some(project_path.root().await?.clone_value()),
+                        enable_node_modules: Some(project_path.root().owned().await?),
                         enable_node_native_modules: true,
                         ..Default::default()
                     }
@@ -94,7 +94,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
                 let Some(plugin_module) =
                     &*plugin_wasm_module_resolve_result.first_module().await?
                 else {
-                    // Ignore unresolveable plugin modules, handle_resolve_error has already emitted
+                    // Ignore unresolvable plugin modules, handle_resolve_error has already emitted
                     // an issue.
                     return Ok(None);
                 };

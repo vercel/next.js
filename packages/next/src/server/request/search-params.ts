@@ -2,7 +2,6 @@ import type { WorkStore } from '../app-render/work-async-storage.external'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   postponeWithTracking,
   trackDynamicDataInDynamicRender,
@@ -143,7 +142,7 @@ function createPrerenderSearchParams(
     case 'prerender':
     case 'prerender-client':
       // We are in a dynamicIO (PPR or otherwise) prerender
-      return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
+      return makeHangingSearchParams(prerenderStore)
     default:
       // The remaining cases are prerender-ppr and prerender-legacy
       // We are in a legacy static generation and need to interrupt the prerender
@@ -165,11 +164,22 @@ function createRenderSearchParams(
       process.env.NODE_ENV === 'development' &&
       !workStore.isPrefetchRequest
     ) {
+      if (process.env.__NEXT_DYNAMIC_IO) {
+        return makeUntrackedSearchParamsWithDevWarnings(
+          underlyingSearchParams,
+          workStore
+        )
+      }
+
       return makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
         underlyingSearchParams,
         workStore
       )
     } else {
+      if (process.env.__NEXT_DYNAMIC_IO) {
+        return makeUntrackedSearchParams(underlyingSearchParams)
+      }
+
       return makeUntrackedExoticSearchParams(underlyingSearchParams, workStore)
     }
   }
@@ -183,8 +193,7 @@ const CachedSearchParamsForUseCache = new WeakMap<
   Promise<SearchParams>
 >()
 
-function makeAbortingExoticSearchParams(
-  route: string,
+function makeHangingSearchParams(
   prerenderStore: PrerenderStoreModern
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(prerenderStore)
@@ -221,53 +230,9 @@ function makeAbortingExoticSearchParams(
         }
 
         default: {
-          if (typeof prop === 'string' && !wellKnownProperties.has(prop)) {
-            const expression = describeStringPropertyAccess(
-              'searchParams',
-              prop
-            )
-            const error = createSearchAccessError(route, expression)
-            abortAndThrowOnSynchronousRequestDataAccess(
-              route,
-              expression,
-              error,
-              prerenderStore
-            )
-          }
           return ReflectAdapter.get(target, prop, receiver)
         }
       }
-    },
-    has(target, prop) {
-      // We don't expect key checking to be used except for testing the existence of
-      // searchParams so we make all has tests trigger dynamic. this means that `promise.then`
-      // can resolve to the then function on the Promise prototype but 'then' in promise will assume
-      // you are testing whether the searchParams has a 'then' property.
-      if (typeof prop === 'string') {
-        const expression = describeHasCheckingStringProperty(
-          'searchParams',
-          prop
-        )
-        const error = createSearchAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      }
-      return ReflectAdapter.has(target, prop)
-    },
-    ownKeys() {
-      const expression =
-        '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-      const error = createSearchAccessError(route, expression)
-      abortAndThrowOnSynchronousRequestDataAccess(
-        route,
-        expression,
-        error,
-        prerenderStore
-      )
     },
   })
 
@@ -537,6 +502,20 @@ function makeUntrackedExoticSearchParams(
   return promise
 }
 
+function makeUntrackedSearchParams(
+  underlyingSearchParams: SearchParams
+): Promise<SearchParams> {
+  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+  if (cachedSearchParams) {
+    return cachedSearchParams
+  }
+
+  const promise = Promise.resolve(underlyingSearchParams)
+  CachedSearchParams.set(underlyingSearchParams, promise)
+
+  return promise
+}
+
 function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
   store: WorkStore
@@ -683,6 +662,83 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
     ownKeys(target) {
       const expression = '`Object.keys(searchParams)` or similar'
       syncIODev(store.route, expression, unproxiedProperties)
+      return Reflect.ownKeys(target)
+    },
+  })
+
+  CachedSearchParams.set(underlyingSearchParams, proxiedPromise)
+  return proxiedPromise
+}
+
+// Similar to `makeDynamicallyTrackedExoticSearchParamsWithDevWarnings`, but
+// just logging the sync access without actually defining the search params on
+// the promise.
+function makeUntrackedSearchParamsWithDevWarnings(
+  underlyingSearchParams: SearchParams,
+  store: WorkStore
+): Promise<SearchParams> {
+  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+  if (cachedSearchParams) {
+    return cachedSearchParams
+  }
+
+  const proxiedProperties = new Set<string>()
+  const unproxiedProperties: Array<string> = []
+  const promise = Promise.resolve(underlyingSearchParams)
+
+  Object.keys(underlyingSearchParams).forEach((prop) => {
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+      unproxiedProperties.push(prop)
+    } else {
+      proxiedProperties.add(prop)
+    }
+  })
+
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string') {
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
+          const expression = describeStringPropertyAccess('searchParams', prop)
+          warnForSyncAccess(store.route, expression)
+        }
+      }
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return Reflect.set(target, prop, value, receiver)
+    },
+    has(target, prop) {
+      if (typeof prop === 'string') {
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
+          const expression = describeHasCheckingStringProperty(
+            'searchParams',
+            prop
+          )
+          warnForSyncAccess(store.route, expression)
+        }
+      }
+      return Reflect.has(target, prop)
+    },
+    ownKeys(target) {
+      const expression = '`Object.keys(searchParams)` or similar'
+      warnForIncompleteEnumeration(store.route, expression, unproxiedProperties)
       return Reflect.ownKeys(target)
     },
   })

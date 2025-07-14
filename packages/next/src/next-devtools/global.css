@@ -1,0 +1,4 @@
+/* devtool global css variables */
+:host {
+  --top-z-index: 2147483647;
+}

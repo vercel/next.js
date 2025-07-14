@@ -5,10 +5,13 @@ export {
   decodeReply,
   decodeAction,
   decodeFormState,
-} from 'react-server-dom-webpack/server.edge'
+} from 'react-server-dom-webpack/server'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-export { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
+export { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
+
+// eslint-disable-next-line import/no-extraneous-dependencies
+export { captureOwnerStack } from 'react'
 
 export { default as LayoutRouter } from '../../client/components/layout-router'
 export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'
@@ -29,11 +32,6 @@ export {
 export * as serverHooks from '../../client/components/hooks-server-context'
 export { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
 export { createMetadataComponents } from '../../lib/metadata/metadata'
-// Not being directly used but should be included in the client manifest for /_not-found
-// * ErrorBoundary -> client/components/error-boundary
-// * GlobalError -> client/components/global-error
-import '../../client/components/error-boundary'
-import '../../client/components/builtin/global-error'
 export {
   MetadataBoundary,
   ViewportBoundary,

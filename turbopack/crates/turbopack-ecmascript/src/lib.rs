@@ -23,7 +23,6 @@ mod path_visitor;
 pub mod references;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
-pub mod simple_tree_shake;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
 mod swc_comments;
@@ -77,15 +76,15 @@ use swc_core::{
     },
     quote,
 };
-use tracing::Instrument;
+use tracing::{Instrument, Level, instrument};
 pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
-    TransformPlugin, UnsupportedServerActionIssue,
+    TransformPlugin,
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -125,7 +124,6 @@ use crate::{
         esm::{base::EsmAssetReferences, export},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
-    simple_tree_shake::{ModuleExportUsageInfo, get_module_export_usages},
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
 };
@@ -203,8 +201,6 @@ pub struct EcmascriptOptions {
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
     /// are temporarily introduced.
     pub keep_last_successful_parse: bool,
-
-    pub remove_unused_exports: bool,
 }
 
 #[turbo_tasks::value]
@@ -342,7 +338,6 @@ pub trait EcmascriptAnalyzable: Module + Asset {
     #[turbo_tasks::function]
     async fn module_content_options(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>>;
@@ -350,12 +345,10 @@ pub trait EcmascriptAnalyzable: Module + Asset {
     #[turbo_tasks::function]
     fn module_content(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
-        let own_options =
-            self.module_content_options(module_graph, chunking_context, async_module_info);
+        let own_options = self.module_content_options(chunking_context, async_module_info);
         Ok(EcmascriptModuleContent::new(own_options))
     }
 }
@@ -411,7 +404,7 @@ impl ModuleTypeResult {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModuleAsset {
-    #[turbo_tasks::function(invalidator)]
+    #[turbo_tasks::function]
     async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
         let real_result = self.parse();
         let this = self.await?;
@@ -470,7 +463,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn module_content_options(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
@@ -484,21 +476,10 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             .reference_module_source_maps(Vc::upcast(*self))
             .await?;
 
-        let export_usage_info = if self.options().await?.remove_unused_exports {
-            Some(
-                get_module_export_usages(*module_graph, Vc::upcast(*self))
-                    .to_resolved()
-                    .await?,
-            )
-        } else {
-            None
-        };
-
         Ok(EcmascriptModuleContentOptions {
             parsed,
-            ident: self.ident().to_resolved().await?,
+            module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
-            module_graph,
             chunking_context,
             references: analyze.references().to_resolved().await?,
             esm_references: analyze_ref.esm_references,
@@ -509,7 +490,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             original_source_map: analyze_ref.source_map,
             exports: analyze_ref.exports,
             async_module_info,
-            export_usage_info,
         }
         .cell())
     }
@@ -683,14 +663,13 @@ impl Asset for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
-            module_graph,
             chunking_context,
         }))
     }
@@ -715,7 +694,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     ) -> Result<Vc<bool>> {
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
         let pkg_side_effect_free = is_marked_as_side_effect_free(
-            self.ident().path().await?.clone_value(),
+            self.ident().path().owned().await?,
             side_effect_free_packages,
         );
         Ok(if *pkg_side_effect_free.await? {
@@ -746,28 +725,14 @@ impl MergeableModule for EcmascriptModuleAsset {
         modules: Vc<MergeableModulesExposed>,
         entry_points: Vc<MergeableModules>,
     ) -> Result<Vc<Box<dyn ChunkableModule>>> {
-        Ok(Vc::upcast(*MergedEcmascriptModule::new(
-            modules
-                .await?
-                .iter()
-                .map(|(m, exposed)| {
-                    Ok((
-                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
-                            .context("expected EcmascriptAnalyzable")?,
-                        *exposed,
-                    ))
-                })
-                .collect::<Result<Vec<_>>>()?,
-            entry_points
-                .await?
-                .iter()
-                .map(|m| {
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
-                        .context("expected EcmascriptAnalyzable")
-                })
-                .collect::<Result<Vec<_>>>()?,
-            self.options().to_resolved().await?,
-        )))
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(
+                modules,
+                entry_points,
+                self.options().to_resolved().await?,
+            )
+            .await?,
+        ))
     }
 }
 
@@ -803,7 +768,6 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: ResolvedVc<EcmascriptModuleAsset>,
-    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -856,11 +820,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 .module_options(async_module_info);
 
             // TODO check if we need to pass async_module_info at all
-            let content = this.module.module_content(
-                *this.module_graph,
-                *this.chunking_context,
-                async_module_info,
-            );
+            let content = this
+                .module
+                .module_content(*this.chunking_context, async_module_info);
 
             EcmascriptChunkItemContent::new(
                 content,
@@ -889,10 +851,9 @@ pub struct EcmascriptModuleContent {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Hash, TaskInput)]
 pub struct EcmascriptModuleContentOptions {
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: ResolvedVc<ParseResult>,
-    ident: ResolvedVc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     references: ResolvedVc<ModuleReferences>,
     esm_references: ResolvedVc<EsmAssetReferences>,
@@ -903,17 +864,18 @@ pub struct EcmascriptModuleContentOptions {
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     exports: ResolvedVc<EcmascriptExports>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
-    export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
 }
 
 impl EcmascriptModuleContentOptions {
     async fn merged_code_gens(
         &self,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        eval_context: &EvalContext,
     ) -> Result<Vec<CodeGeneration>> {
+        // Don't read `parsed` here again, it will cause a recomputation as `process_parse_result`
+        // has consumed the cell already.
         let EcmascriptModuleContentOptions {
-            parsed,
-            module_graph,
+            module,
             chunking_context,
             references,
             esm_references,
@@ -922,7 +884,6 @@ impl EcmascriptModuleContentOptions {
             async_module,
             exports,
             async_module_info,
-            export_usage_info,
             ..
         } = self;
 
@@ -947,8 +908,8 @@ impl EcmascriptModuleContentOptions {
                             .code_generation(
                                 **chunking_context,
                                 scope_hoisting_context,
-                                Some(**parsed),
-                                *export_usage_info,
+                                eval_context,
+                                *module,
                             )
                             .await?,
                     )
@@ -966,16 +927,14 @@ impl EcmascriptModuleContentOptions {
 
             let part_code_gens = part_references
                 .iter()
-                .map(|r| r.code_generation(**chunking_context))
+                .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
                 .try_join()
                 .await?;
 
             let code_gens = code_generation
                 .await?
                 .iter()
-                .map(|c| {
-                    c.code_generation(**module_graph, **chunking_context, scope_hoisting_context)
-                })
+                .map(|c| c.code_generation(**chunking_context, scope_hoisting_context))
                 .try_join()
                 .await?;
 
@@ -1001,7 +960,7 @@ impl EcmascriptModuleContent {
         let input = input.await?;
         let EcmascriptModuleContentOptions {
             parsed,
-            ident,
+            module,
             specified_module_type,
             generate_source_map,
             original_source_map,
@@ -1014,7 +973,7 @@ impl EcmascriptModuleContent {
 
             let content = process_parse_result(
                 *parsed,
-                **ident,
+                module.ident(),
                 *specified_module_type,
                 *generate_source_map,
                 *original_source_map,
@@ -1066,106 +1025,115 @@ impl EcmascriptModuleContent {
         module_options: Vec<Vc<EcmascriptModuleContentOptions>>,
         entry_points: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
     ) -> Result<Vc<Self>> {
-        let modules = modules
-            .into_iter()
-            .map(|(m, exposed)| {
-                (
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m).unwrap(),
-                    exposed,
-                )
-            })
-            .collect::<FxIndexMap<_, _>>();
-        let entry_points = entry_points
-            .into_iter()
-            .map(|m| {
-                let m = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m).unwrap();
-                (m, modules.get_index_of(&m).unwrap())
-            })
-            .collect::<Vec<_>>();
+        async {
+            let modules = modules
+                .into_iter()
+                .map(|(m, exposed)| {
+                    (
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m).unwrap(),
+                        exposed,
+                    )
+                })
+                .collect::<FxIndexMap<_, _>>();
+            let entry_points = entry_points
+                .into_iter()
+                .map(|m| {
+                    let m =
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m).unwrap();
+                    (m, modules.get_index_of(&m).unwrap())
+                })
+                .collect::<Vec<_>>();
 
-        let globals_merged = Globals::default();
+            let globals_merged = Globals::default();
 
-        let contents = module_options
-            .iter()
-            .zip(modules.keys().copied())
-            .map(async |(options, module)| {
-                let options = options.await?;
-                let EcmascriptModuleContentOptions {
-                    chunking_context,
-                    parsed,
-                    ident,
-                    specified_module_type,
-                    generate_source_map,
-                    original_source_map,
-                    ..
-                } = &*options;
-
-                let result = process_parse_result(
-                    *parsed,
-                    **ident,
-                    *specified_module_type,
-                    *generate_source_map,
-                    *original_source_map,
-                    *chunking_context.minify_type().await?,
-                    Some(&*options),
-                    Some(ScopeHoistingOptions {
+            let contents = module_options
+                .iter()
+                .map(async |options| {
+                    let options = options.await?;
+                    let EcmascriptModuleContentOptions {
+                        chunking_context,
+                        parsed,
                         module,
-                        modules: &modules,
-                    }),
-                )
+                        specified_module_type,
+                        generate_source_map,
+                        original_source_map,
+                        ..
+                    } = &*options;
+
+                    let result = process_parse_result(
+                        *parsed,
+                        module.ident(),
+                        *specified_module_type,
+                        *generate_source_map,
+                        *original_source_map,
+                        *chunking_context.minify_type().await?,
+                        Some(&*options),
+                        Some(ScopeHoistingOptions {
+                            module: *module,
+                            modules: &modules,
+                        }),
+                    )
+                    .await?;
+
+                    Ok((*module, result))
+                })
+                .try_join()
                 .await?;
 
-                Ok((module, result))
-            })
-            .try_join()
-            .await?;
+            let (merged_ast, comments, source_maps, original_source_maps) =
+                merge_modules(contents, &entry_points, &globals_merged).await?;
 
-        let (merged_ast, comments, source_maps, original_source_maps) =
-            merge_modules(contents, &entry_points, &globals_merged).await?;
+            // Use the options from an arbitrary module, since they should all be the same with
+            // regards to minify_type and chunking_context.
+            let options = module_options.last().unwrap().await?;
 
-        // Use the options from an arbitrary module, since they should all be the same with regards
-        // to minify_type and chunking_context.
-        let options = module_options.last().unwrap().await?;
+            let modules_header_width = modules.len().next_power_of_two().trailing_zeros();
+            let content = CodeGenResult {
+                program: merged_ast,
+                source_map: CodeGenResultSourceMap::ScopeHoisting {
+                    modules_header_width,
+                    source_maps,
+                },
+                comments: CodeGenResultComments::ScopeHoisting {
+                    modules_header_width,
+                    comments,
+                },
+                is_esm: true,
+                strict: true,
+                original_source_map: CodeGenResultOriginalSourceMap::ScopeHoisting(
+                    original_source_maps,
+                ),
+                minify: *options.chunking_context.minify_type().await?,
+                scope_hoisting_syntax_contexts: None,
+            };
 
-        let modules_header_width = modules.len().next_power_of_two().trailing_zeros();
-        let content = CodeGenResult {
-            program: merged_ast,
-            source_map: CodeGenResultSourceMap::ScopeHoisting {
-                modules_header_width,
-                source_maps,
-            },
-            comments: CodeGenResultComments::ScopeHoisting {
-                modules_header_width,
-                comments,
-            },
-            export_contexts: None,
-            is_esm: true,
-            strict: true,
-            original_source_map: CodeGenResultOriginalSourceMap::ScopeHoisting(
-                original_source_maps,
-            ),
-            minify: *options.chunking_context.minify_type().await?,
-            scope_hoisting_syntax_contexts: None,
-        };
+            let first_entry = entry_points.first().unwrap().0;
+            let additional_ids = modules
+                .keys()
+                // Additionally set this module factory for all modules that are exposed. The whole
+                // group might be imported via a different entry import in different chunks (we only
+                // ensure that the modules are in the same order, not that they form a subgraph that
+                // is always imported from the same root module).
+                //
+                // Also skip the first entry, which is the name of the chunk item.
+                .filter(|m| {
+                    **m != first_entry
+                        && *modules.get(*m).unwrap() == MergeableModuleExposure::External
+                })
+                .map(|m| m.chunk_item_id(*options.chunking_context).to_resolved())
+                .try_join()
+                .await?
+                .into();
 
-        let first_entry = entry_points.first().unwrap().0;
-        let additional_ids = modules
-            .keys()
-            // Additionally set this module factory for all modules that are exposed. The whole
-            // group might be imported via a different entry import in different chunks (we only
-            // ensure that the modules are in the same order, not that they form a subgraph that is
-            // always imported from the same root module).
-            //
-            // Also skip the first entry, which is the name of the chunk item.
-            .filter(|m| {
-                **m != first_entry && *modules.get(*m).unwrap() == MergeableModuleExposure::External
-            })
-            .map(|m| m.chunk_item_id(*options.chunking_context).to_resolved())
-            .try_join()
-            .await?
-            .into();
-
-        emit_content(content, additional_ids).await
+            emit_content(content, additional_ids)
+                .instrument(tracing::info_span!("emit"))
+                .await
+        }
+        .instrument(tracing::info_span!(
+            "merged EcmascriptModuleContent",
+            modules = module_options.len()
+        ))
+        .await
     }
 }
 
@@ -1177,6 +1145,7 @@ impl EcmascriptModuleContent {
 /// - `sym` being the name of the import.
 ///
 /// This is then used to map back to the variable name and context of the exporting module.
+#[instrument(level = Level::TRACE, skip_all, name = "merge")]
 #[allow(clippy::type_complexity)]
 async fn merge_modules(
     mut contents: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)>,
@@ -1194,7 +1163,7 @@ async fn merge_modules(
         current_module_idx: u32,
         /// The export syntax contexts in the current AST, which will be mapped to merged_ctxts
         reverse_module_contexts:
-            FxIndexMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+            FxHashMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
         /// For a given module, the `eval_context.imports.exports`. So for a given export, this
         /// allows looking up the corresponding local binding's name and context.
         export_contexts:
@@ -1302,39 +1271,50 @@ async fn merge_modules(
 
     let export_contexts = contents
         .iter()
-        .map(|(module, content)| (*module, content.export_contexts.as_ref().unwrap()))
-        .collect::<FxHashMap<_, _>>();
+        .map(|(module, content)| {
+            Ok((
+                *module,
+                content
+                    .scope_hoisting_syntax_contexts
+                    .as_ref()
+                    .map(|(_, export_contexts)| export_contexts)
+                    .context("expected exports contexts")?,
+            ))
+        })
+        .collect::<Result<FxHashMap<_, _>>>()?;
 
     let (merged_ast, inserted) = GLOBALS.set(globals_merged, || {
+        let _ = tracing::trace_span!("merge inner").entered();
         // As an optimization, assume an average number of 5 contexts per module.
         let mut unique_contexts_cache =
             FxHashMap::with_capacity_and_hasher(contents.len() * 5, Default::default());
 
         let mut prepare_module =
-            |(module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
+            |module_count: usize,
+             current_module_idx: usize,
+             (module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
              program: &mut Program| {
+                let _ = tracing::trace_span!("prepare module").entered();
                 if let CodeGenResult {
-                    scope_hoisting_syntax_contexts: Some(module_contexts),
+                    scope_hoisting_syntax_contexts: Some((module_contexts, _)),
                     ..
                 } = content
                 {
+                    let modules_header_width = module_count.next_power_of_two().trailing_zeros();
                     GLOBALS.set(globals_merged, || {
                         program.visit_mut_with(&mut SetSyntaxContextVisitor {
-                            modules_header_width: module_contexts
-                                .len()
-                                .next_power_of_two()
-                                .trailing_zeros(),
+                            modules_header_width,
                             current_module: *module,
-                            current_module_idx: module_contexts.get_index_of(module).unwrap()
-                                as u32,
+                            current_module_idx: current_module_idx as u32,
                             reverse_module_contexts: module_contexts
                                 .iter()
-                                .map(|(m, ctxt)| (*ctxt, *m))
+                                .map(|e| (*e.value(), *e.key()))
                                 .collect(),
                             export_contexts: &export_contexts,
                             unique_contexts_cache: &mut unique_contexts_cache,
                         });
-                    });
+                        anyhow::Ok(())
+                    })?;
 
                     Ok(match program.take() {
                         Program::Module(module) => Either::Left(module.body.into_iter()),
@@ -1355,11 +1335,12 @@ async fn merge_modules(
 
         let mut inserted_imports = FxHashMap::default();
 
+        let span = tracing::trace_span!("merge ASTs");
         // Replace inserted `__turbopack_merged_esm__(i);` statements with the corresponding
         // ith-module.
         let mut queue = entry_points
             .iter()
-            .map(|(_, i)| prepare_module(&contents[*i], &mut programs[*i]))
+            .map(|(_, i)| prepare_module(contents.len(), *i, &contents[*i], &mut programs[*i]))
             .flatten_ok()
             .rev()
             .collect::<Result<Vec<_>>>()?;
@@ -1381,9 +1362,14 @@ async fn merge_modules(
                             // Only insert once, otherwise the module was already executed
                             if inserted.insert(index) {
                                 queue.extend(
-                                    prepare_module(&contents[index], &mut programs[index])?
-                                        .into_iter()
-                                        .rev(),
+                                    prepare_module(
+                                        contents.len(),
+                                        index,
+                                        &contents[index],
+                                        &mut programs[index],
+                                    )?
+                                    .into_iter()
+                                    .rev(),
                                 );
                             }
                             continue;
@@ -1427,13 +1413,16 @@ async fn merge_modules(
 
             result.push(item);
         }
+        drop(span);
 
+        let span = tracing::trace_span!("hygiene").entered();
         let mut merged_ast = Program::Module(swc_core::ecma::ast::Module {
             body: result,
             span: DUMMY_SP,
             shebang: None,
         });
         merged_ast.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
+        drop(span);
 
         anyhow::Ok((merged_ast, inserted))
     })?;
@@ -1474,6 +1463,9 @@ async fn merge_modules(
 }
 
 /// Provides information about the other modules in the current scope hoisting group.
+///
+/// Note that this object contains interior mutability to lazily create syntax contexts in
+/// `get_module_syntax_context`.
 #[derive(Clone, Copy)]
 pub enum ScopeHoistingContext<'a> {
     Some {
@@ -1482,9 +1474,12 @@ pub enum ScopeHoistingContext<'a> {
         /// All modules in the current group, and whether they should expose their exports
         modules:
             &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, MergeableModuleExposure>,
-        /// To import a specifier from another module, apply this context to the Ident
-        module_syntax_contexts:
-            &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+
+        is_import_mark: Mark,
+        globals: &'a Arc<Globals>,
+        // Interior mutability!
+        module_syntax_contexts_cache:
+            &'a FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
     },
     None,
 }
@@ -1511,15 +1506,38 @@ impl<'a> ScopeHoistingContext<'a> {
         }
     }
 
+    /// To import a specifier from another module, apply this context to the Ident
     pub fn get_module_syntax_context(
         &self,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Option<SyntaxContext> {
         match self {
             ScopeHoistingContext::Some {
-                module_syntax_contexts,
+                modules,
+                module_syntax_contexts_cache,
+                globals,
+                is_import_mark,
                 ..
-            } => module_syntax_contexts.get(&module).copied(),
+            } => {
+                if !modules.contains_key(&module) {
+                    return None;
+                }
+
+                Some(match module_syntax_contexts_cache.entry(module) {
+                    dashmap::Entry::Occupied(e) => *e.get(),
+                    dashmap::Entry::Vacant(e) => {
+                        let ctxt = GLOBALS.set(globals, || {
+                            let mark = Mark::fresh(*is_import_mark);
+                            SyntaxContext::empty()
+                                .apply_mark(*is_import_mark)
+                                .apply_mark(mark)
+                        });
+
+                        e.insert(ctxt);
+                        ctxt
+                    }
+                })
+            }
             ScopeHoistingContext::None => None,
         }
     }
@@ -1539,14 +1557,16 @@ struct CodeGenResult {
     program: Program,
     source_map: CodeGenResultSourceMap,
     comments: CodeGenResultComments,
-    /// `eval_context.imports.exports`
-    export_contexts: Option<FxHashMap<RcStr, Id>>,
     is_esm: bool,
     strict: bool,
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
-    scope_hoisting_syntax_contexts:
-        Option<FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>>,
+    #[allow(clippy::type_complexity)]
+    /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports`)
+    scope_hoisting_syntax_contexts: Option<(
+        FxDashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>,
+        FxHashMap<RcStr, Id>,
+    )>,
 }
 
 struct ScopeHoistingOptions<'a> {
@@ -1554,6 +1574,7 @@ struct ScopeHoistingOptions<'a> {
     modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, MergeableModuleExposure>,
 }
 
+#[instrument(level = Level::TRACE, skip_all, name = "process module")]
 async fn process_parse_result(
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
@@ -1567,14 +1588,14 @@ async fn process_parse_result(
     with_consumed_parse_result(
         parsed,
         async |mut program, source_map, globals, eval_context, comments| -> Result<CodeGenResult> {
-            let (top_level_mark, is_esm, strict, export_contexts) = eval_context
+            let (top_level_mark, is_esm, strict) = eval_context
+                .as_ref()
                 .map_either(
                     |e| {
                         (
                             e.top_level_mark,
                             e.is_esm(specified_module_type),
                             e.imports.strict,
-                            Cow::Owned(e.imports.exports),
                         )
                     },
                     |e| {
@@ -1582,7 +1603,6 @@ async fn process_parse_result(
                             e.top_level_mark,
                             e.is_esm(specified_module_type),
                             e.imports.strict,
-                            Cow::Borrowed(&e.imports.exports),
                         )
                     },
                 )
@@ -1590,30 +1610,33 @@ async fn process_parse_result(
 
             let (mut code_gens, retain_syntax_context, prepend_ident_comment) =
                 if let Some(scope_hoisting_options) = scope_hoisting_options {
-                    let (is_import_mark, module_syntax_contexts) = GLOBALS.set(globals, || {
-                        let is_import_mark = Mark::new();
-                        let module_syntax_contexts: FxIndexMap<_, _> = scope_hoisting_options
-                            .modules
-                            .keys()
-                            .map(|m| {
-                                let mark = Mark::fresh(is_import_mark);
-                                (
-                                    *m,
-                                    SyntaxContext::empty()
-                                        .apply_mark(is_import_mark)
-                                        .apply_mark(mark),
-                                )
-                            })
-                            .collect();
-                        (is_import_mark, module_syntax_contexts)
-                    });
+                    let is_import_mark = GLOBALS.set(globals, || Mark::new());
 
+                    let module_syntax_contexts_cache = FxDashMap::default();
                     let ctx = ScopeHoistingContext::Some {
                         module: scope_hoisting_options.module,
                         modules: scope_hoisting_options.modules,
-                        module_syntax_contexts: &module_syntax_contexts,
+                        module_syntax_contexts_cache: &module_syntax_contexts_cache,
+                        is_import_mark,
+                        globals,
                     };
-                    let code_gens = options.unwrap().merged_code_gens(ctx).await?;
+                    let code_gens = options
+                        .unwrap()
+                        .merged_code_gens(
+                            ctx,
+                            match &eval_context {
+                                Either::Left(e) => e,
+                                Either::Right(e) => e,
+                            },
+                        )
+                        .await?;
+
+                    let export_contexts = eval_context
+                        .map_either(
+                            |e| Cow::Owned(e.imports.exports),
+                            |e| Cow::Borrowed(&e.imports.exports),
+                        )
+                        .into_inner();
                     let preserved_exports =
                         match &*scope_hoisting_options.module.get_exports().await? {
                             EcmascriptExports::EsmExports(exports) => exports
@@ -1644,12 +1667,25 @@ async fn process_parse_result(
 
                     (
                         code_gens,
-                        Some((is_import_mark, module_syntax_contexts, preserved_exports)),
+                        Some((
+                            is_import_mark,
+                            module_syntax_contexts_cache,
+                            preserved_exports,
+                            export_contexts,
+                        )),
                         prepend_ident_comment,
                     )
                 } else if let Some(options) = options {
                     (
-                        options.merged_code_gens(ScopeHoistingContext::None).await?,
+                        options
+                            .merged_code_gens(
+                                ScopeHoistingContext::None,
+                                match &eval_context {
+                                    Either::Left(e) => e,
+                                    Either::Right(e) => e,
+                                },
+                            )
+                            .await?,
                         None,
                         None,
                     )
@@ -1688,7 +1724,7 @@ async fn process_parse_result(
                     }
                 }
 
-                if let Some((is_import_mark, _, preserved_exports)) = &retain_syntax_context {
+                if let Some((is_import_mark, _, preserved_exports, _)) = &retain_syntax_context {
                     program.visit_mut_with(&mut hygiene_rename_only(
                         Some(top_level_mark),
                         *is_import_mark,
@@ -1725,19 +1761,19 @@ async fn process_parse_result(
                     comments,
                     extra_comments,
                 },
-                // TODO ideally don't clone here at all
-                export_contexts: Some(export_contexts.into_owned()),
                 is_esm,
                 strict,
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
                 minify,
-                scope_hoisting_syntax_contexts: retain_syntax_context.map(|(_, ctxts, _)| ctxts),
+                scope_hoisting_syntax_contexts: retain_syntax_context
+                    // TODO ideally don't clone here
+                    .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),
             })
         },
         async |parse_result| -> Result<CodeGenResult> {
             Ok(match parse_result {
                 ParseResult::Ok { .. } => unreachable!(),
-                ParseResult::Unparseable { messages } => {
+                ParseResult::Unparsable { messages } => {
                     let path = ident.path().to_string().await?;
                     let error_messages = messages
                         .as_ref()
@@ -1749,7 +1785,7 @@ async fn process_parse_result(
                             "const e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
-                        quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
+                        quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
                         quote!("throw e;" as Stmt),
                     ];
 
@@ -1761,7 +1797,6 @@ async fn process_parse_result(
                         }),
                         source_map: CodeGenResultSourceMap::None,
                         comments: CodeGenResultComments::Empty,
-                        export_contexts: None,
                         is_esm: false,
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
@@ -1777,7 +1812,7 @@ async fn process_parse_result(
                             "const e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
-                        quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
+                        quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
                         quote!("throw e;" as Stmt),
                     ];
                     CodeGenResult {
@@ -1788,7 +1823,6 @@ async fn process_parse_result(
                         }),
                         source_map: CodeGenResultSourceMap::None,
                         comments: CodeGenResultComments::Empty,
-                        export_contexts: None,
                         is_esm: false,
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
@@ -1883,7 +1917,6 @@ async fn emit_content(
         strict,
         original_source_map,
         minify,
-        export_contexts: _,
         scope_hoisting_syntax_contexts: _,
     } = content;
 
@@ -1952,6 +1985,7 @@ async fn emit_content(
     .cell())
 }
 
+#[instrument(level = Level::TRACE, skip_all, name = "apply code generation")]
 fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
@@ -2342,7 +2376,7 @@ impl CodeGenResultComments {
         std::mem::replace(self, CodeGenResultComments::Empty)
     }
 
-    fn consumable(&self) -> CodeGenResultCommentsConsumable {
+    fn consumable(&self) -> CodeGenResultCommentsConsumable<'_> {
         match self {
             CodeGenResultComments::Single {
                 comments,
@@ -2459,14 +2493,17 @@ fn encode_module_into_comment_span(
 
 impl Comments for CodeGenResultCommentsConsumable<'_> {
     fn add_leading(&self, _pos: BytePos, _cmt: Comment) {
-        unimplemented!()
+        unimplemented!("add_leading")
     }
 
     fn add_leading_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
-        unimplemented!()
+        unimplemented!("add_leading_comments")
     }
 
     fn has_leading(&self, pos: BytePos) -> bool {
+        if pos.is_dummy() {
+            return false;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2485,10 +2522,13 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn move_leading(&self, _from: BytePos, _to: BytePos) {
-        unimplemented!()
+        unimplemented!("move_leading")
     }
 
     fn take_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        if pos.is_dummy() {
+            return None;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2512,6 +2552,9 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn get_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        if pos.is_dummy() {
+            return None;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2535,14 +2578,17 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn add_trailing(&self, _pos: BytePos, _cmt: Comment) {
-        unimplemented!()
+        unimplemented!("add_trailing")
     }
 
     fn add_trailing_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
-        unimplemented!()
+        unimplemented!("add_trailing_comments")
     }
 
     fn has_trailing(&self, pos: BytePos) -> bool {
+        if pos.is_dummy() {
+            return false;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2561,10 +2607,13 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn move_trailing(&self, _from: BytePos, _to: BytePos) {
-        unimplemented!()
+        unimplemented!("move_trailing")
     }
 
     fn take_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        if pos.is_dummy() {
+            return None;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2591,6 +2640,9 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn get_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        if pos.is_dummy() {
+            return None;
+        }
         match self {
             Self::Single {
                 comments,
@@ -2614,7 +2666,7 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn add_pure_comment(&self, _pos: BytePos) {
-        unimplemented!()
+        unimplemented!("add_pure_comment")
     }
 }
 

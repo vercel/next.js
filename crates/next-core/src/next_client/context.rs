@@ -1,9 +1,9 @@
 use std::iter::once;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, Vc};
-use turbo_tasks_env::EnvMap;
+use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
@@ -22,12 +22,10 @@ use turbopack_core::{
         ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
-    compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
-        FreeVarReference, FreeVarReferences,
-    },
+    compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
+    module_graph::export_usage::OptionExportUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -66,39 +64,16 @@ use crate::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::{foreign_code_context_condition, internal_assets_conditions},
+    util::{OptionEnvMap, defines, foreign_code_context_condition, internal_assets_conditions},
 };
 
-fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
-    let mut defines = FxIndexMap::default();
-
-    for (k, v) in define_env {
-        defines
-            .entry(
-                k.split('.')
-                    .map(|s| DefineableNameSegment::Name(s.into()))
-                    .collect::<Vec<_>>(),
-            )
-            .or_insert_with(|| {
-                let val = serde_json::from_str(v);
-                match val {
-                    Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
-                    _ => CompileTimeDefineValue::JSON(v.clone()),
-                }
-            });
-    }
-
-    CompileTimeDefines(defines)
-}
-
 #[turbo_tasks::function]
-async fn next_client_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefines>> {
+async fn next_client_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileTimeDefines>> {
     Ok(defines(&*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarReferences>> {
+async fn next_client_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
@@ -118,7 +93,7 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 #[turbo_tasks::function]
 pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
-    define_env: Vc<EnvMap>,
+    define_env: Vc<OptionEnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::Browser(
@@ -174,7 +149,7 @@ pub async fn get_client_resolve_options_context(
             .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().await?.clone_value()),
+        enable_node_modules: Some(project_path.root().owned().await?),
         custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
@@ -235,7 +210,6 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
-    no_mangling: Vc<bool>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -350,9 +324,6 @@ pub async fn get_client_module_options_context(
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         keep_last_successful_parse: next_mode.is_development(),
-        remove_unused_exports: *next_config
-            .turbopack_remove_unused_exports(next_mode.is_development())
-            .await?,
         ..Default::default()
     };
 
@@ -396,16 +367,6 @@ pub async fn get_client_module_options_context(
         },
         enable_webpack_loaders,
         enable_mdx_rs,
-        css: CssOptionsContext {
-            minify_type: if *next_config.turbo_minify(mode).await? {
-                MinifyType::Minify {
-                    mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-                }
-            } else {
-                MinifyType::NoMinify
-            },
-            ..module_options_context.css
-        },
         rules: vec![
             (
                 foreign_code_context_condition(next_config, project_path).await?,
@@ -424,21 +385,43 @@ pub async fn get_client_module_options_context(
     Ok(module_options_context)
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+pub struct ClientChunkingContextOptions {
+    pub mode: Vc<NextMode>,
+    pub root_path: FileSystemPath,
+    pub client_root: FileSystemPath,
+    pub client_root_to_root_path: RcStr,
+    pub asset_prefix: Vc<Option<RcStr>>,
+    pub chunk_suffix_path: Vc<Option<RcStr>>,
+    pub environment: Vc<Environment>,
+    pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    pub export_usage: Vc<OptionExportUsageInfo>,
+    pub minify: Vc<bool>,
+    pub source_maps: Vc<bool>,
+    pub no_mangling: Vc<bool>,
+    pub scope_hoisting: Vc<bool>,
+}
+
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
-    root_path: FileSystemPath,
-    client_root: FileSystemPath,
-    client_root_to_root_path: RcStr,
-    asset_prefix: ResolvedVc<Option<RcStr>>,
-    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
-    environment: ResolvedVc<Environment>,
-    mode: Vc<NextMode>,
-    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    minify: Vc<bool>,
-    source_maps: Vc<bool>,
-    no_mangling: Vc<bool>,
-    scope_hoisting: Vc<bool>,
+    options: ClientChunkingContextOptions,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    let ClientChunkingContextOptions {
+        mode,
+        root_path,
+        client_root,
+        client_root_to_root_path,
+        asset_prefix,
+        chunk_suffix_path,
+        environment,
+        module_id_strategy,
+        export_usage,
+        minify,
+        source_maps,
+        no_mangling,
+        scope_hoisting,
+    } = options;
+
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
     let chunk_suffix_path = chunk_suffix_path.owned().await?;
@@ -448,10 +431,8 @@ pub async fn get_client_chunking_context(
         client_root_to_root_path,
         client_root.clone(),
         client_root.join("static/chunks")?,
-        get_client_assets_path(client_root.clone())
-            .await?
-            .clone_value(),
-        environment,
+        get_client_assets_path(client_root.clone()).owned().await?,
+        environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix.clone())
@@ -470,10 +451,14 @@ pub async fn get_client_chunking_context(
     })
     .asset_base_path(asset_prefix)
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
-    .module_id_strategy(module_id_strategy);
+    .export_usage(*export_usage.await?)
+    .module_id_strategy(module_id_strategy.to_resolved().await?);
 
     if next_mode.is_development() {
-        builder = builder.hot_module_replacement().use_file_source_map_uris();
+        builder = builder
+            .hot_module_replacement()
+            .use_file_source_map_uris()
+            .dynamic_chunk_content_loading(true);
     } else {
         builder = builder
             .chunking_config(

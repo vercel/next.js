@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox } from '../../../lib/next-test-utils'
 
 describe('use-cache-errors', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
   const isRspack = Boolean(process.env.NEXT_RSPACK)
@@ -20,18 +20,18 @@ describe('use-cache-errors', () => {
     await browser.elementById('action-button').click()
 
     if (isTurbopack) {
-      // TODO(veil): The wrong stack frame is used for the source snippet.
+      // TODO(veil): Inconsistent cursor position
       await expect(browser).toDisplayRedbox(`
        {
          "description": "Attempted to call useStuff() from the server but useStuff is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
-         "source": "app/page.tsx (22:10) @ Page
-       > 22 |   return <OtherClientComponent getCachedStuff={useCachedStuff} />
-            |          ^",
+         "source": "app/module-with-use-cache.ts (16:17) @ useCachedStuff
+       > 16 |   return useStuff()
+            |                 ^",
          "stack": [
            "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "useCachedStuff app/module-with-use-cache.ts (16:17)",
            "Page app/page.tsx (22:10)",
          ],
        }

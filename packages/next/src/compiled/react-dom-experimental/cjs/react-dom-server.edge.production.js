@@ -1,12 +1,3 @@
-// This is a patch added by Next.js
-const setTimeoutOrImmediate =
-  typeof globalThis["set" + "Immediate"] === "function" &&
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // but it's made non-enumerable, so we can detect it
-  globalThis.propertyIsEnumerable("setImmediate")
-    ? globalThis["set" + "Immediate"]
-    : (callback, ...args) => setTimeout(callback, 0, ...args);
 /**
  * @license React
  * react-dom-server.edge.production.js
@@ -126,7 +117,7 @@ function murmurhash3_32_gc(key, seed) {
   return (h1 ^ (h1 >>> 16)) >>> 0;
 }
 function handleErrorInNextTick(error) {
-  setTimeoutOrImmediate(function () {
+  setTimeout(function () {
     throw error;
   });
 }
@@ -4316,7 +4307,7 @@ function describeComponentStackByType(type) {
             (location = location.slice(29)),
           (type = location.indexOf("\n")),
           -1 !== type && (location = location.slice(type + 1)),
-          (type = location.indexOf("react-stack-bottom-frame")),
+          (type = location.indexOf("react_stack_bottom_frame")),
           -1 !== type && (type = location.lastIndexOf("\n", type)),
           (type = -1 !== type ? (location = location.slice(0, type)) : ""),
           (location = type.lastIndexOf("\n")),
@@ -4549,8 +4540,7 @@ function resumeRequest(
   renderState.nextSegmentId = postponedState.nextSegmentId;
   if ("number" === typeof postponedState.replaySlots)
     return (
-      (onError = postponedState.replaySlots),
-      (onAllReady = createPendingSegment(
+      (onError = createPendingSegment(
         renderState,
         0,
         null,
@@ -4558,15 +4548,14 @@ function resumeRequest(
         !1,
         !1
       )),
-      (onAllReady.id = onError),
-      (onAllReady.parentFlushed = !0),
+      (onError.parentFlushed = !0),
       (children = createRenderTask(
         renderState,
         null,
         children,
         -1,
         null,
-        onAllReady,
+        onError,
         null,
         null,
         renderState.abortableTasks,
@@ -4651,9 +4640,9 @@ function pingTask(request, task) {
       ? scheduleMicrotask(function () {
           return performWork(request);
         })
-      : setTimeoutOrImmediate(function () {
+      : setTimeout(function () {
           return performWork(request);
-        }));
+        }, 0));
 }
 function createSuspenseBoundary(
   request,
@@ -4810,6 +4799,13 @@ function pushComponentStack(task) {
       case REACT_ELEMENT_TYPE:
         task.componentStack = { parent: task.componentStack, type: node.type };
     }
+}
+function replaceSuspenseComponentStackWithSuspenseFallbackStack(
+  componentStack
+) {
+  return null === componentStack
+    ? null
+    : { parent: componentStack.parent, type: "Suspense Fallback" };
 }
 function getThrownInfo(node$jscomp$0) {
   var errorInfo = {};
@@ -5254,25 +5250,18 @@ function renderElement(request, task, keyPath, type, props, ref) {
           !1
         );
         segment.preambleChildren.push(preambleSegment);
-        var preambleTask = createRenderTask(
-          request,
-          null,
-          children$44,
-          -1,
-          task.blockedBoundary,
-          preambleSegment,
-          task.blockedPreamble,
-          task.hoistableState,
-          request.abortableTasks,
-          task.keyPath,
-          task.formatContext,
-          task.context,
-          task.treeContext,
-          task.row,
-          task.componentStack
-        );
-        pushComponentStack(preambleTask);
-        request.pingedTasks.push(preambleTask);
+        task.blockedSegment = preambleSegment;
+        try {
+          (preambleSegment.status = 6),
+            renderNode(request, task, children$44, -1),
+            preambleSegment.lastPushedText &&
+              preambleSegment.textEmbedded &&
+              preambleSegment.chunks.push(textSeparator),
+            (preambleSegment.status = 1),
+            finishedSegment(request, task.blockedBoundary, preambleSegment);
+        } finally {
+          task.blockedSegment = segment;
+        }
       } else renderNode(request, task, children$44, -1);
       task.formatContext = prevContext$45;
       task.keyPath = prevKeyPath$46;
@@ -5592,7 +5581,8 @@ function renderElement(request, task, keyPath, type, props, ref) {
           );
           contentRootSegment.parentFlushed = !0;
           if (null !== request.trackedPostpones) {
-            var fallbackKeyPath = [keyPath[0], "Suspense Fallback", keyPath[2]],
+            var suspenseComponentStack = task.componentStack,
+              fallbackKeyPath = [keyPath[0], "Suspense Fallback", keyPath[2]],
               fallbackReplayNode = [
                 fallbackKeyPath[1],
                 fallbackKeyPath[2],
@@ -5611,6 +5601,10 @@ function renderElement(request, task, keyPath, type, props, ref) {
               request.resumableState,
               prevContext$jscomp$1
             );
+            task.componentStack =
+              replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                suspenseComponentStack
+              );
             boundarySegment.status = 6;
             try {
               renderNode(request, task, fallback, -1),
@@ -5648,7 +5642,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               task.context,
               task.treeContext,
               null,
-              task.componentStack
+              suspenseComponentStack
             );
             pushComponentStack(suspendedPrimaryTask);
             request.pingedTasks.push(suspendedPrimaryTask);
@@ -5733,7 +5727,9 @@ function renderElement(request, task, keyPath, type, props, ref) {
               task.context,
               task.treeContext,
               task.row,
-              task.componentStack
+              replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                task.componentStack
+              )
             );
             pushComponentStack(suspendedFallbackTask);
             request.pingedTasks.push(suspendedFallbackTask);
@@ -6049,7 +6045,9 @@ function retryNode(request, task) {
                         task.context,
                         task.treeContext,
                         task.row,
-                        task.componentStack
+                        replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                          task.componentStack
+                        )
                       );
                       pushComponentStack(task);
                       request.pingedTasks.push(task);
@@ -7777,7 +7775,7 @@ function startWork(request) {
     : scheduleMicrotask(function () {
         return performWork(request);
       });
-  setTimeoutOrImmediate(function () {
+  setTimeout(function () {
     10 === request.status && (request.status = 11);
     null === request.trackedPostpones &&
       (supportsRequestStorage
@@ -7787,7 +7785,7 @@ function startWork(request) {
             request
           )
         : enqueueEarlyPreloadsAfterInitialWork(request));
-  });
+  }, 0);
 }
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -7797,12 +7795,12 @@ function enqueueFlush(request) {
     0 === request.pingedTasks.length &&
     null !== request.destination &&
     ((request.flushScheduled = !0),
-    setTimeoutOrImmediate(function () {
+    setTimeout(function () {
       var destination = request.destination;
       destination
         ? flushCompletedQueues(request, destination)
         : (request.flushScheduled = !1);
-    }));
+    }, 0));
 }
 function startFlowing(request, destination) {
   if (13 === request.status)
@@ -7866,13 +7864,15 @@ function getPostponedState(request) {
     (5 !== request.completedRootSegment.status &&
       null !== request.completedPreambleSegments)
   ) {
+    var nextSegmentId = request.nextSegmentId;
     var replaySlots = trackedPostpones.rootSlots;
     var resumableState = request.resumableState;
     resumableState.bootstrapScriptContent = void 0;
     resumableState.bootstrapScripts = void 0;
     resumableState.bootstrapModules = void 0;
   } else {
-    replaySlots = request.completedRootSegment.id;
+    nextSegmentId = 0;
+    replaySlots = -1;
     resumableState = request.resumableState;
     var renderState = request.renderState;
     resumableState.nextFormID = 0;
@@ -7889,7 +7889,7 @@ function getPostponedState(request) {
     resumableState.instructions = 0;
   }
   return {
-    nextSegmentId: request.nextSegmentId,
+    nextSegmentId: nextSegmentId,
     rootFormatContext: request.rootFormatContext,
     progressiveChunkSize: request.progressiveChunkSize,
     resumableState: request.resumableState,
@@ -7899,11 +7899,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-4db4b21c-20250626" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-97cdd5d3-20250710" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-experimental-4db4b21c-20250626\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-experimental-97cdd5d3-20250710\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8157,4 +8157,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-4db4b21c-20250626";
+exports.version = "19.2.0-experimental-97cdd5d3-20250710";

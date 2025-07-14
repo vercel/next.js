@@ -173,6 +173,8 @@ export default function Page() {
 }
 ```
 
+> **Good to know**: In development, all pages are rendered on-demand, so `useSearchParams` doesn't suspend. However, pre-rendering a [static page](/docs/app/getting-started/partial-prerendering#static-rendering) that worked in development will fail the build if `useSearchParams` is used in a Client Component that isn’t directly or indirectly wrapped in a `Suspense` boundary.
+
 ### Dynamic Rendering
 
 If a route is [dynamically rendered](/docs/app/getting-started/partial-prerendering#dynamic-rendering), `useSearchParams` will be available on the server during the initial server render of the Client Component.

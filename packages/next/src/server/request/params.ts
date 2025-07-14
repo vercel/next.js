@@ -3,7 +3,6 @@ import type { FallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   postponeWithTracking,
   trackSynchronousRequestDataAccessInDev,
@@ -168,11 +167,7 @@ function createPrerenderParams(
         case 'prerender':
         case 'prerender-client':
           // We are in a dynamicIO prerender
-          return makeAbortingExoticParams(
-            underlyingParams,
-            workStore.route,
-            prerenderStore
-          )
+          return makeHangingParams(underlyingParams, prerenderStore)
         default:
           return makeErroringExoticParams(
             underlyingParams,
@@ -193,11 +188,22 @@ function createRenderParams(
   workStore: WorkStore
 ): Promise<Params> {
   if (process.env.NODE_ENV === 'development' && !workStore.isPrefetchRequest) {
+    if (process.env.__NEXT_DYNAMIC_IO) {
+      return makeDynamicallyTrackedParamsWithDevWarnings(
+        underlyingParams,
+        workStore
+      )
+    }
+
     return makeDynamicallyTrackedExoticParamsWithDevWarnings(
       underlyingParams,
       workStore
     )
   } else {
+    if (process.env.__NEXT_DYNAMIC_IO) {
+      return makeUntrackedParams(underlyingParams)
+    }
+
     return makeUntrackedExoticParams(underlyingParams)
   }
 }
@@ -232,9 +238,8 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
   },
 }
 
-function makeAbortingExoticParams(
+function makeHangingParams(
   underlyingParams: Params,
-  route: string,
   prerenderStore: PrerenderStoreModern
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
@@ -248,35 +253,6 @@ function makeAbortingExoticParams(
   )
 
   CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      Object.defineProperty(promise, prop, {
-        get() {
-          const expression = describeStringPropertyAccess('params', prop)
-          const error = createParamsAccessError(route, expression)
-          abortAndThrowOnSynchronousRequestDataAccess(
-            route,
-            expression,
-            error,
-            prerenderStore
-          )
-        },
-        set(newValue) {
-          Object.defineProperty(promise, prop, {
-            value: newValue,
-            writable: true,
-            enumerable: true,
-          })
-        },
-        enumerable: true,
-        configurable: true,
-      })
-    }
-  })
 
   return promise
 }
@@ -401,6 +377,18 @@ function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
   return promise
 }
 
+function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
+  const cachedParams = CachedParams.get(underlyingParams)
+  if (cachedParams) {
+    return cachedParams
+  }
+
+  const promise = Promise.resolve(underlyingParams)
+  CachedParams.set(underlyingParams, promise)
+
+  return promise
+}
+
 function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   underlyingParams: Params,
   store: WorkStore
@@ -453,6 +441,67 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
     ownKeys(target) {
       const expression = '`...params` or similar expression'
       syncIODev(store.route, expression, unproxiedProperties)
+      return Reflect.ownKeys(target)
+    },
+  })
+
+  CachedParams.set(underlyingParams, proxiedPromise)
+  return proxiedPromise
+}
+
+// Similar to `makeDynamicallyTrackedExoticParamsWithDevWarnings`, but just
+// logging the sync access without actually defining the params on the promise.
+function makeDynamicallyTrackedParamsWithDevWarnings(
+  underlyingParams: Params,
+  store: WorkStore
+): Promise<Params> {
+  const cachedParams = CachedParams.get(underlyingParams)
+  if (cachedParams) {
+    return cachedParams
+  }
+
+  // We don't use makeResolvedReactPromise here because params
+  // supports copying with spread and we don't want to unnecessarily
+  // instrument the promise with spreadable properties of ReactPromise.
+  const promise = new Promise<Params>((resolve) =>
+    scheduleImmediate(() => resolve(underlyingParams))
+  )
+
+  const proxiedProperties = new Set<string>()
+  const unproxiedProperties: Array<string> = []
+
+  Object.keys(underlyingParams).forEach((prop) => {
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+      unproxiedProperties.push(prop)
+    } else {
+      proxiedProperties.add(prop)
+    }
+  })
+
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string') {
+        if (
+          // We are accessing a property that was proxied to the promise instance
+          proxiedProperties.has(prop)
+        ) {
+          const expression = describeStringPropertyAccess('params', prop)
+          warnForSyncAccess(store.route, expression)
+        }
+      }
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return ReflectAdapter.set(target, prop, value, receiver)
+    },
+    ownKeys(target) {
+      const expression = '`...params` or similar expression'
+      warnForIncompleteEnumeration(store.route, expression, unproxiedProperties)
       return Reflect.ownKeys(target)
     },
   })

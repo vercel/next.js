@@ -4,9 +4,7 @@ import { wellKnownProperties } from '../../shared/lib/utils/reflect-utils'
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
-export function makeUntrackedExoticParams(
-  underlyingParams: Params
-): Promise<Params> {
+function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams
@@ -25,4 +23,26 @@ export function makeUntrackedExoticParams(
   })
 
   return promise
+}
+
+function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
+  const cachedParams = CachedParams.get(underlyingParams)
+  if (cachedParams) {
+    return cachedParams
+  }
+
+  const promise = Promise.resolve(underlyingParams)
+  CachedParams.set(underlyingParams, promise)
+
+  return promise
+}
+
+export function createRenderParamsFromClient(
+  clientParams: Params
+): Promise<Params> {
+  if (process.env.__NEXT_DYNAMIC_IO) {
+    return makeUntrackedParams(clientParams)
+  }
+
+  return makeUntrackedExoticParams(clientParams)
 }

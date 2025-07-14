@@ -405,6 +405,9 @@ struct CurrentTaskState {
     /// True if the current task has state in cells
     stateful: bool,
 
+    /// True if the current task uses an external invalidator
+    has_invalidator: bool,
+
     /// Tracks how many cells of each type has been allocated so far during this task execution.
     /// When a task is re-executed, the cell count may not match the existing cell vec length.
     ///
@@ -432,6 +435,7 @@ impl CurrentTaskState {
             execution_id,
             tasks_to_notify: SmallVec::new(),
             stateful: false,
+            has_invalidator: false,
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
             local_task_tracker: TaskTracker::new(),
@@ -503,10 +507,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
             aggregated_update: Default::default(),
-            event: Event::new(|| "TurboTasks::event".to_string()),
-            event_start: Event::new(|| "TurboTasks::event_start".to_string()),
-            event_foreground: Event::new(|| "TurboTasks::event_foreground".to_string()),
-            event_background: Event::new(|| "TurboTasks::event_background".to_string()),
+            event: Event::new(|| || "TurboTasks::event".to_string()),
+            event_start: Event::new(|| || "TurboTasks::event_start".to_string()),
+            event_foreground: Event::new(|| || "TurboTasks::event_foreground".to_string()),
+            event_background: Event::new(|| || "TurboTasks::event_background".to_string()),
             program_start: Instant::now(),
             compilation_events: CompilationEventQueue::default(),
         });
@@ -604,7 +608,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 self.schedule_local_task(task_type, persistence)
             }
             TaskPersistence::Transient => {
-                let immutable = native_fn.function_meta.immutable;
                 let task_type = CachedTaskType {
                     native_fn,
                     this,
@@ -614,12 +617,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 RawVc::TaskOutput(self.backend.get_or_create_transient_task(
                     task_type,
                     current_task("turbo_function calls"),
-                    immutable,
                     self,
                 ))
             }
             TaskPersistence::Persistent => {
-                let immutable = native_fn.function_meta.immutable;
                 let task_type = CachedTaskType {
                     native_fn,
                     this,
@@ -629,7 +630,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
                     task_type,
                     current_task("turbo_function calls"),
-                    immutable,
                     self,
                 ))
             }
@@ -733,7 +733,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
                         };
 
                         this.backend.task_execution_result(task_id, result, &*this);
-                        let stateful = this.finish_current_task_state();
+                        let FinishedTaskState {
+                            stateful,
+                            has_invalidator,
+                        } = this.finish_current_task_state();
                         let cell_counters = CURRENT_TASK_STATE
                             .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
                         let schedule_again = this.backend.task_execution_completed(
@@ -742,6 +745,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             memory_usage,
                             &cell_counters,
                             stateful,
+                            has_invalidator,
                             &*this,
                         );
                         // task_execution_completed might need to notify tasks
@@ -790,7 +794,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             .with(|gts| {
                 let mut gts_write = gts.write().unwrap();
                 let local_task_id = gts_write.create_local_task(LocalTask::Scheduled {
-                    done_event: Event::new({
+                    done_event: Event::new(move || {
                         move || format!("LocalTask({task_type})::done_event")
                     }),
                 });
@@ -981,7 +985,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     ) -> Option<UpdateInfo> {
         let listener = self
             .event
-            .listen_with_note(|| "wait for update info".to_string());
+            .listen_with_note(|| || "wait for update info".to_string());
         let wait_for_finish = {
             let (update, reason_set) = &mut *self.aggregated_update.lock().unwrap();
             if aggregation.is_zero() {
@@ -1007,7 +1011,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 // wait for start, then wait for finish or timeout
                 let start_listener = self
                     .event_start
-                    .listen_with_note(|| "wait for update info".to_string());
+                    .listen_with_note(|| || "wait for update info".to_string());
                 if self.currently_scheduled_tasks.load(Ordering::Acquire) == 0 {
                     start_listener.await;
                 } else {
@@ -1025,7 +1029,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     () = tokio::time::sleep(aggregation) => {
                         break;
                     }
-                    () = self.event.listen_with_note(|| "wait for update info".to_string()) => {
+                    () = self.event.listen_with_note(|| || "wait for update info".to_string()) => {
                         // Resets the sleep
                     }
                 }
@@ -1059,7 +1063,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.backend.stopping(self);
         self.stopped.store(true, Ordering::Release);
         {
-            let listener = self.event.listen_with_note(|| "wait for stop".to_string());
+            let listener = self
+                .event
+                .listen_with_note(|| || "wait for stop".to_string());
             if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                 listener.await;
             }
@@ -1093,7 +1099,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 .scope(this.clone(), async move {
                     while this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                         let listener = this.event.listen_with_note(|| {
-                            "background job waiting for execution".to_string()
+                            || "background job waiting for execution".to_string()
                         });
                         if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                             listener.await;
@@ -1137,25 +1143,37 @@ impl<B: Backend + 'static> TurboTasks<B> {
         );
     }
 
-    fn finish_current_task_state(&self) -> bool {
-        let (stateful, tasks) = CURRENT_TASK_STATE.with(|cell| {
+    fn finish_current_task_state(&self) -> FinishedTaskState {
+        let (stateful, has_invalidator, tasks) = CURRENT_TASK_STATE.with(|cell| {
             let CurrentTaskState {
                 tasks_to_notify,
                 stateful,
+                has_invalidator,
                 ..
             } = &mut *cell.write().unwrap();
-            (*stateful, take(tasks_to_notify))
+            (*stateful, *has_invalidator, take(tasks_to_notify))
         });
 
         if !tasks.is_empty() {
             self.backend.invalidate_tasks(&tasks, self);
         }
-        stateful
+        FinishedTaskState {
+            stateful,
+            has_invalidator,
+        }
     }
 
     pub fn backend(&self) -> &B {
         &self.backend
     }
+}
+
+struct FinishedTaskState {
+    /// True if the task has state in cells
+    stateful: bool,
+
+    /// True if the task uses an external invalidator
+    has_invalidator: bool,
 }
 
 impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
@@ -1740,6 +1758,15 @@ pub fn mark_stateful() -> SerializationInvalidator {
         } = &mut *cell.write().unwrap();
         *stateful = true;
         SerializationInvalidator::new(*task_id)
+    })
+}
+
+pub fn mark_invalidator() {
+    CURRENT_TASK_STATE.with(|cell| {
+        let CurrentTaskState {
+            has_invalidator, ..
+        } = &mut *cell.write().unwrap();
+        *has_invalidator = true;
     })
 }
 

@@ -759,7 +759,7 @@
             "\n//# sourceURL=rsc://React/" +
             encodeURIComponent(environmentName) +
             "/" +
-            filename +
+            encodeURI(filename) +
             "?s" +
             fakeServerFunctionIdx++),
           (col += "\n//# sourceMappingURL=" + sourceMap))
@@ -849,258 +849,6 @@
         +(error[4] || error[7])
       ];
     }
-    function getArrayKind(array) {
-      for (var kind = 0, i = 0; i < array.length; i++) {
-        var value = array[i];
-        if ("object" === typeof value && null !== value)
-          if (
-            isArrayImpl(value) &&
-            2 === value.length &&
-            "string" === typeof value[0]
-          ) {
-            if (0 !== kind && 3 !== kind) return 1;
-            kind = 3;
-          } else return 1;
-        else {
-          if (
-            "function" === typeof value ||
-            ("string" === typeof value && 50 < value.length) ||
-            (0 !== kind && 2 !== kind)
-          )
-            return 1;
-          kind = 2;
-        }
-      }
-      return kind;
-    }
-    function addObjectToProperties(object, properties, indent) {
-      for (var key in object)
-        hasOwnProperty.call(object, key) &&
-          "_" !== key[0] &&
-          addValueToProperties(key, object[key], properties, indent);
-    }
-    function addValueToProperties(propertyName, value, properties, indent) {
-      switch (typeof value) {
-        case "object":
-          if (null === value) {
-            value = "null";
-            break;
-          } else {
-            var objectToString = Object.prototype.toString.call(value);
-            objectToString = objectToString.slice(8, objectToString.length - 1);
-            if ("Array" === objectToString) {
-              var kind = getArrayKind(value);
-              if (2 === kind || 0 === kind) {
-                value = JSON.stringify(value);
-                break;
-              } else if (3 === kind) {
-                properties.push([
-                  "\u00a0\u00a0".repeat(indent) + propertyName,
-                  ""
-                ]);
-                for (
-                  propertyName = 0;
-                  propertyName < value.length;
-                  propertyName++
-                )
-                  (objectToString = value[propertyName]),
-                    addValueToProperties(
-                      objectToString[0],
-                      objectToString[1],
-                      properties,
-                      indent + 1
-                    );
-                return;
-              }
-            }
-            "Object" === objectToString &&
-              (kind = Object.getPrototypeOf(value)) &&
-              "function" === typeof kind.constructor &&
-              (objectToString = kind.constructor.name);
-            properties.push([
-              "\u00a0\u00a0".repeat(indent) + propertyName,
-              "Object" === objectToString ? "" : objectToString
-            ]);
-            3 > indent && addObjectToProperties(value, properties, indent + 1);
-            return;
-          }
-        case "function":
-          value = "" === value.name ? "() => {}" : value.name + "() {}";
-          break;
-        case "string":
-          value =
-            "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects." ===
-            value
-              ? "..."
-              : JSON.stringify(value);
-          break;
-        case "undefined":
-          value = "undefined";
-          break;
-        case "boolean":
-          value = value ? "true" : "false";
-          break;
-        default:
-          value = String(value);
-      }
-      properties.push(["\u00a0\u00a0".repeat(indent) + propertyName, value]);
-    }
-    function markAllTracksInOrder() {
-      supportsUserTiming &&
-        (console.timeStamp(
-          "Server Requests Track",
-          0.001,
-          0.001,
-          "Server Requests \u269b",
-          void 0,
-          "primary-light"
-        ),
-        console.timeStamp(
-          "Server Components Track",
-          0.001,
-          0.001,
-          "Primary",
-          "Server Components \u269b",
-          "primary-light"
-        ));
-    }
-    function getIOColor(functionName) {
-      switch (functionName.charCodeAt(0) % 3) {
-        case 0:
-          return "tertiary-light";
-        case 1:
-          return "tertiary";
-        default:
-          return "tertiary-dark";
-      }
-    }
-    function logComponentAwait(
-      asyncInfo,
-      trackIdx,
-      startTime,
-      endTime,
-      rootEnv,
-      value
-    ) {
-      if (supportsUserTiming && 0 < endTime) {
-        var env = asyncInfo.env,
-          name = asyncInfo.awaited.name,
-          isPrimaryEnv = env === rootEnv;
-        rootEnv = getIOColor(name);
-        env =
-          "await " +
-          (isPrimaryEnv || void 0 === env ? name : name + " [" + env + "]");
-        (asyncInfo = asyncInfo.debugTask || asyncInfo.awaited.debugTask)
-          ? ((name = []),
-            "object" === typeof value && null !== value
-              ? addObjectToProperties(value, name, 0)
-              : void 0 !== value &&
-                addValueToProperties("Resolved", value, name, 0),
-            asyncInfo.run(
-              performance.measure.bind(performance, env, {
-                start: 0 > startTime ? 0 : startTime,
-                end: endTime,
-                detail: {
-                  devtools: {
-                    color: rootEnv,
-                    track: trackNames[trackIdx],
-                    trackGroup: "Server Components \u269b",
-                    properties: name
-                  }
-                }
-              })
-            ))
-          : console.timeStamp(
-              env,
-              0 > startTime ? 0 : startTime,
-              endTime,
-              trackNames[trackIdx],
-              "Server Components \u269b",
-              rootEnv
-            );
-      }
-    }
-    function logIOInfoErrored(ioInfo, rootEnv, error) {
-      var startTime = ioInfo.start,
-        endTime = ioInfo.end;
-      if (supportsUserTiming && 0 <= endTime) {
-        var name = ioInfo.name,
-          env = ioInfo.env;
-        rootEnv =
-          env === rootEnv || void 0 === env ? name : name + " [" + env + "]";
-        (ioInfo = ioInfo.debugTask)
-          ? ioInfo.run(
-              performance.measure.bind(performance, rootEnv, {
-                start: 0 > startTime ? 0 : startTime,
-                end: endTime,
-                detail: {
-                  devtools: {
-                    color: "error",
-                    track: "Server Requests \u269b",
-                    properties: [
-                      [
-                        "Rejected",
-                        "object" === typeof error &&
-                        null !== error &&
-                        "string" === typeof error.message
-                          ? String(error.message)
-                          : String(error)
-                      ]
-                    ],
-                    tooltipText: rootEnv + " Rejected"
-                  }
-                }
-              })
-            )
-          : console.timeStamp(
-              rootEnv,
-              0 > startTime ? 0 : startTime,
-              endTime,
-              "Server Requests \u269b",
-              void 0,
-              "error"
-            );
-      }
-    }
-    function logIOInfo(ioInfo, rootEnv, value) {
-      var startTime = ioInfo.start,
-        endTime = ioInfo.end;
-      if (supportsUserTiming && 0 <= endTime) {
-        var name = ioInfo.name,
-          env = ioInfo.env;
-        rootEnv =
-          env === rootEnv || void 0 === env ? name : name + " [" + env + "]";
-        ioInfo = ioInfo.debugTask;
-        name = getIOColor(name);
-        ioInfo
-          ? ((env = []),
-            "object" === typeof value && null !== value
-              ? addObjectToProperties(value, env, 0)
-              : void 0 !== value &&
-                addValueToProperties("Resolved", value, env, 0),
-            ioInfo.run(
-              performance.measure.bind(performance, rootEnv, {
-                start: 0 > startTime ? 0 : startTime,
-                end: endTime,
-                detail: {
-                  devtools: {
-                    color: name,
-                    track: "Server Requests \u269b",
-                    properties: env
-                  }
-                }
-              })
-            ))
-          : console.timeStamp(
-              rootEnv,
-              0 > startTime ? 0 : startTime,
-              endTime,
-              "Server Requests \u269b",
-              void 0,
-              name
-            );
-      }
-    }
     function getComponentNameFromType(type) {
       if (null == type) return null;
       if ("function" === typeof type)
@@ -1161,12 +909,469 @@
         }
       return null;
     }
+    function getArrayKind(array) {
+      for (var kind = 0, i = 0; i < array.length; i++) {
+        var value = array[i];
+        if ("object" === typeof value && null !== value)
+          if (
+            isArrayImpl(value) &&
+            2 === value.length &&
+            "string" === typeof value[0]
+          ) {
+            if (0 !== kind && 3 !== kind) return 1;
+            kind = 3;
+          } else return 1;
+        else {
+          if (
+            "function" === typeof value ||
+            ("string" === typeof value && 50 < value.length) ||
+            (0 !== kind && 2 !== kind)
+          )
+            return 1;
+          kind = 2;
+        }
+      }
+      return kind;
+    }
+    function addObjectToProperties(object, properties, indent, prefix) {
+      for (var key in object)
+        hasOwnProperty.call(object, key) &&
+          "_" !== key[0] &&
+          addValueToProperties(key, object[key], properties, indent, prefix);
+    }
+    function addValueToProperties(
+      propertyName,
+      value,
+      properties,
+      indent,
+      prefix
+    ) {
+      switch (typeof value) {
+        case "object":
+          if (null === value) {
+            value = "null";
+            break;
+          } else {
+            if (value.$$typeof === REACT_ELEMENT_TYPE) {
+              var typeName = getComponentNameFromType(value.type) || "\u2026",
+                key = value.key;
+              value = value.props;
+              var propsKeys = Object.keys(value),
+                propsLength = propsKeys.length;
+              if (null == key && 0 === propsLength) {
+                value = "<" + typeName + " />";
+                break;
+              }
+              if (
+                3 > indent ||
+                (1 === propsLength &&
+                  "children" === propsKeys[0] &&
+                  null == key)
+              ) {
+                value = "<" + typeName + " \u2026 />";
+                break;
+              }
+              properties.push([
+                prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
+                "<" + typeName
+              ]);
+              null !== key &&
+                addValueToProperties(
+                  "key",
+                  key,
+                  properties,
+                  indent + 1,
+                  prefix
+                );
+              propertyName = !1;
+              for (var propKey in value)
+                "children" === propKey
+                  ? null != value.children &&
+                    (!isArrayImpl(value.children) ||
+                      0 < value.children.length) &&
+                    (propertyName = !0)
+                  : hasOwnProperty.call(value, propKey) &&
+                    "_" !== propKey[0] &&
+                    addValueToProperties(
+                      propKey,
+                      value[propKey],
+                      properties,
+                      indent + 1,
+                      prefix
+                    );
+              properties.push([
+                "",
+                propertyName ? ">\u2026</" + typeName + ">" : "/>"
+              ]);
+              return;
+            }
+            typeName = Object.prototype.toString.call(value);
+            typeName = typeName.slice(8, typeName.length - 1);
+            if ("Array" === typeName)
+              if (
+                ((propKey = getArrayKind(value)),
+                2 === propKey || 0 === propKey)
+              ) {
+                value = JSON.stringify(value);
+                break;
+              } else if (3 === propKey) {
+                properties.push([
+                  prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
+                  ""
+                ]);
+                for (
+                  propertyName = 0;
+                  propertyName < value.length;
+                  propertyName++
+                )
+                  (typeName = value[propertyName]),
+                    addValueToProperties(
+                      typeName[0],
+                      typeName[1],
+                      properties,
+                      indent + 1,
+                      prefix
+                    );
+                return;
+              }
+            if ("Promise" === typeName) {
+              if ("fulfilled" === value.status) {
+                if (
+                  ((typeName = properties.length),
+                  addValueToProperties(
+                    propertyName,
+                    value.value,
+                    properties,
+                    indent,
+                    prefix
+                  ),
+                  properties.length > typeName)
+                ) {
+                  properties = properties[typeName];
+                  properties[1] =
+                    "Promise<" + (properties[1] || "Object") + ">";
+                  return;
+                }
+              } else if (
+                "rejected" === value.status &&
+                ((typeName = properties.length),
+                addValueToProperties(
+                  propertyName,
+                  value.reason,
+                  properties,
+                  indent,
+                  prefix
+                ),
+                properties.length > typeName)
+              ) {
+                properties = properties[typeName];
+                properties[1] = "Rejected Promise<" + properties[1] + ">";
+                return;
+              }
+              properties.push([
+                "\u00a0\u00a0".repeat(indent) + propertyName,
+                "Promise"
+              ]);
+              return;
+            }
+            "Object" === typeName &&
+              (propKey = Object.getPrototypeOf(value)) &&
+              "function" === typeof propKey.constructor &&
+              (typeName = propKey.constructor.name);
+            properties.push([
+              prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
+              "Object" === typeName ? (3 > indent ? "" : "\u2026") : typeName
+            ]);
+            3 > indent &&
+              addObjectToProperties(value, properties, indent + 1, prefix);
+            return;
+          }
+        case "function":
+          value = "" === value.name ? "() => {}" : value.name + "() {}";
+          break;
+        case "string":
+          value =
+            "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects." ===
+            value
+              ? "\u2026"
+              : JSON.stringify(value);
+          break;
+        case "undefined":
+          value = "undefined";
+          break;
+        case "boolean":
+          value = value ? "true" : "false";
+          break;
+        default:
+          value = String(value);
+      }
+      properties.push([
+        prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
+        value
+      ]);
+    }
+    function markAllTracksInOrder() {
+      supportsUserTiming &&
+        (console.timeStamp(
+          "Server Requests Track",
+          0.001,
+          0.001,
+          "Server Requests \u269b",
+          void 0,
+          "primary-light"
+        ),
+        console.timeStamp(
+          "Server Components Track",
+          0.001,
+          0.001,
+          "Primary",
+          "Server Components \u269b",
+          "primary-light"
+        ));
+    }
+    function getIOColor(functionName) {
+      switch (functionName.charCodeAt(0) % 3) {
+        case 0:
+          return "tertiary-light";
+        case 1:
+          return "tertiary";
+        default:
+          return "tertiary-dark";
+      }
+    }
+    function getIODescription(value) {
+      try {
+        switch (typeof value) {
+          case "object":
+            if (null === value) return "";
+            if (value instanceof Error) return String(value.message);
+            if ("string" === typeof value.url) return value.url;
+            if ("string" === typeof value.command) return value.command;
+            if (
+              "object" === typeof value.request &&
+              "string" === typeof value.request.url
+            )
+              return value.request.url;
+            if (
+              "object" === typeof value.response &&
+              "string" === typeof value.response.url
+            )
+              return value.response.url;
+            if (
+              "string" === typeof value.id ||
+              "number" === typeof value.id ||
+              "bigint" === typeof value.id
+            )
+              return String(value.id);
+            if ("string" === typeof value.name) return value.name;
+            var str = value.toString();
+            return str.startWith("[object ") ||
+              5 > str.length ||
+              500 < str.length
+              ? ""
+              : str;
+          case "string":
+            return 5 > value.length || 500 < value.length ? "" : value;
+          case "number":
+          case "bigint":
+            return String(value);
+          default:
+            return "";
+        }
+      } catch (x) {
+        return "";
+      }
+    }
+    function getIOLongName(ioInfo, description, env, rootEnv) {
+      ioInfo = ioInfo.name;
+      description =
+        "" === description ? ioInfo : ioInfo + " (" + description + ")";
+      return env === rootEnv || void 0 === env
+        ? description
+        : description + " [" + env + "]";
+    }
+    function getIOShortName(ioInfo, description, env, rootEnv) {
+      ioInfo = ioInfo.name;
+      env = env === rootEnv || void 0 === env ? "" : " [" + env + "]";
+      rootEnv = "";
+      var descMaxLength = 30 - ioInfo.length - env.length;
+      if (1 < descMaxLength) {
+        var l = description.length;
+        if (0 < l && l <= descMaxLength) rootEnv = " (" + description + ")";
+        else if (
+          description.startsWith("http://") ||
+          description.startsWith("https://") ||
+          description.startsWith("/")
+        ) {
+          l = description.indexOf("?");
+          -1 === l && (l = description.length);
+          47 === description.charCodeAt(l - 1) && l--;
+          var slashIdx = description.lastIndexOf("/", l - 1);
+          l - slashIdx < descMaxLength &&
+            (rootEnv = " (" + description.slice(slashIdx + 1, l) + ")");
+        }
+      }
+      return ioInfo + rootEnv + env;
+    }
+    function logComponentAwait(
+      asyncInfo,
+      trackIdx,
+      startTime,
+      endTime,
+      rootEnv,
+      value
+    ) {
+      if (supportsUserTiming && 0 < endTime) {
+        var description = getIODescription(value),
+          name = getIOShortName(
+            asyncInfo.awaited,
+            description,
+            asyncInfo.env,
+            rootEnv
+          ),
+          entryName = "await " + name;
+        name = getIOColor(name);
+        var debugTask = asyncInfo.debugTask || asyncInfo.awaited.debugTask;
+        if (debugTask) {
+          var properties = [];
+          "object" === typeof value && null !== value
+            ? addObjectToProperties(value, properties, 0, "")
+            : void 0 !== value &&
+              addValueToProperties("Resolved", value, properties, 0, "");
+          asyncInfo = getIOLongName(
+            asyncInfo.awaited,
+            description,
+            asyncInfo.env,
+            rootEnv
+          );
+          debugTask.run(
+            performance.measure.bind(performance, entryName, {
+              start: 0 > startTime ? 0 : startTime,
+              end: endTime,
+              detail: {
+                devtools: {
+                  color: name,
+                  track: trackNames[trackIdx],
+                  trackGroup: "Server Components \u269b",
+                  properties: properties,
+                  tooltipText: asyncInfo
+                }
+              }
+            })
+          );
+        } else
+          console.timeStamp(
+            entryName,
+            0 > startTime ? 0 : startTime,
+            endTime,
+            trackNames[trackIdx],
+            "Server Components \u269b",
+            name
+          );
+      }
+    }
+    function logIOInfoErrored(ioInfo, rootEnv, error) {
+      var startTime = ioInfo.start,
+        endTime = ioInfo.end;
+      if (supportsUserTiming && 0 <= endTime) {
+        var description = getIODescription(error),
+          entryName = getIOShortName(ioInfo, description, ioInfo.env, rootEnv),
+          debugTask = ioInfo.debugTask;
+        debugTask
+          ? ((error = [
+              [
+                "Rejected",
+                "object" === typeof error &&
+                null !== error &&
+                "string" === typeof error.message
+                  ? String(error.message)
+                  : String(error)
+              ]
+            ]),
+            (ioInfo =
+              getIOLongName(ioInfo, description, ioInfo.env, rootEnv) +
+              " Rejected"),
+            debugTask.run(
+              performance.measure.bind(performance, entryName, {
+                start: 0 > startTime ? 0 : startTime,
+                end: endTime,
+                detail: {
+                  devtools: {
+                    color: "error",
+                    track: "Server Requests \u269b",
+                    properties: error,
+                    tooltipText: ioInfo
+                  }
+                }
+              })
+            ))
+          : console.timeStamp(
+              entryName,
+              0 > startTime ? 0 : startTime,
+              endTime,
+              "Server Requests \u269b",
+              void 0,
+              "error"
+            );
+      }
+    }
+    function logIOInfo(ioInfo, rootEnv, value) {
+      var startTime = ioInfo.start,
+        endTime = ioInfo.end;
+      if (supportsUserTiming && 0 <= endTime) {
+        var description = getIODescription(value),
+          entryName = getIOShortName(ioInfo, description, ioInfo.env, rootEnv),
+          color = getIOColor(entryName),
+          debugTask = ioInfo.debugTask;
+        if (debugTask) {
+          var properties = [];
+          "object" === typeof value && null !== value
+            ? addObjectToProperties(value, properties, 0, "")
+            : void 0 !== value &&
+              addValueToProperties("Resolved", value, properties, 0, "");
+          ioInfo = getIOLongName(ioInfo, description, ioInfo.env, rootEnv);
+          debugTask.run(
+            performance.measure.bind(performance, entryName, {
+              start: 0 > startTime ? 0 : startTime,
+              end: endTime,
+              detail: {
+                devtools: {
+                  color: color,
+                  track: "Server Requests \u269b",
+                  properties: properties,
+                  tooltipText: ioInfo
+                }
+              }
+            })
+          );
+        } else
+          console.timeStamp(
+            entryName,
+            0 > startTime ? 0 : startTime,
+            endTime,
+            "Server Requests \u269b",
+            void 0,
+            color
+          );
+      }
+    }
     function ReactPromise(status, value, reason) {
       this.status = status;
       this.value = value;
       this.reason = reason;
       this._children = [];
       this._debugInfo = null;
+    }
+    function unwrapWeakResponse(weakResponse) {
+      weakResponse = weakResponse.weak.deref();
+      if (void 0 === weakResponse)
+        throw Error(
+          "We did not expect to receive new data after GC:ing the response."
+        );
+      return weakResponse;
+    }
+    function cleanupDebugChannel(debugChannel) {
+      debugChannel("");
     }
     function readChunk(chunk) {
       switch (chunk.status) {
@@ -1187,24 +1392,89 @@
           throw chunk.reason;
       }
     }
-    function createPendingChunk() {
+    function getRoot(weakResponse) {
+      weakResponse = unwrapWeakResponse(weakResponse);
+      return getChunk(weakResponse, 0);
+    }
+    function createPendingChunk(response) {
+      0 === response._pendingChunks++ &&
+        ((response._weakResponse.response = response),
+        null !== response._pendingInitialRender &&
+          (clearTimeout(response._pendingInitialRender),
+          (response._pendingInitialRender = null)));
       return new ReactPromise("pending", null, null);
+    }
+    function releasePendingChunk(response, chunk) {
+      "pending" === chunk.status &&
+        0 === --response._pendingChunks &&
+        ((response._weakResponse.response = null),
+        (response._pendingInitialRender = setTimeout(
+          flushInitialRenderPerformance.bind(null, response),
+          100
+        )));
     }
     function createErrorChunk(response, error) {
       return new ReactPromise("rejected", null, error);
     }
     function wakeChunk(listeners, value) {
-      for (var i = 0; i < listeners.length; i++) (0, listeners[i])(value);
+      for (var i = 0; i < listeners.length; i++) {
+        var listener = listeners[i];
+        "function" === typeof listener
+          ? listener(value)
+          : fulfillReference(listener, value);
+      }
+    }
+    function rejectChunk(listeners, error) {
+      for (var i = 0; i < listeners.length; i++) {
+        var listener = listeners[i];
+        "function" === typeof listener
+          ? listener(error)
+          : rejectReference(listener, error);
+      }
+    }
+    function resolveBlockedCycle(resolvedChunk, reference) {
+      var referencedChunk = reference.handler.chunk;
+      if (null === referencedChunk) return null;
+      if (referencedChunk === resolvedChunk) return reference.handler;
+      reference = referencedChunk.value;
+      if (null !== reference)
+        for (
+          referencedChunk = 0;
+          referencedChunk < reference.length;
+          referencedChunk++
+        ) {
+          var listener = reference[referencedChunk];
+          if (
+            "function" !== typeof listener &&
+            ((listener = resolveBlockedCycle(resolvedChunk, listener)),
+            null !== listener)
+          )
+            return listener;
+        }
+      return null;
     }
     function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
       switch (chunk.status) {
         case "fulfilled":
           wakeChunk(resolveListeners, chunk.value);
           break;
-        case "pending":
         case "blocked":
+          for (var i = 0; i < resolveListeners.length; i++) {
+            var listener = resolveListeners[i];
+            if ("function" !== typeof listener) {
+              var cyclicHandler = resolveBlockedCycle(chunk, listener);
+              null !== cyclicHandler &&
+                (fulfillReference(listener, cyclicHandler.value),
+                resolveListeners.splice(i, 1),
+                i--,
+                null !== rejectListeners &&
+                  ((listener = rejectListeners.indexOf(listener)),
+                  -1 !== listener && rejectListeners.splice(listener, 1)));
+            }
+          }
+        case "pending":
           if (chunk.value)
-            for (var i = 0; i < resolveListeners.length; i++)
+            for (i = 0; i < resolveListeners.length; i++)
               chunk.value.push(resolveListeners[i]);
           else chunk.value = resolveListeners;
           if (chunk.reason) {
@@ -1218,18 +1488,17 @@
           } else chunk.reason = rejectListeners;
           break;
         case "rejected":
-          rejectListeners && wakeChunk(rejectListeners, chunk.reason);
+          rejectListeners && rejectChunk(rejectListeners, chunk.reason);
       }
     }
-    function triggerErrorOnChunk(chunk, error) {
-      if ("pending" !== chunk.status && "blocked" !== chunk.status)
-        chunk.reason.error(error);
-      else {
-        var listeners = chunk.reason;
-        chunk.status = "rejected";
-        chunk.reason = error;
-        null !== listeners && wakeChunk(listeners, error);
-      }
+    function triggerErrorOnChunk(response, chunk, error) {
+      "pending" !== chunk.status && "blocked" !== chunk.status
+        ? chunk.reason.error(error)
+        : (releasePendingChunk(response, chunk),
+          (response = chunk.reason),
+          (chunk.status = "rejected"),
+          (chunk.reason = error),
+          null !== response && rejectChunk(response, error));
     }
     function createResolvedIteratorResultChunk(response, value, done) {
       return new ReactPromise(
@@ -1252,6 +1521,7 @@
     function resolveModelChunk(response, chunk, value) {
       if ("pending" !== chunk.status) chunk.reason.enqueueModel(value);
       else {
+        releasePendingChunk(response, chunk);
         var resolveListeners = chunk.value,
           rejectListeners = chunk.reason;
         chunk.status = "resolved_model";
@@ -1262,15 +1532,16 @@
           wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners));
       }
     }
-    function resolveModuleChunk(chunk, value) {
+    function resolveModuleChunk(response, chunk, value) {
       if ("pending" === chunk.status || "blocked" === chunk.status) {
-        var resolveListeners = chunk.value,
-          rejectListeners = chunk.reason;
+        releasePendingChunk(response, chunk);
+        response = chunk.value;
+        var rejectListeners = chunk.reason;
         chunk.status = "resolved_module";
         chunk.value = value;
-        null !== resolveListeners &&
+        null !== response &&
           (initializeModuleChunk(chunk),
-          wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners));
+          wakeChunkIfInitialized(chunk, response, rejectListeners));
       }
     }
     function initializeModelChunk(chunk) {
@@ -1315,23 +1586,19 @@
         (chunk.status = "rejected"), (chunk.reason = error);
       }
     }
-    function reportGlobalError(response, error) {
-      response._closed = !0;
-      response._closedReason = error;
-      response._chunks.forEach(function (chunk) {
-        "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
-      });
-      var debugChannel = response._debugChannel;
-      void 0 !== debugChannel &&
-        (debugChannel(""), (response._debugChannel = void 0));
-      markAllTracksInOrder();
-      flushComponentPerformance(
-        response,
-        getChunk(response, 0),
-        0,
-        -Infinity,
-        -Infinity
-      );
+    function reportGlobalError(weakResponse, error) {
+      if (void 0 !== weakResponse.weak.deref()) {
+        var response = unwrapWeakResponse(weakResponse);
+        response._closed = !0;
+        response._closedReason = error;
+        response._chunks.forEach(function (chunk) {
+          "pending" === chunk.status &&
+            triggerErrorOnChunk(response, chunk, error);
+        });
+        weakResponse = response._debugChannel;
+        void 0 !== weakResponse &&
+          (weakResponse(""), (response._debugChannel = void 0));
+      }
     }
     function nullRefGetter() {
       return null;
@@ -1352,6 +1619,45 @@
         return "<...>";
       }
     }
+    function initializeElement(response, element) {
+      var stack = element._debugStack,
+        owner = element._owner;
+      null === owner && (element._owner = response._debugRootOwner);
+      var env = response._rootEnvironmentName;
+      null !== owner && null != owner.env && (env = owner.env);
+      var normalizedStackTrace = null;
+      null === owner && null != response._debugRootStack
+        ? (normalizedStackTrace = response._debugRootStack)
+        : null !== stack &&
+          (normalizedStackTrace = createFakeJSXCallStackInDEV(
+            response,
+            stack,
+            env
+          ));
+      element._debugStack = normalizedStackTrace;
+      normalizedStackTrace = null;
+      supportsCreateTask &&
+        null !== stack &&
+        ((normalizedStackTrace = console.createTask.bind(
+          console,
+          getTaskName(element.type)
+        )),
+        (stack = buildFakeCallStack(
+          response,
+          stack,
+          env,
+          !1,
+          normalizedStackTrace
+        )),
+        (env = null === owner ? null : initializeFakeTask(response, owner)),
+        null === env
+          ? ((env = response._debugRootTask),
+            (normalizedStackTrace = null != env ? env.run(stack) : stack()))
+          : (normalizedStackTrace = env.run(stack)));
+      element._debugTask = normalizedStackTrace;
+      null !== owner && initializeFakeStack(response, owner);
+      Object.freeze(element.props);
+    }
     function createLazyChunkWrapper(chunk) {
       var lazyType = {
         $$typeof: REACT_LAZY_TYPE,
@@ -1368,9 +1674,118 @@
       chunk ||
         ((chunk = response._closed
           ? createErrorChunk(response, response._closedReason)
-          : createPendingChunk()),
+          : createPendingChunk(response)),
         chunks.set(id, chunk));
       return chunk;
+    }
+    function fulfillReference(reference, value) {
+      for (
+        var response = reference.response,
+          handler = reference.handler,
+          parentObject = reference.parentObject,
+          key = reference.key,
+          map = reference.map,
+          path = reference.path,
+          i = 1;
+        i < path.length;
+        i++
+      ) {
+        for (; value.$$typeof === REACT_LAZY_TYPE; )
+          if (((value = value._payload), value === handler.chunk))
+            value = handler.value;
+          else {
+            switch (value.status) {
+              case "resolved_model":
+                initializeModelChunk(value);
+                break;
+              case "resolved_module":
+                initializeModuleChunk(value);
+            }
+            switch (value.status) {
+              case "fulfilled":
+                value = value.value;
+                continue;
+              case "blocked":
+                var cyclicHandler = resolveBlockedCycle(value, reference);
+                if (null !== cyclicHandler) {
+                  value = cyclicHandler.value;
+                  continue;
+                }
+              case "pending":
+                path.splice(0, i - 1);
+                null === value.value
+                  ? (value.value = [reference])
+                  : value.value.push(reference);
+                null === value.reason
+                  ? (value.reason = [reference])
+                  : value.reason.push(reference);
+                return;
+              case "halted":
+                return;
+              default:
+                rejectReference(reference, value.reason);
+                return;
+            }
+          }
+        value = value[path[i]];
+      }
+      reference = map(response, value, parentObject, key);
+      parentObject[key] = reference;
+      "" === key && null === handler.value && (handler.value = reference);
+      if (
+        parentObject[0] === REACT_ELEMENT_TYPE &&
+        "object" === typeof handler.value &&
+        null !== handler.value &&
+        handler.value.$$typeof === REACT_ELEMENT_TYPE
+      )
+        switch (((parentObject = handler.value), key)) {
+          case "3":
+            parentObject.props = reference;
+            break;
+          case "4":
+            parentObject._owner = reference;
+            break;
+          case "5":
+            parentObject._debugStack = reference;
+        }
+      handler.deps--;
+      0 === handler.deps &&
+        ((key = handler.chunk),
+        null !== key &&
+          "blocked" === key.status &&
+          ((parentObject = key.value),
+          (key.status = "fulfilled"),
+          (key.value = handler.value),
+          null !== parentObject && wakeChunk(parentObject, handler.value)));
+    }
+    function rejectReference(reference, error) {
+      var handler = reference.handler;
+      reference = reference.response;
+      if (!handler.errored) {
+        var blockedValue = handler.value;
+        handler.errored = !0;
+        handler.value = error;
+        handler = handler.chunk;
+        if (null !== handler && "blocked" === handler.status) {
+          if (
+            "object" === typeof blockedValue &&
+            null !== blockedValue &&
+            blockedValue.$$typeof === REACT_ELEMENT_TYPE
+          ) {
+            var erroredComponent = {
+              name: getComponentNameFromType(blockedValue.type) || "",
+              owner: blockedValue._owner
+            };
+            erroredComponent.debugStack = blockedValue._debugStack;
+            supportsCreateTask &&
+              (erroredComponent.debugTask = blockedValue._debugTask);
+            (handler._debugInfo || (handler._debugInfo = [])).push(
+              erroredComponent
+            );
+          }
+          triggerErrorOnChunk(reference, handler, error);
+        }
+      }
     }
     function waitForReference(
       referencedChunk,
@@ -1380,72 +1795,6 @@
       map,
       path
     ) {
-      function fulfill(value) {
-        for (var i = 1; i < path.length; i++) {
-          for (; value.$$typeof === REACT_LAZY_TYPE; )
-            if (((value = value._payload), value === handler.chunk))
-              value = handler.value;
-            else if ("fulfilled" === value.status) value = value.value;
-            else {
-              path.splice(0, i - 1);
-              value.then(fulfill, reject);
-              return;
-            }
-          value = value[path[i]];
-        }
-        i = map(response, value, parentObject, key);
-        parentObject[key] = i;
-        "" === key && null === handler.value && (handler.value = i);
-        if (
-          parentObject[0] === REACT_ELEMENT_TYPE &&
-          "object" === typeof handler.value &&
-          null !== handler.value &&
-          handler.value.$$typeof === REACT_ELEMENT_TYPE
-        )
-          switch (((value = handler.value), key)) {
-            case "3":
-              value.props = i;
-              break;
-            case "4":
-              value._owner = i;
-          }
-        handler.deps--;
-        0 === handler.deps &&
-          ((i = handler.chunk),
-          null !== i &&
-            "blocked" === i.status &&
-            ((value = i.value),
-            (i.status = "fulfilled"),
-            (i.value = handler.value),
-            null !== value && wakeChunk(value, handler.value)));
-      }
-      function reject(error) {
-        if (!handler.errored) {
-          var blockedValue = handler.value;
-          handler.errored = !0;
-          handler.value = error;
-          var chunk = handler.chunk;
-          if (null !== chunk && "blocked" === chunk.status) {
-            if (
-              "object" === typeof blockedValue &&
-              null !== blockedValue &&
-              blockedValue.$$typeof === REACT_ELEMENT_TYPE
-            ) {
-              var erroredComponent = {
-                name: getComponentNameFromType(blockedValue.type) || "",
-                owner: blockedValue._owner
-              };
-              erroredComponent.debugStack = blockedValue._debugStack;
-              supportsCreateTask &&
-                (erroredComponent.debugTask = blockedValue._debugTask);
-              (chunk._debugInfo || (chunk._debugInfo = [])).push(
-                erroredComponent
-              );
-            }
-            triggerErrorOnChunk(chunk, error);
-          }
-        }
-      }
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;
@@ -1457,8 +1806,20 @@
           deps: 1,
           errored: !1
         };
-      fulfill.isReactInternalListener = !0;
-      referencedChunk.then(fulfill, reject);
+      parentObject = {
+        response: response,
+        handler: handler,
+        parentObject: parentObject,
+        key: key,
+        map: map,
+        path: path
+      };
+      null === referencedChunk.value
+        ? (referencedChunk.value = [parentObject])
+        : referencedChunk.value.push(parentObject);
+      null === referencedChunk.reason
+        ? (referencedChunk.reason = [parentObject])
+        : referencedChunk.reason.push(parentObject);
       return null;
     }
     function loadServerReference(response, metaData, parentObject, key) {
@@ -1470,17 +1831,18 @@
           response._debugFindSourceMapURL
         );
       var serverReference = resolveServerReference(
-        response._serverReferenceConfig,
-        metaData.id
-      );
-      if ((response = preloadModule(serverReference)))
-        metaData.bound && (response = Promise.all([response, metaData.bound]));
-      else if (metaData.bound) response = Promise.resolve(metaData.bound);
+          response._serverReferenceConfig,
+          metaData.id
+        ),
+        promise = preloadModule(serverReference);
+      if (promise)
+        metaData.bound && (promise = Promise.all([promise, metaData.bound]));
+      else if (metaData.bound) promise = Promise.resolve(metaData.bound);
       else
         return (
-          (response = requireModule(serverReference)),
-          registerBoundServerReference(response, metaData.id, metaData.bound),
-          response
+          (promise = requireModule(serverReference)),
+          registerBoundServerReference(promise, metaData.id, metaData.bound),
+          promise
         );
       if (initializingHandler) {
         var handler = initializingHandler;
@@ -1493,7 +1855,7 @@
           deps: 1,
           errored: !1
         };
-      response.then(
+      promise.then(
         function () {
           var resolvedValue = requireModule(serverReference);
           if (metaData.bound) {
@@ -1556,7 +1918,7 @@
                   erroredComponent
                 );
               }
-              triggerErrorOnChunk(chunk, error);
+              triggerErrorOnChunk(response, chunk, error);
             }
           }
         }
@@ -1580,18 +1942,58 @@
       switch (id.status) {
         case "fulfilled":
           for (var value = id.value, i = 1; i < reference.length; i++) {
-            for (; value.$$typeof === REACT_LAZY_TYPE; )
-              if (((value = value._payload), "fulfilled" === value.status))
-                value = value.value;
-              else
-                return waitForReference(
-                  value,
-                  parentObject,
-                  key,
-                  response,
-                  map,
-                  reference.slice(i - 1)
-                );
+            for (; value.$$typeof === REACT_LAZY_TYPE; ) {
+              value = value._payload;
+              switch (value.status) {
+                case "resolved_model":
+                  initializeModelChunk(value);
+                  break;
+                case "resolved_module":
+                  initializeModuleChunk(value);
+              }
+              switch (value.status) {
+                case "fulfilled":
+                  value = value.value;
+                  break;
+                case "blocked":
+                case "pending":
+                  return waitForReference(
+                    value,
+                    parentObject,
+                    key,
+                    response,
+                    map,
+                    reference.slice(i - 1)
+                  );
+                case "halted":
+                  return (
+                    initializingHandler
+                      ? ((response = initializingHandler), response.deps++)
+                      : (initializingHandler = {
+                          parent: null,
+                          chunk: null,
+                          value: null,
+                          deps: 1,
+                          errored: !1
+                        }),
+                    null
+                  );
+                default:
+                  return (
+                    initializingHandler
+                      ? ((initializingHandler.errored = !0),
+                        (initializingHandler.value = value.reason))
+                      : (initializingHandler = {
+                          parent: null,
+                          chunk: null,
+                          value: value.reason,
+                          deps: 0,
+                          errored: !0
+                        }),
+                    null
+                  );
+              }
+            }
             value = value[reference[i]];
           }
           response = map(response, value, parentObject, key);
@@ -1611,7 +2013,6 @@
           return response;
         case "pending":
         case "blocked":
-        case "halted":
           return waitForReference(
             id,
             parentObject,
@@ -1619,6 +2020,19 @@
             response,
             map,
             reference
+          );
+        case "halted":
+          return (
+            initializingHandler
+              ? ((response = initializingHandler), response.deps++)
+              : (initializingHandler = {
+                  parent: null,
+                  chunk: null,
+                  value: null,
+                  deps: 1,
+                  errored: !1
+                }),
+            null
           );
         default:
           return (
@@ -1653,6 +2067,23 @@
     }
     function applyConstructor(response, model, parentObject) {
       Object.setPrototypeOf(parentObject, model.prototype);
+    }
+    function defineLazyGetter(response, chunk, parentObject, key) {
+      Object.defineProperty(parentObject, key, {
+        get: function () {
+          "resolved_model" === chunk.status && initializeModelChunk(chunk);
+          switch (chunk.status) {
+            case "fulfilled":
+              return chunk.value;
+            case "rejected":
+              throw chunk.reason;
+          }
+          return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+        },
+        enumerable: !0,
+        configurable: !1
+      });
+      return null;
     }
     function extractIterator(response, model) {
       return model[Symbol.iterator]();
@@ -1699,15 +2130,13 @@
           case "S":
             return Symbol.for(value.slice(2));
           case "F":
-            return (
-              (value = value.slice(2)),
-              getOutlinedModel(
-                response,
-                value,
-                parentObject,
-                key,
-                loadServerReference
-              )
+            var ref = value.slice(2);
+            return getOutlinedModel(
+              response,
+              ref,
+              parentObject,
+              key,
+              loadServerReference
             );
           case "T":
             parentObject = "$" + value.slice(2);
@@ -1719,36 +2148,30 @@
             return response.get(parentObject);
           case "Q":
             return (
-              (value = value.slice(2)),
-              getOutlinedModel(response, value, parentObject, key, createMap)
+              (ref = value.slice(2)),
+              getOutlinedModel(response, ref, parentObject, key, createMap)
             );
           case "W":
             return (
-              (value = value.slice(2)),
-              getOutlinedModel(response, value, parentObject, key, createSet)
+              (ref = value.slice(2)),
+              getOutlinedModel(response, ref, parentObject, key, createSet)
             );
           case "B":
             return (
-              (value = value.slice(2)),
-              getOutlinedModel(response, value, parentObject, key, createBlob)
+              (ref = value.slice(2)),
+              getOutlinedModel(response, ref, parentObject, key, createBlob)
             );
           case "K":
             return (
-              (value = value.slice(2)),
-              getOutlinedModel(
-                response,
-                value,
-                parentObject,
-                key,
-                createFormData
-              )
+              (ref = value.slice(2)),
+              getOutlinedModel(response, ref, parentObject, key, createFormData)
             );
           case "Z":
             return (
-              (value = value.slice(2)),
+              (ref = value.slice(2)),
               getOutlinedModel(
                 response,
-                value,
+                ref,
                 parentObject,
                 key,
                 resolveErrorDev
@@ -1756,10 +2179,10 @@
             );
           case "i":
             return (
-              (value = value.slice(2)),
+              (ref = value.slice(2)),
               getOutlinedModel(
                 response,
-                value,
+                ref,
                 parentObject,
                 key,
                 extractIterator
@@ -1779,10 +2202,10 @@
             return BigInt(value.slice(2));
           case "P":
             return (
-              (value = value.slice(2)),
+              (ref = value.slice(2)),
               getOutlinedModel(
                 response,
-                value,
+                ref,
                 parentObject,
                 key,
                 applyConstructor
@@ -1828,23 +2251,34 @@
               return function () {};
             }
           case "Y":
-            return (
-              2 < value.length &&
-                (response = response._debugChannel) &&
-                ((value = value.slice(2)), response("R:" + value)),
-              Object.defineProperty(parentObject, key, {
-                get: function () {
-                  return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
-                },
-                enumerable: !0,
-                configurable: !1
-              }),
-              null
-            );
+            if (2 < value.length && (ref = response._debugChannel)) {
+              if ("@" === value[2])
+                return (
+                  (parentObject = value.slice(3)),
+                  (key = parseInt(parentObject, 16)),
+                  response._chunks.has(key) || ref("P:" + parentObject),
+                  getChunk(response, key)
+                );
+              value = value.slice(2);
+              var _id2 = parseInt(value, 16);
+              response._chunks.has(_id2) || ref("Q:" + value);
+              ref = getChunk(response, _id2);
+              return "fulfilled" === ref.status
+                ? ref.value
+                : defineLazyGetter(response, ref, parentObject, key);
+            }
+            Object.defineProperty(parentObject, key, {
+              get: function () {
+                return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+              },
+              enumerable: !0,
+              configurable: !1
+            });
+            return null;
           default:
             return (
-              (value = value.slice(1)),
-              getOutlinedModel(response, value, parentObject, key, createModel)
+              (ref = value.slice(1)),
+              getOutlinedModel(response, ref, parentObject, key, createModel)
             );
         }
       }
@@ -1878,12 +2312,13 @@
       this._chunks = chunks;
       this._stringDecoder = new TextDecoder();
       this._fromJSON = null;
-      this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
-      this._buffer = [];
       this._closed = !1;
       this._closedReason = null;
       this._tempRefs = temporaryReferences;
       this._timeOrigin = 0;
+      this._pendingInitialRender = null;
+      this._pendingChunks = 0;
+      this._weakResponse = { weak: new WeakRef(this), response: this };
       this._debugRootOwner = bundlerConfig =
         void 0 === ReactSharedInteralsServer ||
         null === ReactSharedInteralsServer.A
@@ -1900,18 +2335,32 @@
       this._debugChannel = debugChannel;
       this._replayConsole = replayConsole;
       this._rootEnvironmentName = environmentName;
-      markAllTracksInOrder();
+      debugChannel &&
+        (null === debugChannelRegistry
+          ? (debugChannel(""), (this._debugChannel = void 0))
+          : debugChannelRegistry.register(this, debugChannel));
+      replayConsole && markAllTracksInOrder();
       this._fromJSON = createFromJSONCallback(this);
     }
+    function createStreamState() {
+      return {
+        _rowState: 0,
+        _rowID: 0,
+        _rowTag: 0,
+        _rowLength: 0,
+        _buffer: []
+      };
+    }
     function resolveDebugHalt(response, id) {
-      response = response._chunks;
-      var chunk = response.get(id);
-      chunk || response.set(id, (chunk = createPendingChunk()));
+      var chunks = response._chunks,
+        chunk = chunks.get(id);
+      chunk || chunks.set(id, (chunk = createPendingChunk(response)));
       if ("pending" === chunk.status || "blocked" === chunk.status)
-        (id = chunk),
-          (id.status = "halted"),
-          (id.value = null),
-          (id.reason = null);
+        releasePendingChunk(response, chunk),
+          (response = chunk),
+          (response.status = "halted"),
+          (response.value = null),
+          (response.reason = null);
     }
     function resolveModel(response, id, model) {
       var chunks = response._chunks,
@@ -1921,18 +2370,20 @@
         : chunks.set(id, new ReactPromise("resolved_model", model, response));
     }
     function resolveText(response, id, text) {
-      response = response._chunks;
-      var chunk = response.get(id);
+      var chunks = response._chunks,
+        chunk = chunks.get(id);
       chunk && "pending" !== chunk.status
         ? chunk.reason.enqueueValue(text)
-        : response.set(id, new ReactPromise("fulfilled", text, null));
+        : (chunk && releasePendingChunk(response, chunk),
+          chunks.set(id, new ReactPromise("fulfilled", text, null)));
     }
     function resolveBuffer(response, id, buffer) {
-      response = response._chunks;
-      var chunk = response.get(id);
+      var chunks = response._chunks,
+        chunk = chunks.get(id);
       chunk && "pending" !== chunk.status
         ? chunk.reason.enqueueValue(buffer)
-        : response.set(id, new ReactPromise("fulfilled", buffer, null));
+        : (chunk && releasePendingChunk(response, chunk),
+          chunks.set(id, new ReactPromise("fulfilled", buffer, null)));
     }
     function resolveModule(response, id, model) {
       var chunks = response._chunks,
@@ -1942,39 +2393,41 @@
         response._bundlerConfig,
         model
       );
-      if ((response = preloadModule(clientReference))) {
+      if ((model = preloadModule(clientReference))) {
         if (chunk) {
+          releasePendingChunk(response, chunk);
           var blockedChunk = chunk;
           blockedChunk.status = "blocked";
         } else
           (blockedChunk = new ReactPromise("blocked", null, null)),
             chunks.set(id, blockedChunk);
-        response.then(
+        model.then(
           function () {
-            return resolveModuleChunk(blockedChunk, clientReference);
+            return resolveModuleChunk(response, blockedChunk, clientReference);
           },
           function (error) {
-            return triggerErrorOnChunk(blockedChunk, error);
+            return triggerErrorOnChunk(response, blockedChunk, error);
           }
         );
       } else
         chunk
-          ? resolveModuleChunk(chunk, clientReference)
+          ? resolveModuleChunk(response, chunk, clientReference)
           : chunks.set(
               id,
               new ReactPromise("resolved_module", clientReference, null)
             );
     }
     function resolveStream(response, id, stream, controller) {
-      var chunks = response._chunks;
-      response = chunks.get(id);
-      response
-        ? "pending" === response.status &&
-          ((id = response.value),
-          (response.status = "fulfilled"),
-          (response.value = stream),
-          (response.reason = controller),
-          null !== id && wakeChunk(id, response.value))
+      var chunks = response._chunks,
+        chunk = chunks.get(id);
+      chunk
+        ? "pending" === chunk.status &&
+          (releasePendingChunk(response, chunk),
+          (response = chunk.value),
+          (chunk.status = "fulfilled"),
+          (chunk.value = stream),
+          (chunk.reason = controller),
+          null !== response && wakeChunk(response, chunk.value))
         : chunks.set(id, new ReactPromise("fulfilled", stream, controller));
     }
     function startReadableStream(response, id, type) {
@@ -2011,7 +2464,7 @@
                 (previousBlockedChunk = chunk));
           } else {
             chunk = previousBlockedChunk;
-            var _chunk3 = createPendingChunk();
+            var _chunk3 = createPendingChunk(response);
             _chunk3.then(
               function (v) {
                 return controller.enqueue(v);
@@ -2076,7 +2529,7 @@
                 { done: !0, value: void 0 },
                 null
               );
-            buffer[nextReadIndex] = createPendingChunk();
+            buffer[nextReadIndex] = createPendingChunk(response);
           }
           return buffer[nextReadIndex++];
         });
@@ -2149,11 +2602,11 @@
             closed = !0;
             for (
               nextWriteIndex === buffer.length &&
-              (buffer[nextWriteIndex] = createPendingChunk());
+              (buffer[nextWriteIndex] = createPendingChunk(response));
               nextWriteIndex < buffer.length;
 
             )
-              triggerErrorOnChunk(buffer[nextWriteIndex++], error);
+              triggerErrorOnChunk(response, buffer[nextWriteIndex++], error);
           }
         }
       );
@@ -2196,7 +2649,7 @@
       reason.$$typeof = REACT_POSTPONE_TYPE;
       stack = response._chunks;
       (env = stack.get(id))
-        ? triggerErrorOnChunk(env, reason)
+        ? triggerErrorOnChunk(response, env, reason)
         : stack.set(id, createErrorChunk(response, reason));
     }
     function resolveHint(response, code, model) {
@@ -2489,7 +2942,7 @@
                   (stack = stack.slice(29));
                 var idx = stack.indexOf("\n");
                 -1 !== idx && (stack = stack.slice(idx + 1));
-                idx = stack.indexOf("react-stack-bottom-frame");
+                idx = stack.indexOf("react_stack_bottom_frame");
                 -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
                 var JSCompiler_inline_result =
                   -1 !== idx ? (stack = stack.slice(0, idx)) : "";
@@ -2548,23 +3001,25 @@
         initializeFakeStack(response, ioInfo));
       ioInfo.start += response._timeOrigin;
       ioInfo.end += response._timeOrigin;
-      response = response._rootEnvironmentName;
-      var promise = ioInfo.value;
-      if (promise)
-        switch (promise.status) {
-          case "fulfilled":
-            logIOInfo(ioInfo, response, promise.value);
-            break;
-          case "rejected":
-            logIOInfoErrored(ioInfo, response, promise.reason);
-            break;
-          default:
-            promise.then(
-              logIOInfo.bind(null, ioInfo, response),
-              logIOInfoErrored.bind(null, ioInfo, response)
-            );
-        }
-      else logIOInfo(ioInfo, response, void 0);
+      if (response._replayConsole) {
+        response = response._rootEnvironmentName;
+        var promise = ioInfo.value;
+        if (promise)
+          switch (promise.status) {
+            case "fulfilled":
+              logIOInfo(ioInfo, response, promise.value);
+              break;
+            case "rejected":
+              logIOInfoErrored(ioInfo, response, promise.reason);
+              break;
+            default:
+              promise.then(
+                logIOInfo.bind(null, ioInfo, response),
+                logIOInfoErrored.bind(null, ioInfo, response)
+              );
+          }
+        else logIOInfo(ioInfo, response, void 0);
+      }
     }
     function resolveIOInfo(response, id, model) {
       var chunks = response._chunks,
@@ -2592,8 +3047,8 @@
       )
         byteLength += buffer[i].byteLength;
       byteLength = new Uint8Array(byteLength);
-      for (var _i2 = (i = 0); _i2 < l; _i2++) {
-        var chunk = buffer[_i2];
+      for (var _i3 = (i = 0); _i3 < l; _i3++) {
+        var chunk = buffer[_i3];
         byteLength.set(chunk, i);
         i += chunk.byteLength;
       }
@@ -2622,428 +3077,527 @@
     function flushComponentPerformance(
       response$jscomp$0,
       root,
-      trackIdx$jscomp$1,
+      trackIdx$jscomp$6,
       trackTime,
       parentEndTime
     ) {
       if (!isArrayImpl(root._children)) {
-        root = root._children;
-        var previousEndTime = root.endTime;
+        var previousResult = root._children,
+          previousEndTime = previousResult.endTime;
         if (
           -Infinity < parentEndTime &&
           parentEndTime < previousEndTime &&
-          null !== root.component
+          null !== previousResult.component
         ) {
-          var componentInfo = root.component,
-            trackIdx = trackIdx$jscomp$1;
+          var componentInfo = previousResult.component,
+            trackIdx = trackIdx$jscomp$6,
+            startTime = parentEndTime;
           if (supportsUserTiming && 0 <= previousEndTime && 10 > trackIdx) {
-            response$jscomp$0 =
-              componentInfo.env === response$jscomp$0._rootEnvironmentName
-                ? "primary-light"
-                : "secondary-light";
-            var entryName = componentInfo.name + " [deduped]";
-            (componentInfo = componentInfo.debugTask)
-              ? componentInfo.run(
+            var color =
+                componentInfo.env === response$jscomp$0._rootEnvironmentName
+                  ? "primary-light"
+                  : "secondary-light",
+              entryName = componentInfo.name + " [deduped]",
+              debugTask = componentInfo.debugTask;
+            debugTask
+              ? debugTask.run(
                   console.timeStamp.bind(
                     console,
                     entryName,
-                    0 > parentEndTime ? 0 : parentEndTime,
+                    0 > startTime ? 0 : startTime,
                     previousEndTime,
                     trackNames[trackIdx],
                     "Server Components \u269b",
-                    response$jscomp$0
+                    color
                   )
                 )
               : console.timeStamp(
                   entryName,
-                  0 > parentEndTime ? 0 : parentEndTime,
+                  0 > startTime ? 0 : startTime,
                   previousEndTime,
                   trackNames[trackIdx],
                   "Server Components \u269b",
-                  response$jscomp$0
+                  color
                 );
           }
         }
-        root.track = trackIdx$jscomp$1;
-        return root;
+        previousResult.track = trackIdx$jscomp$6;
+        return previousResult;
       }
-      entryName = root._children;
-      "resolved_model" === root.status && initializeModelChunk(root);
-      if ((previousEndTime = root._debugInfo)) {
-        for (
-          componentInfo = trackIdx = 0;
-          componentInfo < previousEndTime.length;
-          componentInfo++
-        ) {
-          var info = previousEndTime[componentInfo];
-          "number" === typeof info.time && (trackIdx = info.time);
+      var children = root._children,
+        debugInfo = root._debugInfo;
+      if (debugInfo) {
+        for (var startTime$jscomp$0 = 0, i = 0; i < debugInfo.length; i++) {
+          var info = debugInfo[i];
+          "number" === typeof info.time && (startTime$jscomp$0 = info.time);
           if ("string" === typeof info.name) {
-            trackIdx < trackTime && trackIdx$jscomp$1++;
-            trackTime = trackIdx;
+            startTime$jscomp$0 < trackTime && trackIdx$jscomp$6++;
+            trackTime = startTime$jscomp$0;
             break;
           }
         }
-        for (trackIdx = previousEndTime.length - 1; 0 <= trackIdx; trackIdx--)
-          if (
-            ((componentInfo = previousEndTime[trackIdx]),
-            "number" === typeof componentInfo.time &&
-              componentInfo.time > parentEndTime)
-          ) {
-            parentEndTime = componentInfo.time;
+        for (var _i4 = debugInfo.length - 1; 0 <= _i4; _i4--) {
+          var _info = debugInfo[_i4];
+          if ("number" === typeof _info.time && _info.time > parentEndTime) {
+            parentEndTime = _info.time;
             break;
           }
+        }
       }
-      trackIdx = {
-        track: trackIdx$jscomp$1,
+      var result = {
+        track: trackIdx$jscomp$6,
         endTime: -Infinity,
         component: null
       };
-      root._children = trackIdx;
-      componentInfo = -Infinity;
-      info = trackIdx$jscomp$1;
-      for (var _i4 = 0; _i4 < entryName.length; _i4++) {
+      root._children = result;
+      for (
+        var childrenEndTime = -Infinity,
+          childTrackIdx = trackIdx$jscomp$6,
+          childTrackTime = trackTime,
+          _i5 = 0;
+        _i5 < children.length;
+        _i5++
+      ) {
         var childResult = flushComponentPerformance(
           response$jscomp$0,
-          entryName[_i4],
-          info,
-          trackTime,
+          children[_i5],
+          childTrackIdx,
+          childTrackTime,
           parentEndTime
         );
         null !== childResult.component &&
-          (trackIdx.component = childResult.component);
-        info = childResult.track;
-        childResult = childResult.endTime;
-        childResult > trackTime && (trackTime = childResult);
-        childResult > componentInfo && (componentInfo = childResult);
+          (result.component = childResult.component);
+        childTrackIdx = childResult.track;
+        var childEndTime = childResult.endTime;
+        childEndTime > childTrackTime && (childTrackTime = childEndTime);
+        childEndTime > childrenEndTime && (childrenEndTime = childEndTime);
       }
-      if (previousEndTime)
+      if (debugInfo)
         for (
-          childResult = 0,
-            _i4 = !0,
-            info = parentEndTime = -1,
-            entryName = previousEndTime.length - 1;
-          0 <= entryName;
-          entryName--
-        )
-          if (
-            ((trackTime = previousEndTime[entryName]),
-            "number" === typeof trackTime.time)
-          ) {
-            0 === childResult && (childResult = trackTime.time);
-            trackTime = trackTime.time;
-            if (-1 < info)
-              for (--info; info > entryName; info--) {
-                var candidateInfo = previousEndTime[info];
+          var componentEndTime = 0,
+            isLastComponent = !0,
+            endTime = -1,
+            endTimeIdx = -1,
+            _i6 = debugInfo.length - 1;
+          0 <= _i6;
+          _i6--
+        ) {
+          var _info2 = debugInfo[_i6];
+          if ("number" === typeof _info2.time) {
+            0 === componentEndTime && (componentEndTime = _info2.time);
+            var time = _info2.time;
+            if (-1 < endTimeIdx)
+              for (var j = endTimeIdx - 1; j > _i6; j--) {
+                var candidateInfo = debugInfo[j];
                 if ("string" === typeof candidateInfo.name) {
-                  childResult > componentInfo && (componentInfo = childResult);
-                  var response = response$jscomp$0,
-                    componentInfo$jscomp$0 = candidateInfo,
-                    trackIdx$jscomp$0 = trackIdx$jscomp$1,
-                    startTime = trackTime,
-                    componentEndTime = childResult,
-                    childrenEndTime = componentInfo;
-                  _i4 &&
-                  "rejected" === root.status &&
-                  root.reason !== response._closedReason
-                    ? ((_i4 = root.reason),
-                      supportsUserTiming &&
-                        ((childResult = componentInfo$jscomp$0.env),
-                        (componentInfo$jscomp$0 = componentInfo$jscomp$0.name),
-                        (childResult =
-                          childResult === response._rootEnvironmentName ||
-                          void 0 === childResult
-                            ? componentInfo$jscomp$0
-                            : componentInfo$jscomp$0 +
-                              " [" +
-                              childResult +
-                              "]"),
-                        performance.measure(childResult, {
-                          start: 0 > startTime ? 0 : startTime,
-                          end: childrenEndTime,
-                          detail: {
-                            devtools: {
-                              color: "error",
-                              track: trackNames[trackIdx$jscomp$0],
-                              trackGroup: "Server Components \u269b",
-                              tooltipText: childResult + " Errored",
-                              properties: [
-                                [
-                                  "Error",
-                                  "object" === typeof _i4 &&
-                                  null !== _i4 &&
-                                  "string" === typeof _i4.message
-                                    ? String(_i4.message)
-                                    : String(_i4)
-                                ]
-                              ]
-                            }
+                  componentEndTime > childrenEndTime &&
+                    (childrenEndTime = componentEndTime);
+                  var componentInfo$jscomp$0 = candidateInfo,
+                    response = response$jscomp$0,
+                    componentInfo$jscomp$1 = componentInfo$jscomp$0,
+                    trackIdx$jscomp$0 = trackIdx$jscomp$6,
+                    startTime$jscomp$1 = time,
+                    componentEndTime$jscomp$0 = componentEndTime,
+                    childrenEndTime$jscomp$0 = childrenEndTime;
+                  if (
+                    isLastComponent &&
+                    "rejected" === root.status &&
+                    root.reason !== response._closedReason
+                  ) {
+                    var componentInfo$jscomp$2 = componentInfo$jscomp$1,
+                      trackIdx$jscomp$1 = trackIdx$jscomp$0,
+                      startTime$jscomp$2 = startTime$jscomp$1,
+                      childrenEndTime$jscomp$1 = childrenEndTime$jscomp$0,
+                      error = root.reason;
+                    if (supportsUserTiming) {
+                      var env = componentInfo$jscomp$2.env,
+                        name = componentInfo$jscomp$2.name,
+                        entryName$jscomp$0 =
+                          env === response._rootEnvironmentName ||
+                          void 0 === env
+                            ? name
+                            : name + " [" + env + "]",
+                        properties = [
+                          [
+                            "Error",
+                            "object" === typeof error &&
+                            null !== error &&
+                            "string" === typeof error.message
+                              ? String(error.message)
+                              : String(error)
+                          ]
+                        ];
+                      null != componentInfo$jscomp$2.key &&
+                        addValueToProperties(
+                          "key",
+                          componentInfo$jscomp$2.key,
+                          properties,
+                          0,
+                          ""
+                        );
+                      null != componentInfo$jscomp$2.props &&
+                        addObjectToProperties(
+                          componentInfo$jscomp$2.props,
+                          properties,
+                          0,
+                          ""
+                        );
+                      performance.measure(entryName$jscomp$0, {
+                        start: 0 > startTime$jscomp$2 ? 0 : startTime$jscomp$2,
+                        end: childrenEndTime$jscomp$1,
+                        detail: {
+                          devtools: {
+                            color: "error",
+                            track: trackNames[trackIdx$jscomp$1],
+                            trackGroup: "Server Components \u269b",
+                            tooltipText: entryName$jscomp$0 + " Errored",
+                            properties: properties
                           }
-                        })))
-                    : ((_i4 = trackIdx$jscomp$0),
-                      (childResult = startTime),
-                      (startTime = childrenEndTime),
+                        }
+                      });
+                    }
+                  } else {
+                    var componentInfo$jscomp$3 = componentInfo$jscomp$1,
+                      trackIdx$jscomp$2 = trackIdx$jscomp$0,
+                      startTime$jscomp$3 = startTime$jscomp$1,
+                      childrenEndTime$jscomp$2 = childrenEndTime$jscomp$0;
+                    if (
                       supportsUserTiming &&
-                        0 <= startTime &&
-                        10 > _i4 &&
-                        ((childrenEndTime = componentInfo$jscomp$0.env),
-                        (trackIdx$jscomp$0 = componentInfo$jscomp$0.name),
-                        (response =
-                          childrenEndTime === response._rootEnvironmentName),
-                        (componentEndTime -= childResult),
-                        (componentEndTime =
-                          0.5 > componentEndTime
-                            ? response
+                      0 <= childrenEndTime$jscomp$2 &&
+                      10 > trackIdx$jscomp$2
+                    ) {
+                      var env$jscomp$0 = componentInfo$jscomp$3.env,
+                        name$jscomp$0 = componentInfo$jscomp$3.name,
+                        isPrimaryEnv =
+                          env$jscomp$0 === response._rootEnvironmentName,
+                        selfTime =
+                          componentEndTime$jscomp$0 - startTime$jscomp$3,
+                        color$jscomp$0 =
+                          0.5 > selfTime
+                            ? isPrimaryEnv
                               ? "primary-light"
                               : "secondary-light"
-                            : 50 > componentEndTime
-                              ? response
+                            : 50 > selfTime
+                              ? isPrimaryEnv
                                 ? "primary"
                                 : "secondary"
-                              : 500 > componentEndTime
-                                ? response
+                              : 500 > selfTime
+                                ? isPrimaryEnv
                                   ? "primary-dark"
                                   : "secondary-dark"
-                                : "error"),
-                        (response =
-                          response || void 0 === childrenEndTime
-                            ? trackIdx$jscomp$0
-                            : trackIdx$jscomp$0 + " [" + childrenEndTime + "]"),
-                        (componentInfo$jscomp$0 =
-                          componentInfo$jscomp$0.debugTask)
-                          ? componentInfo$jscomp$0.run(
-                              console.timeStamp.bind(
-                                console,
-                                response,
-                                0 > childResult ? 0 : childResult,
-                                startTime,
-                                trackNames[_i4],
-                                "Server Components \u269b",
-                                componentEndTime
-                              )
-                            )
-                          : console.timeStamp(
-                              response,
-                              0 > childResult ? 0 : childResult,
-                              startTime,
-                              trackNames[_i4],
-                              "Server Components \u269b",
-                              componentEndTime
-                            )));
-                  childResult = trackTime;
-                  trackIdx.component = candidateInfo;
-                  _i4 = !1;
-                } else if (candidateInfo.awaited)
-                  if (
-                    (parentEndTime > componentInfo &&
-                      (componentInfo = parentEndTime),
-                    (componentEndTime = response$jscomp$0._rootEnvironmentName),
-                    (componentInfo$jscomp$0 = candidateInfo.awaited.value))
-                  )
-                    switch (
-                      ((childrenEndTime = componentInfo$jscomp$0),
-                      childrenEndTime.status)
-                    ) {
+                                : "error",
+                        entryName$jscomp$1 =
+                          isPrimaryEnv || void 0 === env$jscomp$0
+                            ? name$jscomp$0
+                            : name$jscomp$0 + " [" + env$jscomp$0 + "]",
+                        debugTask$jscomp$0 = componentInfo$jscomp$3.debugTask;
+                      if (debugTask$jscomp$0) {
+                        var properties$jscomp$0 = [];
+                        null != componentInfo$jscomp$3.key &&
+                          addValueToProperties(
+                            "key",
+                            componentInfo$jscomp$3.key,
+                            properties$jscomp$0,
+                            0,
+                            ""
+                          );
+                        null != componentInfo$jscomp$3.props &&
+                          addObjectToProperties(
+                            componentInfo$jscomp$3.props,
+                            properties$jscomp$0,
+                            0,
+                            ""
+                          );
+                        debugTask$jscomp$0.run(
+                          performance.measure.bind(
+                            performance,
+                            entryName$jscomp$1,
+                            {
+                              start:
+                                0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
+                              end: childrenEndTime$jscomp$2,
+                              detail: {
+                                devtools: {
+                                  color: color$jscomp$0,
+                                  track: trackNames[trackIdx$jscomp$2],
+                                  trackGroup: "Server Components \u269b",
+                                  properties: properties$jscomp$0
+                                }
+                              }
+                            }
+                          )
+                        );
+                      } else
+                        console.timeStamp(
+                          entryName$jscomp$1,
+                          0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
+                          childrenEndTime$jscomp$2,
+                          trackNames[trackIdx$jscomp$2],
+                          "Server Components \u269b",
+                          color$jscomp$0
+                        );
+                    }
+                  }
+                  componentEndTime = time;
+                  result.component = componentInfo$jscomp$0;
+                  isLastComponent = !1;
+                } else if (candidateInfo.awaited) {
+                  endTime > childrenEndTime && (childrenEndTime = endTime);
+                  var asyncInfo = candidateInfo,
+                    env$jscomp$1 = response$jscomp$0._rootEnvironmentName,
+                    promise = asyncInfo.awaited.value;
+                  if (promise) {
+                    var thenable = promise;
+                    switch (thenable.status) {
                       case "fulfilled":
                         logComponentAwait(
-                          candidateInfo,
-                          trackIdx$jscomp$1,
-                          trackTime,
-                          parentEndTime,
-                          componentEndTime,
-                          childrenEndTime.value
+                          asyncInfo,
+                          trackIdx$jscomp$6,
+                          time,
+                          endTime,
+                          env$jscomp$1,
+                          thenable.value
                         );
                         break;
                       case "rejected":
-                        componentInfo$jscomp$0 = trackIdx$jscomp$1;
-                        response = trackTime;
-                        startTime = parentEndTime;
-                        childrenEndTime = childrenEndTime.reason;
-                        if (supportsUserTiming && 0 < startTime) {
-                          trackIdx$jscomp$0 = candidateInfo.env;
-                          var name = candidateInfo.awaited.name;
-                          componentEndTime =
-                            "await " +
-                            (trackIdx$jscomp$0 === componentEndTime ||
-                            void 0 === trackIdx$jscomp$0
-                              ? name
-                              : name + " [" + trackIdx$jscomp$0 + "]");
-                          (candidateInfo =
-                            candidateInfo.debugTask ||
-                            candidateInfo.awaited.debugTask)
-                            ? candidateInfo.run(
-                                performance.measure.bind(
-                                  performance,
-                                  componentEndTime,
-                                  {
-                                    start: 0 > response ? 0 : response,
-                                    end: startTime,
-                                    detail: {
-                                      devtools: {
-                                        color: "error",
-                                        track:
-                                          trackNames[componentInfo$jscomp$0],
-                                        trackGroup: "Server Components \u269b",
-                                        properties: [
-                                          [
-                                            "Rejected",
-                                            "object" ===
-                                              typeof childrenEndTime &&
-                                            null !== childrenEndTime &&
-                                            "string" ===
-                                              typeof childrenEndTime.message
-                                              ? String(childrenEndTime.message)
-                                              : String(childrenEndTime)
-                                          ]
-                                        ],
-                                        tooltipText:
-                                          componentEndTime + " Rejected"
-                                      }
-                                    }
-                                  }
-                                )
-                              )
-                            : console.timeStamp(
-                                componentEndTime,
-                                0 > response ? 0 : response,
-                                startTime,
-                                trackNames[componentInfo$jscomp$0],
-                                "Server Components \u269b",
-                                "error"
-                              );
-                        }
-                        break;
-                      default:
-                        logComponentAwait(
-                          candidateInfo,
-                          trackIdx$jscomp$1,
-                          trackTime,
-                          parentEndTime,
-                          componentEndTime,
-                          void 0
-                        );
-                    }
-                  else
-                    logComponentAwait(
-                      candidateInfo,
-                      trackIdx$jscomp$1,
-                      trackTime,
-                      parentEndTime,
-                      componentEndTime,
-                      void 0
-                    );
-              }
-            else
-              for (
-                parentEndTime = trackTime, info = previousEndTime.length - 1;
-                info > entryName;
-                info--
-              )
-                (candidateInfo = previousEndTime[info]),
-                  "string" === typeof candidateInfo.name
-                    ? (childResult > componentInfo &&
-                        (componentInfo = childResult),
-                      (_i4 = candidateInfo),
-                      (childResult = response$jscomp$0._rootEnvironmentName),
-                      supportsUserTiming &&
-                        ((candidateInfo = _i4.env),
-                        (componentInfo$jscomp$0 = _i4.name),
-                        (childResult =
-                          candidateInfo === childResult ||
-                          void 0 === candidateInfo
-                            ? componentInfo$jscomp$0
-                            : componentInfo$jscomp$0 +
-                              " [" +
-                              candidateInfo +
-                              "]"),
-                        performance.measure(childResult, {
-                          start: 0 > trackTime ? 0 : trackTime,
-                          end: componentInfo,
-                          detail: {
-                            devtools: {
-                              color: "warning",
-                              track: trackNames[trackIdx$jscomp$1],
-                              trackGroup: "Server Components \u269b",
-                              tooltipText: childResult + " Aborted",
-                              properties: [
+                        var asyncInfo$jscomp$0 = asyncInfo,
+                          trackIdx$jscomp$3 = trackIdx$jscomp$6,
+                          startTime$jscomp$4 = time,
+                          endTime$jscomp$0 = endTime,
+                          rootEnv = env$jscomp$1,
+                          error$jscomp$0 = thenable.reason;
+                        if (supportsUserTiming && 0 < endTime$jscomp$0) {
+                          var description = getIODescription(error$jscomp$0),
+                            entryName$jscomp$2 =
+                              "await " +
+                              getIOShortName(
+                                asyncInfo$jscomp$0.awaited,
+                                description,
+                                asyncInfo$jscomp$0.env,
+                                rootEnv
+                              ),
+                            debugTask$jscomp$1 =
+                              asyncInfo$jscomp$0.debugTask ||
+                              asyncInfo$jscomp$0.awaited.debugTask;
+                          if (debugTask$jscomp$1) {
+                            var properties$jscomp$1 = [
                                 [
-                                  "Aborted",
-                                  "The stream was aborted before this Component finished rendering."
+                                  "Rejected",
+                                  "object" === typeof error$jscomp$0 &&
+                                  null !== error$jscomp$0 &&
+                                  "string" === typeof error$jscomp$0.message
+                                    ? String(error$jscomp$0.message)
+                                    : String(error$jscomp$0)
                                 ]
-                              ]
-                            }
-                          }
-                        })),
-                      (childResult = trackTime),
-                      (trackIdx.component = _i4),
-                      (_i4 = !1))
-                    : candidateInfo.awaited &&
-                      ((startTime = candidateInfo),
-                      (componentEndTime =
-                        response$jscomp$0._rootEnvironmentName),
-                      startTime.awaited.end > parentEndTime &&
-                        (parentEndTime = startTime.awaited.end),
-                      parentEndTime > componentInfo &&
-                        (componentInfo = parentEndTime),
-                      (candidateInfo = trackIdx$jscomp$1),
-                      (componentInfo$jscomp$0 = trackTime),
-                      (response = parentEndTime),
-                      supportsUserTiming &&
-                        0 < response &&
-                        ((childrenEndTime = startTime.env),
-                        (trackIdx$jscomp$0 = startTime.awaited.name),
-                        (componentEndTime =
-                          "await " +
-                          (childrenEndTime === componentEndTime ||
-                          void 0 === childrenEndTime
-                            ? trackIdx$jscomp$0
-                            : trackIdx$jscomp$0 +
-                              " [" +
-                              childrenEndTime +
-                              "]")),
-                        (startTime =
-                          startTime.debugTask || startTime.awaited.debugTask)
-                          ? startTime.run(
+                              ],
+                              tooltipText =
+                                getIOLongName(
+                                  asyncInfo$jscomp$0.awaited,
+                                  description,
+                                  asyncInfo$jscomp$0.env,
+                                  rootEnv
+                                ) + " Rejected";
+                            debugTask$jscomp$1.run(
                               performance.measure.bind(
                                 performance,
-                                componentEndTime,
+                                entryName$jscomp$2,
                                 {
                                   start:
-                                    0 > componentInfo$jscomp$0
+                                    0 > startTime$jscomp$4
                                       ? 0
-                                      : componentInfo$jscomp$0,
-                                  end: response,
+                                      : startTime$jscomp$4,
+                                  end: endTime$jscomp$0,
                                   detail: {
                                     devtools: {
-                                      color: "warning",
-                                      track: trackNames[candidateInfo],
+                                      color: "error",
+                                      track: trackNames[trackIdx$jscomp$3],
                                       trackGroup: "Server Components \u269b",
-                                      properties: [
-                                        [
-                                          "Aborted",
-                                          "The stream was aborted before this Promise resolved."
-                                        ]
-                                      ],
-                                      tooltipText: componentEndTime + " Aborted"
+                                      properties: properties$jscomp$1,
+                                      tooltipText: tooltipText
                                     }
                                   }
                                 }
                               )
-                            )
-                          : console.timeStamp(
-                              componentEndTime,
-                              0 > componentInfo$jscomp$0
-                                ? 0
-                                : componentInfo$jscomp$0,
-                              response,
-                              trackNames[candidateInfo],
+                            );
+                          } else
+                            console.timeStamp(
+                              entryName$jscomp$2,
+                              0 > startTime$jscomp$4 ? 0 : startTime$jscomp$4,
+                              endTime$jscomp$0,
+                              trackNames[trackIdx$jscomp$3],
                               "Server Components \u269b",
-                              "warning"
-                            )));
-            parentEndTime = trackTime;
-            info = entryName;
+                              "error"
+                            );
+                        }
+                        break;
+                      default:
+                        logComponentAwait(
+                          asyncInfo,
+                          trackIdx$jscomp$6,
+                          time,
+                          endTime,
+                          env$jscomp$1,
+                          void 0
+                        );
+                    }
+                  } else
+                    logComponentAwait(
+                      asyncInfo,
+                      trackIdx$jscomp$6,
+                      time,
+                      endTime,
+                      env$jscomp$1,
+                      void 0
+                    );
+                }
+              }
+            else {
+              endTime = time;
+              for (var _j = debugInfo.length - 1; _j > _i6; _j--) {
+                var _candidateInfo = debugInfo[_j];
+                if ("string" === typeof _candidateInfo.name) {
+                  componentEndTime > childrenEndTime &&
+                    (childrenEndTime = componentEndTime);
+                  var _componentInfo = _candidateInfo,
+                    _env = response$jscomp$0._rootEnvironmentName,
+                    componentInfo$jscomp$4 = _componentInfo,
+                    trackIdx$jscomp$4 = trackIdx$jscomp$6,
+                    startTime$jscomp$5 = time,
+                    childrenEndTime$jscomp$3 = childrenEndTime;
+                  if (supportsUserTiming) {
+                    var env$jscomp$2 = componentInfo$jscomp$4.env,
+                      name$jscomp$1 = componentInfo$jscomp$4.name,
+                      entryName$jscomp$3 =
+                        env$jscomp$2 === _env || void 0 === env$jscomp$2
+                          ? name$jscomp$1
+                          : name$jscomp$1 + " [" + env$jscomp$2 + "]",
+                      properties$jscomp$2 = [
+                        [
+                          "Aborted",
+                          "The stream was aborted before this Component finished rendering."
+                        ]
+                      ];
+                    null != componentInfo$jscomp$4.key &&
+                      addValueToProperties(
+                        "key",
+                        componentInfo$jscomp$4.key,
+                        properties$jscomp$2,
+                        0,
+                        ""
+                      );
+                    null != componentInfo$jscomp$4.props &&
+                      addObjectToProperties(
+                        componentInfo$jscomp$4.props,
+                        properties$jscomp$2,
+                        0,
+                        ""
+                      );
+                    performance.measure(entryName$jscomp$3, {
+                      start: 0 > startTime$jscomp$5 ? 0 : startTime$jscomp$5,
+                      end: childrenEndTime$jscomp$3,
+                      detail: {
+                        devtools: {
+                          color: "warning",
+                          track: trackNames[trackIdx$jscomp$4],
+                          trackGroup: "Server Components \u269b",
+                          tooltipText: entryName$jscomp$3 + " Aborted",
+                          properties: properties$jscomp$2
+                        }
+                      }
+                    });
+                  }
+                  componentEndTime = time;
+                  result.component = _componentInfo;
+                  isLastComponent = !1;
+                } else if (_candidateInfo.awaited) {
+                  var _asyncInfo = _candidateInfo,
+                    _env2 = response$jscomp$0._rootEnvironmentName;
+                  _asyncInfo.awaited.end > endTime &&
+                    (endTime = _asyncInfo.awaited.end);
+                  endTime > childrenEndTime && (childrenEndTime = endTime);
+                  var asyncInfo$jscomp$1 = _asyncInfo,
+                    trackIdx$jscomp$5 = trackIdx$jscomp$6,
+                    startTime$jscomp$6 = time,
+                    endTime$jscomp$1 = endTime,
+                    rootEnv$jscomp$0 = _env2;
+                  if (supportsUserTiming && 0 < endTime$jscomp$1) {
+                    var entryName$jscomp$4 =
+                        "await " +
+                        getIOShortName(
+                          asyncInfo$jscomp$1.awaited,
+                          "",
+                          asyncInfo$jscomp$1.env,
+                          rootEnv$jscomp$0
+                        ),
+                      debugTask$jscomp$2 =
+                        asyncInfo$jscomp$1.debugTask ||
+                        asyncInfo$jscomp$1.awaited.debugTask;
+                    if (debugTask$jscomp$2) {
+                      var tooltipText$jscomp$0 =
+                        getIOLongName(
+                          asyncInfo$jscomp$1.awaited,
+                          "",
+                          asyncInfo$jscomp$1.env,
+                          rootEnv$jscomp$0
+                        ) + " Aborted";
+                      debugTask$jscomp$2.run(
+                        performance.measure.bind(
+                          performance,
+                          entryName$jscomp$4,
+                          {
+                            start:
+                              0 > startTime$jscomp$6 ? 0 : startTime$jscomp$6,
+                            end: endTime$jscomp$1,
+                            detail: {
+                              devtools: {
+                                color: "warning",
+                                track: trackNames[trackIdx$jscomp$5],
+                                trackGroup: "Server Components \u269b",
+                                properties: [
+                                  [
+                                    "Aborted",
+                                    "The stream was aborted before this Promise resolved."
+                                  ]
+                                ],
+                                tooltipText: tooltipText$jscomp$0
+                              }
+                            }
+                          }
+                        )
+                      );
+                    } else
+                      console.timeStamp(
+                        entryName$jscomp$4,
+                        0 > startTime$jscomp$6 ? 0 : startTime$jscomp$6,
+                        endTime$jscomp$1,
+                        trackNames[trackIdx$jscomp$5],
+                        "Server Components \u269b",
+                        "warning"
+                      );
+                  }
+                }
+              }
+            }
+            endTime = time;
+            endTimeIdx = _i6;
           }
-      trackIdx.endTime = componentInfo;
-      return trackIdx;
+        }
+      result.endTime = childrenEndTime;
+      return result;
+    }
+    function flushInitialRenderPerformance(response) {
+      if (response._replayConsole) {
+        var rootChunk = getChunk(response, 0);
+        isArrayImpl(rootChunk._children) &&
+          (markAllTracksInOrder(),
+          flushComponentPerformance(
+            response,
+            rootChunk,
+            0,
+            -Infinity,
+            -Infinity
+          ));
+      }
     }
     function processFullBinaryRow(response, id, tag, buffer, chunk) {
       switch (tag) {
@@ -3115,7 +3669,7 @@
           row = response._chunks;
           var chunk = row.get(id);
           chunk
-            ? triggerErrorOnChunk(chunk, tag)
+            ? triggerErrorOnChunk(response, chunk, tag)
             : row.set(id, createErrorChunk(response, tag));
           break;
         case 84:
@@ -3167,107 +3721,178 @@
             : resolveModel(response, id, row);
       }
     }
+    function processBinaryChunk(weakResponse, streamState, chunk) {
+      if (void 0 !== weakResponse.weak.deref()) {
+        var response = unwrapWeakResponse(weakResponse),
+          i = 0,
+          rowState = streamState._rowState;
+        weakResponse = streamState._rowID;
+        for (
+          var rowTag = streamState._rowTag,
+            rowLength = streamState._rowLength,
+            buffer = streamState._buffer,
+            chunkLength = chunk.length;
+          i < chunkLength;
+
+        ) {
+          var lastIdx = -1;
+          switch (rowState) {
+            case 0:
+              lastIdx = chunk[i++];
+              58 === lastIdx
+                ? (rowState = 1)
+                : (weakResponse =
+                    (weakResponse << 4) |
+                    (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+              continue;
+            case 1:
+              rowState = chunk[i];
+              84 === rowState ||
+              65 === rowState ||
+              79 === rowState ||
+              111 === rowState ||
+              85 === rowState ||
+              83 === rowState ||
+              115 === rowState ||
+              76 === rowState ||
+              108 === rowState ||
+              71 === rowState ||
+              103 === rowState ||
+              77 === rowState ||
+              109 === rowState ||
+              86 === rowState
+                ? ((rowTag = rowState), (rowState = 2), i++)
+                : (64 < rowState && 91 > rowState) ||
+                    35 === rowState ||
+                    114 === rowState ||
+                    120 === rowState
+                  ? ((rowTag = rowState), (rowState = 3), i++)
+                  : ((rowTag = 0), (rowState = 3));
+              continue;
+            case 2:
+              lastIdx = chunk[i++];
+              44 === lastIdx
+                ? (rowState = 4)
+                : (rowLength =
+                    (rowLength << 4) |
+                    (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+              continue;
+            case 3:
+              lastIdx = chunk.indexOf(10, i);
+              break;
+            case 4:
+              (lastIdx = i + rowLength),
+                lastIdx > chunk.length && (lastIdx = -1);
+          }
+          var offset = chunk.byteOffset + i;
+          if (-1 < lastIdx)
+            (rowLength = new Uint8Array(chunk.buffer, offset, lastIdx - i)),
+              processFullBinaryRow(
+                response,
+                weakResponse,
+                rowTag,
+                buffer,
+                rowLength
+              ),
+              (i = lastIdx),
+              3 === rowState && i++,
+              (rowLength = weakResponse = rowTag = rowState = 0),
+              (buffer.length = 0);
+          else {
+            chunk = new Uint8Array(chunk.buffer, offset, chunk.byteLength - i);
+            buffer.push(chunk);
+            rowLength -= chunk.byteLength;
+            break;
+          }
+        }
+        streamState._rowState = rowState;
+        streamState._rowID = weakResponse;
+        streamState._rowTag = rowTag;
+        streamState._rowLength = rowLength;
+      }
+    }
     function createFromJSONCallback(response) {
       return function (key, value) {
         if ("string" === typeof value)
           return parseModelString(response, this, key, value);
         if ("object" === typeof value && null !== value) {
-          if (value[0] === REACT_ELEMENT_TYPE) {
-            var type = value[1];
-            key = value[4];
-            var stack = value[5],
-              validated = value[6];
-            value = {
-              $$typeof: REACT_ELEMENT_TYPE,
-              type: type,
-              key: value[2],
-              props: value[3],
-              _owner: null === key ? response._debugRootOwner : key
-            };
-            Object.defineProperty(value, "ref", {
-              enumerable: !1,
-              get: nullRefGetter
-            });
-            value._store = {};
-            Object.defineProperty(value._store, "validated", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: validated
-            });
-            Object.defineProperty(value, "_debugInfo", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: null
-            });
-            validated = response._rootEnvironmentName;
-            null !== key && null != key.env && (validated = key.env);
-            var normalizedStackTrace = null;
-            null === key && null != response._debugRootStack
-              ? (normalizedStackTrace = response._debugRootStack)
-              : null !== stack &&
-                (normalizedStackTrace = createFakeJSXCallStackInDEV(
-                  response,
-                  stack,
-                  validated
-                ));
-            Object.defineProperty(value, "_debugStack", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: normalizedStackTrace
-            });
-            normalizedStackTrace = null;
-            supportsCreateTask &&
-              null !== stack &&
-              ((type = console.createTask.bind(console, getTaskName(type))),
-              (stack = buildFakeCallStack(
-                response,
-                stack,
-                validated,
-                !1,
-                type
-              )),
-              (type = null === key ? null : initializeFakeTask(response, key)),
-              null === type
-                ? ((type = response._debugRootTask),
-                  (normalizedStackTrace =
-                    null != type ? type.run(stack) : stack()))
-                : (normalizedStackTrace = type.run(stack)));
-            Object.defineProperty(value, "_debugTask", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: normalizedStackTrace
-            });
-            null !== key && initializeFakeStack(response, key);
-            null !== initializingHandler
-              ? ((stack = initializingHandler),
-                (initializingHandler = stack.parent),
-                stack.errored
-                  ? ((key = createErrorChunk(response, stack.value)),
-                    (stack = {
-                      name: getComponentNameFromType(value.type) || "",
-                      owner: value._owner
-                    }),
-                    (stack.debugStack = value._debugStack),
-                    supportsCreateTask && (stack.debugTask = value._debugTask),
-                    (key._debugInfo = [stack]),
-                    (value = createLazyChunkWrapper(key)))
-                  : 0 < stack.deps &&
-                    ((key = new ReactPromise("blocked", null, null)),
-                    (stack.value = value),
-                    (stack.chunk = key),
-                    (value = Object.freeze.bind(Object, value.props)),
-                    key.then(value, value),
-                    (value = createLazyChunkWrapper(key))))
-              : Object.freeze(value.props);
-          }
+          if (value[0] === REACT_ELEMENT_TYPE)
+            b: {
+              var owner = value[4];
+              key = value[5];
+              var validated = value[6];
+              value = {
+                $$typeof: REACT_ELEMENT_TYPE,
+                type: value[1],
+                key: value[2],
+                props: value[3],
+                _owner: void 0 === owner ? null : owner
+              };
+              Object.defineProperty(value, "ref", {
+                enumerable: !1,
+                get: nullRefGetter
+              });
+              value._store = {};
+              Object.defineProperty(value._store, "validated", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: validated
+              });
+              Object.defineProperty(value, "_debugInfo", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: null
+              });
+              Object.defineProperty(value, "_debugStack", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: void 0 === key ? null : key
+              });
+              Object.defineProperty(value, "_debugTask", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: null
+              });
+              if (null !== initializingHandler) {
+                validated = initializingHandler;
+                initializingHandler = validated.parent;
+                if (validated.errored) {
+                  key = createErrorChunk(response, validated.value);
+                  initializeElement(response, value);
+                  validated = {
+                    name: getComponentNameFromType(value.type) || "",
+                    owner: value._owner
+                  };
+                  validated.debugStack = value._debugStack;
+                  supportsCreateTask &&
+                    (validated.debugTask = value._debugTask);
+                  key._debugInfo = [validated];
+                  value = createLazyChunkWrapper(key);
+                  break b;
+                }
+                if (0 < validated.deps) {
+                  key = new ReactPromise("blocked", null, null);
+                  validated.value = value;
+                  validated.chunk = key;
+                  value = initializeElement.bind(null, response, value);
+                  key.then(value, value);
+                  value = createLazyChunkWrapper(key);
+                  break b;
+                }
+              }
+              initializeElement(response, value);
+            }
           return value;
         }
         return value;
       };
+    }
+    function close(weakResponse) {
+      reportGlobalError(weakResponse, Error("Connection closed."));
     }
     function createDebugCallbackFromWritableStream(debugWritable) {
       var textEncoder = new TextEncoder(),
@@ -3301,103 +3926,140 @@
         options ? !1 !== options.replayConsoleLogs : !0,
         options && options.environmentName ? options.environmentName : void 0,
         debugChannel
-      );
+      )._weakResponse;
     }
-    function startReadingFromStream(response, stream) {
+    function startReadingFromUniversalStream(response$jscomp$0, stream) {
       function progress(_ref) {
         var value = _ref.value;
-        if (_ref.done) reportGlobalError(response, Error("Connection closed."));
+        if (_ref.done) close(response$jscomp$0);
         else {
-          var i = 0,
-            rowState = response._rowState;
-          _ref = response._rowID;
-          for (
-            var rowTag = response._rowTag,
-              rowLength = response._rowLength,
-              buffer = response._buffer,
-              chunkLength = value.length;
-            i < chunkLength;
+          if (value instanceof ArrayBuffer)
+            processBinaryChunk(
+              response$jscomp$0,
+              streamState,
+              new Uint8Array(value)
+            );
+          else if ("string" === typeof value) {
+            if (
+              ((_ref = streamState), void 0 !== response$jscomp$0.weak.deref())
+            ) {
+              for (
+                var response = unwrapWeakResponse(response$jscomp$0),
+                  i = 0,
+                  rowState = _ref._rowState,
+                  rowID = _ref._rowID,
+                  rowTag = _ref._rowTag,
+                  rowLength = _ref._rowLength,
+                  buffer = _ref._buffer,
+                  chunkLength = value.length;
+                i < chunkLength;
 
-          ) {
-            var lastIdx = -1;
-            switch (rowState) {
-              case 0:
-                lastIdx = value[i++];
-                58 === lastIdx
-                  ? (rowState = 1)
-                  : (_ref =
-                      (_ref << 4) |
-                      (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-                continue;
-              case 1:
-                rowState = value[i];
-                84 === rowState ||
-                65 === rowState ||
-                79 === rowState ||
-                111 === rowState ||
-                85 === rowState ||
-                83 === rowState ||
-                115 === rowState ||
-                76 === rowState ||
-                108 === rowState ||
-                71 === rowState ||
-                103 === rowState ||
-                77 === rowState ||
-                109 === rowState ||
-                86 === rowState
-                  ? ((rowTag = rowState), (rowState = 2), i++)
-                  : (64 < rowState && 91 > rowState) ||
-                      35 === rowState ||
-                      114 === rowState ||
-                      120 === rowState
-                    ? ((rowTag = rowState), (rowState = 3), i++)
-                    : ((rowTag = 0), (rowState = 3));
-                continue;
-              case 2:
-                lastIdx = value[i++];
-                44 === lastIdx
-                  ? (rowState = 4)
-                  : (rowLength =
-                      (rowLength << 4) |
-                      (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-                continue;
-              case 3:
-                lastIdx = value.indexOf(10, i);
-                break;
-              case 4:
-                (lastIdx = i + rowLength),
-                  lastIdx > value.length && (lastIdx = -1);
+              ) {
+                var lastIdx = -1;
+                switch (rowState) {
+                  case 0:
+                    lastIdx = value.charCodeAt(i++);
+                    58 === lastIdx
+                      ? (rowState = 1)
+                      : (rowID =
+                          (rowID << 4) |
+                          (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+                    continue;
+                  case 1:
+                    rowState = value.charCodeAt(i);
+                    84 === rowState ||
+                    65 === rowState ||
+                    79 === rowState ||
+                    111 === rowState ||
+                    85 === rowState ||
+                    83 === rowState ||
+                    115 === rowState ||
+                    76 === rowState ||
+                    108 === rowState ||
+                    71 === rowState ||
+                    103 === rowState ||
+                    77 === rowState ||
+                    109 === rowState ||
+                    86 === rowState
+                      ? ((rowTag = rowState), (rowState = 2), i++)
+                      : (64 < rowState && 91 > rowState) ||
+                          114 === rowState ||
+                          120 === rowState
+                        ? ((rowTag = rowState), (rowState = 3), i++)
+                        : ((rowTag = 0), (rowState = 3));
+                    continue;
+                  case 2:
+                    lastIdx = value.charCodeAt(i++);
+                    44 === lastIdx
+                      ? (rowState = 4)
+                      : (rowLength =
+                          (rowLength << 4) |
+                          (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+                    continue;
+                  case 3:
+                    lastIdx = value.indexOf("\n", i);
+                    break;
+                  case 4:
+                    if (84 !== rowTag)
+                      throw Error(
+                        "Binary RSC chunks cannot be encoded as strings. This is a bug in the wiring of the React streams."
+                      );
+                    if (
+                      rowLength < value.length ||
+                      value.length > 3 * rowLength
+                    )
+                      throw Error(
+                        "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+                      );
+                    lastIdx = value.length;
+                }
+                if (-1 < lastIdx) {
+                  if (0 < buffer.length)
+                    throw Error(
+                      "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+                    );
+                  i = value.slice(i, lastIdx);
+                  processFullStringRow(response, rowID, rowTag, i);
+                  i = lastIdx;
+                  3 === rowState && i++;
+                  rowLength = rowID = rowTag = rowState = 0;
+                  buffer.length = 0;
+                } else if (value.length !== i)
+                  throw Error(
+                    "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+                  );
+              }
+              _ref._rowState = rowState;
+              _ref._rowID = rowID;
+              _ref._rowTag = rowTag;
+              _ref._rowLength = rowLength;
             }
-            var offset = value.byteOffset + i;
-            if (-1 < lastIdx)
-              (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-                processFullBinaryRow(response, _ref, rowTag, buffer, rowLength),
-                (i = lastIdx),
-                3 === rowState && i++,
-                (rowLength = _ref = rowTag = rowState = 0),
-                (buffer.length = 0);
-            else {
-              value = new Uint8Array(
-                value.buffer,
-                offset,
-                value.byteLength - i
-              );
-              buffer.push(value);
-              rowLength -= value.byteLength;
-              break;
-            }
-          }
-          response._rowState = rowState;
-          response._rowID = _ref;
-          response._rowTag = rowTag;
-          response._rowLength = rowLength;
+          } else processBinaryChunk(response$jscomp$0, streamState, value);
           return reader.read().then(progress).catch(error);
         }
       }
       function error(e) {
+        reportGlobalError(response$jscomp$0, e);
+      }
+      var streamState = createStreamState(),
+        reader = stream.getReader();
+      reader.read().then(progress).catch(error);
+    }
+    function startReadingFromStream(response, stream, isSecondaryStream) {
+      function progress(_ref2) {
+        var value = _ref2.value;
+        if (_ref2.done) isSecondaryStream || close(response);
+        else
+          return (
+            processBinaryChunk(response, streamState, value),
+            reader.read().then(progress).catch(error)
+          );
+      }
+      function error(e) {
         reportGlobalError(response, e);
       }
-      var reader = stream.getReader();
+      var streamState = createStreamState(),
+        reader = stream.getReader();
       reader.read().then(progress).catch(error);
     }
     var React = require("react"),
@@ -3436,6 +4098,7 @@
         /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
       jscSpiderMonkeyFrameRegExp = /(?:(.*)@)?(.*):(\d+):(\d+)/,
       hasOwnProperty = Object.prototype.hasOwnProperty,
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       supportsUserTiming =
         "undefined" !== typeof console &&
         "function" === typeof console.timeStamp &&
@@ -3445,7 +4108,6 @@
         "Primary Parallel Parallel\u200b Parallel\u200b\u200b Parallel\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b".split(
           " "
         ),
-      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       prefix,
       suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
@@ -3464,51 +4126,49 @@
         case "resolved_module":
           initializeModuleChunk(this);
       }
-      if ("function" !== typeof resolve || !resolve.isReactInternalListener) {
-        var resolveCallback = resolve,
-          rejectCallback = reject,
-          wrapperPromise = new Promise(function (res, rej) {
-            resolve = function (value) {
-              wrapperPromise._debugInfo = _this._debugInfo;
-              res(value);
-            };
-            reject = function (reason) {
-              wrapperPromise._debugInfo = _this._debugInfo;
-              rej(reason);
-            };
-          });
-        wrapperPromise.then(resolveCallback, rejectCallback);
-      }
+      var resolveCallback = resolve,
+        rejectCallback = reject,
+        wrapperPromise = new Promise(function (res, rej) {
+          resolve = function (value) {
+            wrapperPromise._debugInfo = _this._debugInfo;
+            res(value);
+          };
+          reject = function (reason) {
+            wrapperPromise._debugInfo = _this._debugInfo;
+            rej(reason);
+          };
+        });
+      wrapperPromise.then(resolveCallback, rejectCallback);
       switch (this.status) {
         case "fulfilled":
-          resolve(this.value);
+          "function" === typeof resolve && resolve(this.value);
           break;
         case "pending":
         case "blocked":
-          resolve &&
+          "function" === typeof resolve &&
             (null === this.value && (this.value = []),
             this.value.push(resolve));
-          reject &&
+          "function" === typeof reject &&
             (null === this.reason && (this.reason = []),
             this.reason.push(reject));
           break;
         case "halted":
           break;
         default:
-          reject && reject(this.reason);
+          "function" === typeof reject && reject(this.reason);
       }
     };
-    var initializingHandler = null,
+    var debugChannelRegistry =
+        "function" === typeof FinalizationRegistry
+          ? new FinalizationRegistry(cleanupDebugChannel)
+          : null,
+      initializingHandler = null,
       initializingChunk = null,
       supportsCreateTask = !!console.createTask,
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
       createFakeJSXCallStack = {
-        "react-stack-bottom-frame": function (
-          response,
-          stack,
-          environmentName
-        ) {
+        react_stack_bottom_frame: function (response, stack, environmentName) {
           return buildFakeCallStack(
             response,
             stack,
@@ -3518,12 +4178,13 @@
           )();
         }
       },
-      createFakeJSXCallStackInDEV = createFakeJSXCallStack[
-        "react-stack-bottom-frame"
-      ].bind(createFakeJSXCallStack),
+      createFakeJSXCallStackInDEV =
+        createFakeJSXCallStack.react_stack_bottom_frame.bind(
+          createFakeJSXCallStack
+        ),
       currentOwnerInDEV = null,
       replayConsoleWithCallStack = {
-        "react-stack-bottom-frame": function (
+        react_stack_bottom_frame: function (
           response,
           methodName,
           stackTrace,
@@ -3597,9 +4258,10 @@
           }
         }
       },
-      replayConsoleWithCallStackInDEV = replayConsoleWithCallStack[
-        "react-stack-bottom-frame"
-      ].bind(replayConsoleWithCallStack);
+      replayConsoleWithCallStackInDEV =
+        replayConsoleWithCallStack.react_stack_bottom_frame.bind(
+          replayConsoleWithCallStack
+        );
     (function (internals) {
       if ("undefined" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) return !1;
       var hook = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -3612,10 +4274,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-4db4b21c-20250626",
+      version: "19.2.0-experimental-97cdd5d3-20250710",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-4db4b21c-20250626",
+      reconcilerVersion: "19.2.0-experimental-97cdd5d3-20250710",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
@@ -3624,18 +4286,30 @@
       var response = createResponseFromOptions(options);
       promiseForResponse.then(
         function (r) {
-          startReadingFromStream(response, r.body);
+          options && options.debugChannel && options.debugChannel.readable
+            ? (startReadingFromUniversalStream(
+                response,
+                options.debugChannel.readable
+              ),
+              startReadingFromStream(response, r.body, !0))
+            : startReadingFromStream(response, r.body, !1);
         },
         function (e) {
           reportGlobalError(response, e);
         }
       );
-      return getChunk(response, 0);
+      return getRoot(response);
     };
     exports.createFromReadableStream = function (stream, options) {
-      options = createResponseFromOptions(options);
-      startReadingFromStream(options, stream);
-      return getChunk(options, 0);
+      var response = createResponseFromOptions(options);
+      options && options.debugChannel && options.debugChannel.readable
+        ? (startReadingFromUniversalStream(
+            response,
+            options.debugChannel.readable
+          ),
+          startReadingFromStream(response, stream, !0))
+        : startReadingFromStream(response, stream, !1);
+      return getRoot(response);
     };
     exports.createServerReference = function (
       id,

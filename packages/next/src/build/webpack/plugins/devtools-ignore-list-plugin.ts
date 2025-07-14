@@ -31,6 +31,13 @@ function defaultIsSourceMapAsset(name: string): boolean {
   return name.endsWith('.map')
 }
 
+function isWebpackRuntimeModule(modulePath: string): boolean {
+  // webpack:///webpack/bootstrap
+  // webpack://_N_E/webpack/
+  // webpack://someOtherLibrary/webpack/
+  return /^webpack:\/\/([^/]*)\/webpack/.test(modulePath)
+}
+
 /**
  * This plugin adds a field to source maps that identifies which sources are
  * vendored or runtime-injected (aka third-party) sources. These are consumed by
@@ -76,6 +83,10 @@ export default class DevToolsIgnorePlugin {
             const ignoreList = []
             for (const [index, path] of sourcemap.sources.entries()) {
               if (this.options.shouldIgnorePath(path)) {
+                ignoreList.push(index)
+              } else if (isWebpackRuntimeModule(path)) {
+                // Just like our EvalSourceMapDevToolPlugin ignore-lists Webpack
+                // runtime by default, we do the same here.
                 ignoreList.push(index)
               }
             }

@@ -314,7 +314,7 @@ impl<T> ValueDebugFormat for ResolvedVc<T>
 where
     T: Upcast<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         self.node.value_debug_format(depth)
     }
 }

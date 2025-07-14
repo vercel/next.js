@@ -65,7 +65,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeInfo, DefineableNameSegment, FreeVarReference,
+        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
         FreeVarReferences, FreeVarReferencesIndividual, InputRelativeConstant,
     },
     environment::Rendering,
@@ -243,7 +243,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_references_rewritten: Default::default(),
             esm_references_free_var: Default::default(),
             code_gens: Default::default(),
-            exports: EcmascriptExports::None,
+            exports: EcmascriptExports::Unknown,
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
@@ -526,9 +526,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
 
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new();
-    let path = origin.origin_path().await?.clone_value();
+    let path = origin.origin_path().owned().await?;
 
-    // Is this a typescript file that requires analzying type references?
+    // Is this a typescript file that requires analyzing type references?
     let analyze_types = match &ty {
         EcmascriptModuleAssetType::Typescript { analyze_types, .. } => *analyze_types,
         EcmascriptModuleAssetType::TypescriptDeclaration => true,
@@ -545,8 +545,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let ModuleTypeResult {
         module_type: specified_type,
-        referenced_package_json,
-    } = module.determine_module_type().await?.clone_value();
+        ref referenced_package_json,
+    } = *module.determine_module_type().await?;
 
     if let Some(package_json) = referenced_package_json {
         let span = tracing::info_span!("package.json reference");
@@ -692,7 +692,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 static JSON_DATA_URL_BASE64: LazyLock<Regex> = LazyLock::new(|| {
                     Regex::new(r"^data:application\/json;(?:charset=utf-8;)?base64").unwrap()
                 });
-                let origin_path = origin.origin_path().await?.clone_value();
+                let origin_path = origin.origin_path().owned().await?;
                 if path.ends_with(".map") {
                     let source_map_origin = origin_path.parent().join(path)?;
                     let reference = SourceMapReference::new(origin_path, source_map_origin)
@@ -743,7 +743,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     .to_resolved()
                     .await?,
                 r.issue_source
-                    .clone()
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
                 r.annotations.clone(),
                 match options.tree_shaking_mode {
@@ -841,7 +840,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
             if specified_type == SpecifiedModuleType::CommonJs {
                 SpecifiedModuleTypeIssue {
-                    path: source.ident().path().await?.clone_value(),
+                    // TODO(PACK-4879): this should point at one of the exports
+                    source: IssueSource::from_source_only(source),
                     specified_type,
                 }
                 .resolved_cell()
@@ -859,7 +859,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             match detect_dynamic_export(program) {
                 DetectedDynamicExportType::CommonJs => {
                     SpecifiedModuleTypeIssue {
-                        path: source.ident().path().await?.clone_value(),
+                        // TODO(PACK-4879): this should point at the source location of the commonjs
+                        // export
+                        source: IssueSource::from_source_only(source),
                         specified_type,
                     }
                     .resolved_cell()
@@ -1334,7 +1336,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     span,
                     in_try: _,
                 } => {
-                    // Intentionally not awaited because `handle_member` reads this only when neeed.
+                    // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj = analysis_state.link_value(*obj, ImportAttributes::empty_ref());
 
                     let prop = analysis_state
@@ -1380,7 +1382,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                             EsmAssetReference::new(
                                                 original_reference.origin,
                                                 original_reference.request,
-                                                original_reference.issue_source.clone(),
+                                                original_reference.issue_source,
                                                 original_reference.annotations.clone(),
                                                 Some(ModulePart::export(export.clone())),
                                                 original_reference.import_externals,
@@ -1419,7 +1421,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
-                            source.ident().path().await?.clone_value(),
+                            source.ident().path().owned().await?,
                         ));
                     }
 
@@ -1463,42 +1465,42 @@ async fn compile_time_info_for_module_type(
     };
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(rcstr!("import")),
-            DefineableNameSegment::Name(rcstr!("meta")),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(rcstr!("import")),
+            DefinableNameSegment::Name(rcstr!("meta")),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("object".into());
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(rcstr!("exports")),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(rcstr!("exports")),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert(typeof_exports.into());
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(rcstr!("module")),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(rcstr!("module")),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert(typeof_module.into());
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(rcstr!("require")),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(rcstr!("require")),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("function".into());
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(rcstr!("require"))])
+        .entry(vec![DefinableNameSegment::Name(rcstr!("require"))])
         .or_insert(require.into());
 
     let dir_name: RcStr = rcstr!("__dirname");
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(dir_name.clone()),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(dir_name.clone()),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("string".into());
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(dir_name)])
+        .entry(vec![DefinableNameSegment::Name(dir_name)])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::DirName,
         ));
@@ -1506,12 +1508,12 @@ async fn compile_time_info_for_module_type(
 
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(file_name.clone()),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(file_name.clone()),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("string".into());
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(file_name)])
+        .entry(vec![DefinableNameSegment::Name(file_name)])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::FileName,
         ));
@@ -1520,18 +1522,18 @@ async fn compile_time_info_for_module_type(
     let global: RcStr = rcstr!("global");
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(global.clone()),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(global.clone()),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert("object".into());
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(global)])
+        .entry(vec![DefinableNameSegment::Name(global)])
         .or_insert(FreeVarReference::Ident("globalThis".into()));
 
     free_var_references.extend(TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
             (
-                vec![DefineableNameSegment::Name(name.into())],
+                vec![DefinableNameSegment::Name(name.into())],
                 shortcut.into(),
             )
         },
@@ -1542,7 +1544,7 @@ async fn compile_time_info_for_module_type(
     // here.
     let this = rcstr!("this");
     free_var_references
-        .entry(vec![DefineableNameSegment::Name(this.clone())])
+        .entry(vec![DefinableNameSegment::Name(this.clone())])
         .or_insert(if is_esm {
             FreeVarReference::Value(CompileTimeDefineValue::Undefined)
         } else {
@@ -1552,8 +1554,8 @@ async fn compile_time_info_for_module_type(
         });
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name(this),
-            DefineableNameSegment::TypeOf,
+            DefinableNameSegment::Name(this),
+            DefinableNameSegment::TypeOf,
         ])
         .or_insert(if is_esm {
             "undefined".into()
@@ -1946,7 +1948,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
 
         JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(..)) => {
-            let parent_path = origin.origin_path().await?.clone_value().parent();
+            let parent_path = origin.origin_path().owned().await?.parent();
             let args = linked_args(args).await?;
 
             let linked_func_call = state
@@ -2218,12 +2220,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     .await?;
                 if let Some(s) = first_arg.as_str() {
                     analysis.add_reference(
-                        NodeBindingsReference::new(
-                            origin.origin_path().await?.clone_value(),
-                            s.into(),
-                        )
-                        .to_resolved()
-                        .await?,
+                        NodeBindingsReference::new(origin.origin_path().owned().await?, s.into())
+                            .to_resolved()
+                            .await?,
                     );
                     return Ok(());
                 }
@@ -2444,7 +2443,7 @@ async fn handle_member(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
-        let prop_seg = DefineableNameSegment::Name(prop.into());
+        let prop_seg = DefinableNameSegment::Name(prop.into());
 
         let references = state.free_var_references.get(&prop_seg);
         let is_prop_cache = prop == "cache";
@@ -2458,14 +2457,14 @@ async fn handle_member(
 
         if let Some(references) = references {
             let obj = obj.as_ref().unwrap();
-            if let Some(def_name_len) = obj.get_defineable_name_len() {
+            if let Some(def_name_len) = obj.get_definable_name_len() {
                 for (name, value) in references {
                     if name.len() != def_name_len {
                         continue;
                     }
 
                     let it = name.iter().map(Cow::Borrowed).rev();
-                    if it.eq(obj.iter_defineable_name_rev())
+                    if it.eq(obj.iter_definable_name_rev())
                         && handle_free_var_reference(
                             ast_path,
                             &*value.await?,
@@ -2502,7 +2501,7 @@ async fn handle_typeof(
     if let Some(value) = arg.match_free_var_reference(
         Some(state.var_graph),
         &*state.free_var_references,
-        &DefineableNameSegment::TypeOf,
+        &DefinableNameSegment::TypeOf,
     ) {
         handle_free_var_reference(ast_path, &*value.await?, span, state, analysis).await?;
     }
@@ -2517,8 +2516,8 @@ async fn handle_free_var(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some(def_name_len) = var.get_defineable_name_len() {
-        let first = var.iter_defineable_name_rev().next().unwrap();
+    if let Some(def_name_len) = var.get_definable_name_len() {
+        let first = var.iter_definable_name_rev().next().unwrap();
         if let Some(references) = state.free_var_references.get(&*first) {
             for (name, value) in references {
                 if name.len() + 1 != def_name_len {
@@ -2526,7 +2525,7 @@ async fn handle_free_var(
                 }
 
                 let it = name.iter().map(Cow::Borrowed).rev();
-                if it.eq(var.iter_defineable_name_rev().skip(1)) {
+                if it.eq(var.iter_definable_name_rev().skip(1)) {
                     handle_free_var_reference(ast_path, &*value.await?, span, state, analysis)
                         .await?;
                     return Ok(());
@@ -2635,7 +2634,7 @@ async fn handle_free_var_reference(
             ));
         }
         FreeVarReference::InputRelative(kind) => {
-            let source_path = (*state.source).ident().path().await?.clone_value();
+            let source_path = (*state.source).ident().path().owned().await?;
             let source_path = match kind {
                 InputRelativeConstant::DirName => source_path.parent(),
                 InputRelativeConstant::FileName => source_path,
@@ -2866,8 +2865,8 @@ async fn value_visitor(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     free_var_references: &FxIndexMap<
-        DefineableNameSegment,
-        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+        DefinableNameSegment,
+        FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
@@ -2890,21 +2889,21 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     free_var_references: &FxIndexMap<
-        DefineableNameSegment,
-        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+        DefinableNameSegment,
+        FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<FreeVarReference>>,
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
     // This check is just an optimization
-    if v.get_defineable_name_len().is_some() {
+    if v.get_definable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
         if let JsValue::TypeOf(_, arg) = &v
             && let Some(value) = arg.match_free_var_reference(
                 Some(var_graph),
                 free_var_references,
-                &DefineableNameSegment::TypeOf,
+                &DefinableNameSegment::TypeOf,
             )
         {
             return Ok(((&*value.await?).into(), true));
@@ -2980,10 +2979,10 @@ async fn value_visitor_inner(
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
-            "__dirname" => as_abs_path(origin.origin_path().await?.clone_value().parent())
+            "__dirname" => as_abs_path(origin.origin_path().owned().await?.parent())
                 .await?
                 .into(),
-            "__filename" => as_abs_path(origin.origin_path().await?.clone_value())
+            "__filename" => as_abs_path(origin.origin_path().owned().await?)
                 .await?
                 .into(),
 
@@ -3048,7 +3047,7 @@ async fn require_resolve_visitor(
             .await?
             .iter()
             .map(|&source| async move {
-                require_resolve(source.ident().path().await?.clone_value())
+                require_resolve(source.ident().path().owned().await?)
                     .await
                     .map(JsValue::from)
             })
@@ -3105,8 +3104,8 @@ async fn require_context_visitor(
 
     let dir = origin
         .origin_path()
+        .owned()
         .await?
-        .clone_value()
         .parent()
         .join(options.dir.as_str())?;
 

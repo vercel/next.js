@@ -137,7 +137,7 @@ pub async fn cjs_resolve_source(
     handle_resolve_source_error(
         result,
         ty,
-        origin.origin_path().await?.clone_value(),
+        origin.origin_path().owned().await?,
         *request,
         options,
         is_optional,
@@ -161,7 +161,7 @@ async fn specific_resolve(
     handle_resolve_error(
         result,
         reference_type,
-        origin.origin_path().await?.clone_value(),
+        origin.origin_path().owned().await?,
         request,
         options,
         is_optional,

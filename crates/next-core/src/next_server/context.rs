@@ -1,9 +1,9 @@
 use std::iter::once;
 
 use anyhow::{Result, bail};
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, Vc};
-use turbo_tasks_env::EnvMap;
+use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
@@ -19,14 +19,12 @@ use turbopack_core::{
         ChunkingConfig, MangleType, MinifyType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
-    compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
-        FreeVarReferences,
-    },
+    compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{
         Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
     },
     free_var_references,
+    module_graph::export_usage::OptionExportUsageInfo,
     target::CompileTarget,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior};
@@ -49,7 +47,7 @@ use crate::{
     next_client::RuntimeEntries,
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
-    next_import_map::get_next_server_import_map,
+    next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
@@ -73,8 +71,8 @@ use crate::{
         get_typescript_transform_options,
     },
     util::{
-        NextRuntime, foreign_code_context_condition, get_transpiled_packages,
-        internal_assets_conditions, load_next_js_templateon,
+        NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
+        get_transpiled_packages, internal_assets_conditions, load_next_js_templateon,
     },
 };
 
@@ -113,12 +111,11 @@ pub enum ServerContextType {
 }
 
 impl ServerContextType {
-    pub fn supports_react_server(&self) -> bool {
+    pub fn should_use_react_server_condition(&self) -> bool {
         matches!(
             self,
             ServerContextType::AppRSC { .. }
                 | ServerContextType::AppRoute { .. }
-                | ServerContextType::PagesApi { .. }
                 | ServerContextType::Middleware { .. }
                 | ServerContextType::Instrumentation { .. }
         )
@@ -142,9 +139,14 @@ pub async fn get_server_resolve_options_context(
     )
     .to_resolved()
     .await?;
+    let next_server_fallback_import_map =
+        get_next_edge_and_server_fallback_import_map(project_path.clone(), NextRuntime::NodeJs)
+            .to_resolved()
+            .await?;
+
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path.clone()).await?;
-    let root_dir = project_path.root().await?.clone_value();
+    let root_dir = project_path.root().owned().await?;
     let module_feature_report_resolve_plugin =
         ModuleFeatureReportResolvePlugin::new(project_path.clone())
             .to_resolved()
@@ -197,7 +199,7 @@ pub async fn get_server_resolve_options_context(
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path.clone(),
-        project_path.root().await?.clone_value(),
+        project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
     )
@@ -213,7 +215,7 @@ pub async fn get_server_resolve_options_context(
             .map(RcStr::from),
     );
 
-    if ty.supports_react_server() {
+    if ty.should_use_react_server_condition() {
         custom_conditions.push(rcstr!("react-server"));
     };
 
@@ -222,7 +224,7 @@ pub async fn get_server_resolve_options_context(
     } else {
         ExternalCjsModulesResolvePlugin::new(
             project_path.clone(),
-            project_path.root().await?.clone_value(),
+            project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
@@ -322,6 +324,7 @@ pub async fn get_server_resolve_options_context(
         module: true,
         custom_conditions,
         import_map: Some(next_server_import_map),
+        fallback_import_map: Some(next_server_fallback_import_map),
         before_resolve_plugins,
         after_resolve_plugins,
         ..Default::default()
@@ -347,43 +350,20 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
-    let mut defines = FxIndexMap::default();
-
-    for (k, v) in define_env {
-        defines
-            .entry(
-                k.split('.')
-                    .map(|s| DefineableNameSegment::Name(s.into()))
-                    .collect::<Vec<_>>(),
-            )
-            .or_insert_with(|| {
-                let val = serde_json::from_str(v);
-                match val {
-                    Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
-                    _ => CompileTimeDefineValue::JSON(v.clone()),
-                }
-            });
-    }
-
-    CompileTimeDefines(defines)
-}
-
 #[turbo_tasks::function]
-async fn next_server_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefines>> {
+async fn next_server_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileTimeDefines>> {
     Ok(defines(&*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarReferences>> {
+async fn next_server_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(..defines(&*define_env.await?).into_iter()).cell())
 }
 
 #[turbo_tasks::function]
 pub async fn get_server_compile_time_info(
     cwd: RcStr,
-    define_env: Vc<EnvMap>,
+    define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
@@ -566,9 +546,7 @@ pub async fn get_server_module_options_context(
             None
         },
         keep_last_successful_parse: next_mode.is_development(),
-        remove_unused_exports: *next_config
-            .turbopack_remove_unused_exports(next_mode.is_development())
-            .await?,
+
         ..Default::default()
     };
 
@@ -976,21 +954,41 @@ pub fn get_server_runtime_entries(
     Vc::cell(runtime_entries)
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+pub struct ServerChunkingContextOptions {
+    pub mode: Vc<NextMode>,
+    pub root_path: FileSystemPath,
+    pub node_root: FileSystemPath,
+    pub node_root_to_root_path: RcStr,
+    pub environment: Vc<Environment>,
+    pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    pub export_usage: Vc<OptionExportUsageInfo>,
+    pub turbo_minify: Vc<bool>,
+    pub turbo_source_maps: Vc<bool>,
+    pub no_mangling: Vc<bool>,
+    pub scope_hoisting: Vc<bool>,
+}
+
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context_with_client_assets(
-    mode: Vc<NextMode>,
-    root_path: FileSystemPath,
-    node_root: FileSystemPath,
-    node_root_to_root_path: RcStr,
+    options: ServerChunkingContextOptions,
     client_root: FileSystemPath,
     asset_prefix: Option<RcStr>,
-    environment: ResolvedVc<Environment>,
-    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    turbo_minify: Vc<bool>,
-    turbo_source_maps: Vc<bool>,
-    no_mangling: Vc<bool>,
-    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
+    let ServerChunkingContextOptions {
+        mode,
+        root_path,
+        node_root,
+        node_root_to_root_path,
+        environment,
+        module_id_strategy,
+        export_usage,
+        turbo_minify,
+        turbo_source_maps,
+        no_mangling,
+        scope_hoisting,
+    } = options;
+
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
@@ -1002,7 +1000,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         client_root.clone(),
         node_root.join("server/chunks/ssr")?,
         client_root.join("static/media")?,
-        environment,
+        environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
     .asset_prefix(asset_prefix)
@@ -1019,7 +1017,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     } else {
         SourceMapsType::None
     })
-    .module_id_strategy(module_id_strategy)
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
@@ -1050,17 +1049,21 @@ pub async fn get_server_chunking_context_with_client_assets(
 
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context(
-    mode: Vc<NextMode>,
-    root_path: FileSystemPath,
-    node_root: FileSystemPath,
-    node_root_to_root_path: RcStr,
-    environment: ResolvedVc<Environment>,
-    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    turbo_minify: Vc<bool>,
-    turbo_source_maps: Vc<bool>,
-    no_mangling: Vc<bool>,
-    scope_hoisting: Vc<bool>,
+    options: ServerChunkingContextOptions,
 ) -> Result<Vc<NodeJsChunkingContext>> {
+    let ServerChunkingContextOptions {
+        mode,
+        root_path,
+        node_root,
+        node_root_to_root_path,
+        environment,
+        module_id_strategy,
+        export_usage,
+        turbo_minify,
+        turbo_source_maps,
+        no_mangling,
+        scope_hoisting,
+    } = options;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
@@ -1072,7 +1075,7 @@ pub async fn get_server_chunking_context(
         node_root.clone(),
         node_root.join("server/chunks")?,
         node_root.join("server/assets")?,
-        environment,
+        environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
     .minify_type(if *turbo_minify.await? {
@@ -1087,7 +1090,8 @@ pub async fn get_server_chunking_context(
     } else {
         SourceMapsType::None
     })
-    .module_id_strategy(module_id_strategy)
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?)
     .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {

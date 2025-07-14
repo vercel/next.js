@@ -85,7 +85,7 @@ impl EffectInstance {
                     EffectState::NotStarted(_) => {
                         let EffectState::NotStarted(inner) = std::mem::replace(
                             &mut *guard,
-                            EffectState::Started(Event::new(|| "Effect".to_string())),
+                            EffectState::Started(Event::new(|| || "Effect".to_string())),
                         ) else {
                             unreachable!();
                         };
@@ -147,7 +147,7 @@ impl Effect for EffectInstance {}
 /// and can't read any Vcs. These need to be read before. ReadRefs can be passed into the future.
 ///
 /// Effects are executed in parallel, so they might need to use async locking to avoid problems.
-/// Order of execution of multiple effects is not defined. You must not use mutliple conflicting
+/// Order of execution of multiple effects is not defined. You must not use multiple conflicting
 /// effects to avoid non-deterministic behavior.
 pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) {
     emit::<Box<dyn Effect>>(ResolvedVc::upcast(

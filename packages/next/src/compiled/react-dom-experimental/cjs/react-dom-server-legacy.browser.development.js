@@ -4376,7 +4376,7 @@
       prevPrepareStackTrace = error.indexOf("\n");
       -1 !== prevPrepareStackTrace &&
         (error = error.slice(prevPrepareStackTrace + 1));
-      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
+      prevPrepareStackTrace = error.indexOf("react_stack_bottom_frame");
       -1 !== prevPrepareStackTrace &&
         (prevPrepareStackTrace = error.lastIndexOf(
           "\n",
@@ -4955,14 +4955,16 @@
           if ("number" === typeof info.time) break;
           if (null != info.awaited) {
             var bestStack = null == info.debugStack ? info.awaited : info;
-            void 0 !== bestStack.debugStack &&
-              ((task.componentStack = {
+            if (void 0 !== bestStack.debugStack) {
+              task.componentStack = {
                 parent: task.componentStack,
                 type: info,
                 owner: bestStack.owner,
                 stack: bestStack.debugStack
-              }),
-              (task.debugTask = bestStack.debugTask));
+              };
+              task.debugTask = bestStack.debugTask;
+              break;
+            }
           }
         }
     }
@@ -5005,6 +5007,18 @@
             "function" === typeof node.then &&
               pushServerComponentStack(task, node._debugInfo);
         }
+    }
+    function replaceSuspenseComponentStackWithSuspenseFallbackStack(
+      componentStack
+    ) {
+      return null === componentStack
+        ? null
+        : {
+            parent: componentStack.parent,
+            type: "Suspense Fallback",
+            owner: componentStack.owner,
+            stack: componentStack.stack
+          };
     }
     function getThrownInfo(node$jscomp$0) {
       var errorInfo = {};
@@ -5756,26 +5770,30 @@
               type.displayName || type.name || "Component"
             );
           if ("function" === typeof type.getDerivedStateFromProps) {
-            var _componentName2 = getComponentNameFromType(type) || "Unknown";
-            didWarnAboutGetDerivedStateOnFunctionComponent[_componentName2] ||
+            var componentName$jscomp$4 =
+              getComponentNameFromType(type) || "Unknown";
+            didWarnAboutGetDerivedStateOnFunctionComponent[
+              componentName$jscomp$4
+            ] ||
               (console.error(
                 "%s: Function components do not support getDerivedStateFromProps.",
-                _componentName2
+                componentName$jscomp$4
               ),
-              (didWarnAboutGetDerivedStateOnFunctionComponent[_componentName2] =
-                !0));
+              (didWarnAboutGetDerivedStateOnFunctionComponent[
+                componentName$jscomp$4
+              ] = !0));
           }
           if (
             "object" === typeof type.contextType &&
             null !== type.contextType
           ) {
-            var _componentName3 = getComponentNameFromType(type) || "Unknown";
-            didWarnAboutContextTypeOnFunctionComponent[_componentName3] ||
+            var _componentName2 = getComponentNameFromType(type) || "Unknown";
+            didWarnAboutContextTypeOnFunctionComponent[_componentName2] ||
               (console.error(
                 "%s: Function components do not support contextType.",
-                _componentName3
+                _componentName2
               ),
-              (didWarnAboutContextTypeOnFunctionComponent[_componentName3] =
+              (didWarnAboutContextTypeOnFunctionComponent[_componentName2] =
                 !0));
           }
           finishFunctionComponent(
@@ -5831,27 +5849,20 @@
               !1
             );
             segment.preambleChildren.push(preambleSegment);
-            var preambleTask = createRenderTask(
-              request,
-              null,
-              _children,
-              -1,
-              task.blockedBoundary,
-              preambleSegment,
-              task.blockedPreamble,
-              task.hoistableState,
-              request.abortableTasks,
-              task.keyPath,
-              task.formatContext,
-              task.context,
-              task.treeContext,
-              task.row,
-              task.componentStack,
-              emptyContextObject,
-              task.debugTask
-            );
-            pushComponentStack(preambleTask);
-            request.pingedTasks.push(preambleTask);
+            task.blockedSegment = preambleSegment;
+            try {
+              (preambleSegment.status = 6),
+                renderNode(request, task, _children, -1),
+                pushSegmentFinale(
+                  preambleSegment.chunks,
+                  request.renderState,
+                  preambleSegment.lastPushedText,
+                  preambleSegment.textEmbedded
+                ),
+                (preambleSegment.status = COMPLETED);
+            } finally {
+              task.blockedSegment = segment;
+            }
           } else renderNode(request, task, _children, -1);
           task.formatContext = _prevContext2;
           task.keyPath = _prevKeyPath3;
@@ -6130,7 +6141,8 @@
               );
               contentRootSegment.parentFlushed = !0;
               if (null !== request.trackedPostpones) {
-                var fallbackKeyPath = [
+                var suspenseComponentStack = task.componentStack,
+                  fallbackKeyPath = [
                     keyPath[0],
                     "Suspense Fallback",
                     keyPath[2]
@@ -6153,6 +6165,10 @@
                   request.resumableState,
                   prevContext$jscomp$1
                 );
+                task.componentStack =
+                  replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                    suspenseComponentStack
+                  );
                 boundarySegment.status = 6;
                 try {
                   renderNode(request, task, fallback, -1),
@@ -6193,7 +6209,7 @@
                   task.context,
                   task.treeContext,
                   null,
-                  task.componentStack,
+                  suspenseComponentStack,
                   emptyContextObject,
                   task.debugTask
                 );
@@ -6304,7 +6320,9 @@
                   task.context,
                   task.treeContext,
                   task.row,
-                  task.componentStack,
+                  replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                    task.componentStack
+                  ),
                   emptyContextObject,
                   task.debugTask
                 );
@@ -6624,7 +6642,9 @@
                 task.context,
                 task.treeContext,
                 task.row,
-                task.componentStack,
+                replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                  task.componentStack
+                ),
                 emptyContextObject,
                 task.debugTask
               );
@@ -10414,26 +10434,26 @@
       "function" === typeof WeakMap ? WeakMap : Map
     )();
     var callComponent = {
-        "react-stack-bottom-frame": function (Component, props, secondArg) {
+        react_stack_bottom_frame: function (Component, props, secondArg) {
           return Component(props, secondArg);
         }
       },
       callComponentInDEV =
-        callComponent["react-stack-bottom-frame"].bind(callComponent),
+        callComponent.react_stack_bottom_frame.bind(callComponent),
       callRender = {
-        "react-stack-bottom-frame": function (instance) {
+        react_stack_bottom_frame: function (instance) {
           return instance.render();
         }
       },
-      callRenderInDEV = callRender["react-stack-bottom-frame"].bind(callRender),
+      callRenderInDEV = callRender.react_stack_bottom_frame.bind(callRender),
       callLazyInit = {
-        "react-stack-bottom-frame": function (lazy) {
+        react_stack_bottom_frame: function (lazy) {
           var init = lazy._init;
           return init(lazy._payload);
         }
       },
       callLazyInitInDEV =
-        callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
+        callLazyInit.react_stack_bottom_frame.bind(callLazyInit),
       lastResetTime = 0;
     if (
       "object" === typeof performance &&
@@ -10482,5 +10502,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-experimental-4db4b21c-20250626";
+    exports.version = "19.2.0-experimental-97cdd5d3-20250710";
   })();

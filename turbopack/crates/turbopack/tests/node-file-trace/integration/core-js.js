@@ -1,1 +1,1 @@
-require("core-js").Array.map([], () => {});
+require('core-js').Array.map([], () => {})

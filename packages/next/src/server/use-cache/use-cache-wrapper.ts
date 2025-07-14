@@ -5,13 +5,13 @@ import {
   decodeReply,
   decodeReplyFromAsyncIterable,
   createTemporaryReferenceSet as createServerTemporaryReferenceSet,
-} from 'react-server-dom-webpack/server.edge'
+} from 'react-server-dom-webpack/server'
 import {
   createFromReadableStream,
   encodeReply,
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
-} from 'react-server-dom-webpack/client.edge'
-import { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
+} from 'react-server-dom-webpack/client'
+import { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
 /* eslint-enable import/no-extraneous-dependencies */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
@@ -79,6 +79,12 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? console.debug.bind(console, 'use-cache:')
   : undefined
+
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -446,6 +452,7 @@ async function generateCacheEntryImpl(
       clientReferenceManifest.clientModules,
       {
         environmentName: 'Cache',
+        filterStackFrame,
         signal: abortSignal,
         temporaryReferences,
         onError(error) {
@@ -495,6 +502,7 @@ async function generateCacheEntryImpl(
       clientReferenceManifest.clientModules,
       {
         environmentName: 'Cache',
+        filterStackFrame,
         temporaryReferences,
         onError: handleError,
       }

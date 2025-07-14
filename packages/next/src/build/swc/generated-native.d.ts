@@ -80,6 +80,10 @@ export interface NapiEnvVar {
   name: RcStr
   value: RcStr
 }
+export interface NapiOptionEnvVar {
+  name: RcStr
+  value?: RcStr
+}
 export interface NapiDraftModeOptions {
   previewModeId: RcStr
   previewModeEncryptionKey: RcStr
@@ -103,7 +107,7 @@ export interface NapiProjectOptions {
   /** A path inside the root_path which contains the app/pages directories. */
   projectPath: RcStr
   /**
-   * next.config's distDir. Project initialization occurs eariler than
+   * next.config's distDir. Project initialization occurs earlier than
    * deserializing next.config, so passing it as separate option.
    */
   distDir: RcStr
@@ -149,7 +153,7 @@ export interface NapiPartialProjectOptions {
   /** A path inside the root_path which contains the app/pages directories. */
   projectPath?: RcStr
   /**
-   * next.config's distDir. Project initialization occurs eariler than
+   * next.config's distDir. Project initialization occurs earlier than
    * deserializing next.config, so passing it as separate option.
    */
   distDir?: RcStr | undefined | null
@@ -184,9 +188,9 @@ export interface NapiPartialProjectOptions {
   noMangling?: boolean
 }
 export interface NapiDefineEnv {
-  client: Array<NapiEnvVar>
-  edge: Array<NapiEnvVar>
-  nodejs: Array<NapiEnvVar>
+  client: Array<NapiOptionEnvVar>
+  edge: Array<NapiOptionEnvVar>
+  nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
   /** Use the new backend with persistent caching enabled. */

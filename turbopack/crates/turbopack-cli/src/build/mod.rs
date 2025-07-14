@@ -35,6 +35,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        export_usage::compute_export_usage_info,
     },
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -57,11 +58,6 @@ use crate::{
     },
 };
 
-pub fn register() {
-    turbopack::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}
-
 type Backend = TurboTasksBackend<NoopBackingStorage>;
 
 pub struct TurbopackBuildBuilder {
@@ -76,6 +72,7 @@ pub struct TurbopackBuildBuilder {
     source_maps_type: SourceMapsType,
     minify_type: MinifyType,
     target: Target,
+    scope_hoist: bool,
 }
 
 impl TurbopackBuildBuilder {
@@ -96,6 +93,7 @@ impl TurbopackBuildBuilder {
                 mangle: Some(MangleType::OptimalSize),
             },
             target: Target::Node,
+            scope_hoist: true,
         }
     }
 
@@ -134,6 +132,11 @@ impl TurbopackBuildBuilder {
         self
     }
 
+    pub fn scope_hoist(mut self, scope_hoist: bool) -> Self {
+        self.scope_hoist = scope_hoist;
+        self
+    }
+
     pub fn target(mut self, target: Target) -> Self {
         self.target = target;
         self
@@ -149,6 +152,7 @@ impl TurbopackBuildBuilder {
                 self.source_maps_type,
                 self.minify_type,
                 self.target,
+                self.scope_hoist,
             );
 
             // Await the result to propagate any errors.
@@ -196,6 +200,7 @@ async fn build_internal(
     source_maps_type: SourceMapsType,
     minify_type: MinifyType,
     target: Target,
+    scope_hoist: bool,
 ) -> Result<Vc<()>> {
     let output_fs = output_fs(project_dir.clone());
     let project_fs = project_fs(root_dir.clone(), /* watch= */ false);
@@ -205,7 +210,7 @@ async fn build_internal(
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
-    let root_path = project_fs.root().await?.clone_value();
+    let root_path = project_fs.root().owned().await?;
     let project_path = root_path.join(&project_relative)?;
     let build_output_root = output_fs.root().await?.join("dist")?;
 
@@ -310,6 +315,9 @@ async fn build_internal(
             .to_resolved()
             .await?,
     );
+    let export_usage = compute_export_usage_info(module_graph.to_resolved().await?)
+        .resolve_strongly_consistent()
+        .await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
         Target::Browser => {
@@ -335,6 +343,7 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
+            .export_usage(Some(export_usage))
             .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
@@ -359,7 +368,7 @@ async fn build_internal(
                             },
                         )
                         .use_content_hashing(ContentHashing::Direct { length: 16 })
-                        .module_merging(true);
+                        .module_merging(scope_hoist);
                 }
             }
 
@@ -382,6 +391,7 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
+            .export_usage(Some(export_usage))
             .minify_type(minify_type);
 
             match *node_env.await? {
@@ -404,7 +414,7 @@ async fn build_internal(
                                 ..Default::default()
                             },
                         )
-                        .module_merging(true);
+                        .module_merging(scope_hoist);
                 }
             }
 
@@ -492,7 +502,7 @@ async fn build_internal(
 
     chunks
         .iter()
-        .map(|c| async move { c.content().write(c.path().await?.clone_value()).await })
+        .map(|c| async move { c.content().write(c.path().owned().await?).await })
         .try_join()
         .await?;
 
@@ -533,6 +543,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 mangle: Some(MangleType::OptimalSize),
             }
         })
+        .scope_hoist(!args.no_scope_hoist)
         .target(args.common.target.unwrap_or(Target::Node))
         .show_all(args.common.show_all);
 

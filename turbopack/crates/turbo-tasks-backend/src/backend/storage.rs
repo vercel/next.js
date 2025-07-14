@@ -99,7 +99,6 @@ bitfield! {
     /// Item was modified after snapshot mode was entered. A snapshot was taken.
     pub meta_snapshot, set_meta_snapshot: 4;
     pub data_snapshot, set_data_snapshot: 5;
-    pub is_immutable, set_is_immutable: 6;
 }
 
 impl InnerStorageState {
@@ -442,7 +441,7 @@ macro_rules! generate_inner_storage {
                 self.dynamic.count(ty)
             }
 
-            pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef> {
+            pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref, get(): $($config)*);
                 self.dynamic.get(key)
@@ -454,7 +453,7 @@ macro_rules! generate_inner_storage {
                 self.dynamic.contains_key(key)
             }
 
-            pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut> {
+            pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref_mut, get_mut(): $($config)*);
                 self.dynamic.get_mut(key)
@@ -848,7 +847,7 @@ impl StorageWriteGuard<'_> {
                     }
                 }
                 (false, true) => {
-                    // Not in snapshot mode and item is already modfied
+                    // Not in snapshot mode and item is already modified
                     // Do nothing
                 }
                 (true, false) => {

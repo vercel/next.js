@@ -55,7 +55,7 @@ impl EcmascriptChunkItemContent {
 
         Ok(EcmascriptChunkItemContent {
             rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
-                Some(chunking_context.root_path().await?.clone_value())
+                Some(chunking_context.root_path().owned().await?)
             } else {
                 None
             },
@@ -233,7 +233,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
         self.content()
     }
 
-    /// Specifies which availablility information the chunk item needs for code
+    /// Specifies which availability information the chunk item needs for code
     /// generation
     #[turbo_tasks::function]
     fn need_async_module_info(self: Vc<Self>) -> Vc<bool> {
@@ -279,7 +279,7 @@ async fn module_factory_with_code_generation_issue(
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error,
-                    path: chunk_item.asset_ident().path().await?.clone_value(),
+                    path: chunk_item.asset_ident().path().owned().await?,
                     title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                         .resolved_cell(),
                     message: StyledString::Text(error_message).resolved_cell(),

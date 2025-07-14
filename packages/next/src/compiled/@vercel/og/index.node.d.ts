@@ -24,4 +24,4 @@ export declare class ImageResponse extends Response {
  */
 export declare function unstable_createNodejsStream(element: ReactElement, options?: Omit<ImageResponseNodeOptions, 'status' | 'statusText' | 'headers'>): Promise<Readable>;
 export declare const experimental_FigmaImageResponse: (props: FigmaImageResponseProps) => Promise<import("./index.edge").ImageResponse>;
-export declare type NodeImageResponse = typeof ImageResponse;
+export type NodeImageResponse = typeof ImageResponse;

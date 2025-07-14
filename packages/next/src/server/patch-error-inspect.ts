@@ -1,12 +1,14 @@
-import {
-  findSourceMap as nativeFindSourceMap,
-  type SourceMapPayload,
-} from 'module'
+import { findSourceMap as nativeFindSourceMap } from 'module'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import {
+  type ModernSourceMapPayload,
+  findApplicableSourceMapPayload,
+  sourceMapIgnoreListsEverything,
+} from './lib/source-maps'
 import { parseStack } from './lib/parse-stack'
 import { getOriginalCodeFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
@@ -26,30 +28,6 @@ export function setBundlerFindSourceMapImplementation(
 ): void {
   bundlerFindSourceMapPayload = findSourceMapImplementation
 }
-
-/**
- * https://tc39.es/source-map/#index-map
- */
-interface IndexSourceMapSection {
-  offset: {
-    line: number
-    column: number
-  }
-  map: ModernRawSourceMap
-}
-
-// TODO(veil): Upstream types
-interface IndexSourceMap {
-  version: number
-  file: string
-  sections: IndexSourceMapSection[]
-}
-
-interface ModernRawSourceMap extends SourceMapPayload {
-  ignoreList?: number[]
-}
-
-export type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
 
 interface IgnoreableStackFrame extends StackFrame {
   ignored: boolean
@@ -114,37 +92,6 @@ function shouldIgnoreListGeneratedFrame(file: string): boolean {
 
 function shouldIgnoreListOriginalFrame(file: string): boolean {
   return file.includes('node_modules')
-}
-
-/**
- * Finds the sourcemap payload applicable to a given frame.
- * Equal to the input unless an Index Source Map is used.
- */
-function findApplicableSourceMapPayload(
-  frame: StackFrame,
-  payload: ModernSourceMapPayload
-): ModernRawSourceMap | undefined {
-  if ('sections' in payload) {
-    const frameLine = frame.lineNumber ?? 0
-    const frameColumn = frame.column ?? 0
-    // Sections must not overlap and must be sorted: https://tc39.es/source-map/#section-object
-    // Therefore the last section that has an offset less than or equal to the frame is the applicable one.
-    // TODO(veil): Binary search
-    let section: IndexSourceMapSection | undefined = payload.sections[0]
-    for (
-      let i = 0;
-      i < payload.sections.length &&
-      payload.sections[i].offset.line <= frameLine &&
-      payload.sections[i].offset.column <= frameColumn;
-      i++
-    ) {
-      section = payload.sections[i]
-    }
-
-    return section === undefined ? undefined : section.map
-  } else {
-    return payload
-  }
 }
 
 interface SourcemappableStackFrame extends StackFrame {
@@ -261,6 +208,14 @@ function getSourcemappedFrameIfPossible(
     line: frame.lineNumber ?? 1,
   })
 
+  const applicableSourceMap = findApplicableSourceMapPayload(
+    frame.lineNumber ?? 0,
+    frame.column ?? 0,
+    sourceMapPayload
+  )
+  let ignored =
+    applicableSourceMap !== undefined &&
+    sourceMapIgnoreListsEverything(applicableSourceMap)
   if (sourcePosition.source === null) {
     return {
       stack: {
@@ -269,21 +224,16 @@ function getSourcemappedFrameIfPossible(
         file: frame.file,
         lineNumber: frame.lineNumber,
         methodName: frame.methodName,
-        ignored: shouldIgnoreListGeneratedFrame(frame.file),
+        ignored: ignored || shouldIgnoreListGeneratedFrame(frame.file),
       },
       code: null,
     }
   }
 
-  const applicableSourceMap = findApplicableSourceMapPayload(
-    frame,
-    sourceMapPayload
-  )
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
-  let ignored = false
   if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
-  } else if (shouldIgnoreListOriginalFrame(sourcePosition.source)) {
+  } else if (!ignored && shouldIgnoreListOriginalFrame(sourcePosition.source)) {
     // Externals may be libraries that don't ship ignoreLists.
     // This is really taking control away from libraries.
     // They should still ship `ignoreList` so that attached debuggers ignore-list their frames.
@@ -291,7 +241,7 @@ function getSourcemappedFrameIfPossible(
     // Though keep in mind that Turbopack omits empty `ignoreList`.
     // So if we establish this convention, we should communicate it to the ecosystem.
     ignored = true
-  } else {
+  } else if (!ignored) {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
     const sourceIndex = applicableSourceMap.sources.indexOf(
       sourcePosition.source
@@ -357,9 +307,14 @@ function parseAndSourceMap(
   // doesn't implement the name computation correctly.
   const errorName = computeErrorName(error)
 
-  let idx = unparsedStack.indexOf('react-stack-bottom-frame')
+  let idx = unparsedStack.indexOf('react_stack_bottom_frame')
   if (idx !== -1) {
     idx = unparsedStack.lastIndexOf('\n', idx)
+  } else {
+    idx = unparsedStack.indexOf('react-stack-bottom-frame')
+    if (idx !== -1) {
+      idx = unparsedStack.lastIndexOf('\n', idx)
+    }
   }
   if (idx !== -1 && !showIgnoreListed) {
     // Cut off everything after the bottom frame since it'll be React internals.

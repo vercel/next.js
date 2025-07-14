@@ -962,6 +962,16 @@ export async function openDevToolsIndicatorPopover(
   }
 }
 
+export async function hasDevToolsPanel(browser: Playwright) {
+  const result = await browser.eval(() => {
+    const portal = document.querySelector('nextjs-portal')
+    return (
+      portal?.shadowRoot?.querySelector('[data-nextjs-dialog-overlay]') != null
+    )
+  })
+  return result
+}
+
 export async function assertHasDevToolsIndicator(browser: Playwright) {
   const devToolsIndicator = browser.locateDevToolsIndicator()
   try {
@@ -1439,7 +1449,7 @@ export async function getRedboxCallStack(
           stack.push('<FIXME-file-protocol>')
         } else if (frame.includes('.next/')) {
           stack.push('<FIXME-next-dist-dir>')
-        } else if (frame === 'JSON.parse <anonymous> (0:0)') {
+        } else if (frame === 'JSON.parse <anonymous>') {
           // TODO(veil): These frames will be ignore-listed soon. Until then, we
           // remove them here, because their occurrence seems to be
           // non-deterministic. They come from React's RSC parsing.

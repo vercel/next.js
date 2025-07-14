@@ -4564,7 +4564,7 @@
       prevPrepareStackTrace = error.indexOf("\n");
       -1 !== prevPrepareStackTrace &&
         (error = error.slice(prevPrepareStackTrace + 1));
-      prevPrepareStackTrace = error.indexOf("react-stack-bottom-frame");
+      prevPrepareStackTrace = error.indexOf("react_stack_bottom_frame");
       -1 !== prevPrepareStackTrace &&
         (prevPrepareStackTrace = error.lastIndexOf(
           "\n",
@@ -5018,8 +5018,7 @@
       renderState.nextSegmentId = postponedState.nextSegmentId;
       if ("number" === typeof postponedState.replaySlots)
         return (
-          (onError = postponedState.replaySlots),
-          (onAllReady = createPendingSegment(
+          (onError = createPendingSegment(
             renderState,
             0,
             null,
@@ -5027,15 +5026,14 @@
             !1,
             !1
           )),
-          (onAllReady.id = onError),
-          (onAllReady.parentFlushed = !0),
+          (onError.parentFlushed = !0),
           (children = createRenderTask(
             renderState,
             null,
             children,
             -1,
             null,
-            onAllReady,
+            onError,
             null,
             null,
             renderState.abortableTasks,
@@ -5329,14 +5327,16 @@
           if ("number" === typeof info.time) break;
           if (null != info.awaited) {
             var bestStack = null == info.debugStack ? info.awaited : info;
-            void 0 !== bestStack.debugStack &&
-              ((task.componentStack = {
+            if (void 0 !== bestStack.debugStack) {
+              task.componentStack = {
                 parent: task.componentStack,
                 type: info,
                 owner: bestStack.owner,
                 stack: bestStack.debugStack
-              }),
-              (task.debugTask = bestStack.debugTask));
+              };
+              task.debugTask = bestStack.debugTask;
+              break;
+            }
           }
         }
     }
@@ -5379,6 +5379,18 @@
             "function" === typeof node.then &&
               pushServerComponentStack(task, node._debugInfo);
         }
+    }
+    function replaceSuspenseComponentStackWithSuspenseFallbackStack(
+      componentStack
+    ) {
+      return null === componentStack
+        ? null
+        : {
+            parent: componentStack.parent,
+            type: "Suspense Fallback",
+            owner: componentStack.owner,
+            stack: componentStack.stack
+          };
     }
     function getThrownInfo(node$jscomp$0) {
       var errorInfo = {};
@@ -6129,26 +6141,30 @@
               type.displayName || type.name || "Component"
             );
           if ("function" === typeof type.getDerivedStateFromProps) {
-            var _componentName2 = getComponentNameFromType(type) || "Unknown";
-            didWarnAboutGetDerivedStateOnFunctionComponent[_componentName2] ||
+            var componentName$jscomp$4 =
+              getComponentNameFromType(type) || "Unknown";
+            didWarnAboutGetDerivedStateOnFunctionComponent[
+              componentName$jscomp$4
+            ] ||
               (console.error(
                 "%s: Function components do not support getDerivedStateFromProps.",
-                _componentName2
+                componentName$jscomp$4
               ),
-              (didWarnAboutGetDerivedStateOnFunctionComponent[_componentName2] =
-                !0));
+              (didWarnAboutGetDerivedStateOnFunctionComponent[
+                componentName$jscomp$4
+              ] = !0));
           }
           if (
             "object" === typeof type.contextType &&
             null !== type.contextType
           ) {
-            var _componentName3 = getComponentNameFromType(type) || "Unknown";
-            didWarnAboutContextTypeOnFunctionComponent[_componentName3] ||
+            var _componentName2 = getComponentNameFromType(type) || "Unknown";
+            didWarnAboutContextTypeOnFunctionComponent[_componentName2] ||
               (console.error(
                 "%s: Function components do not support contextType.",
-                _componentName3
+                _componentName2
               ),
-              (didWarnAboutContextTypeOnFunctionComponent[_componentName3] =
+              (didWarnAboutContextTypeOnFunctionComponent[_componentName2] =
                 !0));
           }
           finishFunctionComponent(
@@ -6204,27 +6220,18 @@
               !1
             );
             segment.preambleChildren.push(preambleSegment);
-            var preambleTask = createRenderTask(
-              request,
-              null,
-              _children,
-              -1,
-              task.blockedBoundary,
-              preambleSegment,
-              task.blockedPreamble,
-              task.hoistableState,
-              request.abortableTasks,
-              task.keyPath,
-              task.formatContext,
-              task.context,
-              task.treeContext,
-              task.row,
-              task.componentStack,
-              emptyContextObject,
-              task.debugTask
-            );
-            pushComponentStack(preambleTask);
-            request.pingedTasks.push(preambleTask);
+            task.blockedSegment = preambleSegment;
+            try {
+              (preambleSegment.status = 6),
+                renderNode(request, task, _children, -1),
+                preambleSegment.lastPushedText &&
+                  preambleSegment.textEmbedded &&
+                  preambleSegment.chunks.push(textSeparator),
+                (preambleSegment.status = COMPLETED),
+                finishedSegment(request, task.blockedBoundary, preambleSegment);
+            } finally {
+              task.blockedSegment = segment;
+            }
           } else renderNode(request, task, _children, -1);
           task.formatContext = _prevContext2;
           task.keyPath = _prevKeyPath3;
@@ -6559,7 +6566,8 @@
               );
               contentRootSegment.parentFlushed = !0;
               if (null !== request.trackedPostpones) {
-                var fallbackKeyPath = [
+                var suspenseComponentStack = task.componentStack,
+                  fallbackKeyPath = [
                     keyPath[0],
                     "Suspense Fallback",
                     keyPath[2]
@@ -6582,6 +6590,10 @@
                   request.resumableState,
                   prevContext$jscomp$1
                 );
+                task.componentStack =
+                  replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                    suspenseComponentStack
+                  );
                 boundarySegment.status = 6;
                 try {
                   renderNode(request, task, fallback, -1),
@@ -6620,7 +6632,7 @@
                   task.context,
                   task.treeContext,
                   null,
-                  task.componentStack,
+                  suspenseComponentStack,
                   emptyContextObject,
                   task.debugTask
                 );
@@ -6729,7 +6741,9 @@
                   task.context,
                   task.treeContext,
                   task.row,
-                  task.componentStack,
+                  replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                    task.componentStack
+                  ),
                   emptyContextObject,
                   task.debugTask
                 );
@@ -7059,7 +7073,9 @@
                 task.context,
                 task.treeContext,
                 task.row,
-                task.componentStack,
+                replaceSuspenseComponentStackWithSuspenseFallbackStack(
+                  task.componentStack
+                ),
                 emptyContextObject,
                 task.debugTask
               );
@@ -9440,13 +9456,15 @@
         (request.completedRootSegment.status !== POSTPONED &&
           null !== request.completedPreambleSegments)
       ) {
+        var nextSegmentId = request.nextSegmentId;
         var replaySlots = trackedPostpones.rootSlots;
         var resumableState = request.resumableState;
         resumableState.bootstrapScriptContent = void 0;
         resumableState.bootstrapScripts = void 0;
         resumableState.bootstrapModules = void 0;
       } else {
-        replaySlots = request.completedRootSegment.id;
+        nextSegmentId = 0;
+        replaySlots = -1;
         resumableState = request.resumableState;
         var renderState = request.renderState;
         resumableState.nextFormID = 0;
@@ -9463,7 +9481,7 @@
         resumableState.instructions = NothingSent;
       }
       return {
-        nextSegmentId: request.nextSegmentId,
+        nextSegmentId: nextSegmentId,
         rootFormatContext: request.rootFormatContext,
         progressiveChunkSize: request.progressiveChunkSize,
         resumableState: request.resumableState,
@@ -9473,11 +9491,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-4db4b21c-20250626" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-97cdd5d3-20250710" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-4db4b21c-20250626\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-97cdd5d3-20250710\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -10990,26 +11008,26 @@
       "function" === typeof WeakMap ? WeakMap : Map
     )();
     var callComponent = {
-        "react-stack-bottom-frame": function (Component, props, secondArg) {
+        react_stack_bottom_frame: function (Component, props, secondArg) {
           return Component(props, secondArg);
         }
       },
       callComponentInDEV =
-        callComponent["react-stack-bottom-frame"].bind(callComponent),
+        callComponent.react_stack_bottom_frame.bind(callComponent),
       callRender = {
-        "react-stack-bottom-frame": function (instance) {
+        react_stack_bottom_frame: function (instance) {
           return instance.render();
         }
       },
-      callRenderInDEV = callRender["react-stack-bottom-frame"].bind(callRender),
+      callRenderInDEV = callRender.react_stack_bottom_frame.bind(callRender),
       callLazyInit = {
-        "react-stack-bottom-frame": function (lazy) {
+        react_stack_bottom_frame: function (lazy) {
           var init = lazy._init;
           return init(lazy._payload);
         }
       },
       callLazyInitInDEV =
-        callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
+        callLazyInit.react_stack_bottom_frame.bind(callLazyInit),
       lastResetTime = 0;
     if (
       "object" === typeof performance &&
@@ -11296,5 +11314,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-experimental-4db4b21c-20250626";
+    exports.version = "19.2.0-experimental-97cdd5d3-20250710";
   })();

@@ -253,6 +253,12 @@ const flightDataPathHeadKey = 'h'
 const getFlightViewportKey = (requestId: string) => requestId + 'v'
 const getFlightMetadataKey = (requestId: string) => requestId + 'm'
 
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
+
 interface ParsedRequestHeaders {
   /**
    * Router state provided from the client-side router. Used to handle rendering
@@ -643,6 +649,7 @@ async function generateDynamicFlightRenderResult(
     {
       onError,
       temporaryReferences: options?.temporaryReferences,
+      filterStackFrame,
     }
   )
 
@@ -664,7 +671,7 @@ async function warmupDevRender(
 ): Promise<RenderResult> {
   const {
     clientReferenceManifest,
-    componentMod,
+    componentMod: ComponentMod,
     getDynamicParamFromSegment,
     implicitTags,
     renderOpts,
@@ -684,7 +691,7 @@ async function warmupDevRender(
   }
 
   const rootParams = getRootParams(
-    componentMod.tree,
+    ComponentMod.tree,
     getDynamicParamFromSegment
   )
 
@@ -725,6 +732,7 @@ async function warmupDevRender(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
+    captureOwnerStack: ComponentMod.captureOwnerStack,
   }
 
   const rscPayload = await workUnitAsyncStorage.run(
@@ -737,10 +745,11 @@ async function warmupDevRender(
   // which contains the subset React.
   workUnitAsyncStorage.run(
     prerenderStore,
-    componentMod.renderToReadableStream,
+    ComponentMod.renderToReadableStream,
     rscPayload,
     clientReferenceManifest.clientModules,
     {
+      filterStackFrame,
       onError,
       signal: renderController.signal,
     }
@@ -1219,6 +1228,9 @@ async function renderToHTMLOrFlightImpl(
     const shouldTrackModuleLoading = () => {
       if (!renderOpts.experimental.dynamicIO) {
         return false
+      }
+      if (renderOpts.dev) {
+        return true
       }
       const workUnitStore = workUnitAsyncStorage.getStore()
       return !!(
@@ -1898,12 +1910,7 @@ async function renderToStream(
               onError: serverComponentsErrorHandler,
               environmentName: () =>
                 requestStore.prerenderPhase === true ? 'Prerender' : 'Server',
-              filterStackFrame(url: string, _functionName: string): boolean {
-                // The default implementation filters out <anonymous> stack frames
-                // but we want to retain them because current Server Components and
-                // built-in Components in parent stacks don't have source location.
-                return !url.startsWith('node:') && !url.includes('node_modules')
-              },
+              filterStackFrame,
             }
           )
         },
@@ -1939,6 +1946,7 @@ async function renderToStream(
           RSCPayload,
           clientReferenceManifest.clientModules,
           {
+            filterStackFrame,
             onError: serverComponentsErrorHandler,
           }
         )
@@ -1972,8 +1980,8 @@ async function renderToStream(
         const postponed = getPostponedFromState(postponedState)
 
         const resume = (
-          require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-        ).resume as (typeof import('react-dom/server.edge'))['resume']
+          require('react-dom/server') as typeof import('react-dom/server')
+        ).resume
 
         const htmlStream = await workUnitAsyncStorage.run(
           requestStore,
@@ -2011,9 +2019,8 @@ async function renderToStream(
 
     // This is a regular dynamic render
     const renderToReadableStream = (
-      require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-    )
-      .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
+      require('react-dom/server') as typeof import('react-dom/server')
+    ).renderToReadableStream
 
     const htmlStream = await workUnitAsyncStorage.run(
       requestStore,
@@ -2074,6 +2081,8 @@ async function renderToStream(
         formState
       ),
       isStaticGeneration: generateStaticHTML,
+      isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
+      buildId: ctx.workStore.buildId,
       getServerInsertedHTML,
       getServerInsertedMetadata,
       validateRootLayout: dev,
@@ -2156,6 +2165,7 @@ async function renderToStream(
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
+        filterStackFrame,
         onError: serverComponentsErrorHandler,
       }
     )
@@ -2172,7 +2182,7 @@ async function renderToStream(
         renderToInitialFizzStream,
         {
           ReactDOMServer:
-            require('react-dom/server.edge') as typeof import('react-dom/server.edge'),
+            require('react-dom/server') as typeof import('react-dom/server'),
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
@@ -2220,6 +2230,8 @@ async function renderToStream(
           formState
         ),
         isStaticGeneration: generateStaticHTML,
+        isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
+        buildId: ctx.workStore.buildId,
         getServerInsertedHTML: makeGetServerInsertedHTML({
           polyfills,
           renderServerInsertedHTML,
@@ -2306,6 +2318,9 @@ async function spawnDynamicValidationInDev(
   // to cut the render off.
   const cacheSignal = new CacheSignal()
 
+  const captureOwnerStackClient = React.captureOwnerStack
+  const captureOwnerStackServer = ComponentMod.captureOwnerStack
+
   // The resume data cache here should use a fresh instance as it's
   // performing a fresh prerender. If we get to implementing the
   // prerendering of an already prerendered page, we should use the passed
@@ -2331,6 +2346,7 @@ async function spawnDynamicValidationInDev(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
   }
 
   // We're not going to use the result of this render because the only time it could be used
@@ -2349,6 +2365,7 @@ async function spawnDynamicValidationInDev(
     initialServerPayload,
     clientReferenceManifest.clientModules,
     {
+      filterStackFrame,
       onError: (err) => {
         const digest = getDigestForWellKnownError(err)
 
@@ -2425,14 +2442,15 @@ async function spawnDynamicValidationInDev(
   }
 
   if (initialServerResult) {
-    const initialClientController = new AbortController()
+    const initialClientRenderController = new AbortController()
+    const initialClientPrerenderController = new AbortController()
     const initialClientPrerenderStore: PrerenderStore = {
       type: 'prerender-client',
       phase: 'render',
       rootParams,
       implicitTags,
-      renderSignal: initialClientController.signal,
-      controller: initialClientController,
+      renderSignal: initialClientRenderController.signal,
+      controller: initialClientPrerenderController,
       // For HTML Generation the only cache tracked activity
       // is module loading, which has it's own cache signal
       cacheSignal: null,
@@ -2445,11 +2463,12 @@ async function spawnDynamicValidationInDev(
       prerenderResumeDataCache,
       renderResumeDataCache: null,
       hmrRefreshHash: undefined,
+      captureOwnerStack: captureOwnerStackClient,
     }
 
     const prerender = (
-      require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-    ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+      require('react-dom/static') as typeof import('react-dom/static')
+    ).prerender
     const pendingInitialClientResult = workUnitAsyncStorage.run(
       initialClientPrerenderStore,
       prerender,
@@ -2462,7 +2481,7 @@ async function spawnDynamicValidationInDev(
         nonce={nonce}
       />,
       {
-        signal: initialClientController.signal,
+        signal: initialClientRenderController.signal,
         onError: (err) => {
           const digest = getDigestForWellKnownError(err)
 
@@ -2476,7 +2495,7 @@ async function spawnDynamicValidationInDev(
             return undefined
           }
 
-          if (initialClientController.signal.aborted) {
+          if (initialClientRenderController.signal.aborted) {
             // These are expected errors that might error the prerender. we ignore them.
           } else if (
             process.env.NEXT_DEBUG_BUILD ||
@@ -2512,7 +2531,7 @@ async function spawnDynamicValidationInDev(
     // Promises passed to client were already awaited above (assuming that they came from cached functions)
     trackPendingModules(cacheSignal)
     await cacheSignal.cacheReady()
-    initialClientController.abort()
+    initialClientRenderController.abort()
   }
 
   const finalServerController = new AbortController()
@@ -2538,6 +2557,7 @@ async function spawnDynamicValidationInDev(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
   }
 
   const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -2547,6 +2567,7 @@ async function spawnDynamicValidationInDev(
     ctx,
     isNotFound
   )
+
   const reactServerResult = await createReactServerPrerenderResult(
     prerenderAndAbortInSequentialTasks(
       async () => {
@@ -2559,6 +2580,7 @@ async function spawnDynamicValidationInDev(
           finalAttemptRSCPayload,
           clientReferenceManifest.clientModules,
           {
+            filterStackFrame,
             onError: (err: unknown) => {
               if (
                 finalServerController.signal.aborted &&
@@ -2608,14 +2630,15 @@ async function spawnDynamicValidationInDev(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackClient,
   }
 
   let dynamicValidation = createDynamicValidationState()
 
   try {
     const prerender = (
-      require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-    ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+      require('react-dom/static') as typeof import('react-dom/static')
+    ).prerender
     let { prelude: unprocessedPrelude } =
       await prerenderAndAbortInSequentialTasks(
         () =>
@@ -2640,7 +2663,7 @@ async function spawnDynamicValidationInDev(
                   const componentStack = errorInfo.componentStack
                   if (typeof componentStack === 'string') {
                     trackAllowedDynamicAccess(
-                      workStore.route,
+                      workStore,
                       componentStack,
                       dynamicValidation,
                       clientDynamicTracking
@@ -2954,6 +2977,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
       })
 
       // We're not going to use the result of this render because the only time it could be used
@@ -2972,6 +2996,7 @@ async function prerenderToStream(
         initialServerPayload,
         clientReferenceManifest.clientModules,
         {
+          filterStackFrame,
           onError: (err) => {
             const digest = getDigestForWellKnownError(err)
 
@@ -3041,14 +3066,15 @@ async function prerenderToStream(
       }
 
       if (initialServerResult) {
-        const initialClientController = new AbortController()
+        const initialClientRenderController = new AbortController()
+        const initialClientPrerenderController = new AbortController()
         const initialClientPrerenderStore: PrerenderStore = {
           type: 'prerender-client',
           phase: 'render',
           rootParams,
           implicitTags,
-          renderSignal: initialClientController.signal,
-          controller: initialClientController,
+          renderSignal: initialClientRenderController.signal,
+          controller: initialClientPrerenderController,
           // For HTML Generation the only cache tracked activity
           // is module loading, which has it's own cache signal
           cacheSignal: null,
@@ -3061,11 +3087,12 @@ async function prerenderToStream(
           prerenderResumeDataCache,
           renderResumeDataCache,
           hmrRefreshHash: undefined,
+          captureOwnerStack: undefined, // Not available in production.
         }
 
         const prerender = (
-          require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-        ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+          require('react-dom/static') as typeof import('react-dom/static')
+        ).prerender
         const pendingInitialClientResult = workUnitAsyncStorage.run(
           initialClientPrerenderStore,
           prerender,
@@ -3078,7 +3105,7 @@ async function prerenderToStream(
             nonce={nonce}
           />,
           {
-            signal: initialClientController.signal,
+            signal: initialClientRenderController.signal,
             onError: (err) => {
               const digest = getDigestForWellKnownError(err)
 
@@ -3092,7 +3119,7 @@ async function prerenderToStream(
                 return undefined
               }
 
-              if (initialClientController.signal.aborted) {
+              if (initialClientRenderController.signal.aborted) {
                 // These are expected errors that might error the prerender. we ignore them.
               } else if (
                 process.env.NEXT_DEBUG_BUILD ||
@@ -3127,7 +3154,7 @@ async function prerenderToStream(
         // Promises passed to client were already awaited above (assuming that they came from cached functions)
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
-        initialClientController.abort()
+        initialClientRenderController.abort()
       }
 
       let serverIsDynamic = false
@@ -3154,6 +3181,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
       })
 
       const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -3177,6 +3205,7 @@ async function prerenderToStream(
                 finalAttemptRSCPayload,
                 clientReferenceManifest.clientModules,
                 {
+                  filterStackFrame,
                   onError: (err: unknown) => {
                     return serverComponentsErrorHandler(err)
                   },
@@ -3226,14 +3255,15 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
       }
 
       let clientIsDynamic = false
       let dynamicValidation = createDynamicValidationState()
 
       const prerender = (
-        require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-      ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+        require('react-dom/static') as typeof import('react-dom/static')
+      ).prerender
       let { prelude: unprocessedPrelude, postponed } =
         await prerenderAndAbortInSequentialTasks(
           () =>
@@ -3262,7 +3292,7 @@ async function prerenderToStream(
                     ).componentStack
                     if (typeof componentStack === 'string') {
                       trackAllowedDynamicAccess(
-                        workStore.route,
+                        workStore,
                         componentStack,
                         dynamicValidation,
                         clientDynamicTracking
@@ -3365,8 +3395,8 @@ async function prerenderToStream(
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
           const resume = (
-            require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-          ).resume as (typeof import('react-dom/server.edge'))['resume']
+            require('react-dom/server') as typeof import('react-dom/server')
+          ).resume
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3404,6 +3434,9 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
           }),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
@@ -3450,6 +3483,7 @@ async function prerenderToStream(
             RSCPayload,
             clientReferenceManifest.clientModules,
             {
+              filterStackFrame,
               onError: serverComponentsErrorHandler,
             }
           )
@@ -3468,8 +3502,8 @@ async function prerenderToStream(
         prerenderResumeDataCache,
       }
       const prerender = (
-        require('react-dom/static.edge') as typeof import('react-dom/static.edge')
-      ).prerender as (typeof import('react-dom/static.edge'))['prerender']
+        require('react-dom/static') as typeof import('react-dom/static')
+      ).prerender
       const { prelude, postponed } = await workUnitAsyncStorage.run(
         ssrPrerenderStore,
         prerender,
@@ -3598,8 +3632,8 @@ async function prerenderToStream(
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
           const resume = (
-            require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-          ).resume as (typeof import('react-dom/server.edge'))['resume']
+            require('react-dom/server') as typeof import('react-dom/server')
+          ).resume
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3637,6 +3671,9 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3666,6 +3703,7 @@ async function prerenderToStream(
         ctx,
         res.statusCode === 404
       )
+
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
@@ -3674,16 +3712,15 @@ async function prerenderToStream(
             RSCPayload,
             clientReferenceManifest.clientModules,
             {
+              filterStackFrame,
               onError: serverComponentsErrorHandler,
             }
           )
         ))
 
       const renderToReadableStream = (
-        require('react-dom/server.edge') as typeof import('react-dom/server.edge')
-      )
-        .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
-
+        require('react-dom/server') as typeof import('react-dom/server')
+      ).renderToReadableStream
       const htmlStream = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
         renderToReadableStream,
@@ -3731,6 +3768,9 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
+          isBuildTimePrerendering:
+            ctx.workStore.isBuildTimePrerendering === true,
+          buildId: ctx.workStore.buildId,
           getServerInsertedHTML,
           getServerInsertedMetadata,
         }),
@@ -3843,6 +3883,7 @@ async function prerenderToStream(
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
+        filterStackFrame,
         onError: serverComponentsErrorHandler,
       }
     )
@@ -3856,7 +3897,7 @@ async function prerenderToStream(
         renderToInitialFizzStream,
         {
           ReactDOMServer:
-            require('react-dom/server.edge') as typeof import('react-dom/server.edge'),
+            require('react-dom/server') as typeof import('react-dom/server'),
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
@@ -3909,6 +3950,9 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
+          isBuildTimePrerendering:
+            ctx.workStore.isBuildTimePrerendering === true,
+          buildId: ctx.workStore.buildId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,

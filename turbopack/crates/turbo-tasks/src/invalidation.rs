@@ -9,33 +9,20 @@ use std::{
 use anyhow::Result;
 use indexmap::map::Entry;
 use serde::{Deserialize, Serialize, de::Visitor};
-use tokio::{runtime::Handle, task_local};
+use tokio::runtime::Handle;
 
 use crate::{
     FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
     magic_any::HasherMut,
-    manager::{current_task, with_turbo_tasks},
+    manager::{current_task, mark_invalidator, with_turbo_tasks},
     trace::TraceRawVcs,
     util::StaticOrArc,
 };
 
-task_local! {
-    static DISALLOW_INVALIDATOR: ();
-}
-
-pub fn disallow_invalidator<R>(f: impl Future<Output = R>) -> impl Future<Output = R> {
-    DISALLOW_INVALIDATOR.scope((), f)
-}
-
 /// Get an [`Invalidator`] that can be used to invalidate the current task
 /// based on external events.
 pub fn get_invalidator() -> Invalidator {
-    if DISALLOW_INVALIDATOR.try_with(|_| {}).is_ok() {
-        panic!(
-            "Invalidator can only be used in the turbo-tasks function that has \
-             #[turbo_tasks::function(invalidator)] attribute"
-        );
-    }
+    mark_invalidator();
 
     let handle = Handle::current();
     Invalidator {
