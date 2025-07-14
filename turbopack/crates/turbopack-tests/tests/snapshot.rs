@@ -126,7 +126,7 @@ impl Default for SnapshotOptions {
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
-            tree_shaking_mode: Default::default(),
+            tree_shaking_mode: None,
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,

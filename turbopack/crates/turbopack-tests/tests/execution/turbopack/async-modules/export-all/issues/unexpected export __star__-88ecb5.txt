@@ -6,5 +6,4 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack
   Import trace:
     test:
       ./turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/exports.js
-      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/tla.js
       ./turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/index.js

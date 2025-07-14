@@ -244,23 +244,31 @@ async fn run_inner_operation(
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Debug,
-    Default,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
+    PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
+    #[serde(default = "default_tree_shaking_mode")]
     tree_shaking_mode: Option<TreeShakingMode>,
     remove_unused_exports: Option<bool>,
     scope_hoisting: Option<bool>,
     #[serde(default)]
     minify: bool,
+}
+
+fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
+    Some(TreeShakingMode::ReexportsOnly)
+}
+
+impl Default for TestOptions {
+    fn default() -> Self {
+        Self {
+            tree_shaking_mode: default_tree_shaking_mode(),
+            remove_unused_exports: None,
+            scope_hoisting: None,
+            minify: false,
+        }
+    }
 }
 
 #[turbo_tasks::value]
