@@ -1,5 +1,7 @@
 import parseua from 'next/dist/compiled/ua-parser-js'
 
+export const BOT_UA_RE =
+  /Googlebot|GoogleOther|Mediapartners-Google|AdsBot-Google|googleweblight|Storebot-Google|Google-PageRenderer|Google-InspectionTool|Chrome-Lighthouse|Bingbot|BingPreview|Slurp|DuckDuckBot|baiduspider|yandex|sogou|LinkedInBot|bitlybot|tumblr|vkShare|quora link preview|facebookexternalhit|facebookcatalog|Twitterbot|applebot|redditbot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|ia_archiver|Yeti/i
 interface UserAgent {
   isBot: boolean
   ua: string
@@ -27,9 +29,7 @@ interface UserAgent {
 }
 
 export function isBot(input: string): boolean {
-  return /Googlebot|Mediapartners-Google|AdsBot-Google|googleweblight|Storebot-Google|Google-PageRenderer|Google-InspectionTool|Bingbot|BingPreview|Slurp|DuckDuckBot|baiduspider|yandex|sogou|LinkedInBot|bitlybot|tumblr|vkShare|quora link preview|facebookexternalhit|facebookcatalog|Twitterbot|applebot|redditbot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|ia_archiver/i.test(
-    input
-  )
+  return BOT_UA_RE.test(input)
 }
 
 export function userAgentFromString(input: string | undefined): UserAgent {
