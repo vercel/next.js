@@ -125,86 +125,88 @@ describe('basePath', () => {
         )
         expect(routesManifest.basePath).toBe(basePath)
       })
-    }
 
-    it('should prefetch pages correctly when manually called', async () => {
-      const browser = await webdriver(next.url, `${basePath}/other-page`)
-      await browser.eval('window.next.router.prefetch("/gssp")')
+      it('should prefetch pages correctly when manually called', async () => {
+        const browser = await webdriver(next.url, `${basePath}/other-page`)
+        await browser.eval('window.next.router.prefetch("/gssp")')
 
-      let chunk = getClientBuildManifestLoaderChunkPath(next.testDir, '/gssp')
+        let chunk = getClientBuildManifestLoaderChunkPath(next.testDir, '/gssp')
 
-      await check(
-        async () => {
-          const links = await browser.elementsByCss('link[rel=prefetch]')
+        await check(
+          async () => {
+            const links = await browser.elementsByCss('link[rel=prefetch]')
 
-          for (const link of links) {
-            const href = await link.getAttribute('href')
-            if (href.includes(chunk)) {
-              return true
+            for (const link of links) {
+              const href = await link.getAttribute('href')
+              if (href.includes(chunk)) {
+                return true
+              }
             }
-          }
 
-          const scripts = await browser.elementsByCss('script')
+            const scripts = await browser.elementsByCss('script')
 
-          for (const script of scripts) {
-            const src = await script.getAttribute('src')
-            if (src.includes(chunk)) {
-              return true
+            for (const script of scripts) {
+              const src = await script.getAttribute('src')
+              if (src.includes(chunk)) {
+                return true
+              }
             }
-          }
-          return false
-        },
-        {
-          test(result) {
-            return result === true
+            return false
           },
-        }
-      )
-    })
+          {
+            test(result) {
+              return result === true
+            },
+          }
+        )
+      })
 
-    it('should prefetch pages correctly in viewport with <Link>', async () => {
-      const browser = await webdriver(next.url, `${basePath}/hello`)
-      await browser.eval('window.next.router.prefetch("/gssp")')
+      it('should prefetch pages correctly in viewport with <Link>', async () => {
+        const browser = await webdriver(next.url, `${basePath}/hello`)
+        await browser.eval('window.next.router.prefetch("/gssp")')
 
-      await check(async () => {
-        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
-        hrefs.sort()
+        await check(async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
 
-        assert.deepEqual(
-          hrefs.map((href) =>
-            new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
-          ),
-          [
-            `${basePath}/gsp.json`,
-            `${basePath}/index.json`,
-            // `${basePath}/index/index.json`,
-          ]
-        )
+          assert.deepEqual(
+            hrefs.map((href) =>
+              new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+            ),
+            [
+              `${basePath}/gsp.json`,
+              `${basePath}/index.json`,
+              // `${basePath}/index/index.json`,
+            ]
+          )
 
-        let chunkGsp = getClientBuildManifestLoaderChunkPath(
-          next.testDir,
-          '/gsp'
-        )
-        let chunkGssp = getClientBuildManifestLoaderChunkPath(
-          next.testDir,
-          '/gssp'
-        )
-        let chunkOtherPage = getClientBuildManifestLoaderChunkPath(
-          next.testDir,
-          '/other-page'
-        )
+          let chunkGsp = getClientBuildManifestLoaderChunkPath(
+            next.testDir,
+            '/gsp'
+          )
+          let chunkGssp = getClientBuildManifestLoaderChunkPath(
+            next.testDir,
+            '/gssp'
+          )
+          let chunkOtherPage = getClientBuildManifestLoaderChunkPath(
+            next.testDir,
+            '/other-page'
+          )
 
-        const prefetches = await browser.eval(
-          `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
-        )
-        expect(prefetches).toContainEqual(expect.stringContaining(chunkGsp))
-        expect(prefetches).toContainEqual(expect.stringContaining(chunkGssp))
-        expect(prefetches).toContainEqual(
-          expect.stringContaining(chunkOtherPage)
-        )
-        return 'yes'
-      }, 'yes')
-    })
+          const prefetches = await browser.eval(
+            `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
+          )
+          expect(prefetches).toContainEqual(expect.stringContaining(chunkGsp))
+          expect(prefetches).toContainEqual(expect.stringContaining(chunkGssp))
+          expect(prefetches).toContainEqual(
+            expect.stringContaining(chunkOtherPage)
+          )
+          return 'yes'
+        }, 'yes')
+      })
+    }
   }
 
   it('should serve public file with basePath correctly', async () => {
