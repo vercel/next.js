@@ -453,7 +453,7 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest, m)
     }
-    return manifest
+    return sortObjectByKey(manifest)
   }
 
   private async writeBuildManifest(
