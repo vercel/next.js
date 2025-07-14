@@ -100,7 +100,7 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       it('should contain async generated metadata in head for simple dynamic page', async () => {
         const $ = await next.render$('/slow/dynamic', undefined, {
           headers: {
-            'User-Agent': 'Discordbot/2.0;',
+            'User-Agent': 'Googlebot',
           },
         })
         expect($('head title').text()).toBe('slow page - dynamic')
