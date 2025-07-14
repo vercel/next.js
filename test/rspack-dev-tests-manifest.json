@@ -2748,6 +2748,7 @@
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
     "passed": [
       "segment-explorer should cleanup on soft navigation",
+      "segment-explorer should display boundary selector when a segment has only boundary files",
       "segment-explorer should display parallel routes default page when present",
       "segment-explorer should handle show file segments in order",
       "segment-explorer should handle special built-in not-found segments",
@@ -6473,10 +6474,10 @@
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
     "passed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
-      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
       "app-dir - error-on-next-codemod-comment should error with inline comment as well"
     ],
     "failed": [
+      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
@@ -8766,6 +8767,26 @@
       "router autoscrolling on navigation vertical scroll should scroll to top of document when navigating between to pages without layout",
       "router autoscrolling on navigation vertical scroll should scroll to top of document with new metadata",
       "router autoscrolling on navigation vertical scroll should scroll to top of page when scrolling to phe top of the document wouldn't have the page in the viewport"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.legacy.test.ts": {
+    "passed": [
+      "router smooth scroll optimization (legacy with data attribute) should not warn when data attribute is present even in legacy mode",
+      "router smooth scroll optimization (legacy) should work with smooth scroll CSS and warn in development"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.optimized.test.ts": {
+    "passed": [
+      "router smooth scroll optimization (optimized early exit) should exit early when CSS smooth scroll detected but no data attribute",
+      "router smooth scroll optimization (optimized) should work with smooth scroll CSS and data attribute without warning"
     ],
     "failed": [],
     "pending": [],
