@@ -171,7 +171,7 @@ export async function walkTreeWithFlightRouterState({
         routerState,
         null,
         [null, null],
-        false,
+        true,
       ] satisfies FlightDataSegment,
     ]
   }

@@ -962,6 +962,36 @@ export async function openDevToolsIndicatorPopover(
   }
 }
 
+export async function getSegmentExplorerContent(browser: Playwright) {
+  // open the devtool button
+  await openDevToolsIndicatorPopover(browser)
+
+  // open the segment explorer
+  await browser.elementByCss('[data-segment-explorer]').click()
+
+  //  wait for the segment explorer to be visible
+  await browser.waitForElementByCss('[data-nextjs-devtool-segment-explorer]')
+
+  const rows = await browser.elementsByCss('.segment-explorer-item')
+  let result: string[] = []
+  for (const row of rows) {
+    // query filename of row: segment-explorer-filename
+    const segment = (
+      (await (await row.$('.segment-explorer-filename--path'))?.innerText()) ||
+      ''
+    ).trim()
+    const files = (
+      (await (await row.$('.segment-explorer-files'))?.innerText()) || ''
+    )
+      .split(/\n+/)
+      .map((file) => file.trim())
+
+    // line format: segment [files]
+    result.push(`${segment} [${files.join(', ')}]`)
+  }
+  return result.join('\n')
+}
+
 export async function hasDevToolsPanel(browser: Playwright) {
   const result = await browser.eval(() => {
     const portal = document.querySelector('nextjs-portal')

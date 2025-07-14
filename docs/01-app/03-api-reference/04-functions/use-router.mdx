@@ -44,7 +44,7 @@ export default function Page() {
 - `router.push(href: string, { scroll: boolean })`: Perform a client-side navigation to the provided route. Adds a new entry into the [browser’s history](https://developer.mozilla.org/docs/Web/API/History_API) stack.
 - `router.replace(href: string, { scroll: boolean })`: Perform a client-side navigation to the provided route without adding a new entry into the [browser’s history stack](https://developer.mozilla.org/docs/Web/API/History_API).
 - `router.refresh()`: Refresh the current route. Making a new request to the server, re-fetching data requests, and re-rendering Server Components. The client will merge the updated React Server Component payload without losing unaffected client-side React (e.g. `useState`) or browser state (e.g. scroll position).
-- `router.prefetch(href: string)`: [Prefetch](/docs/app/getting-started/linking-and-navigating#prefetching) the provided route for faster client-side transitions.
+- `router.prefetch(href: string, options?: { onInvalidate?: () => void })`: [Prefetch](/docs/app/getting-started/linking-and-navigating#prefetching) the provided route for faster client-side transitions. The optional `onInvalidate` callback is called when the [prefetched data becomes stale](/docs/app/guides/prefetching#extending-or-ejecting-link).
 - `router.back()`: Navigate back to the previous route in the browser’s history stack.
 - `router.forward()`: Navigate forwards to the next page in the browser’s history stack.
 
@@ -53,6 +53,7 @@ export default function Page() {
 > - You must not send untrusted or unsanitized URLs to `router.push` or `router.replace`, as this can open your site to cross-site scripting (XSS) vulnerabilities. For example, `javascript:` URLs sent to `router.push` or `router.replace` will be executed in the context of your page.
 > - The `<Link>` component automatically prefetch routes as they become visible in the viewport.
 > - `refresh()` could re-produce the same result if fetch requests are cached. Other Dynamic APIs like `cookies` and `headers` could also change the response.
+> - The `onInvalidate` callback is called at most once per prefetch request. It signals when you may want to trigger a new prefetch for updated route data.
 
 ### Migrating from `next/router`
 
@@ -157,6 +158,7 @@ export default function Page() {
 
 ## Version History
 
-| Version   | Changes                                        |
-| --------- | ---------------------------------------------- |
-| `v13.0.0` | `useRouter` from `next/navigation` introduced. |
+| Version   | Changes                                                           |
+| --------- | ----------------------------------------------------------------- |
+| `v15.4.0` | Optional `onInvalidate` callback for `router.prefetch` introduced |
+| `v13.0.0` | `useRouter` from `next/navigation` introduced.                    |

@@ -299,7 +299,7 @@ Prefetching happens when a `<Link />` component enters the user's viewport (init
 
 The following values can be passed to the `prefetch` prop:
 
-- **`null` (default)**: Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched (including all its data). For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/api-reference/file-conventions/loading#instant-loading-states) boundary will be prefetched.
+- **`"auto"` or `null` (default)**: Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched (including all its data). For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/api-reference/file-conventions/loading#instant-loading-states) boundary will be prefetched.
 - `true`: The full route will be prefetched for both static and dynamic routes.
 - `false`: Prefetching will never happen both on entering the viewport and on hover.
 
@@ -1480,6 +1480,7 @@ When a user tries to navigate away using `CustomLink` while the form has unsaved
 
 | Version   | Changes                                                                                                                                                                      |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.4.0` | Add `auto` as an alias to the default `prefetch` behavior.                                                                                                                   |
 | `v15.3.0` | Add `onNavigate` API                                                                                                                                                         |
 | `v13.0.0` | No longer requires a child `<a>` tag. A [codemod](/docs/app/guides/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase. |
 | `v10.0.0` | `href` props pointing to a dynamic route are automatically resolved and no longer require an `as` prop.                                                                      |
