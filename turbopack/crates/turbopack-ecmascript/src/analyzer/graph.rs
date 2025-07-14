@@ -765,7 +765,8 @@ struct Analyzer<'a> {
 
     var_decl_kind: Option<VarDeclKind>,
 
-    /// Used for patterns
+    /// The RHS (or some part of it) of a pattern assignment, read by the individual parts of the
+    /// pattern assignment.
     current_value: Option<JsValue>,
 
     /// Return values of the current function.
@@ -1740,6 +1741,34 @@ impl VisitAstPath for Analyzer<'_> {
         n.visit_children_with_ast_path(self, ast_path);
     }
 
+    fn visit_assign_target_pat<'ast: 'r, 'r>(
+        &mut self,
+        pat: &'ast AssignTargetPat,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        let value = self
+            .current_value
+            .take()
+            .unwrap_or_else(|| JsValue::unknown_empty(false, "pattern without value"));
+        match pat {
+            AssignTargetPat::Array(arr) => {
+                let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignTargetPat(
+                    pat,
+                    AssignTargetPatField::Array,
+                ));
+                self.handle_array_pat_with_value(arr, value, &mut ast_path);
+            }
+            AssignTargetPat::Object(obj) => {
+                let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignTargetPat(
+                    pat,
+                    AssignTargetPatField::Object,
+                ));
+                self.handle_object_pat_with_value(obj, value, &mut ast_path);
+            }
+            AssignTargetPat::Invalid(_) => {}
+        }
+    }
+
     fn visit_pat<'ast: 'r, 'r>(
         &mut self,
         pat: &'ast Pat,
@@ -1761,60 +1790,22 @@ impl VisitAstPath for Analyzer<'_> {
             }
 
             Pat::Array(arr) => {
-                match &value {
-                    Some(JsValue::Array { items, .. }) => {
-                        let mut ast_path =
-                            ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Array));
-                        for (idx, elem) in arr.elems.iter().enumerate() {
-                            self.current_value = items.get(idx).cloned();
-                            let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrayPat(
-                                arr,
-                                ArrayPatField::Elems(idx),
-                            ));
-                            elem.visit_with_ast_path(self, &mut ast_path);
-                        }
-
-                        // We should not call visit_children_with
-                        return;
-                    }
-
-                    Some(value) => {
-                        let mut ast_path =
-                            ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Array));
-                        for (idx, elem) in arr.elems.iter().enumerate() {
-                            self.current_value = Some(JsValue::member(
-                                Box::new(value.clone()),
-                                Box::new(JsValue::Constant(ConstantValue::Num(ConstantNumber(
-                                    idx as f64,
-                                )))),
-                            ));
-                            let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrayPat(
-                                arr,
-                                ArrayPatField::Elems(idx),
-                            ));
-                            elem.visit_with_ast_path(self, &mut ast_path);
-                        }
-                        // We should not call visit_children_with
-                        return;
-                    }
-
-                    None => {}
-                }
+                let mut ast_path = ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Array));
+                let value =
+                    value.unwrap_or_else(|| JsValue::unknown_empty(false, "pattern without value"));
+                self.handle_array_pat_with_value(arr, value, &mut ast_path);
             }
 
             Pat::Object(obj) => {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Object));
                 let value =
                     value.unwrap_or_else(|| JsValue::unknown_empty(false, "pattern without value"));
-
-                self.visit_pat_with_value(pat, obj, value, ast_path);
-
-                // We should not call visit_children_with
-                return;
+                self.handle_object_pat_with_value(obj, value, &mut ast_path);
             }
 
-            _ => {}
+            _ => pat.visit_children_with_ast_path(self, ast_path),
         }
-        pat.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_return_stmt<'ast: 'r, 'r>(
@@ -2368,14 +2359,48 @@ impl Analyzer<'_> {
         }
     }
 
-    fn visit_pat_with_value<'ast: 'r, 'r>(
+    fn handle_array_pat_with_value<'ast: 'r, 'r>(
         &mut self,
-        pat: &'ast Pat,
+        arr: &'ast ArrayPat,
+        current_value: JsValue,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        match current_value {
+            JsValue::Array { items, .. } => {
+                for (idx, (elem_pat, value_item)) in arr
+                    .elems
+                    .iter()
+                    .zip(items.into_iter().map(Some).chain(iter::repeat(None)))
+                    .enumerate()
+                {
+                    self.current_value = value_item;
+                    let mut ast_path = ast_path
+                        .with_guard(AstParentNodeRef::ArrayPat(arr, ArrayPatField::Elems(idx)));
+                    elem_pat.visit_with_ast_path(self, &mut ast_path);
+                }
+            }
+            value => {
+                for (idx, elem) in arr.elems.iter().enumerate() {
+                    self.current_value = Some(JsValue::member(
+                        Box::new(value.clone()),
+                        Box::new(JsValue::Constant(ConstantValue::Num(ConstantNumber(
+                            idx as f64,
+                        )))),
+                    ));
+                    let mut ast_path = ast_path
+                        .with_guard(AstParentNodeRef::ArrayPat(arr, ArrayPatField::Elems(idx)));
+                    elem.visit_with_ast_path(self, &mut ast_path);
+                }
+            }
+        }
+    }
+
+    fn handle_object_pat_with_value<'ast: 'r, 'r>(
+        &mut self,
         obj: &'ast ObjectPat,
         current_value: JsValue,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let mut ast_path = ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Object));
         for (i, prop) in obj.props.iter().enumerate() {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ObjectPat(obj, ObjectPatField::Props(i)));

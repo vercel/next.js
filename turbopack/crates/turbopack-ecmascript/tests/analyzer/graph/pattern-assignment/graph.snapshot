@@ -2,20 +2,14 @@
     (
         "arrPatternBool",
         Alternatives {
-            total_nodes: 4,
+            total_nodes: 3,
             values: [
                 Constant(
                     True,
                 ),
-                Array {
-                    total_nodes: 2,
-                    items: [
-                        Constant(
-                            False,
-                        ),
-                    ],
-                    mutable: true,
-                },
+                Constant(
+                    False,
+                ),
             ],
             logical_property: None,
         },
@@ -23,7 +17,7 @@
     (
         "nestedPatternBool",
         Alternatives {
-            total_nodes: 18,
+            total_nodes: 17,
             values: [
                 Member(
                     8,
@@ -70,36 +64,30 @@
                     ),
                 ),
                 Member(
-                    9,
+                    8,
                     Member(
-                        7,
-                        Array {
-                            total_nodes: 5,
-                            items: [
-                                Object {
-                                    total_nodes: 4,
-                                    parts: [
-                                        KeyValue(
-                                            Constant(
-                                                Str(
-                                                    Atom(
-                                                        "inner",
-                                                    ),
-                                                ),
+                        6,
+                        Object {
+                            total_nodes: 4,
+                            parts: [
+                                KeyValue(
+                                    Constant(
+                                        Str(
+                                            Atom(
+                                                "inner",
                                             ),
-                                            Array {
-                                                total_nodes: 2,
-                                                items: [
-                                                    Constant(
-                                                        False,
-                                                    ),
-                                                ],
-                                                mutable: true,
-                                            },
                                         ),
-                                    ],
-                                    mutable: true,
-                                },
+                                    ),
+                                    Array {
+                                        total_nodes: 2,
+                                        items: [
+                                            Constant(
+                                                False,
+                                            ),
+                                        ],
+                                        mutable: true,
+                                    },
+                                ),
                             ],
                             mutable: true,
                         },
@@ -125,34 +113,68 @@
     ),
     (
         "objPatternBool",
-        Member(
-            5,
-            Object {
-                total_nodes: 3,
-                parts: [
-                    KeyValue(
-                        Constant(
-                            Str(
-                                Atom(
-                                    "objPatternBool",
+        Alternatives {
+            total_nodes: 11,
+            values: [
+                Member(
+                    5,
+                    Object {
+                        total_nodes: 3,
+                        parts: [
+                            KeyValue(
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "objPatternBool",
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    True,
                                 ),
                             ),
+                        ],
+                        mutable: true,
+                    },
+                    Constant(
+                        Str(
+                            Atom(
+                                "objPatternBool",
+                            ),
                         ),
-                        Constant(
-                            True,
-                        ),
-                    ),
-                ],
-                mutable: true,
-            },
-            Constant(
-                Str(
-                    Atom(
-                        "objPatternBool",
                     ),
                 ),
-            ),
-        ),
+                Member(
+                    5,
+                    Object {
+                        total_nodes: 3,
+                        parts: [
+                            KeyValue(
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "objPatternBool",
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    False,
+                                ),
+                            ),
+                        ],
+                        mutable: true,
+                    },
+                    Constant(
+                        Str(
+                            Atom(
+                                "objPatternBool",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
     ),
     (
         "singleAssignBool",

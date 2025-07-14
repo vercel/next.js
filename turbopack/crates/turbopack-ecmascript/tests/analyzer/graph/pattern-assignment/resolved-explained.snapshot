@@ -1,6 +1,6 @@
-arrPatternBool = (true | [false])
+arrPatternBool = (true | false)
 
-nestedPatternBool = (true | ???*0* | ???*1* | ???*3*)
+nestedPatternBool = (true | ???*0* | ???*1* | false)
 - *0* unknown mutation
   ⚠️  This value might have side effects
 - *1* ???*2*[0]
@@ -8,12 +8,8 @@ nestedPatternBool = (true | ???*0* | ???*1* | ???*3*)
   ⚠️  This value might have side effects
 - *2* unknown mutation
   ⚠️  This value might have side effects
-- *3* ???*4*[0]
-  ⚠️  unknown object
-- *4* [{"inner": [false]}]["inner"]
-  ⚠️  non-num constant property on array
 
-objPatternBool = (true | ???*0*)
+objPatternBool = (true | ???*0* | false)
 - *0* unknown mutation
   ⚠️  This value might have side effects
 

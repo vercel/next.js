@@ -60,9 +60,9 @@ function objectPatterns() {
         ({ bool } = {
             bool: true
         });
-        if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
-        ;
-        else {
+        if (bool) {
+            console.log('branch should not be eliminated');
+        } else {
             console.log('this branch is not taken');
         }
     }
@@ -87,9 +87,9 @@ function objectPatterns() {
         }
         let bool = false;
         ({ bool } = dynamic());
-        if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
-        ;
-        else {
+        if (bool) {
+            console.log('branch should not be eliminated');
+        } else {
             console.log('this branch is not taken');
         }
     }
