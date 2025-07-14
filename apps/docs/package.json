@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
+    "dev-docs": "next dev --turbopack",
+    "build-docs": "next build",
     "start": "next start",
     "postinstall": "fumadocs-mdx"
   },
