@@ -1172,15 +1172,13 @@ There are two default `meta` tags that are always added even if a route doesn't 
 
 ### Streaming metadata
 
-Metadata returned by `generateMetadata` is streamed to the client. This allows Next.js to inject metadata into the HTML as soon as it's resolved.
+Metadata returned by `generateMetadata` is streamed to the client, allowing Next.js to inject it into the HTML as soon as it's resolved.
 
-Streamed metadata is appended to the `<body>` tag. Since metadata mainly targets bots and crawlers, Next.js streams metadata for bots that can execute JavaScript and inspect the full DOM (e.g. `Googlebot`). We have verified that these bots interpret the metadata correctly.
+Streamed metadata is appended to the `<body>` tag. For **HTML-limited** bots that can't run JavaScript (e.g. `Twitterbot`), metadata continues to block page rendering and is placed in the `<head>` tag.
 
-For **HTML-limited** bots that can’t run JavaScript (e.g. `Twitterbot`), metadata continues to block page rendering and is placed in the `<head>` tag.
+Next.js maintains a list of [**HTML-limited** bot user agents](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/bots.ts) that receive blocking metadata.
 
-Next.js automatically detects the user agent of incoming requests to determine whether to serve streaming metadata or fallback to blocking metadata.
-
-If you need to customize this list, you can define them manually using the `htmlLimitedBots` option in `next.config.js`. Next.js will ensure user agents matching this regex receive blocking metadata when requesting your web page.
+To customize this behavior, use the `htmlLimitedBots` option in `next.config.js`. Matching user agents will be served blocking metadata.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
