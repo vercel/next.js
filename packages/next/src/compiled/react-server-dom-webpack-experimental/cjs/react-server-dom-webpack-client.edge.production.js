@@ -1379,8 +1379,6 @@ function ResponseInstance(
   this._chunks = chunks;
   this._stringDecoder = new TextDecoder();
   this._fromJSON = null;
-  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
-  this._buffer = [];
   this._closed = !1;
   this._closedReason = null;
   this._tempRefs = temporaryReferences;
@@ -1872,12 +1870,12 @@ function startReadingFromStream(response, stream) {
     if (_ref.done) reportGlobalError(response, Error("Connection closed."));
     else {
       var i = 0,
-        rowState = response._rowState;
-      _ref = response._rowID;
+        rowState = streamState._rowState;
+      _ref = streamState._rowID;
       for (
-        var rowTag = response._rowTag,
-          rowLength = response._rowLength,
-          buffer = response._buffer,
+        var rowTag = streamState._rowTag,
+          rowLength = streamState._rowLength,
+          buffer = streamState._buffer,
           chunkLength = value.length;
         i < chunkLength;
 
@@ -1944,17 +1942,24 @@ function startReadingFromStream(response, stream) {
           break;
         }
       }
-      response._rowState = rowState;
-      response._rowID = _ref;
-      response._rowTag = rowTag;
-      response._rowLength = rowLength;
+      streamState._rowState = rowState;
+      streamState._rowID = _ref;
+      streamState._rowTag = rowTag;
+      streamState._rowLength = rowLength;
       return reader.read().then(progress).catch(error);
     }
   }
   function error(e) {
     reportGlobalError(response, e);
   }
-  var reader = stream.getReader();
+  var streamState = {
+      _rowState: 0,
+      _rowID: 0,
+      _rowTag: 0,
+      _rowLength: 0,
+      _buffer: []
+    },
+    reader = stream.getReader();
   reader.read().then(progress).catch(error);
 }
 exports.createFromFetch = function (promiseForResponse, options) {

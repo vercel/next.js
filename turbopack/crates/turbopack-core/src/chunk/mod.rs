@@ -243,6 +243,14 @@ pub struct OutputChunkRuntimeInfo {
     pub placeholder_for_future_extensions: (),
 }
 
+#[turbo_tasks::value_impl]
+impl OutputChunkRuntimeInfo {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait OutputChunk: Asset {
     #[turbo_tasks::function]

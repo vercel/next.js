@@ -221,6 +221,13 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
+    /// Whether to include information about the content of the chunk into the runtime, to allow
+    /// more incremental loading of individual chunk items.
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     #[turbo_tasks::function]
     fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
         MinifyType::NoMinify.cell()

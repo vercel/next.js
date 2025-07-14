@@ -33,7 +33,7 @@ import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
-import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/router/utils/disable-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
@@ -244,7 +244,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       focusAndScrollRef.hashFragment = null
       focusAndScrollRef.segmentPaths = []
 
-      handleSmoothScroll(
+      disableSmoothScrollDuringRouteTransition(
         () => {
           // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
@@ -281,7 +281,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         }
       )
 
-      // Mutate after scrolling so that it can be read by `handleSmoothScroll`
+      // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
       focusAndScrollRef.onlyHashChange = false
 
       // Set focus on the element

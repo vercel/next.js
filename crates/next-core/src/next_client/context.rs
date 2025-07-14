@@ -455,7 +455,10 @@ pub async fn get_client_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?);
 
     if next_mode.is_development() {
-        builder = builder.hot_module_replacement().use_file_source_map_uris();
+        builder = builder
+            .hot_module_replacement()
+            .use_file_source_map_uris()
+            .dynamic_chunk_content_loading(true);
     } else {
         builder = builder
             .chunking_config(
