@@ -3,7 +3,6 @@
   padding: 0 8px;
   width: 100%;
   height: 100%;
-  overflow-y: hidden;
 }
 
 .segment-explorer-page-route-bar {
@@ -59,9 +58,8 @@
 .segment-explorer-filename select {
   margin-left: auto;
 }
-
 .segment-explorer-filename--path {
-  margin-right: auto;
+  margin-right: 8px;
 }
 .segment-explorer-filename--path small {
   display: inline-block;
@@ -194,29 +192,11 @@
   min-width: 200px;
 }
 
-.segment-explorer-suggestions-toggler {
-  margin-right: 8px;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-.segment-explorer-suggestions-toggler svg {
-  width: 12px;
-  height: 12px;
-  transform: rotate(-90deg);
-}
-.segment-explorer-suggestions-toggler--expanded svg {
-  transform: rotate(0deg);
+.segment-explorer-suggestions {
+  display: inline-flex;
+  gap: 8px;
 }
 
-.segment-explorer-suggestions p {
-  font-size: var(--size-13);
-  line-height: 1;
-  margin: 0;
-  margin-top: 14px;
-}
-
-.segment-explorer-suggestions .segment-explorer-file-label {
-  margin: 0 8px;
+.segment-explorer-suggestions-tooltip {
+  width: 200px;
 }

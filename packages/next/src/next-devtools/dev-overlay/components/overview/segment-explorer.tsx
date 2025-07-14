@@ -6,15 +6,16 @@ import {
 import { cx } from '../../utils/cx'
 import { SegmentBoundaryTrigger } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import {
   BUILTIN_PREFIX,
   getBoundaryOriginFileType,
   isBoundaryFile,
+  isBuiltinBoundaryFile,
   normalizeBoundaryFilename,
 } from '../../../../server/app-render/segment-explorer-path'
-import { ChevronDownIcon } from '../../icons/chevron-down'
 import { SegmentSuggestion } from './segment-suggestion'
+import type { SegmentBoundaryType } from '../../../userspace/app/segment-explorer-node'
 
 const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
@@ -170,6 +171,8 @@ export function PageSegmentTree({ page }: { page: string }) {
   )
 }
 
+const GLOBAL_BOUNDARY_TYPES = ['global-error']
+
 function PageSegmentTreeLayerPresentation({
   segment,
   node,
@@ -179,11 +182,34 @@ function PageSegmentTreeLayerPresentation({
   node: SegmentTrieNode
   level: number
 }) {
-  const [isSuggestionsExpanded, setIsSuggestionsExpanded] = useState(false)
   const childrenKeys = useMemo(
     () => Object.keys(node.children),
     [node.children]
   )
+
+  const missingBoundaryTypes = useMemo(() => {
+    const boundaryTypes = level === 0 ? GLOBAL_BOUNDARY_TYPES : []
+
+    const existingBoundaries: string[] = []
+    childrenKeys.forEach((key) => {
+      const childNode = node.children[key]
+      if (!childNode || !childNode.value) return
+      const boundaryType = getBoundaryOriginFileType(childNode.value.type)
+      const isGlobalConvention = GLOBAL_BOUNDARY_TYPES.includes(boundaryType)
+      if (
+        // If global-* convention is not built-in, it's existed
+        (isGlobalConvention &&
+          !isBuiltinBoundaryFile(childNode.value.pagePath)) ||
+        (!isGlobalConvention &&
+          // If it's non global boundary, we check if file is boundary type
+          isBoundaryFile(childNode.value.type))
+      ) {
+        existingBoundaries.push(boundaryType)
+      }
+    })
+
+    return boundaryTypes.filter((type) => !existingBoundaries.includes(type))
+  }, [node.children, childrenKeys, level])
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
     // Prioritize files with extensions over directories
@@ -246,9 +272,9 @@ function PageSegmentTreeLayerPresentation({
   }
 
   const possibleExtension =
-    filesChildrenKeys.length > 0
-      ? filesChildrenKeys[0].split('.').pop() || 'js'
-      : 'js'
+    normalizeBoundaryFilename(filesChildrenKeys[0] || '')
+      .split('.')
+      .pop() || 'js'
 
   let firstChild = null
 
@@ -275,10 +301,11 @@ function PageSegmentTreeLayerPresentation({
   firstChild = firstChild || firstBoundaryChild
 
   const hasFilesChildren = filesChildrenKeys.length > 0
-  const boundaries: Record<'not-found' | 'loading' | 'error', string | null> = {
+  const boundaries: Record<SegmentBoundaryType, string | null> = {
     'not-found': null,
     loading: null,
     error: null,
+    'global-error': null,
   }
 
   filesChildrenKeys.forEach((childKey) => {
@@ -293,8 +320,6 @@ function PageSegmentTreeLayerPresentation({
       }
     }
   })
-
-  const filesChildrenKeysBesidesSelectedBoundary = filesChildrenKeys
 
   return (
     <>
@@ -312,18 +337,6 @@ function PageSegmentTreeLayerPresentation({
             }}
           >
             <div className="segment-explorer-item-row-main">
-              {/* add a chevron icon to toggle a new div below filename */}
-              <button
-                className={cx(
-                  'segment-explorer-suggestions-toggler',
-                  isSuggestionsExpanded &&
-                    'segment-explorer-suggestions-toggler--expanded'
-                )}
-                onClick={() => setIsSuggestionsExpanded(!isSuggestionsExpanded)}
-              >
-                <ChevronDownIcon />
-              </button>
-
               <div className="segment-explorer-filename">
                 {folderName && (
                   <span className="segment-explorer-filename--path">
@@ -332,63 +345,66 @@ function PageSegmentTreeLayerPresentation({
                     <small>{'/'}</small>
                   </span>
                 )}
+                {missingBoundaryTypes.length > 0 && (
+                  <SegmentSuggestion
+                    possibleExtension={possibleExtension}
+                    missingBoundaryTypes={missingBoundaryTypes}
+                  />
+                )}
                 {/* display all the file segments in this level */}
-                {filesChildrenKeysBesidesSelectedBoundary.length > 0 && (
+                {filesChildrenKeys.length > 0 && (
                   <span className="segment-explorer-files">
-                    {filesChildrenKeysBesidesSelectedBoundary.map(
-                      (fileChildSegment) => {
-                        const childNode = node.children[fileChildSegment]
-                        if (!childNode || !childNode.value) {
-                          return null
-                        }
-                        // If it's boundary node, which marks the existence of the boundary not the rendered status,
-                        // we don't need to present in the rendered files.
-                        if (isBoundaryFile(childNode.value.type)) {
-                          return null
-                        }
-                        // If it's a page/default file, don't show it as a separate label since it's represented by the dropdown button
-                        // if (
-                        //   childNode.value.type === 'page' ||
-                        //   childNode.value.type === 'default'
-                        // ) {
-                        //   return null
-                        // }
-                        const filePath = childNode.value.pagePath
-                        const lastSegment = filePath.split('/').pop() || ''
-                        const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
-                        const fileName = normalizeBoundaryFilename(lastSegment)
-
-                        const tooltipMessage = isBuiltin
-                          ? `The default Next.js ${childNode.value.type} is being shown. You can customize this page by adding your own ${fileName} file to the app/ directory.`
-                          : null
-
-                        const isOverridden =
-                          childNode.value.boundaryType !== null
-
-                        return (
-                          <Tooltip
-                            key={fileChildSegment}
-                            className={
-                              'segment-explorer-file-label-tooltip--' +
-                              (isBuiltin ? 'lg' : 'sm')
-                            }
-                            direction={isBuiltin ? 'right' : 'top'}
-                            title={tooltipMessage}
-                            offset={12}
-                            bgcolor="var(--color-gray-1000)"
-                            color="var(--color-gray-100)"
-                          >
-                            <FilePill
-                              type={childNode.value.type}
-                              isBuiltin={isBuiltin}
-                              isOverridden={isOverridden}
-                              filePath={filePath}
-                              fileName={fileName}
-                            />
-                          </Tooltip>
-                        )
+                    {filesChildrenKeys.map((fileChildSegment) => {
+                      const childNode = node.children[fileChildSegment]
+                      if (!childNode || !childNode.value) {
+                        return null
                       }
-                    )}
+                      // If it's boundary node, which marks the existence of the boundary not the rendered status,
+                      // we don't need to present in the rendered files.
+                      if (isBoundaryFile(childNode.value.type)) {
+                        return null
+                      }
+                      // If it's a page/default file, don't show it as a separate label since it's represented by the dropdown button
+                      // if (
+                      //   childNode.value.type === 'page' ||
+                      //   childNode.value.type === 'default'
+                      // ) {
+                      //   return null
+                      // }
+                      const filePath = childNode.value.pagePath
+                      const lastSegment = filePath.split('/').pop() || ''
+                      const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
+                      const fileName = normalizeBoundaryFilename(lastSegment)
+
+                      const tooltipMessage = isBuiltin
+                        ? `The default Next.js ${childNode.value.type} is being shown. You can customize this page by adding your own ${fileName} file to the app/ directory.`
+                        : null
+
+                      const isOverridden = childNode.value.boundaryType !== null
+
+                      return (
+                        <Tooltip
+                          key={fileChildSegment}
+                          className={
+                            'segment-explorer-file-label-tooltip--' +
+                            (isBuiltin ? 'lg' : 'sm')
+                          }
+                          direction={isBuiltin ? 'right' : 'top'}
+                          title={tooltipMessage}
+                          offset={12}
+                          bgcolor="var(--color-gray-1000)"
+                          color="var(--color-gray-100)"
+                        >
+                          <FilePill
+                            type={childNode.value.type}
+                            isBuiltin={isBuiltin}
+                            isOverridden={isOverridden}
+                            filePath={filePath}
+                            fileName={fileName}
+                          />
+                        </Tooltip>
+                      )
+                    })}
                   </span>
                 )}
                 {firstChild && firstChild.value && (
@@ -399,13 +415,6 @@ function PageSegmentTreeLayerPresentation({
                 )}
               </div>
             </div>
-            {isSuggestionsExpanded && (
-              <SegmentSuggestion
-                segment={segment}
-                node={node}
-                possibleExtension={possibleExtension}
-              />
-            )}
           </div>
         </div>
       )}
