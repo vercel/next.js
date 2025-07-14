@@ -298,6 +298,17 @@ function esmImport(
 }
 contextPrototype.i = esmImport
 
+function asyncLoader(
+  this: TurbopackBaseContext<Module>,
+  moduleId: ModuleId
+): Promise<Exports> {
+  const loader = this.r(moduleId) as (
+    importFunction: EsmImport
+  ) => Promise<Exports>
+  return loader(this.i.bind(this))
+}
+contextPrototype.A = asyncLoader
+
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
 const runtimeRequire =

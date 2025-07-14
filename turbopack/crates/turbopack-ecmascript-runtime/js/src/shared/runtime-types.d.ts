@@ -40,6 +40,7 @@ type EsmImport = (
   moduleId: ModuleId,
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
+type InvokeAsyncLoader = (moduleId: ModuleId) => Promise<Exports>
 type EsmExport = (
   exportGetters: Record<string, () => any>,
   id: ModuleId | undefined
@@ -121,6 +122,7 @@ interface TurbopackBaseContext<M> {
   t: RuntimeRequire
   f: ModuleContextFactory
   i: EsmImport
+  A: InvokeAsyncLoader
   s: EsmExport
   j: DynamicExport
   v: ExportValue

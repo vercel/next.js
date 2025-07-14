@@ -55,6 +55,8 @@ pub const TURBOPACK_MODULE: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.m", "m");
 pub const TURBOPACK_REQUIRE: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.r", "r");
+pub const TURBOPACK_ASYNC_LOADER: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.A", "A");
 pub const TURBOPACK_MODULE_CONTEXT: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.f", "f");
 pub const TURBOPACK_IMPORT: &TurbopackRuntimeFunctionShortcut =
