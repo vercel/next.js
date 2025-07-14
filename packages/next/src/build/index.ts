@@ -1423,8 +1423,8 @@ export default async function build(
         app: appPaths.length > 0 ? appPaths : undefined,
       }
 
-      // Generate route types if experimental.newTypedRoutes is enabled
-      if (config.experimental.newTypedRoutes) {
+      // Generate route types if experimental.typedRoutes is enabled
+      if (config.experimental.typedRoutes) {
         await nextBuildSpan
           .traceChild('generate-route-types')
           .traceAsyncFn(async () => {

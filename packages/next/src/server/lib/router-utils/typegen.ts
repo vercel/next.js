@@ -1,5 +1,9 @@
 import type { RouteTypesManifest } from './route-types-shared'
 
+// TODO: add support for processing redirects and rewrites
+// see old next-types-plugin source code for reference
+// TODO: make sure we're using isDynamicRoute where appropriate
+
 function generateRouteTypes(routesManifest: RouteTypesManifest): string {
   const appRoutes = Object.keys(routesManifest.appRoutes).sort()
   const pageRoutes = Object.keys(routesManifest.pageRoutes).sort()

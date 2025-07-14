@@ -54,7 +54,7 @@ export async function verifyTypeScriptSetup({
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
-  nextConfig?: { experimental?: { newTypedRoutes?: boolean } }
+  nextConfig?: { experimental?: { typedRoutes?: boolean } }
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const resolvedTsConfigPath = path.join(dir, tsconfigPath)
 
@@ -134,7 +134,7 @@ export async function verifyTypeScriptSetup({
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
-      hasNewTypedRoutes: nextConfig?.experimental?.newTypedRoutes,
+      hasTypedRoutes: nextConfig?.experimental?.typedRoutes,
     })
 
     let result

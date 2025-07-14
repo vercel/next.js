@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    newTypedRoutes: true,
+    typedRoutes: true,
   },
 }
 

@@ -283,7 +283,7 @@ async function startWatcher(
     JSON.stringify(routesManifest)
   )
 
-  if (opts.nextConfig.experimental.newTypedRoutes) {
+  if (opts.nextConfig.experimental.typedRoutes) {
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.ts')
     await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
@@ -582,7 +582,7 @@ async function startWatcher(
           continue
         }
 
-        if (opts.nextConfig.experimental.newTypedRoutes && isAppPath) {
+        if (opts.nextConfig.experimental.typedRoutes && isAppPath) {
           // *record parallel route slots for layout typing*
           const normalizedPageName = normalizePathSep(pageName)
 
@@ -1054,7 +1054,7 @@ async function startWatcher(
         }
         prevSortedRoutes = sortedRoutes
 
-        if (opts.nextConfig.experimental.newTypedRoutes) {
+        if (opts.nextConfig.experimental.typedRoutes) {
           const routeTypesFilePath = path.join(distDir, 'types', 'routes.ts')
           await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
