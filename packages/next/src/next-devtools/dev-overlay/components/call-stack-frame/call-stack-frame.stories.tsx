@@ -29,6 +29,7 @@ export default meta
 type Story = StoryObj<typeof CallStackFrame>
 
 const frame = {
+  originalCodeFrame: null,
   originalStackFrame: {
     file: './app/page.tsx',
     methodName: 'MyComponent',

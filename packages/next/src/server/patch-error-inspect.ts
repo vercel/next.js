@@ -7,6 +7,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   type ModernSourceMapPayload,
   findApplicableSourceMapPayload,
+  ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
 import { parseStack } from './lib/parse-stack'
@@ -118,6 +119,23 @@ function createUnsourcemappedFrame(
     },
     code: null,
   }
+}
+
+function ignoreListAnonymousStackFramesIfSandwiched(
+  sourceMappedFrames: Array<{
+    stack: IgnoreableStackFrame
+    code: string | null
+  }>
+) {
+  return ignoreListAnonymousStackFramesIfSandwichedGeneric(
+    sourceMappedFrames,
+    (frame) => frame.stack.file === '<anonymous>',
+    (frame) => frame.stack.ignored,
+    (frame) => frame.stack.methodName,
+    (frame) => {
+      frame.stack.ignored = true
+    }
+  )
 }
 
 /**
@@ -324,11 +342,24 @@ function parseAndSourceMap(
   const unsourcemappedStack = parseStack(unparsedStack)
   const sourceMapCache: SourceMapCache = new Map()
 
-  let sourceMappedStack = ''
+  const sourceMappedFrames: Array<{
+    stack: IgnoreableStackFrame
+    code: string | null
+  }> = []
   let sourceFrame: null | string = null
   for (const frame of unsourcemappedStack) {
     if (frame.file === null) {
-      sourceMappedStack += '\n' + frameToString(frame)
+      sourceMappedFrames.push({
+        code: null,
+        stack: {
+          arguments: frame.arguments,
+          column: frame.column,
+          file: frame.file,
+          lineNumber: frame.lineNumber,
+          methodName: frame.methodName,
+          ignored: false,
+        },
+      })
     } else {
       const sourcemappedFrame = getSourcemappedFrameIfPossible(
         // We narrowed this earlier by bailing if `frame.file` is null.
@@ -336,7 +367,11 @@ function parseAndSourceMap(
         sourceMapCache,
         inspectOptions
       )
+      sourceMappedFrames.push(sourcemappedFrame)
 
+      // We can determine the sourceframe here.
+      // anonymous frames won't have a sourceframe so we don't need to scan
+      // all stacks again to check if they are sandwiched between ignored frames.
       if (
         sourceFrame === null &&
         // TODO: Is this the right choice?
@@ -345,14 +380,19 @@ function parseAndSourceMap(
       ) {
         sourceFrame = sourcemappedFrame.code
       }
-      if (!sourcemappedFrame.stack.ignored) {
-        // TODO: Consider what happens if every frame is ignore listed.
-        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
-      } else if (showIgnoreListed && !inspectOptions.colors) {
-        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
-      } else if (showIgnoreListed) {
-        sourceMappedStack += '\n' + dim(frameToString(sourcemappedFrame.stack))
-      }
+    }
+  }
+
+  ignoreListAnonymousStackFramesIfSandwiched(sourceMappedFrames)
+
+  let sourceMappedStack = ''
+  for (let i = 0; i < sourceMappedFrames.length; i++) {
+    const frame = sourceMappedFrames[i]
+
+    if (!frame.stack.ignored) {
+      sourceMappedStack += '\n' + frameToString(frame.stack)
+    } else if (showIgnoreListed) {
+      sourceMappedStack += '\n' + dim(frameToString(frame.stack))
     }
   }
 

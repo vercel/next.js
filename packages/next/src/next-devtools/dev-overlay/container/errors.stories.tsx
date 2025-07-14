@@ -91,6 +91,8 @@ export const WithHydrationWarning: Story = {
               reason: 'First error message',
               external: false,
               ignored: false,
+              originalStackFrame: null,
+              originalCodeFrame: null,
               sourceStackFrame: {
                 file: 'app/page.tsx',
                 methodName: 'Home',
