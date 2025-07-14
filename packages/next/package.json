@@ -170,7 +170,7 @@
     "@next/swc": "15.4.0-canary.126",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.51.1",
-    "@rspack/core": "npm:@rspack-canary/core@1.4.7-canary-af293cf4-20250711072844",
+    "@rspack/core": "npm:@rspack-canary/core@1.4.7-canary-d1d58750-20250714093351",
     "@storybook/addon-a11y": "8.6.0",
     "@storybook/addon-essentials": "8.6.0",
     "@storybook/addon-interactions": "8.6.0",

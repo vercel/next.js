@@ -116,7 +116,7 @@
     "@next/third-parties": "workspace:*",
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",
-    "@rspack/core": "npm:@rspack-canary/core@1.4.7-canary-af293cf4-20250711072844",
+    "@rspack/core": "npm:@rspack-canary/core@1.4.7-canary-d1d58750-20250714093351",
     "@rspack/plugin-react-refresh": "1.2.0",
     "@slack/web-api": "7.9.1",
     "@swc/cli": "0.1.55",
