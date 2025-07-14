@@ -97,6 +97,8 @@ function dimConsoleCall(
   switch (methodName) {
     case 'dir':
     case 'dirxml':
+    case 'group':
+    case 'groupCollapsed':
     case 'groupEnd':
     case 'table': {
       // These methods cannot be colorized because they don't take a formatting string.
@@ -109,10 +111,17 @@ function dimConsoleCall(
         ...formatConsoleArguments(args[1], ...args.slice(2))
       )
     }
-    default:
+    case 'error':
+    case 'debug':
+    case 'info':
+    case 'log':
+    case 'trace':
+    case 'warn':
       return [ANSI_STYLE_DIMMING_TEMPLATE].concat(
         ...formatConsoleArguments(args[0], ...args.slice(1))
       )
+    default:
+      return methodName satisfies never
   }
 }
 
