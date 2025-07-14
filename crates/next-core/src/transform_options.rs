@@ -25,7 +25,7 @@ async fn get_typescript_options(
         Some(FindContextFileResult::Found(path, _)) => read_tsconfigs(
             path.read(),
             ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
-            node_cjs_resolve_options(path.root().await?.clone_value()),
+            node_cjs_resolve_options(path.root().owned().await?),
         )
         .await
         .ok(),

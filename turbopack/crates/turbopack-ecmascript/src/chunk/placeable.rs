@@ -34,7 +34,7 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
         Ok(is_marked_as_side_effect_free(
-            self.ident().path().await?.clone_value(),
+            self.ident().path().owned().await?,
             side_effect_free_packages,
         ))
     }

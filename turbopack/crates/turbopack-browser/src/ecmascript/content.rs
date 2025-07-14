@@ -62,8 +62,8 @@ impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBrowserChunkVersion>> {
         Ok(EcmascriptBrowserChunkVersion::new(
-            self.chunking_context.output_root().await?.clone_value(),
-            self.chunk.path().await?.clone_value(),
+            self.chunking_context.output_root().owned().await?,
+            self.chunk.path().owned().await?,
             *self.content,
         ))
     }

@@ -65,7 +65,7 @@ jobs:
           tool: cargo-codspeed@2.10.1
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.8
+        uses: ijjk/rust-cache@turbo-cache-v1.0.9
         with:
           save-if: 'true'
           cache-provider: 'turbo'

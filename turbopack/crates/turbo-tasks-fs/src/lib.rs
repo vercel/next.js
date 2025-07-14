@@ -2136,7 +2136,7 @@ impl DirectoryEntry {
     /// `DirectoryEntry::Directory`.
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = &self {
-            let real_path = (*symlink.realpath().await?).clone();
+            let real_path = symlink.realpath().owned().await?;
             match *real_path.get_type().await? {
                 FileSystemEntryType::Directory => Ok(DirectoryEntry::Directory(real_path)),
                 FileSystemEntryType::File => Ok(DirectoryEntry::File(real_path)),
@@ -2299,7 +2299,7 @@ impl ValueToString for NullFileSystem {
 pub async fn to_sys_path(mut path: FileSystemPath) -> Result<Option<PathBuf>> {
     loop {
         if let Some(fs) = Vc::try_resolve_downcast_type::<AttachedFileSystem>(path.fs()).await? {
-            path = (*fs.get_inner_fs_path(path).await?).clone();
+            path = fs.get_inner_fs_path(path).owned().await?;
             continue;
         }
 
@@ -2412,7 +2412,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         if let LinkContent::Link { target, link_type } = &*current_vc.read_link().await? {
             symlinks.insert(current_vc.clone());
             current_vc = if link_type.contains(LinkType::ABSOLUTE) {
-                (*current_vc.root().await?).clone()
+                current_vc.root().owned().await?
             } else {
                 parent_result.path
             }
