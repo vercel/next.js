@@ -27,6 +27,12 @@
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route"
       ]
     },
+    "test/e2e/app-dir/use-cache/use-cache.test.ts": {
+      "failed": [
+        "use-cache should revalidate before redirecting in a route handler",
+        "use-cache should update after unstable_expireTag correctly"
+      ]
+    },
     "test/production/app-dir/browser-chunks/browser-chunks.test.ts": {
       "failed": [
         "browser-chunks must not bundle any server modules into browser chunks"
@@ -278,7 +284,6 @@
       "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts",
       "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts",
       "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts",
-      "test/e2e/app-dir/use-cache/use-cache.test.ts",
       "test/e2e/app-dir/use-params/use-params.test.ts",
       "test/e2e/app-dir/use-selected-layout-segment-s/use-selected-layout-segment-s.test.ts",
       "test/e2e/app-dir/use-server-inserted-html/use-server-inserted-html.test.ts",
