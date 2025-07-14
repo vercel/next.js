@@ -147,7 +147,12 @@ export function Draggable({
       {...props}
       ref={ref}
       {...drag}
-      style={{ touchAction: 'none', ...props.style }}
+      style={{
+        touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        ...props.style,
+      }}
     >
       {children}
     </div>
@@ -203,6 +208,8 @@ export function useDrag(options: UseDragOptions) {
     velocities.current = []
 
     ref.current?.classList.remove('dev-tools-grabbing')
+    document.body.style.removeProperty('user-select')
+    document.body.style.removeProperty('-webkit-user-select')
   }, [])
 
   useLayoutEffect(() => {
@@ -303,6 +310,8 @@ export function useDrag(options: UseDragOptions) {
         machine.current = { state: 'drag', pointerId: e.pointerId }
         ref.current?.setPointerCapture(e.pointerId)
         ref.current?.classList.add('dev-tools-grabbing')
+        document.body.style.userSelect = 'none'
+        document.body.style.webkitUserSelect = 'none'
         options.onDragStart?.()
       }
     }
