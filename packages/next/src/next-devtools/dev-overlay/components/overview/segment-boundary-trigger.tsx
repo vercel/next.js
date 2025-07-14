@@ -2,11 +2,7 @@ import './segment-boundary-trigger.css'
 import { useCallback, useState, useRef, useMemo } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
 import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
-import {
-  isBoundaryFile,
-  normalizeBoundaryFilename,
-} from '../../../../server/app-render/segment-explorer-path'
-import { cx } from '../../utils/cx'
+import { normalizeBoundaryFilename } from '../../../../server/app-render/segment-explorer-path'
 import { useClickOutside } from '../errors/dev-tools-indicator/utils'
 
 const composeRefs = (...refs: (React.Ref<HTMLButtonElement> | undefined)[]) => {
@@ -29,13 +25,7 @@ export function SegmentBoundaryTrigger({
   boundaries: Record<'not-found' | 'loading' | 'error', string | null>
 }) {
   const currNode = nodeState
-  const {
-    pagePath,
-    boundaryType,
-    type,
-    setBoundaryType: onSelectBoundary,
-  } = currNode
-  const fileType = type
+  const { pagePath, boundaryType, setBoundaryType: onSelectBoundary } = currNode
 
   const [isOpen, setIsOpen] = useState(false)
   // TODO: move this shadowRoot ref util to a shared hook or into context
@@ -76,14 +66,11 @@ export function SegmentBoundaryTrigger({
   }, [boundaries, possibleExtension])
 
   const fileName = (pagePath || '').split('/').pop() || ''
-  const isBoundary = isBoundaryFile(fileType)
   const pageFileName = normalizeBoundaryFilename(
     boundaryType
       ? `page.${possibleExtension}`
       : fileName || `page.${possibleExtension}`
   )
-
-  const isPageOrBoundary = fileType && !isBoundary
 
   const triggerOptions = [
     {
@@ -158,15 +145,21 @@ export function SegmentBoundaryTrigger({
     return <Trigger {...triggerProps} ref={mergedRef} />
   }
 
+  const hasBoundary = useMemo(() => {
+    const hasPageOrBoundary =
+      nodeState.type !== 'layout' && nodeState.type !== 'template'
+    return (
+      hasPageOrBoundary && Object.values(boundaries).some((v) => v !== null)
+    )
+  }, [nodeState.type, boundaries])
+
   return (
     <Menu.Root delay={0} modal={false} open={isOpen} onOpenChange={setIsOpen}>
       <Menu.Trigger
-        className={cx(
-          'segment-boundary-trigger',
-          !isPageOrBoundary && 'segment-boundary-trigger--boundary'
-        )}
+        className="segment-boundary-trigger"
         data-nextjs-dev-overlay-segment-boundary-trigger-button
         render={MergedRefTrigger}
+        disabled={!hasBoundary}
       />
 
       {/* @ts-expect-error remove this expect-error once shadowRoot is supported as container */}
@@ -330,13 +323,9 @@ function SwitchIcon(props: React.SVGProps<SVGSVGElement>) {
   )
 }
 
-export function Trigger(props: React.ComponentProps<'button'>) {
+function Trigger(props: React.ComponentProps<'button'>) {
   return (
-    <button
-      {...props}
-      className={cx('segment-boundary-trigger', props.className)}
-      role="button"
-    >
+    <button {...props}>
       <span className="segment-boundary-trigger-text">
         <SwitchIcon className="plus-icon" />
       </span>
