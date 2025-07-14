@@ -71,7 +71,6 @@ export type DynamicTrackingState = {
    */
   readonly dynamicAccesses: Array<DynamicAccess>
 
-  syncDynamicExpression: undefined | string
   syncDynamicErrorWithStack: null | Error
 }
 
@@ -90,7 +89,6 @@ export function createDynamicTrackingState(
   return {
     isDebugDynamicAccesses,
     dynamicAccesses: [],
-    syncDynamicExpression: undefined,
     syncDynamicErrorWithStack: null,
   }
 }
@@ -292,7 +290,6 @@ export function abortOnSynchronousPlatformIOAccess(
   // called the sync IO expression in the first place.
   if (dynamicTracking) {
     if (dynamicTracking.syncDynamicErrorWithStack === null) {
-      dynamicTracking.syncDynamicExpression = expression
       dynamicTracking.syncDynamicErrorWithStack = errorWithStack
     }
   }
@@ -337,7 +334,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
     const dynamicTracking = prerenderStore.dynamicTracking
     if (dynamicTracking) {
       if (dynamicTracking.syncDynamicErrorWithStack === null) {
-        dynamicTracking.syncDynamicExpression = expression
         dynamicTracking.syncDynamicErrorWithStack = errorWithStack
       }
     }

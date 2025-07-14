@@ -37,7 +37,7 @@ export function DevToolsInfo({
     // Bring focus to close button, so the user can easily close the overlay
     closeButtonRef.current?.focus()
   })
-  useClickOutside(ref, triggerRef, isOpen, close)
+  useClickOutside(ref, triggerRef, mounted, close)
 
   if (!mounted) {
     return null

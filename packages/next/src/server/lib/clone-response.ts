@@ -27,6 +27,10 @@ export function cloneResponse(original: Response): [Response, Response] {
 
   Object.defineProperty(cloned1, 'url', {
     value: original.url,
+    // How the original response.url behaves
+    configurable: true,
+    enumerable: true,
+    writable: false,
   })
 
   const cloned2 = new Response(body2, {
@@ -37,6 +41,10 @@ export function cloneResponse(original: Response): [Response, Response] {
 
   Object.defineProperty(cloned2, 'url', {
     value: original.url,
+    // How the original response.url behaves
+    configurable: true,
+    enumerable: true,
+    writable: false,
   })
 
   return [cloned1, cloned2]

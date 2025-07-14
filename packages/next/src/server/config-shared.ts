@@ -768,6 +768,15 @@ export interface ExperimentalConfig {
          */
         showSourceLocation?: boolean
       }
+
+  /**
+   * When enabled, will only opt-in to special smooth scroll handling when
+   * data-scroll-behavior="smooth" is present on the <html> element.
+   * This will be the default, non-configurable behavior in the next major version.
+   *
+   * @default false
+   */
+  optimizeRouterScrolling?: boolean
 }
 
 export type ExportPathMap = {
@@ -1474,7 +1483,15 @@ export const defaultConfig = {
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
-    dynamicIO: false,
+    dynamicIO:
+      // TODO: remove once we've made dynamicIO the default
+      // If we're testing, and the `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS` environment
+      // variable has been set to `true`, enable the experimental dynamicIO feature so long as it
+      // wasn't explicitly disabled in the config.
+      !!(
+        process.env.__NEXT_TEST_MODE &&
+        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ),
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
@@ -1482,6 +1499,7 @@ export const defaultConfig = {
     devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
     devtoolSegmentExplorer: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
     browserDebugInfoInTerminal: false,
+    optimizeRouterScrolling: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

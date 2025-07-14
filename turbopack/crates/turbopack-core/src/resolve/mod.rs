@@ -1133,20 +1133,20 @@ async fn type_exists(
     ty: FileSystemEntryType,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<FileSystemPath>> {
-    let result = fs_path.realpath_with_links().await?;
+    let result = fs_path.realpath_with_links().owned().await?;
     refs.extend(
         result
             .symlinks
-            .iter()
+            .into_iter()
             .map(|path| async move {
                 Ok(ResolvedVc::upcast(
-                    FileSource::new(path.clone()).to_resolved().await?,
+                    FileSource::new(path).to_resolved().await?,
                 ))
             })
             .try_join()
             .await?,
     );
-    let path = result.clone_value().path;
+    let path = result.path;
     Ok(if *path.get_type().await? == ty {
         Some(path)
     } else {
@@ -1158,20 +1158,20 @@ async fn any_exists(
     fs_path: FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<(FileSystemEntryType, FileSystemPath)>> {
-    let result = fs_path.realpath_with_links().await?;
+    let result = fs_path.realpath_with_links().owned().await?;
     refs.extend(
         result
             .symlinks
-            .iter()
+            .into_iter()
             .map(|path| async move {
                 Ok(ResolvedVc::upcast(
-                    FileSource::new(path.clone()).to_resolved().await?,
+                    FileSource::new(path).to_resolved().await?,
                 ))
             })
             .try_join()
             .await?,
     );
-    let path = result.clone_value().path;
+    let path = result.path;
     let ty = *path.get_type().await?;
     Ok(
         if matches!(
@@ -1508,7 +1508,7 @@ pub async fn resolve_raw(
     {
         let path = Pattern::new(pat);
         let matches = read_matches(
-            lookup_dir.root().await?.clone_value(),
+            lookup_dir.root().owned().await?,
             rcstr!("/ROOT/"),
             true,
             path,
@@ -1644,7 +1644,7 @@ pub async fn url_resolve(
     handle_resolve_error(
         result,
         reference_type,
-        origin.origin_path().await?.clone_value(),
+        origin.origin_path().owned().await?,
         request,
         resolve_options,
         is_optional,
@@ -1717,7 +1717,7 @@ async fn handle_after_resolve_plugins(
 
     for (key, primary) in result_value.primary.iter() {
         if let &ResolveResultItem::Source(source) = primary {
-            let path = source.ident().path().await?.clone_value();
+            let path = source.ident().path().owned().await?;
             if let Some(new_result) = apply_plugins_to_path(
                 path.clone(),
                 lookup_path.clone(),
@@ -1944,7 +1944,7 @@ async fn resolve_internal_inline(
                 }
 
                 Box::pin(resolve_internal_inline(
-                    lookup_path.root().await?.clone_value(),
+                    lookup_path.root().owned().await?,
                     relative,
                     options,
                 ))
@@ -2768,10 +2768,10 @@ async fn resolve_import_map_result(
                     match ty {
                         // TODO is that root correct?
                         ExternalType::CommonJs => {
-                            node_cjs_resolve_options(alias_lookup_path.root().await?.clone_value())
+                            node_cjs_resolve_options(alias_lookup_path.root().owned().await?)
                         }
                         ExternalType::EcmaScriptModule => {
-                            node_esm_resolve_options(alias_lookup_path.root().await?.clone_value())
+                            node_esm_resolve_options(alias_lookup_path.root().owned().await?)
                         }
                         ExternalType::Script | ExternalType::Url | ExternalType::Global => options,
                     },

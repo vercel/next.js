@@ -139,7 +139,7 @@ impl ClientReferenceManifest {
                         Ok(if let Some(path) = path {
                             (chunk, Either::Left(path))
                         } else {
-                            (chunk, Either::Right(chunk.path().await?.clone_value()))
+                            (chunk, Either::Right(chunk.path().owned().await?))
                         })
                     })
                     .try_join()

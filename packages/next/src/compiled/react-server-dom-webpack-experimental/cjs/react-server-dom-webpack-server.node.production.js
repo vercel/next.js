@@ -1934,8 +1934,7 @@ function performWork(request) {
     request.pingedTasks = [];
     for (var i = 0; i < pingedTasks.length; i++)
       retryTask(request, pingedTasks[i]);
-    null !== request.destination &&
-      flushCompletedChunks(request, request.destination);
+    flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   } finally {
@@ -1959,65 +1958,68 @@ function haltTask(task) {
 function finishHaltedTask(task, request) {
   3 === task.status && request.pendingChunks--;
 }
-function flushCompletedChunks(request, destination) {
-  currentView = new Uint8Array(2048);
-  writtenBytes = 0;
-  destinationHasCapacity = !0;
-  try {
-    for (
-      var importsChunks = request.completedImportChunks, i = 0;
-      i < importsChunks.length;
-      i++
-    )
-      if (
-        (request.pendingChunks--,
-        !writeChunkAndReturn(destination, importsChunks[i]))
-      ) {
-        request.destination = null;
-        i++;
-        break;
-      }
-    importsChunks.splice(0, i);
-    var hintChunks = request.completedHintChunks;
-    for (i = 0; i < hintChunks.length; i++)
-      if (!writeChunkAndReturn(destination, hintChunks[i])) {
-        request.destination = null;
-        i++;
-        break;
-      }
-    hintChunks.splice(0, i);
-    var regularChunks = request.completedRegularChunks;
-    for (i = 0; i < regularChunks.length; i++)
-      if (
-        (request.pendingChunks--,
-        !writeChunkAndReturn(destination, regularChunks[i]))
-      ) {
-        request.destination = null;
-        i++;
-        break;
-      }
-    regularChunks.splice(0, i);
-    var errorChunks = request.completedErrorChunks;
-    for (i = 0; i < errorChunks.length; i++)
-      if (
-        (request.pendingChunks--,
-        !writeChunkAndReturn(destination, errorChunks[i]))
-      ) {
-        request.destination = null;
-        i++;
-        break;
-      }
-    errorChunks.splice(0, i);
-  } finally {
-    (request.flushScheduled = !1),
-      currentView &&
-        0 < writtenBytes &&
-        destination.write(currentView.subarray(0, writtenBytes)),
-      (currentView = null),
-      (writtenBytes = 0),
-      (destinationHasCapacity = !0);
+function flushCompletedChunks(request) {
+  var destination = request.destination;
+  if (null !== destination) {
+    currentView = new Uint8Array(2048);
+    writtenBytes = 0;
+    destinationHasCapacity = !0;
+    try {
+      for (
+        var importsChunks = request.completedImportChunks, i = 0;
+        i < importsChunks.length;
+        i++
+      )
+        if (
+          (request.pendingChunks--,
+          !writeChunkAndReturn(destination, importsChunks[i]))
+        ) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      importsChunks.splice(0, i);
+      var hintChunks = request.completedHintChunks;
+      for (i = 0; i < hintChunks.length; i++)
+        if (!writeChunkAndReturn(destination, hintChunks[i])) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      hintChunks.splice(0, i);
+      var regularChunks = request.completedRegularChunks;
+      for (i = 0; i < regularChunks.length; i++)
+        if (
+          (request.pendingChunks--,
+          !writeChunkAndReturn(destination, regularChunks[i]))
+        ) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      regularChunks.splice(0, i);
+      var errorChunks = request.completedErrorChunks;
+      for (i = 0; i < errorChunks.length; i++)
+        if (
+          (request.pendingChunks--,
+          !writeChunkAndReturn(destination, errorChunks[i]))
+        ) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      errorChunks.splice(0, i);
+    } finally {
+      (request.flushScheduled = !1),
+        currentView &&
+          0 < writtenBytes &&
+          destination.write(currentView.subarray(0, writtenBytes)),
+        (currentView = null),
+        (writtenBytes = 0),
+        (destinationHasCapacity = !0);
+    }
+    "function" === typeof destination.flush && destination.flush();
   }
-  "function" === typeof destination.flush && destination.flush();
   0 === request.pendingChunks &&
     (cleanupTaintQueue(request),
     12 > request.status &&
@@ -2027,8 +2029,8 @@ function flushCompletedChunks(request, destination) {
         )
       ),
     (request.status = 14),
-    destination.end(),
-    (request.destination = null));
+    null !== request.destination &&
+      (request.destination.end(), (request.destination = null)));
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
@@ -2046,8 +2048,7 @@ function enqueueFlush(request) {
     ((request.flushScheduled = !0),
     setImmediate(function () {
       request.flushScheduled = !1;
-      var destination = request.destination;
-      destination && flushCompletedChunks(request, destination);
+      flushCompletedChunks(request);
     }));
 }
 function callOnAllReadyIfReady(request) {
@@ -2060,7 +2061,7 @@ function startFlowing(request, destination) {
   else if (14 !== request.status && null === request.destination) {
     request.destination = destination;
     try {
-      flushCompletedChunks(request, destination);
+      flushCompletedChunks(request);
     } catch (error) {
       logRecoverableError(request, error, null), fatalError(request, error);
     }
@@ -2073,8 +2074,7 @@ function finishHalt(request, abortedTasks) {
     });
     var onAllReady = request.onAllReady;
     onAllReady();
-    null !== request.destination &&
-      flushCompletedChunks(request, request.destination);
+    flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   }
@@ -2086,8 +2086,7 @@ function finishAbort(request, abortedTasks, errorId) {
     });
     var onAllReady = request.onAllReady;
     onAllReady();
-    null !== request.destination &&
-      flushCompletedChunks(request, request.destination);
+    flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   }
@@ -2150,8 +2149,7 @@ function abort(request, reason) {
       else {
         var onAllReady = request.onAllReady;
         onAllReady();
-        null !== request.destination &&
-          flushCompletedChunks(request, request.destination);
+        flushCompletedChunks(request);
       }
     } catch (error$27) {
       logRecoverableError(request, error$27, null),

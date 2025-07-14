@@ -878,11 +878,11 @@ impl PlainIssue {
         processing_path: Vc<OptionIssueProcessingPathItems>,
     ) -> Result<Vc<Self>> {
         let description: Option<StyledString> = match *issue.description().await? {
-            Some(description) => Some((*description.await?).clone()),
+            Some(description) => Some(description.owned().await?),
             None => None,
         };
         let detail = match *issue.detail().await? {
-            Some(detail) => Some((*detail.await?).clone()),
+            Some(detail) => Some(detail.owned().await?),
             None => None,
         };
         let trait_ref = issue.into_trait_ref().await?;
@@ -910,7 +910,7 @@ impl PlainIssue {
                     into_plain_trace(
                         tracer
                             .await?
-                            .get_traces(issue.file_path().await?.clone_value())
+                            .get_traces(issue.file_path().owned().await?)
                             .await?,
                     )
                     .await?
