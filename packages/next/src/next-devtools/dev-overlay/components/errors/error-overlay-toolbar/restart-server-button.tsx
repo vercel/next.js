@@ -6,6 +6,7 @@ import {
 } from '../../../shared'
 import type { SupportedErrorEvent } from '../../../container/runtime-error/render-error'
 import { useRestartServer } from './use-restart-server'
+import { css } from '../../../utils/css'
 
 /**
  * When the Turbopack persistent cache is enabled, and the user reloads on a
@@ -21,8 +22,14 @@ export function RestartServerButton({ showButton }: { showButton: boolean }) {
     return null
   }
 
-  function handleClick() {
-    restartServerAction({ invalidatePersistentCache: true })
+  async function handleClick() {
+    const hasServerRestarted = await restartServerAction({
+      invalidatePersistentCache: true,
+    })
+
+    if (hasServerRestarted) {
+      window.location.reload()
+    }
   }
 
   return (
@@ -32,9 +39,8 @@ export function RestartServerButton({ showButton }: { showButton: boolean }) {
       disabled={isPending}
       title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
     >
-      {/* TODO: Add loading spinner. */}
-      <RefreshClockWise width={14} height={14} />
-      {isPending ? 'Restarting...' : 'Clear Bundler Cache &amp; Restart'}
+      <RefreshClockWise width={14} height={14} spinning={isPending} />
+      {isPending ? 'Restarting...' : 'Reset Bundler Cache'}
     </button>
   )
 }
@@ -83,7 +89,7 @@ export function usePersistentCacheErrorDetection({
   }, [errors, dispatch])
 }
 
-export const RESTART_SERVER_BUTTON_STYLES = `
+export const RESTART_SERVER_BUTTON_STYLES = css`
   .restart-dev-server-button {
     display: flex;
     justify-content: center;
