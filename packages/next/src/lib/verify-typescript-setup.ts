@@ -43,7 +43,6 @@ export async function verifyTypeScriptSetup({
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
-  nextConfig,
 }: {
   dir: string
   distDir: string
@@ -54,7 +53,6 @@ export async function verifyTypeScriptSetup({
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
-  nextConfig?: { experimental?: { newTypedRoutes?: boolean } }
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const resolvedTsConfigPath = path.join(dir, tsconfigPath)
 
@@ -131,10 +129,10 @@ export async function verifyTypeScriptSetup({
     // Next.js' types:
     await writeAppTypeDeclarations({
       baseDir: dir,
+      distDir,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
-      hasNewTypedRoutes: nextConfig?.experimental?.newTypedRoutes,
     })
 
     let result

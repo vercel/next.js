@@ -109,7 +109,6 @@ const nextLint = async (options: NextLintOptions, directory?: string) => {
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
-    nextConfig,
   })
 
   runLintCheck(baseDir, pathsToLint, {

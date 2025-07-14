@@ -1,34 +1,56 @@
-import type { RouteTypesManifest } from './route-types-shared'
+import type { RouteTypesManifest } from './route-types-utils'
+import { isDynamicRoute } from '../../../shared/lib/router/utils/is-dynamic'
 
 function generateRouteTypes(routesManifest: RouteTypesManifest): string {
   const appRoutes = Object.keys(routesManifest.appRoutes).sort()
   const pageRoutes = Object.keys(routesManifest.pageRoutes).sort()
   const layoutRoutes = Object.keys(routesManifest.layoutRoutes).sort()
+  const redirectRoutes = Object.keys(routesManifest.redirectRoutes).sort()
+  const rewriteRoutes = Object.keys(routesManifest.rewriteRoutes).sort()
 
   let result = ''
 
   // Generate AppRoutes union type
   if (appRoutes.length > 0) {
-    result += `type AppRoutes = ${appRoutes.map((route) => `"${route}"`).join(' | ')}\n`
+    result += `type AppRoutes = ${appRoutes.map((route) => JSON.stringify(route)).join(' | ')}\n`
   } else {
     result += 'type AppRoutes = never\n'
   }
 
   // Generate PageRoutes union type
   if (pageRoutes.length > 0) {
-    result += `type PageRoutes = ${pageRoutes.map((route) => `"${route}"`).join(' | ')}\n`
+    result += `type PageRoutes = ${pageRoutes.map((route) => JSON.stringify(route)).join(' | ')}\n`
   } else {
     result += 'type PageRoutes = never\n'
   }
 
   // Generate LayoutRoutes union type
   if (layoutRoutes.length > 0) {
-    result += `type LayoutRoutes = ${layoutRoutes.map((route) => `"${route}"`).join(' | ')}\n`
+    result += `type LayoutRoutes = ${layoutRoutes.map((route) => JSON.stringify(route)).join(' | ')}\n`
   } else {
     result += 'type LayoutRoutes = never\n'
   }
 
-  result += 'type Routes = AppRoutes | PageRoutes | LayoutRoutes\n'
+  // Generate RedirectRoutes union type
+  if (redirectRoutes.length > 0) {
+    result += `type RedirectRoutes = ${redirectRoutes
+      .map((route) => JSON.stringify(route))
+      .join(' | ')}\n`
+  } else {
+    result += 'type RedirectRoutes = never\n'
+  }
+
+  // Generate RewriteRoutes union type
+  if (rewriteRoutes.length > 0) {
+    result += `type RewriteRoutes = ${rewriteRoutes
+      .map((route) => JSON.stringify(route))
+      .join(' | ')}\n`
+  } else {
+    result += 'type RewriteRoutes = never\n'
+  }
+
+  result +=
+    'type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes\n'
 
   return result
 }
@@ -38,9 +60,11 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
     ...routesManifest.appRoutes,
     ...routesManifest.pageRoutes,
     ...routesManifest.layoutRoutes,
+    ...routesManifest.redirectRoutes,
+    ...routesManifest.rewriteRoutes,
   }
 
-  let paramTypes = 'type ParamMap = {\n'
+  let paramTypes = 'interface ParamMap {\n'
 
   // Sort routes deterministically for consistent output
   const sortedRoutes = Object.entries(allRoutes).sort(([a], [b]) =>
@@ -49,30 +73,38 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
 
   for (const [route, routeInfo] of sortedRoutes) {
     const { groups } = routeInfo
+
+    // For static routes (no dynamic segments), we can produce an empty parameter map.
+    if (!isDynamicRoute(route) || Object.keys(groups ?? {}).length === 0) {
+      paramTypes += `  ${JSON.stringify(route)}: {}\n`
+      continue
+    }
+
     let paramType = '{'
 
     // Process each group based on its properties
     for (const [key, group] of Object.entries(groups)) {
+      const escapedKey = JSON.stringify(key)
       if (group.repeat) {
         // Catch-all parameters
         if (group.optional) {
-          paramType += ` ${key}?: string[];`
+          paramType += ` ${escapedKey}?: string[];`
         } else {
-          paramType += ` ${key}: string[];`
+          paramType += ` ${escapedKey}: string[];`
         }
       } else {
         // Regular parameters
         if (group.optional) {
-          paramType += ` ${key}?: string;`
+          paramType += ` ${escapedKey}?: string;`
         } else {
-          paramType += ` ${key}: string;`
+          paramType += ` ${escapedKey}: string;`
         }
       }
     }
 
     paramType += ' }'
 
-    paramTypes += `  '${route}': ${paramType}\n`
+    paramTypes += `  ${JSON.stringify(route)}: ${paramType}\n`
   }
 
   paramTypes += '}\n'
@@ -80,7 +112,7 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
 }
 
 function generateLayoutSlotMap(routesManifest: RouteTypesManifest): string {
-  let slotMap = 'type LayoutSlotMap = {\n'
+  let slotMap = 'interface LayoutSlotMap {\n'
 
   // Sort routes deterministically for consistent output
   const sortedLayoutRoutes = Object.entries(routesManifest.layoutRoutes).sort(
@@ -91,12 +123,12 @@ function generateLayoutSlotMap(routesManifest: RouteTypesManifest): string {
     if ('slots' in routeInfo) {
       const slots = routeInfo.slots.sort()
       if (slots.length > 0) {
-        slotMap += `  '${route}': ${slots.map((slot) => `"${slot}"`).join(' | ')}\n`
+        slotMap += `  ${JSON.stringify(route)}: ${slots.map((slot) => JSON.stringify(slot)).join(' | ')}\n`
       } else {
-        slotMap += `  '${route}': never\n`
+        slotMap += `  ${JSON.stringify(route)}: never\n`
       }
     } else {
-      slotMap += `  '${route}': never\n`
+      slotMap += `  ${JSON.stringify(route)}: never\n`
     }
   }
 
@@ -118,15 +150,11 @@ ${routeTypes}
 
 ${paramTypes}
 
-export type ParamsOf<P extends Routes> = ParamMap[P]
+export type ParamsOf<Route extends Routes> = ParamMap[Route]
 
 ${layoutSlotMap}
 
-type LayoutChildren<P extends LayoutRoutes> = { children: React.ReactNode } & {
-  [K in LayoutSlotMap[P]]: React.ReactNode
-}
-
-export type { AppRoutes, PageRoutes, LayoutRoutes }
+export type { AppRoutes, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes }
 
 declare global {
   /**
@@ -139,8 +167,8 @@ declare global {
    * }
    * \`\`\`
    */
-  type PageProps<P extends AppRoutes> = {
-    params: Promise<ParamsOf<P>>
+  interface PageProps<AppRoute extends AppRoutes> {
+    params: Promise<ParamMap[AppRoute]>
     searchParams: Promise<Record<string, string | string[] | undefined>>
   }
   
@@ -153,9 +181,12 @@ declare global {
    * }
    * \`\`\`
    */
-  type LayoutProps<P extends LayoutRoutes> = {
-    params: Promise<ParamsOf<P>>
-  } & LayoutChildren<P>
+  type LayoutProps<LayoutRoute extends LayoutRoutes> = {
+    params: Promise<ParamMap[LayoutRoute]>
+    children: React.ReactNode
+  } & {
+    [K in LayoutSlotMap[LayoutRoute]]: React.ReactNode
+  }
 }
 `
 }

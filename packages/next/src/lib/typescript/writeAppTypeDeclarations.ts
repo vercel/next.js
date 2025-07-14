@@ -4,16 +4,16 @@ import { promises as fs } from 'fs'
 
 export async function writeAppTypeDeclarations({
   baseDir,
+  distDir,
   imageImportsEnabled,
   hasPagesDir,
   hasAppDir,
-  hasNewTypedRoutes,
 }: {
   baseDir: string
+  distDir: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   hasAppDir: boolean
-  hasNewTypedRoutes?: boolean
 }): Promise<void> {
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
@@ -57,9 +57,12 @@ export async function writeAppTypeDeclarations({
     )
   }
 
-  if (hasNewTypedRoutes) {
-    directives.push('/// <reference path="./.next/types/routes.ts" />')
-  }
+  const routeTypesPath = path.posix.join(
+    distDir.replaceAll(path.win32.sep, path.posix.sep),
+    'types/routes.d.ts'
+  )
+
+  directives.push(`/// <reference path="./${routeTypesPath}" />`)
 
   // Push the notice in.
   directives.push(

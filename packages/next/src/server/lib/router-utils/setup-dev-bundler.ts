@@ -12,7 +12,6 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv } from '../../../build/swc'
 import fs from 'fs'
-import { mkdir } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
@@ -85,13 +84,12 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
 import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
-import { generateRouteTypesFile } from './typegen'
 import {
-  type RouteTypesManifest,
-  extractSlotFromPageName,
-  createLayoutFileRegex,
-  createUnifiedRouteTypesManifest,
-} from './route-types-shared'
+  createRouteTypesManifest,
+  writeRouteTypesManifest,
+} from './route-types-utils'
+import { isParallelRouteSegment } from '../../../shared/lib/segment'
+import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -151,55 +149,12 @@ async function verifyTypeScript(opts: SetupOpts) {
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
-    nextConfig: opts.nextConfig,
   })
 
   if (verifyResult.version) {
     usingTypeScript = true
   }
   return usingTypeScript
-}
-
-// RouteInfo and RouteTypesManifest are now imported from route-types-shared
-
-function createRouteTypesManifest({
-  dir,
-  pagesPageFilePaths,
-  appPageFilePaths,
-  appLayoutFilePaths,
-  layoutSlots,
-}: {
-  dir: string
-  pagesPageFilePaths: Map<string, string>
-  appPageFilePaths: Map<string, string>
-  appLayoutFilePaths: Map<string, string>
-  layoutSlots: Map<string, Set<string>>
-}): RouteTypesManifest {
-  // Convert maps to arrays for the unified function
-  const pageRoutes = Array.from(pagesPageFilePaths.entries()).map(
-    ([route, filePath]) => ({ route, filePath })
-  )
-
-  const appRoutes = Array.from(appPageFilePaths.entries()).map(
-    ([route, filePath]) => ({ route, filePath })
-  )
-
-  const layoutRoutes = Array.from(appLayoutFilePaths.entries()).map(
-    ([route, filePath]) => ({
-      route,
-      filePath,
-      slots: layoutSlots.has(route)
-        ? Array.from(layoutSlots.get(route)!)
-        : undefined,
-    })
-  )
-
-  return createUnifiedRouteTypesManifest({
-    dir,
-    pageRoutes,
-    appRoutes,
-    layoutRoutes,
-  })
 }
 
 export async function propagateServerField(
@@ -217,17 +172,8 @@ async function startWatcher(
 ) {
   const { nextConfig, appDir, pagesDir, dir, resetFetch } = opts
   const { useFileSystemPublicRoutes } = nextConfig
-  const usingTypeScript = await verifyTypeScript(opts)
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
-
-  // we ensure the types directory exists here
-  if (usingTypeScript) {
-    const distTypesDir = path.join(distDir, 'types')
-    if (!fs.existsSync(distTypesDir)) {
-      await mkdir(distTypesDir, { recursive: true })
-    }
-  }
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -267,6 +213,20 @@ async function startWatcher(
 
   // have to write this after starting hot-reloader since that
   // cleans the dist dir
+  const distTypesDir = path.join(distDir, 'types')
+  await writeRouteTypesManifest(
+    {
+      appRoutes: {},
+      pageRoutes: {},
+      layoutRoutes: {},
+      redirectRoutes: {},
+      rewriteRoutes: {},
+    },
+    path.join(distTypesDir, 'routes.d.ts')
+  )
+
+  const usingTypeScript = await verifyTypeScript(opts)
+
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
     version: 3,
@@ -282,24 +242,6 @@ async function startWatcher(
     routesManifestPath,
     JSON.stringify(routesManifest)
   )
-
-  if (opts.nextConfig.experimental.newTypedRoutes) {
-    const routeTypesFilePath = path.join(distDir, 'types', 'routes.ts')
-    await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
-
-    const routeTypesManifest = createRouteTypesManifest({
-      dir,
-      pagesPageFilePaths: new Map(),
-      appPageFilePaths: new Map(),
-      appLayoutFilePaths: new Map(),
-      layoutSlots: new Map(),
-    })
-
-    await fs.promises.writeFile(
-      routeTypesFilePath,
-      generateRouteTypesFile(routeTypesManifest)
-    )
-  }
 
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
   await fs.promises.writeFile(
@@ -391,6 +333,8 @@ async function startWatcher(
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
+    const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+
     wp.on('aggregated', async () => {
       let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
@@ -400,8 +344,11 @@ async function startWatcher(
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
-      const appLayoutFilePaths = new Map<string, string>()
-      const layoutSlots = new Map<string, Set<string>>()
+
+      const pageRoutes: Array<{ route: string; filePath: string }> = []
+      const appRoutes: Array<{ route: string; filePath: string }> = []
+      const layoutRoutes: Array<{ route: string; filePath: string }> = []
+      const slots: Array<{ name: string; parent: string }> = []
 
       let envChange = false
       let tsconfigChange = false
@@ -414,24 +361,9 @@ async function startWatcher(
       pageFiles.clear()
       devPageFiles.clear()
 
-      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort((a, b) => {
-        // First, prioritize regular routes over parallel routes
-        const aHasParallel = a.includes('/@')
-        const bHasParallel = b.includes('/@')
-
-        if (aHasParallel && !bHasParallel) {
-          return 1 // a comes after b (b is regular route, prioritized)
-        }
-        if (!aHasParallel && bHasParallel) {
-          return -1 // a comes before b (a is regular route, prioritized)
-        }
-
-        // If both are regular or both are parallel, fall back to extension sorting
-        return sortByPageExts(nextConfig.pageExtensions)(a, b)
-      })
-
-      // Create layout file regex
-      const layoutFileRegex = createLayoutFileRegex(nextConfig.pageExtensions)
+      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
+        sortByPageExts(nextConfig.pageExtensions)
+      )
 
       for (const fileName of sortedKnownFiles) {
         if (
@@ -582,34 +514,6 @@ async function startWatcher(
           continue
         }
 
-        if (opts.nextConfig.experimental.newTypedRoutes && isAppPath) {
-          // *record parallel route slots for layout typing*
-          const normalizedPageName = normalizePathSep(pageName)
-
-          // this will likely run multiple times (e.g. if a parallel route
-          // has both a layout and a page, and children) but that's fine
-          const slotInfo = extractSlotFromPageName(normalizedPageName)
-
-          if (slotInfo) {
-            const { parentPath, slotName } = slotInfo
-
-            if (!layoutSlots.has(parentPath)) {
-              layoutSlots.set(parentPath, new Set())
-            }
-            layoutSlots.get(parentPath)!.add(slotName)
-          }
-
-          // *record layouts* (later filtered out by isAppRouterPage)
-          if (layoutFileRegex.test(fileName)) {
-            const layoutRoute = normalizeAppPath(pageName).replace(/%5F/g, '_')
-
-            // Ignore files/directories starting with `_` in the app directory
-            if (!normalizePathSep(layoutRoute).includes('/_')) {
-              appLayoutFilePaths.set(layoutRoute, fileName)
-            }
-          }
-        }
-
         if (isAppPath) {
           const isRootNotFound = validFileMatcher.isRootNotFound(fileName)
           hasRootAppNotFound = true
@@ -617,11 +521,54 @@ async function startWatcher(
           if (isRootNotFound) {
             continue
           }
-          if (!isRootNotFound && !validFileMatcher.isAppRouterPage(fileName)) {
-            continue
-          }
+
           // Ignore files/directories starting with `_` in the app directory
           if (normalizePathSep(pageName).includes('/_')) {
+            continue
+          }
+
+          // Record parallel route slots for layout typing
+          // May run multiple times (e.g. if a parallel route
+          // has both a layout and a page, and children) but that's fine
+          const segments = normalizePathSep(pageName).split('/')
+          for (let i = segments.length - 1; i >= 0; i--) {
+            const segment = segments[i]
+            if (isParallelRouteSegment(segment)) {
+              const parentPath = normalizeAppPath(
+                segments.slice(0, i).join('/')
+              )
+
+              const slotName = segment.slice(1)
+              // check if the slot already exists
+              if (
+                slots.some(
+                  (s) => s.name === slotName && s.parent === parentPath
+                )
+              )
+                continue
+
+              slots.push({
+                name: slotName,
+                parent: parentPath,
+              })
+              break
+            }
+          }
+
+          // Record layouts
+          if (validFileMatcher.isAppLayoutPage(fileName)) {
+            layoutRoutes.push({
+              route: ensureLeadingSlash(
+                normalizeAppPath(normalizePathSep(pageName)).replace(
+                  /\/layout$/,
+                  ''
+                )
+              ),
+              filePath: fileName,
+            })
+          }
+
+          if (!validFileMatcher.isAppRouterPage(fileName)) {
             continue
           }
 
@@ -641,6 +588,11 @@ async function startWatcher(
             appFiles.add(pageName)
           }
 
+          appRoutes.push({
+            route: normalizePathSep(pageName),
+            filePath: fileName,
+          })
+
           if (routedPages.includes(pageName)) {
             continue
           }
@@ -651,8 +603,14 @@ async function startWatcher(
             // entries that actually use getStaticProps/getServerSideProps
             opts.fsChecker.nextDataRoutes.add(pageName)
           }
+
+          pageRoutes.push({
+            route: normalizePathSep(pageName),
+            filePath: fileName,
+          })
         }
-        // *record pages*
+
+        // Record pages
         if (isAppPath) {
           appPageFilePaths.set(pageName, fileName)
         } else {
@@ -1054,22 +1012,18 @@ async function startWatcher(
         }
         prevSortedRoutes = sortedRoutes
 
-        if (opts.nextConfig.experimental.newTypedRoutes) {
-          const routeTypesFilePath = path.join(distDir, 'types', 'routes.ts')
-          await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
-
-          const routeTypesManifest = createRouteTypesManifest({
+        if (usingTypeScript) {
+          const routeTypesManifest = await createRouteTypesManifest({
             dir,
-            pagesPageFilePaths,
-            appPageFilePaths,
-            appLayoutFilePaths,
-            layoutSlots,
+            pageRoutes,
+            appRoutes,
+            layoutRoutes,
+            slots,
+            redirects: opts.nextConfig.redirects,
+            rewrites: opts.nextConfig.rewrites,
           })
 
-          await fs.promises.writeFile(
-            routeTypesFilePath,
-            generateRouteTypesFile(routeTypesManifest)
-          )
+          await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath)
         }
 
         if (!resolved) {
