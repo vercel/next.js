@@ -256,6 +256,14 @@ impl Chunk for CssChunk {
 impl OutputChunk for CssChunk {
     #[turbo_tasks::function]
     async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
+        if !*self
+            .chunking_context
+            .is_dynamic_chunk_content_loading_enabled()
+            .await?
+        {
+            return Ok(OutputChunkRuntimeInfo::empty());
+        }
+
         let content = self.content.await?;
         let entries_chunk_items = &content.chunk_items;
         let included_ids = entries_chunk_items
@@ -289,7 +297,7 @@ impl OutputChunk for CssChunk {
             .into_iter()
             .flatten()
             .collect();
-        let module_chunks = if entries_chunk_items.len() > 1 {
+        let module_chunks = if content.chunk_items.len() > 1 {
             content
                 .chunk_items
                 .iter()
@@ -332,14 +340,18 @@ impl OutputAsset for CssChunk {
         let this = self.await?;
         let content = this.content.await?;
         let mut references = content.referenced_output_assets.owned().await?;
-        let single_item_chunks = content.chunk_items.len() > 1;
+        let should_generate_single_item_chunks = content.chunk_items.len() > 1
+            && *this
+                .chunking_context
+                .is_dynamic_chunk_content_loading_enabled()
+                .await?;
         references.extend(
             content
                 .chunk_items
                 .iter()
                 .map(|item| async {
                     let references = item.references().await?.into_iter().copied();
-                    Ok(if single_item_chunks {
+                    Ok(if should_generate_single_item_chunks {
                         Either::Left(
                             references.chain(std::iter::once(ResolvedVc::upcast(
                                 SingleItemCssChunk::new(*this.chunking_context, **item)

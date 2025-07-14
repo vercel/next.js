@@ -70,6 +70,15 @@
         }
       return !0;
     }
+    function completeWriting(destination) {
+      currentView &&
+        0 < writtenBytes &&
+        (destination.enqueue(
+          new Uint8Array(currentView.buffer, 0, writtenBytes)
+        ),
+        (currentView = null),
+        (writtenBytes = 0));
+    }
     function stringToChunk(content) {
       return textEncoder.encode(content);
     }
@@ -897,6 +906,7 @@
       this.onFatalError = onFatalError;
       this.pendingDebugChunks = 0;
       this.completedDebugChunks = [];
+      this.debugDestination = null;
       this.environmentName =
         void 0 === environmentName
           ? function () {
@@ -1441,7 +1451,7 @@
           var componentDebugID = task.id;
           componentDebugInfo = Component.displayName || Component.name || "";
           var componentEnv = (0, request.environmentName)();
-          request.pendingDebugChunks++;
+          request.pendingChunks++;
           componentDebugInfo = {
             name: componentDebugInfo,
             env: componentEnv,
@@ -2617,10 +2627,16 @@
       request.completedDebugChunks.push(id);
     }
     function emitDebugChunk(request, id, debugInfo) {
-      debugInfo = serializeDebugModel(request, 500, debugInfo);
-      id = id.toString(16) + ":D" + debugInfo + "\n";
-      id = stringToChunk(id);
-      request.completedDebugChunks.push(id);
+      var json = serializeDebugModel(request, 500, debugInfo);
+      null !== request.debugDestination
+        ? ((debugInfo = request.nextChunkId++),
+          (json = debugInfo.toString(16) + ":" + json + "\n"),
+          request.pendingDebugChunks++,
+          request.completedDebugChunks.push(stringToChunk(json)),
+          (id = id.toString(16) + ':D"$' + debugInfo.toString(16) + '"\n'),
+          request.completedRegularChunks.push(stringToChunk(id)))
+        : ((id = id.toString(16) + ":D" + json + "\n"),
+          request.completedRegularChunks.push(stringToChunk(id)));
     }
     function outlineComponentInfo(request, componentInfo) {
       if (!request.writtenDebugObjects.has(componentInfo)) {
@@ -3068,7 +3084,7 @@
           markOperationEndTime(request$jscomp$1, task, info.time);
         else if ("string" === typeof info.name)
           outlineComponentInfo(request$jscomp$1, info),
-            request$jscomp$1.pendingDebugChunks++,
+            request$jscomp$1.pendingChunks++,
             emitDebugChunk(request$jscomp$1, id, info);
         else if (info.awaited) {
           var ioInfo = info.awaited;
@@ -3127,11 +3143,11 @@
             null != info.env && (ioInfo.env = info.env);
             null != info.owner && (ioInfo.owner = info.owner);
             null != request && (ioInfo.stack = request);
-            request$jscomp$1.pendingDebugChunks++;
+            request$jscomp$1.pendingChunks++;
             emitDebugChunk(request$jscomp$1, id, ioInfo);
           }
         } else
-          request$jscomp$1.pendingDebugChunks++,
+          request$jscomp$1.pendingChunks++,
             emitDebugChunk(request$jscomp$1, id, info);
       }
     }
@@ -3151,11 +3167,17 @@
         forwardDebugInfo(request, task, model);
     }
     function emitTimingChunk(request, id, timestamp) {
-      request.pendingDebugChunks++;
-      timestamp -= request.timeOrigin;
-      id = id.toString(16) + ':D{"time":' + timestamp + "}\n";
-      id = stringToChunk(id);
-      request.completedDebugChunks.push(id);
+      request.pendingChunks++;
+      var json = '{"time":' + (timestamp - request.timeOrigin) + "}";
+      null !== request.debugDestination
+        ? ((timestamp = request.nextChunkId++),
+          (json = timestamp.toString(16) + ":" + json + "\n"),
+          request.pendingDebugChunks++,
+          request.completedDebugChunks.push(stringToChunk(json)),
+          (id = id.toString(16) + ':D"$' + timestamp.toString(16) + '"\n'),
+          request.completedRegularChunks.push(stringToChunk(id)))
+        : ((id = id.toString(16) + ":D" + json + "\n"),
+          request.completedRegularChunks.push(stringToChunk(id)));
     }
     function markOperationEndTime(request, task, timestamp) {
       (request.status === ABORTING && timestamp > request.abortTime) ||
@@ -3249,7 +3271,7 @@
           task.implicitSlot = !1;
           var currentEnv = (0, request.environmentName)();
           currentEnv !== task.environmentName &&
-            (request.pendingDebugChunks++,
+            (request.pendingChunks++,
             emitDebugChunk(request, task.id, { env: currentEnv }));
           task.timed && markOperationEndTime(request, task, performance.now());
           if ("object" === typeof resolvedModel && null !== resolvedModel)
@@ -3321,8 +3343,7 @@
         request.pingedTasks = [];
         for (var i = 0; i < pingedTasks.length; i++)
           retryTask(request, pingedTasks[i]);
-        null !== request.destination &&
-          flushCompletedChunks(request, request.destination);
+        flushCompletedChunks(request);
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
       } finally {
@@ -3350,87 +3371,131 @@
         (forwardDebugInfoFromAbortedTask(request, task),
         request.pendingChunks--);
     }
-    function flushCompletedChunks(request, destination) {
-      currentView = new Uint8Array(2048);
-      writtenBytes = 0;
-      try {
-        for (
-          var importsChunks = request.completedImportChunks, i = 0;
-          i < importsChunks.length;
-          i++
-        )
-          if (
-            (request.pendingChunks--,
-            !writeChunkAndReturn(destination, importsChunks[i]))
-          ) {
-            request.destination = null;
-            i++;
-            break;
+    function flushCompletedChunks(request) {
+      if (null !== request.debugDestination) {
+        var debugDestination = request.debugDestination;
+        currentView = new Uint8Array(2048);
+        writtenBytes = 0;
+        try {
+          for (
+            var debugChunks = request.completedDebugChunks, i = 0;
+            i < debugChunks.length;
+            i++
+          )
+            request.pendingDebugChunks--,
+              writeChunkAndReturn(debugDestination, debugChunks[i]);
+          debugChunks.splice(0, i);
+        } finally {
+          completeWriting(debugDestination);
+        }
+      }
+      debugDestination = request.destination;
+      if (null !== debugDestination) {
+        currentView = new Uint8Array(2048);
+        writtenBytes = 0;
+        try {
+          var importsChunks = request.completedImportChunks;
+          for (
+            debugChunks = 0;
+            debugChunks < importsChunks.length;
+            debugChunks++
+          )
+            if (
+              (request.pendingChunks--,
+              !writeChunkAndReturn(
+                debugDestination,
+                importsChunks[debugChunks]
+              ))
+            ) {
+              request.destination = null;
+              debugChunks++;
+              break;
+            }
+          importsChunks.splice(0, debugChunks);
+          var hintChunks = request.completedHintChunks;
+          for (debugChunks = 0; debugChunks < hintChunks.length; debugChunks++)
+            if (
+              !writeChunkAndReturn(debugDestination, hintChunks[debugChunks])
+            ) {
+              request.destination = null;
+              debugChunks++;
+              break;
+            }
+          hintChunks.splice(0, debugChunks);
+          if (null === request.debugDestination) {
+            var _debugChunks = request.completedDebugChunks;
+            for (
+              debugChunks = 0;
+              debugChunks < _debugChunks.length;
+              debugChunks++
+            )
+              if (
+                (request.pendingDebugChunks--,
+                !writeChunkAndReturn(
+                  debugDestination,
+                  _debugChunks[debugChunks]
+                ))
+              ) {
+                request.destination = null;
+                debugChunks++;
+                break;
+              }
+            _debugChunks.splice(0, debugChunks);
           }
-        importsChunks.splice(0, i);
-        var hintChunks = request.completedHintChunks;
-        for (i = 0; i < hintChunks.length; i++)
-          if (!writeChunkAndReturn(destination, hintChunks[i])) {
-            request.destination = null;
-            i++;
-            break;
-          }
-        hintChunks.splice(0, i);
-        var debugChunks = request.completedDebugChunks;
-        for (i = 0; i < debugChunks.length; i++)
-          if (
-            (request.pendingDebugChunks--,
-            !writeChunkAndReturn(destination, debugChunks[i]))
-          ) {
-            request.destination = null;
-            i++;
-            break;
-          }
-        debugChunks.splice(0, i);
-        var regularChunks = request.completedRegularChunks;
-        for (i = 0; i < regularChunks.length; i++)
-          if (
-            (request.pendingChunks--,
-            !writeChunkAndReturn(destination, regularChunks[i]))
-          ) {
-            request.destination = null;
-            i++;
-            break;
-          }
-        regularChunks.splice(0, i);
-        var errorChunks = request.completedErrorChunks;
-        for (i = 0; i < errorChunks.length; i++)
-          if (
-            (request.pendingChunks--,
-            !writeChunkAndReturn(destination, errorChunks[i]))
-          ) {
-            request.destination = null;
-            i++;
-            break;
-          }
-        errorChunks.splice(0, i);
-      } finally {
-        (request.flushScheduled = !1),
-          currentView &&
-            0 < writtenBytes &&
-            (destination.enqueue(
-              new Uint8Array(currentView.buffer, 0, writtenBytes)
-            ),
-            (currentView = null),
-            (writtenBytes = 0));
+          var regularChunks = request.completedRegularChunks;
+          for (
+            debugChunks = 0;
+            debugChunks < regularChunks.length;
+            debugChunks++
+          )
+            if (
+              (request.pendingChunks--,
+              !writeChunkAndReturn(
+                debugDestination,
+                regularChunks[debugChunks]
+              ))
+            ) {
+              request.destination = null;
+              debugChunks++;
+              break;
+            }
+          regularChunks.splice(0, debugChunks);
+          var errorChunks = request.completedErrorChunks;
+          for (debugChunks = 0; debugChunks < errorChunks.length; debugChunks++)
+            if (
+              (request.pendingChunks--,
+              !writeChunkAndReturn(debugDestination, errorChunks[debugChunks]))
+            ) {
+              request.destination = null;
+              debugChunks++;
+              break;
+            }
+          errorChunks.splice(0, debugChunks);
+        } finally {
+          (request.flushScheduled = !1), completeWriting(debugDestination);
+        }
       }
       0 === request.pendingChunks &&
-        0 === request.pendingDebugChunks &&
-        (cleanupTaintQueue(request),
-        request.status < ABORTING &&
-          request.cacheController.abort(
-            Error(
-              "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
-            )
-          ),
-        (request.status = CLOSED),
-        destination.close(),
-        (request.destination = null));
+        ((importsChunks = request.debugDestination),
+        0 === request.pendingDebugChunks
+          ? (null !== importsChunks &&
+              (importsChunks.close(), (request.debugDestination = null)),
+            cleanupTaintQueue(request),
+            request.status < ABORTING &&
+              request.cacheController.abort(
+                Error(
+                  "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
+                )
+              ),
+            (request.status = CLOSED),
+            null !== request.destination &&
+              (request.destination.close(), (request.destination = null)),
+            null !== request.debugDestination &&
+              (request.debugDestination.close(),
+              (request.debugDestination = null)))
+          : null !== importsChunks &&
+            null !== request.destination &&
+            (request.destination.close(), (request.destination = null)));
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
@@ -3442,14 +3507,13 @@
       });
     }
     function enqueueFlush(request) {
-      !1 === request.flushScheduled &&
-        0 === request.pingedTasks.length &&
-        null !== request.destination &&
+      !1 !== request.flushScheduled ||
+        0 !== request.pingedTasks.length ||
+        (null === request.destination && null === request.debugDestination) ||
         ((request.flushScheduled = !0),
         scheduleWork(function () {
           request.flushScheduled = !1;
-          var destination = request.destination;
-          destination && flushCompletedChunks(request, destination);
+          flushCompletedChunks(request);
         }));
     }
     function callOnAllReadyIfReady(request) {
@@ -3463,7 +3527,7 @@
       else if (request.status !== CLOSED && null === request.destination) {
         request.destination = destination;
         try {
-          flushCompletedChunks(request, destination);
+          flushCompletedChunks(request);
         } catch (error) {
           logRecoverableError(request, error, null), fatalError(request, error);
         }
@@ -3476,8 +3540,7 @@
         });
         var onAllReady = request.onAllReady;
         onAllReady();
-        null !== request.destination &&
-          flushCompletedChunks(request, request.destination);
+        flushCompletedChunks(request);
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
       }
@@ -3489,8 +3552,7 @@
         });
         var onAllReady = request.onAllReady;
         onAllReady();
-        null !== request.destination &&
-          flushCompletedChunks(request, request.destination);
+        flushCompletedChunks(request);
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
       }
@@ -3554,8 +3616,7 @@
           else {
             var onAllReady = request.onAllReady;
             onAllReady();
-            null !== request.destination &&
-              flushCompletedChunks(request, request.destination);
+            flushCompletedChunks(request);
           }
         } catch (error$2) {
           logRecoverableError(request, error$2, null),
@@ -4348,52 +4409,55 @@
             throw Error(
               "resolveDebugMessage/closeDebugChannel should not be called for a Request that wasn't kept alive. This is a bug in React."
             );
-          var command = message.charCodeAt(0);
-          message = message.slice(2).split(",").map(fromHex);
-          switch (command) {
-            case 82:
-              for (command = 0; command < message.length; command++) {
-                var id = message[command],
-                  retainedValue = deferredDebugObjects.retained.get(id);
-                void 0 !== retainedValue &&
-                  (request.pendingDebugChunks--,
-                  deferredDebugObjects.retained.delete(id),
-                  deferredDebugObjects.existing.delete(retainedValue),
-                  enqueueFlush(request));
-              }
-              break;
-            case 81:
-              for (command = 0; command < message.length; command++)
-                (id = message[command]),
-                  (retainedValue = deferredDebugObjects.retained.get(id)),
+          if ("" === message) closeDebugChannel(request);
+          else {
+            var command = message.charCodeAt(0);
+            message = message.slice(2).split(",").map(fromHex);
+            switch (command) {
+              case 82:
+                for (command = 0; command < message.length; command++) {
+                  var id = message[command],
+                    retainedValue = deferredDebugObjects.retained.get(id);
                   void 0 !== retainedValue &&
-                    (deferredDebugObjects.retained.delete(id),
+                    (request.pendingDebugChunks--,
+                    deferredDebugObjects.retained.delete(id),
                     deferredDebugObjects.existing.delete(retainedValue),
-                    emitOutlinedDebugModelChunk(
-                      request,
-                      id,
-                      { objectLimit: 10 },
-                      retainedValue
-                    ),
                     enqueueFlush(request));
-              break;
-            case 80:
-              for (command = 0; command < message.length; command++)
-                (id = message[command]),
-                  (retainedValue = deferredDebugObjects.retained.get(id)),
-                  void 0 !== retainedValue &&
-                    (deferredDebugObjects.retained.delete(id),
-                    emitRequestedDebugThenable(
-                      request,
-                      id,
-                      { objectLimit: 10 },
-                      retainedValue
-                    ));
-              break;
-            default:
-              throw Error(
-                "Unknown command. The debugChannel was not wired up properly."
-              );
+                }
+                break;
+              case 81:
+                for (command = 0; command < message.length; command++)
+                  (id = message[command]),
+                    (retainedValue = deferredDebugObjects.retained.get(id)),
+                    void 0 !== retainedValue &&
+                      (deferredDebugObjects.retained.delete(id),
+                      deferredDebugObjects.existing.delete(retainedValue),
+                      emitOutlinedDebugModelChunk(
+                        request,
+                        id,
+                        { objectLimit: 10 },
+                        retainedValue
+                      ),
+                      enqueueFlush(request));
+                break;
+              case 80:
+                for (command = 0; command < message.length; command++)
+                  (id = message[command]),
+                    (retainedValue = deferredDebugObjects.retained.get(id)),
+                    void 0 !== retainedValue &&
+                      (deferredDebugObjects.retained.delete(id),
+                      emitRequestedDebugThenable(
+                        request,
+                        id,
+                        { objectLimit: 10 },
+                        retainedValue
+                      ));
+                break;
+              default:
+                throw Error(
+                  "Unknown command. The debugChannel was not wired up properly."
+                );
+            }
           }
         }
         stringBuffer = _ref[_ref.length - 1];
@@ -5004,6 +5068,10 @@
           options && options.debugChannel
             ? options.debugChannel.readable
             : void 0,
+        debugChannelWritable =
+          options && options.debugChannel
+            ? options.debugChannel.writable
+            : void 0,
         request = createRequest(
           model,
           webpackMap,
@@ -5026,6 +5094,30 @@
           signal.addEventListener("abort", listener);
         }
       }
+      void 0 !== debugChannelWritable &&
+        new ReadableStream(
+          {
+            type: "bytes",
+            pull: function (controller) {
+              if (13 === request.status)
+                (request.status = CLOSED),
+                  closeWithError(controller, request.fatalError);
+              else if (
+                request.status !== CLOSED &&
+                null === request.debugDestination
+              ) {
+                request.debugDestination = controller;
+                try {
+                  flushCompletedChunks(request);
+                } catch (error) {
+                  logRecoverableError(request, error, null),
+                    fatalError(request, error);
+                }
+              }
+            }
+          },
+          { highWaterMark: 0 }
+        ).pipeTo(debugChannelWritable);
       void 0 !== debugChannelReadable &&
         startReadingFromDebugChannelReadableStream(
           request,

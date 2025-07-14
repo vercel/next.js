@@ -1928,8 +1928,7 @@ function performWork(request) {
     request.pingedTasks = [];
     for (var i = 0; i < pingedTasks.length; i++)
       retryTask(request, pingedTasks[i]);
-    null !== request.destination &&
-      flushCompletedChunks(request, request.destination);
+    flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   } finally {
@@ -1953,40 +1952,44 @@ function haltTask(task) {
 function finishHaltedTask(task, request) {
   3 === task.status && request.pendingChunks--;
 }
-function flushCompletedChunks(request, destination) {
-  currentView = new Uint8Array(2048);
-  writtenBytes = 0;
-  try {
-    for (
-      var importsChunks = request.completedImportChunks, i = 0;
-      i < importsChunks.length;
-      i++
-    )
-      request.pendingChunks--,
-        writeChunkAndReturn(destination, importsChunks[i]);
-    importsChunks.splice(0, i);
-    var hintChunks = request.completedHintChunks;
-    for (i = 0; i < hintChunks.length; i++)
-      writeChunkAndReturn(destination, hintChunks[i]);
-    hintChunks.splice(0, i);
-    var regularChunks = request.completedRegularChunks;
-    for (i = 0; i < regularChunks.length; i++)
-      request.pendingChunks--,
-        writeChunkAndReturn(destination, regularChunks[i]);
-    regularChunks.splice(0, i);
-    var errorChunks = request.completedErrorChunks;
-    for (i = 0; i < errorChunks.length; i++)
-      request.pendingChunks--, writeChunkAndReturn(destination, errorChunks[i]);
-    errorChunks.splice(0, i);
-  } finally {
-    (request.flushScheduled = !1),
-      currentView &&
-        0 < writtenBytes &&
-        (destination.enqueue(
-          new Uint8Array(currentView.buffer, 0, writtenBytes)
-        ),
-        (currentView = null),
-        (writtenBytes = 0));
+function flushCompletedChunks(request) {
+  var destination = request.destination;
+  if (null !== destination) {
+    currentView = new Uint8Array(2048);
+    writtenBytes = 0;
+    try {
+      for (
+        var importsChunks = request.completedImportChunks, i = 0;
+        i < importsChunks.length;
+        i++
+      )
+        request.pendingChunks--,
+          writeChunkAndReturn(destination, importsChunks[i]);
+      importsChunks.splice(0, i);
+      var hintChunks = request.completedHintChunks;
+      for (i = 0; i < hintChunks.length; i++)
+        writeChunkAndReturn(destination, hintChunks[i]);
+      hintChunks.splice(0, i);
+      var regularChunks = request.completedRegularChunks;
+      for (i = 0; i < regularChunks.length; i++)
+        request.pendingChunks--,
+          writeChunkAndReturn(destination, regularChunks[i]);
+      regularChunks.splice(0, i);
+      var errorChunks = request.completedErrorChunks;
+      for (i = 0; i < errorChunks.length; i++)
+        request.pendingChunks--,
+          writeChunkAndReturn(destination, errorChunks[i]);
+      errorChunks.splice(0, i);
+    } finally {
+      (request.flushScheduled = !1),
+        currentView &&
+          0 < writtenBytes &&
+          (destination.enqueue(
+            new Uint8Array(currentView.buffer, 0, writtenBytes)
+          ),
+          (currentView = null),
+          (writtenBytes = 0));
+    }
   }
   0 === request.pendingChunks &&
     (cleanupTaintQueue(request),
@@ -1997,8 +2000,8 @@ function flushCompletedChunks(request, destination) {
         )
       ),
     (request.status = 14),
-    destination.close(),
-    (request.destination = null));
+    null !== request.destination &&
+      (request.destination.close(), (request.destination = null)));
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
@@ -2020,8 +2023,7 @@ function enqueueFlush(request) {
     ((request.flushScheduled = !0),
     setTimeout(function () {
       request.flushScheduled = !1;
-      var destination = request.destination;
-      destination && flushCompletedChunks(request, destination);
+      flushCompletedChunks(request);
     }, 0));
 }
 function callOnAllReadyIfReady(request) {
@@ -2034,7 +2036,7 @@ function startFlowing(request, destination) {
   else if (14 !== request.status && null === request.destination) {
     request.destination = destination;
     try {
-      flushCompletedChunks(request, destination);
+      flushCompletedChunks(request);
     } catch (error) {
       logRecoverableError(request, error, null), fatalError(request, error);
     }
@@ -2047,8 +2049,7 @@ function finishHalt(request, abortedTasks) {
     });
     var onAllReady = request.onAllReady;
     onAllReady();
-    null !== request.destination &&
-      flushCompletedChunks(request, request.destination);
+    flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   }
@@ -2060,8 +2061,7 @@ function finishAbort(request, abortedTasks, errorId) {
     });
     var onAllReady = request.onAllReady;
     onAllReady();
-    null !== request.destination &&
-      flushCompletedChunks(request, request.destination);
+    flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   }
@@ -2124,8 +2124,7 @@ function abort(request, reason) {
       else {
         var onAllReady = request.onAllReady;
         onAllReady();
-        null !== request.destination &&
-          flushCompletedChunks(request, request.destination);
+        flushCompletedChunks(request);
       }
     } catch (error$27) {
       logRecoverableError(request, error$27, null),

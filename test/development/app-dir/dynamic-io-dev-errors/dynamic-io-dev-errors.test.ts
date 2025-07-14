@@ -90,6 +90,8 @@ describe('Dynamic IO Dev Errors', () => {
         next.cliOutput.slice(outputIndex)
       ).replaceAll(`file:` + next.testDir, '<FIXME-file-protocol>')
 
+      // TODO(veil): Source mapping breaks due to double-encoding of the square
+      // brackets.
       expect(normalizedCliOutput).toContain(
         `\nError: Route "/no-accessed-data": ` +
           `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
@@ -101,21 +103,6 @@ describe('Dynamic IO Dev Errors', () => {
           '\n  3 |   return <p>Page</p>' +
           '\n  4 | }'
       )
-
-      // TODO(veil): Source mapping breaks due to double-encoding of the square
-      // brackets.
-      await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-         "environmentLabel": "Server",
-         "label": "Console Error",
-         "source": null,
-         "stack": [
-           "<FIXME-file-protocol>",
-           "LogSafely <anonymous>",
-         ],
-       }
-      `)
     } else {
       expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
         `\nError: Route "/no-accessed-data": ` +
@@ -128,22 +115,22 @@ describe('Dynamic IO Dev Errors', () => {
           '\n  3 |   return <p>Page</p>' +
           '\n  4 | }'
       )
-
-      await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-         "environmentLabel": "Server",
-         "label": "Console Error",
-         "source": "app/no-accessed-data/page.js (1:31) @ Page
-       > 1 | export default async function Page() {
-           |                               ^",
-         "stack": [
-           "Page app/no-accessed-data/page.js (1:31)",
-           "LogSafely <anonymous>",
-         ],
-       }
-      `)
     }
+
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+       "environmentLabel": "Server",
+       "label": "Console Error",
+       "source": "app/no-accessed-data/page.js (1:31) @ Page
+     > 1 | export default async function Page() {
+         |                               ^",
+       "stack": [
+         "Page app/no-accessed-data/page.js (1:31)",
+         "LogSafely <anonymous>",
+       ],
+     }
+    `)
   })
 
   it('should clear segment errors after correcting them', async () => {

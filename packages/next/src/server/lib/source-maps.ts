@@ -156,3 +156,15 @@ export function filterStackFrameDEV(
     return true
   }
 }
+
+export function devirtualizeReactServerURL(sourceURL: string): string {
+  if (sourceURL.startsWith('rsc://React/')) {
+    // rsc://React/Server/file://<filename>?42 => file://<filename>
+    const envIdx = sourceURL.indexOf('/', 'rsc://React/'.length)
+    const suffixIdx = sourceURL.lastIndexOf('?')
+    if (envIdx > -1 && suffixIdx > -1) {
+      return decodeURI(sourceURL.slice(envIdx + 1, suffixIdx))
+    }
+  }
+  return sourceURL
+}

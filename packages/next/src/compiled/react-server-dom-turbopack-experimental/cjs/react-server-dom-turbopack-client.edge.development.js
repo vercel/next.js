@@ -2530,8 +2530,6 @@
       this._chunks = chunks;
       this._stringDecoder = new TextDecoder();
       this._fromJSON = null;
-      this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
-      this._buffer = [];
       this._closed = !1;
       this._closedReason = null;
       this._tempRefs = temporaryReferences;
@@ -4039,15 +4037,17 @@
         void 0
       )._weakResponse;
     }
-    function startReadingFromStream(response, stream) {
+    function startReadingFromStream(response$jscomp$0, stream) {
       function progress(_ref) {
         var value = _ref.value;
-        if (_ref.done) reportGlobalError(response, Error("Connection closed."));
+        if (_ref.done)
+          reportGlobalError(response$jscomp$0, Error("Connection closed."));
         else {
-          if (void 0 !== response.weak.deref()) {
-            _ref = unwrapWeakResponse(response);
+          _ref = streamState;
+          if (void 0 !== response$jscomp$0.weak.deref()) {
             for (
-              var i = 0,
+              var response = unwrapWeakResponse(response$jscomp$0),
+                i = 0,
                 rowState = _ref._rowState,
                 rowID = _ref._rowID,
                 rowTag = _ref._rowTag,
@@ -4109,7 +4109,13 @@
               var offset = value.byteOffset + i;
               if (-1 < lastIdx)
                 (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-                  processFullBinaryRow(_ref, rowID, rowTag, buffer, rowLength),
+                  processFullBinaryRow(
+                    response,
+                    rowID,
+                    rowTag,
+                    buffer,
+                    rowLength
+                  ),
                   (i = lastIdx),
                   3 === rowState && i++,
                   (rowLength = rowID = rowTag = rowState = 0),
@@ -4134,9 +4140,16 @@
         }
       }
       function error(e) {
-        reportGlobalError(response, e);
+        reportGlobalError(response$jscomp$0, e);
       }
-      var reader = stream.getReader();
+      var streamState = {
+          _rowState: 0,
+          _rowID: 0,
+          _rowTag: 0,
+          _rowLength: 0,
+          _buffer: []
+        },
+        reader = stream.getReader();
       reader.read().then(progress).catch(error);
     }
     var ReactDOM = require("react-dom"),

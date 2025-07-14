@@ -4428,8 +4428,7 @@ function resumeRequest(
   renderState.nextSegmentId = postponedState.nextSegmentId;
   if ("number" === typeof postponedState.replaySlots)
     return (
-      (onError = postponedState.replaySlots),
-      (onAllReady = createPendingSegment(
+      (onError = createPendingSegment(
         renderState,
         0,
         null,
@@ -4437,15 +4436,14 @@ function resumeRequest(
         !1,
         !1
       )),
-      (onAllReady.id = onError),
-      (onAllReady.parentFlushed = !0),
+      (onError.parentFlushed = !0),
       (children = createRenderTask(
         renderState,
         null,
         children,
         -1,
         null,
-        onAllReady,
+        onError,
         null,
         null,
         renderState.abortableTasks,
@@ -7746,13 +7744,15 @@ function getPostponedState(request) {
     (5 !== request.completedRootSegment.status &&
       null !== request.completedPreambleSegments)
   ) {
+    var nextSegmentId = request.nextSegmentId;
     var replaySlots = trackedPostpones.rootSlots;
     var resumableState = request.resumableState;
     resumableState.bootstrapScriptContent = void 0;
     resumableState.bootstrapScripts = void 0;
     resumableState.bootstrapModules = void 0;
   } else {
-    replaySlots = request.completedRootSegment.id;
+    nextSegmentId = 0;
+    replaySlots = -1;
     resumableState = request.resumableState;
     var renderState = request.renderState;
     resumableState.nextFormID = 0;
@@ -7769,7 +7769,7 @@ function getPostponedState(request) {
     resumableState.instructions = 0;
   }
   return {
-    nextSegmentId: request.nextSegmentId,
+    nextSegmentId: nextSegmentId,
     rootFormatContext: request.rootFormatContext,
     progressiveChunkSize: request.progressiveChunkSize,
     resumableState: request.resumableState,
@@ -7779,11 +7779,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-96c61b7f-20250709" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-97cdd5d3-20250710" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-experimental-96c61b7f-20250709\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-experimental-97cdd5d3-20250710\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8341,4 +8341,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.2.0-experimental-96c61b7f-20250709";
+exports.version = "19.2.0-experimental-97cdd5d3-20250710";
