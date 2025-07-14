@@ -257,17 +257,22 @@ impl AppPage {
         matches!(self.0.last(), Some(PageSegment::PageType(..)))
     }
 
-    pub fn is_catchall(&self) -> bool {
-        let segment = if self.is_complete() {
-            // The `PageType` is the last segment for completed pages.
-            self.0.iter().nth_back(1)
-        } else {
-            self.0.last()
-        };
+    /// The `PageType` is the last segment for completed pages. We need to find
+    /// the last segment that is not a `PageType`, `Group`, or `Parallel`
+    /// segment, because these do not inform the routing structure.
+    pub fn get_last_routing_segment(&self) -> Option<&PageSegment> {
+        self.0.iter().rev().find(|segment| {
+            !matches!(
+                segment,
+                PageSegment::PageType(_) | PageSegment::Group(_) | PageSegment::Parallel(_)
+            )
+        })
+    }
 
+    pub fn is_catchall(&self) -> bool {
         matches!(
-            segment,
-            Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
+            self.get_last_routing_segment(),
+            Some(PageSegment::CatchAll(_) | PageSegment::OptionalCatchAll(_))
         )
     }
 
