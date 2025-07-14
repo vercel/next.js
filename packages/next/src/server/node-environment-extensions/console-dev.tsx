@@ -128,15 +128,22 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
     const originalName = Object.getOwnPropertyDescriptor(originalMethod, 'name')
     const wrapperMethod = function (this: typeof console, ...args: any[]) {
       const workUnitStore = workUnitAsyncStorage.getStore()
-      const isPrerenderValidation =
-        workUnitStore !== undefined &&
-        (workUnitStore.type === 'prerender-client' ||
-          workUnitStore.type === 'prerender')
 
-      if (isPrerenderValidation) {
-        originalMethod.apply(this, dimConsoleCall(methodName, args))
-      } else {
-        originalMethod.apply(this, args)
+      switch (workUnitStore?.type) {
+        case 'prerender':
+        case 'prerender-client':
+          originalMethod.apply(this, dimConsoleCall(methodName, args))
+          break
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'cache':
+        case 'unstable-cache':
+        case undefined:
+          originalMethod.apply(this, args)
+          break
+        default:
+          workUnitStore satisfies never
       }
     }
     if (originalName) {
