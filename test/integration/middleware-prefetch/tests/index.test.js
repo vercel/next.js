@@ -9,7 +9,7 @@ import {
   killApp,
   nextBuild,
   nextStart,
-  getClientBuildManifestLoaderChunkPath,
+  getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -67,7 +67,7 @@ describe('Middleware Production Prefetch', () => {
           const attrs = await Promise.all(
             scripts.map((script) => script.getAttribute('src'))
           )
-          let chunk = getClientBuildManifestLoaderChunkPath(
+          let chunk = getClientBuildManifestLoaderChunkUrlPath(
             context.appDir,
             '/ssg-page'
           )

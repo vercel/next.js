@@ -7,7 +7,7 @@ import {
   assertNoRedbox,
   check,
   fetchViaHTTP,
-  getClientBuildManifestLoaderChunkPath,
+  getClientBuildManifestLoaderChunkUrlPath,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -130,7 +130,10 @@ describe('basePath', () => {
         const browser = await webdriver(next.url, `${basePath}/other-page`)
         await browser.eval('window.next.router.prefetch("/gssp")')
 
-        let chunk = getClientBuildManifestLoaderChunkPath(next.testDir, '/gssp')
+        let chunk = getClientBuildManifestLoaderChunkUrlPath(
+          next.testDir,
+          '/gssp'
+        )
 
         await check(
           async () => {
@@ -182,15 +185,15 @@ describe('basePath', () => {
             ]
           )
 
-          let chunkGsp = getClientBuildManifestLoaderChunkPath(
+          let chunkGsp = getClientBuildManifestLoaderChunkUrlPath(
             next.testDir,
             '/gsp'
           )
-          let chunkGssp = getClientBuildManifestLoaderChunkPath(
+          let chunkGssp = getClientBuildManifestLoaderChunkUrlPath(
             next.testDir,
             '/gssp'
           )
-          let chunkOtherPage = getClientBuildManifestLoaderChunkPath(
+          let chunkOtherPage = getClientBuildManifestLoaderChunkUrlPath(
             next.testDir,
             '/other-page'
           )

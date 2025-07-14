@@ -8,7 +8,7 @@ import {
   findPort,
   killApp,
   check,
-  getClientBuildManifestLoaderChunkPath,
+  getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -25,7 +25,7 @@ describe('Failing to load _error', () => {
         const appPort = await findPort()
         app = await nextStart(appDir, appPort)
 
-        let chunk = getClientBuildManifestLoaderChunkPath(appDir, '/_error')
+        let chunk = getClientBuildManifestLoaderChunkUrlPath(appDir, '/_error')
 
         const browser = await webdriver(appPort, '/', {
           beforePageLoad(page) {

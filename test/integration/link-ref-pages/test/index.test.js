@@ -10,7 +10,7 @@ import {
   nextStart,
   nextBuild,
   waitFor,
-  getClientBuildManifestLoaderChunkPath,
+  getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 
 let app
@@ -43,7 +43,7 @@ const noError = async (pathname) => {
 const didPrefetch = async (pathname) => {
   const browser = await webdriver(appPort, pathname)
 
-  let chunk = getClientBuildManifestLoaderChunkPath(appDir, '/')
+  let chunk = getClientBuildManifestLoaderChunkUrlPath(appDir, '/')
 
   await retry(async () => {
     const links = await browser.elementsByCss('link[rel=prefetch]')

@@ -1294,7 +1294,7 @@ export function getClientBuildManifest(dir: string) {
   return manifest
 }
 
-export function getClientBuildManifestLoaderChunkPath(
+export function getClientBuildManifestLoaderChunkUrlPath(
   dir: string,
   page: string
 ) {
@@ -1308,8 +1308,8 @@ export function getClientBuildManifestLoaderChunkPath(
       `Expected a single chunk, but found ${chunk.length} for "${page}" in _buildManifest.js`
     )
   }
-  // remove leading './' so that this can be used in a `url.contains(chunk)` check
-  return chunk[0].replace(/^\.\//, '')
+  // Remove leading './' so that this can be used in a `url.contains(chunk)` check.
+  return encodeURI(chunk[0].replace(/^\.\//, ''))
 }
 
 function runSuite(

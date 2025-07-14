@@ -9,7 +9,7 @@ import {
   nextBuild,
   nextStart,
   retry,
-  getClientBuildManifestLoaderChunkPath,
+  getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
@@ -46,7 +46,7 @@ const clientNavigation = (context, isProd = false) => {
 
     if (isProd) {
       it('should hard navigate to URL on failing to load missing bundle', async () => {
-        let chunk = getClientBuildManifestLoaderChunkPath(appDir, '/missing')
+        let chunk = getClientBuildManifestLoaderChunkUrlPath(appDir, '/missing')
         const browser = await webdriver(context.appPort, '/to-missing-link', {
           beforePageLoad(page) {
             page.route('**/' + chunk, (route) => {
