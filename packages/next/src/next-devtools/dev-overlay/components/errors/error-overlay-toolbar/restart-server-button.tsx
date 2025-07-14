@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { RefreshClockWise } from '../../../icons/refresh-clock-wise'
 import {
   ACTION_RESTART_SERVER_BUTTON,
@@ -16,6 +16,7 @@ import { css } from '../../../utils/css'
  * telemetry on how often this is used.
  */
 export function RestartServerButton({ showButton }: { showButton: boolean }) {
+  const [disabled, setDisabled] = useState(false)
   const { restartServerAction, isPending } = useRestartServer()
 
   if (!showButton) {
@@ -28,6 +29,8 @@ export function RestartServerButton({ showButton }: { showButton: boolean }) {
     })
 
     if (hasServerRestarted) {
+      // Disable the button after a successful restart to prevent multiple server restart.
+      setDisabled(true)
       window.location.reload()
     }
   }
@@ -36,7 +39,7 @@ export function RestartServerButton({ showButton }: { showButton: boolean }) {
     <button
       className="restart-dev-server-button"
       onClick={handleClick}
-      disabled={isPending}
+      disabled={isPending || disabled}
       title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
     >
       <RefreshClockWise width={14} height={14} spinning={isPending} />
