@@ -1,9 +1,7 @@
-use std::sync::LazyLock;
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    atoms::Atom,
+    atoms::atom,
     base::SwcComments,
     common::{
         DUMMY_SP, Span,
@@ -21,9 +19,6 @@ use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
 };
-
-static MEMBER_REPLACEMENT_ATOM: LazyLock<Atom> =
-    LazyLock::new(|| "TURBOPACK member replacement".into());
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct MemberReplacement {
@@ -55,7 +50,7 @@ impl MemberReplacement {
                 Comment {
                     kind: CommentKind::Block,
                     span: DUMMY_SP,
-                    text: MEMBER_REPLACEMENT_ATOM.clone(),
+                    text: atom!("TURBOPACK member replacement"),
                 },
             );
             let member = Expr::Member(MemberExpr {
