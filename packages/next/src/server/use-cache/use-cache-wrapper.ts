@@ -1004,6 +1004,7 @@ export function cache(
             shouldDiscardCacheEntry(
               entry,
               workStore,
+              workUnitStore,
               implicitTags,
               implicitTagsExpiration
             )
@@ -1284,17 +1285,12 @@ function shouldForceRevalidate(
 function shouldDiscardCacheEntry(
   entry: CacheEntry,
   workStore: WorkStore,
+  workUnitStore: WorkUnitStore | undefined,
   implicitTags: string[],
   implicitTagsExpiration: number
 ): boolean {
-  // If the cache entry contains revalidated tags that the cache handler might
-  // not know about yet, we need to discard it.
-  if (entry.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
-    return true
-  }
-
   // If the cache entry was created before any of the implicit tags were
-  // revalidated last, we also need to discard it.
+  // revalidated last, we need to discard it.
   if (entry.timestamp <= implicitTagsExpiration) {
     debug?.(
       'entry was created at',
@@ -1303,6 +1299,33 @@ function shouldDiscardCacheEntry(
       implicitTagsExpiration
     )
 
+    return true
+  }
+
+  // During prerendering, we ignore recently revalidated tags. In dev mode, we
+  // can assume that the dynamic dev rendering will have discarded and recreated
+  // the affected cache entries, and we don't want to discard those again during
+  // the prerender validation. During build-time prerendering, there will never
+  // be any pending revalidated tags.
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+        return false
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'request':
+      case 'cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
+
+  // If the cache entry contains revalidated tags that the cache handler might
+  // not know about yet, we need to discard it.
+  if (entry.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
     return true
   }
 
@@ -1326,8 +1349,9 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
   }
 
   // It could also have been revalidated by the currently running server action.
-  // In this case the revalidation might not have been propagated to the cache
-  // handler yet, so we read it from the pending tags in the work store.
+  // In this case the revalidation might not have been fully propagated by a
+  // remote cache handler yet, so we read it from the pending tags in the work
+  // store.
   if (pendingRevalidatedTags?.includes(tag)) {
     debug?.('tag', tag, 'was just revalidated')
 

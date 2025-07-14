@@ -27,9 +27,6 @@
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route"
       ]
     },
-    "test/e2e/app-dir/use-cache/use-cache.test.ts": {
-      "failed": ["use-cache should update after unstable_expireTag correctly"]
-    },
     "test/production/app-dir/browser-chunks/browser-chunks.test.ts": {
       "failed": [
         "browser-chunks must not bundle any server modules into browser chunks"
