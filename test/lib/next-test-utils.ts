@@ -962,6 +962,12 @@ export async function openDevToolsIndicatorPopover(
   }
 }
 
+export async function getSegmentExplorerRoute(browser: Playwright) {
+  return await browser
+    .elementByCss('.segment-explorer-page-route-bar-path')
+    .text()
+}
+
 export async function getSegmentExplorerContent(browser: Playwright) {
   // open the devtool button
   await openDevToolsIndicatorPopover(browser)

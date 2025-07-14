@@ -105,7 +105,6 @@ async function createComponentTreeInternal({
     workStore,
     componentMod: {
       SegmentViewNode,
-      SegmentViewStateNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -800,7 +799,6 @@ async function createComponentTreeInternal({
         pageElement
       )
 
-    const pagePrefix = ctx.renderOpts.page.replace(/\/page$/, '')
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
@@ -810,7 +808,6 @@ async function createComponentTreeInternal({
           <MetadataOutlet ready={getViewportReady} />
           {metadataOutlet}
         </OutletBoundary>
-        <SegmentViewStateNode page={pagePrefix} />
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
