@@ -1,0 +1,14 @@
+.nextjs-toast {
+  position: fixed;
+  z-index: var(--top-z-index);
+  max-width: 420px;
+  box-shadow: 0px 16px 32px rgba(0, 0, 0, 0.25);
+}
+
+.nextjs-toast-errors-parent {
+  padding: 16px;
+  border-radius: var(--rounded-4xl);
+  font-weight: 500;
+  color: var(--color-ansi-bright-white);
+  background-color: var(--color-ansi-red);
+}

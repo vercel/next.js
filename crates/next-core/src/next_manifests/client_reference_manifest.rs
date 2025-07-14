@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    Vc, trace::TraceRawVcs,
+    FxIndexSet, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -32,8 +32,8 @@ use crate::{
 
 #[derive(TaskInput, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub struct ClientReferenceManifestOptions {
-    pub node_root: ResolvedVc<FileSystemPath>,
-    pub client_relative_path: ResolvedVc<FileSystemPath>,
+    pub node_root: FileSystemPath,
+    pub client_relative_path: FileSystemPath,
     pub entry_name: RcStr,
     pub client_references: ResolvedVc<ClientReferenceGraphResult>,
     pub client_references_chunks: ResolvedVc<ClientReferencesChunks>,
@@ -96,8 +96,8 @@ impl ClientReferenceManifest {
                 layout_segment_client_chunks,
                 client_component_ssr_chunks,
             } = &*client_references_chunks.await?;
-            let client_relative_path = &*client_relative_path.await?;
-            let node_root_ref = &*node_root.await?;
+            let client_relative_path = client_relative_path.clone();
+            let node_root_ref = node_root.clone();
 
             let client_references_ecmascript = client_references
                 .await?
@@ -128,11 +128,10 @@ impl ClientReferenceManifest {
                 .await?;
 
             async fn cached_chunk_paths(
-                cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, ReadRef<FileSystemPath>>,
+                cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath>,
                 chunks: impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
-            ) -> Result<
-                impl Iterator<Item = (ResolvedVc<Box<dyn OutputAsset>>, ReadRef<FileSystemPath>)>,
-            > {
+            ) -> Result<impl Iterator<Item = (ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath)>>
+            {
                 let results = chunks
                     .into_iter()
                     .map(|chunk| (chunk, cache.get(&chunk).cloned()))
@@ -140,7 +139,7 @@ impl ClientReferenceManifest {
                         Ok(if let Some(path) = path {
                             (chunk, Either::Left(path))
                         } else {
-                            (chunk, Either::Right(chunk.path().await?))
+                            (chunk, Either::Right(chunk.path().owned().await?))
                         })
                     })
                     .try_join()
@@ -158,11 +157,11 @@ impl ClientReferenceManifest {
             }
             let mut client_chunk_path_cache: FxHashMap<
                 ResolvedVc<Box<dyn OutputAsset>>,
-                ReadRef<FileSystemPath>,
+                FileSystemPath,
             > = FxHashMap::default();
             let mut ssr_chunk_path_cache: FxHashMap<
                 ResolvedVc<Box<dyn OutputAsset>>,
-                ReadRef<FileSystemPath>,
+                FileSystemPath,
             > = FxHashMap::default();
 
             for (client_reference_module, client_reference_module_ref) in
@@ -327,64 +326,57 @@ impl ClientReferenceManifest {
             for (server_component, client_chunks) in layout_segment_client_chunks.iter() {
                 let server_component_name = server_component
                     .server_path()
-                    .with_extension("".into())
-                    .to_string()
+                    .await?
+                    .with_extension("")
+                    .value_to_string()
                     .owned()
                     .await?;
-                let mut entry_css_files_with_chunk = Vec::new();
                 let entry_js_files = entry_manifest
                     .entry_js_files
                     .entry(server_component_name.clone())
+                    .or_default();
+                let entry_css_files = entry_manifest
+                    .entry_css_files
+                    .entry(server_component_name)
                     .or_default();
 
                 let client_chunks = &client_chunks.await?;
                 let client_chunks_with_path =
                     cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
                         .await?;
+                // Inlining breaks HMR so it is always disabled in dev.
+                let inlined_css = next_config.await?.experimental.inline_css.unwrap_or(false)
+                    && mode.is_production();
 
                 for (chunk, chunk_path) in client_chunks_with_path {
                     if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
                         // The entry CSS files and entry JS files don't have prefix and suffix
-                        // applied because it is added by Nex.js during rendering.
+                        // applied because it is added by Next.js during rendering.
                         let path = path.into();
-                        if chunk_path.extension_ref() == Some("css") {
-                            entry_css_files_with_chunk.push((path, chunk));
+                        if chunk_path.has_extension(".css") {
+                            let content = if inlined_css {
+                                Some(
+                                    if let Some(content_file) =
+                                        chunk.content().file_content().await?.as_content()
+                                    {
+                                        content_file.content().to_str()?.into()
+                                    } else {
+                                        RcStr::default()
+                                    },
+                                )
+                            } else {
+                                None
+                            };
+                            entry_css_files.insert(CssResource {
+                                path,
+                                inlined: inlined_css,
+                                content,
+                            });
                         } else {
                             entry_js_files.insert(path);
                         }
                     }
                 }
-
-                let inlined = next_config.await?.experimental.inline_css.unwrap_or(false)
-                    && mode.is_production();
-                let entry_css_files_vec = entry_css_files_with_chunk
-                    .into_iter()
-                    .map(async |(path, chunk)| {
-                        let content = if inlined {
-                            if let Some(content_file) =
-                                chunk.content().file_content().await?.as_content()
-                            {
-                                Some(content_file.content().to_str()?.into())
-                            } else {
-                                Some("".into())
-                            }
-                        } else {
-                            None
-                        };
-                        Ok(CssResource {
-                            path,
-                            inlined,
-                            content,
-                        })
-                    })
-                    .try_join()
-                    .await?;
-
-                let entry_css_files = entry_manifest
-                    .entry_css_files
-                    .entry(server_component_name)
-                    .or_default();
-                entry_css_files.extend(entry_css_files_vec);
             }
 
             let client_reference_manifest_json = serde_json::to_string(&entry_manifest).unwrap();
@@ -396,10 +388,9 @@ impl ClientReferenceManifest {
             // path still (same as webpack does)
             let normalized_manifest_entry = entry_name.replace("%5F", "_");
             Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
-                node_root.join(
-                    format!("server/app{normalized_manifest_entry}_client-reference-manifest.js",)
-                        .into(),
-                ),
+                node_root.join(&format!(
+                    "server/app{normalized_manifest_entry}_client-reference-manifest.js",
+                ))?,
                 AssetContent::file(
                     File::from(formatdoc! {
                         r#"

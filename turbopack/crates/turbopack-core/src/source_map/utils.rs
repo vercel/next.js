@@ -5,7 +5,7 @@ use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_file,
 };
@@ -69,27 +69,25 @@ struct SourceMapJson {
     sections: Option<Vec<SourceMapSectionItemJson>>,
 }
 
-/// Replace the origin prefix in the `sources` with `turbopack:///` and read the the
+/// Replace the origin prefix in the `file` and `sources` with `turbopack:///` and read the the
 /// `sourceContent`s from disk.
 pub async fn resolve_source_map_sources(
     map: Option<&Rope>,
-    origin: Vc<FileSystemPath>,
+    origin: FileSystemPath,
 ) -> Result<Option<Rope>> {
     async fn resolve_source(
         original_source: &mut String,
-        original_content: &mut Option<String>,
-        origin: Vc<FileSystemPath>,
+        original_content: Option<&mut Option<String>>,
+        origin: FileSystemPath,
     ) -> Result<()> {
-        if let Some(path) = *origin
-            .parent()
-            .try_join((&**original_source).into())
-            .await?
-        {
-            let path_str = path.to_string().await?;
+        if let Some(path) = origin.parent().try_join(original_source)? {
+            let path_str = path.value_to_string().await?;
             let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
             *original_source = source;
 
-            if original_content.is_none() {
+            if let Some(original_content) = original_content
+                && original_content.is_none()
+            {
                 if let FileContent::Content(file) = &*path.read().await? {
                     let text = file.content().to_str()?;
                     *original_content = Some(text.to_string())
@@ -98,14 +96,16 @@ pub async fn resolve_source_map_sources(
                 }
             }
         } else {
-            let origin_str = origin.to_string().await?;
+            let origin_str = origin.value_to_string().await?;
             static INVALID_REGEX: Lazy<Regex> =
                 Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
             let source = INVALID_REGEX.replace_all(original_source, |s: &regex::Captures<'_>| {
                 s[0].replace('.', "_")
             });
             *original_source = format!("{SOURCE_URL_PROTOCOL}///{origin_str}/{source}");
-            if original_content.is_none() {
+            if let Some(original_content) = original_content
+                && original_content.is_none()
+            {
                 *original_content = Some(format!(
                     "unable to access {original_source} in {origin_str} (it's leaving the \
                      filesystem root)"
@@ -115,7 +115,7 @@ pub async fn resolve_source_map_sources(
         anyhow::Ok(())
     }
 
-    async fn resolve_map(map: &mut SourceMapJson, origin: Vc<FileSystemPath>) -> Result<()> {
+    async fn resolve_map(map: &mut SourceMapJson, origin: FileSystemPath) -> Result<()> {
         if let Some(sources) = &mut map.sources {
             let mut contents = if let Some(mut contents) = map.sources_content.take() {
                 contents.resize(sources.len(), None);
@@ -126,7 +126,7 @@ pub async fn resolve_source_map_sources(
 
             for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
                 if let Some(source) = source {
-                    resolve_source(source, content, origin).await?;
+                    resolve_source(source, Some(content), origin.clone()).await?;
                 }
             }
 
@@ -144,9 +144,13 @@ pub async fn resolve_source_map_sources(
         return Ok(None);
     };
 
-    resolve_map(&mut map, origin).await?;
+    if let Some(file) = &mut map.file {
+        resolve_source(file, None, origin.clone()).await?;
+    }
+
+    resolve_map(&mut map, origin.clone()).await?;
     for section in map.sections.iter_mut().flatten() {
-        resolve_map(&mut section.map, origin).await?;
+        resolve_map(&mut section.map, origin.clone()).await?;
     }
 
     let map = Rope::from(serde_json::to_vec(&map)?);
@@ -157,7 +161,7 @@ pub async fn resolve_source_map_sources(
 /// is useful for debugging environments.
 pub async fn fileify_source_map(
     map: Option<&Rope>,
-    context_path: Vc<FileSystemPath>,
+    context_path: FileSystemPath,
 ) -> Result<Option<Rope>> {
     let Some(map) = map else {
         return Ok(None);
@@ -179,7 +183,7 @@ pub async fn fileify_source_map(
         if let Some(src) = src
             && let Some(src_rest) = src.strip_prefix(&prefix)
         {
-            *src = uri_from_file(context_path, Some(src_rest)).await?;
+            *src = uri_from_file(context_path.clone(), Some(src_rest)).await?;
         }
         anyhow::Ok(())
     };

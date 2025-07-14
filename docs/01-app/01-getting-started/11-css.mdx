@@ -10,7 +10,7 @@ related:
     - app/guides/css-in-js
 ---
 
-Next.js provides several ways to use CSS in your application, including:
+Next.js provides several ways to style your application using CSS, including:
 
 - [CSS Modules](#css-modules)
 - [Global CSS](#global-css)
@@ -237,7 +237,7 @@ Next.js optimizes CSS during production builds by automatically chunking (mergin
 
 For example, `base-button.module.css` will be ordered before `page.module.css` since `<BaseButton>` is imported before `page.module.css`:
 
-```tsx filename="page.ts" switcher
+```tsx filename="page.tsx" switcher
 import { BaseButton } from './base-button'
 import styles from './page.module.css'
 

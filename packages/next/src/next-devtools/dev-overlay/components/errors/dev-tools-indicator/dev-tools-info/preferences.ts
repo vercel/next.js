@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  NEXT_DEV_TOOLS_SCALE,
   STORAGE_KEY_POSITION,
   STORAGE_KEY_SCALE,
   STORAGE_KEY_THEME,
@@ -9,6 +10,8 @@ const INDICATOR_POSITION =
   (process.env
     .__NEXT_DEV_INDICATOR_POSITION as typeof window.__NEXT_DEV_INDICATOR_POSITION) ||
   'bottom-left'
+
+export const STORAGE_KEY_HIDE_SHORTCUT = '__nextjs_hide_shortcut'
 
 export type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
 
@@ -25,14 +28,6 @@ export function getInitialPosition() {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-
-const BASE_SIZE = 16
-
-export const NEXT_DEV_TOOLS_SCALE = {
-  Small: BASE_SIZE / 14,
-  Medium: BASE_SIZE / 16,
-  Large: BASE_SIZE / 18,
-} as const
 
 export type DevToolsScale =
   (typeof NEXT_DEV_TOOLS_SCALE)[keyof typeof NEXT_DEV_TOOLS_SCALE]
@@ -69,4 +64,34 @@ export function getInitialTheme() {
   }
   const theme = localStorage.getItem(STORAGE_KEY_THEME)
   return theme === 'dark' || theme === 'light' ? theme : 'system'
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+export function getInitialHideShortcut(): string | null {
+  if (typeof localStorage === 'undefined') {
+    return null
+  }
+  const hideShortcut = localStorage.getItem(STORAGE_KEY_HIDE_SHORTCUT)
+  return hideShortcut ? hideShortcut : null
+}
+
+export function useHideShortcutStorage(): [
+  string | null,
+  (value: string | null) => void,
+] {
+  const [hideShortcut, setHideShortcut] = useState<string | null>(
+    getInitialHideShortcut()
+  )
+
+  function set(value: string | null) {
+    setHideShortcut(value)
+    if (value === null) {
+      localStorage.removeItem(STORAGE_KEY_HIDE_SHORTCUT)
+    } else {
+      localStorage.setItem(STORAGE_KEY_HIDE_SHORTCUT, value)
+    }
+  }
+
+  return [hideShortcut, set]
 }

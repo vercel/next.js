@@ -4,6 +4,7 @@
 const nextConfig = {
   experimental: {
     devtoolSegmentExplorer: true,
+    authInterrupts: true,
   },
 }
 

@@ -13,7 +13,6 @@ use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
     environment::ChunkLoading,
     issue::IssueSource,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
@@ -82,7 +81,7 @@ impl ModuleReference for EsmAsyncAssetReference {
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
             self.in_try,
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
         )
         .await
     }
@@ -131,7 +130,6 @@ pub struct EsmAsyncAssetReferenceCodeGen {
 impl EsmAsyncAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -154,21 +152,23 @@ impl EsmAsyncAssetReferenceCodeGen {
 
         let import_externals = reference.import_externals;
 
-        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let old_expr = expr.take();
-            let message = if let Expr::Call(CallExpr { args, ..}) = old_expr {
+            let message = if let Expr::Call(CallExpr { args, .. }) = old_expr {
                 match args.into_iter().next() {
-                    Some(ExprOrSpread { spread: None, expr: key_expr }) => {
+                    Some(ExprOrSpread {
+                        spread: None,
+                        expr: key_expr,
+                    }) => {
                         *expr = pm.create_import(*key_expr, import_externals);
                         return;
                     }
                     // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
-                    Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
-                        "spread operator is illegal in import() expressions."
-                    }
-                    _ => {
-                        "import() expressions require at least 1 argument"
-                    }
+                    Some(ExprOrSpread {
+                        spread: Some(_),
+                        expr: _,
+                    }) => "spread operator is illegal in import() expressions.",
+                    _ => "import() expressions require at least 1 argument",
                 }
             } else {
                 "visitor must be executed on a CallExpr"
@@ -184,7 +184,7 @@ impl EsmAsyncAssetReferenceCodeGen {
                     expr: error,
                 }],
                 span: DUMMY_SP,
-               ..Default::default()
+                ..Default::default()
             });
         });
 

@@ -245,7 +245,41 @@ export default async function BlogPostPage({ params }) {
 }
 ```
 
-Learn more about [Dynamic Segments](/docs/app/api-reference/file-conventions/dynamic-routes).
+Learn more about [Dynamic Segments](/docs/app/api-reference/file-conventions/dynamic-routes) and the [`params`](/docs/app/api-reference/file-conventions/page#params-optional) props.
+
+Nested [layouts within Dynamic Segments](/docs/app/api-reference/file-conventions/layout#params-optional), can also access the `params` props.
+
+## Rendering with search params
+
+In a Server Component **page**, you can access search parameters using the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop:
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const filters = (await searchParams).filters
+}
+```
+
+```jsx filename="app/page.jsx" switcher
+export default async function Page({ searchParams }) {
+  const filters = (await searchParams).filters
+}
+```
+
+Using `searchParams` opts your page into [**dynamic rendering**](/docs/app/getting-started/partial-prerendering#dynamic-rendering) because it requires a incoming request to read the search parameters from.
+
+Client Components can read search params using the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook.
+
+Learn more about `useSearchParams` in [statically rendered](/docs/app/api-reference/functions/use-search-params#static-rendering) and [dynamically rendered](/docs/app/api-reference/functions/use-search-params#dynamic-rendering) routes.
+
+### What to use and when
+
+- Use the `searchParams` prop when you need search parameters to **load data for the page** (e.g. pagination, filtering from a database).
+- Use `useSearchParams` when search parameters are used **only on the client** (e.g. filtering a list already loaded via props).
+- As a small optimization, you can use `new URLSearchParams(window.location.search)` in **callbacks or event handlers** to read search params without triggering re-renders.
 
 ## Linking between pages
 

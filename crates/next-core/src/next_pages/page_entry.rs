@@ -14,7 +14,6 @@ use turbopack_core::{
     source::Source,
     virtual_source::VirtualSource,
 };
-use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::{
     next_config::NextConfig,
@@ -34,7 +33,7 @@ pub struct PageSsrEntryModule {
 pub async fn create_page_ssr_entry_module(
     pathname: RcStr,
     reference_type: ReferenceType,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     next_original_name: RcStr,
@@ -86,7 +85,7 @@ pub async fn create_page_ssr_entry_module(
     // Load the file from the next.js codebase.
     let mut source = load_next_js_template(
         template_file,
-        project_root,
+        project_root.clone(),
         replacements,
         FxIndexMap::default(),
         FxIndexMap::default(),
@@ -112,7 +111,7 @@ pub async fn create_page_ssr_entry_module(
         let file = File::from(result.build());
 
         source = Vc::upcast(VirtualSource::new(
-            source.ident().path(),
+            source.ident().path().owned().await?,
             AssetContent::file(file.into()),
         ));
     }
@@ -184,19 +183,19 @@ pub async fn create_page_ssr_entry_module(
 }
 
 #[turbo_tasks::function]
-fn process_global_item(
+async fn process_global_item(
     item: Vc<PagesStructureItem>,
     reference_type: ReferenceType,
     module_context: Vc<Box<dyn AssetContext>>,
-) -> Vc<Box<dyn Module>> {
-    let source = Vc::upcast(FileSource::new(item.file_path()));
-    module_context.process(source, reference_type).module()
+) -> Result<Vc<Box<dyn Module>>> {
+    let source = Vc::upcast(FileSource::new(item.file_path().owned().await?));
+    Ok(module_context.process(source, reference_type).module())
 }
 
 #[turbo_tasks::function]
 async fn wrap_edge_page(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: RcStr,
     pathname: RcStr,
@@ -213,20 +212,9 @@ async fn wrap_edge_page(
 
     let next_config_val = &*next_config.await?;
 
-    // TODO(WEB-1824): add build support
-    let dev = true;
-
-    let sri_enabled = !dev
-        && next_config
-            .experimental_sri()
-            .await?
-            .as_ref()
-            .map(|sri| sri.algorithm.as_ref())
-            .is_some();
-
     let source = load_next_js_template(
         "edge-ssr.js",
-        project_root,
+        project_root.clone(),
         fxindexmap! {
             "VAR_USERLAND" => INNER.into(),
             "VAR_PAGE" => pathname.clone(),
@@ -235,12 +223,9 @@ async fn wrap_edge_page(
             "VAR_MODULE_GLOBAL_ERROR" => INNER_ERROR.into(),
         },
         fxindexmap! {
-            "pagesType" => StringifyJs("pages").to_string().into(),
-            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
             // TODO do we really need to pass the entire next config here?
             // This is bad for invalidation as any config change will invalidate this
             "nextConfig" => serde_json::to_string(next_config_val)?.into(),
-            "dev" => serde_json::Value::Bool(dev).to_string().into(),
             "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?.into(),
             "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options(rcstr!("/_error"), rcstr!("/_error")))?.into(),
             "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options(rcstr!("/500"), rcstr!("/500")))?.into(),

@@ -3,7 +3,7 @@ use std::{io::Write, iter::once};
 use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -15,7 +15,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, export_usage::ModuleExportUsageInfo},
     reference::{ModuleReference, ModuleReferences},
     reference_type::ReferenceType,
     resolve::ModuleResolveResult,
@@ -76,7 +76,7 @@ impl EcmascriptClientReferenceModule {
         // Adapted from https://github.com/facebook/react/blob/c5b9375767e2c4102d7e5559d383523736f1c902/packages/react-server-dom-webpack/src/ReactFlightWebpackNodeLoader.js#L323-L354
         if let EcmascriptExports::EsmExports(exports) = &*self.client_module.get_exports().await? {
             is_esm = true;
-            let exports = exports.expand_exports(None).await?;
+            let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
 
             if !exports.dynamic_exports.is_empty() {
                 // TODO: throw? warn?
@@ -85,7 +85,7 @@ impl EcmascriptClientReferenceModule {
             writedoc!(
                 code,
                 r#"
-                    import {{ registerClientReference }} from "react-server-dom-turbopack/server.edge";
+                    import {{ registerClientReference }} from "react-server-dom-turbopack/server";
                 "#,
             )?;
 
@@ -135,7 +135,7 @@ impl EcmascriptClientReferenceModule {
             writedoc!(
                 code,
                 r#"
-                    const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server.edge");
+                    const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server");
 
                     {TURBOPACK_EXPORT_NAMESPACE}(createClientModuleProxy({server_module_path}));
                 "#,
@@ -148,13 +148,13 @@ impl EcmascriptClientReferenceModule {
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            self.server_ident.path().join(
+            self.server_ident.path().await?.join(
                 // Depending on the original format, we call the file `proxy.mjs` or `proxy.cjs`.
                 // This is because we're placing the virtual module next to the original code, so
                 // its parsing will be affected by `type` fields in package.json --
                 // a bare `proxy.js` may end up being unexpectedly parsed as the wrong format.
-                format!("proxy.{}", if is_esm { "mjs" } else { "cjs" }).into(),
-            ),
+                &format!("proxy.{}", if is_esm { "mjs" } else { "cjs" }),
+            )?,
             proxy_module_content,
         );
 
@@ -187,7 +187,7 @@ impl Module for EcmascriptClientReferenceModule {
         Ok(self
             .server_ident
             .with_modifier(rcstr!("client reference proxy"))
-            .with_layer(self.server_asset_context.layer().owned().await?))
+            .with_layer(self.server_asset_context.into_trait_ref().await?.layer()))
     }
 
     #[turbo_tasks::function]

@@ -35,7 +35,16 @@ export interface WorkStore {
   readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
 
   readonly isOnDemandRevalidate?: boolean
-  readonly isPrerendering?: boolean
+  readonly isBuildTimePrerendering?: boolean
+
+  /**
+   * This is true when:
+   * - source maps are generated
+   * - source maps are applied
+   * - minification is disabled
+   */
+  readonly hasReadableErrorStacks?: boolean
+
   readonly isRevalidate?: boolean
 
   forceDynamic?: boolean

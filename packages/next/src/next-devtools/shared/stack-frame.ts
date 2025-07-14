@@ -158,7 +158,9 @@ export function getFrameSource(frame: StackFrame): string {
   }
 
   if (!isWebpackInternalResource(frame.file) && frame.lineNumber != null) {
-    if (str) {
+    // We don't need line and column numbers for anonymous sources because
+    // there's no entrypoint for the location anyway.
+    if (str && frame.file !== '<anonymous>') {
       if (frame.column != null) {
         str += ` (${frame.lineNumber}:${frame.column})`
       } else {

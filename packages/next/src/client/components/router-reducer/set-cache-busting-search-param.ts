@@ -36,12 +36,29 @@ export const setCacheBustingSearchParam = (
     headers[NEXT_ROUTER_STATE_TREE_HEADER],
     headers[NEXT_URL]
   )
-  if (uniqueCacheKey === null) {
-    // None of our custom request headers are present. We don't need to set a
-    // cache-busting search param.
-    return
-  }
+  setCacheBustingSearchParamWithHash(url, uniqueCacheKey)
+}
 
+/**
+ * Sets a cache-busting search parameter on a URL using a provided hash value.
+ *
+ * This function performs the same logic as `setCacheBustingSearchParam` but accepts
+ * a pre-computed hash instead of computing it from headers.
+ *
+ * Example:
+ * URL before: https://example.com/path?query=1
+ * hash: "abc123"
+ * URL after: https://example.com/path?query=1&_rsc=abc123
+ *
+ * If the hash is null, we will set `_rsc` search param without a value.
+ * Like this: https://example.com/path?query=1&_rsc
+ *
+ * Note: This function mutates the input URL directly and does not return anything.
+ */
+export const setCacheBustingSearchParamWithHash = (
+  url: URL,
+  hash: string
+): void => {
   /**
    * Note that we intentionally do not use `url.searchParams.set` here:
    *
@@ -57,7 +74,17 @@ export const setCacheBustingSearchParam = (
   const rawQuery = existingSearch.startsWith('?')
     ? existingSearch.slice(1)
     : existingSearch
-  const pairs = rawQuery.split('&').filter(Boolean)
-  pairs.push(`${NEXT_RSC_UNION_QUERY}=${uniqueCacheKey}`)
+
+  // Always remove any existing cache busting param and add a fresh one to ensure
+  // we have the correct value based on current request headers
+  const pairs = rawQuery
+    .split('&')
+    .filter((pair) => pair && !pair.startsWith(`${NEXT_RSC_UNION_QUERY}=`))
+
+  if (hash.length > 0) {
+    pairs.push(`${NEXT_RSC_UNION_QUERY}=${hash}`)
+  } else {
+    pairs.push(`${NEXT_RSC_UNION_QUERY}`)
+  }
   url.search = pairs.length ? `?${pairs.join('&')}` : ''
 }

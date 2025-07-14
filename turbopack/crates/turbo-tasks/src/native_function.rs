@@ -1,4 +1,5 @@
-use std::{fmt::Debug, hash::Hash, pin::Pin};
+use core::panic;
+use std::{fmt::Debug, hash::Hash, pin::Pin, sync::OnceLock};
 
 use anyhow::Result;
 use futures::Future;
@@ -6,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
-    RawVc, TaskInput, TaskPersistence,
+    RawVc, TaskExecutionReason, TaskInput, TaskPersistence,
     magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::register_function,
     task::{
@@ -150,15 +151,17 @@ pub struct FunctionMeta {
 /// `#[turbo_tasks::function]`.
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
-    pub name: String,
+    pub(crate) name: &'static str,
 
-    pub function_meta: FunctionMeta,
+    pub(crate) function_meta: FunctionMeta,
 
-    pub arg_meta: ArgMeta,
+    pub(crate) arg_meta: ArgMeta,
 
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
-    pub implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+    pub(crate) implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+
+    global_name: OnceLock<&'static str>,
 }
 
 impl Debug for NativeFunction {
@@ -172,7 +175,7 @@ impl Debug for NativeFunction {
 
 impl NativeFunction {
     pub fn new_function<Mode, Inputs>(
-        name: String,
+        name: &'static str,
         function_meta: FunctionMeta,
         implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
@@ -184,11 +187,12 @@ impl NativeFunction {
             function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
+            global_name: Default::default(),
         }
     }
 
     pub fn new_method_without_this<Mode, Inputs, I>(
-        name: String,
+        name: &'static str,
         function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
@@ -206,11 +210,12 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn()),
+            global_name: Default::default(),
         }
     }
 
     pub fn new_method<Mode, This, Inputs, I>(
-        name: String,
+        name: &'static str,
         function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
@@ -229,6 +234,7 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn_with_this()),
+            global_name: Default::default(),
         }
     }
 
@@ -240,51 +246,43 @@ impl NativeFunction {
         }
     }
 
-    pub fn span(&'static self, persistence: TaskPersistence) -> Span {
-        match persistence {
-            TaskPersistence::Persistent => {
-                tracing::trace_span!("turbo_tasks::function", name = self.name.as_str())
-            }
-            TaskPersistence::Transient => {
-                tracing::trace_span!(
-                    "turbo_tasks::function",
-                    name = self.name.as_str(),
-                    transient = true,
-                )
-            }
-            TaskPersistence::Local => {
-                tracing::trace_span!(
-                    "turbo_tasks::function",
-                    name = self.name.as_str(),
-                    local = true,
-                )
-            }
-        }
+    pub fn span(&'static self, persistence: TaskPersistence, reason: TaskExecutionReason) -> Span {
+        let flags = match persistence {
+            TaskPersistence::Persistent => "",
+            TaskPersistence::Transient => "transient",
+            TaskPersistence::Local => "local",
+        };
+        tracing::trace_span!(
+            "turbo_tasks::function",
+            name = self.name,
+            flags = flags,
+            reason = reason.as_str()
+        )
     }
 
     pub fn resolve_span(&'static self, persistence: TaskPersistence) -> Span {
-        match persistence {
-            TaskPersistence::Persistent => {
-                tracing::trace_span!("turbo_tasks::resolve_call", name = self.name.as_str())
-            }
-            TaskPersistence::Transient => {
-                tracing::trace_span!(
-                    "turbo_tasks::resolve_call",
-                    name = self.name.as_str(),
-                    transient = true,
-                )
-            }
-            TaskPersistence::Local => {
-                tracing::trace_span!(
-                    "turbo_tasks::resolve_call",
-                    name = self.name.as_str(),
-                    local = true,
-                )
-            }
-        }
+        let flags = match persistence {
+            TaskPersistence::Persistent => "",
+            TaskPersistence::Transient => "transient",
+            TaskPersistence::Local => "local",
+        };
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
+    }
+
+    /// Returns the global name for this object
+    pub fn global_name(&self) -> &'static str {
+        self.global_name
+            .get()
+            .expect("cannot call `global_name` unless `register` has already been called")
     }
 
     pub fn register(&'static self, global_name: &'static str) {
+        match self.global_name.set(global_name) {
+            Ok(_) => {}
+            Err(prev) => {
+                panic!("function {global_name} registered twice, previously with {prev}");
+            }
+        }
         register_function(global_name, self);
     }
 }

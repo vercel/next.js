@@ -202,6 +202,11 @@ export interface RequestMeta {
   projectDir?: string
 
   /**
+   * The dist directory the server is currently using
+   */
+  distDir?: string
+
+  /**
    * Whether we are generating the fallback version of the page in dev mode
    */
   isIsrFallback?: boolean

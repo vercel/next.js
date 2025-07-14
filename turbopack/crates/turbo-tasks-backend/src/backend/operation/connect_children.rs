@@ -32,7 +32,7 @@ pub fn connect_children(
         });
     }
 
-    let new_follower_ids: SmallVec<_> = new_children.iter().copied().collect();
+    let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();
 
     let aggregating_node = is_aggregating_node(parent_aggregation);
     let upper_ids = (!aggregating_node).then(|| get_uppers(&*parent_task));

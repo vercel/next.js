@@ -120,12 +120,12 @@ impl Asset for SideEffectsModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for SideEffectsModule {
     #[turbo_tasks::function]
-    async fn get_exports(&self) -> Vc<EcmascriptExports> {
+    fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.resolved_as.get_exports()
     }
 
     #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
+    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
         Vc::cell(true)
     }
 }

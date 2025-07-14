@@ -27,10 +27,11 @@ import type {
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
-import type { GlobalErrorComponent } from '../../../components/global-error'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
+import type { GlobalErrorState } from '../../../components/app-router-instance'
+import { useForwardConsoleLog } from '../../../../next-devtools/userspace/app/errors/use-forward-console-log'
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -451,13 +452,15 @@ export default function HotReload({
 }: {
   assetPrefix: string
   children: ReactNode
-  globalError: [GlobalErrorComponent, React.ReactNode]
+  globalError: GlobalErrorState
 }) {
   useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
 
   const webSocketRef = useWebsocket(assetPrefix)
+
   useWebsocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
+  useForwardConsoleLog(webSocketRef)
   const processTurbopackMessage = useTurbopack(sendMessage, (err) =>
     performFullReload(err, sendMessage)
   )
@@ -533,7 +536,6 @@ export default function HotReload({
     processTurbopackMessage,
     appIsrManifestRef,
   ])
-
   return (
     <AppDevOverlayErrorBoundary globalError={globalError}>
       <ReplaySsrOnlyErrors onBlockingError={dispatcher.openErrorOverlay} />

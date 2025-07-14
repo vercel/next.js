@@ -141,7 +141,7 @@ export function Base({ scale = 1 }: { scale?: DevToolsScale }) {
           &:hover {
             color: var(--color-blue-900);
           }
-          &:focus {
+          &:focus-visible {
             outline: var(--focus-ring);
           }
         }

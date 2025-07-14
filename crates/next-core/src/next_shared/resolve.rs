@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use anyhow::Result;
 use rustc_hash::FxHashMap;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
@@ -45,16 +45,17 @@ static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
-    pub file_path: ResolvedVc<FileSystemPath>,
+    // TODO(PACK-4879): The filepath is incorrect and there should be a fine grained source
+    // location pointing at the import/require
+    pub file_path: FileSystemPath,
     pub messages: Vec<RcStr>,
     pub skip_context_message: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for InvalidImportModuleIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]
@@ -64,17 +65,17 @@ impl Issue for InvalidImportModuleIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Invalid import".into()).cell()
+        StyledString::Text(rcstr!("Invalid import")).cell()
     }
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let raw_context = &*self.file_path.await?;
+        let raw_context = self.file_path.clone();
 
         let mut messages = self.messages.clone();
 
@@ -98,11 +99,11 @@ impl Issue for InvalidImportModuleIssue {
 
 /// A resolver plugin emits an error when specific context imports
 /// specified import requests. It doesn't detect if the import is correctly
-/// alised or not unlike webpack-config does; Instead it should be correctly
+/// aliased or not unlike webpack-config does; Instead it should be correctly
 /// configured when each context sets up its resolve options.
 #[turbo_tasks::value]
 pub(crate) struct InvalidImportResolvePlugin {
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
     invalid_import: RcStr,
     message: Vec<RcStr>,
 }
@@ -110,11 +111,7 @@ pub(crate) struct InvalidImportResolvePlugin {
 #[turbo_tasks::value_impl]
 impl InvalidImportResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(
-        root: ResolvedVc<FileSystemPath>,
-        invalid_import: RcStr,
-        message: Vec<RcStr>,
-    ) -> Vc<Self> {
+    pub fn new(root: FileSystemPath, invalid_import: RcStr, message: Vec<RcStr>) -> Vc<Self> {
         InvalidImportResolvePlugin {
             root,
             invalid_import,
@@ -134,7 +131,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
     #[turbo_tasks::function]
     fn before_resolve(
         &self,
-        lookup_path: ResolvedVc<FileSystemPath>,
+        lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Vc<ResolveResultOption> {
@@ -154,13 +151,13 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
 }
 
 /// Returns a resolve plugin if context have imports to `client-only`.
-/// Only the contexts that alises `client-only` to
+/// Only the contexts that aliases `client-only` to
 /// `next/dist/compiled/client-only/error` should use this.
 pub(crate) fn get_invalid_client_only_resolve_plugin(
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
-        *root,
+        root,
         "client-only".into(),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
@@ -171,13 +168,13 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 }
 
 /// Returns a resolve plugin if context have imports to `server-only`.
-/// Only the contexts that alises `server-only` to
+/// Only the contexts that aliases `server-only` to
 /// `next/dist/compiled/server-only/index` should use this.
 pub(crate) fn get_invalid_server_only_resolve_plugin(
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
-        *root,
+        root,
         "server-only".into(),
         vec![
             "'server-only' cannot be imported from a Client Component module. It should only be \
@@ -189,10 +186,10 @@ pub(crate) fn get_invalid_server_only_resolve_plugin(
 
 /// Returns a resolve plugin if context have imports to `styled-jsx`.
 pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
-        *root,
+        root,
         "styled-jsx".into(),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
@@ -208,13 +205,13 @@ pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
 
 #[turbo_tasks::value]
 pub(crate) struct NextExternalResolvePlugin {
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl NextExternalResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(project_path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(project_path: FileSystemPath) -> Vc<Self> {
         NextExternalResolvePlugin { project_path }.cell()
     }
 }
@@ -222,22 +219,22 @@ impl NextExternalResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for NextExternalResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(
-            self.project_path.root(),
+    async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
+        Ok(AfterResolvePluginCondition::new(
+            self.project_path.root().owned().await?,
             Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".into()),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: Vc<FileSystemPath>,
-        _lookup_path: Vc<FileSystemPath>,
+        fs_path: FileSystemPath,
+        _lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        let path = fs_path.await?.path.to_string();
+        let path = fs_path.path.to_string();
         // Find the starting index of 'next/dist' and slice from that point. It should
         // always be found since the glob pattern above is specific enough.
         let starting_index = path.find("next/dist").unwrap();
@@ -257,17 +254,14 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
 
 #[turbo_tasks::value]
 pub(crate) struct NextNodeSharedRuntimeResolvePlugin {
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
     server_context_type: ServerContextType,
 }
 
 #[turbo_tasks::value_impl]
 impl NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(
-        root: ResolvedVc<FileSystemPath>,
-        server_context_type: ServerContextType,
-    ) -> Vc<Self> {
+    pub fn new(root: FileSystemPath, server_context_type: ServerContextType) -> Vc<Self> {
         NextNodeSharedRuntimeResolvePlugin {
             root,
             server_context_type,
@@ -279,23 +273,23 @@ impl NextNodeSharedRuntimeResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(
-            self.root.root(),
+    async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
+        Ok(AfterResolvePluginCondition::new(
+            self.root.root().owned().await?,
             Glob::new("**/next/dist/**/*.shared-runtime.js".into()),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: Vc<FileSystemPath>,
-        _lookup_path: Vc<FileSystemPath>,
+        fs_path: FileSystemPath,
+        _lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        let stem = fs_path.file_stem().await?;
-        let stem = stem.as_deref().unwrap_or_default();
+        let stem = fs_path.file_stem();
+        let stem = stem.unwrap_or_default();
         let stem = stem.replace(".shared-runtime", "");
 
         let resource_request = format!(
@@ -309,7 +303,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             stem
         );
 
-        let raw_fs_path = &*fs_path.await?;
+        let raw_fs_path = fs_path.clone();
         let path = raw_fs_path.path.to_string();
 
         // Find the starting index of 'next/dist' and slice from that point. It should
@@ -320,7 +314,8 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 
         let new_path = fs_path
             .root()
-            .join(format!("{base}/{resource_request}").into());
+            .await?
+            .join(&format!("{base}/{resource_request}"))?;
 
         Ok(Vc::cell(Some(ResolveResult::source(ResolvedVc::upcast(
             FileSource::new(new_path).to_resolved().await?,
@@ -332,13 +327,13 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 /// telemetry events if there is a match.
 #[turbo_tasks::value]
 pub(crate) struct ModuleFeatureReportResolvePlugin {
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleFeatureReportResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(root: FileSystemPath) -> Vc<Self> {
         ModuleFeatureReportResolvePlugin { root }.cell()
     }
 }
@@ -358,7 +353,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
     #[turbo_tasks::function]
     async fn before_resolve(
         &self,
-        _lookup_path: Vc<FileSystemPath>,
+        _lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
@@ -389,13 +384,13 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
 
 #[turbo_tasks::value]
 pub(crate) struct NextSharedRuntimeResolvePlugin {
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(root: FileSystemPath) -> Vc<Self> {
         NextSharedRuntimeResolvePlugin { root }.cell()
     }
 }
@@ -403,24 +398,24 @@ impl NextSharedRuntimeResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(
-            self.root.root(),
+    async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
+        Ok(AfterResolvePluginCondition::new(
+            self.root.root().owned().await?,
             Glob::new("**/next/dist/esm/**/*.shared-runtime.js".into()),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: Vc<FileSystemPath>,
-        _lookup_path: Vc<FileSystemPath>,
+        fs_path: FileSystemPath,
+        _lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        let raw_fs_path = &*fs_path.await?;
+        let raw_fs_path = fs_path.clone();
         let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
-        let new_path = fs_path.root().join(modified_path.into());
+        let new_path = fs_path.root().await?.join(&modified_path)?;
         Ok(Vc::cell(Some(ResolveResult::source(ResolvedVc::upcast(
             FileSource::new(new_path).to_resolved().await?,
         )))))

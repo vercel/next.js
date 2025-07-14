@@ -1,5 +1,5 @@
 ---
-title: Updating data
+title: Updating Data
 description: Learn how to mutate data using Server Functions.
 related:
   title: API Reference
@@ -23,7 +23,7 @@ By convention, a Server Action is an async function used with [`startTransition`
 - Passed to a `<form>` using the `action` prop.
 - Passed to a `<button>` using the `formAction` prop.
 
-In Next.js, Server Actions integrate with the framework's [caching](/docs/app/deep-dive/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
+In Next.js, Server Actions integrate with the framework's [caching](/docs/app/guides/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
 
 Behind the scenes, actions use the `POST` method, and only this HTTP method can invoke them.
 

@@ -30,7 +30,7 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
     // So if this is a remount, we don't need to attach a shadow root. Only
     // on the very first, DOM-wide mount.
     // This is mostly guarding against faulty _app implementations that
-    // createa React Root in getInitialProps but don't clean it up like test/integration/app-tree/pages/_app.tsx
+    // create React Root in getInitialProps but don't clean it up like test/integration/app-tree/pages/_app.tsx
     if (portalNode.current.shadowRoot === null) {
       shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })
     }

@@ -12,7 +12,6 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
-  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
@@ -24,6 +23,7 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 /**
  * In this version of Next.js `cookies()` returns a Promise however you can still reference the properties of the underlying cookies object
@@ -92,13 +92,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'prerender':
-          // dynamicIO Prerender
-          // We don't track dynamic access here because access will be tracked when you access
-          // one of the properties of the cookies object.
-          return makeDynamicallyTrackedExoticCookies(
-            workStore.route,
-            workUnitStore
-          )
+          return makeHangingCookies(workUnitStore)
         case 'prerender-client':
           const exportName = '`cookies`'
           throw new InvariantError(
@@ -149,6 +143,13 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   }
 
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
+    if (process.env.__NEXT_DYNAMIC_IO) {
+      return makeUntrackedCookiesWithDevWarnings(
+        underlyingCookies,
+        workStore?.route
+      )
+    }
+
     return makeUntrackedExoticCookiesWithDevWarnings(
       underlyingCookies,
       workStore?.route
@@ -168,8 +169,7 @@ const CachedCookies = new WeakMap<
   Promise<ReadonlyRequestCookies>
 >()
 
-function makeDynamicallyTrackedExoticCookies(
-  route: string,
+function makeHangingCookies(
   prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyRequestCookies> {
   const cachedPromise = CachedCookies.get(prerenderStore)
@@ -182,149 +182,6 @@ function makeDynamicallyTrackedExoticCookies(
     '`cookies()`'
   )
   CachedCookies.set(prerenderStore, promise)
-
-  Object.defineProperties(promise, {
-    [Symbol.iterator]: {
-      value: function () {
-        const expression = '`cookies()[Symbol.iterator]()`'
-        const error = createCookiesAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    size: {
-      get() {
-        const expression = '`cookies().size`'
-        const error = createCookiesAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    get: {
-      value: function get() {
-        let expression: string
-        if (arguments.length === 0) {
-          expression = '`cookies().get()`'
-        } else {
-          expression = `\`cookies().get(${describeNameArg(arguments[0])})\``
-        }
-        const error = createCookiesAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    getAll: {
-      value: function getAll() {
-        let expression: string
-        if (arguments.length === 0) {
-          expression = '`cookies().getAll()`'
-        } else {
-          expression = `\`cookies().getAll(${describeNameArg(arguments[0])})\``
-        }
-        const error = createCookiesAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    has: {
-      value: function has() {
-        let expression: string
-        if (arguments.length === 0) {
-          expression = '`cookies().has()`'
-        } else {
-          expression = `\`cookies().has(${describeNameArg(arguments[0])})\``
-        }
-        const error = createCookiesAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    set: {
-      value: function set() {
-        let expression: string
-        if (arguments.length === 0) {
-          expression = '`cookies().set()`'
-        } else {
-          const arg = arguments[0]
-          if (arg) {
-            expression = `\`cookies().set(${describeNameArg(arg)}, ...)\``
-          } else {
-            expression = '`cookies().set(...)`'
-          }
-        }
-        const error = createCookiesAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    delete: {
-      value: function () {
-        let expression: string
-        if (arguments.length === 0) {
-          expression = '`cookies().delete()`'
-        } else if (arguments.length === 1) {
-          expression = `\`cookies().delete(${describeNameArg(arguments[0])})\``
-        } else {
-          expression = `\`cookies().delete(${describeNameArg(arguments[0])}, ...)\``
-        }
-        const error = createCookiesAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    clear: {
-      value: function clear() {
-        const expression = '`cookies().clear()`'
-        const error = createCookiesAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    toString: {
-      value: function toString() {
-        const expression = '`cookies().toString()`'
-        const error = createCookiesAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-  } satisfies CookieExtensions)
 
   return promise
 }
@@ -541,6 +398,53 @@ function makeUntrackedExoticCookiesWithDevWarnings(
   } satisfies CookieExtensions)
 
   return promise
+}
+
+// Similar to `makeUntrackedExoticCookiesWithDevWarnings`, but just logging the
+// sync access without actually defining the cookies properties on the promise.
+function makeUntrackedCookiesWithDevWarnings(
+  underlyingCookies: ReadonlyRequestCookies,
+  route?: string
+): Promise<ReadonlyRequestCookies> {
+  const cachedCookies = CachedCookies.get(underlyingCookies)
+  if (cachedCookies) {
+    return cachedCookies
+  }
+
+  const promise = new Promise<ReadonlyRequestCookies>((resolve) =>
+    scheduleImmediate(() => resolve(underlyingCookies))
+  )
+
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      switch (prop) {
+        case Symbol.iterator: {
+          warnForSyncAccess(route, '`...cookies()` or similar iteration')
+          break
+        }
+        case 'size':
+        case 'get':
+        case 'getAll':
+        case 'has':
+        case 'set':
+        case 'delete':
+        case 'clear':
+        case 'toString': {
+          warnForSyncAccess(route, `\`cookies().${prop}\``)
+          break
+        }
+        default: {
+          // We only warn for well-defined properties of the cookies object.
+        }
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+  })
+
+  CachedCookies.set(underlyingCookies, proxiedPromise)
+
+  return proxiedPromise
 }
 
 function describeNameArg(arg: unknown) {

@@ -6,20 +6,22 @@ import {
   type OriginalStackFramesResponse,
 } from '../../next-devtools/server/shared'
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
-import fs, { constants as FS } from 'fs/promises'
 import path from 'path'
-import url from 'url'
-import { launchEditor } from '../../next-devtools/server/launch-editor'
+import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   SourceMapConsumer,
-  type BasicSourceMapConsumer,
   type NullableMappedPosition,
 } from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../build/swc/types'
+import {
+  type ModernSourceMapPayload,
+  devirtualizeReactServerURL,
+  findApplicableSourceMapPayload,
+} from '../lib/source-maps'
 import { getSourceMapFromFile } from './get-source-map-from-file'
-import { findSourceMap, type SourceMapPayload } from 'node:module'
-import { pathToFileURL } from 'node:url'
+import { findSourceMap } from 'node:module'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 
 function shouldIgnorePath(modulePath: string): boolean {
@@ -120,13 +122,13 @@ async function batchedTraceSource(
     source,
   }
 }
+
 function parseFile(fileParam: string | null): string | undefined {
   if (!fileParam) {
     return undefined
   }
 
-  // rsc://React/Server/file://<filename>?42 => file://<filename>
-  return fileParam.replace(/^rsc:\/\/React\/[^/]+\//, '').replace(/\?\d+$/, '')
+  return devirtualizeReactServerURL(fileParam)
 }
 
 function createStackFrames(
@@ -172,68 +174,12 @@ function createStackFrame(
 }
 
 /**
- * https://tc39.es/source-map/#index-map
- */
-interface IndexSourceMapSection {
-  offset: {
-    line: number
-    column: number
-  }
-  map: ModernRawSourceMap
-}
-
-// TODO(veil): Upstream types
-interface IndexSourceMap {
-  version: number
-  file: string
-  sections: IndexSourceMapSection[]
-}
-
-interface ModernRawSourceMap extends SourceMapPayload {
-  ignoreList?: number[]
-}
-
-type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
-
-/**
- * Finds the sourcemap payload applicable to a given frame.
- * Equal to the input unless an Index Source Map is used.
- */
-function findApplicableSourceMapPayload(
-  frame: TurbopackStackFrame,
-  payload: ModernSourceMapPayload
-): ModernRawSourceMap | undefined {
-  if ('sections' in payload) {
-    const frameLine = frame.line ?? 0
-    const frameColumn = frame.column ?? 0
-    // Sections must not overlap and must be sorted: https://tc39.es/source-map/#section-object
-    // Therefore the last section that has an offset less than or equal to the frame is the applicable one.
-    // TODO(veil): Binary search
-    let section: IndexSourceMapSection | undefined = payload.sections[0]
-    for (
-      let i = 0;
-      i < payload.sections.length &&
-      payload.sections[i].offset.line <= frameLine &&
-      payload.sections[i].offset.column <= frameColumn;
-      i++
-    ) {
-      section = payload.sections[i]
-    }
-
-    return section === undefined ? undefined : section.map
-  } else {
-    return payload
-  }
-}
-
-/**
  * @returns 1-based lines and 0-based columns
  */
 async function nativeTraceSource(
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
-  const sourceURL = // TODO(veil): Why are the frames sent encoded?
-    decodeURIComponent(frame.file)
+  const sourceURL = frame.file
   let sourceMapPayload: ModernSourceMapPayload | undefined
   try {
     sourceMapPayload = findSourceMap(sourceURL)?.payload
@@ -245,7 +191,7 @@ async function nativeTraceSource(
   }
 
   if (sourceMapPayload !== undefined) {
-    let consumer: BasicSourceMapConsumer
+    let consumer: SourceMapConsumer
     try {
       consumer = await new SourceMapConsumer(sourceMapPayload)
     } catch (cause) {
@@ -283,7 +229,8 @@ async function nativeTraceSource(
     if (traced !== null) {
       const { originalPosition, sourceContent } = traced
       const applicableSourceMap = findApplicableSourceMapPayload(
-        frame,
+        frame.line ?? 0,
+        frame.column ?? 0,
         sourceMapPayload
       )
 
@@ -354,7 +301,7 @@ async function createOriginalStackFrame(
   ) {
     normalizedStackFrameLocation = path.relative(
       projectPath,
-      url.fileURLToPath(normalizedStackFrameLocation)
+      fileURLToPath(normalizedStackFrameLocation)
     )
   }
 
@@ -371,7 +318,15 @@ async function createOriginalStackFrame(
   }
 }
 
-export function getOverlayMiddleware(project: Project, projectPath: string) {
+export function getOverlayMiddleware({
+  project,
+  projectPath,
+  isSrcDir,
+}: {
+  project: Project
+  projectPath: string
+  isSrcDir: boolean
+}) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -394,50 +349,45 @@ export function getOverlayMiddleware(project: Project, projectPath: string) {
       })
 
       const request = JSON.parse(body) as OriginalStackFramesRequest
-      const stackFrames = createStackFrames(request)
-      const result: OriginalStackFramesResponse = await Promise.all(
-        stackFrames.map(async (frame) => {
-          try {
-            const stackFrame = await createOriginalStackFrame(
-              project,
-              projectPath,
-              frame
-            )
-            if (stackFrame === null) {
-              return {
-                status: 'rejected',
-                reason: 'Failed to create original stack frame',
-              }
-            }
-            return { status: 'fulfilled', value: stackFrame }
-          } catch (error) {
-            return {
-              status: 'rejected',
-              reason: inspect(error, { colors: false }),
-            }
-          }
-        })
-      )
+      const result = await getOriginalStackFrames({
+        project,
+        projectPath,
+        frames: request.frames,
+        isServer: request.isServer,
+        isEdgeServer: request.isEdgeServer,
+        isAppDirectory: request.isAppDirectory,
+      })
 
       return middlewareResponse.json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {
-      const frame = createStackFrame(searchParams)
+      const isAppRelativePath = searchParams.get('isAppRelativePath') === '1'
 
-      if (!frame) return middlewareResponse.badRequest(res)
-
-      const fileExists = await fs.access(frame.file, FS.F_OK).then(
-        () => true,
-        () => false
-      )
-      if (!fileExists) return middlewareResponse.notFound(res)
-
-      try {
-        launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
-      } catch (err) {
-        console.log('Failed to launch editor:', err)
-        return middlewareResponse.internalServerError(res)
+      let openEditorResult
+      if (isAppRelativePath) {
+        const relativeFilePath = searchParams.get('file') || ''
+        const absoluteFilePath = path.join(
+          projectPath,
+          'app',
+          isSrcDir ? 'src' : '',
+          relativeFilePath
+        )
+        openEditorResult = await openFileInEditor(absoluteFilePath, 1, 1)
+      } else {
+        const frame = createStackFrame(searchParams)
+        if (!frame) return middlewareResponse.badRequest(res)
+        openEditorResult = await openFileInEditor(
+          frame.file,
+          frame.line ?? 1,
+          frame.column ?? 1
+        )
       }
 
+      if (openEditorResult.error) {
+        return middlewareResponse.internalServerError(res)
+      }
+      if (!openEditorResult.found) {
+        return middlewareResponse.notFound(res)
+      }
       return middlewareResponse.noContent(res)
     }
 
@@ -481,11 +431,15 @@ export function getSourceMapMiddleware(project: Project) {
     try {
       // Turbopack chunk filenames might be URL-encoded.
       filename = decodeURI(filename)
+    } catch {
+      return middlewareResponse.badRequest(res)
+    }
 
-      if (path.isAbsolute(filename)) {
-        filename = url.pathToFileURL(filename).href
-      }
+    if (path.isAbsolute(filename)) {
+      filename = pathToFileURL(filename).href
+    }
 
+    try {
       const sourceMapString = await project.getSourceMap(filename)
 
       if (sourceMapString) {
@@ -499,10 +453,65 @@ export function getSourceMapMiddleware(project: Project) {
           return middlewareResponse.json(res, sourceMap)
         }
       }
-    } catch (error) {
-      console.error('Failed to get source map:', error)
+    } catch (cause) {
+      return middlewareResponse.internalServerError(
+        res,
+        new Error(
+          `Failed to get source map for '${filename}'. This is a bug in Next.js`,
+          {
+            cause,
+          }
+        )
+      )
     }
 
     middlewareResponse.noContent(res)
   }
+}
+
+export async function getOriginalStackFrames({
+  project,
+  projectPath,
+  frames,
+  isServer,
+  isEdgeServer,
+  isAppDirectory,
+}: {
+  project: Project
+  projectPath: string
+  frames: StackFrame[]
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+}): Promise<OriginalStackFramesResponse> {
+  const stackFrames = createStackFrames({
+    frames,
+    isServer,
+    isEdgeServer,
+    isAppDirectory,
+  })
+
+  return Promise.all(
+    stackFrames.map(async (frame) => {
+      try {
+        const stackFrame = await createOriginalStackFrame(
+          project,
+          projectPath,
+          frame
+        )
+        if (stackFrame === null) {
+          return {
+            status: 'rejected',
+            reason: 'Failed to create original stack frame',
+          }
+        }
+        return { status: 'fulfilled', value: stackFrame }
+      } catch (error) {
+        return {
+          status: 'rejected',
+          reason: inspect(error, { colors: false }),
+        }
+      }
+    })
+  )
 }

@@ -1,10 +1,10 @@
-const { tmpdir } = require("os");
-const { join } = require("path");
+const { tmpdir } = require('os')
+const { join } = require('path')
 
-const Database = require("better-sqlite3");
+const Database = require('better-sqlite3')
 
-const database = new Database(join(tmpdir(), "db"), {
+const database = new Database(join(tmpdir(), 'db'), {
   fileMustExist: false,
-});
+})
 
-console.log(database.name);
+console.log(database.name)

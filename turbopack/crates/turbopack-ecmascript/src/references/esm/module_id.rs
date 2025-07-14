@@ -7,7 +7,6 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
@@ -83,7 +82,6 @@ pub struct EsmModuleIdAssetReferenceCodeGen {
 impl EsmModuleIdAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -93,16 +91,24 @@ impl EsmModuleIdAssetReferenceCodeGen {
         {
             let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
             let id = module_id_to_lit(&id);
-            visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-                *expr = id.clone()
-            }));
+            visitors.push(create_visitor!(
+                self.path,
+                visit_mut_expr,
+                |expr: &mut Expr| {
+                    *expr = id.clone();
+                }
+            ));
         } else {
             // If the referenced asset can't be found, replace the expression with null.
             // This can happen if the referenced asset is an external, or doesn't resolve
             // to anything.
-            visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-                *expr = quote!("null" as Expr);
-            }));
+            visitors.push(create_visitor!(
+                self.path,
+                visit_mut_expr,
+                |expr: &mut Expr| {
+                    *expr = quote!("null" as Expr);
+                }
+            ));
         }
 
         Ok(CodeGeneration::visitors(visitors))

@@ -7,7 +7,7 @@ use swc_core::{
     common::{GLOBALS, Span, Spanned, source_map::SmallPos},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
     util::WrapFuture,
@@ -199,15 +199,16 @@ impl NextSegmentConfigParsingIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for NextSegmentConfigParsingIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "Next.js can't recognize the exported `config` field in route"
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -223,11 +224,10 @@ impl Issue for NextSegmentConfigParsingIssue {
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
-            StyledString::Text(
+            StyledString::Text(rcstr!(
                 "The exported configuration object in a source file needs to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
-                    .into(),
-            )
+            ))
             .resolved_cell(),
         ))
     }
@@ -239,17 +239,14 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(
+        Vc::cell(rcstr!(
             "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
-                .into(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(Some(
-            self.source.resolve_source_map().await?.into_owned(),
-        )))
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }
 
@@ -584,11 +581,15 @@ pub async fn parse_segment_config_from_loader_tree_internal(
     }
 
     let modules = &loader_tree.modules;
-    for path in [modules.page, modules.default, modules.layout]
-        .into_iter()
-        .flatten()
+    for path in [
+        modules.page.clone(),
+        modules.default.clone(),
+        modules.layout.clone(),
+    ]
+    .into_iter()
+    .flatten()
     {
-        let source = Vc::upcast(FileSource::new(*path));
+        let source = Vc::upcast(FileSource::new(path.clone()));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 

@@ -4,14 +4,11 @@ import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
 import * as ReactCompilerRuntime from 'react/compiler-runtime'
 
-// eslint-disable-next-line import/no-extraneous-dependencies
-import * as ReactDOMServerEdge from 'react-dom/server.edge'
+import * as ReactDOMServer from 'react-dom/server'
 
 function getAltProxyForBindingsDEV(
   type: 'Turbopack' | 'Webpack',
-  pkg:
-    | 'react-server-dom-turbopack/client.edge'
-    | 'react-server-dom-webpack/client.edge'
+  pkg: 'react-server-dom-turbopack/client' | 'react-server-dom-webpack/client'
 ) {
   if (process.env.NODE_ENV === 'development') {
     const altType = type === 'Turbopack' ? 'Webpack' : 'Turbopack'
@@ -30,26 +27,26 @@ function getAltProxyForBindingsDEV(
   }
 }
 
-let ReactServerDOMTurbopackClientEdge, ReactServerDOMWebpackClientEdge
+let ReactServerDOMTurbopackClient, ReactServerDOMWebpackClient
 if (process.env.TURBOPACK) {
-  ReactServerDOMTurbopackClientEdge =
+  ReactServerDOMTurbopackClient =
     // @ts-expect-error -- TODO: Add types
     // eslint-disable-next-line import/no-extraneous-dependencies
-    require('react-server-dom-turbopack/client.edge') as typeof import('react-server-dom-turbopack/client.edge')
+    require('react-server-dom-turbopack/client') as typeof import('react-server-dom-turbopack/client')
   if (process.env.NODE_ENV === 'development') {
-    ReactServerDOMWebpackClientEdge = getAltProxyForBindingsDEV(
+    ReactServerDOMWebpackClient = getAltProxyForBindingsDEV(
       'Turbopack',
-      'react-server-dom-turbopack/client.edge'
+      'react-server-dom-turbopack/client'
     )
   }
 } else {
-  ReactServerDOMWebpackClientEdge =
+  ReactServerDOMWebpackClient =
     // eslint-disable-next-line import/no-extraneous-dependencies
-    require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
+    require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
   if (process.env.NODE_ENV === 'development') {
-    ReactServerDOMTurbopackClientEdge = getAltProxyForBindingsDEV(
+    ReactServerDOMTurbopackClient = getAltProxyForBindingsDEV(
       'Webpack',
-      'react-server-dom-webpack/client.edge'
+      'react-server-dom-webpack/client'
     )
   }
 }
@@ -60,7 +57,7 @@ export {
   ReactJsxRuntime,
   ReactCompilerRuntime,
   ReactDOM,
-  ReactDOMServerEdge,
-  ReactServerDOMTurbopackClientEdge,
-  ReactServerDOMWebpackClientEdge,
+  ReactDOMServer,
+  ReactServerDOMTurbopackClient,
+  ReactServerDOMWebpackClient,
 }

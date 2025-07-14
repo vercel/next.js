@@ -14,7 +14,7 @@ use tokio::runtime::Handle;
 use crate::{
     FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
     magic_any::HasherMut,
-    manager::{current_task, with_turbo_tasks},
+    manager::{current_task, mark_invalidator, with_turbo_tasks},
     trace::TraceRawVcs,
     util::StaticOrArc,
 };
@@ -22,6 +22,8 @@ use crate::{
 /// Get an [`Invalidator`] that can be used to invalidate the current task
 /// based on external events.
 pub fn get_invalidator() -> Invalidator {
+    mark_invalidator();
+
     let handle = Handle::current();
     Invalidator {
         task: current_task("turbo_tasks::get_invalidator()"),

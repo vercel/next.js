@@ -5,20 +5,23 @@ use either::Either;
 use next_core::{
     next_client_reference::{
         ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
-        VisitedClientReferenceGraphNodes, find_server_entries,
+        find_server_entries,
     },
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
 };
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc,
+    TryJoinIterExt, ValueToString, Vc,
 };
+use turbo_tasks_fs::FileSystemPath;
+use turbopack::css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_core::{
     context::AssetContext,
-    issue::Issue,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph},
 };
@@ -54,30 +57,6 @@ impl NextDynamicGraph {
     ) -> Result<Vc<Self>> {
         let mapped = map_next_dynamic(*graph);
 
-        // TODO shrink graph here, using the information from
-        //  - `mapped` (which lists the relevant nodes)
-        //  - `graph.entries` (which lists the page/route/... entries we need to keep)
-
-        // This would clone the graph and allow changing the node weights. We can probably get away
-        // with keeping the sidecar information separate from the graph itself, though.
-        //
-        // let mut reduced_modules: FxHashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> =
-        // FxHashMap::default(); let mut reduced_graph = DiGraph::new();
-        // for idx in graph.node_indices() {
-        //     let weight = *graph.node_weight(idx).unwrap();
-        //     let new_idx = reduced_graph.add_node(weight);
-        //     reduced_modules.insert(weight, new_idx);
-        //     for e in graph.edges_directed(idx, petgraph::Direction::Outgoing) {
-        //         let target_weight = *graph.node_weight(e.target()).context("Missing
-        // target")?;         if let Some(new_target_idx) =
-        // reduced_modules.get(&target_weight) {
-        // reduced_graph.add_edge(new_idx, *new_target_idx, ());         } else {
-        //             let new_idx = reduced_graph.add_node(target_weight);
-        //             reduced_modules.insert(target_weight, new_idx);
-        //         }
-        //     }
-        // }
-
         Ok(NextDynamicGraph {
             is_single_page,
             graph,
@@ -103,7 +82,7 @@ impl NextDynamicGraph {
             }
 
             let entries = if !self.is_single_page {
-                if !graph.entry_modules().any(|m| m == entry) {
+                if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(vec![]));
                 }
@@ -182,8 +161,6 @@ impl ServerActionsGraph {
     ) -> Result<Vc<Self>> {
         let mapped = map_server_actions(*graph);
 
-        // TODO shrink graph here
-
         Ok(ServerActionsGraph {
             is_single_page,
             graph,
@@ -208,7 +185,7 @@ impl ServerActionsGraph {
                 // The graph contains the whole app, traverse and collect all reachable imports.
                 let graph = &*self.graph.await?;
 
-                if !graph.entry_modules().any(|m| m == entry) {
+                if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(Default::default()));
                 }
@@ -280,8 +257,6 @@ impl ClientReferencesGraph {
         // already, which saves us a traversal.
         let mapped = map_client_references(*graph);
 
-        // TODO shrink graph here
-
         Ok(Self {
             is_single_page,
             graph,
@@ -291,7 +266,7 @@ impl ClientReferencesGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_client_references_for_endpoint(
+    async fn get_client_references_for_endpoint(
         &self,
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
@@ -301,7 +276,7 @@ impl ClientReferencesGraph {
             let graph = &*self.graph.await?;
 
             let entries = if !self.is_single_page {
-                if !graph.entry_modules().any(|m| m == entry) {
+                if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(ClientReferenceGraphResult::default().cell());
                 }
@@ -348,7 +323,7 @@ impl ClientReferencesGraph {
                 },
                 |parent_info, node, state_map| {
                     let Some((parent_node, _)) = parent_info else {
-                        return;
+                        return Ok(());
                     };
                     let parent_module = parent_node.module;
 
@@ -378,6 +353,7 @@ impl ClientReferencesGraph {
                         }
                         _ => {}
                     };
+                    Ok(())
                 },
             )?;
 
@@ -386,10 +362,6 @@ impl ClientReferencesGraph {
                 client_references_by_server_component,
                 server_utils: vec![],
                 server_component_entries: vec![],
-                // TODO remove
-                visited_nodes: VisitedClientReferenceGraphNodes::empty()
-                    .to_resolved()
-                    .await?,
             }
             .cell())
         }
@@ -398,25 +370,184 @@ impl ClientReferencesGraph {
     }
 }
 
-/// The consumers of this shouldn't need to care about the exact contents since it's abstracted away
-/// by the accessor functions, but
-/// - In dev, contains information about the modules of the current endpoint only
-/// - In prod, there is a single `ReducedGraphs` for the whole app, containing all pages
-#[turbo_tasks::value]
-pub struct ReducedGraphs {
-    next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
-    server_actions: Vec<ResolvedVc<ServerActionsGraph>>,
-    client_references: Vec<ResolvedVc<ClientReferencesGraph>>,
-    // TODO add other graphs
+#[turbo_tasks::value(shared)]
+struct CssGlobalImportIssue {
+    parent_module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn Module>>,
+}
+
+impl CssGlobalImportIssue {
+    fn new(
+        parent_module: ResolvedVc<Box<dyn Module>>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Self {
+        Self {
+            parent_module,
+            module,
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
-impl ReducedGraphs {
+impl Issue for CssGlobalImportIssue {
+    #[turbo_tasks::function]
+    async fn title(&self) -> Vc<StyledString> {
+        StyledString::Stack(vec![
+            StyledString::Text("Failed to compile".into()),
+            StyledString::Text(
+                "Global CSS cannot be imported from files other than your Custom <App>. Due to \
+                 the Global nature of stylesheets, and to avoid conflicts, Please move all \
+                 first-party global CSS imports to pages/_app.js. Or convert the import to \
+                 Component-Level CSS (CSS Modules)."
+                    .into(),
+            ),
+            StyledString::Text("Read more: https://nextjs.org/docs/messages/css-global".into()),
+        ])
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        let parent_path = self.parent_module.ident().path().owned().await?;
+        let module_path = self.module.ident().path().owned().await?;
+        let relative_import_location = parent_path.parent();
+
+        let import_path = match relative_import_location.get_relative_path_to(&module_path) {
+            Some(path) => path,
+            None => module_path.path.clone(),
+        };
+        let cleaned_import_path =
+            if import_path.ends_with(".scss.css") || import_path.ends_with(".sass.css") {
+                RcStr::from(import_path.trim_end_matches(".css"))
+            } else {
+                import_path
+            };
+
+        Ok(Vc::cell(Some(
+            StyledString::Stack(vec![
+                StyledString::Text(format!("Location: {}", parent_path.path).into()),
+                StyledString::Text(format!("Import path: {cleaned_import_path}",).into()),
+            ])
+            .resolved_cell(),
+        )))
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.parent_module.ident().path()
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::ProcessModule.into()
+    }
+
+    // TODO(PACK-4879): compute the source information by following the module references
+}
+
+type FxModuleNameMap = FxIndexMap<ResolvedVc<Box<dyn Module>>, RcStr>;
+
+#[turbo_tasks::value(transparent)]
+struct ModuleNameMap(pub FxModuleNameMap);
+
+#[turbo_tasks::function]
+async fn validate_pages_css_imports(
+    graph: Vc<SingleModuleGraph>,
+    is_single_page: bool,
+    entry: Vc<Box<dyn Module>>,
+    app_module: ResolvedVc<Box<dyn Module>>,
+    module_name_map: ResolvedVc<ModuleNameMap>,
+) -> Result<()> {
+    let graph = &*graph.await?;
+    let entry = entry.to_resolved().await?;
+    let module_name_map = module_name_map.await?;
+
+    let entries = if !is_single_page {
+        if !graph.has_entry_module(entry) {
+            // the graph doesn't contain the entry, e.g. for the additional module graph
+            return Ok(());
+        }
+        Either::Left(std::iter::once(entry))
+    } else {
+        Either::Right(graph.entry_modules())
+    };
+
+    graph.traverse_edges_from_entries(entries, |parent_info, node| {
+        let module = node.module;
+
+        // If the module being imported isn't a global css module, there is nothing to validate.
+        let module_is_global_css =
+            ResolvedVc::try_downcast_type::<CssModuleAsset>(module).is_some();
+
+        if !module_is_global_css {
+            return GraphTraversalAction::Continue;
+        }
+
+        // We allow imports of global CSS files which are inside of `node_modules`.
+        let module_name_contains_node_modules = module_name_map
+            .get(&module)
+            .is_some_and(|s| s.contains("node_modules"));
+
+        if module_name_contains_node_modules {
+            return GraphTraversalAction::Continue;
+        }
+
+        // If we're at a root node, there is nothing importing this module and we can skip
+        // any further validations.
+        let Some((parent_node, _)) = parent_info else {
+            return GraphTraversalAction::Continue;
+        };
+
+        let parent_module = parent_node.module;
+        let parent_is_css_module = ResolvedVc::try_downcast_type::<ModuleCssAsset>(parent_module)
+            .is_some()
+            || ResolvedVc::try_downcast_type::<CssModuleAsset>(parent_module).is_some();
+
+        // We also always allow .module css/scss/sass files to import global css files as well.
+        if parent_is_css_module {
+            return GraphTraversalAction::Continue;
+        }
+
+        // If all of the above invariants have been checked, we look to see if the parent module is
+        // the same as the app module. If it isn't we know it isn't a valid place to import global
+        // css.
+        if parent_module != app_module {
+            CssGlobalImportIssue::new(parent_module, module)
+                .resolved_cell()
+                .emit();
+        }
+
+        GraphTraversalAction::Continue
+    })?;
+
+    Ok(())
+}
+
+/// The consumers of this shouldn't need to care about the exact contents since it's abstracted away
+/// by the accessor functions, but
+/// - In dev, contains information about the modules of the current endpoint only
+/// - In prod, there is a single `GlobalBuildInformation` for the whole app, containing all pages
+#[turbo_tasks::value]
+pub struct GlobalBuildInformation {
+    next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
+    server_actions: Vec<ResolvedVc<ServerActionsGraph>>,
+    client_references: Vec<ResolvedVc<ClientReferencesGraph>>,
+    // Data for some more ad-hoc operations
+    bare_graphs: ResolvedVc<ModuleGraph>,
+    is_single_page: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl GlobalBuildInformation {
     #[turbo_tasks::function]
     pub async fn new(graphs: Vc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
-        let graphs = &graphs.await?.graphs;
+        let graphs_ref = &graphs.await?.graphs;
         let next_dynamic = async {
-            graphs
+            graphs_ref
                 .iter()
                 .map(|graph| {
                     NextDynamicGraph::new_with_entries(**graph, is_single_page).to_resolved()
@@ -427,7 +558,7 @@ impl ReducedGraphs {
         .instrument(tracing::info_span!("generating next/dynamic graphs"));
 
         let server_actions = async {
-            graphs
+            graphs_ref
                 .iter()
                 .map(|graph| {
                     ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved()
@@ -438,7 +569,7 @@ impl ReducedGraphs {
         .instrument(tracing::info_span!("generating server actions graphs"));
 
         let client_references = async {
-            graphs
+            graphs_ref
                 .iter()
                 .map(|graph| {
                     ClientReferencesGraph::new_with_entries(**graph, is_single_page).to_resolved()
@@ -455,6 +586,8 @@ impl ReducedGraphs {
             next_dynamic: next_dynamic?,
             server_actions: server_actions?,
             client_references: client_references?,
+            bare_graphs: graphs.to_resolved().await?,
+            is_single_page,
         }
         .cell())
     }
@@ -578,27 +711,89 @@ impl ReducedGraphs {
         .instrument(span)
         .await
     }
+
+    #[turbo_tasks::function]
+    /// Validates that the global CSS/SCSS/SASS imports are only valid imports with the following
+    /// rules:
+    /// * The import is made from a `node_modules` package
+    /// * The import is made from a `.module.css` file
+    /// * The import is made from the `pages/_app.js`, or equivalent file.
+    pub async fn validate_pages_css_imports(
+        &self,
+        entry: Vc<Box<dyn Module>>,
+        app_module: Vc<Box<dyn Module>>,
+    ) -> Result<()> {
+        let span = tracing::info_span!("validate pages css imports");
+        async move {
+            let graphs = &self.bare_graphs.await?.graphs;
+
+            // We need to collect the module names here to pass into the
+            // `validate_pages_css_imports` function. This is because the function is
+            // called for each graph, and we need to know the module names of the parent
+            // modules to determine if the import is valid. We can't do this in the
+            // called function because it's within a closure that can't resolve turbo tasks.
+            let graph_to_module_ident_tuples = async |graph: &ResolvedVc<SingleModuleGraph>| {
+                graph
+                    .await?
+                    .graph
+                    .node_weights()
+                    .map(async |n| Ok((n.module(), n.module().ident().to_string().owned().await?)))
+                    .try_join()
+                    .await
+            };
+
+            let identifier_map = graphs
+                .iter()
+                .map(graph_to_module_ident_tuples)
+                .try_join()
+                .await?
+                .into_iter()
+                .flatten()
+                .collect::<FxIndexMap<_, _>>();
+            let identifier_map = ModuleNameMap(identifier_map).cell();
+
+            graphs
+                .iter()
+                .map(|graph| {
+                    validate_pages_css_imports(
+                        **graph,
+                        self.is_single_page,
+                        entry,
+                        app_module,
+                        identifier_map,
+                    )
+                    .as_side_effect()
+                })
+                .try_join()
+                .await?;
+
+            Ok(())
+        }
+        .instrument(span)
+        .await
+    }
 }
 
 #[turbo_tasks::function(operation)]
-async fn get_reduced_graphs_for_endpoint_inner_operation(
+fn get_global_information_for_endpoint_inner_operation(
     module_graph: ResolvedVc<ModuleGraph>,
     is_single_page: bool,
-) -> Vc<ReducedGraphs> {
-    ReducedGraphs::new(*module_graph, is_single_page)
+) -> Vc<GlobalBuildInformation> {
+    GlobalBuildInformation::new(*module_graph, is_single_page)
 }
 
-/// Generates a [ReducedGraph] for the given project and endpoint containing information that is
-/// either global (module ids, chunking) or computed globally as a performance optimization (client
-/// references, etc).
+/// Generates a [GlobalBuildInformation] for the given project and endpoint containing information
+/// that is either global (module ids, chunking) or computed globally as a performance optimization
+/// (client references, etc).
 #[turbo_tasks::function]
-pub async fn get_reduced_graphs_for_endpoint(
+pub async fn get_global_information_for_endpoint(
     module_graph: ResolvedVc<ModuleGraph>,
     is_single_page: bool,
-) -> Result<Vc<ReducedGraphs>> {
+) -> Result<Vc<GlobalBuildInformation>> {
     // TODO get rid of this function once everything inside of
-    // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
-    let result_op = get_reduced_graphs_for_endpoint_inner_operation(module_graph, is_single_page);
+    // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
+    let result_op =
+        get_global_information_for_endpoint_inner_operation(module_graph, is_single_page);
     let result_vc = if !is_single_page {
         let result_vc = result_op.resolve_strongly_consistent().await?;
         let _issues = result_op.take_collectibles::<Box<dyn Issue>>();

@@ -5,13 +5,13 @@ import {
   decodeReply,
   decodeReplyFromAsyncIterable,
   createTemporaryReferenceSet as createServerTemporaryReferenceSet,
-} from 'react-server-dom-webpack/server.edge'
+} from 'react-server-dom-webpack/server'
 import {
   createFromReadableStream,
   encodeReply,
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
-} from 'react-server-dom-webpack/client.edge'
-import { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
+} from 'react-server-dom-webpack/client'
+import { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
 /* eslint-enable import/no-extraneous-dependencies */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
@@ -53,6 +53,7 @@ import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import { isReactLargeShellError } from '../app-render/react-large-shell-error'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -78,6 +79,12 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? console.debug.bind(console, 'use-cache:')
   : undefined
+
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -400,6 +407,12 @@ async function generateCacheEntryImpl(
       return digest
     }
 
+    if (isReactLargeShellError(error)) {
+      // TODO: Aggregate
+      console.error(error)
+      return undefined
+    }
+
     if (process.env.NODE_ENV !== 'development') {
       // TODO: For now we're also reporting the error here, because in
       // production, the "Server" environment will only get the obfuscated
@@ -439,6 +452,7 @@ async function generateCacheEntryImpl(
       clientReferenceManifest.clientModules,
       {
         environmentName: 'Cache',
+        filterStackFrame,
         signal: abortSignal,
         temporaryReferences,
         onError(error) {
@@ -488,6 +502,7 @@ async function generateCacheEntryImpl(
       clientReferenceManifest.clientModules,
       {
         environmentName: 'Cache',
+        filterStackFrame,
         temporaryReferences,
         onError: handleError,
       }
@@ -830,6 +845,30 @@ export function cache(
         } else {
           if (cacheSignal) {
             cacheSignal.endRead()
+          }
+
+          // If `allowEmptyStaticShell` is true, and a prefilled resume data
+          // cache was provided, then a cache miss means that params were part
+          // of the cache key. In this case, we can make this cache function a
+          // dynamic hole in the shell (or produce an empty shell if there's no
+          // parent suspense boundary). Currently, this also includes layouts
+          // and pages that don't read params, which will be improved when we
+          // implement NAR-136. Otherwise, we assume that if params are passed
+          // explicitly into a "use cache" function, that the params are also
+          // accessed. This allows us to abort early, and treat the function as
+          // dynamic, instead of waiting for the timeout to be reached. Compared
+          // to the instrumentation-based params bailout we do here, this also
+          // covers the case where params are transformed with an async
+          // function, before being passed into the "use cache" function, which
+          // escapes the instrumentation.
+          if (
+            workUnitStore?.type === 'prerender' &&
+            workUnitStore.allowEmptyStaticShell
+          ) {
+            return makeHangingPromise(
+              workUnitStore.renderSignal,
+              'dynamic "use cache"'
+            )
           }
         }
       }

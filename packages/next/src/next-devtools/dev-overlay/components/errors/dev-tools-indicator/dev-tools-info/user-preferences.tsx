@@ -1,7 +1,11 @@
 import { useState, type HTMLProps } from 'react'
 import { css } from '../../../../utils/css'
 import EyeIcon from '../../../../icons/eye-icon'
-import { STORAGE_KEY_POSITION, STORAGE_KEY_THEME } from '../../../../shared'
+import {
+  NEXT_DEV_TOOLS_SCALE,
+  STORAGE_KEY_POSITION,
+  STORAGE_KEY_THEME,
+} from '../../../../shared'
 import LightIcon from '../../../../icons/light-icon'
 import DarkIcon from '../../../../icons/dark-icon'
 import SystemIcon from '../../../../icons/system-icon'
@@ -9,10 +13,10 @@ import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
 import {
   getInitialTheme,
-  NEXT_DEV_TOOLS_SCALE,
   type DevToolsIndicatorPosition,
   type DevToolsScale,
 } from './preferences'
+import { ShortcutRecorder } from './shortcut-recorder'
 
 export function UserPreferences({
   setPosition,
@@ -20,6 +24,8 @@ export function UserPreferences({
   hide,
   scale,
   setScale,
+  hideShortcut,
+  setHideShortcut,
   ...props
 }: {
   setPosition: (position: DevToolsIndicatorPosition) => void
@@ -27,6 +33,8 @@ export function UserPreferences({
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
   hide: () => void
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
 } & DevToolsInfoPropsCore &
   Omit<HTMLProps<HTMLDivElement>, 'size'>) {
   // derive initial theme from system preference
@@ -66,10 +74,10 @@ export function UserPreferences({
     setScale(value)
   }
 
-  function handleRestartDevServer() {
+  function handleRestartDevServer(invalidatePersistentCache: boolean) {
     let endpoint = '/__nextjs_restart_dev'
 
-    if (process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE) {
+    if (invalidatePersistentCache) {
       endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
     }
 
@@ -171,6 +179,21 @@ export function UserPreferences({
 
         <div className="preference-section">
           <div className="preference-header">
+            <label id="hide-dev-tools">Hide Dev Tools shortcut</label>
+            <p className="preference-description">
+              Set a custom keyboard shortcut to toggle visibility.
+            </p>
+          </div>
+          <div className="preference-control">
+            <ShortcutRecorder
+              value={hideShortcut?.split('+') ?? null}
+              onChange={setHideShortcut}
+            />
+          </div>
+        </div>
+
+        <div className="preference-section">
+          <div className="preference-header">
             <label>Disable Dev Tools for this project</label>
             <p className="preference-description">
               To disable this UI completely, set{' '}
@@ -198,14 +221,16 @@ export function UserPreferences({
               name="restart-dev-server"
               data-restart-dev-server
               className="action-button"
-              onClick={handleRestartDevServer}
+              onClick={() =>
+                handleRestartDevServer(/*invalidatePersistentCache*/ false)
+              }
             >
               <span>Restart</span>
             </button>
           </div>
         </div>
       </div>
-      {process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE ? (
+      {process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE ? (
         <div className="preferences-container">
           <div className="preference-section">
             <div className="preference-header">
@@ -222,7 +247,9 @@ export function UserPreferences({
                 name="reset-bundler-cache"
                 data-reset-bundler-cache
                 className="action-button"
-                onClick={handleRestartDevServer}
+                onClick={() =>
+                  handleRestartDevServer(/*invalidatePersistentCache*/ true)
+                }
               >
                 <span>Reset Cache</span>
               </button>
@@ -321,15 +348,23 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     font-size: var(--size-14);
     color: var(--color-gray-1000);
     padding: 6px 8px;
+    transition: border-color 150ms var(--timing-swift);
 
     &:hover {
-      background: var(--color-gray-100);
+      border-color: var(--color-gray-500);
+    }
+
+    svg {
+      width: 14px;
+      height: 14px;
+      overflow: visible;
     }
   }
 
   .select-button {
     &:focus-within {
       outline: var(--focus-ring);
+      outline-offset: -1px;
     }
 
     select {

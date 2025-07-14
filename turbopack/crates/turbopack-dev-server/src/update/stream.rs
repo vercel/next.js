@@ -5,7 +5,7 @@ use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
     trace::{TraceRawVcs, TraceRawVcsContext},
@@ -379,9 +379,8 @@ struct FatalStreamIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for FatalStreamIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Fatal.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Fatal
     }
 
     #[turbo_tasks::function]
@@ -390,13 +389,17 @@ impl Issue for FatalStreamIssue {
     }
 
     #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        ServerFileSystem::new().root().join(self.resource.clone())
+    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(ServerFileSystem::new()
+            .root()
+            .await?
+            .join(&self.resource)?
+            .cell())
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Fatal error while getting content to stream".into()).cell()
+        StyledString::Text(rcstr!("Fatal error while getting content to stream")).cell()
     }
 
     #[turbo_tasks::function]

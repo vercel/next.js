@@ -8,7 +8,7 @@ related:
     - app/guides/prefetching
 ---
 
-In Next.js, routes are rendered on the server by default. This often means the client has to wait for a server response before a new route can be shown. Next.js comes built-in [prefetching](#prefetching), [streaming](#streaming), and [client-side transitions](#client-side-transitions) ensuring navigation stays fast and responsive.
+In Next.js, routes are rendered on the server by default. This often means the client has to wait for a server response before a new route can be shown. Next.js comes with built-in [prefetching](#prefetching), [streaming](#streaming), and [client-side transitions](#client-side-transitions) ensuring navigation stays fast and responsive.
 
 This guide explains how navigation works in Next.js and how you can optimize it for [dynamic routes](#dynamic-routes-without-loadingtsx) and [slow networks](#slow-networks).
 
@@ -60,7 +60,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/blog/page.js" switcher
+```jsx filename="app/layout.js" switcher
 import Link from 'next/link'
 
 export default function Layout() {
@@ -135,7 +135,7 @@ export default function Loading() {
 }
 ```
 
-Behind the scenes, Next.js will automatically wrap the `page.tsx` contents and in a `<Suspense>` boundary. The prefetched fallback UI will be shown while the route is loading, and swapped for the actual content once ready.
+Behind the scenes, Next.js will automatically wrap the `page.tsx` contents in a `<Suspense>` boundary. The prefetched fallback UI will be shown while the route is loading, and swapped for the actual content once ready.
 
 > **Good to know**: You can also use [`<Suspense>`](https://react.dev/reference/react/Suspense) to create loading UI for nested components.
 
@@ -227,7 +227,7 @@ On slow or unstable networks, prefetching may not finish before the user clicks 
 
 To improve perceived performance, you can use the [`useLinkStatus` hook](/docs/app/api-reference/functions/use-link-status) to show inline visual feedback to the user (like spinners or text glimmers on the link) while a transition is in progress.
 
-```tsx
+```tsx filename="app/ui/loading-indicator.tsx" switcher
 'use client'
 
 import { useLinkStatus } from 'next/link'
@@ -240,7 +240,7 @@ export default function LoadingIndicator() {
 }
 ```
 
-```tsx
+```jsx filename="app/ui/loading-indicator.js" switcher
 'use client'
 
 import { useLinkStatus } from 'next/link'
@@ -297,7 +297,7 @@ However, disabling prefetching comes with trade-offs:
 - **Static routes** will only be fetched when the user clicks the link.
 - **Dynamic routes** will need to be rendered on the server first before the client can navigate to it.
 
-To reduce resouce usage without fully disabling prefetch, you can prefetch only on hover. This limits prefetching to routes the user is more _likely_ to visit, rather all links in the viewport.
+To reduce resource usage without fully disabling prefetch, you can prefetch only on hover. This limits prefetching to routes the user is more _likely_ to visit, rather than all links in the viewport.
 
 ```tsx filename="app/ui/hover-prefetch-link.tsx" switcher
 'use client'

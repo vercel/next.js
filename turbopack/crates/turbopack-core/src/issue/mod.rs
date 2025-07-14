@@ -4,7 +4,6 @@ pub mod module;
 pub mod resolve;
 
 use std::{
-    borrow::Cow,
     cmp::{Ordering, min},
     fmt::{Display, Formatter},
 };
@@ -15,16 +14,16 @@ use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
-    TransientInstance, TransientValue, TryJoinIterExt, Upcast, ValueDefault, ValueToString, Vc,
-    emit, trace::TraceRawVcs,
+    CollectiblesSource, IntoTraitRef, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc,
+    TaskInput, TransientInstance, TransientValue, TryJoinIterExt, Upcast, ValueDefault,
+    ValueToString, Vc, emit, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
+    ident::{AssetIdent, Layer},
     source::Source,
     source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
     source_pos::SourcePos,
@@ -94,7 +93,7 @@ pub enum StyledString {
     /// Some prose text.
     Text(RcStr),
     /// Code snippet.
-    // TODO add language to support syntax hightlighting
+    // TODO add language to support syntax highlighting
     Code(RcStr),
     /// Some important text.
     Strong(RcStr),
@@ -104,9 +103,8 @@ pub enum StyledString {
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
     /// being the highest priority and Info being the lowest.
-    #[turbo_tasks::function]
-    fn severity(self: Vc<Self>) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     /// The file path that generated the issue, displayed to the user as message
@@ -162,7 +160,7 @@ pub trait Issue {
 #[turbo_tasks::value_trait]
 pub trait ImportTracer {
     #[turbo_tasks::function]
-    fn get_traces(self: Vc<Self>, path: ResolvedVc<FileSystemPath>) -> Vc<ImportTraces>;
+    fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Vc<ImportTraces>;
 }
 
 #[turbo_tasks::value(shared)]
@@ -172,11 +170,11 @@ pub struct DelegatingImportTracer {
 }
 
 impl DelegatingImportTracer {
-    async fn get_traces(&self, path: Vc<FileSystemPath>) -> Result<Vec<ImportTrace>> {
+    async fn get_traces(&self, path: FileSystemPath) -> Result<Vec<ImportTrace>> {
         Ok(self
             .delegates
             .iter()
-            .map(|d| d.get_traces(path))
+            .map(|d| d.get_traces(path.clone()))
             .try_join()
             .await?
             .iter()
@@ -209,7 +207,7 @@ trait IssueProcessingPath {
 
 #[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
-    pub file_path: Option<ResolvedVc<FileSystemPath>>,
+    pub file_path: Option<FileSystemPath>,
     pub description: ResolvedVc<RcStr>,
 }
 
@@ -217,10 +215,10 @@ pub struct IssueProcessingPathItem {
 impl ValueToString for IssueProcessingPathItem {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        if let Some(context) = self.file_path {
+        if let Some(context) = &self.file_path {
             let description_str = self.description.await?;
             Ok(Vc::cell(
-                format!("{} ({})", context.to_string().await?, description_str).into(),
+                format!("{} ({})", context.value_to_string().await?, description_str).into(),
             ))
         } else {
             Ok(*self.description)
@@ -233,8 +231,8 @@ impl IssueProcessingPathItem {
     #[turbo_tasks::function]
     pub async fn into_plain(&self) -> Result<Vc<PlainIssueProcessingPathItem>> {
         Ok(PlainIssueProcessingPathItem {
-            file_path: if let Some(context) = self.file_path {
-                Some(context.to_string().await?)
+            file_path: if let Some(context) = &self.file_path {
+                Some(context.value_to_string().await?)
             } else {
                 None
             },
@@ -422,7 +420,17 @@ impl CapturedIssues {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, TaskInput, TraceRawVcs, NonLocalValue,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
@@ -431,7 +439,17 @@ pub struct IssueSource {
 
 /// The end position is the first character after the range
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, TaskInput, TraceRawVcs, NonLocalValue,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
@@ -459,33 +477,40 @@ impl IssueSource {
         }
     }
 
-    pub async fn resolve_source_map(&self) -> Result<Cow<'_, Self>> {
-        if let Some(range) = &self.range {
-            let (start, end) = match range {
-                SourceRange::LineColumn(start, end) => (*start, *end),
+    async fn into_plain(self) -> Result<PlainIssueSource> {
+        let Self { mut source, range } = self;
+
+        let range = if let Some(range) = range {
+            let mut range = match range {
+                SourceRange::LineColumn(start, end) => Some((start, end)),
                 SourceRange::ByteOffset(start, end) => {
                     if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
-                        let start = find_line_and_column(lines.as_ref(), *start);
-                        let end = find_line_and_column(lines.as_ref(), *end);
-                        (start, end)
+                        let start = find_line_and_column(lines.as_ref(), start);
+                        let end = find_line_and_column(lines.as_ref(), end);
+                        Some((start, end))
                     } else {
-                        return Ok(Cow::Borrowed(self));
+                        None
                     }
                 }
             };
 
             // If we have a source map, map the line/column to the original source.
-            let mapped = source_pos(self.source, start, end).await?;
+            if let Some((start, end)) = range {
+                let mapped = source_pos(source, start, end).await?;
 
-            if let Some((source, start, end)) = mapped {
-                return Ok(Cow::Owned(IssueSource {
-                    source,
-                    range: Some(SourceRange::LineColumn(start, end)),
-                }));
+                if let Some((mapped_source, start, end)) = mapped {
+                    range = Some((start, end));
+                    source = mapped_source;
+                }
             }
-        }
-
-        Ok(Cow::Borrowed(self))
+            range
+        } else {
+            None
+        };
+        Ok(PlainIssueSource {
+            asset: PlainSource::from_source(*source).await?,
+            range,
+        })
     }
 
     /// Create a [`IssueSource`] from byte offsets given by an swc ast node
@@ -648,11 +673,11 @@ impl PlainTraceItem {
     async fn from_asset_ident(asset: ReadRef<AssetIdent>) -> Result<Self> {
         // TODO(lukesandberg): How should we display paths? it would be good to display all paths
         // relative to the cwd or the project root.
-        let fs_path = asset.path.await?;
+        let fs_path = asset.path.clone();
         let fs_name = fs_path.fs.to_string().owned().await?;
         let root_path = fs_path.fs.root().await?.path.clone();
         let path = fs_path.path.clone();
-        let layer = asset.layer.clone();
+        let layer = asset.layer.as_ref().map(Layer::user_friendly_name).cloned();
         Ok(Self {
             fs_name,
             root_path,
@@ -682,7 +707,7 @@ async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<P
 
             // After simplifying the trace, we may end up with apparent duplicates.
             // Consider this example:
-            // Example import trace:
+            // Import trace:
             // ./[project]/app/global.scss.css [app-client] (css) [app-client]
             // ./[project]/app/layout.js [app-client] (ecmascript) [app-client]
             // ./[project]/app/layout.js [app-rsc] (client reference proxy) [app-rsc]
@@ -853,16 +878,19 @@ impl PlainIssue {
         processing_path: Vc<OptionIssueProcessingPathItems>,
     ) -> Result<Vc<Self>> {
         let description: Option<StyledString> = match *issue.description().await? {
-            Some(description) => Some((*description.await?).clone()),
+            Some(description) => Some(description.owned().await?),
             None => None,
         };
         let detail = match *issue.detail().await? {
-            Some(detail) => Some((*detail.await?).clone()),
+            Some(detail) => Some(detail.owned().await?),
             None => None,
         };
+        let trait_ref = issue.into_trait_ref().await?;
+
+        let severity = trait_ref.severity();
 
         Ok(Self::cell(Self {
-            severity: *issue.severity().await?,
+            severity,
             file_path: issue.file_path().to_string().owned().await?,
             stage: issue.stage().owned().await?,
             title: issue.title().owned().await?,
@@ -879,7 +907,13 @@ impl PlainIssue {
             processing_path: processing_path.into_plain().await?,
             import_traces: match import_tracer {
                 Some(tracer) => {
-                    into_plain_trace(tracer.await?.get_traces(issue.file_path()).await?).await?
+                    into_plain_trace(
+                        tracer
+                            .await?
+                            .get_traces(issue.file_path().owned().await?)
+                            .await?,
+                    )
+                    .await?
                 }
                 None => vec![],
             },
@@ -892,31 +926,6 @@ impl PlainIssue {
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
     pub range: Option<(SourcePos, SourcePos)>,
-}
-
-impl IssueSource {
-    pub async fn into_plain(&self) -> Result<PlainIssueSource> {
-        Ok(PlainIssueSource {
-            asset: PlainSource::from_source(*self.source).await?,
-            range: match &self.range {
-                Some(range) => match range {
-                    SourceRange::LineColumn(start, end) => Some((*start, *end)),
-                    SourceRange::ByteOffset(start, end) => {
-                        if let FileLinesContent::Lines(lines) =
-                            &*self.source.content().lines().await?
-                        {
-                            let start = find_line_and_column(lines.as_ref(), *start);
-                            let end = find_line_and_column(lines.as_ref(), *end);
-                            Some((start, end))
-                        } else {
-                            None
-                        }
-                    }
-                },
-                _ => None,
-            },
-        })
-    }
 }
 
 #[turbo_tasks::value(serialization = "none")]
@@ -974,7 +983,7 @@ pub trait IssueReporter {
         self: Vc<Self>,
         issues: TransientInstance<CapturedIssues>,
         source: TransientValue<RawVc>,
-        min_failing_severity: Vc<IssueSeverity>,
+        min_failing_severity: IssueSeverity,
     ) -> Vc<bool>;
 }
 
@@ -986,7 +995,7 @@ where
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
 
@@ -995,7 +1004,7 @@ where
 
     async fn issue_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
     async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self>;
@@ -1019,7 +1028,7 @@ where
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
@@ -1030,10 +1039,7 @@ where
                     ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
-                                file_path: match file_path.into() {
-                                    Some(path) => Some(path.to_resolved().await?),
-                                    None => None,
-                                },
+                                file_path: file_path.into(),
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),
@@ -1052,7 +1058,7 @@ where
 
     async fn issue_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
@@ -1063,10 +1069,7 @@ where
                     ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
-                                file_path: match file_path.into() {
-                                    Some(path) => Some(path.to_resolved().await?),
-                                    None => None,
-                                },
+                                file_path: file_path.into(),
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),
@@ -1118,7 +1121,7 @@ where
 pub async fn handle_issues<T: Send>(
     source_op: OperationVc<T>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
-    min_failing_severity: Vc<IssueSeverity>,
+    min_failing_severity: IssueSeverity,
     path: Option<&str>,
     operation: Option<&str>,
 ) -> Result<()> {

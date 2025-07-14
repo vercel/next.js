@@ -68,14 +68,16 @@ impl EcmascriptBrowserEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    fn chunks_data(&self) -> Vc<ChunksData> {
-        ChunkData::from_assets(self.chunking_context.output_root(), *self.other_chunks)
+    async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
+        Ok(ChunkData::from_assets(
+            self.chunking_context.output_root().owned().await?,
+            *self.other_chunks,
+        ))
     }
 
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let chunking_context = this.chunking_context.await?;
         let environment = this.chunking_context.environment();
 
         let output_root_to_root_path = this
@@ -165,24 +167,14 @@ impl EcmascriptBrowserEvaluateChunk {
             StringifyJs(&params),
         )?;
 
-        match chunking_context.runtime_type() {
-            RuntimeType::Development => {
+        let runtime_type = *this.chunking_context.runtime_type().await?;
+        match runtime_type {
+            RuntimeType::Production | RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
-                    chunking_context.chunk_base_path(),
-                    chunking_context.chunk_suffix_path(),
-                    chunking_context.runtime_type(),
-                    output_root_to_root_path,
-                    source_maps,
-                );
-                code.push_code(&*runtime_code.await?);
-            }
-            RuntimeType::Production => {
-                let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
-                    environment,
-                    chunking_context.chunk_base_path(),
-                    chunking_context.chunk_suffix_path(),
-                    chunking_context.runtime_type(),
+                    this.chunking_context.chunk_base_path(),
+                    this.chunking_context.chunk_suffix_path(),
+                    runtime_type,
                     output_root_to_root_path,
                     source_maps,
                 );
@@ -197,7 +189,7 @@ impl EcmascriptBrowserEvaluateChunk {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
         }
 
@@ -214,7 +206,7 @@ impl EcmascriptBrowserEvaluateChunk {
         ident.modifiers.extend(
             evaluatable_assets
                 .iter()
-                .map(|entry| async move { Ok((*entry.ident().to_string().await?).clone()) })
+                .map(|entry| entry.ident().to_string().owned())
                 .try_join()
                 .await?,
         );
@@ -223,7 +215,7 @@ impl EcmascriptBrowserEvaluateChunk {
             self.other_chunks
                 .await?
                 .iter()
-                .map(|chunk| async move { Ok((*chunk.path().to_string().await?).clone()) })
+                .map(|chunk| chunk.path().to_string().owned())
                 .try_join()
                 .await?,
         );

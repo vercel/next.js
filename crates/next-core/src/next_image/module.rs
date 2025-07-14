@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexmap, trace::TraceRawVcs};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
@@ -65,7 +66,7 @@ impl StructuredImageModuleType {
                     .cell(),
                 ),
                 ReferenceType::Internal(ResolvedVc::cell(fxindexmap!(
-                    "IMAGE".into() => ResolvedVc::upcast(static_asset)
+                    rcstr!("IMAGE") => ResolvedVc::upcast(static_asset)
                 ))),
             )
             .module())

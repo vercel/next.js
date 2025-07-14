@@ -36,7 +36,7 @@ pub struct EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    pub(crate) async fn new(
+    pub(crate) fn new(
         chunking_context: ResolvedVc<BrowserChunkingContext>,
         chunk: ResolvedVc<EcmascriptBrowserChunk>,
         content: ResolvedVc<EcmascriptChunkContent>,
@@ -60,12 +60,12 @@ impl EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    pub(crate) fn own_version(&self) -> Vc<EcmascriptBrowserChunkVersion> {
-        EcmascriptBrowserChunkVersion::new(
-            self.chunking_context.output_root(),
-            self.chunk.path(),
+    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBrowserChunkVersion>> {
+        Ok(EcmascriptBrowserChunkVersion::new(
+            self.chunking_context.output_root().owned().await?,
+            self.chunk.path().owned().await?,
             *self.content,
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -127,7 +127,7 @@ impl EcmascriptBrowserChunkContent {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
         }
 

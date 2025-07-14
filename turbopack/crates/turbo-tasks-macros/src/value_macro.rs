@@ -12,8 +12,7 @@ use syn::{
     spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
-    get_register_value_type_ident, get_value_type_id_ident, get_value_type_ident,
-    get_value_type_init_ident,
+    get_register_value_type_ident, get_value_type_ident, get_value_type_init_ident,
 };
 
 enum IntoMode {
@@ -234,7 +233,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             let inner_type_string = inner_type.to_token_stream().to_string();
 
             // HACK: proc_macro2 inserts whitespace between every token. It's ugly, so
-            // remove it, assuming these whitespace aren't syntatically important. Using
+            // remove it, assuming these whitespace aren't syntactically important. Using
             // prettyplease (or similar) would be more correct, but slower and add another
             // dependency.
             static WHITESPACE_RE: OnceLock<Regex> = OnceLock::new();
@@ -458,7 +457,6 @@ pub fn value_type_and_register(
 ) -> proc_macro2::TokenStream {
     let value_type_init_ident = get_value_type_init_ident(ident);
     let value_type_ident = get_value_type_ident(ident);
-    let value_type_id_ident = get_value_type_id_ident(ident);
     let register_value_type_ident = get_register_value_type_ident(ident);
 
     let (impl_generics, where_clause) = if let Some(generics) = generics {
@@ -485,24 +483,20 @@ pub fn value_type_and_register(
                     )
                 })
             });
-        #[doc(hidden)]
-        static #value_type_id_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
-            turbo_tasks::macro_helpers::Lazy::new(|| {
-                turbo_tasks::registry::get_value_type_id(*#value_type_ident)
-            });
 
 
         #[doc(hidden)]
         #[allow(non_snake_case)]
         pub(crate) fn #register_value_type_ident(
             global_name: &'static str,
-            f: impl FnOnce(&mut turbo_tasks::ValueType),
+            init: impl FnOnce(&mut turbo_tasks::ValueType),
+            register_traits: impl FnOnce(turbo_tasks::ValueTypeId),
         ) {
             #value_type_init_ident.get_or_init(|| {
                 let mut value = #new_value_type;
-                f(&mut value);
+                init(&mut value);
                 value
-            }).register(global_name);
+            }).register(global_name, register_traits);
         }
 
         unsafe impl #impl_generics turbo_tasks::VcValueType for #ty #where_clause {
@@ -510,7 +504,12 @@ pub fn value_type_and_register(
             type CellMode = #cell_mode;
 
             fn get_value_type_id() -> turbo_tasks::ValueTypeId {
-                *#value_type_id_ident
+                static ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
+                turbo_tasks::macro_helpers::Lazy::new(|| {
+                    turbo_tasks::registry::get_value_type_id(*#value_type_ident)
+                });
+
+                *ident
             }
         }
     }
