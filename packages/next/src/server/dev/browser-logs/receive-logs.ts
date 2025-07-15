@@ -440,11 +440,25 @@ export async function handleLog(
               await handleDir(entry, browserPrefix, ctx, distDir)
               break
             }
-            // xml log thing maybe needs an impl
-
-            // [browser] undefined (app/page.tsx:8:11) console.group
-            // check console assert
-            default: {
+            case 'dirxml': {
+              // xml log thing maybe needs an impl
+              // fallthrough
+            }
+            case 'group':
+            case 'groupCollapsed':
+            case 'groupEnd': {
+              // [browser] undefined (app/page.tsx:8:11) console.group
+              // fallthrough
+            }
+            case 'assert': {
+              // check console assert
+              // fallthrough
+            }
+            case 'log':
+            case 'info':
+            case 'debug':
+            case 'error':
+            case 'warn': {
               await handleDefaultConsole(
                 entry,
                 browserPrefix,
@@ -452,6 +466,10 @@ export async function handleLog(
                 distDir,
                 config
               )
+              break
+            }
+            default: {
+              entry satisfies never
             }
           }
           break

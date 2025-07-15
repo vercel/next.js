@@ -441,6 +441,7 @@ function processMessage(
       return
     }
     default: {
+      obj satisfies never
     }
   }
 }

@@ -42,6 +42,7 @@ import {
   OUTLET_BOUNDARY_NAME,
 } from '../../lib/metadata/metadata-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
+import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -495,15 +496,9 @@ function assertPostpone() {
  * This is a bit of a hack to allow us to abort a render using a Postpone instance instead of an Error which changes React's
  * abort semantics slightly.
  */
-export function createPostponedAbortSignal(reason: string): AbortSignal {
-  assertPostpone()
+export function createRenderInBrowserAbortSignal(): AbortSignal {
   const controller = new AbortController()
-  // We get our hands on a postpone instance by calling postpone and catching the throw
-  try {
-    React.unstable_postpone(reason)
-  } catch (x: unknown) {
-    controller.abort(x)
-  }
+  controller.abort(new BailoutToCSRError('Render in Browser'))
   return controller.signal
 }
 

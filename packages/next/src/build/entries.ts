@@ -865,7 +865,7 @@ export function finalizeEntrypoint({
   isServerComponent,
   hasAppDir,
 }: {
-  compilerType?: CompilerNameValues
+  compilerType: CompilerNameValues
   name: string
   value: ObjectValue<webpack.EntryObject>
   isServerComponent?: boolean
@@ -958,9 +958,7 @@ export function finalizeEntrypoint({
         ...entry,
       }
     }
-    default: {
-      // Should never happen.
-      throw new Error('Invalid compiler type')
-    }
+    default:
+      return compilerType satisfies never
   }
 }

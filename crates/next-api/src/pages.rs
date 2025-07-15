@@ -866,11 +866,22 @@ impl PageEndpoint {
         let project = this.pages_project.project();
         let node_root = project.client_root().owned().await?;
         let client_relative_path = self.client_relative_path();
+        // In development mode, don't include a content hash and put the chunk at e.g.
+        // `static/chunks/pages/page2.js`, so that the dev runtime can request it at a known path.
+        // https://github.com/vercel/next.js/blob/84873e00874e096e6c4951dcf070e8219ed414e5/packages/next/src/client/route-loader.ts#L256-L271
+        let use_fixed_path = this
+            .pages_project
+            .project()
+            .next_mode()
+            .await?
+            .is_development();
         let page_loader = PageLoaderAsset::new(
             node_root,
             this.pathname.clone(),
             client_relative_path,
             client_chunks,
+            project.client_chunking_context(),
+            use_fixed_path,
         );
         Ok(Vc::upcast(page_loader))
     }
@@ -1307,6 +1318,30 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
+    async fn client_build_manifest(
+        self: Vc<Self>,
+        page_loader: ResolvedVc<Box<dyn OutputAsset>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let this = self.await?;
+        let node_root = this.pages_project.project().node_root().await?;
+        let client_relative_path = this.pages_project.project().client_relative_path().await?;
+        let page_loader_path = client_relative_path
+            .get_relative_path_to(&*page_loader.path().await?)
+            .context("failed to resolve client-relative path to page loader")?;
+        let client_build_manifest = fxindexmap!(this.pathname.clone() => vec![page_loader_path]);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname);
+        Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
+            node_root.join(&format!(
+                "server/pages{manifest_path_prefix}/client-build-manifest.json",
+            ))?,
+            AssetContent::file(
+                File::from(serde_json::to_string_pretty(&client_build_manifest)?).into(),
+            ),
+            Vc::cell(vec![page_loader]),
+        )))
+    }
+
+    #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<PageEndpointOutput>> {
         let this = self.await?;
 
@@ -1319,8 +1354,13 @@ impl PageEndpoint {
                 client_assets.extend(client_chunks.await?.iter().map(|asset| **asset));
                 let build_manifest = self.build_manifest(client_chunks).to_resolved().await?;
                 let page_loader = self.page_loader(client_chunks);
+                let client_build_manifest = self
+                    .client_build_manifest(page_loader)
+                    .to_resolved()
+                    .await?;
                 client_assets.push(page_loader);
                 server_assets.push(build_manifest);
+                server_assets.push(client_build_manifest);
                 self.ssr_chunk()
             }
             PageEndpointType::Data => self.ssr_data_chunk(),

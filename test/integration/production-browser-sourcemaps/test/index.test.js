@@ -33,11 +33,9 @@ describe('Production browser sourcemaps', () => {
         })
 
         it('includes sourcemaps for all browser files', async () => {
-          const staticDir = join(appDir, '.next', 'static')
+          const staticDir = join(appDir, '.next', 'static', 'chunks')
           const browserFiles = await recursiveReadDir(staticDir)
-          const jsFiles = browserFiles.filter(
-            (file) => file.endsWith('.js') && file.includes('/pages/')
-          )
+          const jsFiles = browserFiles.filter((file) => file.endsWith('.js'))
           expect(jsFiles).not.toBeEmpty()
 
           for (const file of jsFiles) {

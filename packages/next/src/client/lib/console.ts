@@ -48,6 +48,12 @@ function formatObject(arg: unknown, depth: number) {
       }
     case 'string':
       return JSON.stringify(arg)
+    case 'number':
+    case 'bigint':
+    case 'boolean':
+    case 'symbol':
+    case 'undefined':
+    case 'function':
     default:
       return String(arg)
   }
