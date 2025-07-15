@@ -75,6 +75,7 @@ import {
   getInstrumentationModule,
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -887,8 +888,22 @@ export default class DevServer extends Server {
             existingManifest.routes[staticPath] = {} as any
           }
           existingManifest.dynamicRoutes[pathname] = {
+            dataRoute: null,
+            dataRouteRegex: null,
             fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
-          } as any
+            fallbackRevalidate: false,
+            fallbackExpire: undefined,
+            fallbackHeaders: undefined,
+            fallbackStatus: undefined,
+            fallbackRootParams: undefined,
+            fallbackSourceRoute: pathname,
+            prefetchDataRoute: undefined,
+            prefetchDataRouteRegex: undefined,
+            routeRegex: getRouteRegex(pathname).re.source,
+            experimentalPPR: undefined,
+            renderingMode: undefined,
+            allowHeader: [],
+          }
 
           const updatedManifest = JSON.stringify(existingManifest)
 
