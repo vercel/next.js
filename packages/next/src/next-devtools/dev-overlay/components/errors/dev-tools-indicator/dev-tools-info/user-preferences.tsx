@@ -242,6 +242,7 @@ export function UserPreferencesBody({
               onClick={() =>
                 restartServer({ invalidatePersistentCache: false })
               }
+              disabled={isPending}
             >
               <span>{isPending ? 'Restarting...' : 'Restart'}</span>
             </button>
@@ -268,6 +269,7 @@ export function UserPreferencesBody({
                 onClick={() =>
                   restartServer({ invalidatePersistentCache: true })
                 }
+                disabled={isPending}
               >
                 <span>{isPending ? 'Resetting...' : 'Reset Cache'}</span>
               </button>
@@ -393,6 +395,11 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
       color: var(--color-gray-1000);
       background: var(--color-background-100);
     }
+  }
+
+  .preference-section button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   :global(.icon) {
