@@ -24,7 +24,6 @@ export function DevToolsIndicatorNew() {
   const { state, dispatch } = useDevOverlayContext()
   const { panel, setPanel, setSelectedIndex } = usePanelRouterContext()
   const updateAllPanelPositions = useUpdateAllPanelPositions()
-
   const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
 
   return (
@@ -39,7 +38,6 @@ export function DevToolsIndicatorNew() {
           boxShadow: 'none',
           [vertical]: `${INDICATOR_PADDING}px`,
           [horizontal]: `${INDICATOR_PADDING}px`,
-          visibility: state.isErrorOverlayOpen ? 'hidden' : 'visible',
         } as CSSProperties
       }
     >
