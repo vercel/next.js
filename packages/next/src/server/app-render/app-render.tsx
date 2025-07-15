@@ -125,7 +125,7 @@ import {
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   accessedDynamicData,
-  createPostponedAbortSignal,
+  createRenderInBrowserAbortSignal,
   formatDynamicAPIAccesses,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
@@ -3423,7 +3423,7 @@ async function prerenderToStream(
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
-              signal: createPostponedAbortSignal('static prerender resume'),
+              signal: createRenderInBrowserAbortSignal(),
               onError: htmlRendererErrorHandler,
               nonce,
             }
@@ -3660,7 +3660,7 @@ async function prerenderToStream(
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
-              signal: createPostponedAbortSignal('static prerender resume'),
+              signal: createRenderInBrowserAbortSignal(),
               onError: htmlRendererErrorHandler,
               nonce,
             }
