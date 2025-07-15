@@ -36,8 +36,8 @@ export function findRootDir(cwd: string) {
   // Only warn if not in a build worker to avoid duplicate warnings
   if (typeof process.send !== 'function' && lockFiles.length > 1) {
     Log.warnOnce(
-      `Warning: Found multiple lockfiles. Consider removing the lockfiles at ${lockFiles
-        .slice(0, lockFiles.length - 1)
+      `Warning: Found multiple lockfiles. Selecting ${lockFiles[lockFiles.length - 1]}.\n   Consider removing the lockfiles at:${lockFiles
+        .slice(0, -1)
         .map((str) => '\n   * ' + str)
         .join('')}\n`
     )

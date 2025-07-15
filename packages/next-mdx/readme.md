@@ -7,13 +7,13 @@ Use [MDX](https://github.com/mdx-js/mdx) with [Next.js](https://github.com/verce
 For usage with the `app` directory see the section below.
 
 ```
-npm install @next/mdx @mdx-js/loader @mdx-js/react
+npm install @next/mdx @mdx-js/loader
 ```
 
 or
 
 ```
-yarn add @next/mdx @mdx-js/loader @mdx-js/react
+yarn add @next/mdx @mdx-js/loader
 ```
 
 ## Usage

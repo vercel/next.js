@@ -7,7 +7,7 @@ use swc_core::{
     ecma::{
         ast::*,
         atoms::{Atom, atom},
-        utils::find_pat_ids,
+        utils::{IsDirective, find_pat_ids},
         visit::{Visit, VisitWith},
     },
 };
@@ -23,7 +23,7 @@ use crate::{
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Default, Debug, Clone, Hash)]
 pub struct ImportAnnotations {
     // TODO store this in more structured way
@@ -168,6 +168,9 @@ pub(crate) struct ImportMap {
 
     /// True if the module is an ESM module due to top-level await.
     has_top_level_await: bool,
+
+    /// True if the module has "use strict"
+    pub(crate) strict: bool,
 
     /// Locations of [webpack-style "magic comments"][magic] that override import behaviors.
     ///
@@ -643,13 +646,30 @@ impl Visit for Analyzer<'_> {
 
         self.data.exports.insert(
             rcstr!("default"),
-            (
-                // `EsmModuleItem::code_generation` inserts this variable.
-                magic_identifier::mangle("default export").into(),
-                SyntaxContext::empty(),
-            ),
+            // Mirror what `EsmModuleItem::code_generation` does, these are live bindings if the
+            // class/function has an identifier.
+            match &n.decl {
+                DefaultDecl::Class(ClassExpr { ident, .. })
+                | DefaultDecl::Fn(FnExpr { ident, .. }) => ident.as_ref().map_or_else(
+                    || {
+                        (
+                            magic_identifier::mangle("default export").into(),
+                            SyntaxContext::empty(),
+                        )
+                    },
+                    |ident| (ident.to_id()),
+                ),
+                DefaultDecl::TsInterfaceDecl(_) => {
+                    // not matching, might happen due to eventual consistency
+                    (
+                        magic_identifier::mangle("default export").into(),
+                        SyntaxContext::empty(),
+                    )
+                }
+            },
         );
     }
+
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
         self.data.has_exports = true;
 
@@ -688,6 +708,18 @@ impl Visit for Analyzer<'_> {
 
     fn visit_program(&mut self, m: &Program) {
         self.data.has_top_level_await = has_top_level_await(m).is_some();
+        self.data.strict = match m {
+            Program::Module(module) => module
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+            Program::Script(script) => script
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+        };
 
         m.visit_children_with(self);
     }

@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 const targets = ['x-nextjs-rewritten-path', 'x-nextjs-rewritten-query'] as const
 
@@ -381,7 +382,29 @@ describe('rewrite-headers', () => {
     ({ pathname, headers = {}, expected }) => {
       let response
       beforeAll(async () => {
-        response = await next.fetch(pathname, { headers })
+        const url = new URL(pathname, 'http://localhost')
+
+        // Add cache busting param for RSC requests
+        if (headers.RSC === '1') {
+          const cacheBustingParam = computeCacheBustingSearchParam(
+            headers['Next-Router-Prefetch'],
+            undefined,
+            headers['Next-Router-State-Tree'],
+            undefined
+          )
+          if (cacheBustingParam) {
+            // Preserve existing search params if any
+            const existingSearch = url.search
+            const rawQuery = existingSearch.startsWith('?')
+              ? existingSearch.slice(1)
+              : existingSearch
+            const pairs = rawQuery.split('&').filter(Boolean)
+            pairs.push(`_rsc=${cacheBustingParam}`)
+            url.search = pairs.length ? `?${pairs.join('&')}` : ''
+          }
+        }
+
+        response = await next.fetch(url.toString(), { headers })
         if (response.status !== 200) {
           throw new Error(
             `Expected status 200, got ${response.status} for ${pathname}`

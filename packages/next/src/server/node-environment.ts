@@ -9,3 +9,7 @@ import './node-environment-extensions/random'
 import './node-environment-extensions/date'
 import './node-environment-extensions/web-crypto'
 import './node-environment-extensions/node-crypto'
+
+if (process.env.NODE_ENV === 'development') {
+  require('./node-environment-extensions/console-dev') as typeof import('./node-environment-extensions/console-dev')
+}

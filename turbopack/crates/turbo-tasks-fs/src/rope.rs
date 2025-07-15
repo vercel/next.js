@@ -550,6 +550,10 @@ impl InnerRope {
                     return data.into_iter().next().unwrap().into_bytes(len);
                 }
                 Err(data) => {
+                    // If we have a single element, we can return it directly.
+                    if let Local(bytes) = &data[0] {
+                        return bytes.clone();
+                    }
                     self.0 = data;
                 }
             }

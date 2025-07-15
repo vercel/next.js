@@ -33,19 +33,19 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack').getServerError
+let getServerError: typeof import('../../dev/node-stack-frames').getServerError
 let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
-  const middleware =
-    require('../../../client/components/react-dev-overlay/server/middleware-webpack') as typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack')
-  getServerError = middleware.getServerError
+  getServerError = (
+    require('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames')
+  ).getServerError
   decorateServerError = (
     require('../../../shared/lib/error-source') as typeof import('../../../shared/lib/error-source')
   ).decorateServerError
 } else {
-  getServerError = (error: Error, _: string) => error
-  decorateServerError = (_: Error, __: string) => {}
+  getServerError = (error) => error
+  decorateServerError = () => {}
 }
 
 /**

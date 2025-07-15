@@ -4,11 +4,11 @@ import fs from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
-  killApp,
+  assertNoRedbox,
   findPort,
+  killApp,
   launchApp,
   retry,
-  assertNoRedbox,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -49,6 +49,8 @@ describe('server-side dev errors', () => {
   function stripInternalHandler(output) {
     return output
       .replace(/.*at async handler .*next-route-loader.*/, '')
+      .replace(/.*at async handleResponse.*/, '')
+      .replace(/.*at async doRender \(.*/, '')
       .split(/\n/)
       .filter((item) => !!item.trim())
       .join('\n')
@@ -258,21 +260,13 @@ describe('server-side dev errors', () => {
         }
       `)
 
-      await fs.writeFile(apiPage, content)
+      await fs.writeFile(apiPage, content, { flush: true })
 
-      await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/hello.js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ hello: 'world' })
-            |   ^",
-          "stack": [
-            "handler pages/api/hello.js (2:3)",
-          ],
-        }
-      `)
+      await retry(async () => {
+        // manually refresh as this is an API route
+        await browser.refresh()
+        await assertNoRedbox(browser)
+      })
     } finally {
       await fs.writeFile(apiPage, content)
     }
@@ -332,21 +326,13 @@ describe('server-side dev errors', () => {
         }
       `)
 
-      await fs.writeFile(dynamicApiPage, content)
+      await fs.writeFile(dynamicApiPage, content, { flush: true })
 
-      await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/blog/[slug].js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
-            |   ^",
-          "stack": [
-            "handler pages/api/blog/[slug].js (2:3)",
-          ],
-        }
-      `)
+      await retry(async () => {
+        // manually refresh as this is an API route
+        await browser.refresh()
+        await assertNoRedbox(browser)
+      })
     } finally {
       await fs.writeFile(dynamicApiPage, content)
     }

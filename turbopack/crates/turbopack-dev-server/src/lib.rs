@@ -219,7 +219,7 @@ impl DevServerBuilder {
                             handle_issues(
                                 source_op,
                                 issue_reporter,
-                                IssueSeverity::Fatal.cell(),
+                                IssueSeverity::Fatal,
                                 Some(&path),
                                 Some("get source"),
                             )

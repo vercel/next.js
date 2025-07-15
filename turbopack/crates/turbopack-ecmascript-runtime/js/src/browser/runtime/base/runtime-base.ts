@@ -31,7 +31,7 @@ type RuntimeParams = {
 
 type ChunkRegistration = [
   chunkPath: ChunkScript,
-  chunkModules: ModuleFactories,
+  chunkModules: CompressedModuleFactories,
   params: RuntimeParams | undefined,
 ]
 
@@ -361,7 +361,15 @@ function registerChunk([
   const chunkPath = getPathFromScript(chunkScript)
   for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
     if (!moduleFactories[moduleId]) {
-      moduleFactories[moduleId] = moduleFactory
+      if (Array.isArray(moduleFactory)) {
+        let [moduleFactoryFn, otherIds] = moduleFactory
+        moduleFactories[moduleId] = moduleFactoryFn
+        for (const otherModuleId of otherIds) {
+          moduleFactories[otherModuleId] = moduleFactoryFn
+        }
+      } else {
+        moduleFactories[moduleId] = moduleFactory
+      }
     }
     addModuleToChunk(moduleId, chunkPath)
   }

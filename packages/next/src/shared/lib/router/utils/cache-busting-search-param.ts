@@ -5,14 +5,14 @@ export function computeCacheBustingSearchParam(
   segmentPrefetchHeader: string | string[] | undefined,
   stateTreeHeader: string | string[] | undefined,
   nextUrlHeader: string | string[] | undefined
-): string | null {
+): string {
   if (
     prefetchHeader === undefined &&
     segmentPrefetchHeader === undefined &&
     stateTreeHeader === undefined &&
     nextUrlHeader === undefined
   ) {
-    return null
+    return ''
   }
   return hexHash(
     [

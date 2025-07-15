@@ -13,13 +13,16 @@ pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
 pub trait OutputAsset: Asset {
     /// The identifier of the [OutputAsset]. It's expected to be unique and
     /// capture all properties of the [OutputAsset].
+    #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath>;
 
     /// Other references [OutputAsset]s from this [OutputAsset].
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }
 
+    #[turbo_tasks::function]
     fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
         Vc::cell(None)
     }

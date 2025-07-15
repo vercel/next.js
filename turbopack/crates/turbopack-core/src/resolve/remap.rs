@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::FxIndexMap;
 
 use super::{
@@ -380,7 +380,7 @@ impl TryFrom<&Value> for ExportsField {
 
                 if !conditions.is_empty() {
                     map.insert(
-                        AliasPattern::Exact(".".into()),
+                        AliasPattern::Exact(rcstr!(".")),
                         SubpathValue::Conditional(
                             conditions
                                 .into_iter()
@@ -400,7 +400,7 @@ impl TryFrom<&Value> for ExportsField {
             Value::String(string) => {
                 let mut map = AliasMap::new();
                 map.insert(
-                    AliasPattern::exact("."),
+                    AliasPattern::Exact(rcstr!(".")),
                     SubpathValue::Result(string.as_str().into()),
                 );
                 map
@@ -408,7 +408,7 @@ impl TryFrom<&Value> for ExportsField {
             Value::Array(array) => {
                 let mut map = AliasMap::new();
                 map.insert(
-                    AliasPattern::exact("."),
+                    AliasPattern::Exact(rcstr!(".")),
                     // This allows for more complex patterns than the spec allows, since we accept
                     // the following:
                     // [{ "node": "./node.js", "default": "./index.js" }, "./index.js"]

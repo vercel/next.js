@@ -275,6 +275,19 @@ ${fulfilled.body}
 
               throw error
             }
+            if (fulfilled.status >= 400) {
+              error.message = `
+Received a response with an error status code.
+
+Status: ${fulfilled.status}
+URL: ${request.url()}
+Headers: ${JSON.stringify(fulfilled.headers)}
+
+Response:
+${fulfilled.body}
+`
+              throw error
+            }
             if (expectedResponses !== null) {
               let alreadyMatchedByThisResponse: string | null = null
               for (const expectedResponse of expectedResponses) {
@@ -361,6 +374,24 @@ Choose a more specific substring to assert on.
             if (browserResponse !== null) {
               await browserResponse.finished()
             }
+          }
+
+          if (fulfilled.status === 307 || fulfilled.status === 308) {
+            // If this was a redirect, give the browser time to follow the
+            // redirect, before continuing. We do that by waiting for the very
+            // next request to respond. Otherwise, we might exit early, before
+            // the request was added to the pending requests set.
+            await new Promise<void>((resolve) => {
+              page.once('request', (req) => {
+                const handleResponse = (res: Playwright.Response) => {
+                  if (res.url() === req.url()) {
+                    page.off('response', handleResponse)
+                    resolve()
+                  }
+                }
+                page.on('response', handleResponse)
+              })
+            })
           }
         }
 

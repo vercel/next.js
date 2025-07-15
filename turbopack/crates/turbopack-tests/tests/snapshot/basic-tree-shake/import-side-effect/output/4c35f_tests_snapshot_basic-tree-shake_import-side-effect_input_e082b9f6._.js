@@ -4,10 +4,10 @@
 "use strict";
 
 __turbopack_context__.s({
-    "a": ([
+    "a": [
         ()=>dog,
         (new_dog)=>dog = new_dog
-    ])
+    ]
 });
 let dog = 'dog';
 ;

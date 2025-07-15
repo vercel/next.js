@@ -26,31 +26,12 @@ describe('dynamic-io', () => {
 
   it('should fully prerender pages that use draftMode', async () => {
     expect(getLines('Route "/draftmode')).toEqual([])
-    let $ = await next.render$('/draftmode/async', {})
+    let $ = await next.render$('/draftmode', {})
     if (isNextDev) {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#draft-mode').text()).toBe('false')
       expect(getLines('Route "/draftmode')).toEqual([])
-    } else {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at buildtime')
-      expect($('#draft-mode').text()).toBe('false')
-      expect(getLines('Route "/draftmode')).toEqual([])
-    }
-
-    $ = await next.render$('/draftmode/sync', {})
-    if (isNextDev) {
-      expect($('#layout').text()).toBe('at runtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#draft-mode').text()).toBe('false')
-      expect(getLines('Route "/draftmode')).toEqual([
-        expect.stringContaining('`draftMode().isEnabled`'),
-        // TODO need to figure out why deduping isn't working here
-        expect.stringContaining('`draftMode().isEnabled`'),
-        // TODO need to figure out why deduping isn't working here
-        expect.stringContaining('`draftMode().isEnabled`'),
-      ])
     } else {
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')

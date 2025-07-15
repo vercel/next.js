@@ -51,6 +51,7 @@ pub mod minify;
 pub mod next_api;
 pub mod parse;
 pub mod react_compiler;
+pub mod rspack;
 pub mod transform;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbo_trace_server;
@@ -72,7 +73,7 @@ fn init() {
     use std::panic::{set_hook, take_hook};
 
     use tokio::runtime::Builder;
-    use turbo_tasks::handle_panic;
+    use turbo_tasks::panic_hooks::handle_panic;
     use turbo_tasks_malloc::TurboMalloc;
 
     let prev_hook = take_hook();

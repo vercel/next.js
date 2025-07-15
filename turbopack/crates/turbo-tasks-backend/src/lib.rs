@@ -18,7 +18,10 @@ use anyhow::Result;
 use crate::database::{noop_kv::NoopKvDb, turbo::TurboKeyValueDatabase};
 pub use crate::{
     backend::{BackendOptions, StorageMode, TurboTasksBackend},
-    database::db_versioning::GitVersionInfo,
+    backing_storage::BackingStorage,
+    database::{
+        db_invalidation, db_invalidation::StartupCacheState, db_versioning::GitVersionInfo,
+    },
     kv_backing_storage::KeyValueDatabaseBackingStorage,
 };
 
@@ -33,12 +36,20 @@ pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<
     >,
 >;
 
+/// Creates an [`lmdb`]-based `BackingStorage` to be passed to [`TurboTasksBackend::new`].
+///
+/// Information about the state of the on-disk cache is returned using [`StartupCacheState`].
+///
+/// This is backend is slower than [`turbo_backing_storage`], but it's a known-good database that
+/// can be used when reproducing user-reported issues to isolate bugs.
+///
+/// When the `lmdb` cargo feature is enabled, [`default_backing_storage`] will return this value.
 #[cfg(feature = "lmdb")]
 pub fn lmdb_backing_storage(
     base_path: &Path,
     version_info: &GitVersionInfo,
     is_ci: bool,
-) -> Result<LmdbBackingStorage> {
+) -> Result<(LmdbBackingStorage, StartupCacheState)> {
     use crate::database::{
         fresh_db_optimization::{FreshDbOptimization, is_fresh},
         read_transaction_cache::ReadTransactionCache,
@@ -62,11 +73,17 @@ pub fn lmdb_backing_storage(
 
 pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatabase>;
 
+/// Creates a `BackingStorage` to be passed to [`TurboTasksBackend::new`].
+///
+/// Information about the state of the on-disk cache is returned using [`StartupCacheState`].
+///
+/// This is the fastest most-tested implementation of `BackingStorage`, and is normally returned by
+/// [`default_backing_storage`].
 pub fn turbo_backing_storage(
     base_path: &Path,
     version_info: &GitVersionInfo,
     is_ci: bool,
-) -> Result<TurboBackingStorage> {
+) -> Result<(TurboBackingStorage, StartupCacheState)> {
     KeyValueDatabaseBackingStorage::open_versioned_on_disk(
         base_path.to_owned(),
         version_info,
@@ -77,6 +94,7 @@ pub fn turbo_backing_storage(
 
 pub type NoopBackingStorage = KeyValueDatabaseBackingStorage<NoopKvDb>;
 
+/// Creates an no-op in-memory `BackingStorage` to be passed to [`TurboTasksBackend::new`].
 pub fn noop_backing_storage() -> NoopBackingStorage {
     KeyValueDatabaseBackingStorage::new_in_memory(NoopKvDb)
 }
@@ -84,23 +102,22 @@ pub fn noop_backing_storage() -> NoopBackingStorage {
 #[cfg(feature = "lmdb")]
 pub type DefaultBackingStorage = LmdbBackingStorage;
 
-#[cfg(feature = "lmdb")]
-pub fn default_backing_storage(
-    path: &Path,
-    version_info: &GitVersionInfo,
-    is_ci: bool,
-) -> Result<DefaultBackingStorage> {
-    lmdb_backing_storage(path, version_info, is_ci)
-}
-
 #[cfg(not(feature = "lmdb"))]
 pub type DefaultBackingStorage = TurboBackingStorage;
 
-#[cfg(not(feature = "lmdb"))]
+/// Calls [`turbo_backing_storage`] (recommended) or `lmdb_backing_storage`, depending on if the
+/// `lmdb` cargo feature is enabled.
 pub fn default_backing_storage(
     path: &Path,
     version_info: &GitVersionInfo,
     is_ci: bool,
-) -> Result<DefaultBackingStorage> {
-    turbo_backing_storage(path, version_info, is_ci)
+) -> Result<(DefaultBackingStorage, StartupCacheState)> {
+    #[cfg(feature = "lmdb")]
+    {
+        lmdb_backing_storage(path, version_info, is_ci)
+    }
+    #[cfg(not(feature = "lmdb"))]
+    {
+        turbo_backing_storage(path, version_info, is_ci)
+    }
 }

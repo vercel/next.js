@@ -25,13 +25,13 @@ export async function middleware(request) {
     return NextResponse.rewrite(new URL('/dashboard', request.url))
   }
 
-  // In dev this route will fail to bootstrap because webpack uses eval which is dissallowed by
-  // this policy. In production this route will work
   if (request.nextUrl.pathname === '/bootstrap/with-nonce') {
-    const nonce = crypto.randomUUID()
+    // In a real app, crypto.randomUUID() would be used to generate a safe nonce.
+    // React and Webpack use eval() in development mode, so we need to allow it.
+    const csp = `script-src 'nonce-my-random-nonce' 'strict-dynamic'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''};`
     return NextResponse.next({
       headers: {
-        'Content-Security-Policy': `script-src 'nonce-${nonce}' 'strict-dynamic';`,
+        'Content-Security-Policy': csp,
       },
     })
   }

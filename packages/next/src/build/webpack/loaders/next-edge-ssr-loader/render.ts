@@ -100,6 +100,7 @@ export function getRender({
         serverActionsManifest,
         serverActions,
         nextFontManifest,
+        devtoolSegmentExplorer: config.experimental.devtoolSegmentExplorer,
       },
       renderToHTML,
       incrementalCacheHandler,

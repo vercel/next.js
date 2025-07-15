@@ -42,7 +42,7 @@ fn main() {
 
     match cmd {
         Cmd::Run => {
-            let strat = std::env::args()
+            let strategy = std::env::args()
                 .nth(2)
                 .map(|s| Strategy::from_str(&s))
                 .transpose()
@@ -64,7 +64,7 @@ fn main() {
                 .map(|f| f.split(',').map(ToOwned::to_owned).collect());
 
             if matches!(
-                strat,
+                strategy,
                 Strategy::Sequential { .. } | Strategy::Development { .. }
             ) {
                 factor = 1;
@@ -126,7 +126,7 @@ fn main() {
                         },
                         noop_backing_storage(),
                     ));
-                    let result = main_inner(&tt, strat, factor, limit, files).await;
+                    let result = main_inner(&tt, strategy, factor, limit, files).await;
                     let memory = TurboMalloc::memory_usage();
                     tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
                     let start = Instant::now();
@@ -166,6 +166,7 @@ fn main() {
                                      Safari versions, last 1 Edge versions"
                     .into(),
                 no_mangling: false,
+                current_node_js_version: "18.0.0".into(),
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();

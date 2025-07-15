@@ -16,7 +16,7 @@ on:
 name: Code Freeze
 
 env:
-  NAPI_CLI_VERSION: 2.14.7
+  NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.3.3
   NODE_LTS_VERSION: 20
 

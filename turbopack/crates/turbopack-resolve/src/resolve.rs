@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::resolve::{
     AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult, find_context_file,
@@ -15,8 +15,9 @@ use crate::{
     typescript::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
 };
 
-const NODE_EXTERNALS: [&str; 63] = [
+const NODE_EXTERNALS: [&str; 64] = [
     "assert",
+    "assert/strict",
     "async_hooks",
     "buffer",
     "child_process",
@@ -85,53 +86,48 @@ const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "a
 
 #[turbo_tasks::function]
 async fn base_resolve_options(
-    resolve_path: Vc<FileSystemPath>,
+    fs: ResolvedVc<Box<dyn FileSystem>>,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
-    let parent = resolve_path.parent().resolve().await?;
-    if parent != resolve_path {
-        return Ok(base_resolve_options(parent, options_context));
-    }
-    let resolve_path_value = resolve_path.await?;
     let opt = options_context.await?;
     let emulating = opt.emulate_environment;
-    let root = resolve_path_value.fs.root();
+    let root = fs.root().owned().await?;
     let mut direct_mappings = AliasMap::new();
     let node_externals = if let Some(environment) = emulating {
         environment.node_externals().owned().await?
     } else {
         opt.enable_node_externals
     };
-    if node_externals {
-        for req in NODE_EXTERNALS {
-            direct_mappings.insert(
-                AliasPattern::exact(req),
-                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
-                    .resolved_cell(),
-            );
-            direct_mappings.insert(
-                AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
-                    .resolved_cell(),
-            );
+    if node_externals || opt.enable_edge_node_externals {
+        let untraced_external_cell =
+            ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                .resolved_cell();
+
+        if node_externals {
+            for req in NODE_EXTERNALS {
+                direct_mappings.insert(AliasPattern::exact(req), untraced_external_cell);
+                direct_mappings.insert(
+                    AliasPattern::exact(format!("node:{req}")),
+                    untraced_external_cell,
+                );
+            }
         }
-    }
-    if opt.enable_edge_node_externals {
-        for req in EDGE_NODE_EXTERNALS {
-            direct_mappings.insert(
-                AliasPattern::exact(req),
-                ImportMapping::External(
-                    Some(format!("node:{req}").into()),
-                    ExternalType::CommonJs,
-                    ExternalTraced::Untraced,
-                )
-                .resolved_cell(),
-            );
-            direct_mappings.insert(
-                AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+        if opt.enable_edge_node_externals {
+            for req in EDGE_NODE_EXTERNALS {
+                direct_mappings.insert(
+                    AliasPattern::exact(req),
+                    ImportMapping::External(
+                        Some(format!("node:{req}").into()),
+                        ExternalType::CommonJs,
+                        ExternalTraced::Untraced,
+                    )
                     .resolved_cell(),
-            );
+                );
+                direct_mappings.insert(
+                    AliasPattern::exact(format!("node:{req}")),
+                    untraced_external_cell,
+                );
+            }
         }
     }
 
@@ -219,7 +215,7 @@ async fn base_resolve_options(
         modules: if let Some(environment) = emulating {
             if *environment.resolve_node_modules().await? {
                 vec![ResolveModules::Nested(
-                    root.to_resolved().await?,
+                    root.clone(),
                     vec![rcstr!("node_modules")],
                 )]
             } else {
@@ -227,8 +223,11 @@ async fn base_resolve_options(
             }
         } else {
             let mut mods = Vec::new();
-            if let Some(dir) = opt.enable_node_modules {
-                mods.push(ResolveModules::Nested(dir, vec![rcstr!("node_modules")]));
+            if let Some(dir) = &opt.enable_node_modules {
+                mods.push(ResolveModules::Nested(
+                    dir.clone(),
+                    vec![rcstr!("node_modules")],
+                ));
             }
             mods
         },
@@ -275,42 +274,42 @@ async fn base_resolve_options(
 
 #[turbo_tasks::function]
 pub async fn resolve_options(
-    resolve_path: Vc<FileSystemPath>,
+    resolve_path: FileSystemPath,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
     let options_context_value = options_context.await?;
     if !options_context_value.rules.is_empty() {
-        let context_value = &*resolve_path.await?;
         for (condition, new_options_context) in options_context_value.rules.iter() {
-            if condition.matches(context_value).await? {
+            if condition.matches(&resolve_path) {
                 return Ok(resolve_options(resolve_path, **new_options_context));
             }
         }
     }
 
-    let resolve_options = base_resolve_options(resolve_path, options_context);
+    let resolve_options = base_resolve_options(*resolve_path.fs, options_context);
 
     let resolve_options = if options_context_value.enable_typescript {
         let find_tsconfig = async || {
             // Otherwise, attempt to find a tsconfig up the file tree
-            let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
-            anyhow::Ok::<Vc<ResolveOptions>>(match *tsconfig {
-                FindContextFileResult::Found(path, _) => {
-                    apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(*path))
-                }
+            let tsconfig = find_context_file(resolve_path.clone(), tsconfig()).await?;
+            anyhow::Ok::<Vc<ResolveOptions>>(match &*tsconfig {
+                FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
+                    resolve_options,
+                    tsconfig_resolve_options(path.clone()),
+                ),
                 FindContextFileResult::NotFound(_) => resolve_options,
             })
         };
 
         // Use a specified tsconfig path if provided. In Next.js, this is always provided by the
         // default config, at the very least.
-        if let Some(tsconfig_path) = options_context_value.tsconfig_path {
+        if let Some(tsconfig_path) = &options_context_value.tsconfig_path {
             let meta = tsconfig_path.metadata().await;
             if meta.is_ok() {
                 // If the file exists, use it.
                 apply_tsconfig_resolve_options(
                     resolve_options,
-                    tsconfig_resolve_options(*tsconfig_path),
+                    tsconfig_resolve_options(tsconfig_path.clone()),
                 )
             } else {
                 // Otherwise, try and find one.

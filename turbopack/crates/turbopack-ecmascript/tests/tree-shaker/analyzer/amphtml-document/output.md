@@ -277,7 +277,7 @@ graph TD
     N7["Items: [ItemId(1, ImportBinding(2))]"];
     N8["Items: [ItemId(1, ImportBinding(3))]"];
     N9["Items: [ItemId(1, ImportBinding(4))]"];
-    N10["Items: [ItemId(2, Normal), ItemId(3, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #5), &quot;default&quot;))]"];
+    N10["Items: [ItemId(2, Normal), ItemId(3, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #0), &quot;default&quot;))]"];
     N4 --> N0;
     N9 --> N4;
     N1 --> N0;

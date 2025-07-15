@@ -9,7 +9,7 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkingType, module_id_strategies::GlobalModuleIdStrategy},
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, RefData},
 };
 use turbopack_ecmascript::async_chunk::module::AsyncLoaderModule;
 
@@ -32,7 +32,14 @@ pub async fn get_global_module_id_strategy(
         let mut async_idents = vec![];
         module_graph
             .traverse_all_edges_unordered(|parent, current| {
-                if let (_, &ChunkingType::Async) = parent {
+                if let (
+                    _,
+                    &RefData {
+                        chunking_type: ChunkingType::Async,
+                        ..
+                    },
+                ) = parent
+                {
                     let module =
                         ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current.module)
                             .context("expected chunkable module for async reference")?;

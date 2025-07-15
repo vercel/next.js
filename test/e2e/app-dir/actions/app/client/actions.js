@@ -5,13 +5,6 @@ import 'server-only'
 import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
 
-try {
-  require('fs').readFileSync(
-    require('path').join(process.cwd(), 'data.txt'),
-    'utf8'
-  )
-} catch {}
-
 export async function getHeaders() {
   console.log('accept header:', (await headers()).get('accept'))
   ;(await cookies()).set('test-cookie', Date.now())

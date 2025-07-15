@@ -19,8 +19,7 @@ import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { FallbackRouteParams } from '../../request/fallback-params'
 
 let vendoredReactRSC
-// TODO: Ship react-dom/server.edge types
-let vendoredReactSSR: any
+let vendoredReactSSR
 
 // the vendored Reacts are loaded from their original source in the edge runtime
 if (process.env.NEXT_RUNTIME !== 'edge') {

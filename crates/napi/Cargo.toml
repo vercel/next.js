@@ -57,6 +57,7 @@ ignored = [
 anyhow = "1.0.66"
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
+either = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
 napi-derive = "2"
@@ -69,13 +70,12 @@ supports-hyperlinks = "3.1.0"
 terminal_hyperlink = "0.1.0"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-tracing-chrome = "0.5.0"
+tracing-chrome = "0.7.2"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
 
 swc_core = { workspace = true, features = [
-    "base_concurrent",
     "base_node",
     "common_concurrent",
     "ecma_ast",
@@ -98,7 +98,7 @@ swc_core = { workspace = true, features = [
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-rcstr = { workspace = true }
+turbo-rcstr = { workspace = true, features = ["napi"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }

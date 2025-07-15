@@ -3,18 +3,65 @@ use std::fmt::Write;
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
 
 use crate::resolve::ModulePart;
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Clone, Debug, Hash)]
+/// A layer identifies a distinct part of the module graph.
+#[derive(
+    Clone,
+    TaskInput,
+    Hash,
+    Debug,
+    DeterministicHash,
+    Eq,
+    PartialEq,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+)]
+pub struct Layer {
+    name: RcStr,
+    user_friendly_name: Option<RcStr>,
+}
+
+impl Layer {
+    pub fn new(name: RcStr) -> Self {
+        debug_assert!(!name.is_empty());
+        Self {
+            name,
+            user_friendly_name: None,
+        }
+    }
+    pub fn new_with_user_friendly_name(name: RcStr, user_friendly_name: RcStr) -> Self {
+        debug_assert!(!name.is_empty());
+        debug_assert!(!user_friendly_name.is_empty());
+        Self {
+            name,
+            user_friendly_name: Some(user_friendly_name),
+        }
+    }
+
+    /// Returns a user friendly name for this layer
+    pub fn user_friendly_name(&self) -> &RcStr {
+        self.user_friendly_name.as_ref().unwrap_or(&self.name)
+    }
+
+    pub fn name(&self) -> &RcStr {
+        &self.name
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Clone, Debug, Hash, TaskInput)]
 pub struct AssetIdent {
     /// The primary path of the asset
-    pub path: ResolvedVc<FileSystemPath>,
+    pub path: FileSystemPath,
     /// The query string of the asset this is either the empty string or a query string that starts
     /// with a `?` (e.g. `?foo=bar`)
     pub query: RcStr,
@@ -28,13 +75,14 @@ pub struct AssetIdent {
     /// The parts of the asset that are (ECMAScript) modules
     pub parts: Vec<ModulePart>,
     /// The asset layer the asset was created from.
-    pub layer: Option<RcStr>,
+    pub layer: Option<Layer>,
     /// The MIME content type, if this asset was created from a data URL.
     pub content_type: Option<RcStr>,
 }
 
 impl AssetIdent {
     pub fn add_modifier(&mut self, modifier: RcStr) {
+        debug_assert!(!modifier.is_empty(), "modifiers cannot be empty.");
         self.modifiers.push(modifier);
     }
 
@@ -43,12 +91,9 @@ impl AssetIdent {
     }
 
     pub async fn rename_as_ref(&mut self, pattern: &str) -> Result<()> {
-        let root = self.path.root();
-        let path = self.path.await?;
-        self.path = root
-            .join(pattern.replace('*', &path.path).into())
-            .to_resolved()
-            .await?;
+        let root = self.path.root().await?;
+        let path = self.path.clone();
+        self.path = root.join(&pattern.replace('*', &path.path))?;
         Ok(())
     }
 }
@@ -57,7 +102,7 @@ impl AssetIdent {
 impl ValueToString for AssetIdent {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut s = self.path.to_string().owned().await?.into_owned();
+        let mut s = self.path.value_to_string().owned().await?.into_owned();
 
         // The query string is either empty or non-empty starting with `?` so we can just concat
         s.push_str(&self.query);
@@ -80,7 +125,7 @@ impl ValueToString for AssetIdent {
         }
 
         if let Some(layer) = &self.layer {
-            write!(s, " [{layer}]")?;
+            write!(s, " [{}]", layer.name)?;
         }
 
         if !self.modifiers.is_empty() {
@@ -118,7 +163,7 @@ impl ValueToString for AssetIdent {
 #[turbo_tasks::value_impl]
 impl AssetIdent {
     #[turbo_tasks::function]
-    pub async fn new(ident: Value<AssetIdent>) -> Result<Vc<Self>> {
+    pub fn new(ident: AssetIdent) -> Vc<Self> {
         debug_assert!(
             ident.query.is_empty() || ident.query.starts_with("?"),
             "query should be empty or start with a `?`"
@@ -127,13 +172,13 @@ impl AssetIdent {
             ident.fragment.is_empty() || ident.fragment.starts_with("#"),
             "query should be empty or start with a `?`"
         );
-        Ok(ident.into_value().cell())
+        ident.cell()
     }
 
-    /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
+    /// Creates an [AssetIdent] from a [FileSystemPath]
     #[turbo_tasks::function]
-    pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
-        Self::new(Value::new(AssetIdent {
+    pub fn from_path(path: FileSystemPath) -> Vc<Self> {
+        Self::new(AssetIdent {
             path,
             query: RcStr::default(),
             fragment: RcStr::default(),
@@ -142,68 +187,75 @@ impl AssetIdent {
             parts: Vec::new(),
             layer: None,
             content_type: None,
-        }))
+        })
     }
 
     #[turbo_tasks::function]
     pub fn with_query(&self, query: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.query = query;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_fragment(&self, fragment: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.fragment = fragment;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_modifier(&self, modifier: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_part(&self, part: ModulePart) -> Vc<Self> {
         let mut this = self.clone();
         this.parts.push(part);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
-    pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn with_path(&self, path: FileSystemPath) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
-    pub fn with_layer(&self, layer: RcStr) -> Vc<Self> {
+    pub fn with_layer(&self, layer: Layer) -> Vc<Self> {
         let mut this = self.clone();
         this.layer = Some(layer);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.content_type = Some(content_type);
-        Self::new(Value::new(this))
+        Self::new(this)
+    }
+
+    #[turbo_tasks::function]
+    pub fn with_asset(&self, key: RcStr, asset: ResolvedVc<AssetIdent>) -> Vc<Self> {
+        let mut this = self.clone();
+        this.add_asset(key, asset);
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub async fn rename_as(&self, pattern: RcStr) -> Result<Vc<Self>> {
         let mut this = self.clone();
         this.rename_as_ref(&pattern).await?;
-        Ok(Self::new(Value::new(this)))
+        Ok(Self::new(this))
     }
 
     #[turbo_tasks::function]
     pub fn path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     /// Computes a unique output asset name for the given asset identifier.
@@ -213,7 +265,7 @@ impl AssetIdent {
     #[turbo_tasks::function]
     pub async fn output_name(
         &self,
-        context_path: Vc<FileSystemPath>,
+        context_path: FileSystemPath,
         expected_extension: RcStr,
     ) -> Result<Vc<RcStr>> {
         debug_assert!(
@@ -224,11 +276,11 @@ impl AssetIdent {
         // to be compatible with all operating systems + URLs.
 
         // For clippy -- This explicit deref is necessary
-        let path = &*self.path.await?;
-        let mut name = if let Some(inner) = context_path.await?.get_path_to(path) {
+        let path = &self.path;
+        let mut name = if let Some(inner) = context_path.get_path_to(path) {
             clean_separators(inner)
         } else {
-            clean_separators(&self.path.to_string().await?)
+            clean_separators(&self.path.value_to_string().await?)
         };
         let removed_extension = name.ends_with(&*expected_extension);
         if removed_extension {

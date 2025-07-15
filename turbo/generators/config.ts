@@ -94,6 +94,11 @@ export default function generator(plop: NodePlopAPI): void {
           type: 'add',
           templateFile: path.join(cnaTemplatePath, 'tsconfig.json'),
           path: path.join(targetPath, name, 'tsconfig.json'),
+          transform: (template: string) =>
+            template.replace(
+              '"exclude": ["node_modules"]',
+              '"exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]'
+            ),
         },
         {
           type: 'add',

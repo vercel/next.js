@@ -15,7 +15,7 @@ let x = (0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 "use strict";
 
 __turbopack_context__.s({
-    "spawn": (()=>spawn)
+    "spawn": ()=>spawn
 });
 function spawn(cmd, args) {
 //

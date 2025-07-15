@@ -5,19 +5,16 @@ import { displayContent } from './dev/fouc'
 import {
   connectHMR,
   addMessageListener,
-} from './components/react-dev-overlay/pages/websocket'
+} from './dev/hot-reloader/pages/websocket'
 import {
   assign,
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
-import { RuntimeErrorHandler } from './components/errors/runtime-error-handler'
-import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './components/react-dev-overlay/shared'
-import { performFullReload } from './components/react-dev-overlay/pages/hot-reloader-client'
-import {
-  buildingIndicatorHide,
-  buildingIndicatorShow,
-} from './components/react-dev-overlay/pages/client'
+import { RuntimeErrorHandler } from './dev/runtime-error-handler'
+import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './dev/hot-reloader/shared'
+import { performFullReload } from './dev/hot-reloader/pages/hot-reloader-pages'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 
 export function pageBootstrap(assetPrefix: string) {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
@@ -55,8 +52,20 @@ export function pageBootstrap(assetPrefix: string) {
               })
             break
           }
-          default:
+          case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
+          case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE:
+          case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES:
+          case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
+          case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+          case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING:
+          case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE:
+          case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED:
+          case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST:
+            // Most of these action types are handled in
+            // src/client/dev/hot-reloader/pages/hot-reloader-pages.ts
             break
+          default:
+            payload satisfies never
         }
       } else if ('event' in payload) {
         switch (payload.event) {
@@ -93,8 +102,8 @@ export function pageBootstrap(assetPrefix: string) {
 
             if (!router.clc && pages.includes(router.pathname)) {
               console.log('Refreshing page data due to server-side change')
-              buildingIndicatorShow()
-              const clearIndicator = buildingIndicatorHide
+              dispatcher.buildingIndicatorShow()
+              const clearIndicator = dispatcher.buildingIndicatorHide
 
               router
                 .replace(
@@ -119,7 +128,7 @@ export function pageBootstrap(assetPrefix: string) {
             break
           }
           default:
-            break
+            payload satisfies never
         }
       }
     })

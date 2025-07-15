@@ -35,14 +35,13 @@ export function useActionQueue(
   // this is conceptually how we're modeling the app router state, despite the
   // weird implementation details.
   if (process.env.NODE_ENV !== 'production') {
-    const useSyncDevRenderIndicator = (
-      require('./react-dev-overlay/utils/dev-indicator/use-sync-dev-render-indicator') as typeof import('./react-dev-overlay/utils/dev-indicator/use-sync-dev-render-indicator')
-    ).useSyncDevRenderIndicator
+    const { useAppDevRenderingIndicator } =
+      require('../../next-devtools/userspace/use-app-dev-rendering-indicator') as typeof import('../../next-devtools/userspace/use-app-dev-rendering-indicator')
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const syncDevRenderIndicator = useSyncDevRenderIndicator()
+    const appDevRenderingIndicator = useAppDevRenderingIndicator()
 
     dispatch = (action: ReducerActions) => {
-      syncDevRenderIndicator(() => {
+      appDevRenderingIndicator(() => {
         actionQueue.dispatch(action, setState)
       })
     }

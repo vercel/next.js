@@ -1,1 +1,1 @@
-const fetch = require("fetch-h2");
+const fetch = require('fetch-h2')

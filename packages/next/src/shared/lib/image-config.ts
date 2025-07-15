@@ -106,16 +106,16 @@ export type ImageConfigComplete = {
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   dangerouslyAllowSVG: boolean
 
-  /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
+  /** @see [Content Security Policy](https://nextjs.org/docs/api-reference/next/image#contentsecuritypolicy) */
   contentSecurityPolicy: string
 
-  /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
+  /** @see [Content Disposition Type](https://nextjs.org/docs/api-reference/next/image#contentdispositiontype) */
   contentDispositionType: 'inline' | 'attachment'
 
   /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remotepatterns) */
   remotePatterns: Array<URL | RemotePattern>
 
-  /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#localPatterns) */
+  /** @see [Local Patterns](https://nextjs.org/docs/api-reference/next/image#localPatterns) */
   localPatterns: LocalPattern[] | undefined
 
   /** @see [Qualities](https://nextjs.org/docs/api-reference/next/image#qualities) */

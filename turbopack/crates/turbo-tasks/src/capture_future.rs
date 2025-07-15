@@ -14,7 +14,7 @@ use pin_project_lite::pin_project;
 use serde::{Deserialize, Serialize};
 use turbo_tasks_malloc::{AllocationInfo, TurboMalloc};
 
-use crate::{LAST_ERROR_LOCATION, backend::TurboTasksExecutionErrorMessage};
+use crate::{backend::TurboTasksExecutionErrorMessage, panic_hooks::LAST_ERROR_LOCATION};
 
 struct ThreadLocalData {
     duration: Duration,

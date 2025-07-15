@@ -190,10 +190,13 @@ function navigateUsingPrefetchedRouteTree(
   if (task !== null) {
     const dynamicRequestTree = task.dynamicRequestTree
     if (dynamicRequestTree !== null) {
-      const promiseForDynamicServerResponse = fetchServerResponse(url, {
-        flightRouterState: dynamicRequestTree,
-        nextUrl,
-      })
+      const promiseForDynamicServerResponse = fetchServerResponse(
+        new URL(canonicalUrl, url.origin),
+        {
+          flightRouterState: dynamicRequestTree,
+          nextUrl,
+        }
+      )
       listenForDynamicRequest(task, promiseForDynamicServerResponse)
     } else {
       // The prefetched tree does not contain dynamic holes — it's

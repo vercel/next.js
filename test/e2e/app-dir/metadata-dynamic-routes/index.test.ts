@@ -52,7 +52,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       expect(text).toMatchInlineSnapshot(`
       "<?xml version="1.0" encoding="UTF-8"?>
-      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
       <url>
       <loc>https://example.com</loc>
       <lastmod>2021-01-01</lastmod>
@@ -95,7 +95,7 @@ describe('app dir - metadata dynamic routes', () => {
     it('should support alternate.languages in sitemap', async () => {
       const xml = await (await next.fetch('/lang/sitemap.xml')).text()
 
-      expect(xml).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml')
+      expect(xml).toContain('xmlns:xhtml="https://www.w3.org/1999/xhtml')
       expect(xml).toContain(
         `<xhtml:link rel="alternate" hreflang="es" href="https://example.com/es/about" />`
       )
@@ -119,7 +119,7 @@ describe('app dir - metadata dynamic routes', () => {
       const xml = await (await next.fetch('/sitemap-video/sitemap.xml')).text()
       expect(xml).toMatchInlineSnapshot(`
         "<?xml version="1.0" encoding="UTF-8"?>
-        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+        <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="https://www.google.com/schemas/sitemap-video/1.1">
         <url>
         <loc>https://example.com/about</loc>
         <video:video>

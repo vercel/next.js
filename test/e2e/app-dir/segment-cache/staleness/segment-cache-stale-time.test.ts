@@ -3,11 +3,10 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (staleness)', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     test('disabled in development / deployment', () => {})
     return
   }
@@ -82,14 +81,17 @@ describe('segment cache (staleness)', () => {
 
   it('reuses dynamic data up to the staleTimes.dynamic threshold', async () => {
     let page: Playwright.Page
+    const startDate = Date.now()
+
     const browser = await next.browser('/', {
-      beforePageLoad(p: Playwright.Page) {
+      async beforePageLoad(p: Playwright.Page) {
         page = p
+        await page.clock.install()
+        await page.clock.setFixedTime(startDate)
       },
     })
-    const act = createRouterAct(page)
 
-    await page.clock.install()
+    const act = createRouterAct(page)
 
     // Navigate to the dynamic page
     await act(
@@ -111,10 +113,10 @@ describe('segment cache (staleness)', () => {
 
     await browser.back()
 
-    // Fast forward 29 seconds. staleTimes.dynamic is configured as 30s, so if
-    // we navigate to the same link again, the old data should be reused without
-    // a new network request.
-    await page.clock.fastForward(29 * 1000)
+    // Advance time by 29 seconds. staleTimes.dynamic is configured as 30s, so
+    // if we navigate to the same link again, the old data should be reused
+    // without a new network request.
+    await page.clock.setFixedTime(startDate + 29 * 1000)
 
     await act(async () => {
       const toggle = await browser.elementByCss(
@@ -131,9 +133,9 @@ describe('segment cache (staleness)', () => {
 
     await browser.back()
 
-    // Fast forward an additional second. This time, if we navigate to the link
+    // Advance an additional second. This time, if we navigate to the link
     // again, the data is stale, so we issue a new request.
-    await page.clock.fastForward(1 * 1000)
+    await page.clock.setFixedTime(startDate + 30 * 1000)
 
     await act(
       async () => {

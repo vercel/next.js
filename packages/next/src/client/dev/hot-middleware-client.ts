@@ -2,8 +2,8 @@ import type {
   NextRouter,
   PrivateRouteInfo,
 } from '../../shared/lib/router/router'
-import connect from '../components/react-dev-overlay/pages/hot-reloader-client'
-import { sendMessage } from '../components/react-dev-overlay/pages/websocket'
+import connect from './hot-reloader/pages/hot-reloader-pages'
+import { sendMessage } from './hot-reloader/pages/websocket'
 
 // Define a local type for the window.next object
 interface NextWindow {

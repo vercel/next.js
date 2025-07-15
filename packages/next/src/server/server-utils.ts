@@ -34,8 +34,7 @@ import { getSelectedParams } from '../client/components/router-reducer/compute-c
 
 function filterInternalQuery(
   query: Record<string, undefined | string | string[]>,
-  paramKeys: string[],
-  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
+  paramKeys: string[]
 ) {
   // this is used to pass query information in rewrites
   // but should not be exposed in final query
@@ -52,8 +51,7 @@ function filterInternalQuery(
     if (
       isNextQueryPrefix ||
       isNextInterceptionMarkerPrefix ||
-      paramKeys.includes(key) ||
-      (defaultRouteRegex && Object.keys(defaultRouteRegex.groups).includes(key))
+      paramKeys.includes(key)
     ) {
       delete query[key]
     }
@@ -62,8 +60,7 @@ function filterInternalQuery(
 
 export function normalizeCdnUrl(
   req: BaseNextRequest | IncomingMessage,
-  paramKeys: string[],
-  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
+  paramKeys: string[]
 ) {
   // make sure to normalize req.url from CDNs to strip dynamic and rewrite
   // params from the query which are added during routing
@@ -74,7 +71,7 @@ export function normalizeCdnUrl(
     return req.url
   }
   delete (_parsedUrl as any).search
-  filterInternalQuery(_parsedUrl.query, paramKeys, defaultRouteRegex)
+  filterInternalQuery(_parsedUrl.query, paramKeys)
 
   req.url = formatUrl(_parsedUrl)
 }
@@ -484,7 +481,7 @@ export function getServerUtils({
     normalizeCdnUrl: (
       req: BaseNextRequest | IncomingMessage,
       paramKeys: string[]
-    ) => normalizeCdnUrl(req, paramKeys, defaultRouteRegex),
+    ) => normalizeCdnUrl(req, paramKeys),
 
     interpolateDynamicPath: (
       pathname: string,
@@ -492,7 +489,7 @@ export function getServerUtils({
     ) => interpolateDynamicPath(pathname, params, defaultRouteRegex),
 
     filterInternalQuery: (query: ParsedUrlQuery, paramKeys: string[]) =>
-      filterInternalQuery(query, paramKeys, defaultRouteRegex),
+      filterInternalQuery(query, paramKeys),
   }
 }
 

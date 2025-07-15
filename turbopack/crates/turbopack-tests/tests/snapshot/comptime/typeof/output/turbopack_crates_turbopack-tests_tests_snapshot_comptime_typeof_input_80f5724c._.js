@@ -1,6 +1,6 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_comptime_typeof_input_80f5724c._.js", {
 
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js [test] (ecmascript)": (function(__turbopack_context__) {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js [test] (ecmascript)": ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
 {
@@ -17,7 +17,7 @@ console.log('typeof exports', ("TURBOPACK compile-time value", "object"));
 // CJS, should be real require
 console.log(("TURBOPACK member replacement", __turbopack_context__.t));
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)": (function(__turbopack_context__) {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)": ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
 {

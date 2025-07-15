@@ -305,7 +305,7 @@ export async function createPagesMapping({
         // If there's any custom /_not-found page, it will override the default one.
         ...(hasAppPages && {
           [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]: require.resolve(
-            'next/dist/client/components/global-not-found'
+            'next/dist/client/components/builtin/global-not-found'
           ),
         }),
         ...pages,
@@ -865,7 +865,7 @@ export function finalizeEntrypoint({
   isServerComponent,
   hasAppDir,
 }: {
-  compilerType?: CompilerNameValues
+  compilerType: CompilerNameValues
   name: string
   value: ObjectValue<webpack.EntryObject>
   isServerComponent?: boolean
@@ -958,9 +958,7 @@ export function finalizeEntrypoint({
         ...entry,
       }
     }
-    default: {
-      // Should never happen.
-      throw new Error('Invalid compiler type')
-    }
+    default:
+      return compilerType satisfies never
   }
 }

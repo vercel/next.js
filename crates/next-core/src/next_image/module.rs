@@ -1,5 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TaskInput, Value, Vc, fxindexmap};
+use serde::{Deserialize, Serialize};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexmap, trace::TraceRawVcs};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
@@ -9,8 +11,21 @@ use turbopack_static::ecma::StaticUrlJsModule;
 
 use super::source_asset::StructuredImageFileSource;
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Clone, Copy, Debug, PartialOrd, Ord, Hash, TaskInput)]
+#[derive(
+    Eq,
+    PartialEq,
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+)]
 pub enum BlurPlaceholderMode {
     /// Do not generate a blur placeholder at all.
     None,
@@ -51,16 +66,16 @@ impl StructuredImageModuleType {
                     .cell(),
                 ),
                 ReferenceType::Internal(ResolvedVc::cell(fxindexmap!(
-                    "IMAGE".into() => ResolvedVc::upcast(static_asset)
+                    rcstr!("IMAGE") => ResolvedVc::upcast(static_asset)
                 ))),
             )
             .module())
     }
 
     #[turbo_tasks::function]
-    pub fn new(blur_placeholder_mode: Value<BlurPlaceholderMode>) -> Vc<Self> {
+    pub fn new(blur_placeholder_mode: BlurPlaceholderMode) -> Vc<Self> {
         StructuredImageModuleType::cell(StructuredImageModuleType {
-            blur_placeholder_mode: blur_placeholder_mode.into_value(),
+            blur_placeholder_mode,
         })
     }
 }

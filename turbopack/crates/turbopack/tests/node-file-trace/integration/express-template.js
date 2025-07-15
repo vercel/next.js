@@ -1,20 +1,20 @@
-const assert = require("assert");
-const express = require("express");
-const path = require("path");
+const assert = require('assert')
+const express = require('express')
+const path = require('path')
 
-const app = express();
+const app = express()
 
-app.engine("pug", require("pug").__express);
-app.set("view engine", "pug");
-app.set("views", "./fixtures/pug");
+app.engine('pug', require('pug').__express)
+app.set('view engine', 'pug')
+app.set('views', './fixtures/pug')
 
 app.render(
-  "index",
+  'index',
   {
-    title: "Consolidate.js",
+    title: 'Consolidate.js',
   },
   function (err, rendered) {
-    if (err) throw err;
-    assert.ok(rendered.includes("<h1>Consolidate.js</h1>"));
+    if (err) throw err
+    assert.ok(rendered.includes('<h1>Consolidate.js</h1>'))
   }
-);
+)

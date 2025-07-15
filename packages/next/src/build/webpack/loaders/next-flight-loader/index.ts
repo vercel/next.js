@@ -120,7 +120,7 @@ export default function transformSource(
       let esmSource =
         prefix +
         `\
-import { registerClientReference } from "react-server-dom-webpack/server.edge";
+import { registerClientReference } from "react-server-dom-webpack/server";
 `
       for (const ref of clientRefs) {
         if (ref === 'default') {

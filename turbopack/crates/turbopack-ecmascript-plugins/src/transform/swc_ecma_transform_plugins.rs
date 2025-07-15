@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::ast::Program;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
@@ -50,14 +50,13 @@ impl SwcPluginModule {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSwcEcmaTransformPluginsIssue {
-    pub file_path: ResolvedVc<FileSystemPath>,
+    pub file_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
     }
 
     #[turbo_tasks::function]
@@ -75,17 +74,16 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
-            StyledString::Text(
+            StyledString::Text(rcstr!(
                 "Turbopack does not yet support running SWC EcmaScript transform plugins on this \
                  platform."
-                    .into(),
-            )
+            ))
             .resolved_cell(),
         ))
     }
@@ -230,7 +228,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             use turbopack_core::issue::IssueExt;
 
             UnsupportedSwcEcmaTransformPluginsIssue {
-                file_path: ctx.file_path,
+                file_path: ctx.file_path.clone(),
             }
             .resolved_cell()
             .emit();

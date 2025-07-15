@@ -37,18 +37,19 @@ npm run dev --turbopack
 
 The way you import code can greatly affect compilation and bundling time. Learn more about [optimizing package bundling](/docs/app/guides/package-bundling) and explore tools like [Dependency Cruiser](https://github.com/sverweij/dependency-cruiser) or [Madge](https://github.com/pahen/madge).
 
-### Icon libraries
+#### Icon libraries
 
-Libraries like `@material-ui/icons` or `react-icons` can import thousands of icons, even if you only use a few. Try to import only the icons you need:
+Libraries like `@material-ui/icons`, `@phosphor-icons/react`, or `react-icons` can import thousands of icons, even if you only use a few. Try to import only the icons you need:
 
 ```jsx
 // Instead of this:
-import { Icon1, Icon2 } from 'react-icons/md'
+import { TriangleIcon } from '@phosphor-icons/react'
 
 // Do this:
-import Icon1 from 'react-icons/md/Icon1'
-import Icon2 from 'react-icons/md/Icon2'
+import { TriangleIcon } from '@phosphor-icons/react/dist/csr/Triangle'
 ```
+
+You can often find what import pattern to use in the documentation for the icon library you're using. This example follows [`@phosphor-icons/react`](https://www.npmjs.com/package/@phosphor-icons/react#import-performance-optimization) recommendation.
 
 Libraries like `react-icons` includes many different icon sets. Choose one set and stick with that set.
 
@@ -61,13 +62,13 @@ For example, if your application uses `react-icons` and imports all of these:
 
 Combined they will be tens of thousands of modules that the compiler has to handle, even if you only use a single import from each.
 
-### Barrel files
+#### Barrel files
 
 "Barrel files" are files that export many items from other files. They can slow down builds because the compiler has to parse them to find if there are side-effects in the module scope by using the import.
 
 Try to import directly from specific files when possible. [Learn more about barrel files](https://vercel.com/blog/how-we-optimized-package-imports-in-next-js) and the built-in optimizations in Next.js.
 
-### Optimize package imports
+#### Optimize package imports
 
 Next.js can automatically optimize imports for certain packages. If you are using packages that utilize barrel files, add them to your `next.config.js`:
 

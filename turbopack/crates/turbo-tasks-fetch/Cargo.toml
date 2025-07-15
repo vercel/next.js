@@ -33,7 +33,7 @@ turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 
 [dev-dependencies]
-httpmock = { workspace = true }
+mockito = { version = "1.7.0", default-features = false }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }

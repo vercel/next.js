@@ -10,7 +10,7 @@ import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
-import { isWebpackBundledLayer, isWebpackServerOnlyLayer } from './utils'
+import { isWebpackBundledLayer, shouldUseReactServerCondition } from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
@@ -216,7 +216,7 @@ export function makeExternalHandler({
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
     // Make sure @vercel/og is loaded as ESM for Node.js runtime
     if (
-      isWebpackServerOnlyLayer(layer) &&
+      shouldUseReactServerCondition(layer) &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
     ) {
       return `module ${request}`

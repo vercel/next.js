@@ -461,6 +461,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         turbopackPersistentCaching: z.boolean().optional(),
         turbopackSourceMaps: z.boolean().optional(),
         turbopackTreeShaking: z.boolean().optional(),
+        turbopackRemoveUnusedExports: z.boolean().optional(),
+        turbopackScopeHoisting: z.boolean().optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
@@ -499,6 +501,18 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         globalNotFound: z.boolean().optional(),
         devtoolSegmentExplorer: z.boolean().optional(),
+        devtoolNewPanelUI: z.boolean().optional(),
+        browserDebugInfoInTerminal: z
+          .union([
+            z.boolean(),
+            z.object({
+              depthLimit: z.number().int().positive().optional(),
+              edgeLimit: z.number().int().positive().optional(),
+              showSourceLocation: z.boolean().optional(),
+            }),
+          ])
+          .optional(),
+        optimizeRouterScrolling: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

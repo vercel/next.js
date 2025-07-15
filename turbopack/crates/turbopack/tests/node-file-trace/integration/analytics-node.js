@@ -1,3 +1,3 @@
-const Analytics = require("analytics-node");
+const Analytics = require('analytics-node')
 
-new Analytics("YOUR_WRITE_KEY");
+new Analytics('YOUR_WRITE_KEY')

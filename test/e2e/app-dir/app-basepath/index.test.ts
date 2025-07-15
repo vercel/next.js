@@ -12,12 +12,7 @@ describe('app dir - basepath', () => {
 
   it('should successfully hard navigate from pages -> app', async () => {
     const browser = await next.browser('/base/pages-path')
-    await browser.waitForElementByCss('#to-another').click()
-    // Wait for url to change, ensure the navigation is finished,
-    // then we can assert if the element is present.
-    await retry(async () => {
-      expect(await browser.url()).toBe(`${next.url}/base/another`)
-    }, 5_000)
+    await browser.elementByCss('#to-another').click()
     await browser.waitForElementByCss('#page-2')
   })
 
@@ -203,7 +198,7 @@ describe('app dir - basepath', () => {
 
     expect(firstResponse.status()).toEqual(303)
     // Since this is an external request to a resource outside of NextJS
-    // we expect to see a seperate request resolving the external URL.
+    // we expect to see a separate request resolving the external URL.
     expect(secondResponse.status()).toEqual(200)
   })
 })

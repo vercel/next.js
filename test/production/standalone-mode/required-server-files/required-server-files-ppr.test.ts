@@ -19,6 +19,7 @@ describe('required server files app router', () => {
   let appPort: number | string
   let delayedPostpone
   let rewritePostpone
+  let cliOutput = ''
 
   const setupNext = async ({
     nextEnv,
@@ -101,6 +102,12 @@ describe('required server files app router', () => {
       undefined,
       {
         cwd: next.testDir,
+        onStderr(data) {
+          cliOutput += data
+        },
+        onStdout(data) {
+          cliOutput += data
+        },
       }
     )
   }
@@ -117,6 +124,38 @@ describe('required server files app router', () => {
   it('should not fail caching', async () => {
     expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
   })
+
+  // this enables client segment cache in CI
+  if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+    it('should de-dupe client segment tree revalidate requests', async () => {
+      const { segmentPaths } = await next.readJSON(
+        'standalone/.next/server/app/isr/first.meta'
+      )
+      const outputIdx = cliOutput.length
+
+      for (const segmentPath of segmentPaths) {
+        const outputSegmentPath =
+          join('/isr/[slug].segments', segmentPath) + '.segment.rsc'
+
+        require('console').error('requesting', outputSegmentPath)
+
+        const res = await fetchViaHTTP(appPort, outputSegmentPath, undefined, {
+          headers: {
+            'x-matched-path': '/isr/[slug].segments/_tree.segment.rsc',
+            'x-now-route-matches': 'slug=first&1=first',
+          },
+        })
+
+        expect(res.status).toBe(200)
+        expect(res.headers.get('content-type')).toBe('text/x-component')
+      }
+
+      expect(
+        cliOutput.substring(outputIdx).match(/rendering \/isr\/\[slug\]/g)
+          .length
+      ).toBe(1)
+    })
+  }
 
   it('should properly stream resume with Next-Resume', async () => {
     const res = await fetchViaHTTP(appPort, '/delayed', undefined, {

@@ -93,8 +93,8 @@ impl ModuleReference for WebpackChunkAssetReference {
                     Lit::Num(num) => format!("{num}"),
                     _ => todo!(),
                 };
-                let filename = format!("./chunks/{chunk_id}.js").into();
-                let source = Vc::upcast(FileSource::new(context_path.join(filename)));
+                let filename = format!("./chunks/{chunk_id}.js");
+                let source = Vc::upcast(FileSource::new(context_path.join(&filename)?));
 
                 *ModuleResolveResult::module(ResolvedVc::upcast(
                     WebpackModuleAsset::new(source, *self.runtime, *self.transforms)
@@ -110,7 +110,7 @@ impl ModuleReference for WebpackChunkAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for WebpackChunkAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
+    fn to_string(&self) -> Vc<RcStr> {
         let chunk_id = match &self.chunk_id {
             Lit::Str(str) => str.value.to_string(),
             Lit::Num(num) => format!("{num}"),
@@ -160,12 +160,12 @@ impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
-        let options = self.origin.resolve_options(ty.clone());
+        let options = self.origin.resolve_options(ty.clone()).await?;
 
         let options = apply_cjs_specific_options(options);
 
         let resolved = resolve(
-            self.origin.origin_path().parent().resolve().await?,
+            self.origin.origin_path().await?.parent(),
             ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
             *self.request,
             options,

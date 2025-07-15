@@ -183,6 +183,8 @@ pub struct MetaFile {
     family: u32,
     /// The entries of the file.
     entries: Vec<MetaEntry>,
+    /// The entries that have been marked as obsolete.
+    obsolete_entries: Vec<u32>,
     /// The obsolete SST files.
     obsolete_sst_files: Vec<u32>,
     /// The memory mapped file.
@@ -247,6 +249,7 @@ impl MetaFile {
             sequence_number,
             family,
             entries,
+            obsolete_entries: Vec::new(),
             obsolete_sst_files,
             mmap,
         };
@@ -276,9 +279,19 @@ impl MetaFile {
 
     pub fn retain_entries(&mut self, mut predicate: impl FnMut(u32) -> bool) -> bool {
         let old_len = self.entries.len();
-        self.entries
-            .retain(|entry| predicate(entry.sst_data.sequence_number));
+        self.entries.retain(|entry| {
+            if predicate(entry.sst_data.sequence_number) {
+                true
+            } else {
+                self.obsolete_entries.push(entry.sst_data.sequence_number);
+                false
+            }
+        });
         old_len != self.entries.len()
+    }
+
+    pub fn obsolete_entries(&self) -> &[u32] {
+        &self.obsolete_entries
     }
 
     pub fn has_active_entries(&self) -> bool {

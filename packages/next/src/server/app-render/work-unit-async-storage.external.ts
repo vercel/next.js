@@ -109,6 +109,14 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
 
   readonly rootParams: Params
 
+  /**
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
+   */
+  readonly allowEmptyStaticShell: boolean
+
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   expire: number // server expiration time
@@ -116,9 +124,17 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
   tags: null | string[]
 
   /**
-   * The resume data cache for this prerender.
+   * A mutable resume data cache for this prerender.
    */
   prerenderResumeDataCache: PrerenderResumeDataCache | null
+
+  /**
+   * An immutable resume data cache for this prerender. This may be provided
+   * instead of the `prerenderResumeDataCache` if the prerender is not supposed
+   * to fill caches, and only read from prefilled caches, e.g. when prerendering
+   * an optional fallback shell.
+   */
+  renderResumeDataCache: RenderResumeDataCache | null
 
   /**
    * The HMR refresh hash is only provided in dev mode. It is needed for the dev
@@ -126,6 +142,11 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
    * subsequent dynamic render.
    */
   readonly hmrRefreshHash: string | undefined
+
+  /**
+   * Only available in dev mode.
+   */
+  readonly captureOwnerStack: undefined | (() => string | null)
 }
 
 export interface PrerenderStorePPR extends CommonWorkUnitStore {
@@ -243,8 +264,7 @@ export function getExpectedRequestStore(
       )
 
     default:
-      const _exhaustiveCheck: never = workUnitStore
-      return _exhaustiveCheck
+      return workUnitStore satisfies never
   }
 }
 
@@ -257,51 +277,73 @@ export function throwForMissingRequestStore(callingExpression: string): never {
 export function getPrerenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): PrerenderResumeDataCache | null {
-  if (
-    workUnitStore.type === 'prerender' ||
-    // TODO eliminate fetch caching in client scope and stop exposing this data cache during SSR
-    workUnitStore.type === 'prerender-client' ||
-    workUnitStore.type === 'prerender-ppr'
-  ) {
-    return workUnitStore.prerenderResumeDataCache
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-ppr':
+      return workUnitStore.prerenderResumeDataCache
+    case 'prerender-client':
+      // TODO eliminate fetch caching in client scope and stop exposing this data
+      // cache during SSR.
+      return workUnitStore.prerenderResumeDataCache
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
   }
-
-  return null
 }
 
 export function getRenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): RenderResumeDataCache | null {
-  if (
-    workUnitStore.type !== 'prerender-legacy' &&
-    workUnitStore.type !== 'cache' &&
-    workUnitStore.type !== 'unstable-cache'
-  ) {
-    if (workUnitStore.type === 'request') {
+  switch (workUnitStore.type) {
+    case 'request':
       return workUnitStore.renderResumeDataCache
-    }
-
-    // We return the mutable resume data cache here as an immutable version of
-    // the cache as it can also be used for reading.
-    return workUnitStore.prerenderResumeDataCache
+    case 'prerender':
+    case 'prerender-client':
+      if (workUnitStore.renderResumeDataCache) {
+        // If we are in a prerender, we might have a render resume data cache
+        // that is used to read from prefilled caches.
+        return workUnitStore.renderResumeDataCache
+      }
+    // fallthrough
+    case 'prerender-ppr':
+      // Otherwise we return the mutable resume data cache here as an immutable
+      // version of the cache as it can also be used for reading.
+      return workUnitStore.prerenderResumeDataCache
+    case 'cache':
+    case 'unstable-cache':
+    case 'prerender-legacy':
+      return null
+    default:
+      return workUnitStore satisfies never
   }
-
-  return null
 }
 
 export function getHmrRefreshHash(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): string | undefined {
-  if (!workStore.dev) {
-    return undefined
+  if (workStore.dev) {
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'prerender':
+        return workUnitStore.hmrRefreshHash
+      case 'request':
+        return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
 
-  return workUnitStore.type === 'cache' || workUnitStore.type === 'prerender'
-    ? workUnitStore.hmrRefreshHash
-    : workUnitStore.type === 'request'
-      ? workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
-      : undefined
+  return undefined
 }
 
 /**
@@ -317,10 +359,33 @@ export function getDraftModeProviderForCacheScope(
       case 'unstable-cache':
       case 'request':
         return workUnitStore.draftMode
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        break
       default:
-        return undefined
+        workUnitStore satisfies never
     }
   }
 
   return undefined
+}
+
+export function getCacheSignal(
+  workUnitStore: WorkUnitStore
+): CacheSignal | null {
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-client':
+      return workUnitStore.cacheSignal
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
 }

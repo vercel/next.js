@@ -20,7 +20,7 @@ use swc_core::{
             PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator, op,
         },
         atoms::Atom,
-        utils::{ExprCtx, ExprExt, find_pat_ids, private_ident, quote_ident},
+        utils::{ExprCtx, ExprExt, find_pat_ids, quote_ident},
     },
 };
 use turbo_rcstr::RcStr;
@@ -100,7 +100,7 @@ pub(crate) struct ItemData {
     /// Is the module item hoisted?
     pub is_hoisted: bool,
 
-    /// TOOD(PACK-3166): We can use this field to optimize tree shaking
+    /// TODO(PACK-3166): We can use this field to optimize tree shaking
     #[allow(unused)]
     pub pure: bool,
 
@@ -1007,8 +1007,14 @@ impl DepGraph {
                             DefaultDecl::TsInterfaceDecl(_) => unreachable!(),
                         };
 
+                        // Mirror what `EsmModuleItem::code_generation` does, these are live
+                        // bindings if the class/function has an identifier.
                         let default_var = id.unwrap_or_else(|| {
-                            private_ident!(magic_identifier::mangle("default export"))
+                            Ident::new(
+                                magic_identifier::mangle("default export").into(),
+                                DUMMY_SP,
+                                Default::default(),
+                            )
                         });
 
                         {
@@ -1073,8 +1079,13 @@ impl DepGraph {
                         exports.push((default_var.to_id(), "default".into()));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
-                        let default_var =
-                            private_ident!(magic_identifier::mangle("default export"));
+                        // Mirror what `EsmModuleItem::code_generation` does, these are live
+                        // bindings if the class/function has an identifier.
+                        let default_var = Ident::new(
+                            magic_identifier::mangle("default export").into(),
+                            DUMMY_SP,
+                            Default::default(),
+                        );
 
                         {
                             // For
@@ -1515,12 +1526,12 @@ impl DepGraph {
         has_path_connecting(&self.g.idx_graph, from, to, None)
     }
 
-    /// Workaround for implcit export issue of server actions.
+    /// Workaround for implicit export issue of server actions.
     ///
     /// Inline server actions require the generated `$$RSC_SERVER_0` to be **exported**.
     ///
     /// But tree shaking works by removing unused code, and the **export** of $$RSC_SERVER_0
-    /// is cleary not used from the external module as it does not exist at all
+    /// is clearly not used from the external module as it does not exist at all
     /// in the user code.
     ///
     /// So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is

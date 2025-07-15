@@ -37,27 +37,31 @@ interface CharacteristicsGermaneToCaching {
   isPageFile: boolean
   isNextDist: boolean
   hasModuleExports: boolean
-  fileExt: string
+  fileNameOrExt: string
 }
 
 const fileExtensionRegex = /\.([a-z]+)$/
 function getCacheCharacteristics(
   loaderOptions: NextBabelLoaderOptions,
   source: string,
-  filename: string
+  filename: string,
+  transformMode: 'default' | 'standalone'
 ): CharacteristicsGermaneToCaching {
   const { isServer, pagesDir } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const isNextDist = nextDistPath.test(filename)
   const hasModuleExports = source.indexOf('module.exports') !== -1
-  const fileExt = fileExtensionRegex.exec(filename)?.[1] || 'unknown'
+  const fileNameOrExt =
+    transformMode === 'default'
+      ? fileExtensionRegex.exec(filename)?.[1] || 'unknown'
+      : filename
 
   return {
     isServer,
     isPageFile,
     isNextDist,
     hasModuleExports,
-    fileExt,
+    fileNameOrExt,
   }
 }
 
@@ -436,7 +440,7 @@ async function getFreshConfig(
  * file attributes and Next.js compiler states: `CharacteristicsGermaneToCaching`.
  */
 function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
-  const { isServer, isPageFile, isNextDist, hasModuleExports, fileExt } =
+  const { isServer, isPageFile, isNextDist, hasModuleExports, fileNameOrExt } =
     cacheCharacteristics
 
   const flags =
@@ -446,7 +450,7 @@ function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
     (isNextDist ? 0b0100 : 0) |
     (hasModuleExports ? 0b1000 : 0)
 
-  return fileExt + flags
+  return fileNameOrExt + flags
 }
 
 type BabelConfig = any
@@ -472,7 +476,8 @@ export default async function getConfig(
   const cacheCharacteristics = getCacheCharacteristics(
     loaderOptions,
     source,
-    filename
+    filename,
+    loaderOptions.transformMode
   )
 
   if (loaderOptions.transformMode === 'default' && loaderOptions.configFile) {

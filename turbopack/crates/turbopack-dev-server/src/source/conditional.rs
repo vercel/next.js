@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Completion, ResolvedVc, State, Value, Vc};
+use turbo_tasks::{Completion, ResolvedVc, State, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -107,7 +107,7 @@ impl Introspectable for ConditionalContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<RcStr>> {
+    fn title(&self) -> Result<Vc<RcStr>> {
         if let Some(activator) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
         {
             Ok(activator.title())
@@ -117,7 +117,7 @@ impl Introspectable for ConditionalContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(Vc::cell(
             [
                 ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
@@ -149,7 +149,7 @@ impl GetContentSourceContent for ActivateOnGetContentSource {
     async fn get(
         self: ResolvedVc<Self>,
         path: RcStr,
-        data: Value<ContentSourceData>,
+        data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
         turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(self.await?.get_content.get(path, data))

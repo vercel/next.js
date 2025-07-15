@@ -25,7 +25,7 @@ mod tests;
 mod value_buf;
 
 pub use arc_slice::ArcSlice;
-pub use db::{MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
+pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
 pub use key::{KeyBase, QueryKey, StoreKey};
 pub use value_buf::ValueBuffer;
 pub use write_batch::WriteBatch;

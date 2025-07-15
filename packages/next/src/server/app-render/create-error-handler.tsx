@@ -7,8 +7,10 @@ import { isAbortError } from '../pipe-readable'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
+import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
+import { isReactLargeShellError } from './react-large-shell-error'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -40,6 +42,9 @@ export function getDigestForWellKnownError(error: unknown): string | undefined {
   // tell the user about this error, as it's not actionable.
   if (isDynamicServerError(error)) return error.digest
 
+  // If this is a prerender interrupted error, we don't need to log the error.
+  if (isPrerenderInterruptedError(error)) return error.digest
+
   return undefined
 }
 
@@ -60,6 +65,12 @@ export function createFlightReactServerErrorHandler(
 
     if (digest) {
       return digest
+    }
+
+    if (isReactLargeShellError(thrownValue)) {
+      // TODO: Aggregate
+      console.error(thrownValue)
+      return undefined
     }
 
     const err = getProperError(thrownValue) as DigestedError
@@ -112,6 +123,12 @@ export function createHTMLReactServerErrorHandler(
 
     if (digest) {
       return digest
+    }
+
+    if (isReactLargeShellError(thrownValue)) {
+      // TODO: Aggregate
+      console.error(thrownValue)
+      return undefined
     }
 
     const err = getProperError(thrownValue) as DigestedError
@@ -171,6 +188,12 @@ export function createHTMLErrorHandler(
   onHTMLRenderSSRError: (err: DigestedError, errorInfo?: ErrorInfo) => void
 ): SSRErrorHandler {
   return (thrownValue: unknown, errorInfo?: ErrorInfo) => {
+    if (isReactLargeShellError(thrownValue)) {
+      // TODO: Aggregate
+      console.error(thrownValue)
+      return undefined
+    }
+
     let isSSRError = true
 
     allCapturedErrors.push(thrownValue)

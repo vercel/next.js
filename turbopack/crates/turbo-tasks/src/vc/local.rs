@@ -4,7 +4,7 @@ use crate::{OperationVc, ResolvedVc, marker_trait::impl_auto_marker_trait};
 /// [`Vc`]. It may contain [`ResolvedVc`] or [`OperationVc`].
 ///
 /// This is referred to as "non-local", as a base [`Vc`] type may contain task-local references that
-/// are not valid after the contructing task finishes execution.
+/// are not valid after the constructing task finishes execution.
 ///
 /// [`Vc`] can be thought of as containing a lifetime (`Vc<'task, T>`), and a [`NonLocalValue`] can
 /// be thought of as `'static` or ["owned"][ToOwned]. We don't currently use literal lifetimes for

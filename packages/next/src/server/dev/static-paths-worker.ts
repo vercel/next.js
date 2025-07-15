@@ -75,7 +75,7 @@ export async function loadStaticPaths({
   buildId: string
   authInterrupts: boolean
   sriEnabled: boolean
-}): Promise<Partial<StaticPathsResult>> {
+}): Promise<StaticPathsResult> {
   // this needs to be initialized before loadComponents otherwise
   // "use cache" could be missing it's cache handlers
   await createIncrementalCache({

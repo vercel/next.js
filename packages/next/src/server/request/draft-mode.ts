@@ -13,12 +13,14 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
   postponeWithTracking,
+  trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 /**
  * In this version of Next.js `draftMode()` returns a Promise however you can still reference the properties of the underlying draftMode object
@@ -54,10 +56,7 @@ export function draftMode(): Promise<DraftMode> {
 
   switch (workUnitStore.type) {
     case 'request':
-      return createOrGetCachedExoticDraftMode(
-        workUnitStore.draftMode,
-        workStore
-      )
+      return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
 
     case 'cache':
     case 'unstable-cache':
@@ -70,7 +69,7 @@ export function draftMode(): Promise<DraftMode> {
       )
 
       if (draftModeProvider) {
-        return createOrGetCachedExoticDraftMode(draftModeProvider, workStore)
+        return createOrGetCachedDraftMode(draftModeProvider, workStore)
       }
 
     // Otherwise, we fall through to providing an empty draft mode.
@@ -80,27 +79,19 @@ export function draftMode(): Promise<DraftMode> {
     case 'prerender-ppr':
     case 'prerender-legacy':
       // Return empty draft mode
-      if (
-        process.env.NODE_ENV === 'development' &&
-        !workStore?.isPrefetchRequest
-      ) {
-        const route = workStore?.route
-        return createExoticDraftModeWithDevWarnings(null, route)
-      } else {
-        return createExoticDraftMode(null)
-      }
+      return createOrGetCachedDraftMode(null, workStore)
 
     default:
-      const _exhaustiveCheck: never = workUnitStore
-      return _exhaustiveCheck
+      return workUnitStore satisfies never
   }
 }
 
-function createOrGetCachedExoticDraftMode(
-  draftModeProvider: DraftModeProvider,
+function createOrGetCachedDraftMode(
+  draftModeProvider: DraftModeProvider | null,
   workStore: WorkStore | undefined
 ): Promise<DraftMode> {
-  const cachedDraftMode = CachedDraftModes.get(draftMode)
+  const cacheKey = draftModeProvider ?? NullDraftMode
+  const cachedDraftMode = CachedDraftModes.get(cacheKey)
 
   if (cachedDraftMode) {
     return cachedDraftMode
@@ -110,17 +101,27 @@ function createOrGetCachedExoticDraftMode(
 
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     const route = workStore?.route
+
+    if (process.env.__NEXT_DYNAMIC_IO) {
+      return createDraftModeWithDevWarnings(draftModeProvider, route)
+    }
+
     promise = createExoticDraftModeWithDevWarnings(draftModeProvider, route)
   } else {
+    if (process.env.__NEXT_DYNAMIC_IO) {
+      return Promise.resolve(new DraftMode(draftModeProvider))
+    }
+
     promise = createExoticDraftMode(draftModeProvider)
   }
 
-  CachedDraftModes.set(draftModeProvider, promise)
+  CachedDraftModes.set(cacheKey, promise)
 
   return promise
 }
 
 interface CacheLifetime {}
+const NullDraftMode = {}
 const CachedDraftModes = new WeakMap<CacheLifetime, Promise<DraftMode>>()
 
 function createExoticDraftMode(
@@ -178,6 +179,38 @@ function createExoticDraftModeWithDevWarnings(
   return promise
 }
 
+// Similar to `createExoticDraftModeWithDevWarnings`, but just logging the sync
+// access without actually defining the draftMode properties on the promise.
+function createDraftModeWithDevWarnings(
+  underlyingProvider: null | DraftModeProvider,
+  route: undefined | string
+): Promise<DraftMode> {
+  const instance = new DraftMode(underlyingProvider)
+  const promise = Promise.resolve(instance)
+
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      switch (prop) {
+        case 'isEnabled':
+          warnForSyncAccess(route, `\`draftMode().${prop}\``)
+          break
+        case 'enable':
+        case 'disable': {
+          warnForSyncAccess(route, `\`draftMode().${prop}()\``)
+          break
+        }
+        default: {
+          // We only warn for well-defined properties of the draftMode object.
+        }
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+  })
+
+  return proxiedPromise
+}
+
 class DraftMode {
   /**
    * @internal - this declaration is stripped via `tsc --stripInternal`
@@ -211,16 +244,28 @@ class DraftMode {
 
 function syncIODev(route: string | undefined, expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
-    // When we're rendering dynamically in dev we need to advance out of the
-    // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'request':
+        if (workUnitStore.prerenderPhase === true) {
+          // When we're rendering dynamically in dev, we need to advance out of
+          // the Prerender environment when we read Request data synchronously.
+          trackSynchronousRequestDataAccessInDev(workUnitStore)
+        }
+        break
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
+
   // In all cases we warn normally
   warnForSyncAccess(route, expression)
 }
@@ -247,20 +292,10 @@ function trackDynamicDraftMode(expression: string) {
   if (store) {
     // We have a store we want to track dynamic data access to ensure we
     // don't statically generate routes that manipulate draft mode.
-    if (workUnitStore) {
-      if (workUnitStore.type === 'cache') {
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-        )
-      } else if (workUnitStore.type === 'unstable-cache') {
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-        )
-      } else if (workUnitStore.phase === 'after') {
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
-        )
-      }
+    if (workUnitStore?.phase === 'after') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+      )
     }
 
     if (store.dynamicShouldError) {
@@ -271,33 +306,36 @@ function trackDynamicDraftMode(expression: string) {
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
+        case 'cache':
+          throw new Error(
+            `Route ${store.route} used "${expression}" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+          )
+        case 'unstable-cache':
+          throw new Error(
+            `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          )
         case 'prerender':
-          // dynamicIO Prerender
           const error = new Error(
             `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-headers`
           )
-          abortAndThrowOnSynchronousRequestDataAccess(
+          return abortAndThrowOnSynchronousRequestDataAccess(
             store.route,
             expression,
             error,
             workUnitStore
           )
-          break
         case 'prerender-client':
           const exportName = '`draftMode`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
         case 'prerender-ppr':
-          // PPR Prerender
-          postponeWithTracking(
+          return postponeWithTracking(
             store.route,
             expression,
             workUnitStore.dynamicTracking
           )
-          break
         case 'prerender-legacy':
-          // legacy Prerender
           workUnitStore.revalidate = 0
 
           const err = new DynamicServerError(
@@ -308,12 +346,10 @@ function trackDynamicDraftMode(expression: string) {
 
           throw err
         case 'request':
-          if (process.env.NODE_ENV === 'development') {
-            workUnitStore.usedDynamic = true
-          }
+          trackDynamicDataInDynamicRender(workUnitStore)
           break
         default:
-        // fallthrough
+          workUnitStore satisfies never
       }
     }
   }

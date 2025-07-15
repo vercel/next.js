@@ -10,6 +10,6 @@ declare const apis: {
     fluent: (code: any) => string;
     fluentFlat: (code: any) => string;
 };
-export declare type EmojiType = keyof typeof apis;
+export type EmojiType = keyof typeof apis;
 export declare function loadEmoji(code: string, type?: EmojiType): Promise<Response>;
 export {};

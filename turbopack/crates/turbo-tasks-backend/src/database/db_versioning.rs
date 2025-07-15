@@ -33,7 +33,7 @@ const DELETION_PREFIX: &str = "__stale_";
 /// Given a base path, creates a version directory for the given `version_info`. Automatically
 /// cleans up old/stale databases.
 ///
-/// **Envrionment Variables**
+/// **Environment Variables**
 /// - `TURBO_ENGINE_VERSION`: Forces use of a specific database version.
 /// - `TURBO_ENGINE_IGNORE_DIRTY`: Enable persistent caching in a dirty git repository. Otherwise a
 ///   temporary directory is created.
@@ -66,7 +66,7 @@ pub fn handle_db_versioning(
     } else {
         println!(
             "WARNING: The git repository is dirty: Persistent Caching is disabled. Use \
-             TURBO_ENGINE_IGNORE_DIRTY=1 to ignore dirtyness of the repository."
+             TURBO_ENGINE_IGNORE_DIRTY=1 to ignore dirtiness of the repository."
         );
         None
     };

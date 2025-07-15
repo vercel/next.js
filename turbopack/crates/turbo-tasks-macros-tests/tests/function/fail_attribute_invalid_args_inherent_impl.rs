@@ -18,7 +18,7 @@ impl ExampleStruct {
 }
 
 fn main() {
-    // the macro should be error-tolerent and this function should still be created
+    // the macro should be error-tolerant and this function should still be created
     // despite the earlier compilation error, so this line should not also error
     let _ = ExampleStruct.cell().return_contains_resolved_vc();
 }

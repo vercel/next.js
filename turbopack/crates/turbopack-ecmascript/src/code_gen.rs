@@ -12,30 +12,31 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::{
-    chunk::ChunkingContext, module_graph::ModuleGraph, reference::ModuleReference,
-};
+use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
-use crate::references::{
-    AstPath,
-    amd::AmdDefineWithDependenciesCodeGen,
-    cjs::{
-        CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
-        CjsRequireResolveAssetReferenceCodeGen,
+use crate::{
+    ScopeHoistingContext,
+    references::{
+        AstPath,
+        amd::AmdDefineWithDependenciesCodeGen,
+        cjs::{
+            CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
+            CjsRequireResolveAssetReferenceCodeGen,
+        },
+        constant_condition::ConstantConditionCodeGen,
+        constant_value::ConstantValueCodeGen,
+        dynamic_expression::DynamicExpression,
+        esm::{
+            EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
+            dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
+            url::UrlAssetReferenceCodeGen,
+        },
+        ident::IdentReplacement,
+        member::MemberReplacement,
+        require_context::RequireContextAssetReferenceCodeGen,
+        unreachable::Unreachable,
+        worker::WorkerAssetReferenceCodeGen,
     },
-    constant_condition::ConstantConditionCodeGen,
-    constant_value::ConstantValueCodeGen,
-    dynamic_expression::DynamicExpression,
-    esm::{
-        EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
-        dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
-        url::UrlAssetReferenceCodeGen,
-    },
-    ident::IdentReplacement,
-    member::MemberReplacement,
-    require_context::RequireContextAssetReferenceCodeGen,
-    unreachable::Unreachable,
-    worker::WorkerAssetReferenceCodeGen,
 };
 
 #[derive(Default)]
@@ -191,29 +192,29 @@ pub enum CodeGen {
 impl CodeGen {
     pub async fn code_generation(
         &self,
-        g: Vc<ModuleGraph>,
         ctx: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         match self {
-            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::CjsRequireCacheAccess(v) => v.code_generation(g, ctx).await,
-            Self::ConstantConditionCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::ConstantValueCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::DynamicExpression(v) => v.code_generation(g, ctx).await,
-            Self::EsmBinding(v) => v.code_generation(g, ctx).await,
-            Self::EsmModuleItem(v) => v.code_generation(g, ctx).await,
-            Self::IdentReplacement(v) => v.code_generation(g, ctx).await,
-            Self::ImportMetaBinding(v) => v.code_generation(g, ctx).await,
-            Self::ImportMetaRef(v) => v.code_generation(g, ctx).await,
-            Self::MemberReplacement(v) => v.code_generation(g, ctx).await,
-            Self::Unreachable(v) => v.code_generation(g, ctx).await,
-            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
+            Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
+            Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
+            Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
+            Self::DynamicExpression(v) => v.code_generation(ctx).await,
+            Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
+            Self::EsmModuleItem(v) => v.code_generation(ctx).await,
+            Self::IdentReplacement(v) => v.code_generation(ctx).await,
+            Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
+            Self::ImportMetaRef(v) => v.code_generation(ctx).await,
+            Self::MemberReplacement(v) => v.code_generation(ctx).await,
+            Self::Unreachable(v) => v.code_generation(ctx).await,
+            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
         }
     }
 }
@@ -259,15 +260,15 @@ pub fn path_to(
 /// possible visit methods.
 #[macro_export]
 macro_rules! create_visitor {
-    (exact $ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {
-        $crate::create_visitor!(__ $ast_path.to_vec(), $name($arg: &mut $ty) $b)
+    (exact, $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
+        $crate::create_visitor!(__ $ast_path.to_vec(), $name, |$arg: &mut $ty| $b)
     };
-    ($ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {
+    ($ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
         $crate::create_visitor!(__ $crate::code_gen::path_to(&$ast_path, |n| {
             matches!(n, swc_core::ecma::visit::AstParentKind::$ty(_))
-        }), $name($arg: &mut $ty) $b)
+        }), $name, |$arg: &mut $ty| $b)
     };
-    (__ $ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {{
+    (__ $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {{
         struct Visitor<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> {
             $name: T,
         }

@@ -2,6 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
+import {
+  NEXT_RSC_UNION_QUERY,
+  RSC_HEADER,
+} from 'next/dist/client/components/app-router-headers'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
@@ -306,18 +310,21 @@ describe('app dir - basic', () => {
   }
 
   it('should use text/x-component for flight', async () => {
-    const res = await next.fetch('/dashboard/deployments/123', {
-      headers: {
-        ['RSC'.toString()]: '1',
-      },
-    })
+    const res = await next.fetch(
+      `/dashboard/deployments/123?${NEXT_RSC_UNION_QUERY}`,
+      {
+        headers: {
+          [RSC_HEADER]: '1',
+        },
+      }
+    )
     expect(res.headers.get('Content-Type')).toBe('text/x-component')
   })
 
   it('should use text/x-component for flight with edge runtime', async () => {
-    const res = await next.fetch('/dashboard', {
+    const res = await next.fetch(`/dashboard?${NEXT_RSC_UNION_QUERY}`, {
       headers: {
-        ['RSC'.toString()]: '1',
+        [RSC_HEADER]: '1',
       },
     })
     expect(res.headers.get('Content-Type')).toBe('text/x-component')
@@ -332,9 +339,9 @@ describe('app dir - basic', () => {
   })
 
   it('should return the `vary` header from pages for flight requests', async () => {
-    const res = await next.fetch('/', {
+    const res = await next.fetch(`/?${NEXT_RSC_UNION_QUERY}`, {
       headers: {
-        ['RSC'.toString()]: '1',
+        [RSC_HEADER]: '1',
       },
     })
     expect(res.headers.get('vary')).toBe(
@@ -1814,40 +1821,24 @@ describe('app dir - basic', () => {
       expect($('body').find('script[async]').length).toBe(1)
     })
 
-    // Turbopack doesn't use eval by default, so we can check strict CSP.
-    if (!isNextDev || isTurbopack) {
-      // This test is here to ensure that we don't accidentally turn CSP off
-      // for the prod version.
-      it('should successfully bootstrap even when using CSP', async () => {
-        // This path has a nonce applied in middleware
-        const browser = await next.browser('/bootstrap/with-nonce')
-        const response = await next.fetch('/bootstrap/with-nonce')
-        // We expect this page to response with CSP headers requiring a nonce for scripts
-        expect(response.headers.get('content-security-policy')).toContain(
-          "script-src 'nonce"
-        )
-        // We expect to find the updated text which demonstrates our app
-        // was able to bootstrap successfully (scripts run)
-        expect(
-          await browser.eval('document.getElementById("val").textContent')
-        ).toBe('[[updated]]')
+    // This test is here to ensure that we don't accidentally turn CSP off
+    // for the prod version.
+    it('should successfully bootstrap even when using CSP', async () => {
+      // This path has a nonce applied in middleware
+      const browser = await next.browser('/bootstrap/with-nonce')
+      const response = await next.fetch('/bootstrap/with-nonce')
+      // We expect this page to response with CSP headers requiring a nonce for scripts
+      expect(response.headers.get('content-security-policy')).toEqual(
+        isNextDev
+          ? "script-src 'nonce-my-random-nonce' 'strict-dynamic' 'unsafe-eval';"
+          : "script-src 'nonce-my-random-nonce' 'strict-dynamic';"
+      )
+      // We expect to find the updated text which demonstrates our app
+      // was able to bootstrap successfully (scripts run)
+      await retry(async () => {
+        expect(await browser.elementByCss('#val').text()).toEqual('[[updated]]')
       })
-    } else {
-      it('should fail to bootstrap when using CSP in Dev due to eval', async () => {
-        const browser = await next.browser('/bootstrap/with-nonce')
-        // We expect our app to fail to bootstrap due to invalid eval use in Dev.
-        // We assert the html is in it's SSR'd state.
-        expect(
-          await browser.eval('document.getElementById("val").textContent')
-        ).toBe('initial')
-
-        const response = await next.fetch('/bootstrap/with-nonce')
-        // We expect this page to response with CSP headers requiring a nonce for scripts
-        expect(response.headers.get('content-security-policy')).toContain(
-          "script-src 'nonce"
-        )
-      })
-    }
+    })
   })
 
   // this one comes at the end to not change behavior from above

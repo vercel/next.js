@@ -8,8 +8,8 @@ describe('app dir - prefetching (custom staleTime)', () => {
     nextConfig: {
       experimental: {
         staleTimes: {
-          static: 30,
-          dynamic: 20,
+          static: 10,
+          dynamic: 5,
         },
       },
     },
@@ -86,7 +86,7 @@ describe('app dir - prefetching (custom staleTime)', () => {
       .waitForElementByCss('#to-static-page')
 
     // Wait for the stale time to pass.
-    await waitFor(30000)
+    await waitFor(10000)
     // Click on the link to the static page again
     await linkToStaticPage.click()
     // Wait for the static page to load again
@@ -130,5 +130,38 @@ describe('app dir - prefetching (custom staleTime)', () => {
     // reloading the page, we should now get an accurate total number of fetches
     // the initial fetch, 2 sub-page fetches, and a final fetch when reloading the page
     expect(await browser.elementById('count').text()).toBe('4')
+  })
+
+  it('should fetch again when the initially visited static page is visited after the stale time has passed', async () => {
+    const browser = await next.browser('/404')
+    let requests: string[] = []
+
+    browser.on('request', (req) => {
+      // only consider requests that have RSC header but not the prefetch header
+      if (req.headers()['rsc'] && !req.headers()['next-router-prefetch']) {
+        requests.push(new URL(req.url()).pathname)
+      }
+    })
+
+    await browser.eval('location.href = "/static-page-no-prefetch"')
+
+    await browser
+      .elementByCss('#to-home')
+      .click()
+      .waitForElementByCss('#to-static-page')
+
+    // Wait for the stale time to pass.
+    await waitFor(10000)
+
+    await browser.elementByCss('#to-static-page-no-prefetch').click()
+
+    // Wait for the static page to load again
+    await browser.waitForElementByCss('#static-page-no-prefetch')
+
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page-no-prefetch')
+      ).toHaveLength(1)
+    })
   })
 })

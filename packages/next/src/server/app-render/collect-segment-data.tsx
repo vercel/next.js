@@ -8,9 +8,9 @@ import type {
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream } from 'react-server-dom-webpack/client.edge'
+import { createFromReadableStream } from 'react-server-dom-webpack/client'
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
+import { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
 
 import {
   streamFromBuffer,
@@ -63,6 +63,12 @@ export type SegmentPrefetch = {
   loading: LoadingModuleData | Promise<LoadingModuleData>
   isPartial: boolean
 }
+
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
 
 function onSegmentPrerenderError(error: unknown) {
   const digest = getDigestForWellKnownError(error)
@@ -128,6 +134,7 @@ export async function collectSegmentData(
     />,
     clientModules,
     {
+      filterStackFrame,
       signal: abortController.signal,
       onError: onSegmentPrerenderError,
     }
@@ -349,6 +356,7 @@ async function renderSegmentPrefetch(
     segmentPrefetch,
     clientModules,
     {
+      filterStackFrame,
       signal: abortController.signal,
       onError: onSegmentPrerenderError,
     }
@@ -379,6 +387,7 @@ async function isPartialRSCData(
     abortController.abort()
   })
   await prerender(rsc, clientModules, {
+    filterStackFrame,
     signal: abortController.signal,
     onError() {},
     onPostpone() {

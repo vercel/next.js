@@ -1,7 +1,11 @@
 import * as R from 'ramda'
+import { pipe } from 'ramda'
 
-console.log((0, R.pipe)('a', 'b', 'c'))
-console.log(R.pipe('a', 'b', 'c'))
+it('should have the correct `this` context', () => {
+  expect((0, R.pipe)()).toBe(false)
+  expect(R.pipe()).toBe(true)
+  expect(pipe()).toBe(false)
+})
 
 it('should import only pipe.js', () => {
   const modules = Object.keys(__turbopack_modules__)

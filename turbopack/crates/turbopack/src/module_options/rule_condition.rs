@@ -15,11 +15,11 @@ pub enum RuleCondition {
     Not(Box<RuleCondition>),
     ReferenceType(ReferenceType),
     ResourceIsVirtualSource,
-    ResourcePathEquals(ReadRef<FileSystemPath>),
+    ResourcePathEquals(FileSystemPath),
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
     ResourcePathInDirectory(String),
-    ResourcePathInExactDirectory(ReadRef<FileSystemPath>),
+    ResourcePathInExactDirectory(FileSystemPath),
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
     ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
@@ -31,7 +31,7 @@ pub enum RuleCondition {
     /// any glob starting with `./` or `../` will only match paths in the
     /// project. Globs starting with `**` can match any path.
     ResourcePathGlob {
-        base: ReadRef<FileSystemPath>,
+        base: FileSystemPath,
         #[turbo_tasks(trace_ignore)]
         glob: ReadRef<Glob>,
     },
@@ -114,7 +114,7 @@ impl RuleCondition {
                         return Ok(ResolvedVc::try_downcast_type::<VirtualSource>(source).is_some());
                     }
                     RuleCondition::ResourcePathEquals(other) => {
-                        return Ok(path == &**other);
+                        return Ok(path == other);
                     }
                     RuleCondition::ResourcePathEndsWith(end) => {
                         return Ok(path.path.ends_with(end));
@@ -223,7 +223,6 @@ impl RuleCondition {
 
 #[cfg(test)]
 pub mod tests {
-    use turbo_rcstr::rcstr;
     use turbo_tasks::Vc;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem};
@@ -246,28 +245,25 @@ pub mod tests {
     #[turbo_tasks::function]
     pub async fn run_leaves_test() -> Result<()> {
         let fs = VirtualFileSystem::new();
-        let virtual_path = fs.root().join(rcstr!("foo.js"));
+        let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
-            virtual_path,
+            virtual_path.clone(),
             AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
         ))
         .to_resolved()
         .await?;
 
-        let non_virtual_path = fs.root().join(rcstr!("bar.js"));
-        let non_virtual_source = Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path))
-            .to_resolved()
-            .await?;
+        let non_virtual_path = fs.root().await?.join("bar.js")?;
+        let non_virtual_source =
+            Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path.clone()))
+                .to_resolved()
+                .await?;
 
         {
             let condition = RuleCondition::ReferenceType(ReferenceType::Runtime);
             assert!(
                 condition
-                    .matches(
-                        virtual_source,
-                        &*virtual_path.await?,
-                        &ReferenceType::Runtime
-                    )
+                    .matches(virtual_source, &virtual_path, &ReferenceType::Runtime)
                     .await
                     .unwrap()
             );
@@ -275,7 +271,7 @@ pub mod tests {
                 !condition
                     .matches(
                         non_virtual_source,
-                        &*non_virtual_path.await?,
+                        &non_virtual_path,
                         &ReferenceType::Css(
                             turbopack_core::reference_type::CssReferenceSubType::Compose
                         )
@@ -289,11 +285,7 @@ pub mod tests {
             let condition = RuleCondition::ResourceIsVirtualSource;
             assert!(
                 condition
-                    .matches(
-                        virtual_source,
-                        &*virtual_path.await?,
-                        &ReferenceType::Undefined
-                    )
+                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
                     .await
                     .unwrap()
             );
@@ -301,7 +293,7 @@ pub mod tests {
                 !condition
                     .matches(
                         non_virtual_source,
-                        &*non_virtual_path.await?,
+                        &non_virtual_path,
                         &ReferenceType::Undefined
                     )
                     .await
@@ -309,14 +301,10 @@ pub mod tests {
             );
         }
         {
-            let condition = RuleCondition::ResourcePathEquals(virtual_path.await?);
+            let condition = RuleCondition::ResourcePathEquals(virtual_path.clone());
             assert!(
                 condition
-                    .matches(
-                        virtual_source,
-                        &*virtual_path.await?,
-                        &ReferenceType::Undefined
-                    )
+                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
                     .await
                     .unwrap()
             );
@@ -324,7 +312,7 @@ pub mod tests {
                 !condition
                     .matches(
                         non_virtual_source,
-                        &*non_virtual_path.await?,
+                        &non_virtual_path,
                         &ReferenceType::Undefined
                     )
                     .await
@@ -337,7 +325,7 @@ pub mod tests {
                 condition
                     .matches(
                         virtual_source,
-                        &*fs.root().join(rcstr!("foo")).await?,
+                        &fs.root().await?.join("foo")?,
                         &ReferenceType::Undefined
                     )
                     .await
@@ -347,7 +335,7 @@ pub mod tests {
                 !condition
                     .matches(
                         non_virtual_source,
-                        &*non_virtual_path.await?,
+                        &non_virtual_path,
                         &ReferenceType::Undefined
                     )
                     .await
@@ -358,11 +346,7 @@ pub mod tests {
             let condition = RuleCondition::ResourcePathEndsWith("foo.js".to_string());
             assert!(
                 condition
-                    .matches(
-                        virtual_source,
-                        &*virtual_path.await?,
-                        &ReferenceType::Undefined
-                    )
+                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
                     .await
                     .unwrap()
             );
@@ -370,7 +354,7 @@ pub mod tests {
                 !condition
                     .matches(
                         non_virtual_source,
-                        &*non_virtual_path.await?,
+                        &non_virtual_path,
                         &ReferenceType::Undefined
                     )
                     .await
@@ -395,29 +379,26 @@ pub mod tests {
     #[turbo_tasks::function]
     pub async fn run_rule_condition_tree_test() -> Result<()> {
         let fs = VirtualFileSystem::new();
-        let virtual_path = fs.root().join(rcstr!("foo.js"));
+        let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
-            virtual_path,
+            virtual_path.clone(),
             AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
         ))
         .to_resolved()
         .await?;
 
-        let non_virtual_path = fs.root().join(rcstr!("bar.js"));
-        let non_virtual_source = Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path))
-            .to_resolved()
-            .await?;
+        let non_virtual_path = fs.root().await?.join("bar.js")?;
+        let non_virtual_source =
+            Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path.clone()))
+                .to_resolved()
+                .await?;
 
         {
             // not
             let condition = RuleCondition::not(RuleCondition::ResourceIsVirtualSource);
             assert!(
                 !condition
-                    .matches(
-                        virtual_source,
-                        &*virtual_path.await?,
-                        &ReferenceType::Undefined
-                    )
+                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
                     .await
                     .unwrap()
             );
@@ -425,7 +406,7 @@ pub mod tests {
                 condition
                     .matches(
                         non_virtual_source,
-                        &*non_virtual_path.await?,
+                        &non_virtual_path,
                         &ReferenceType::Undefined
                     )
                     .await
@@ -442,11 +423,7 @@ pub mod tests {
             ]);
             assert!(
                 condition
-                    .matches(
-                        virtual_source,
-                        &*virtual_path.await?,
-                        &ReferenceType::Undefined
-                    )
+                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
                     .await
                     .unwrap()
             );
@@ -454,7 +431,7 @@ pub mod tests {
                 !condition
                     .matches(
                         non_virtual_source,
-                        &*non_virtual_path.await?,
+                        &non_virtual_path,
                         &ReferenceType::Undefined
                     )
                     .await
@@ -467,15 +444,11 @@ pub mod tests {
             let condition = RuleCondition::all(vec![
                 RuleCondition::ResourcePathEndsWith("foo.js".to_string()),
                 RuleCondition::ResourceIsVirtualSource,
-                RuleCondition::ResourcePathEquals(virtual_path.await?),
+                RuleCondition::ResourcePathEquals(virtual_path.clone()),
             ]);
             assert!(
                 condition
-                    .matches(
-                        virtual_source,
-                        &*virtual_path.await?,
-                        &ReferenceType::Undefined
-                    )
+                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
                     .await
                     .unwrap()
             );
@@ -483,7 +456,7 @@ pub mod tests {
                 !condition
                     .matches(
                         non_virtual_source,
-                        &*non_virtual_path.await?,
+                        &non_virtual_path,
                         &ReferenceType::Undefined
                     )
                     .await
@@ -496,7 +469,7 @@ pub mod tests {
             // Build a simple tree to cover our various composite conditions
             let condition = RuleCondition::all(vec![
                 RuleCondition::ResourceIsVirtualSource,
-                RuleCondition::ResourcePathEquals(virtual_path.await?),
+                RuleCondition::ResourcePathEquals(virtual_path.clone()),
                 RuleCondition::Not(Box::new(RuleCondition::ResourcePathHasNoExtension)),
                 RuleCondition::Any(vec![
                     RuleCondition::ResourcePathEndsWith("foo.js".to_string()),
@@ -505,11 +478,7 @@ pub mod tests {
             ]);
             assert!(
                 condition
-                    .matches(
-                        virtual_source,
-                        &*virtual_path.await?,
-                        &ReferenceType::Undefined
-                    )
+                    .matches(virtual_source, &virtual_path, &ReferenceType::Undefined)
                     .await
                     .unwrap()
             );
@@ -517,7 +486,7 @@ pub mod tests {
                 !condition
                     .matches(
                         non_virtual_source,
-                        &*non_virtual_path.await?,
+                        &non_virtual_path,
                         &ReferenceType::Undefined
                     )
                     .await
