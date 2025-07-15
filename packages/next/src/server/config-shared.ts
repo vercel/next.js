@@ -742,11 +742,6 @@ export interface ExperimentalConfig {
   devtoolSegmentExplorer?: boolean
 
   /**
-   * Enable new panel UI for the Next.js DevTools.
-   */
-  devtoolNewPanelUI?: boolean
-
-  /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr
    */
   browserDebugInfoInTerminal?:
@@ -1496,8 +1491,7 @@ export const defaultConfig = Object.freeze({
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
-    devtoolSegmentExplorer: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
+    devtoolSegmentExplorer: false,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
   },

@@ -119,8 +119,6 @@ export function getDefineEnv({
   const isDynamicIOEnabled = !!config.experimental.dynamicIO
   const isUseCacheEnabled = !!config.experimental.useCache
 
-  const isDevToolPanelUIEnabled = Boolean(config.experimental.devtoolNewPanelUI)
-
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: true,
@@ -317,9 +315,7 @@ export function getDefineEnv({
         }
       : {}),
     'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
-      // Enable segment explorer in devtools
-      isDevToolPanelUIEnabled || !!config.experimental.devtoolSegmentExplorer,
-    'process.env.__NEXT_DEVTOOL_NEW_PANEL_UI': isDevToolPanelUIEnabled,
+      !!config.experimental.devtoolSegmentExplorer,
 
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
       config.experimental.browserDebugInfoInTerminal || false
