@@ -1534,6 +1534,16 @@ function writeDynamicRenderResponseIntoCache(
     // TODO: We should cache this, too, so that the MPA navigation is immediate.
     return null
   }
+
+  const staleTimeHeaderSeconds = response.headers.get(
+    NEXT_ROUTER_STALE_TIME_HEADER
+  )
+  const staleTimeMs =
+    staleTimeHeaderSeconds !== null
+      ? parseInt(staleTimeHeaderSeconds, 10) * 1000
+      : STATIC_STALETIME_MS
+  const staleAt = now + staleTimeMs
+
   for (const flightData of flightDatas) {
     const seedData = flightData.seedData
     if (seedData !== null) {
@@ -1555,23 +1565,35 @@ function writeDynamicRenderResponseIntoCache(
           encodeSegment(segment)
         )
       }
-      const staleTimeHeaderSeconds = response.headers.get(
-        NEXT_ROUTER_STALE_TIME_HEADER
-      )
-      const staleTimeMs =
-        staleTimeHeaderSeconds !== null
-          ? parseInt(staleTimeHeaderSeconds, 10) * 1000
-          : STATIC_STALETIME_MS
+
       writeSeedDataIntoCache(
         now,
         task,
         route,
-        now + staleTimeMs,
+        staleAt,
         seedData,
         isResponsePartial,
         segmentKey,
         spawnedEntries
       )
+    }
+
+    // During a dynamic request, the server sends back new head data for the
+    // page. Overwrite the existing head with the new one. Note that we're
+    // intentionally not taking into account whether the existing head is
+    // already complete, even though the incoming head might not have finished
+    // streaming in yet. This is to prioritize consistency of the head with
+    // the segment data (though it's still not a guarantee, since some of the
+    // segment data may be reused from a previous request).
+    route.head = flightData.head
+    route.isHeadPartial = flightData.isHeadPartial
+    // TODO: Currently the stale time of the route tree represents the
+    // stale time of both the route tree *and* all the segment data. So we
+    // can't just overwrite this field; we have to use whichever value is
+    // lower. In the future, though, the plan is to track segment lifetimes
+    // separately from the route tree lifetime.
+    if (staleAt < route.staleAt) {
+      route.staleAt = staleAt
     }
   }
   // Any entry that's still pending was intentionally not rendered by the
