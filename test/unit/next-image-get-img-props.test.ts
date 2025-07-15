@@ -121,7 +121,7 @@ describe('getImageProps()', () => {
       quality: 50,
     })
     expect(warningMessages).toStrictEqual([
-      'Image with src "/test.png" is using quality "50" which is not configured in images.qualities. This config will be required starting in Next.js 16.\nRead more: https://nextjs.org/docs/messages/image-config-qualities',
+      'Image with src "/test.png" is using quality "50" which is not configured in images.qualities. This config will be required starting in Next.js 16.\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities',
     ])
     expect(Object.entries(props)).toStrictEqual([
       ['alt', 'a nice desc'],

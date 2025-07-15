@@ -862,7 +862,7 @@ export default function Image({
       if (qualityInt && qualityInt !== 75 && !config.qualities) {
         warnOnce(
           `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities. This config will be required starting in Next.js 16.` +
-            `\nRead more: https://nextjs.org/docs/messages/image-config-qualities`
+            `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
         )
       }
 
