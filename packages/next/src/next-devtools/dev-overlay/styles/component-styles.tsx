@@ -25,6 +25,7 @@ import { CALL_STACK_STYLES } from '../components/call-stack/call-stack'
 import { ISSUE_FEEDBACK_BUTTON_STYLES } from '../components/errors/error-overlay-toolbar/issue-feedback-button'
 import { ERROR_CONTENT_SKELETON_STYLES } from '../container/runtime-error/error-content-skeleton'
 import { SHORTCUT_RECORDER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/shortcut-recorder'
+
 export function ComponentStyles() {
   return (
     <style>
