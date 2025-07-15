@@ -1,11 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { DevToolsIndicator } from './dev-tools-indicator'
+import { DevOverlayStoryWrapper } from '../../../storybook/DevOverlayStoryWrapper'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
-import type { OverlayState } from '../../../shared'
+import {
+  getStoredPanelPosition,
+  STORE_KEY_SHARED_PANEL_LOCATION,
+  type OverlayState,
+} from '../../../shared'
 
-const meta: Meta<typeof DevToolsIndicator> = {
-  component: DevToolsIndicator,
+const meta: Meta<typeof DevOverlayStoryWrapper> = {
+  component: DevOverlayStoryWrapper,
   parameters: {
     layout: 'centered',
   },
@@ -36,7 +40,7 @@ const meta: Meta<typeof DevToolsIndicator> = {
 }
 
 export default meta
-type Story = StoryObj<typeof DevToolsIndicator>
+type Story = StoryObj<typeof DevOverlayStoryWrapper>
 
 // Mock version info for stories
 const mockVersionInfo: VersionInfo = {
@@ -46,6 +50,9 @@ const mockVersionInfo: VersionInfo = {
 
 const state: OverlayState = {
   routerType: 'app',
+  devToolsPanelPosition: {
+    [STORE_KEY_SHARED_PANEL_LOCATION]: getStoredPanelPosition(),
+  },
   nextId: 1,
   buildError: null,
   errors: [],
@@ -59,8 +66,6 @@ const state: OverlayState = {
   staticIndicator: true,
   debugInfo: { devtoolsFrontendUrl: undefined },
   isErrorOverlayOpen: false,
-  // TODO: This will be handled on the next stack——with proper story.
-  isDevToolsPanelOpen: false,
   showRestartServerButton: false,
   devToolsPosition: 'bottom-left',
   scale: 1,
@@ -68,36 +73,31 @@ const state: OverlayState = {
 }
 
 export const StaticRoute: Story = {
-  args: {
-    errorCount: 0,
-    state,
-    dispatch: () => {},
-  },
+  render: () => (
+    <DevOverlayStoryWrapper initialState={state} runtimeErrors={[]} />
+  ),
 }
 
 export const DynamicRoute: Story = {
-  args: {
-    errorCount: 0,
-    state: {
-      ...state,
-      staticIndicator: false,
-    },
-    dispatch: () => {},
-  },
+  render: () => (
+    <DevOverlayStoryWrapper
+      initialState={{ ...state, staticIndicator: false }}
+      runtimeErrors={[]}
+    />
+  ),
 }
 
 export const SingleError: Story = {
-  args: {
-    errorCount: 1,
-    state,
-    dispatch: () => {},
-  },
+  render: () => (
+    <DevOverlayStoryWrapper initialState={state} runtimeErrors={[{} as any]} />
+  ),
 }
 
 export const MultipleErrors: Story = {
-  args: {
-    errorCount: 3,
-    state,
-    dispatch: () => {},
-  },
+  render: () => (
+    <DevOverlayStoryWrapper
+      initialState={state}
+      runtimeErrors={[{}, {}, {}] as any}
+    />
+  ),
 }

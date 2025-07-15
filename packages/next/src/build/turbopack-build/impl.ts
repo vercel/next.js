@@ -180,6 +180,7 @@ export async function turbopackBuild(): Promise<{
       manifestLoader.loadPagesManifest('_app'),
       manifestLoader.loadFontManifest('_app'),
       manifestLoader.loadPagesManifest('_document'),
+      manifestLoader.loadClientBuildManifest('_error'),
       manifestLoader.loadBuildManifest('_error'),
       manifestLoader.loadPagesManifest('_error'),
       manifestLoader.loadFontManifest('_error'),

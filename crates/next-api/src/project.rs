@@ -961,18 +961,6 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_graph_for_entries(
-        self: Vc<Self>,
-        entries: Vc<GraphEntries>,
-    ) -> Result<Vc<ModuleGraph>> {
-        Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_modules(entries, self.next_mode().await?.is_production())
-        } else {
-            *self.whole_app_module_graphs().await?.full
-        })
-    }
-
-    #[turbo_tasks::function]
     pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);

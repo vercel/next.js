@@ -105,7 +105,6 @@ async function createComponentTreeInternal({
     workStore,
     componentMod: {
       SegmentViewNode,
-      SegmentViewStateNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -294,15 +293,21 @@ async function createComponentTreeInternal({
     const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore) {
-      if (
-        workUnitStore.type === 'prerender' ||
-        workUnitStore.type === 'prerender-legacy' ||
-        workUnitStore.type === 'prerender-ppr' ||
-        workUnitStore.type === 'cache'
-      ) {
-        if (workUnitStore.revalidate > defaultRevalidate) {
-          workUnitStore.revalidate = defaultRevalidate
-        }
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-legacy':
+        case 'prerender-ppr':
+        case 'cache':
+          if (workUnitStore.revalidate > defaultRevalidate) {
+            workUnitStore.revalidate = defaultRevalidate
+          }
+          break
+        case 'prerender-client':
+        case 'request':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
       }
     }
 
@@ -800,7 +805,6 @@ async function createComponentTreeInternal({
         pageElement
       )
 
-    const pagePrefix = ctx.renderOpts.page.replace(/\/page$/, '')
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
@@ -810,7 +814,6 @@ async function createComponentTreeInternal({
           <MetadataOutlet ready={getViewportReady} />
           {metadataOutlet}
         </OutletBoundary>
-        <SegmentViewStateNode page={pagePrefix} />
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,

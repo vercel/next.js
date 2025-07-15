@@ -703,8 +703,8 @@ export class NextInstance {
     const [browser, response] = await Promise.all([
       webdriver(this.url, url, {
         ...options,
-        beforePageLoad(page: Page) {
-          options.beforePageLoad?.(page)
+        async beforePageLoad(page: Page) {
+          await options.beforePageLoad?.(page)
 
           page.on('response', async (response) => {
             if (response.url() === absoluteUrl) {

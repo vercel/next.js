@@ -962,6 +962,12 @@ export async function openDevToolsIndicatorPopover(
   }
 }
 
+export async function getSegmentExplorerRoute(browser: Playwright) {
+  return await browser
+    .elementByCss('.segment-explorer-page-route-bar-path')
+    .text()
+}
+
 export async function getSegmentExplorerContent(browser: Playwright) {
   // open the devtool button
   await openDevToolsIndicatorPopover(browser)
@@ -1275,6 +1281,35 @@ export function getPageFileFromPagesManifest(dir: string, page: string) {
 export function readNextBuildServerPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
   return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+}
+
+export function getClientBuildManifest(dir: string) {
+  let buildId = readFileSync(path.join(dir, '.next/BUILD_ID'), 'utf8')
+  let code = readFileSync(
+    path.join(dir, '.next/static', buildId, '_buildManifest.js'),
+    'utf8'
+  )
+  // eslint-disable-next-line no-eval
+  let manifest = (0, eval)(`var self = global;${code};self.__BUILD_MANIFEST`)
+  return manifest
+}
+
+export function getClientBuildManifestLoaderChunkUrlPath(
+  dir: string,
+  page: string
+) {
+  let manifest = getClientBuildManifest(dir)
+  let chunk: string[] | undefined = manifest[page]
+  if (chunk == null) {
+    throw new Error(`Couldn't find page "${page}" in _buildManifest.js`)
+  }
+  if (chunk.length !== 1) {
+    throw new Error(
+      `Expected a single chunk, but found ${chunk.length} for "${page}" in _buildManifest.js`
+    )
+  }
+  // Remove leading './' so that this can be used in a `url.contains(chunk)` check.
+  return encodeURI(chunk[0].replace(/^\.\//, ''))
 }
 
 function runSuite(

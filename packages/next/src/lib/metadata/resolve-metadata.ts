@@ -269,6 +269,7 @@ async function mergeMetadata(
         break
       }
       // directly assign fields that fallback to null
+      case 'abstract':
       case 'applicationName':
       case 'description':
       case 'generator':
@@ -290,18 +291,29 @@ async function mergeMetadata(
         target.metadataBase = metadataBase
         break
 
-      default: {
-        if (
-          (key === 'viewport' ||
-            key === 'themeColor' ||
-            key === 'colorScheme') &&
-          source[key] != null
-        ) {
+      case 'apple-touch-fullscreen': {
+        buildState.warnings.add(
+          `Use appleWebApp instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
+        )
+        break
+      }
+      case 'apple-touch-icon-precomposed': {
+        buildState.warnings.add(
+          `Use icons.apple instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
+        )
+        break
+      }
+      case 'themeColor':
+      case 'colorScheme':
+      case 'viewport':
+        if (source[key] != null) {
           buildState.warnings.add(
             `Unsupported metadata ${key} is configured in metadata export in ${route}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
           )
         }
         break
+      default: {
+        key satisfies never
       }
     }
   }
@@ -335,11 +347,20 @@ function mergeViewport({
       case 'colorScheme':
         target.colorScheme = source.colorScheme || null
         break
-      default:
+      case 'width':
+      case 'height':
+      case 'initialScale':
+      case 'minimumScale':
+      case 'maximumScale':
+      case 'userScalable':
+      case 'viewportFit':
+      case 'interactiveWidget':
         // always override the target with the source
         // @ts-ignore viewport properties
         target[key] = source[key]
         break
+      default:
+        key satisfies never
     }
   }
 }

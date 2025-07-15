@@ -16,6 +16,7 @@ const meta: Meta<typeof Errors> = {
 export default meta
 type Story = StoryObj<typeof Errors>
 
+// todo: update the stories to be wrapped in context providers necessary, instead of passing props directly, before they expected props
 export const Default: Story = {
   args: {
     getSquashedHydrationErrorDetails: () => null,

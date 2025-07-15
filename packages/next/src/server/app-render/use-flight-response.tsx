@@ -51,17 +51,27 @@ export function useFlightStream<T>(
   // that requires the nextTick behavior. This is why it is safe to access a node only API here
   if (process.env.NEXT_RUNTIME !== 'edge') {
     const workUnitStore = workUnitAsyncStorage.getStore()
+
     if (!workUnitStore) {
       throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
     }
-    if (workUnitStore.type === 'prerender-client') {
-      const responseOnNextTick = new Promise<T>((r) => {
-        process.nextTick(() => {
-          r(newResponse)
+
+    switch (workUnitStore.type) {
+      case 'prerender-client':
+        const responseOnNextTick = new Promise<T>((resolve) => {
+          process.nextTick(() => resolve(newResponse))
         })
-      })
-      flightResponses.set(flightStream, responseOnNextTick)
-      return responseOnNextTick
+        flightResponses.set(flightStream, responseOnNextTick)
+        return responseOnNextTick
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'request':
+      case 'cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 

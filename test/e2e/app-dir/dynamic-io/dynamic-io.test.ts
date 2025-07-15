@@ -1,5 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
+import cheerio from 'cheerio'
 
 describe('dynamic-io', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -328,6 +329,48 @@ describe('dynamic-io', () => {
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page-slot').text()).toBe('at runtime')
       expect($('#page-children').text()).toBe('at buildtime')
+    }
+  })
+
+  it('should not resume when client components are dynamic but the RSC render was static', async () => {
+    let html = await next.render('/cases/static-rsc-dynamic-client', {})
+    const $ = cheerio.load(html)
+
+    // Confirm the HTML document was sent completely
+    expect(html).toContain('</body></html>')
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+      // In dev we SSR the time
+      expect($('#time').length).toBe(1)
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
+      // Confirm the time span is not part of the completed HTML document
+      expect($('#time').length).toBe(0)
+    }
+
+    const browser = await next.browser('/cases/static-rsc-dynamic-client')
+
+    const now = new Date()
+
+    if (isNextDev) {
+      expect(await browser.elementById('layout').text()).toBe('at runtime')
+      expect(await browser.elementById('page').text()).toBe('at runtime')
+      // Assert that we rendered a time within the last couple seconds.
+      const inPageDate = new Date(
+        await browser.waitForElementByCss('#time').text()
+      )
+      expect(inPageDate.getTime() - now.getTime()).toBeLessThan(2000)
+    } else {
+      expect(await browser.elementById('layout').text()).toBe('at buildtime')
+      expect(await browser.elementById('page').text()).toBe('at buildtime')
+      // Assert that we rendered a time within the last 2 seconds.
+      const inPageDate = new Date(
+        await browser.waitForElementByCss('#time').text()
+      )
+      expect(inPageDate.getTime() - now.getTime()).toBeLessThan(2000)
     }
   })
 })

@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getSegmentExplorerContent, retry } from 'next-test-utils'
+import {
+  getSegmentExplorerContent,
+  getSegmentExplorerRoute,
+  retry,
+} from 'next-test-utils'
 
 describe('segment-explorer', () => {
   const { next } = nextTestSetup({
@@ -14,6 +18,7 @@ describe('segment-explorer', () => {
      @bar/ [layout.tsx, page.tsx]
      @foo/ [layout.tsx, page.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe('/parallel-routes')
   })
 
   it('should render the segment explorer for parallel routes in edge runtime', async () => {
@@ -24,6 +29,7 @@ describe('segment-explorer', () => {
      @bar/ [layout.tsx, page.tsx]
      @foo/ [layout.tsx, page.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe('/parallel-routes-edge')
   })
 
   it('should render the segment explorer for nested routes', async () => {
@@ -35,6 +41,7 @@ describe('segment-explorer', () => {
      ~ / (overview)/ [layout.tsx]
      grid/ [page.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe('/blog/~/grid')
   })
 
   it('should cleanup on soft navigation', async () => {
@@ -43,6 +50,7 @@ describe('segment-explorer', () => {
      "app/ [layout.tsx]
      soft-navigation / a/ [page.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe('/soft-navigation/a')
 
     await browser.elementByCss('[href="/soft-navigation/b"]').click()
     await retry(async () => {
@@ -53,6 +61,7 @@ describe('segment-explorer', () => {
      "app/ [layout.tsx]
      soft-navigation / b/ [page.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe('/soft-navigation/b')
   })
 
   it('should handle show file segments in order', async () => {
@@ -61,6 +70,7 @@ describe('segment-explorer', () => {
      "app/ [layout.tsx]
      (all) / file-segments/ [layout.tsx, template.tsx, page.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe('/file-segments')
   })
 
   it('should indicate segment explorer is not available for pages router', async () => {
@@ -73,6 +83,7 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(
       `"app/ [layout.tsx, not-found.js]"`
     )
+    expect(await getSegmentExplorerRoute(browser)).toBe('/404')
   })
 
   it('should show global-error segment', async () => {
@@ -80,6 +91,8 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(
       `"app/ [global-error.js]"`
     )
+    // FIXME: handle preserve the url when hitting global-error
+    expect(await getSegmentExplorerRoute(browser)).toBe('')
   })
 
   it('should show navigation boundaries of the segment', async () => {
@@ -88,6 +101,9 @@ describe('segment-explorer', () => {
      "app/ [layout.tsx]
      boundary/ [layout.tsx, not-found.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe(
+      '/boundary?name=not-found'
+    )
 
     await browser.loadPage(`${next.url}/boundary?name=forbidden`)
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
@@ -116,6 +132,7 @@ describe('segment-explorer', () => {
      "app/ [layout.tsx]
      search/ [layout.tsx, loading.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe('/search?q=abc')
   })
 
   it('should show the custom error boundary when present', async () => {
@@ -124,6 +141,9 @@ describe('segment-explorer', () => {
      "app/ [layout.tsx]
      runtime-error / boundary/ [error.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe(
+      '/runtime-error/boundary'
+    )
   })
 
   it('should display parallel routes default page when present', async () => {
@@ -135,6 +155,9 @@ describe('segment-explorer', () => {
      subroute/ [page.tsx]
      @foo/ [default.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe(
+      '/parallel-default/subroute'
+    )
   })
 
   it('should display boundary selector when a segment has only boundary files', async () => {
@@ -145,5 +168,16 @@ describe('segment-explorer', () => {
      framework/ [layout.tsx]
      blog/ [layout.tsx, page.tsx]"
     `)
+    expect(await getSegmentExplorerRoute(browser)).toBe(
+      '/no-layout/framework/blog'
+    )
+  })
+
+  it('should render route for index page', async () => {
+    const browser = await next.browser('/')
+    expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(
+      `"app/ [layout.tsx, page.tsx]"`
+    )
+    expect(await getSegmentExplorerRoute(browser)).toBe('/')
   })
 })

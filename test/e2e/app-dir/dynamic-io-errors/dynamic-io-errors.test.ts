@@ -237,13 +237,13 @@ describe('Dynamic IO Errors', () => {
                    at ScrollAndFocusHandler (webpack://<next-src>)
                    at RenderFromTemplateContext (webpack://<next-src>)
                    at OuterLayoutRouter (webpack://<next-src>)
-                 332 |  */
-                 333 | function InnerLayoutRouter({
-               > 334 |   tree,
+                 333 |  */
+                 334 | function InnerLayoutRouter({
+               > 335 |   tree,
                      |  ^
-                 335 |   segmentPath,
-                 336 |   cacheNode,
-                 337 |   url,
+                 336 |   segmentPath,
+                 337 |   cacheNode,
+                 338 |   url,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -739,13 +739,13 @@ describe('Dynamic IO Errors', () => {
                    at ScrollAndFocusHandler (webpack://<next-src>)
                    at RenderFromTemplateContext (webpack://<next-src>)
                    at OuterLayoutRouter (webpack://<next-src>)
-                 332 |  */
-                 333 | function InnerLayoutRouter({
-               > 334 |   tree,
+                 333 |  */
+                 334 | function InnerLayoutRouter({
+               > 335 |   tree,
                      |  ^
-                 335 |   segmentPath,
-                 336 |   cacheNode,
-                 337 |   url,
+                 336 |   segmentPath,
+                 337 |   cacheNode,
+                 338 |   url,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -1860,13 +1860,13 @@ describe('Dynamic IO Errors', () => {
                      at ScrollAndFocusHandler (webpack://<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
                      at OuterLayoutRouter (webpack://<next-src>)
-                   332 |  */
-                   333 | function InnerLayoutRouter({
-                 > 334 |   tree,
+                   333 |  */
+                   334 | function InnerLayoutRouter({
+                 > 335 |   tree,
                        |  ^
-                   335 |   segmentPath,
-                   336 |   cacheNode,
-                   337 |   url,
+                   336 |   segmentPath,
+                   337 |   cacheNode,
+                   338 |   url,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 

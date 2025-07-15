@@ -29,8 +29,12 @@ export function createServerPathnameForMetadata(
           workUnitStore
         )
       }
+      case 'request':
+      case 'cache':
+      case 'unstable-cache':
+        break
       default:
-      // fallthrough
+        workUnitStore satisfies never
     }
   }
   return createRenderPathname(underlyingPathname)
@@ -55,9 +59,10 @@ function createPrerenderPathname(
         )
       case 'prerender-ppr':
         return makeErroringPathname(workStore, prerenderStore.dynamicTracking)
-        break
-      default:
+      case 'prerender-legacy':
         return makeErroringPathname(workStore, null)
+      default:
+        prerenderStore satisfies never
     }
   }
 
