@@ -78,7 +78,7 @@ export function useRestartServer() {
       console.log('[Next.js DevTools] Failed to restart server.', error)
       return
     } finally {
-      // If server restarted, don't reset isPending.
+      // If server restarted, don't reset isPending since the page will reload.
       if (!serverRestarted) {
         setIsPending(false)
       }
