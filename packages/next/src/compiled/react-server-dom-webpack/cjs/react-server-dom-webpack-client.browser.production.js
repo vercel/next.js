@@ -1200,6 +1200,8 @@ function ResponseInstance(
   this._chunks = chunks;
   this._stringDecoder = new TextDecoder();
   this._fromJSON = null;
+  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
+  this._buffer = [];
   this._closed = !1;
   this._closedReason = null;
   this._tempRefs = temporaryReferences;
@@ -1664,20 +1666,18 @@ function createResponseFromOptions(options) {
       : void 0
   );
 }
-function startReadingFromStream(response, stream, isSecondaryStream) {
-  function progress(_ref2) {
-    var value = _ref2.value;
-    if (_ref2.done)
-      isSecondaryStream ||
-        reportGlobalError(response, Error("Connection closed."));
+function startReadingFromStream(response, stream) {
+  function progress(_ref) {
+    var value = _ref.value;
+    if (_ref.done) reportGlobalError(response, Error("Connection closed."));
     else {
       var i = 0,
-        rowState = streamState._rowState;
-      _ref2 = streamState._rowID;
+        rowState = response._rowState;
+      _ref = response._rowID;
       for (
-        var rowTag = streamState._rowTag,
-          rowLength = streamState._rowLength,
-          buffer = streamState._buffer,
+        var rowTag = response._rowTag,
+          rowLength = response._rowLength,
+          buffer = response._buffer,
           chunkLength = value.length;
         i < chunkLength;
 
@@ -1688,8 +1688,8 @@ function startReadingFromStream(response, stream, isSecondaryStream) {
             lastIdx = value[i++];
             58 === lastIdx
               ? (rowState = 1)
-              : (_ref2 =
-                  (_ref2 << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+              : (_ref =
+                  (_ref << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
             continue;
           case 1:
             rowState = value[i];
@@ -1732,10 +1732,10 @@ function startReadingFromStream(response, stream, isSecondaryStream) {
         var offset = value.byteOffset + i;
         if (-1 < lastIdx)
           (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-            processFullBinaryRow(response, _ref2, rowTag, buffer, rowLength),
+            processFullBinaryRow(response, _ref, rowTag, buffer, rowLength),
             (i = lastIdx),
             3 === rowState && i++,
-            (rowLength = _ref2 = rowTag = rowState = 0),
+            (rowLength = _ref = rowTag = rowState = 0),
             (buffer.length = 0);
         else {
           value = new Uint8Array(value.buffer, offset, value.byteLength - i);
@@ -1744,31 +1744,24 @@ function startReadingFromStream(response, stream, isSecondaryStream) {
           break;
         }
       }
-      streamState._rowState = rowState;
-      streamState._rowID = _ref2;
-      streamState._rowTag = rowTag;
-      streamState._rowLength = rowLength;
+      response._rowState = rowState;
+      response._rowID = _ref;
+      response._rowTag = rowTag;
+      response._rowLength = rowLength;
       return reader.read().then(progress).catch(error);
     }
   }
   function error(e) {
     reportGlobalError(response, e);
   }
-  var streamState = {
-      _rowState: 0,
-      _rowID: 0,
-      _rowTag: 0,
-      _rowLength: 0,
-      _buffer: []
-    },
-    reader = stream.getReader();
+  var reader = stream.getReader();
   reader.read().then(progress).catch(error);
 }
 exports.createFromFetch = function (promiseForResponse, options) {
   var response = createResponseFromOptions(options);
   promiseForResponse.then(
     function (r) {
-      startReadingFromStream(response, r.body, !1);
+      startReadingFromStream(response, r.body);
     },
     function (e) {
       reportGlobalError(response, e);
@@ -1778,7 +1771,7 @@ exports.createFromFetch = function (promiseForResponse, options) {
 };
 exports.createFromReadableStream = function (stream, options) {
   options = createResponseFromOptions(options);
-  startReadingFromStream(options, stream, !1);
+  startReadingFromStream(options, stream);
   return getChunk(options, 0);
 };
 exports.createServerReference = function (id, callServer) {

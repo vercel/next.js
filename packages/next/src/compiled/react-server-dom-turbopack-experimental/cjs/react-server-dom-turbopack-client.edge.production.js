@@ -50,7 +50,6 @@ function resolveServerReference(bundlerConfig, id) {
   }
   return [resolvedModuleData.id, resolvedModuleData.chunks, name];
 }
-var chunkCache = new Map();
 function requireAsyncModule(id) {
   var promise = globalThis.__next_require__(id);
   if ("function" !== typeof promise.then || "fulfilled" === promise.status)
@@ -67,18 +66,18 @@ function requireAsyncModule(id) {
   );
   return promise;
 }
+var instrumentedChunks = new WeakSet(),
+  loadedChunks = new WeakSet();
 function ignoreReject() {}
 function preloadModule(metadata) {
   for (var chunks = metadata[1], promises = [], i = 0; i < chunks.length; i++) {
-    var chunkFilename = chunks[i],
-      entry = chunkCache.get(chunkFilename);
-    if (void 0 === entry) {
-      entry = globalThis.__next_chunk_load__(chunkFilename);
-      promises.push(entry);
-      var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
-      entry.then(resolve, ignoreReject);
-      chunkCache.set(chunkFilename, entry);
-    } else null !== entry && promises.push(entry);
+    var thenable = globalThis.__next_chunk_load__(chunks[i]);
+    loadedChunks.has(thenable) ? promises.push(null) : promises.push(thenable);
+    if (!instrumentedChunks.has(thenable)) {
+      var resolve = loadedChunks.add.bind(loadedChunks, thenable);
+      thenable.then(resolve, ignoreReject);
+      instrumentedChunks.add(thenable);
+    }
   }
   return 4 === metadata.length
     ? 0 === promises.length
@@ -1376,6 +1375,8 @@ function ResponseInstance(
   this._chunks = chunks;
   this._stringDecoder = new TextDecoder();
   this._fromJSON = null;
+  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
+  this._buffer = [];
   this._closed = !1;
   this._closedReason = null;
   this._tempRefs = temporaryReferences;
@@ -1867,12 +1868,12 @@ function startReadingFromStream(response, stream) {
     if (_ref.done) reportGlobalError(response, Error("Connection closed."));
     else {
       var i = 0,
-        rowState = streamState._rowState;
-      _ref = streamState._rowID;
+        rowState = response._rowState;
+      _ref = response._rowID;
       for (
-        var rowTag = streamState._rowTag,
-          rowLength = streamState._rowLength,
-          buffer = streamState._buffer,
+        var rowTag = response._rowTag,
+          rowLength = response._rowLength,
+          buffer = response._buffer,
           chunkLength = value.length;
         i < chunkLength;
 
@@ -1939,24 +1940,17 @@ function startReadingFromStream(response, stream) {
           break;
         }
       }
-      streamState._rowState = rowState;
-      streamState._rowID = _ref;
-      streamState._rowTag = rowTag;
-      streamState._rowLength = rowLength;
+      response._rowState = rowState;
+      response._rowID = _ref;
+      response._rowTag = rowTag;
+      response._rowLength = rowLength;
       return reader.read().then(progress).catch(error);
     }
   }
   function error(e) {
     reportGlobalError(response, e);
   }
-  var streamState = {
-      _rowState: 0,
-      _rowID: 0,
-      _rowTag: 0,
-      _rowLength: 0,
-      _buffer: []
-    },
-    reader = stream.getReader();
+  var reader = stream.getReader();
   reader.read().then(progress).catch(error);
 }
 exports.createFromFetch = function (promiseForResponse, options) {

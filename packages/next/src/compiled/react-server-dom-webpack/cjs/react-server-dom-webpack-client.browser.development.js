@@ -1793,13 +1793,6 @@
             }
           case "Y":
             if (2 < value.length && (ref = response._debugChannel)) {
-              if ("@" === value[2])
-                return (
-                  (parentObject = value.slice(3)),
-                  (key = parseInt(parentObject, 16)),
-                  response._chunks.has(key) || ref("P:" + parentObject),
-                  getChunk(response, key)
-                );
               value = value.slice(2);
               var _id2 = parseInt(value, 16);
               response._chunks.has(_id2) || ref("Q:" + value);
@@ -1853,6 +1846,8 @@
       this._chunks = chunks;
       this._stringDecoder = new TextDecoder();
       this._fromJSON = null;
+      this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
+      this._buffer = [];
       this._closed = !1;
       this._closedReason = null;
       this._tempRefs = temporaryReferences;
@@ -1879,15 +1874,6 @@
           ? (debugChannel(""), (this._debugChannel = void 0))
           : debugChannelRegistry.register(this, debugChannel));
       this._fromJSON = createFromJSONCallback(this);
-    }
-    function createStreamState() {
-      return {
-        _rowState: 0,
-        _rowID: 0,
-        _rowTag: 0,
-        _rowLength: 0,
-        _buffer: []
-      };
     }
     function resolveDebugHalt(response, id) {
       var chunks = response._chunks,
@@ -2664,96 +2650,6 @@
             : resolveModel(response, id, row);
       }
     }
-    function processBinaryChunk(weakResponse, streamState, chunk) {
-      if (void 0 !== weakResponse.weak.deref()) {
-        var response = unwrapWeakResponse(weakResponse),
-          i = 0,
-          rowState = streamState._rowState;
-        weakResponse = streamState._rowID;
-        for (
-          var rowTag = streamState._rowTag,
-            rowLength = streamState._rowLength,
-            buffer = streamState._buffer,
-            chunkLength = chunk.length;
-          i < chunkLength;
-
-        ) {
-          var lastIdx = -1;
-          switch (rowState) {
-            case 0:
-              lastIdx = chunk[i++];
-              58 === lastIdx
-                ? (rowState = 1)
-                : (weakResponse =
-                    (weakResponse << 4) |
-                    (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-              continue;
-            case 1:
-              rowState = chunk[i];
-              84 === rowState ||
-              65 === rowState ||
-              79 === rowState ||
-              111 === rowState ||
-              85 === rowState ||
-              83 === rowState ||
-              115 === rowState ||
-              76 === rowState ||
-              108 === rowState ||
-              71 === rowState ||
-              103 === rowState ||
-              77 === rowState ||
-              109 === rowState ||
-              86 === rowState
-                ? ((rowTag = rowState), (rowState = 2), i++)
-                : (64 < rowState && 91 > rowState) ||
-                    35 === rowState ||
-                    114 === rowState ||
-                    120 === rowState
-                  ? ((rowTag = rowState), (rowState = 3), i++)
-                  : ((rowTag = 0), (rowState = 3));
-              continue;
-            case 2:
-              lastIdx = chunk[i++];
-              44 === lastIdx
-                ? (rowState = 4)
-                : (rowLength =
-                    (rowLength << 4) |
-                    (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-              continue;
-            case 3:
-              lastIdx = chunk.indexOf(10, i);
-              break;
-            case 4:
-              (lastIdx = i + rowLength),
-                lastIdx > chunk.length && (lastIdx = -1);
-          }
-          var offset = chunk.byteOffset + i;
-          if (-1 < lastIdx)
-            (rowLength = new Uint8Array(chunk.buffer, offset, lastIdx - i)),
-              processFullBinaryRow(
-                response,
-                weakResponse,
-                rowTag,
-                buffer,
-                rowLength
-              ),
-              (i = lastIdx),
-              3 === rowState && i++,
-              (rowLength = weakResponse = rowTag = rowState = 0),
-              (buffer.length = 0);
-          else {
-            chunk = new Uint8Array(chunk.buffer, offset, chunk.byteLength - i);
-            buffer.push(chunk);
-            rowLength -= chunk.byteLength;
-            break;
-          }
-        }
-        streamState._rowState = rowState;
-        streamState._rowID = weakResponse;
-        streamState._rowTag = rowTag;
-        streamState._rowLength = rowLength;
-      }
-    }
     function createFromJSONCallback(response) {
       return function (key, value) {
         if ("string" === typeof value)
@@ -2834,9 +2730,6 @@
         return value;
       };
     }
-    function close(weakResponse) {
-      reportGlobalError(weakResponse, Error("Connection closed."));
-    }
     function createDebugCallbackFromWritableStream(debugWritable) {
       var textEncoder = new TextEncoder(),
         writer = debugWritable.getWriter();
@@ -2871,138 +2764,104 @@
         debugChannel
       )._weakResponse;
     }
-    function startReadingFromUniversalStream(response$jscomp$0, stream) {
+    function startReadingFromStream(response, stream) {
       function progress(_ref) {
         var value = _ref.value;
-        if (_ref.done) close(response$jscomp$0);
+        if (_ref.done) reportGlobalError(response, Error("Connection closed."));
         else {
-          if (value instanceof ArrayBuffer)
-            processBinaryChunk(
-              response$jscomp$0,
-              streamState,
-              new Uint8Array(value)
-            );
-          else if ("string" === typeof value) {
-            if (
-              ((_ref = streamState), void 0 !== response$jscomp$0.weak.deref())
-            ) {
-              for (
-                var response = unwrapWeakResponse(response$jscomp$0),
-                  i = 0,
-                  rowState = _ref._rowState,
-                  rowID = _ref._rowID,
-                  rowTag = _ref._rowTag,
-                  rowLength = _ref._rowLength,
-                  buffer = _ref._buffer,
-                  chunkLength = value.length;
-                i < chunkLength;
+          if (void 0 !== response.weak.deref()) {
+            _ref = unwrapWeakResponse(response);
+            for (
+              var i = 0,
+                rowState = _ref._rowState,
+                rowID = _ref._rowID,
+                rowTag = _ref._rowTag,
+                rowLength = _ref._rowLength,
+                buffer = _ref._buffer,
+                chunkLength = value.length;
+              i < chunkLength;
 
-              ) {
-                var lastIdx = -1;
-                switch (rowState) {
-                  case 0:
-                    lastIdx = value.charCodeAt(i++);
-                    58 === lastIdx
-                      ? (rowState = 1)
-                      : (rowID =
-                          (rowID << 4) |
-                          (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-                    continue;
-                  case 1:
-                    rowState = value.charCodeAt(i);
-                    84 === rowState ||
-                    65 === rowState ||
-                    79 === rowState ||
-                    111 === rowState ||
-                    85 === rowState ||
-                    83 === rowState ||
-                    115 === rowState ||
-                    76 === rowState ||
-                    108 === rowState ||
-                    71 === rowState ||
-                    103 === rowState ||
-                    77 === rowState ||
-                    109 === rowState ||
-                    86 === rowState
-                      ? ((rowTag = rowState), (rowState = 2), i++)
-                      : (64 < rowState && 91 > rowState) ||
-                          114 === rowState ||
-                          120 === rowState
-                        ? ((rowTag = rowState), (rowState = 3), i++)
-                        : ((rowTag = 0), (rowState = 3));
-                    continue;
-                  case 2:
-                    lastIdx = value.charCodeAt(i++);
-                    44 === lastIdx
-                      ? (rowState = 4)
-                      : (rowLength =
-                          (rowLength << 4) |
-                          (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-                    continue;
-                  case 3:
-                    lastIdx = value.indexOf("\n", i);
-                    break;
-                  case 4:
-                    if (84 !== rowTag)
-                      throw Error(
-                        "Binary RSC chunks cannot be encoded as strings. This is a bug in the wiring of the React streams."
-                      );
-                    if (
-                      rowLength < value.length ||
-                      value.length > 3 * rowLength
-                    )
-                      throw Error(
-                        "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
-                      );
-                    lastIdx = value.length;
-                }
-                if (-1 < lastIdx) {
-                  if (0 < buffer.length)
-                    throw Error(
-                      "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
-                    );
-                  i = value.slice(i, lastIdx);
-                  processFullStringRow(response, rowID, rowTag, i);
-                  i = lastIdx;
-                  3 === rowState && i++;
-                  rowLength = rowID = rowTag = rowState = 0;
-                  buffer.length = 0;
-                } else if (value.length !== i)
-                  throw Error(
-                    "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
-                  );
+            ) {
+              var lastIdx = -1;
+              switch (rowState) {
+                case 0:
+                  lastIdx = value[i++];
+                  58 === lastIdx
+                    ? (rowState = 1)
+                    : (rowID =
+                        (rowID << 4) |
+                        (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+                  continue;
+                case 1:
+                  rowState = value[i];
+                  84 === rowState ||
+                  65 === rowState ||
+                  79 === rowState ||
+                  111 === rowState ||
+                  85 === rowState ||
+                  83 === rowState ||
+                  115 === rowState ||
+                  76 === rowState ||
+                  108 === rowState ||
+                  71 === rowState ||
+                  103 === rowState ||
+                  77 === rowState ||
+                  109 === rowState ||
+                  86 === rowState
+                    ? ((rowTag = rowState), (rowState = 2), i++)
+                    : (64 < rowState && 91 > rowState) ||
+                        35 === rowState ||
+                        114 === rowState ||
+                        120 === rowState
+                      ? ((rowTag = rowState), (rowState = 3), i++)
+                      : ((rowTag = 0), (rowState = 3));
+                  continue;
+                case 2:
+                  lastIdx = value[i++];
+                  44 === lastIdx
+                    ? (rowState = 4)
+                    : (rowLength =
+                        (rowLength << 4) |
+                        (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+                  continue;
+                case 3:
+                  lastIdx = value.indexOf(10, i);
+                  break;
+                case 4:
+                  (lastIdx = i + rowLength),
+                    lastIdx > value.length && (lastIdx = -1);
               }
-              _ref._rowState = rowState;
-              _ref._rowID = rowID;
-              _ref._rowTag = rowTag;
-              _ref._rowLength = rowLength;
+              var offset = value.byteOffset + i;
+              if (-1 < lastIdx)
+                (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
+                  processFullBinaryRow(_ref, rowID, rowTag, buffer, rowLength),
+                  (i = lastIdx),
+                  3 === rowState && i++,
+                  (rowLength = rowID = rowTag = rowState = 0),
+                  (buffer.length = 0);
+              else {
+                value = new Uint8Array(
+                  value.buffer,
+                  offset,
+                  value.byteLength - i
+                );
+                buffer.push(value);
+                rowLength -= value.byteLength;
+                break;
+              }
             }
-          } else processBinaryChunk(response$jscomp$0, streamState, value);
+            _ref._rowState = rowState;
+            _ref._rowID = rowID;
+            _ref._rowTag = rowTag;
+            _ref._rowLength = rowLength;
+          }
           return reader.read().then(progress).catch(error);
         }
       }
       function error(e) {
-        reportGlobalError(response$jscomp$0, e);
-      }
-      var streamState = createStreamState(),
-        reader = stream.getReader();
-      reader.read().then(progress).catch(error);
-    }
-    function startReadingFromStream(response, stream, isSecondaryStream) {
-      function progress(_ref2) {
-        var value = _ref2.value;
-        if (_ref2.done) isSecondaryStream || close(response);
-        else
-          return (
-            processBinaryChunk(response, streamState, value),
-            reader.read().then(progress).catch(error)
-          );
-      }
-      function error(e) {
         reportGlobalError(response, e);
       }
-      var streamState = createStreamState(),
-        reader = stream.getReader();
+      var reader = stream.getReader();
       reader.read().then(progress).catch(error);
     }
     var React = require("react"),
@@ -3198,10 +3057,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-97cdd5d3-20250710",
+      version: "19.2.0-canary-e6ed827a-20250715",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-97cdd5d3-20250710",
+      reconcilerVersion: "19.2.0-canary-e6ed827a-20250715",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
@@ -3210,13 +3069,7 @@
       var response = createResponseFromOptions(options);
       promiseForResponse.then(
         function (r) {
-          options && options.debugChannel && options.debugChannel.readable
-            ? (startReadingFromUniversalStream(
-                response,
-                options.debugChannel.readable
-              ),
-              startReadingFromStream(response, r.body, !0))
-            : startReadingFromStream(response, r.body, !1);
+          startReadingFromStream(response, r.body);
         },
         function (e) {
           reportGlobalError(response, e);
@@ -3225,15 +3078,9 @@
       return getRoot(response);
     };
     exports.createFromReadableStream = function (stream, options) {
-      var response = createResponseFromOptions(options);
-      options && options.debugChannel && options.debugChannel.readable
-        ? (startReadingFromUniversalStream(
-            response,
-            options.debugChannel.readable
-          ),
-          startReadingFromStream(response, stream, !0))
-        : startReadingFromStream(response, stream, !1);
-      return getRoot(response);
+      options = createResponseFromOptions(options);
+      startReadingFromStream(options, stream);
+      return getRoot(options);
     };
     exports.createServerReference = function (
       id,

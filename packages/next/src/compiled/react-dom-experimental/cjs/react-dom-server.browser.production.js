@@ -4488,7 +4488,8 @@ function resumeRequest(
   renderState.nextSegmentId = postponedState.nextSegmentId;
   if ("number" === typeof postponedState.replaySlots)
     return (
-      (onError = createPendingSegment(
+      (onError = postponedState.replaySlots),
+      (onAllReady = createPendingSegment(
         renderState,
         0,
         null,
@@ -4496,14 +4497,15 @@ function resumeRequest(
         !1,
         !1
       )),
-      (onError.parentFlushed = !0),
+      (onAllReady.id = onError),
+      (onAllReady.parentFlushed = !0),
       (children = createRenderTask(
         renderState,
         null,
         children,
         -1,
         null,
-        onError,
+        onAllReady,
         null,
         null,
         renderState.abortableTasks,
@@ -7746,15 +7748,13 @@ function getPostponedState(request) {
     (5 !== request.completedRootSegment.status &&
       null !== request.completedPreambleSegments)
   ) {
-    var nextSegmentId = request.nextSegmentId;
     var replaySlots = trackedPostpones.rootSlots;
     var resumableState = request.resumableState;
     resumableState.bootstrapScriptContent = void 0;
     resumableState.bootstrapScripts = void 0;
     resumableState.bootstrapModules = void 0;
   } else {
-    nextSegmentId = 0;
-    replaySlots = -1;
+    replaySlots = request.completedRootSegment.id;
     resumableState = request.resumableState;
     var renderState = request.renderState;
     resumableState.nextFormID = 0;
@@ -7771,7 +7771,7 @@ function getPostponedState(request) {
     resumableState.instructions = 0;
   }
   return {
-    nextSegmentId: nextSegmentId,
+    nextSegmentId: request.nextSegmentId,
     rootFormatContext: request.rootFormatContext,
     progressiveChunkSize: request.progressiveChunkSize,
     resumableState: request.resumableState,
@@ -7781,12 +7781,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-97cdd5d3-20250710" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-e6ed827a-20250715" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.2.0-experimental-97cdd5d3-20250710"
+        "19.2.0-experimental-e6ed827a-20250715"
       )
     );
 }
@@ -8041,4 +8041,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-97cdd5d3-20250710";
+exports.version = "19.2.0-experimental-e6ed827a-20250715";

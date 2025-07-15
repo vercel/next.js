@@ -1380,13 +1380,12 @@ function ResponseInstance(
   this._chunks = chunks;
   this._stringDecoder = new util.TextDecoder();
   this._fromJSON = null;
+  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
+  this._buffer = [];
   this._closed = !1;
   this._closedReason = null;
   this._tempRefs = temporaryReferences;
   this._fromJSON = createFromJSONCallback(this);
-}
-function createStreamState() {
-  return { _rowState: 0, _rowID: 0, _rowTag: 0, _rowLength: 0, _buffer: [] };
 }
 function resolveBuffer(response, id, buffer) {
   response = response._chunks;
@@ -1817,14 +1816,14 @@ function processFullStringRow(response, id, tag, row) {
           : tag.set(id, new ReactPromise("resolved_model", row, response));
   }
 }
-function processBinaryChunk(weakResponse, streamState, chunk) {
+function processBinaryChunk(weakResponse, chunk) {
   for (
     var i = 0,
-      rowState = streamState._rowState,
-      rowID = streamState._rowID,
-      rowTag = streamState._rowTag,
-      rowLength = streamState._rowLength,
-      buffer = streamState._buffer,
+      rowState = weakResponse._rowState,
+      rowID = weakResponse._rowID,
+      rowTag = weakResponse._rowTag,
+      rowLength = weakResponse._rowLength,
+      buffer = weakResponse._buffer,
       chunkLength = chunk.length;
     i < chunkLength;
 
@@ -1884,16 +1883,16 @@ function processBinaryChunk(weakResponse, streamState, chunk) {
         (rowLength = rowID = rowTag = rowState = 0),
         (buffer.length = 0);
     else {
-      weakResponse = new Uint8Array(chunk.buffer, offset, chunk.byteLength - i);
-      buffer.push(weakResponse);
-      rowLength -= weakResponse.byteLength;
+      chunk = new Uint8Array(chunk.buffer, offset, chunk.byteLength - i);
+      buffer.push(chunk);
+      rowLength -= chunk.byteLength;
       break;
     }
   }
-  streamState._rowState = rowState;
-  streamState._rowID = rowID;
-  streamState._rowTag = rowTag;
-  streamState._rowLength = rowLength;
+  weakResponse._rowState = rowState;
+  weakResponse._rowID = rowID;
+  weakResponse._rowTag = rowTag;
+  weakResponse._rowLength = rowLength;
 }
 function createFromJSONCallback(response) {
   return function (key, value) {
@@ -1957,15 +1956,14 @@ function startReadingFromStream(response, stream) {
     if (_ref.done) close(response);
     else
       return (
-        processBinaryChunk(response, streamState, value),
+        processBinaryChunk(response, value),
         reader.read().then(progress).catch(error)
       );
   }
   function error(e) {
     reportGlobalError(response, e);
   }
-  var streamState = createStreamState(),
-    reader = stream.getReader();
+  var reader = stream.getReader();
   reader.read().then(progress).catch(error);
 }
 function noServerCall() {
@@ -1991,24 +1989,23 @@ exports.createFromNodeStream = function (
   options
 ) {
   var response = new ResponseInstance(
-      serverConsumerManifest.moduleMap,
-      serverConsumerManifest.serverModuleMap,
-      serverConsumerManifest.moduleLoading,
-      noServerCall,
-      options ? options.encodeFormAction : void 0,
-      options && "string" === typeof options.nonce ? options.nonce : void 0,
-      void 0
-    ),
-    streamState = createStreamState();
+    serverConsumerManifest.moduleMap,
+    serverConsumerManifest.serverModuleMap,
+    serverConsumerManifest.moduleLoading,
+    noServerCall,
+    options ? options.encodeFormAction : void 0,
+    options && "string" === typeof options.nonce ? options.nonce : void 0,
+    void 0
+  );
   stream.on("data", function (chunk) {
     if ("string" === typeof chunk) {
       for (
         var i = 0,
-          rowState = streamState._rowState,
-          rowID = streamState._rowID,
-          rowTag = streamState._rowTag,
-          rowLength = streamState._rowLength,
-          buffer = streamState._buffer,
+          rowState = response._rowState,
+          rowID = response._rowID,
+          rowTag = response._rowTag,
+          rowLength = response._rowLength,
+          buffer = response._buffer,
           chunkLength = chunk.length;
         i < chunkLength;
 
@@ -2083,11 +2080,11 @@ exports.createFromNodeStream = function (
             "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
           );
       }
-      streamState._rowState = rowState;
-      streamState._rowID = rowID;
-      streamState._rowTag = rowTag;
-      streamState._rowLength = rowLength;
-    } else processBinaryChunk(response, streamState, chunk);
+      response._rowState = rowState;
+      response._rowID = rowID;
+      response._rowTag = rowTag;
+      response._rowLength = rowLength;
+    } else processBinaryChunk(response, chunk);
   });
   stream.on("error", function (error) {
     reportGlobalError(response, error);

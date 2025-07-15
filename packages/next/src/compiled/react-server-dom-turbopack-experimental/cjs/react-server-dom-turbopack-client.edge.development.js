@@ -73,15 +73,15 @@
         i < chunks.length;
         i++
       ) {
-        var chunkFilename = chunks[i],
-          entry = chunkCache.get(chunkFilename);
-        if (void 0 === entry) {
-          entry = globalThis.__next_chunk_load__(chunkFilename);
-          promises.push(entry);
-          var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
-          entry.then(resolve, ignoreReject);
-          chunkCache.set(chunkFilename, entry);
-        } else null !== entry && promises.push(entry);
+        var thenable = globalThis.__next_chunk_load__(chunks[i]);
+        loadedChunks.has(thenable)
+          ? promises.push(null)
+          : promises.push(thenable);
+        if (!instrumentedChunks.has(thenable)) {
+          var resolve = loadedChunks.add.bind(loadedChunks, thenable);
+          thenable.then(resolve, ignoreReject);
+          instrumentedChunks.add(thenable);
+        }
       }
       return 4 === metadata.length
         ? 0 === promises.length
@@ -2470,13 +2470,6 @@
             }
           case "Y":
             if (2 < value.length && (ref = response._debugChannel)) {
-              if ("@" === value[2])
-                return (
-                  (parentObject = value.slice(3)),
-                  (key = parseInt(parentObject, 16)),
-                  response._chunks.has(key) || ref("P:" + parentObject),
-                  getChunk(response, key)
-                );
               value = value.slice(2);
               var _id2 = parseInt(value, 16);
               response._chunks.has(_id2) || ref("Q:" + value);
@@ -2530,6 +2523,8 @@
       this._chunks = chunks;
       this._stringDecoder = new TextDecoder();
       this._fromJSON = null;
+      this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
+      this._buffer = [];
       this._closed = !1;
       this._closedReason = null;
       this._tempRefs = temporaryReferences;
@@ -4037,17 +4032,15 @@
         void 0
       )._weakResponse;
     }
-    function startReadingFromStream(response$jscomp$0, stream) {
+    function startReadingFromStream(response, stream) {
       function progress(_ref) {
         var value = _ref.value;
-        if (_ref.done)
-          reportGlobalError(response$jscomp$0, Error("Connection closed."));
+        if (_ref.done) reportGlobalError(response, Error("Connection closed."));
         else {
-          _ref = streamState;
-          if (void 0 !== response$jscomp$0.weak.deref()) {
+          if (void 0 !== response.weak.deref()) {
+            _ref = unwrapWeakResponse(response);
             for (
-              var response = unwrapWeakResponse(response$jscomp$0),
-                i = 0,
+              var i = 0,
                 rowState = _ref._rowState,
                 rowID = _ref._rowID,
                 rowTag = _ref._rowTag,
@@ -4109,13 +4102,7 @@
               var offset = value.byteOffset + i;
               if (-1 < lastIdx)
                 (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-                  processFullBinaryRow(
-                    response,
-                    rowID,
-                    rowTag,
-                    buffer,
-                    rowLength
-                  ),
+                  processFullBinaryRow(_ref, rowID, rowTag, buffer, rowLength),
                   (i = lastIdx),
                   3 === rowState && i++,
                   (rowLength = rowID = rowTag = rowState = 0),
@@ -4140,23 +4127,17 @@
         }
       }
       function error(e) {
-        reportGlobalError(response$jscomp$0, e);
+        reportGlobalError(response, e);
       }
-      var streamState = {
-          _rowState: 0,
-          _rowID: 0,
-          _rowTag: 0,
-          _rowLength: 0,
-          _buffer: []
-        },
-        reader = stream.getReader();
+      var reader = stream.getReader();
       reader.read().then(progress).catch(error);
     }
     var ReactDOM = require("react-dom"),
       React = require("react"),
       decoderOptions = { stream: !0 },
       bind$1 = Function.prototype.bind,
-      chunkCache = new Map(),
+      instrumentedChunks = new WeakSet(),
+      loadedChunks = new WeakSet(),
       ReactDOMSharedInternals =
         ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
