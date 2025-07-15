@@ -107,11 +107,15 @@ async fn base_resolve_options(
     } else {
         opt.enable_node_externals
     };
-    if node_externals || opt.enable_edge_node_externals {
-        let untraced_external_cell =
-            ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
-                .resolved_cell();
+    let untraced_external_cell =
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+            .resolved_cell();
 
+    for req in BUN_EXTERNALS {
+        direct_mappings.insert(AliasPattern::exact(req), untraced_external_cell);
+    }
+
+    if node_externals || opt.enable_edge_node_externals {
         if node_externals {
             for req in NODE_EXTERNALS {
                 direct_mappings.insert(AliasPattern::exact(req), untraced_external_cell);
@@ -120,10 +124,6 @@ async fn base_resolve_options(
                     untraced_external_cell,
                 );
             }
-        }
-
-        for req in BUN_EXTERNALS {
-            direct_mappings.insert(AliasPattern::exact(req), untraced_external_cell);
         }
 
         if opt.enable_edge_node_externals {
