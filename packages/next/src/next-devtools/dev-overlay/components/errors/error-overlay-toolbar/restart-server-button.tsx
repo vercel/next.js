@@ -29,7 +29,15 @@ export function RestartServerButton({ showButton }: { showButton: boolean }) {
       disabled={isPending}
       title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
     >
-      <RefreshClockWise width={14} height={14} spinning={isPending} />
+      <RefreshClockWise
+        width={14}
+        height={14}
+        style={{
+          animation: isPending
+            ? 'refresh-clock-wise-spin 1s linear infinite'
+            : undefined,
+        }}
+      />
       {isPending ? 'Restarting...' : 'Reset Bundler Cache'}
     </button>
   )
@@ -104,5 +112,14 @@ export const RESTART_SERVER_BUTTON_STYLES = css`
   .restart-dev-server-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  @keyframes refresh-clock-wise-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 `
