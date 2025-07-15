@@ -10,6 +10,7 @@ import {
   nextStart,
   nextBuild,
   waitFor,
+  getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 
 let app
@@ -42,6 +43,8 @@ const noError = async (pathname) => {
 const didPrefetch = async (pathname) => {
   const browser = await webdriver(appPort, pathname)
 
+  let chunk = getClientBuildManifestLoaderChunkUrlPath(appDir, '/')
+
   await retry(async () => {
     const links = await browser.elementsByCss('link[rel=prefetch]')
 
@@ -49,9 +52,8 @@ const didPrefetch = async (pathname) => {
       links.map((link) => link.getAttribute('href'))
     )
 
-    // expect one of the href contain string "index"
     expect(hrefs).toEqual(
-      expect.arrayContaining([expect.stringContaining('index')])
+      expect.arrayContaining([expect.stringContaining(chunk)])
     )
   })
 

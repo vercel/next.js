@@ -318,7 +318,6 @@ pub struct RequireContextAssetReferenceCodeGen {
 impl RequireContextAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let module_id = self

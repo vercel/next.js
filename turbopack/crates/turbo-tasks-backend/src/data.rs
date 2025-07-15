@@ -94,7 +94,9 @@ impl ActivenessState {
             active_counter: 0,
             root_ty: None,
             active_until_clean: false,
-            all_clean_event: Event::new(move || format!("ActivenessState::all_clean_event {id:?}")),
+            all_clean_event: Event::new(move || {
+                move || format!("ActivenessState::all_clean_event {id:?}")
+            }),
         }
     }
 
@@ -294,6 +296,194 @@ impl DirtyContainerCount {
     }
 }
 
+#[cfg(test)]
+mod dirty_container_count_tests {
+    use turbo_tasks::SessionId;
+
+    use super::*;
+
+    const SESSION_1: SessionId = unsafe { SessionId::new_unchecked(1) };
+    const SESSION_2: SessionId = unsafe { SessionId::new_unchecked(2) };
+    const SESSION_3: SessionId = unsafe { SessionId::new_unchecked(3) };
+
+    #[test]
+    fn test_update() {
+        let mut count = DirtyContainerCount::default();
+        assert!(count.is_zero());
+
+        let diff = count.update(1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 2);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 2);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let diff = count.update(-1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(-1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), -1);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), -1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let diff = count.update(2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), -1);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), -1);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), 0);
+    }
+
+    #[test]
+    fn test_session_dependent() {
+        let mut count = DirtyContainerCount::default();
+        assert!(count.is_zero());
+
+        let diff = count.update_session_dependent(SESSION_1, 1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update_session_dependent(SESSION_1, -1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update_session_dependent(SESSION_1, 2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 2);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update_session_dependent(SESSION_2, -2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 2);
+        assert_eq!(diff.get(SESSION_2), 0);
+        assert_eq!(count.get(SESSION_3), 0);
+        assert_eq!(diff.get(SESSION_3), -1);
+    }
+
+    #[test]
+    fn test_update_with_dirty_state() {
+        let mut count = DirtyContainerCount::default();
+        let dirty = DirtyState {
+            clean_in_session: None,
+        };
+        let diff = count.update_with_dirty_state(&dirty);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.undo_update_with_dirty_state(&dirty);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let mut count = DirtyContainerCount::default();
+        let dirty = DirtyState {
+            clean_in_session: Some(SESSION_1),
+        };
+        let diff = count.update_with_dirty_state(&dirty);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.undo_update_with_dirty_state(&dirty);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+    }
+
+    #[test]
+    fn test_replace_dirty_state() {
+        let mut count = DirtyContainerCount::default();
+        let old = DirtyState {
+            clean_in_session: None,
+        };
+        let new = DirtyState {
+            clean_in_session: Some(SESSION_1),
+        };
+        count.update_with_dirty_state(&old);
+        let diff = count.replace_dirty_state(&old, &new);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let mut count = DirtyContainerCount::default();
+        let old = DirtyState {
+            clean_in_session: Some(SESSION_1),
+        };
+        let new = DirtyState {
+            clean_in_session: None,
+        };
+        count.update_with_dirty_state(&old);
+        let diff = count.replace_dirty_state(&old, &new);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 0);
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum RootType {
     RootTask,
@@ -348,7 +538,9 @@ impl Eq for InProgressCellState {}
 impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
         InProgressCellState {
-            event: Event::new(move || format!("InProgressCellState::event ({task_id} {cell:?})")),
+            event: Event::new(move || {
+                move || format!("InProgressCellState::event ({task_id} {cell:?})")
+            }),
         }
     }
 }
@@ -535,24 +727,35 @@ impl CachedDataItem {
         }
     }
 
-    pub fn new_scheduled(
+    pub fn new_scheduled<InnerFnDescription>(
         reason: TaskExecutionReason,
-        description: impl Fn() -> String + Sync + Send + 'static,
-    ) -> Self {
+        description: impl FnOnce() -> InnerFnDescription,
+    ) -> Self
+    where
+        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
+    {
+        let done_event = Event::new(move || {
+            let inner = description();
+            move || format!("{} done_event", inner())
+        });
         CachedDataItem::InProgress {
-            value: InProgressState::Scheduled {
-                done_event: Event::new(move || format!("{} done_event", description())),
-                reason,
-            },
+            value: InProgressState::Scheduled { done_event, reason },
         }
     }
 
-    pub fn new_scheduled_with_listener(
+    pub fn new_scheduled_with_listener<InnerFnDescription, InnerFnNote>(
         reason: TaskExecutionReason,
-        description: impl Fn() -> String + Sync + Send + 'static,
-        note: impl Fn() -> String + Sync + Send + 'static,
-    ) -> (Self, EventListener) {
-        let done_event = Event::new(move || format!("{} done_event", description()));
+        description: impl FnOnce() -> InnerFnDescription,
+        note: impl FnOnce() -> InnerFnNote,
+    ) -> (Self, EventListener)
+    where
+        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
+        InnerFnNote: Fn() -> String + Sync + Send + 'static,
+    {
+        let done_event = Event::new(move || {
+            let inner = description();
+            move || format!("{} done_event", inner())
+        });
         let listener = done_event.listen_with_note(note);
         (
             CachedDataItem::InProgress {

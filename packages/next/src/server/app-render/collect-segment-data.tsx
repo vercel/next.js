@@ -64,6 +64,12 @@ export type SegmentPrefetch = {
   isPartial: boolean
 }
 
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
+
 function onSegmentPrerenderError(error: unknown) {
   const digest = getDigestForWellKnownError(error)
   if (digest) {
@@ -128,6 +134,7 @@ export async function collectSegmentData(
     />,
     clientModules,
     {
+      filterStackFrame,
       signal: abortController.signal,
       onError: onSegmentPrerenderError,
     }
@@ -349,6 +356,7 @@ async function renderSegmentPrefetch(
     segmentPrefetch,
     clientModules,
     {
+      filterStackFrame,
       signal: abortController.signal,
       onError: onSegmentPrerenderError,
     }
@@ -379,6 +387,7 @@ async function isPartialRSCData(
     abortController.abort()
   })
   await prerender(rsc, clientModules, {
+    filterStackFrame,
     signal: abortController.signal,
     onError() {},
     onPostpone() {

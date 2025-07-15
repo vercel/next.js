@@ -172,6 +172,7 @@
       "test/e2e/app-dir/use-cache-hanging-inputs/**/*",
       "test/e2e/app-dir/use-cache-metadata-route-handler/**/*",
       "test/e2e/app-dir/use-cache-route-handler-only/**/*",
+      "test/e2e/app-dir/use-cache-with-server-function-props/use-cache-with-server-function-props.test.ts",
       "test/integration/app-dir-export/**/*",
       "test/production/app-dir/build-output-tree-view/build-output-tree-view.test.ts",
       "test/production/app-dir/global-default-cache-handler/global-default-cache-handler.test.ts"

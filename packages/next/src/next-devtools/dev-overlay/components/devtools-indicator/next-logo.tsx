@@ -1,5 +1,3 @@
-import type { DevToolsScale } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
-
 import { useEffect, useRef, useState } from 'react'
 import { useUpdateAnimation } from './hooks/use-update-animation'
 import { useMeasureWidth } from './hooks/use-measure-width'
@@ -7,45 +5,39 @@ import { useMinimumLoadingTimeMultiple } from './hooks/use-minimum-loading-time-
 import { Cross } from '../../icons/cross'
 import { Warning } from '../../icons/warning'
 import { css } from '../../utils/css'
-
-interface Props extends React.ComponentProps<'button'> {
-  issueCount: number
-  isDevBuilding: boolean
-  isDevRendering: boolean
-  isBuildError: boolean
-  onTriggerClick: () => void
-  toggleErrorOverlay: () => void
-  scale: DevToolsScale
-}
+import { useDevOverlayContext } from '../../../dev-overlay.browser'
+import { useRenderErrorContext } from '../../dev-overlay'
+import { ACTION_ERROR_OVERLAY_OPEN } from '../../shared'
+import { usePanelRouterContext } from '../../menu/context'
+import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 
 const SHORT_DURATION_MS = 150
 
-export function NextLogo({
-  disabled,
-  issueCount,
-  isDevBuilding,
-  isDevRendering,
-  isBuildError,
+export function NextLogoNew({
   onTriggerClick,
-  toggleErrorOverlay,
-  scale = 1,
-  ...props
-}: Props) {
-  const SIZE = 36 / scale
+  ...buttonProps
+}: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
+  const { state, dispatch } = useDevOverlayContext()
+  const { totalErrorCount } = useRenderErrorContext()
+  const SIZE = BASE_LOGO_SIZE / state.scale
+  const { panel, triggerRef, setPanel } = usePanelRouterContext()
+  const isMenuOpen = panel === 'panel-selector'
 
-  const hasError = issueCount > 0
+  const hasError = totalErrorCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [dismissed, setDismissed] = useState(false)
-  const newErrorDetected = useUpdateAnimation(issueCount, SHORT_DURATION_MS)
+  const newErrorDetected = useUpdateAnimation(
+    totalErrorCount,
+    SHORT_DURATION_MS
+  )
 
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
 
   const isLoading = useMinimumLoadingTimeMultiple(
-    isDevBuilding || isDevRendering
+    state.buildingIndicator || state.renderingIndicator
   )
-  const isExpanded = isErrorExpanded || disabled
+  const isExpanded = isErrorExpanded || state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   useEffect(() => {
@@ -61,7 +53,10 @@ export function NextLogo({
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors
-          display: disabled && (!hasError || dismissed) ? 'none' : 'block',
+          display:
+            state.disableDevIndicator && (!hasError || dismissed)
+              ? 'none'
+              : 'block',
         } as React.CSSProperties
       }
     >
@@ -396,15 +391,25 @@ export function NextLogo({
       >
         <div ref={ref}>
           {/* Children */}
-          {!disabled && (
+          {!state.disableDevIndicator && (
             <button
+              id="next-logo"
               ref={triggerRef}
               data-next-mark
               data-next-mark-loading={isLoading}
               onClick={onTriggerClick}
-              {...props}
+              disabled={state.disableDevIndicator}
+              aria-haspopup="menu"
+              aria-expanded={isMenuOpen}
+              aria-controls="nextjs-dev-tools-menu"
+              aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
+              data-nextjs-dev-tools-button
+              {...buttonProps}
             >
-              <NextMark isLoading={isLoading} isDevBuilding={isDevBuilding} />
+              <NextMark
+                isLoading={isLoading}
+                isDevBuilding={state.buildingIndicator}
+              />
             </button>
           )}
           {isExpanded && (
@@ -412,42 +417,46 @@ export function NextLogo({
               <button
                 data-issues-open
                 aria-label="Open issues overlay"
-                onClick={toggleErrorOverlay}
+                onClick={() => {
+                  // wait this is wrong
+                  dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+                  setPanel(null)
+                }}
               >
-                {disabled && (
+                {state.disableDevIndicator && (
                   <div data-disabled-icon>
                     <Warning />
                   </div>
                 )}
                 <AnimateCount
                   // Used the key to force a re-render when the count changes.
-                  key={issueCount}
+                  key={totalErrorCount}
                   animate={newErrorDetected}
                   data-issues-count-animation
                 >
-                  {issueCount}
+                  {totalErrorCount}
                 </AnimateCount>{' '}
                 <div>
                   Issue
-                  {issueCount > 1 && (
+                  {totalErrorCount > 1 && (
                     <span
                       aria-hidden
                       data-issues-count-plural
                       // This only needs to animate once the count changes from 1 -> 2,
                       // otherwise it should stay static between re-renders.
-                      data-animate={newErrorDetected && issueCount === 2}
+                      data-animate={newErrorDetected && totalErrorCount === 2}
                     >
                       s
                     </span>
                   )}
                 </div>
               </button>
-              {!isBuildError && (
+              {!state.buildError && (
                 <button
                   data-issues-collapse
                   aria-label="Collapse issues badge"
                   onClick={() => {
-                    if (disabled) {
+                    if (state.disableDevIndicator) {
                       setDismissed(true)
                     } else {
                       setIsErrorExpanded(false)

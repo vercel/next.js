@@ -3,7 +3,7 @@
 
 mod util;
 
-use std::{collections::VecDeque, fs, path::PathBuf};
+use std::{collections::VecDeque, fs, io, path::PathBuf, sync::Once};
 
 use anyhow::{Context, Result, bail};
 use dunce::canonicalize;
@@ -22,8 +22,8 @@ use turbopack::{
     ModuleAssetContext,
     ecmascript::{EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType},
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        ModuleRule, ModuleRuleEffect, RuleCondition,
+        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
+        ModuleRuleEffect, RuleCondition,
     },
 };
 use turbopack_browser::BrowserChunkingContext;
@@ -46,6 +46,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        export_usage::compute_export_usage_info,
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -84,7 +85,7 @@ struct SnapshotOptions {
     browserslist: String,
     #[serde(default = "default_entry")]
     entry: String,
-    #[serde(default)]
+    #[serde(default = "default_minify_type")]
     minify_type: MinifyType,
     #[serde(default)]
     runtime: Runtime,
@@ -121,7 +122,7 @@ impl Default for SnapshotOptions {
         SnapshotOptions {
             browserslist: default_browserslist(),
             entry: default_entry(),
-            minify_type: Default::default(),
+            minify_type: default_minify_type(),
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
@@ -151,9 +152,51 @@ fn default_runtime_type() -> RuntimeType {
     RuntimeType::Dummy
 }
 
+fn default_minify_type() -> MinifyType {
+    MinifyType::NoMinify
+}
+
+fn is_empty_dir_tree(dir_entries: impl IntoIterator<Item = io::Result<fs::DirEntry>>) -> bool {
+    for entry in dir_entries.into_iter() {
+        let entry = entry.unwrap();
+        if !entry.file_type().unwrap().is_dir()
+            || !is_empty_dir_tree(fs::read_dir(entry.path()).unwrap())
+        {
+            return false;
+        }
+    }
+    true
+}
+
 #[testing::fixture("tests/snapshot/*/*/", exclude("node_modules"))]
 fn test(resource: PathBuf) {
     let resource = canonicalize(resource).unwrap();
+
+    let mut has_output_dir = false;
+    let contents = fs::read_dir(&resource)
+        .unwrap()
+        .filter(|entry| {
+            if entry.as_ref().unwrap().file_name() == "output" {
+                has_output_dir = true;
+                false
+            } else {
+                true
+            }
+        })
+        .collect::<Vec<_>>();
+    if is_empty_dir_tree(contents) {
+        // a directory without input or config is invalid
+        if *UPDATE {
+            fs::remove_dir_all(&resource).unwrap();
+        } else if has_output_dir {
+            let output_dir = resource.join("output");
+            if !is_empty_dir_tree(fs::read_dir(output_dir).unwrap()) {
+                panic!("{resource:?} contains a non-empty output directory, but no input files");
+            }
+        }
+        return;
+    }
+
     // Separating this into a different function fixes my IDE's types for some
     // reason...
     run(resource).unwrap();
@@ -161,7 +204,8 @@ fn test(resource: PathBuf) {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(resource: PathBuf) -> Result<()> {
-    register();
+    static REGISTER_ONCE: Once = Once::new();
+    REGISTER_ONCE.call_once(register);
 
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -189,11 +233,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
-    let out_vc = out_op
-        .resolve_strongly_consistent()
-        .await?
-        .await?
-        .clone_value();
+    let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
     let captured_issues = out_op.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues.get_plain_issues().await?;
@@ -221,7 +261,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
     let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root().await?.clone_value();
+    let project_root = project_fs.root().owned().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
     let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
@@ -305,26 +345,18 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ignore_dynamic_requests: true,
                 ..Default::default()
             },
-            css: CssOptionsContext {
-                ..Default::default()
-            },
             environment: Some(env),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
-                    css: CssOptionsContext {
-                        ..Default::default()
-                    },
                     environment: Some(env),
                     tree_shaking_mode: options.tree_shaking_mode,
-                    remove_unused_exports: options.remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
             module_rules: vec![module_rules],
             tree_shaking_mode: options.tree_shaking_mode,
-            remove_unused_exports: options.remove_unused_exports,
             ..Default::default()
         }
         .into(),
@@ -352,8 +384,55 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await?
         .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
 
+    let entry_module = asset_context
+        .process(
+            Vc::upcast(FileSource::new(entry_asset)),
+            ReferenceType::Entry(EntryReferenceSubType::Undefined),
+        )
+        .module();
+
+    let (evaluatable_assets, entry_modules) = if let Some(ecmascript) =
+        Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
+    {
+        let evaluatable_assets = runtime_entries
+            .unwrap_or_else(EvaluatableAssets::empty)
+            .with_entry(Vc::upcast(ecmascript));
+        (
+            evaluatable_assets,
+            evaluatable_assets
+                .await?
+                .iter()
+                .copied()
+                .map(ResolvedVc::upcast)
+                .collect::<Vec<_>>(),
+        )
+    } else {
+        // TODO convert into a serve-able asset
+        bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
+    };
+
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
+        false,
+    );
+
+    let export_usage = if options.remove_unused_exports {
+        Some(
+            compute_export_usage_info(module_graph.to_resolved().await?)
+                .resolve_strongly_consistent()
+                .await?,
+        )
+    } else {
+        None
+    };
+
     let chunk_root_path = project_path.join("output")?;
     let static_root_path = project_path.join("static")?;
+    let expected_paths = expected(chunk_root_path.clone())
+        .await?
+        .union(&expected(static_root_path.clone()).await?)
+        .cloned()
+        .collect();
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Browser => {
@@ -367,7 +446,9 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .module_merging(options.scope_hoisting);
+            .minify_type(options.minify_type)
+            .module_merging(options.scope_hoisting)
+            .export_usage(export_usage);
 
             if options.production_chunking {
                 builder = builder.chunking_config(
@@ -394,7 +475,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 options.runtime_type,
             )
             .minify_type(options.minify_type)
-            .module_merging(options.scope_hoisting);
+            .module_merging(options.scope_hoisting)
+            .export_usage(export_usage);
 
             if options.production_chunking {
                 builder = builder.chunking_config(
@@ -411,66 +493,33 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         }
     };
 
-    let expected_paths = expected(chunk_root_path.clone())
-        .await?
-        .union(&expected(static_root_path.clone()).await?)
-        .cloned()
-        .collect();
-
-    let entry_module = asset_context
-        .process(
-            Vc::upcast(FileSource::new(entry_asset)),
-            ReferenceType::Entry(EntryReferenceSubType::Undefined),
-        )
-        .module();
-
-    let chunks = if let Some(ecmascript) =
-        Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
-    {
-        let evaluatable_assets = runtime_entries
-            .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(Vc::upcast(ecmascript));
-        let all_modules = evaluatable_assets
-            .await?
-            .iter()
-            .copied()
-            .map(ResolvedVc::upcast)
-            .collect::<Vec<_>>();
-        let module_graph = ModuleGraph::from_modules(
-            Vc::cell(vec![ChunkGroupEntry::Entry(all_modules.clone())]),
-            false,
-        );
-        // TODO: Load runtime entries from snapshots
-        match options.runtime {
-            Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
-                entry_module.ident(),
-                ChunkGroup::Entry(all_modules.into_iter().collect()),
-                module_graph,
-                AvailabilityInfo::Root,
-            ),
-            Runtime::NodeJs => {
-                Vc::cell(vec![
-                    Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
-                        .await?
-                        .unwrap()
-                        .entry_chunk_group(
-                            // `expected` expects a completely flat output directory.
-                            chunk_root_path
-                                .join(entry_module.ident().path().await?.file_stem().unwrap())?
-                                .with_extension("entry.js"),
-                            evaluatable_assets,
-                            module_graph,
-                            OutputAssets::empty(),
-                            AvailabilityInfo::Root,
-                        )
-                        .await?
-                        .asset,
-                ])
-            }
+    // TODO: Load runtime entries from snapshots
+    let chunks = match options.runtime {
+        Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
+            entry_module.ident(),
+            ChunkGroup::Entry(entry_modules.into_iter().collect()),
+            module_graph,
+            AvailabilityInfo::Root,
+        ),
+        Runtime::NodeJs => {
+            Vc::cell(vec![
+                Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
+                    .await?
+                    .unwrap()
+                    .entry_chunk_group(
+                        // `expected` expects a completely flat output directory.
+                        chunk_root_path
+                            .join(entry_module.ident().path().await?.file_stem().unwrap())?
+                            .with_extension("entry.js"),
+                        evaluatable_assets,
+                        module_graph,
+                        OutputAssets::empty(),
+                        AvailabilityInfo::Root,
+                    )
+                    .await?
+                    .asset,
+            ])
         }
-    } else {
-        // TODO convert into a serve-able asset
-        bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
     let mut seen = FxHashSet::default();
@@ -499,7 +548,7 @@ async fn walk_asset(
     seen: &mut FxHashSet<FileSystemPath>,
     queue: &mut VecDeque<ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
-    let path = asset.path().await?.clone_value();
+    let path = asset.path().owned().await?;
 
     if !seen.insert(path.clone()) {
         return Ok(());

@@ -125,7 +125,7 @@ import {
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   accessedDynamicData,
-  createPostponedAbortSignal,
+  createRenderInBrowserAbortSignal,
   formatDynamicAPIAccesses,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
@@ -153,10 +153,7 @@ import { createMutableActionQueue } from '../../client/components/app-router-ins
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { FallbackRouteParams } from '../request/fallback-params'
-import {
-  ServerPrerenderStreamResult,
-  processPrelude,
-} from './app-render-prerender-utils'
+import { processPrelude } from './app-render-prerender-utils'
 import {
   type ReactServerPrerenderResult,
   ReactServerResult,
@@ -252,6 +249,12 @@ interface ParseRequestHeadersOptions {
 const flightDataPathHeadKey = 'h'
 const getFlightViewportKey = (requestId: string) => requestId + 'v'
 const getFlightMetadataKey = (requestId: string) => requestId + 'm'
+
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
 
 interface ParsedRequestHeaders {
   /**
@@ -643,6 +646,7 @@ async function generateDynamicFlightRenderResult(
     {
       onError,
       temporaryReferences: options?.temporaryReferences,
+      filterStackFrame,
     }
   )
 
@@ -664,7 +668,7 @@ async function warmupDevRender(
 ): Promise<RenderResult> {
   const {
     clientReferenceManifest,
-    componentMod,
+    componentMod: ComponentMod,
     getDynamicParamFromSegment,
     implicitTags,
     renderOpts,
@@ -684,7 +688,7 @@ async function warmupDevRender(
   }
 
   const rootParams = getRootParams(
-    componentMod.tree,
+    ComponentMod.tree,
     getDynamicParamFromSegment
   )
 
@@ -725,6 +729,7 @@ async function warmupDevRender(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
+    captureOwnerStack: ComponentMod.captureOwnerStack,
   }
 
   const rscPayload = await workUnitAsyncStorage.run(
@@ -737,10 +742,11 @@ async function warmupDevRender(
   // which contains the subset React.
   workUnitAsyncStorage.run(
     prerenderStore,
-    componentMod.renderToReadableStream,
+    ComponentMod.renderToReadableStream,
     rscPayload,
     clientReferenceManifest.clientModules,
     {
+      filterStackFrame,
       onError,
       signal: renderController.signal,
     }
@@ -1220,13 +1226,28 @@ async function renderToHTMLOrFlightImpl(
       if (!renderOpts.experimental.dynamicIO) {
         return false
       }
+      if (renderOpts.dev) {
+        return true
+      }
       const workUnitStore = workUnitAsyncStorage.getStore()
-      return !!(
-        workUnitStore &&
-        (workUnitStore.type === 'prerender' ||
-          workUnitStore.type === 'prerender-client' ||
-          workUnitStore.type === 'cache')
-      )
+
+      if (!workUnitStore) {
+        return false
+      }
+
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-client':
+        case 'cache':
+          return true
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'unstable-cache':
+          return false
+        default:
+          workUnitStore satisfies never
+      }
     }
 
     const __next_require__: typeof instrumented.require = (...args) => {
@@ -1898,12 +1919,7 @@ async function renderToStream(
               onError: serverComponentsErrorHandler,
               environmentName: () =>
                 requestStore.prerenderPhase === true ? 'Prerender' : 'Server',
-              filterStackFrame(url: string, _functionName: string): boolean {
-                // The default implementation filters out <anonymous> stack frames
-                // but we want to retain them because current Server Components and
-                // built-in Components in parent stacks don't have source location.
-                return !url.startsWith('node:') && !url.includes('node_modules')
-              },
+              filterStackFrame,
             }
           )
         },
@@ -1939,6 +1955,7 @@ async function renderToStream(
           RSCPayload,
           clientReferenceManifest.clientModules,
           {
+            filterStackFrame,
             onError: serverComponentsErrorHandler,
           }
         )
@@ -2073,6 +2090,8 @@ async function renderToStream(
         formState
       ),
       isStaticGeneration: generateStaticHTML,
+      isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
+      buildId: ctx.workStore.buildId,
       getServerInsertedHTML,
       getServerInsertedMetadata,
       validateRootLayout: dev,
@@ -2155,6 +2174,7 @@ async function renderToStream(
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
+        filterStackFrame,
         onError: serverComponentsErrorHandler,
       }
     )
@@ -2219,6 +2239,8 @@ async function renderToStream(
           formState
         ),
         isStaticGeneration: generateStaticHTML,
+        isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
+        buildId: ctx.workStore.buildId,
         getServerInsertedHTML: makeGetServerInsertedHTML({
           polyfills,
           renderServerInsertedHTML,
@@ -2305,6 +2327,9 @@ async function spawnDynamicValidationInDev(
   // to cut the render off.
   const cacheSignal = new CacheSignal()
 
+  const captureOwnerStackClient = React.captureOwnerStack
+  const captureOwnerStackServer = ComponentMod.captureOwnerStack
+
   // The resume data cache here should use a fresh instance as it's
   // performing a fresh prerender. If we get to implementing the
   // prerendering of an already prerendered page, we should use the passed
@@ -2330,6 +2355,7 @@ async function spawnDynamicValidationInDev(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
   }
 
   // We're not going to use the result of this render because the only time it could be used
@@ -2348,6 +2374,7 @@ async function spawnDynamicValidationInDev(
     initialServerPayload,
     clientReferenceManifest.clientModules,
     {
+      filterStackFrame,
       onError: (err) => {
         const digest = getDigestForWellKnownError(err)
 
@@ -2424,14 +2451,15 @@ async function spawnDynamicValidationInDev(
   }
 
   if (initialServerResult) {
-    const initialClientController = new AbortController()
+    const initialClientRenderController = new AbortController()
+    const initialClientPrerenderController = new AbortController()
     const initialClientPrerenderStore: PrerenderStore = {
       type: 'prerender-client',
       phase: 'render',
       rootParams,
       implicitTags,
-      renderSignal: initialClientController.signal,
-      controller: initialClientController,
+      renderSignal: initialClientRenderController.signal,
+      controller: initialClientPrerenderController,
       // For HTML Generation the only cache tracked activity
       // is module loading, which has it's own cache signal
       cacheSignal: null,
@@ -2444,6 +2472,7 @@ async function spawnDynamicValidationInDev(
       prerenderResumeDataCache,
       renderResumeDataCache: null,
       hmrRefreshHash: undefined,
+      captureOwnerStack: captureOwnerStackClient,
     }
 
     const prerender = (
@@ -2461,7 +2490,7 @@ async function spawnDynamicValidationInDev(
         nonce={nonce}
       />,
       {
-        signal: initialClientController.signal,
+        signal: initialClientRenderController.signal,
         onError: (err) => {
           const digest = getDigestForWellKnownError(err)
 
@@ -2475,7 +2504,7 @@ async function spawnDynamicValidationInDev(
             return undefined
           }
 
-          if (initialClientController.signal.aborted) {
+          if (initialClientRenderController.signal.aborted) {
             // These are expected errors that might error the prerender. we ignore them.
           } else if (
             process.env.NEXT_DEBUG_BUILD ||
@@ -2511,7 +2540,7 @@ async function spawnDynamicValidationInDev(
     // Promises passed to client were already awaited above (assuming that they came from cached functions)
     trackPendingModules(cacheSignal)
     await cacheSignal.cacheReady()
-    initialClientController.abort()
+    initialClientRenderController.abort()
   }
 
   const finalServerController = new AbortController()
@@ -2537,6 +2566,7 @@ async function spawnDynamicValidationInDev(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
   }
 
   const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -2546,6 +2576,7 @@ async function spawnDynamicValidationInDev(
     ctx,
     isNotFound
   )
+
   const reactServerResult = await createReactServerPrerenderResult(
     prerenderAndAbortInSequentialTasks(
       async () => {
@@ -2558,6 +2589,7 @@ async function spawnDynamicValidationInDev(
           finalAttemptRSCPayload,
           clientReferenceManifest.clientModules,
           {
+            filterStackFrame,
             onError: (err: unknown) => {
               if (
                 finalServerController.signal.aborted &&
@@ -2607,6 +2639,7 @@ async function spawnDynamicValidationInDev(
     prerenderResumeDataCache,
     renderResumeDataCache: null,
     hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackClient,
   }
 
   let dynamicValidation = createDynamicValidationState()
@@ -2639,7 +2672,7 @@ async function spawnDynamicValidationInDev(
                   const componentStack = errorInfo.componentStack
                   if (typeof componentStack === 'string') {
                     trackAllowedDynamicAccess(
-                      workStore.route,
+                      workStore,
                       componentStack,
                       dynamicValidation,
                       clientDynamicTracking
@@ -2853,10 +2886,7 @@ async function prerenderToStream(
     onHTMLRenderSSRError
   )
 
-  let reactServerPrerenderResult:
-    | null
-    | ReactServerPrerenderResult
-    | ServerPrerenderStreamResult = null
+  let reactServerPrerenderResult: null | ReactServerPrerenderResult = null
   const setMetadataHeader = (name: string) => {
     metadata.headers ??= {}
     metadata.headers[name] = res.getHeader(name)
@@ -2953,6 +2983,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
       })
 
       // We're not going to use the result of this render because the only time it could be used
@@ -2971,6 +3002,7 @@ async function prerenderToStream(
         initialServerPayload,
         clientReferenceManifest.clientModules,
         {
+          filterStackFrame,
           onError: (err) => {
             const digest = getDigestForWellKnownError(err)
 
@@ -3040,14 +3072,15 @@ async function prerenderToStream(
       }
 
       if (initialServerResult) {
-        const initialClientController = new AbortController()
+        const initialClientRenderController = new AbortController()
+        const initialClientPrerenderController = new AbortController()
         const initialClientPrerenderStore: PrerenderStore = {
           type: 'prerender-client',
           phase: 'render',
           rootParams,
           implicitTags,
-          renderSignal: initialClientController.signal,
-          controller: initialClientController,
+          renderSignal: initialClientRenderController.signal,
+          controller: initialClientPrerenderController,
           // For HTML Generation the only cache tracked activity
           // is module loading, which has it's own cache signal
           cacheSignal: null,
@@ -3060,6 +3093,7 @@ async function prerenderToStream(
           prerenderResumeDataCache,
           renderResumeDataCache,
           hmrRefreshHash: undefined,
+          captureOwnerStack: undefined, // Not available in production.
         }
 
         const prerender = (
@@ -3077,7 +3111,7 @@ async function prerenderToStream(
             nonce={nonce}
           />,
           {
-            signal: initialClientController.signal,
+            signal: initialClientRenderController.signal,
             onError: (err) => {
               const digest = getDigestForWellKnownError(err)
 
@@ -3091,7 +3125,7 @@ async function prerenderToStream(
                 return undefined
               }
 
-              if (initialClientController.signal.aborted) {
+              if (initialClientRenderController.signal.aborted) {
                 // These are expected errors that might error the prerender. we ignore them.
               } else if (
                 process.env.NEXT_DEBUG_BUILD ||
@@ -3126,7 +3160,7 @@ async function prerenderToStream(
         // Promises passed to client were already awaited above (assuming that they came from cached functions)
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
-        initialClientController.abort()
+        initialClientRenderController.abort()
       }
 
       let serverIsDynamic = false
@@ -3153,6 +3187,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
       })
 
       const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -3176,6 +3211,7 @@ async function prerenderToStream(
                 finalAttemptRSCPayload,
                 clientReferenceManifest.clientModules,
                 {
+                  filterStackFrame,
                   onError: (err: unknown) => {
                     return serverComponentsErrorHandler(err)
                   },
@@ -3225,9 +3261,9 @@ async function prerenderToStream(
         prerenderResumeDataCache,
         renderResumeDataCache,
         hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
       }
 
-      let clientIsDynamic = false
       let dynamicValidation = createDynamicValidationState()
 
       const prerender = (
@@ -3254,14 +3290,12 @@ async function prerenderToStream(
                     isPrerenderInterruptedError(err) ||
                     finalClientController.signal.aborted
                   ) {
-                    clientIsDynamic = true
-
                     const componentStack: string | undefined = (
                       errorInfo as any
                     ).componentStack
                     if (typeof componentStack === 'string') {
                       trackAllowedDynamicAccess(
-                        workStore.route,
+                        workStore,
                         componentStack,
                         dynamicValidation,
                         clientDynamicTracking
@@ -3319,7 +3353,12 @@ async function prerenderToStream(
         fallbackRouteParams
       )
 
-      if (serverIsDynamic || clientIsDynamic) {
+      if (serverIsDynamic) {
+        // Dynamic case
+        // We will always need to perform a "resume" render of some kind when this route is accessed
+        // because the RSC data itself is dynamic. We determine if there are any HTML holes or not
+        // but generally this is a "partial" prerender in that there will be a per-request compute
+        // concatenated to the static shell.
         if (postponed != null) {
           // Dynamic HTML case
           metadata.postponed = await getDynamicHTMLPostponedState(
@@ -3353,6 +3392,8 @@ async function prerenderToStream(
         }
       } else {
         // Static case
+        // We will not perform resumption per request. The result can be served statically to the requestor
+        // and if there was anything dynamic it will only be rendered in the browser.
         if (workStore.forceDynamic) {
           throw new StaticGenBailoutError(
             'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
@@ -3382,7 +3423,7 @@ async function prerenderToStream(
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
-              signal: createPostponedAbortSignal('static prerender resume'),
+              signal: createRenderInBrowserAbortSignal(),
               onError: htmlRendererErrorHandler,
               nonce,
             }
@@ -3403,6 +3444,9 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
           }),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
@@ -3449,6 +3493,7 @@ async function prerenderToStream(
             RSCPayload,
             clientReferenceManifest.clientModules,
             {
+              filterStackFrame,
               onError: serverComponentsErrorHandler,
             }
           )
@@ -3615,7 +3660,7 @@ async function prerenderToStream(
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
-              signal: createPostponedAbortSignal('static prerender resume'),
+              signal: createRenderInBrowserAbortSignal(),
               onError: htmlRendererErrorHandler,
               nonce,
             }
@@ -3636,6 +3681,9 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3665,6 +3713,7 @@ async function prerenderToStream(
         ctx,
         res.statusCode === 404
       )
+
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
@@ -3673,6 +3722,7 @@ async function prerenderToStream(
             RSCPayload,
             clientReferenceManifest.clientModules,
             {
+              filterStackFrame,
               onError: serverComponentsErrorHandler,
             }
           )
@@ -3728,6 +3778,9 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
+          isBuildTimePrerendering:
+            ctx.workStore.isBuildTimePrerendering === true,
+          buildId: ctx.workStore.buildId,
           getServerInsertedHTML,
           getServerInsertedMetadata,
         }),
@@ -3840,6 +3893,7 @@ async function prerenderToStream(
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
+        filterStackFrame,
         onError: serverComponentsErrorHandler,
       }
     )
@@ -3889,10 +3943,7 @@ async function prerenderToStream(
 
       // This is intentionally using the readable datastream from the main
       // render rather than the flight data from the error page render
-      const flightStream =
-        reactServerPrerenderResult instanceof ServerPrerenderStreamResult
-          ? reactServerPrerenderResult.asStream()
-          : reactServerPrerenderResult.consumeAsStream()
+      const flightStream = reactServerPrerenderResult.consumeAsStream()
 
       return {
         // Returning the error that was thrown so it can be used to handle
@@ -3906,6 +3957,9 @@ async function prerenderToStream(
             formState
           ),
           isStaticGeneration: true,
+          isBuildTimePrerendering:
+            ctx.workStore.isBuildTimePrerendering === true,
+          buildId: ctx.workStore.buildId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,

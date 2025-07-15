@@ -339,11 +339,11 @@ async fn node_file_trace_operation(
         package_root.clone(),
         vec![],
     ));
-    let input_dir = workspace_fs.root().await?.clone_value();
+    let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&format!("tests/{input}"))?;
 
     let output_fs = DiskFileSystem::new(rcstr!("output"), directory.clone(), vec![]);
-    let output_dir = output_fs.root().await?.clone_value();
+    let output_dir = output_fs.root().owned().await?;
 
     let source = FileSource::new(input);
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(

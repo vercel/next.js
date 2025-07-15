@@ -42,15 +42,6 @@ where
     }
 }
 
-impl<T> ReadRef<T>
-where
-    T: VcValueType + Clone,
-{
-    pub fn clone_value(&self) -> VcReadTarget<T> {
-        T::Read::value_to_target((*self.0).clone())
-    }
-}
-
 impl<T> Display for ReadRef<T>
 where
     T: VcValueType,

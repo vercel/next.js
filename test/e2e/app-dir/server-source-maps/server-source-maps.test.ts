@@ -5,7 +5,13 @@ import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 
 function normalizeCliOutput(output: string) {
-  return stripAnsi(output)
+  return (
+    stripAnsi(output)
+      // TODO(veil): Should not appear in sourcemapped stackframes.
+      .replaceAll('webpack:///', 'bundler:///')
+      .replaceAll('turbopack:///[project]/', 'bundler:///')
+      .replaceAll(/at [a-zA-Z] \(/g, 'at <mangled> (')
+  )
 }
 
 describe('app-dir - server source maps', () => {
@@ -52,7 +58,7 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(turbopack:///[project]/app/rsc-error-log/page.js:4:16)'
+          '(bundler:///app/rsc-error-log/page.js:4:16)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -101,10 +107,10 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(turbopack:///[project]/app/rsc-error-log-cause/page.js:2:16)'
+          '(bundler:///app/rsc-error-log-cause/page.js:2:16)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(turbopack:///[project]/app/rsc-error-log-cause/page.js:7:16)'
+          '(bundler:///app/rsc-error-log-cause/page.js:7:16)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -228,7 +234,7 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(turbopack:///[project]/app/ssr-error-log-ignore-listed/page.js:24:2)'
+          '(bundler:///app/ssr-error-log-ignore-listed/page.js:24:2)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '\n> 24 |   })\n     |  ^'
@@ -292,7 +298,7 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          'at <unknown> (turbopack:///[project]/app/rsc-error-log-ignore-listed/page.js:8:16)'
+          'at <unknown> (bundler:///app/rsc-error-log-ignore-listed/page.js:8:16)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -408,30 +414,326 @@ describe('app-dir - server source maps', () => {
         )
         // Expect the invalid sourcemap warning only once per render.
         // Dynamic I/O renders three times.
+        // One from filterStackFrameDEV.
         expect(
           normalizeCliOutput(next.cliOutput.slice(outputIndex)).split(
             'Invalid source map.'
           ).length - 1
-        ).toEqual(3)
+        ).toEqual(4)
+      }
+    } else {
+      // Bundlers silently drop invalid sourcemaps.
+      expect(
+        normalizeCliOutput(next.cliOutput).split('Invalid source map.').length -
+          1
+      ).toEqual(0)
+    }
+  })
+
+  it('sourcemaps errors during module evaluation', async () => {
+    const outputIndex = next.cliOutput.length
+    const browser = await next.browser('/module-evaluation')
+
+    if (isNextDev) {
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: module-evaluation'
+        )
+      })
+      const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+      if (isTurbopack) {
+        expect(cliOutput).toContain(
+          '' +
+            '\nError: module-evaluation' +
+            // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
+            '\n    at [project]/app/module-evaluation/module.js [app-rsc] (ecmascript) (app/module-evaluation/module.js:1:21)' +
+            // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
+            '\n    at [project]/app/module-evaluation/page.js [app-rsc] (ecmascript) (app/module-evaluation/page.js:1:0)' +
+            '\n    at [project]/app/module-evaluation/page.js [app-rsc] (ecmascript, Next.js Server Component) (.next'
+        )
+      } else {
+        expect(cliOutput).toContain(
+          '' +
+            '\nError: module-evaluation' +
+            // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
+            // TODO(veil): Location should be sourcemapped
+            '\n    at eval (app/module-evaluation/module.js:1:21)' +
+            // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
+            '\n    at <unknown> (rsc)/.'
+        )
+      }
+
+      expect(cliOutput).toContain(
+        '' +
+          "\n> 1 | export const error = new Error('module-evaluation')" +
+          '\n    |                     ^'
+      )
+
+      if (isTurbopack) {
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "module-evaluation",
+           "environmentLabel": "Prerender",
+           "label": "Console Error",
+           "source": "app/module-evaluation/module.js (1:22) @ [project]/app/module-evaluation/module.js [app-rsc] (ecmascript)
+         > 1 | export const error = new Error('module-evaluation')
+             |                      ^",
+           "stack": [
+             "[project]/app/module-evaluation/module.js [app-rsc] (ecmascript) app/module-evaluation/module.js (1:22)",
+             "[project]/app/module-evaluation/page.js [app-rsc] (ecmascript) app/module-evaluation/page.js (1:1)",
+             "[project]/app/module-evaluation/page.js [app-rsc] (ecmascript, Next.js Server Component) app/module-evaluation/page.js (6:1)",
+             "<FIXME-next-dist-dir>",
+             "Page <anonymous>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "module-evaluation",
+           "environmentLabel": "Prerender",
+           "label": "Console Error",
+           "source": "app/module-evaluation/module.js (1:22) @ eval
+         > 1 | export const error = new Error('module-evaluation')
+             |                      ^",
+           "stack": [
+             "eval app/module-evaluation/module.js (1:22)",
+             "<FIXME-file-protocol>",
+             "eval rsc:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:65)",
+             "<FIXME-file-protocol>",
+             "Page <anonymous>",
+           ],
+         }
+        `)
       }
     } else {
       if (isTurbopack) {
-        // Expect the invalid sourcemap warning only once per render.
         expect(
-          normalizeCliOutput(next.cliOutput).split('Invalid source map.')
-            .length - 1
-        ).toEqual(
-          // >= 20
-          // behavior in Node.js 20+ is intended
-          process.versions.node.startsWith('18') ? 0 : 2
+          normalizeCliOutput(next.cliOutput).replaceAll(
+            /at \d+ /g,
+            'at <TurbopackModuleID> '
+          )
+        ).toContain(
+          '' +
+            '\nError: module-evaluation' +
+            '\n    at <TurbopackModuleID> (bundler:///app/module-evaluation/module.js:1:21)' +
+            // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
+            '\n    at Object.<anonymous>'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '' +
+            "\n> 1 | export const error = new Error('module-evaluation')" +
+            '\n    |                     ^'
         )
       } else {
-        // Webpack is silent about invalid sourcemaps for next build.
         expect(
-          normalizeCliOutput(next.cliOutput).split('Invalid source map.')
-            .length - 1
-        ).toEqual(0)
+          normalizeCliOutput(next.cliOutput).replaceAll(
+            /at \d+ /g,
+            'at <WebpackModuleID> '
+          )
+        ).toContain(
+          '' +
+            '\nError: module-evaluation' +
+            // TODO(veil): column numbers are flaky in Webpack
+            '\n    at <WebpackModuleID> (bundler:///app/module-evaluation/module.js:1:'
+        )
       }
+    }
+  })
+
+  it('ignore-lists anonymous rsc stack frame sandwiches', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/rsc-anonymous-stack-frame-sandwich')
+
+      // TODO(veil): Implement sandwich heuristic in `filterStackFrameDEV`
+      if (isTurbopack) {
+        await expect(browser).toDisplayCollapsedRedbox(`
+         [
+           {
+             "description": "rsc-anonymous-stack-frame-sandwich: external",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (5:29) @ Page
+         > 5 |   runHiddenSetOfSetsExternal('rsc-anonymous-stack-frame-sandwich: external')
+             |                             ^",
+             "stack": [
+               "Set.forEach <anonymous>",
+               "Set.forEach <anonymous>",
+               "Page app/rsc-anonymous-stack-frame-sandwich/page.js (5:29)",
+               "Page <anonymous>",
+             ],
+           },
+           {
+             "description": "rsc-anonymous-stack-frame-sandwich: internal",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (6:29) @ Page
+         > 6 |   runHiddenSetOfSetsInternal('rsc-anonymous-stack-frame-sandwich: internal')
+             |                             ^",
+             "stack": [
+               "Set.forEach <anonymous>",
+               "Set.forEach <anonymous>",
+               "Page app/rsc-anonymous-stack-frame-sandwich/page.js (6:29)",
+               "Page <anonymous>",
+             ],
+           },
+         ]
+        `)
+      } else {
+        // 2nd error from runHiddenSetOfSetsInternal hits https://linear.app/vercel/issue/NEXT-4412
+        await expect(browser).toDisplayCollapsedRedbox(`
+         [
+           {
+             "description": "rsc-anonymous-stack-frame-sandwich: external",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (5:29) @ Page
+         > 5 |   runHiddenSetOfSetsExternal('rsc-anonymous-stack-frame-sandwich: external')
+             |                             ^",
+             "stack": [
+               "Set.forEach <anonymous>",
+               "Set.forEach <anonymous>",
+               "Page app/rsc-anonymous-stack-frame-sandwich/page.js (5:29)",
+               "Page <anonymous>",
+             ],
+           },
+           {
+             "description": "rsc-anonymous-stack-frame-sandwich: internal",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (6:29) @ Page
+         > 6 |   runHiddenSetOfSetsInternal('rsc-anonymous-stack-frame-sandwich: internal')
+             |                             ^",
+             "stack": [
+               "eval webpack-internal:/(rsc)/internal-pkg/ignored.ts (18:54)",
+               "eval webpack-internal:/(rsc)/internal-pkg/ignored.ts (12:7)",
+               "Set.forEach <anonymous>",
+               "eval webpack-internal:/(rsc)/internal-pkg/ignored.ts (11:9)",
+               "Set.forEach <anonymous>",
+               "runSetOfSets webpack-internal:/(rsc)/internal-pkg/ignored.ts (10:13)",
+               "runHiddenSetOfSets webpack-internal:/(rsc)/internal-pkg/ignored.ts (18:3)",
+               "Page app/rsc-anonymous-stack-frame-sandwich/page.js (6:29)",
+               "Page <anonymous>",
+             ],
+           },
+         ]
+        `)
+      }
+
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        '' +
+          '\nError: rsc-anonymous-stack-frame-sandwich: external' +
+          '\n    at Page (app/rsc-anonymous-stack-frame-sandwich/page.js:5:29)' +
+          '\n  3 |' +
+          '\n  4 | export default function Page() {' +
+          "\n> 5 |   runHiddenSetOfSetsExternal('rsc-anonymous-stack-frame-sandwich: external')" +
+          '\n    |                             ^'
+      )
+      // TODO: assert on 2nd error once that's bug free
+    } else {
+      // TODO(veil): assert on 1st error once cursor position is consistent
+      // TODO(veil): assert on 2nd error once that's bug free
+    }
+  })
+
+  it('ignore-lists anonymous ssr stack frame sandwiches', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/ssr-anonymous-stack-frame-sandwich')
+
+      if (isTurbopack) {
+        // TODO(veil): https://linear.app/vercel/issue/NEXT-4410/
+        await expect(browser).toDisplayCollapsedRedbox(`
+         [
+           {
+             "description": "ssr-anonymous-stack-frame-sandwich: external",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/ssr-anonymous-stack-frame-sandwich/page.js (6:28) @ Page
+         > 6 |   runHiddenSetOfSetsExternal('ssr-anonymous-stack-frame-sandwich: external')
+             |                            ^",
+             "stack": [
+               "<FIXME-file-protocol>",
+               "<FIXME-file-protocol>",
+               "Set.forEach <anonymous>",
+               "<FIXME-file-protocol>",
+               "Set.forEach <anonymous>",
+               "<FIXME-file-protocol>",
+               "<FIXME-file-protocol>",
+               "Page app/ssr-anonymous-stack-frame-sandwich/page.js (6:28)",
+             ],
+           },
+           {
+             "description": "ignore-listed frames",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/ssr-anonymous-stack-frame-sandwich/page.js (7:28) @ Page
+         >  7 |   runHiddenSetOfSetsInternal('ssr-anonymous-stack-frame-sandwich: internal')
+              |                            ^",
+             "stack": [
+               "<FIXME-file-protocol>",
+               "<FIXME-file-protocol>",
+               "Set.forEach <anonymous>",
+               "<FIXME-file-protocol>",
+               "Set.forEach <anonymous>",
+               "<FIXME-file-protocol>",
+               "<FIXME-file-protocol>",
+               "Page app/ssr-anonymous-stack-frame-sandwich/page.js (7:28)",
+             ],
+           },
+         ]
+        `)
+      } else {
+        // 2nd error from runHiddenSetOfSetsInternal hits https://linear.app/vercel/issue/NEXT-4412
+        await expect(browser).toDisplayCollapsedRedbox(`
+         [
+           {
+             "description": "ssr-anonymous-stack-frame-sandwich: external",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/ssr-anonymous-stack-frame-sandwich/page.js (6:29) @ Page
+         > 6 |   runHiddenSetOfSetsExternal('ssr-anonymous-stack-frame-sandwich: external')
+             |                             ^",
+             "stack": [
+               "Page app/ssr-anonymous-stack-frame-sandwich/page.js (6:29)",
+             ],
+           },
+           {
+             "description": "ignore-listed frames",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/ssr-anonymous-stack-frame-sandwich/page.js (7:29) @ Page
+         >  7 |   runHiddenSetOfSetsInternal('ssr-anonymous-stack-frame-sandwich: internal')
+              |                             ^",
+             "stack": [
+               "eval sourcemapped.ts (18:43)",
+               "eval sourcemapped.ts (11:7)",
+               "Set.forEach <anonymous>",
+               "eval sourcemapped.ts (10:9)",
+               "Set.forEach <anonymous>",
+               "runSetOfSets sourcemapped.ts (9:13)",
+               "runHiddenSetOfSets sourcemapped.ts (17:3)",
+               "Page app/ssr-anonymous-stack-frame-sandwich/page.js (7:29)",
+             ],
+           },
+         ]
+        `)
+      }
+
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        '' +
+          '\nError: ssr-anonymous-stack-frame-sandwich: external' +
+          '\n    at Page (app/ssr-anonymous-stack-frame-sandwich/page.js:6:29)' +
+          '\n  4 |' +
+          '\n  5 | export default function Page() {' +
+          "\n> 6 |   runHiddenSetOfSetsExternal('ssr-anonymous-stack-frame-sandwich: external')" +
+          '\n    |                             ^'
+      )
+      // TODO(veil): assert on 2nd error once that's bug free
+    } else {
+      // TODO(veil): assert on 1st error once cursor position is consistent
+      // TODO(veil): assert on 2nd error once that's bug free
     }
   })
 })

@@ -225,7 +225,9 @@ export async function handler(
     const method = req.method || 'GET'
 
     const resolvedUrl = formatUrl({
-      pathname: parsedUrl.pathname,
+      pathname: nextConfig.trailingSlash
+        ? parsedUrl.pathname
+        : removeTrailingSlash(parsedUrl.pathname || '/'),
       // make sure to only add query values from original URL
       query: hasStaticProps ? {} : originalQuery,
     })

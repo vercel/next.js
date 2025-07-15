@@ -416,7 +416,7 @@ export default function Page(props) {
 
 #### Route Handlers
 
-```tsx filename="app/api/route.ts"
+```tsx filename="app/api/route.ts" switcher
 // Before
 type Params = { slug: string }
 
@@ -434,7 +434,7 @@ export async function GET(request: Request, segmentData: { params: Params }) {
 }
 ```
 
-```js filename="app/api/route.js"
+```js filename="app/api/route.js" switcher
 // Before
 export async function GET(request, segmentData) {
   const params = segmentData.params

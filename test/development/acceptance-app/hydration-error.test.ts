@@ -97,7 +97,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |       <main className="child">{isClient ? "client" : "server"}</main>
          |       ^",
        "stack": [
-         "main <anonymous> (0:0)",
+         "main <anonymous>",
          "Mismatch app/page.js (6:7)",
        ],
      }
@@ -172,7 +172,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |       {isClient && <main className="only" />}
          |                    ^",
        "stack": [
-         "main <anonymous> (0:0)",
+         "main <anonymous>",
          "Mismatch app/page.js (6:20)",
        ],
      }
@@ -233,7 +233,7 @@ describe('Error overlay for hydration errors in App router', () => {
        > 5 |     <html
            |     ^",
          "stack": [
-           "html <anonymous> (0:0)",
+           "html <anonymous>",
            "Root app/layout.js (5:5)",
          ],
        }
@@ -264,7 +264,7 @@ describe('Error overlay for hydration errors in App router', () => {
        > 5 |     <html
            |     ^",
          "stack": [
-           "html <anonymous> (0:0)",
+           "html <anonymous>",
            "Root app/layout.js (5:5)",
          ],
        }
@@ -324,7 +324,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <div className="parent">
          |     ^",
        "stack": [
-         "div <anonymous> (0:0)",
+         "div <anonymous>",
          "Mismatch app/page.js (5:5)",
        ],
      }
@@ -378,7 +378,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <div className="parent">
          |     ^",
        "stack": [
-         "div <anonymous> (0:0)",
+         "div <anonymous>",
          "Mismatch app/page.js (5:5)",
        ],
      }
@@ -428,7 +428,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 4 |   return <div className="parent">{!isClient && "only"}</div>;
          |          ^",
        "stack": [
-         "div <anonymous> (0:0)",
+         "div <anonymous>",
          "Mismatch app/page.js (4:10)",
        ],
      }
@@ -490,7 +490,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |         <tr>test</tr>
          |         ^",
          "stack": [
-           "tr <anonymous> (0:0)",
+           "tr <anonymous>",
            "Page app/page.js (6:9)",
          ],
        },
@@ -518,7 +518,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 4 |     <table>
          |     ^",
          "stack": [
-           "table <anonymous> (0:0)",
+           "table <anonymous>",
            "Page app/page.js (4:5)",
          ],
        },
@@ -575,7 +575,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 4 |     <table>
          |     ^",
        "stack": [
-         "table <anonymous> (0:0)",
+         "table <anonymous>",
          "Page app/page.js (4:5)",
        ],
      }
@@ -636,7 +636,7 @@ describe('Error overlay for hydration errors in App router', () => {
      >  9 |         {isClient && <main className="second" />}
           |                      ^",
        "stack": [
-         "main <anonymous> (0:0)",
+         "main <anonymous>",
          "Mismatch app/page.js (9:22)",
        ],
      }
@@ -727,7 +727,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |       <p>Nested p tags</p>
          |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (6:7)",
          ],
        },
@@ -739,7 +739,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |       <p>Nested p tags</p>
          |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (6:7)",
          ],
        },
@@ -806,7 +806,7 @@ describe('Error overlay for hydration errors in App router', () => {
      >  8 |           <div>Nested div under p tag</div>
           |           ^",
          "stack": [
-           "div <anonymous> (0:0)",
+           "div <anonymous>",
            "Page app/page.js (8:11)",
          ],
        },
@@ -818,7 +818,7 @@ describe('Error overlay for hydration errors in App router', () => {
      >  8 |           <div>Nested div under p tag</div>
           |           ^",
          "stack": [
-           "div <anonymous> (0:0)",
+           "div <anonymous>",
            "Page app/page.js (8:11)",
          ],
        },
@@ -875,7 +875,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 3 |   return <div><tr></tr></div>
          |               ^",
          "stack": [
-           "tr <anonymous> (0:0)",
+           "tr <anonymous>",
            "Page app/page.js (3:15)",
          ],
        },
@@ -887,7 +887,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 3 |   return <div><tr></tr></div>
          |               ^",
          "stack": [
-           "tr <anonymous> (0:0)",
+           "tr <anonymous>",
            "Page app/page.js (3:15)",
          ],
        },
@@ -951,7 +951,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
          |                                ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (5:32)",
          ],
        },
@@ -964,7 +964,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
          |     ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (5:5)",
          ],
        },
@@ -976,7 +976,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
          |                                ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (5:32)",
          ],
        },
@@ -1066,7 +1066,7 @@ describe('Error overlay for hydration errors in App router', () => {
      >  7 |       <Script
           |       ^",
          "stack": [
-           "script <anonymous> (0:0)",
+           "script <anonymous>",
            "Layout app/layout.js (7:7)",
          ],
        },
@@ -1079,7 +1079,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <html>
          |     ^",
          "stack": [
-           "html <anonymous> (0:0)",
+           "html <anonymous>",
            "Layout app/layout.js (5:5)",
          ],
        },

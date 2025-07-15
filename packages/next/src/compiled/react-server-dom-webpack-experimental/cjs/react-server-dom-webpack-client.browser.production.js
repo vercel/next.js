@@ -659,15 +659,13 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
       rejectListeners && rejectChunk(rejectListeners, chunk.reason);
   }
 }
-function triggerErrorOnChunk(chunk, error) {
-  if ("pending" !== chunk.status && "blocked" !== chunk.status)
-    chunk.reason.error(error);
-  else {
-    var listeners = chunk.reason;
-    chunk.status = "rejected";
-    chunk.reason = error;
-    null !== listeners && rejectChunk(listeners, error);
-  }
+function triggerErrorOnChunk(response, chunk, error) {
+  "pending" !== chunk.status && "blocked" !== chunk.status
+    ? chunk.reason.error(error)
+    : ((response = chunk.reason),
+      (chunk.status = "rejected"),
+      (chunk.reason = error),
+      null !== response && rejectChunk(response, error));
 }
 function createResolvedIteratorResultChunk(response, value, done) {
   return new ReactPromise(
@@ -696,15 +694,15 @@ function resolveModelChunk(response, chunk, value) {
       wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners));
   }
 }
-function resolveModuleChunk(chunk, value) {
+function resolveModuleChunk(response, chunk, value) {
   if ("pending" === chunk.status || "blocked" === chunk.status) {
-    var resolveListeners = chunk.value,
-      rejectListeners = chunk.reason;
+    response = chunk.value;
+    var rejectListeners = chunk.reason;
     chunk.status = "resolved_module";
     chunk.value = value;
-    null !== resolveListeners &&
+    null !== response &&
       (initializeModuleChunk(chunk),
-      wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners));
+      wakeChunkIfInitialized(chunk, response, rejectListeners));
   }
 }
 var initializingHandler = null;
@@ -748,11 +746,12 @@ function initializeModuleChunk(chunk) {
     (chunk.status = "rejected"), (chunk.reason = error);
   }
 }
-function reportGlobalError(response, error) {
-  response._closed = !0;
-  response._closedReason = error;
-  response._chunks.forEach(function (chunk) {
-    "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
+function reportGlobalError(weakResponse, error) {
+  weakResponse._closed = !0;
+  weakResponse._closedReason = error;
+  weakResponse._chunks.forEach(function (chunk) {
+    "pending" === chunk.status &&
+      triggerErrorOnChunk(weakResponse, chunk, error);
   });
 }
 function createLazyChunkWrapper(chunk) {
@@ -843,14 +842,15 @@ function fulfillReference(reference, value) {
       null !== parentObject && wakeChunk(parentObject, handler.value)));
 }
 function rejectReference(reference, error) {
-  reference = reference.handler;
-  reference.errored ||
-    ((reference.errored = !0),
-    (reference.value = error),
-    (reference = reference.chunk),
-    null !== reference &&
-      "blocked" === reference.status &&
-      triggerErrorOnChunk(reference, error));
+  var handler = reference.handler;
+  reference = reference.response;
+  handler.errored ||
+    ((handler.errored = !0),
+    (handler.value = error),
+    (handler = handler.chunk),
+    null !== handler &&
+      "blocked" === handler.status &&
+      triggerErrorOnChunk(reference, handler, error));
 }
 function waitForReference(
   referencedChunk,
@@ -891,17 +891,18 @@ function loadServerReference(response, metaData, parentObject, key) {
   if (!response._serverReferenceConfig)
     return createBoundServerReference(metaData, response._callServer);
   var serverReference = resolveServerReference(
-    response._serverReferenceConfig,
-    metaData.id
-  );
-  if ((response = preloadModule(serverReference)))
-    metaData.bound && (response = Promise.all([response, metaData.bound]));
-  else if (metaData.bound) response = Promise.resolve(metaData.bound);
+      response._serverReferenceConfig,
+      metaData.id
+    ),
+    promise = preloadModule(serverReference);
+  if (promise)
+    metaData.bound && (promise = Promise.all([promise, metaData.bound]));
+  else if (metaData.bound) promise = Promise.resolve(metaData.bound);
   else
     return (
-      (response = requireModule(serverReference)),
-      registerBoundServerReference(response, metaData.id, metaData.bound),
-      response
+      (promise = requireModule(serverReference)),
+      registerBoundServerReference(promise, metaData.id, metaData.bound),
+      promise
     );
   if (initializingHandler) {
     var handler = initializingHandler;
@@ -914,7 +915,7 @@ function loadServerReference(response, metaData, parentObject, key) {
       deps: 1,
       errored: !1
     };
-  response.then(
+  promise.then(
     function () {
       var resolvedValue = requireModule(serverReference);
       if (metaData.bound) {
@@ -952,7 +953,7 @@ function loadServerReference(response, metaData, parentObject, key) {
         var chunk = handler.chunk;
         null !== chunk &&
           "blocked" === chunk.status &&
-          triggerErrorOnChunk(chunk, error);
+          triggerErrorOnChunk(response, chunk, error);
       }
     }
   );
@@ -1203,8 +1204,6 @@ function ResponseInstance(
   this._chunks = chunks;
   this._stringDecoder = new TextDecoder();
   this._fromJSON = null;
-  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
-  this._buffer = [];
   this._closed = !1;
   this._closedReason = null;
   this._tempRefs = temporaryReferences;
@@ -1222,24 +1221,24 @@ function resolveModule(response, id, model) {
     chunk = chunks.get(id);
   model = JSON.parse(model, response._fromJSON);
   var clientReference = resolveClientReference(response._bundlerConfig, model);
-  if ((response = preloadModule(clientReference))) {
+  if ((model = preloadModule(clientReference))) {
     if (chunk) {
       var blockedChunk = chunk;
       blockedChunk.status = "blocked";
     } else
       (blockedChunk = new ReactPromise("blocked", null, null)),
         chunks.set(id, blockedChunk);
-    response.then(
+    model.then(
       function () {
-        return resolveModuleChunk(blockedChunk, clientReference);
+        return resolveModuleChunk(response, blockedChunk, clientReference);
       },
       function (error) {
-        return triggerErrorOnChunk(blockedChunk, error);
+        return triggerErrorOnChunk(response, blockedChunk, error);
       }
     );
   } else
     chunk
-      ? resolveModuleChunk(chunk, clientReference)
+      ? resolveModuleChunk(response, chunk, clientReference)
       : chunks.set(
           id,
           new ReactPromise("resolved_module", clientReference, null)
@@ -1429,7 +1428,7 @@ function startAsyncIterable(response, id, iterator) {
           nextWriteIndex < buffer.length;
 
         )
-          triggerErrorOnChunk(buffer[nextWriteIndex++], error);
+          triggerErrorOnChunk(response, buffer[nextWriteIndex++], error);
       }
     }
   );
@@ -1581,7 +1580,7 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
       buffer.digest = tag.digest;
       tag = response._chunks;
       (chunk = tag.get(id))
-        ? triggerErrorOnChunk(chunk, buffer)
+        ? triggerErrorOnChunk(response, chunk, buffer)
         : tag.set(id, createErrorChunk(response, buffer));
       break;
     case 84:
@@ -1622,7 +1621,7 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
       buffer.stack = "Error: " + buffer.message;
       tag = response._chunks;
       (chunk = tag.get(id))
-        ? triggerErrorOnChunk(chunk, buffer)
+        ? triggerErrorOnChunk(response, chunk, buffer)
         : tag.set(id, createErrorChunk(response, buffer));
       break;
     default:
@@ -1680,18 +1679,20 @@ function createResponseFromOptions(options) {
       : void 0
   );
 }
-function startReadingFromStream(response, stream) {
-  function progress(_ref) {
-    var value = _ref.value;
-    if (_ref.done) reportGlobalError(response, Error("Connection closed."));
+function startReadingFromStream(response, stream, isSecondaryStream) {
+  function progress(_ref2) {
+    var value = _ref2.value;
+    if (_ref2.done)
+      isSecondaryStream ||
+        reportGlobalError(response, Error("Connection closed."));
     else {
       var i = 0,
-        rowState = response._rowState;
-      _ref = response._rowID;
+        rowState = streamState._rowState;
+      _ref2 = streamState._rowID;
       for (
-        var rowTag = response._rowTag,
-          rowLength = response._rowLength,
-          buffer = response._buffer,
+        var rowTag = streamState._rowTag,
+          rowLength = streamState._rowLength,
+          buffer = streamState._buffer,
           chunkLength = value.length;
         i < chunkLength;
 
@@ -1702,8 +1703,8 @@ function startReadingFromStream(response, stream) {
             lastIdx = value[i++];
             58 === lastIdx
               ? (rowState = 1)
-              : (_ref =
-                  (_ref << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+              : (_ref2 =
+                  (_ref2 << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
             continue;
           case 1:
             rowState = value[i];
@@ -1746,10 +1747,10 @@ function startReadingFromStream(response, stream) {
         var offset = value.byteOffset + i;
         if (-1 < lastIdx)
           (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-            processFullBinaryRow(response, _ref, rowTag, buffer, rowLength),
+            processFullBinaryRow(response, _ref2, rowTag, buffer, rowLength),
             (i = lastIdx),
             3 === rowState && i++,
-            (rowLength = _ref = rowTag = rowState = 0),
+            (rowLength = _ref2 = rowTag = rowState = 0),
             (buffer.length = 0);
         else {
           value = new Uint8Array(value.buffer, offset, value.byteLength - i);
@@ -1758,24 +1759,31 @@ function startReadingFromStream(response, stream) {
           break;
         }
       }
-      response._rowState = rowState;
-      response._rowID = _ref;
-      response._rowTag = rowTag;
-      response._rowLength = rowLength;
+      streamState._rowState = rowState;
+      streamState._rowID = _ref2;
+      streamState._rowTag = rowTag;
+      streamState._rowLength = rowLength;
       return reader.read().then(progress).catch(error);
     }
   }
   function error(e) {
     reportGlobalError(response, e);
   }
-  var reader = stream.getReader();
+  var streamState = {
+      _rowState: 0,
+      _rowID: 0,
+      _rowTag: 0,
+      _rowLength: 0,
+      _buffer: []
+    },
+    reader = stream.getReader();
   reader.read().then(progress).catch(error);
 }
 exports.createFromFetch = function (promiseForResponse, options) {
   var response = createResponseFromOptions(options);
   promiseForResponse.then(
     function (r) {
-      startReadingFromStream(response, r.body);
+      startReadingFromStream(response, r.body, !1);
     },
     function (e) {
       reportGlobalError(response, e);
@@ -1785,7 +1793,7 @@ exports.createFromFetch = function (promiseForResponse, options) {
 };
 exports.createFromReadableStream = function (stream, options) {
   options = createResponseFromOptions(options);
-  startReadingFromStream(options, stream);
+  startReadingFromStream(options, stream, !1);
   return getChunk(options, 0);
 };
 exports.createServerReference = function (id, callServer) {

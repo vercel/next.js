@@ -25,12 +25,23 @@ describe('Lazy Module Init', () => {
 
     expect(next.cliOutput).toContain('○ /server ')
     expect(next.cliOutput).toContain('○ /client ')
+    expect(next.cliOutput).toContain('◐ /client-page ')
+    expect(next.cliOutput).toContain('◐ /[dyn] ')
     let $
 
     $ = await next.render$('/server')
     expect($('#id').text().length).toBeGreaterThan(0)
 
     $ = await next.render$('/client')
+    expect($('#id').text().length).toBeGreaterThan(0)
+
+    $ = await next.render$('/client-page')
+    expect($('#id').text().length).toBeGreaterThan(0)
+
+    $ = await next.render$('/foo')
+    expect($('#id').text().length).toBeGreaterThan(0)
+
+    $ = await next.render$('/serial-client-sync-io')
     expect($('#id').text().length).toBeGreaterThan(0)
   })
 })

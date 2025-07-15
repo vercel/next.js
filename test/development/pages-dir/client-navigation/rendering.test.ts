@@ -136,7 +136,7 @@ describe('Client Navigation rendering', () => {
            "label": "Runtime Error",
            "source": null,
            "stack": [
-             "new Promise <anonymous> (0:0)",
+             "new Promise <anonymous>",
            ],
          }
         `)
@@ -294,9 +294,6 @@ describe('Client Navigation rendering', () => {
              | ^",
            "stack": [
              "eval pages/error-in-the-global-scope.js (1:1)",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",

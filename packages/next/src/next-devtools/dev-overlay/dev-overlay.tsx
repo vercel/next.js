@@ -1,12 +1,4 @@
-import {
-  ACTION_DEVTOOLS_PANEL_OPEN,
-  ACTION_ERROR_OVERLAY_OPEN,
-  type OverlayDispatch,
-  type OverlayState,
-} from './shared'
-
-import { useState } from 'react'
-
+import { createContext, useContext, useRef, useState } from 'react'
 import { ShadowPortal } from './components/shadow-portal'
 import { Base } from './styles/base'
 import { ComponentStyles } from './styles/component-styles'
@@ -18,8 +10,18 @@ import { RenderError } from './container/runtime-error/render-error'
 import { DarkTheme } from './styles/dark-theme'
 import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-tools-info/preferences'
 import type { HydrationErrorState } from '../shared/hydration-error'
-import { DevToolsIndicator as DevToolsIndicatorNew } from './components/devtools-indicator/devtools-indicator'
-import { DevToolsPanel } from './components/devtools-panel/devtools-panel'
+import type { ReadyRuntimeError } from './utils/get-error-by-type'
+import { DevToolsIndicatorNew } from './components/devtools-indicator/devtools-indicator'
+import { PanelRouter } from './menu/panel-router'
+import { PanelRouterContext, type PanelStateKind } from './menu/context'
+import type { OverlayState, OverlayDispatch } from './shared'
+
+export const RenderErrorContext = createContext<{
+  runtimeErrors: ReadyRuntimeError[]
+  totalErrorCount: number
+}>(null!)
+
+export const useRenderErrorContext = () => useContext(RenderErrorContext)
 
 export function DevOverlay({
   state,
@@ -31,23 +33,11 @@ export function DevOverlay({
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
 }) {
   const [scale, setScale] = useDevToolsScale()
-  const [isPrevBuildError, setIsPrevBuildError] = useState(false)
-
+  const [panel, setPanel] = useState<null | PanelStateKind>(null)
   const isBuildError = state.buildError !== null
+  const [selectedIndex, setSelectedIndex] = useState(-1)
 
-  if (
-    process.env.__NEXT_DEVTOOL_NEW_PANEL_UI &&
-    isBuildError !== isPrevBuildError
-  ) {
-    // If the build error is set, enable the devtools panel as the error overlay mode,
-    // and the rest actions (close, minimize, fullscreen) can be handled by the user.
-    if (isBuildError) {
-      dispatch({ type: ACTION_DEVTOOLS_PANEL_OPEN })
-      dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-    }
-    setIsPrevBuildError(isBuildError)
-  }
-
+  const triggerRef = useRef<HTMLButtonElement>(null)
   return (
     <ShadowPortal>
       <CssReset />
@@ -63,50 +53,56 @@ export function DevOverlay({
           return (
             <>
               {state.showIndicator &&
-                (process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? (
-                  <>
-                    <DevToolsIndicatorNew
-                      state={state}
-                      dispatch={dispatch}
-                      errorCount={totalErrorCount}
-                      isBuildError={isBuildError}
-                    />
-
-                    {(state.isDevToolsPanelOpen ||
-                      state.isErrorOverlayOpen) && (
-                      <DevToolsPanel
+              process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? (
+                <>
+                  <RenderErrorContext
+                    value={{ runtimeErrors, totalErrorCount }}
+                  >
+                    <PanelRouterContext
+                      value={{
+                        panel,
+                        setPanel,
+                        triggerRef,
+                        selectedIndex,
+                        setSelectedIndex,
+                      }}
+                    >
+                      <ErrorOverlay
                         state={state}
                         dispatch={dispatch}
-                        issueCount={totalErrorCount}
-                        runtimeErrors={runtimeErrors}
                         getSquashedHydrationErrorDetails={
                           getSquashedHydrationErrorDetails
                         }
+                        runtimeErrors={runtimeErrors}
+                        errorCount={totalErrorCount}
                       />
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <DevToolsIndicator
-                      scale={scale}
-                      setScale={setScale}
-                      state={state}
-                      dispatch={dispatch}
-                      errorCount={totalErrorCount}
-                      isBuildError={isBuildError}
-                    />
+                      <PanelRouter />
+                      <DevToolsIndicatorNew />
+                    </PanelRouterContext>
+                  </RenderErrorContext>
+                </>
+              ) : (
+                <>
+                  <DevToolsIndicator
+                    scale={scale}
+                    setScale={setScale}
+                    state={state}
+                    dispatch={dispatch}
+                    errorCount={totalErrorCount}
+                    isBuildError={isBuildError}
+                  />
 
-                    <ErrorOverlay
-                      state={state}
-                      dispatch={dispatch}
-                      getSquashedHydrationErrorDetails={
-                        getSquashedHydrationErrorDetails
-                      }
-                      runtimeErrors={runtimeErrors}
-                      errorCount={totalErrorCount}
-                    />
-                  </>
-                ))}
+                  <ErrorOverlay
+                    state={state}
+                    dispatch={dispatch}
+                    getSquashedHydrationErrorDetails={
+                      getSquashedHydrationErrorDetails
+                    }
+                    runtimeErrors={runtimeErrors}
+                    errorCount={totalErrorCount}
+                  />
+                </>
+              )}
             </>
           )
         }}

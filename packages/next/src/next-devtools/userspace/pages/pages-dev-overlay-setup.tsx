@@ -10,6 +10,13 @@ import { getComponentStack, getOwnerStack } from '../app/errors/stitched-error'
 import { isRecoverableError } from '../../../client/react-client-callbacks/on-recoverable-error'
 import { getSquashedHydrationErrorDetails } from './hydration-error-state'
 import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary'
+import {
+  initializeDebugLogForwarding,
+  forwardUnhandledError,
+  logUnhandledRejection,
+  forwardErrorLog,
+  isTerminalLoggingEnabled,
+} from '../app/forward-logs'
 
 const usePagesDevOverlayBridge = () => {
   React.useInsertionEffect(() => {
@@ -76,12 +83,19 @@ function nextJsHandleConsoleError(...args: any[]) {
   storeHydrationErrorStateFromConsoleArgs(...args)
   // TODO: Surfaces non-errors logged via `console.error`.
   handleError(maybeError)
+  if (isTerminalLoggingEnabled) {
+    forwardErrorLog(args)
+  }
   origConsoleError.apply(window.console, args)
 }
 
 function onUnhandledError(event: ErrorEvent) {
   const error = event?.error
   handleError(error)
+
+  if (error && isTerminalLoggingEnabled) {
+    forwardUnhandledError(error as Error)
+  }
 }
 
 function onUnhandledRejection(ev: PromiseRejectionEvent) {
@@ -96,6 +110,9 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
   }
 
   dispatcher.onUnhandledRejection(reason)
+  if (isTerminalLoggingEnabled) {
+    logUnhandledRejection(reason)
+  }
 }
 
 export function register() {
@@ -108,6 +125,9 @@ export function register() {
     Error.stackTraceLimit = 50
   } catch {}
 
+  if (isTerminalLoggingEnabled) {
+    initializeDebugLogForwarding('pages')
+  }
   window.addEventListener('error', onUnhandledError)
   window.addEventListener('unhandledrejection', onUnhandledRejection)
   window.console.error = nextJsHandleConsoleError

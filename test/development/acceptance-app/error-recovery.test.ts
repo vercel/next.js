@@ -35,7 +35,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
@@ -279,7 +279,7 @@ describe('Error recovery app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('0')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
@@ -296,9 +296,7 @@ describe('Error recovery app', () => {
             |           ^",
          "stack": [
            "Index.useCallback[increment] index.js (7:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (12:7)",
            "Page index.js (10:6)",
          ],
@@ -315,9 +313,7 @@ describe('Error recovery app', () => {
             |           ^",
          "stack": [
            "Index.useCallback[increment] index.js (7:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (12:7)",
            "Page app/page.js (4:10)",
          ],
@@ -349,7 +345,7 @@ describe('Error recovery app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 1')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
@@ -479,7 +475,6 @@ describe('Error recovery app', () => {
     )
 
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -491,7 +486,6 @@ describe('Error recovery app', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
-           "Set.forEach <anonymous> (0:0)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Index index.js (6:7)",
@@ -737,7 +731,6 @@ describe('Error recovery app', () => {
 
     // We get an error because Foo didn't import React. Fair.
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -749,7 +742,6 @@ describe('Error recovery app', () => {
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
-           "Set.forEach <anonymous> (0:0)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "FunctionDefault index.js (4:10)",
@@ -972,7 +964,6 @@ describe('Error recovery app', () => {
     )
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -984,7 +975,6 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "Set.forEach <anonymous> (0:0)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Page index.js (10:16)",

@@ -65,7 +65,7 @@ pub async fn apply_source_mapping(
         let resolved = resolve_source_mapping(
             assets_for_source_mapping,
             root.clone(),
-            project_dir.root().await?.clone_value(),
+            project_dir.root().owned().await?,
             &frame,
         )
         .await;

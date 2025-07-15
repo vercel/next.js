@@ -4,7 +4,6 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
 };
 
 use super::module::EcmascriptModuleFacadeModule;
@@ -20,7 +19,6 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleFacadeChunkItem {
     pub(crate) module: ResolvedVc<EcmascriptModuleFacadeModule>,
-    pub(crate) module_graph: ResolvedVc<ModuleGraph>,
     pub(crate) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -37,11 +35,10 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunking_context = self.chunking_context;
-        let module_graph = self.module_graph;
 
-        let content =
-            self.module
-                .module_content(*module_graph, *chunking_context, async_module_info);
+        let content = self
+            .module
+            .module_content(*chunking_context, async_module_info);
 
         let async_module_options = self
             .module

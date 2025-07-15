@@ -23,6 +23,7 @@ use turbopack_core::{
         OptionStyledString, StyledString,
     },
     module::Module,
+    module_graph::export_usage::ModuleExportUsageInfo,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
@@ -165,7 +166,7 @@ impl ReferencedAsset {
                     && let Some(export) = &export
                     && let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await?
                 {
-                    let exports = exports.expand_exports(None).await?;
+                    let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
                         Some(EsmExport::LocalBinding(_, _)) => {
@@ -558,8 +559,12 @@ impl EsmAssetReference {
                         ));
                     }
 
-                    if merged_index.is_some() && this.export_name == Some(ModulePart::Evaluation) {
-                        // No need to import to execution, the module was already inlined.
+                    if merged_index.is_some()
+                        && matches!(*self.export_usage().await?, ExportUsage::Evaluation)
+                    {
+                        // No need to import, the module was already executed and is available in
+                        // the same scope hoisting group (unless it's a
+                        // namespace import)
                     } else {
                         let ident = referenced_asset
                             .get_ident(

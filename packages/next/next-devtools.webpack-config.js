@@ -91,6 +91,24 @@ module.exports = ({ dev, ...rest }) => {
           },
           type: 'javascript/auto',
         },
+        {
+          test: /\.css$/,
+          use: [
+            {
+              loader: 'style-loader',
+              options: {
+                // Explicitly set the injectType to 'styleTag' which is also the default behavior.
+                // We've experienced `singletonStyleTag` that the later updated styles not being applied.
+                // Keep using `styleTag` to ensure when new styles injected the style can also be updated.
+                injectType: 'styleTag',
+                insert: require.resolve(
+                  './src/build/webpack/loaders/devtool/devtool-style-inject.js'
+                ),
+              },
+            },
+            'css-loader',
+          ],
+        },
       ],
     },
     externals: [],

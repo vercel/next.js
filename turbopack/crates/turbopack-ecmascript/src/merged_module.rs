@@ -92,13 +92,12 @@ impl ChunkableModule for MergedEcmascriptModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
             MergedEcmascriptModuleChunkItem {
                 module: self,
-                module_graph,
                 chunking_context,
             }
             .cell(),
@@ -109,7 +108,6 @@ impl ChunkableModule for MergedEcmascriptModule {
 #[turbo_tasks::value]
 struct MergedEcmascriptModuleChunkItem {
     module: ResolvedVc<MergedEcmascriptModule>,
-    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -159,11 +157,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
                 let Some(m) = ResolvedVc::try_downcast::<Box<dyn EcmascriptAnalyzable>>(*m) else {
                     anyhow::bail!("Expected EcmascriptAnalyzable in scope hoisting group");
                 };
-                Ok(m.module_content_options(
-                    *self.module_graph,
-                    *self.chunking_context,
-                    async_module_info,
-                ))
+                Ok(m.module_content_options(*self.chunking_context, async_module_info))
             })
             .collect::<Result<Vec<_>>>()?;
 

@@ -7,7 +7,6 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
@@ -83,7 +82,6 @@ pub struct EsmModuleIdAssetReferenceCodeGen {
 impl EsmModuleIdAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();

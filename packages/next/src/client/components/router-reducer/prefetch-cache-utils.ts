@@ -291,7 +291,7 @@ export function createSeededPrefetchCacheEntry({
     kind,
     prefetchTime: Date.now(),
     lastUsedTime: Date.now(),
-    staleTime: -1,
+    staleTime: data.staleTime,
     key: prefetchCacheKey,
     status: PrefetchCacheEntryStatus.fresh,
     url,

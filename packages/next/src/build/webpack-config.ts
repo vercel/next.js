@@ -777,7 +777,6 @@ export default async function getBaseWebpackConfig(
       appDir,
       dir,
       reactProductionProfiling,
-      hasRewrites,
     }),
     ...(isClient
       ? {
@@ -1948,6 +1947,8 @@ export default async function getBaseWebpackConfig(
               case WEBPACK_LAYERS.actionBrowser:
                 runtime = 'app-page'
                 break
+              case null:
+              case undefined:
               default:
                 runtime = 'pages'
             }

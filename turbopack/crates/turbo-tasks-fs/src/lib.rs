@@ -32,7 +32,7 @@ use std::{
     io::{self, BufRead, BufReader, ErrorKind, Read},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     time::Duration,
 };
 
@@ -786,8 +786,12 @@ impl FileSystem for DiskFileSystem {
                         #[cfg(target_family = "unix")]
                         f.set_permissions(file.meta.permissions.into())?;
                         f.flush()?;
-                        #[cfg(feature = "write_version")]
-                        {
+
+                        static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
+                            std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
+                                .is_some_and(|v| v == "1" || v == "true")
+                        });
+                        if *WRITE_VERSION {
                             let mut full_path = full_path.to_owned();
                             let hash = hash_xxh3_hash64(file);
                             let ext = full_path.extension();
@@ -1110,6 +1114,16 @@ impl FileSystemPath {
         file_name
     }
 
+    /// Returns true if this path has the given extension
+    ///
+    /// slightly faster than `self.extension_ref() == Some(extension)` as we can simply match a
+    /// suffix
+    pub fn has_extension(&self, extension: &str) -> bool {
+        debug_assert!(!extension.contains('/') && extension.starts_with('.'));
+        self.path.ends_with(extension)
+    }
+
+    /// Returns the extension (without a leading `.`)
     pub fn extension_ref(&self) -> Option<&str> {
         let (_, extension) = self.split_extension();
         extension
@@ -1898,7 +1912,8 @@ impl FileContent {
     pub fn parse_json_ref(&self) -> FileJsonContent {
         match self {
             FileContent::Content(file) => {
-                let de = &mut serde_json::Deserializer::from_reader(file.read());
+                let content = file.content.clone().into_bytes();
+                let de = &mut serde_json::Deserializer::from_slice(&content);
                 match serde_path_to_error::deserialize(de) {
                     Ok(data) => FileJsonContent::Content(data),
                     Err(e) => FileJsonContent::Unparsable(Box::new(
@@ -2121,7 +2136,7 @@ impl DirectoryEntry {
     /// `DirectoryEntry::Directory`.
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = &self {
-            let real_path = (*symlink.realpath().await?).clone();
+            let real_path = symlink.realpath().owned().await?;
             match *real_path.get_type().await? {
                 FileSystemEntryType::Directory => Ok(DirectoryEntry::Directory(real_path)),
                 FileSystemEntryType::File => Ok(DirectoryEntry::File(real_path)),
@@ -2284,7 +2299,7 @@ impl ValueToString for NullFileSystem {
 pub async fn to_sys_path(mut path: FileSystemPath) -> Result<Option<PathBuf>> {
     loop {
         if let Some(fs) = Vc::try_resolve_downcast_type::<AttachedFileSystem>(path.fs()).await? {
-            path = (*fs.get_inner_fs_path(path).await?).clone();
+            path = fs.get_inner_fs_path(path).owned().await?;
             continue;
         }
 
@@ -2397,7 +2412,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         if let LinkContent::Link { target, link_type } = &*current_vc.read_link().await? {
             symlinks.insert(current_vc.clone());
             current_vc = if link_type.contains(LinkType::ABSOLUTE) {
-                (*current_vc.root().await?).clone()
+                current_vc.root().owned().await?
             } else {
                 parent_result.path
             }

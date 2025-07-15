@@ -84,7 +84,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let input_dir = input.parent().parent();
                 let output_fs: Vc<NullFileSystem> = NullFileSystem.into();
-                let output_dir = output_fs.root().await?.clone_value();
+                let output_dir = output_fs.root().owned().await?;
 
                 let source = FileSource::new(input);
                 let compile_time_info = CompileTimeInfo::builder(

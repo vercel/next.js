@@ -154,7 +154,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
 impl<C: Comments> ReactServerComponents<C> {
     /// removes specific directive from the AST.
     fn remove_top_level_directive(&mut self, module: &mut Module) {
-        let _ = &module.body.retain(|item| {
+        module.body.retain(|item| {
             if let ModuleItem::Stmt(stmt) = item {
                 if let Some(expr_stmt) = stmt.as_expr() {
                     if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr_stmt.expr {

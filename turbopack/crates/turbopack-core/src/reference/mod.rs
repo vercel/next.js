@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
 
@@ -285,9 +285,8 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
     Ok(Vc::cell(modules))
 }
 
-type ModulesVec = Vec<ResolvedVc<Box<dyn Module>>>;
 #[turbo_tasks::value(transparent)]
-pub struct ModulesWithRefData(Vec<(ChunkingType, ExportUsage, ModulesVec)>);
+pub struct ModulesWithRefData(Vec<(ChunkingType, ExportUsage, ReadRef<Modules>)>);
 
 /// Aggregates all primary [Module]s referenced by an [Module] via [ChunkableModuleReference]s.
 /// This does not include transitively referenced [Module]s, only includes
@@ -296,7 +295,7 @@ pub struct ModulesWithRefData(Vec<(ChunkingType, ExportUsage, ModulesVec)>);
 /// [Module]: crate::module::Module
 #[turbo_tasks::function]
 pub async fn primary_chunkable_referenced_modules(
-    module: Vc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn Module>>,
     include_traced: bool,
 ) -> Result<Vc<ModulesWithRefData>> {
     let modules = module
@@ -317,9 +316,8 @@ pub async fn primary_chunkable_referenced_modules(
                     .resolve()
                     .await?
                     .primary_modules()
-                    .owned()
                     .await?;
-                let export = (*reference.export_usage().await?).clone();
+                let export = reference.export_usage().owned().await?;
 
                 return Ok(Some((chunking_type.clone(), export, resolved)));
             }

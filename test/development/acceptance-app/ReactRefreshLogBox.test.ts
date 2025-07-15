@@ -34,7 +34,7 @@ describe('ReactRefreshLogBox app', () => {
         }
       `
     )
-    await session.evaluate(() => document.querySelector('a').click())
+    await browser.elementByCss('a').click()
 
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(
@@ -115,13 +115,7 @@ describe('ReactRefreshLogBox app', () => {
            "stack": [
              "eval index.js (3:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "eval ./app/page.js",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
            ],
          },
@@ -135,13 +129,7 @@ describe('ReactRefreshLogBox app', () => {
            "stack": [
              "eval index.js (3:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "eval ./app/page.js",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
            ],
          },
@@ -517,7 +505,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
@@ -531,9 +519,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (9:7)",
            "Page index.js (9:30)",
          ],
@@ -550,9 +536,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (9:7)",
            "Page app/page.js (4:10)",
          ],
@@ -600,7 +584,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
@@ -614,9 +598,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (9:7)",
            "Page index.js (9:30)",
          ],
@@ -633,9 +615,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (9:7)",
            "Page app/page.js (4:10)",
          ],
@@ -682,7 +662,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
@@ -696,9 +676,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (9:7)",
            "Page index.js (9:30)",
          ],
@@ -715,9 +693,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (9:7)",
            "Page app/page.js (4:10)",
          ],
@@ -764,7 +740,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
 
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
@@ -778,9 +754,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (9:7)",
            "Page index.js (9:30)",
          ],
@@ -797,9 +771,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "Index.useCallback[boom] index.js (5:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (9:7)",
            "Page app/page.js (4:10)",
          ],
@@ -960,7 +932,6 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -973,7 +944,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "{default export} index.js (3:11)",
-           "Set.forEach <anonymous> (0:0)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Page app/page.js (2:1)",
@@ -1066,7 +1036,6 @@ describe('ReactRefreshLogBox app', () => {
     // Render error should "win" and show up in fullscreen
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -1078,7 +1047,6 @@ describe('ReactRefreshLogBox app', () => {
            |                                            ^",
          "stack": [
            "Index index.js (2:44)",
-           "Set.forEach <anonymous> (0:0)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Page index.js (16:8)",
@@ -1490,9 +1458,7 @@ describe('ReactRefreshLogBox app', () => {
            "stack": [
              "eval index.js (1:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "eval ./app/server/page.js",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -1549,7 +1515,7 @@ export default function Home() {
          |         ^",
        "stack": [
          "serverAction app/actions.ts (4:9)",
-         "form <anonymous> (0:0)",
+         "form <anonymous>",
          "Home app/page.js (7:7)",
        ],
      }
@@ -1597,7 +1563,7 @@ export default function Home() {
          |         ^",
        "stack": [
          "serverAction app/actions.ts (4:9)",
-         "form <anonymous> (0:0)",
+         "form <anonymous>",
          "Home app/page.js (6:7)",
        ],
      }
@@ -1659,13 +1625,7 @@ export default function Home() {
            "stack": [
              "eval app/utils.ts (1:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "eval ./app/page.js",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
            ],
          },
@@ -1679,13 +1639,7 @@ export default function Home() {
            "stack": [
              "eval app/utils.ts (1:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "eval ./app/page.js",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
            ],
          },

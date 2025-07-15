@@ -221,7 +221,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.project_path.root().await?.clone_value(),
+            self.project_path.root().owned().await?,
             Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".into()),
         ))
     }
@@ -275,7 +275,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.root.root().await?.clone_value(),
+            self.root.root().owned().await?,
             Glob::new("**/next/dist/**/*.shared-runtime.js".into()),
         ))
     }
@@ -400,7 +400,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.root.root().await?.clone_value(),
+            self.root.root().owned().await?,
             Glob::new("**/next/dist/esm/**/*.shared-runtime.js".into()),
         ))
     }

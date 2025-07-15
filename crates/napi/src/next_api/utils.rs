@@ -1,7 +1,6 @@
-use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc};
+use std::{future::Future, ops::Deref, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
-use either::Either;
 use napi::{
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
     bindgen_prelude::{External, ToNapiValue},
@@ -10,14 +9,7 @@ use napi::{
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_tasks::{
-    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, Vc,
-    VcValueType, get_effects,
-    message_queue::{CompilationEvent, Severity},
-};
-use turbo_tasks_backend::{
-    DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, StartupCacheState,
-    TurboTasksBackend, db_invalidation::invalidation_reasons, default_backing_storage,
-    noop_backing_storage,
+    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, Vc, VcValueType, get_effects,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -29,107 +21,37 @@ use turbopack_core::{
     source_pos::SourcePos,
 };
 
-use crate::util::log_internal_error_and_inform;
+use crate::{next_api::turbopack_ctx::NextTurbopackContext, util::log_internal_error_and_inform};
 
-pub type NextTurboTasks =
-    Arc<TurboTasks<TurboTasksBackend<Either<DefaultBackingStorage, NoopBackingStorage>>>>;
-
-#[derive(Serialize)]
-struct StartupCacheInvalidationEvent {
-    reason_code: Option<String>,
-}
-
-impl CompilationEvent for StartupCacheInvalidationEvent {
-    fn type_name(&self) -> &'static str {
-        "StartupCacheInvalidationEvent"
-    }
-
-    fn severity(&self) -> Severity {
-        Severity::Warning
-    }
-
-    fn message(&self) -> String {
-        let reason_msg = match self.reason_code.as_deref() {
-            Some(invalidation_reasons::PANIC) => {
-                " because we previously detected an internal error in Turbopack"
-            }
-            Some(invalidation_reasons::USER_REQUEST) => " as the result of a user request",
-            _ => "", // ignore unknown reasons
-        };
-        format!(
-            "Turbopack's persistent cache has been deleted{reason_msg}. Builds or page loads may \
-             be slower as a result."
-        )
-    }
-
-    fn to_json(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-}
-
-pub fn create_turbo_tasks(
-    output_path: PathBuf,
-    persistent_caching: bool,
-    _memory_limit: usize,
-    dependency_tracking: bool,
-    is_ci: bool,
-) -> Result<NextTurboTasks> {
-    Ok(if persistent_caching {
-        let version_info = GitVersionInfo {
-            describe: env!("VERGEN_GIT_DESCRIBE"),
-            dirty: option_env!("CI").is_none_or(|value| value.is_empty())
-                && env!("VERGEN_GIT_DIRTY") == "true",
-        };
-        let (backing_storage, cache_state) =
-            default_backing_storage(&output_path.join("cache/turbopack"), &version_info, is_ci)?;
-        let tt = TurboTasks::new(TurboTasksBackend::new(
-            turbo_tasks_backend::BackendOptions {
-                storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
-                    turbo_tasks_backend::StorageMode::ReadOnly
-                } else {
-                    turbo_tasks_backend::StorageMode::ReadWrite
-                }),
-                dependency_tracking,
-                ..Default::default()
-            },
-            Either::Left(backing_storage),
-        ));
-        if let StartupCacheState::Invalidated { reason_code } = cache_state {
-            tt.send_compilation_event(Arc::new(StartupCacheInvalidationEvent { reason_code }));
-        }
-        tt
-    } else {
-        TurboTasks::new(TurboTasksBackend::new(
-            turbo_tasks_backend::BackendOptions {
-                storage_mode: None,
-                dependency_tracking,
-                ..Default::default()
-            },
-            Either::Right(noop_backing_storage()),
-        ))
-    })
-}
-
-/// A helper type to hold both a Vc operation and the TurboTasks root process.
-/// Without this, we'd need to pass both individually all over the place
+/// An [`OperationVc`] that can be passed back and forth to JS across the [`napi`][mod@napi]
+/// boundary via [`External`].
+///
+/// It is a helper type to hold both a [`OperationVc`] and the [`NextTurbopackContext`]. Without
+/// this, we'd need to pass both individually all over the place.
+///
+/// This napi-specific abstraction does not implement [`turbo_tasks::NonLocalValue`] or
+/// [`turbo_tasks::OperationValue`] and should be dereferenced to an [`OperationVc`] before being
+/// passed to a [`turbo_tasks::function`].
+//
+// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
 #[derive(Clone)]
-pub struct VcArc<T> {
-    turbo_tasks: NextTurboTasks,
+pub struct DetachedVc<T> {
+    turbopack_ctx: NextTurbopackContext,
     /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.
     vc: OperationVc<T>,
 }
 
-impl<T> VcArc<T> {
-    pub fn new(turbo_tasks: NextTurboTasks, vc: OperationVc<T>) -> Self {
-        Self { turbo_tasks, vc }
+impl<T> DetachedVc<T> {
+    pub fn new(turbopack_ctx: NextTurbopackContext, vc: OperationVc<T>) -> Self {
+        Self { turbopack_ctx, vc }
     }
 
-    pub fn turbo_tasks(&self) -> &NextTurboTasks {
-        &self.turbo_tasks
+    pub fn turbopack_ctx(&self) -> &NextTurbopackContext {
+        &self.turbopack_ctx
     }
 }
 
-impl<T> Deref for VcArc<T> {
+impl<T> Deref for DetachedVc<T> {
     type Target = OperationVc<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -144,11 +66,18 @@ pub fn serde_enum_to_string<T: Serialize>(value: &T) -> Result<String> {
         .to_string())
 }
 
-/// The root of our turbopack computation.
+/// An opaque handle to the root of a turbo-tasks computation created by
+/// [`turbo_tasks::TurboTasks::spawn_root_task`] that can be passed back and forth to JS across the
+/// [`napi`][mod@napi] boundary via [`External`].
+///
+/// JavaScript code receiving this value **must** call [`root_task_dispose`] in a `try...finally`
+/// block to avoid leaking root tasks.
+///
+/// This is used by [`subscribe`] to create a computation that re-executes when dependencies change.
+//
+// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
 pub struct RootTask {
-    #[allow(dead_code)]
-    turbo_tasks: NextTurboTasks,
-    #[allow(dead_code)]
+    turbopack_ctx: NextTurbopackContext,
     task_id: Option<TaskId>,
 }
 
@@ -163,7 +92,10 @@ pub fn root_task_dispose(
     #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
 ) -> napi::Result<()> {
     if let Some(task) = root_task.task_id.take() {
-        root_task.turbo_tasks.dispose_root_task(task);
+        root_task
+            .turbopack_ctx
+            .turbo_tasks()
+            .dispose_root_task(task);
     }
     Ok(())
 }
@@ -392,13 +324,13 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
 }
 
 pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
-    turbo_tasks: NextTurboTasks,
+    turbopack_ctx: NextTurbopackContext,
     func: JsFunction,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
 ) -> napi::Result<External<RootTask>> {
     let func: ThreadsafeFunction<T> = func.create_threadsafe_function(0, mapper)?;
-    let task_id = turbo_tasks.spawn_root_task(move || {
+    let task_id = turbopack_ctx.turbo_tasks().spawn_root_task(move || {
         let handler = handler.clone();
         let func = func.clone();
         Box::pin(async move {
@@ -420,7 +352,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
         })
     });
     Ok(External::new(RootTask {
-        turbo_tasks,
+        turbopack_ctx,
         task_id: Some(task_id),
     }))
 }

@@ -18,15 +18,16 @@ import { UserPreferences } from './dev-tools-info/user-preferences'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
-  useClickOutside,
+  useClickOutsideAndEscape,
   useFocusTrap,
 } from './utils'
 import {
   getInitialPosition,
+  useHideShortcutStorage,
   type DevToolsScale,
 } from './dev-tools-info/preferences'
 import { Draggable } from './draggable'
-import { SegmentsExplorer } from './dev-tools-info/segments-explorer'
+import { useShortcuts } from '../../../hooks/use-shortcuts'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -61,6 +62,9 @@ export function DevToolsIndicator({
           method: 'POST',
         })
       }}
+      toggleVisibility={() => {
+        setIsDevToolsIndicatorVisible(!isDevToolsIndicatorVisible)
+      }}
       isTurbopack={!!process.env.TURBOPACK}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
@@ -73,12 +77,12 @@ export function DevToolsIndicator({
 //////////////////////////////////////////////////////////////////////////////////////
 
 interface C {
-  closeMenu: () => void
+  closeMenu?: () => void
   selectedIndex: number
   setSelectedIndex: Dispatch<SetStateAction<number>>
 }
 
-const Context = createContext({} as C)
+export const MenuContext = createContext({} as C)
 
 const OVERLAYS = {
   Root: 'root',
@@ -92,6 +96,15 @@ export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
 
 const INDICATOR_PADDING = 20
 
+// Dynamic import for SegmentsExplorer which including base-ui that causing Edge browser crash
+// x-ref: https://github.com/vercel/next.js/pull/64602
+// TODO: remove this once the new base-ui version is released
+const SegmentsExplorer = process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
+  ? (
+      require('./dev-tools-info/segments-explorer') as typeof import('./dev-tools-info/segments-explorer')
+    ).SegmentsExplorer
+  : () => null
+
 function DevToolsPopover({
   routerType,
   disabled,
@@ -102,6 +115,7 @@ function DevToolsPopover({
   isTurbopack,
   isBuildError,
   hide,
+  toggleVisibility,
   dispatch,
   scale,
   setScale,
@@ -117,17 +131,20 @@ function DevToolsPopover({
   isTurbopack: boolean
   isBuildError: boolean
   hide: () => void
+  toggleVisibility: () => void
   dispatch: OverlayDispatch
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
   page: string
 }) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
 
   const [open, setOpen] = useState<Overlays | null>(null)
   const [position, setPosition] = useState(getInitialPosition())
   const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
 
   const isMenuOpen = open === OVERLAYS.Root
   const isTurbopackInfoOpen = open === OVERLAYS.Turbo
@@ -147,7 +164,8 @@ function DevToolsPopover({
 
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
-  useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
+  useClickOutsideAndEscape(menuRef, triggerRef, menuMounted, closeMenu)
+  useShortcuts(hideShortcut ? { [hideShortcut]: hideDevTools } : {}, triggerRef)
 
   useEffect(() => {
     if (open === null) {
@@ -158,6 +176,17 @@ function DevToolsPopover({
       return () => clearTimeout(id)
     }
   }, [open])
+
+  function hideDevTools() {
+    toggleVisibility()
+    const root = rootRef.current
+    // Toggle custom hidden attribute, no need
+    // to close the menu in case you want to quickly get it
+    // out the way to see an element behind it.
+    if (root) {
+      root.dataset.hidden = root.dataset.hidden === 'true' ? 'false' : 'true'
+    }
+  }
 
   function select(index: number | 'first' | 'last') {
     if (index === 'first') {
@@ -268,6 +297,7 @@ function DevToolsPopover({
 
   return (
     <Toast
+      ref={rootRef}
       data-nextjs-toast
       style={
         {
@@ -336,6 +366,8 @@ function DevToolsPopover({
         position={position}
         scale={scale}
         setScale={setScale}
+        hideShortcut={hideShortcut}
+        setHideShortcut={setHideShortcut}
       />
 
       {/* Page Route Info */}
@@ -365,7 +397,7 @@ function DevToolsPopover({
           data-rendered={menuRendered}
           style={popover}
         >
-          <Context.Provider
+          <MenuContext.Provider
             value={{
               closeMenu,
               selectedIndex,
@@ -425,7 +457,7 @@ function DevToolsPopover({
                 />
               ) : null}
             </div>
-          </Context.Provider>
+          </MenuContext.Provider>
         </div>
       )}
     </Toast>
@@ -451,7 +483,7 @@ function ChevronRight() {
   )
 }
 
-function MenuItem({
+export function MenuItem({
   index,
   label,
   value,
@@ -468,13 +500,13 @@ function MenuItem({
 }) {
   const isInteractive =
     typeof onClick === 'function' || typeof href === 'string'
-  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(Context)
+  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(MenuContext)
   const selected = selectedIndex === index
 
   function click() {
     if (isInteractive) {
       onClick?.()
-      closeMenu()
+      closeMenu?.()
       if (href) {
         window.open(href, '_blank', 'noopener, noreferrer')
       }
@@ -525,6 +557,12 @@ function IssueCount({ children }: { children: number }) {
 //////////////////////////////////////////////////////////////////////////////////////
 
 export const DEV_TOOLS_INDICATOR_STYLES = `
+  [data-nextjs-toast] {
+    &[data-hidden='true'] {
+      display: none;
+    }
+  }
+
   .dev-tools-indicator-menu {
     -webkit-font-smoothing: antialiased;
     display: flex;

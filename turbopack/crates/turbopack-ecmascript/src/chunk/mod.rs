@@ -72,7 +72,7 @@ impl Chunk for EcmascriptChunk {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let chunk_items = &*self.content.included_chunk_items().await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
-            let path = chunk_item.asset_ident().path().await?.clone_value();
+            let path = chunk_item.asset_ident().path().owned().await?;
             Some(path)
         } else {
             None
@@ -108,7 +108,7 @@ impl Chunk for EcmascriptChunk {
             path: if let Some(common_path) = common_path {
                 common_path
             } else {
-                ServerFileSystem::new().root().await?.clone_value()
+                ServerFileSystem::new().root().owned().await?
             },
             query: RcStr::default(),
             fragment: RcStr::default(),

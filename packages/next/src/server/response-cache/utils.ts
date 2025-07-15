@@ -82,7 +82,10 @@ export function routeKindToIncrementalCacheKind(
       return IncrementalCacheKind.IMAGE
     case RouteKind.APP_ROUTE:
       return IncrementalCacheKind.APP_ROUTE
-    default:
+    case RouteKind.PAGES_API:
+      // Pages Router API routes are not cached in the incremental cache.
       throw new Error(`Unexpected route kind ${routeKind}`)
+    default:
+      return routeKind satisfies never
   }
 }

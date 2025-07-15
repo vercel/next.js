@@ -5,6 +5,8 @@ module.exports =
       return nextConfig
     }
 
+    const extension = analyzerMode === 'json' ? '.json' : '.html'
+
     return Object.assign({}, nextConfig, {
       webpack(config, options) {
         const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
@@ -14,10 +16,10 @@ module.exports =
             logLevel,
             openAnalyzer,
             reportFilename: !options.nextRuntime
-              ? `./analyze/client.html`
+              ? `./analyze/client${extension}`
               : `../${options.nextRuntime === 'nodejs' ? '../' : ''}analyze/${
                   options.nextRuntime
-                }.html`,
+                }${extension}`,
           })
         )
 

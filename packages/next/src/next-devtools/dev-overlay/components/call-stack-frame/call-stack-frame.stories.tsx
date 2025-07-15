@@ -29,6 +29,7 @@ export default meta
 type Story = StoryObj<typeof CallStackFrame>
 
 const frame = {
+  originalCodeFrame: null,
   originalStackFrame: {
     file: './app/page.tsx',
     methodName: 'MyComponent',
@@ -62,5 +63,17 @@ export const HasSource: Story = {
 export const NoSource: Story = {
   args: {
     frame,
+  },
+}
+
+export const AnonymousSource: Story = {
+  args: {
+    frame: {
+      ...frame,
+      originalStackFrame: {
+        ...frame.originalStackFrame,
+        file: '<anonymous>',
+      },
+    },
   },
 }

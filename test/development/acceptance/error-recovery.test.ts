@@ -153,7 +153,7 @@ describe('pages/ error recovery', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('0')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
@@ -168,8 +168,6 @@ describe('pages/ error recovery', () => {
           |           ^",
        "stack": [
          "Index.useCallback[increment] index.js (7:11)",
-         "UtilityScript.evaluate <anonymous> (236:17)",
-         "UtilityScript.<anonymous> <anonymous> (1:44)",
        ],
      }
     `)
@@ -196,7 +194,7 @@ describe('pages/ error recovery', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 1')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
@@ -204,7 +202,7 @@ describe('pages/ error recovery', () => {
     await session.assertNoRedbox()
   })
 
-  test('logbox: can recover from a component error', async () => {
+  it('logbox: can recover from a component error', async () => {
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -246,7 +244,6 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // Somehow we end up with two in React 18 + Turbopack due to React's attempt to recover from this error.
     if (isReact18 && isTurbopack) {
@@ -261,7 +258,6 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous> (0:0)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -275,7 +271,6 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous> (0:0)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -283,22 +278,37 @@ describe('pages/ error recovery', () => {
        ]
       `)
     } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "oops",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "child.js (3:9) @ Child
-       > 3 |   throw new Error('oops')
-           |         ^",
-         "stack": [
-           "Child child.js (3:9)",
-           "Set.forEach <anonymous> (0:0)",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
-      `)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+         > 3 |   throw new Error('oops')
+             |         ^",
+           "stack": [
+             "Child child.js (3:9)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+         > 3 |   throw new Error('oops')
+             |         ^",
+           "stack": [
+             "Child child.js (3:9)",
+           ],
+         }
+        `)
+      }
     }
 
     const didNotReload = await session.patch(
@@ -534,7 +544,6 @@ describe('pages/ error recovery', () => {
       await expect(session.getRedboxSource()).resolves.toInclude('render() {')
     })
 
-    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
     if (isReact18 && isTurbopack) {
@@ -549,7 +558,6 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -563,7 +571,6 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -586,22 +593,37 @@ describe('pages/ error recovery', () => {
          }
         `)
       } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "nooo",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "index.js (5:11) @ ClassDefault.render
-         > 5 |     throw new Error('nooo');
-             |           ^",
-           "stack": [
-             "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         }
-        `)
+        if (isTurbopack) {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "description": "nooo",
+             "environmentLabel": null,
+             "label": "Runtime Error",
+             "source": "index.js (5:11) @ ClassDefault.render
+           > 5 |     throw new Error('nooo');
+               |           ^",
+             "stack": [
+               "ClassDefault.render index.js (5:11)",
+               "<FIXME-file-protocol>",
+               "<FIXME-file-protocol>",
+             ],
+           }
+          `)
+        } else {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "description": "nooo",
+             "environmentLabel": null,
+             "label": "Runtime Error",
+             "source": "index.js (5:11) @ ClassDefault.render
+           > 5 |     throw new Error('nooo');
+               |           ^",
+             "stack": [
+               "ClassDefault.render index.js (5:11)",
+             ],
+           }
+          `)
+        }
       }
     }
   })
@@ -649,7 +671,6 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // We get an error because Foo didn't import React. Fair.
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
@@ -665,7 +686,6 @@ describe('pages/ error recovery', () => {
            |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous> (0:0)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -679,7 +699,6 @@ describe('pages/ error recovery', () => {
            |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous> (0:0)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -687,22 +706,37 @@ describe('pages/ error recovery', () => {
        ]
       `)
     } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "React is not defined",
-         "environmentLabel": null,
-         "label": "Runtime ReferenceError",
-         "source": "Foo.js (3:3) @ Foo
-       > 3 |   return React.createElement('h1', null, 'Foo');
-           |   ^",
-         "stack": [
-           "Foo Foo.js (3:3)",
-           "Set.forEach <anonymous> (0:0)",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
-      `)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "React is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "Foo.js (3:3) @ Foo
+         > 3 |   return React.createElement('h1', null, 'Foo');
+             |   ^",
+           "stack": [
+             "Foo Foo.js (3:3)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "React is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "Foo.js (3:3) @ Foo
+         > 3 |   return React.createElement('h1', null, 'Foo');
+             |   ^",
+           "stack": [
+             "Foo Foo.js (3:3)",
+           ],
+         }
+        `)
+      }
     }
 
     // Let's add that to Foo.

@@ -16,7 +16,7 @@ pub async fn get_postcss_package_mapping(
             .resolved_cell(),
         ImportMapping::PrimaryAlternative(
             "postcss".into(),
-            Some(get_next_package(project_path.clone()).await?.clone_value()),
+            Some(get_next_package(project_path.clone()).owned().await?),
         )
         .resolved_cell(),
     ])

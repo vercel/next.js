@@ -186,7 +186,7 @@ export default class NextWebServer extends BaseServer<
           normalizedParams,
           routeRegex
         )
-        normalizeCdnUrl(req, Object.keys(routeRegex.routeKeys), routeRegex)
+        normalizeCdnUrl(req, Object.keys(routeRegex.routeKeys))
       }
     }
 

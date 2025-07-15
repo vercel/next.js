@@ -2,8 +2,12 @@ import type { IncrementalCache } from '../../lib/incremental-cache'
 
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
-import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../../app-render/work-async-storage.external'
+import {
+  getCacheSignal,
   getDraftModeProviderForCacheScope,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
@@ -12,7 +16,10 @@ import {
   IncrementalCacheKind,
   type CachedFetchData,
 } from '../../response-cache'
-import type { UnstableCacheStore } from '../../app-render/work-unit-async-storage.external'
+import type {
+  UnstableCacheStore,
+  WorkUnitStore,
+} from '../../app-render/work-unit-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -106,31 +113,19 @@ export function unstable_cache<T extends Callback>(
     }
     const incrementalCache = maybeIncrementalCache
 
-    const cacheSignal =
-      workUnitStore && workUnitStore.type === 'prerender'
-        ? workUnitStore.cacheSignal
-        : null
+    const cacheSignal = workUnitStore ? getCacheSignal(workUnitStore) : null
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
     try {
-      // If there's no request store, we aren't in a request (or we're not in app
-      // router)  and if there's no static generation store, we aren't in app
+      // If there's no request store, we aren't in a request (or we're not in
+      // app router) and if there's no static generation store, we aren't in app
       // router. Default to an empty pathname and search params when there's no
       // request store or static generation store available.
-      const requestStore =
-        workUnitStore && workUnitStore.type === 'request'
-          ? workUnitStore
-          : undefined
-      const pathname = requestStore?.url.pathname ?? workStore?.route ?? ''
-      const searchParams = new URLSearchParams(requestStore?.url.search ?? '')
-
-      const sortedSearchKeys = [...searchParams.keys()].sort((a, b) => {
-        return a.localeCompare(b)
-      })
-      const sortedSearch = sortedSearchKeys
-        .map((key) => `${key}=${searchParams.get(key)}`)
-        .join('&')
+      const fetchUrlPrefix =
+        workStore && workUnitStore
+          ? getFetchUrlPrefix(workStore, workUnitStore)
+          : ''
 
       // Construct the complete cache key for this function invocation
       // @TODO stringify is likely not safe here. We will coerce undefined to null which will make
@@ -138,7 +133,7 @@ export function unstable_cache<T extends Callback>(
       const invocationKey = `${fixedKey}-${JSON.stringify(args)}`
       const cacheKey = await incrementalCache.generateCacheKey(invocationKey)
       // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
-      const fetchUrl = `unstable_cache ${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch} ${cb.name ? ` ${cb.name}` : cacheKey}`
+      const fetchUrl = `unstable_cache ${fetchUrlPrefix} ${cb.name ? ` ${cb.name}` : cacheKey}`
       const fetchIdx =
         (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
 
@@ -161,40 +156,49 @@ export function unstable_cache<T extends Callback>(
         // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
         // the background. If the entry is missing or invalid we generate a new entry and return it.
 
-        // We update the store's revalidate property if the option.revalidate is a higher precedence
-        if (
-          workUnitStore &&
-          (workUnitStore.type === 'cache' ||
-            workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy')
-        ) {
-          // options.revalidate === undefined doesn't affect timing.
-          // options.revalidate === false doesn't shrink timing. it stays at the maximum.
-          if (typeof options.revalidate === 'number') {
-            if (workUnitStore.revalidate < options.revalidate) {
-              // The store is already revalidating on a shorter time interval, leave it alone
-            } else {
-              workUnitStore.revalidate = options.revalidate
-            }
-          }
+        let isNestedUnstableCache = false
 
-          // We need to accumulate the tags for this invocation within the store
-          const collectedTags = workUnitStore.tags
-          if (collectedTags === null) {
-            workUnitStore.tags = tags.slice()
-          } else {
-            for (const tag of tags) {
-              // @TODO refactor tags to be a set to avoid this O(n) lookup
-              if (!collectedTags.includes(tag)) {
-                collectedTags.push(tag)
+        if (workUnitStore) {
+          switch (workUnitStore.type) {
+            case 'cache':
+            case 'prerender':
+            case 'prerender-ppr':
+            case 'prerender-legacy':
+              // We update the store's revalidate property if the option.revalidate is a higher precedence
+              // options.revalidate === undefined doesn't affect timing.
+              // options.revalidate === false doesn't shrink timing. it stays at the maximum.
+              if (typeof options.revalidate === 'number') {
+                if (workUnitStore.revalidate < options.revalidate) {
+                  // The store is already revalidating on a shorter time interval, leave it alone
+                } else {
+                  workUnitStore.revalidate = options.revalidate
+                }
               }
-            }
+
+              // We need to accumulate the tags for this invocation within the store
+              const collectedTags = workUnitStore.tags
+              if (collectedTags === null) {
+                workUnitStore.tags = tags.slice()
+              } else {
+                for (const tag of tags) {
+                  // @TODO refactor tags to be a set to avoid this O(n) lookup
+                  if (!collectedTags.includes(tag)) {
+                    collectedTags.push(tag)
+                  }
+                }
+              }
+              break
+            case 'unstable-cache':
+              isNestedUnstableCache = true
+              break
+            case 'prerender-client':
+            case 'request':
+              break
+            default:
+              workUnitStore satisfies never
           }
         }
 
-        const isNestedUnstableCache =
-          workUnitStore && workUnitStore.type === 'unstable-cache'
         if (
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches
@@ -360,4 +364,31 @@ export function unstable_cache<T extends Callback>(
   }
   // TODO: once AsyncLocalStorage.run() returns the correct types this override will no longer be necessary
   return cachedCb as unknown as T
+}
+
+function getFetchUrlPrefix(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore
+): string {
+  switch (workUnitStore.type) {
+    case 'request':
+      const pathname = workUnitStore.url.pathname
+      const searchParams = new URLSearchParams(workUnitStore.url.search)
+
+      const sortedSearch = [...searchParams.keys()]
+        .sort((a, b) => a.localeCompare(b))
+        .map((key) => `${key}=${searchParams.get(key)}`)
+        .join('&')
+
+      return `${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch}`
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'unstable-cache':
+      return workStore.route
+    default:
+      return workUnitStore satisfies never
+  }
 }

@@ -296,7 +296,7 @@ pub fn make_task_dirty_internal(
     };
 
     if should_schedule {
-        let description = ctx.get_task_desc_fn(task_id);
+        let description = || ctx.get_task_desc_fn(task_id);
         if task.add(CachedDataItem::new_scheduled(
             TaskExecutionReason::Invalidated,
             description,

@@ -21,7 +21,11 @@ use turbopack_core::{
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{
+        ModuleGraph,
+        chunk_group_info::ChunkGroup,
+        export_usage::{ExportUsageInfo, ModuleExportUsageInfo},
+    },
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
@@ -102,6 +106,15 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn dynamic_chunk_content_loading(
+        mut self,
+        enable_dynamic_chunk_content_loading: bool,
+    ) -> Self {
+        self.chunking_context.enable_dynamic_chunk_content_loading =
+            enable_dynamic_chunk_content_loading;
+        self
+    }
+
     pub fn asset_base_path(mut self, asset_base_path: Option<RcStr>) -> Self {
         self.chunking_context.asset_base_path = asset_base_path;
         self
@@ -147,6 +160,11 @@ impl BrowserChunkingContextBuilder {
         module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     ) -> Self {
         self.chunking_context.module_id_strategy = module_id_strategy;
+        self
+    }
+
+    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<ExportUsageInfo>>) -> Self {
+        self.chunking_context.export_usage = export_usage;
         self
     }
 
@@ -209,6 +227,8 @@ pub struct BrowserChunkingContext {
     enable_tracing: bool,
     /// Enable module merging
     enable_module_merging: bool,
+    /// Enable dynamic chunk content loading.
+    enable_dynamic_chunk_content_loading: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -225,6 +245,8 @@ pub struct BrowserChunkingContext {
     manifest_chunks: bool,
     /// The module id strategy to use
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    /// The module export usage info, if available.
+    export_usage: Option<ResolvedVc<ExportUsageInfo>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
 }
@@ -256,6 +278,7 @@ impl BrowserChunkingContext {
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
                 enable_module_merging: false,
+                enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -264,39 +287,10 @@ impl BrowserChunkingContext {
                 current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
+                export_usage: None,
                 chunking_configs: Default::default(),
             },
         }
-    }
-}
-
-impl BrowserChunkingContext {
-    /// Returns the kind of runtime to include in output chunks.
-    ///
-    /// This is defined directly on `BrowserChunkingContext` so it is zero-cost
-    /// when `RuntimeType` has a single variant.
-    pub fn runtime_type(&self) -> RuntimeType {
-        self.runtime_type
-    }
-
-    /// Returns the asset base path.
-    pub fn chunk_base_path(&self) -> Option<RcStr> {
-        self.chunk_base_path.clone()
-    }
-
-    /// Returns the asset suffix path.
-    pub fn chunk_suffix_path(&self) -> Option<RcStr> {
-        self.chunk_suffix_path.clone()
-    }
-
-    /// Returns the source map type.
-    pub fn source_maps_type(&self) -> SourceMapsType {
-        self.source_maps_type
-    }
-
-    /// Returns the minify type.
-    pub fn minify_type(&self) -> MinifyType {
-        self.minify_type
     }
 }
 
@@ -360,6 +354,39 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn current_chunk_method(&self) -> Vc<CurrentChunkMethod> {
         self.current_chunk_method.cell()
+    }
+
+    /// Returns the kind of runtime to include in output chunks.
+    ///
+    /// This is defined directly on `BrowserChunkingContext` so it is zero-cost
+    /// when `RuntimeType` has a single variant.
+    #[turbo_tasks::function]
+    pub fn runtime_type(&self) -> Vc<RuntimeType> {
+        self.runtime_type.cell()
+    }
+
+    /// Returns the asset base path.
+    #[turbo_tasks::function]
+    pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.chunk_base_path.clone())
+    }
+
+    /// Returns the asset suffix path.
+    #[turbo_tasks::function]
+    pub fn chunk_suffix_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.chunk_suffix_path.clone())
+    }
+
+    /// Returns the source map type.
+    #[turbo_tasks::function]
+    pub fn source_maps_type(&self) -> Vc<SourceMapsType> {
+        self.source_maps_type.cell()
+    }
+
+    /// Returns the minify type.
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
     }
 }
 
@@ -519,6 +546,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn is_module_merging_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_module_merging)
+    }
+
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_dynamic_chunk_content_loading)
     }
 
     #[turbo_tasks::function]
@@ -713,5 +745,17 @@ impl ChunkingContext for BrowserChunkingContext {
         } else {
             self.chunk_item_id_from_ident(AsyncLoaderModule::asset_ident_for(module))
         })
+    }
+
+    #[turbo_tasks::function]
+    async fn module_export_usage(
+        self: Vc<Self>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ModuleExportUsageInfo>> {
+        if let Some(export_usage) = self.await?.export_usage {
+            Ok(export_usage.await?.used_exports(module))
+        } else {
+            Ok(ModuleExportUsageInfo::all())
+        }
     }
 }

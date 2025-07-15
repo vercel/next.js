@@ -97,6 +97,7 @@ function createTrie<Value = string>({
   function remove(value: Value) {
     let currentNode = root
     const segments = getCharacters(value)
+
     const stack: TrieNode<Value>[] = []
     let found = true
     for (const segment of segments) {

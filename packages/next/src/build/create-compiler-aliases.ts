@@ -35,7 +35,6 @@ export function createWebpackAliases({
   appDir,
   dir,
   reactProductionProfiling,
-  hasRewrites,
 }: {
   distDir: string
   isClient: boolean
@@ -46,12 +45,8 @@ export function createWebpackAliases({
   appDir: string | undefined
   dir: string
   reactProductionProfiling: boolean
-  hasRewrites: boolean
 }): CompilerAliases {
   const pageExtensions = config.pageExtensions
-  const clientResolveRewrites = require.resolve(
-    '../shared/lib/router/utils/resolve-rewrites'
-  )
   const customAppAliases: CompilerAliases = {}
   const customDocumentAliases: CompilerAliases = {}
 
@@ -169,15 +164,6 @@ export function createWebpackAliases({
       'next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper',
     [RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS]:
       'next/dist/build/webpack/loaders/next-flight-loader/track-dynamic-import',
-
-    ...(isClient || isEdgeServer
-      ? {
-          [clientResolveRewrites]: hasRewrites
-            ? clientResolveRewrites
-            : // With webpack 5 an alias can be pointed to false to noop
-              false,
-        }
-      : {}),
 
     '@swc/helpers/_': path.join(
       path.dirname(require.resolve('@swc/helpers/package.json')),
