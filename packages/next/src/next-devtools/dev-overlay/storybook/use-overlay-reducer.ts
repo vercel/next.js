@@ -9,6 +9,7 @@ import {
   ACTION_BUILDING_INDICATOR_SHOW,
   ACTION_DEBUG_INFO,
   ACTION_DEV_INDICATOR,
+  ACTION_DEV_INDICATOR_SET,
   ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
   ACTION_DEVTOOLS_PANEL_POSITION,
   ACTION_DEVTOOLS_POSITION,
@@ -65,6 +66,9 @@ export function useStorybookOverlayReducer(initialState?: OverlayState) {
         }
         case ACTION_DEVTOOLS_SCALE: {
           return { ...state, scale: action.scale }
+        }
+        case ACTION_DEV_INDICATOR_SET: {
+          return { ...state, showIndicator: !action.disabled }
         }
         case ACTION_BEFORE_REFRESH:
         case ACTION_BUILD_ERROR:
