@@ -6,12 +6,13 @@ import { hideBin } from 'yargs/helpers'
 import path from 'path'
 
 import { NEXT_DIR, exec, execFn, packageFiles } from './pack-util.js'
+import buildNative from './build-native.js'
 
 interface Options {
   project: string
   build: boolean
   noBuild: boolean
-  nativeBuild: boolean
+  buildNative: boolean
   noNativeBuild: boolean
   verbose: number
   _: string[]
@@ -20,55 +21,67 @@ interface Options {
 // --- Parse command line arguments ---
 const argv = yargs(hideBin(process.argv))
   .scriptName('patch-next')
-  .command(
-    'patch-next',
-    'Patch Local Next.js packages to the target project directory'
+  .usage(
+    '$0 <project> [..options]',
+    'Patch Local Next.js packages to the target project directory',
+    (yargs: any) => {
+      yargs
+        .positional('project', {
+          type: 'string',
+          describe: ': Target directory of the Next.js Project to patch',
+          nargs: 1,
+        })
+        .example(
+          '$0 ../my-app --no-build --no-build-native',
+          'Patch Next.js packages in the "my-app" directory'
+        )
+        .example(
+          '$0 ../my-app -- --release',
+          'Patch using a release-mode native build. `--release` is passed through to the napi CLI'
+        )
+    }
   )
-  .usage('$0 <project> [..options]', '', (yargs: any) => {
-    yargs.positional('project', {
-      type: 'string',
-      describe: ': Target directory of the Next.js Project to patch',
-    })
-  })
-  .example(
-    '$0 ../my-app --no-build',
-    'Patch Next.js packages in the "my-next-project" directory'
-  )
-  .demandCommand(1, 'A project directory is required.')
   .option('build', {
     type: 'boolean',
     default: true,
     description: 'Run the Next.js build step (`pnpm i` and `pnpm build`).',
   })
-  .option('native-build', {
+  .option('build-native', {
+    alias: 'native-build',
     type: 'boolean',
     default: true,
     description: 'Run the native modules build step.',
   })
   .option('verbose', {
     type: 'number',
-    choices: [0, 1, 2],
-    alias: 'V',
-    description: 'Set the verbosity level (0: WARN, 1: INFO, 2: DEBUG)',
+    choices: [0, 1, 2, 3],
+    count: true,
+    alias: 'v',
+    description: 'Set the verbosity level (-v: WARN, -vv: INFO, -vvv: DEBUG)',
   })
+  .wrap(null)
   .help()
   .alias('help', 'h')
-  .alias('version', 'v')
+  .demandCommand(1, 'A project directory is required.')
   .strictCommands()
   .parse()
 
-const { project: projectDir, build, nativeBuild } = argv as Options
-
-const VERBOSE_LEVEL = argv.verbose ?? -1
+const {
+  project: projectDir,
+  build,
+  buildNative: buildNativeEnabled,
+  verbose: verboseLevel,
+  _: buildNativeArgs,
+} = argv as Options
 
 function WARN(...args: any[]) {
-  VERBOSE_LEVEL >= 0 && console.warn(...args)
+  verboseLevel >= 1 && console.warn(...args)
 }
 function INFO(...args: any[]) {
-  VERBOSE_LEVEL >= 1 && console.info(...args)
+  verboseLevel >= 2 && console.info(...args)
 }
 function DEBUG(...args: any[]) {
-  VERBOSE_LEVEL >= 2 && console.log(...args)
+  verboseLevel >= 3 && console.log(...args)
 }
 
 const PROJECT_DIR = path.resolve(projectDir)
@@ -131,12 +144,9 @@ async function main(): Promise<void> {
     exec('Build Next.js', 'pnpm run build')
   }
 
-  if (nativeBuild) {
-    const originalArgs = process.argv.slice(2)
-    const nativeBuildArgs = originalArgs.filter((arg) => arg !== projectDir)
-    process.argv = [process.argv[0], process.argv[1], ...nativeBuildArgs]
+  if (buildNativeEnabled) {
     INFO('Building native modules...')
-    await import('./build-native.js')
+    await buildNative(buildNativeArgs)
   }
 
   const packagesToPatch = [
