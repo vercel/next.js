@@ -1339,6 +1339,13 @@
       map,
       path
     ) {
+      if (
+        void 0 === response._debugChannel &&
+        "pending" === referencedChunk.status &&
+        parentObject[0] === REACT_ELEMENT_TYPE &&
+        ("4" === key || "5" === key)
+      )
+        return null;
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;
@@ -3183,10 +3190,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-97cdd5d3-20250710",
+      version: "19.2.0-canary-2f0e7e57-20250715",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-97cdd5d3-20250710",
+      reconcilerVersion: "19.2.0-canary-2f0e7e57-20250715",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

@@ -76,7 +76,7 @@
         var chunkFilename = chunks[i],
           entry = chunkCache.get(chunkFilename);
         if (void 0 === entry) {
-          entry = globalThis.__next_chunk_load__(chunkFilename);
+          entry = __turbopack_load_by_url__(chunkFilename);
           promises.push(entry);
           var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
           entry.then(resolve, ignoreReject);
@@ -2007,6 +2007,13 @@
       map,
       path
     ) {
+      if (
+        void 0 === response._debugChannel &&
+        "pending" === referencedChunk.status &&
+        parentObject[0] === REACT_ELEMENT_TYPE &&
+        ("4" === key || "5" === key)
+      )
+        return null;
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;
