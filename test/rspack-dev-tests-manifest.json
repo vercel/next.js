@@ -1281,6 +1281,25 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/lib/source-maps.test.ts": {
+    "passed": [
+      "does not hide sandwiches without a lid",
+      "does not ignore list anonymous frames by default",
+      "does not ignore list anonymous frames that are not likely JS native methods",
+      "does not ignore list anonymous frames where the bottom is shown",
+      "does not ignore list if bottom is not ignore-listed",
+      "does not ignore list if bottom is unknown",
+      "does not ignore list if top is not ignore-listed",
+      "does not ignore list if top is unknown",
+      "hides big macs",
+      "hides big sandwiches",
+      "hides small sandwiches"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/lib/to-route.test.ts": {
     "passed": [
       "toRoute Function should remove trailing `/index`",
@@ -1895,9 +1914,12 @@
       "ReactRefreshLogBox app Call stack for client error",
       "ReactRefreshLogBox app Call stack for server error",
       "ReactRefreshLogBox app Server component errors should open up in fullscreen",
+      "ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app Should show error location for server actions in client component",
       "ReactRefreshLogBox app Should show error location for server actions in server component",
+      "ReactRefreshLogBox app Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app boundaries",
+      "ReactRefreshLogBox app conversion to class component (1)",
       "ReactRefreshLogBox app logbox: anchors links in error messages",
       "ReactRefreshLogBox app should hide unrelated frames in stack trace with nodejs internal calls",
       "ReactRefreshLogBox app should hide unrelated frames in stack trace with unknown anonymous calls",
@@ -1906,9 +1928,6 @@
     "failed": [
       "ReactRefreshLogBox app Can't resolve @import in CSS file",
       "ReactRefreshLogBox app Import trace when module not found in layout",
-      "ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function",
-      "ReactRefreshLogBox app Unhandled errors and rejections opens up in the minimized state",
-      "ReactRefreshLogBox app conversion to class component (1)",
       "ReactRefreshLogBox app css syntax errors",
       "ReactRefreshLogBox app module init error not shown",
       "ReactRefreshLogBox app server component can recover from error thrown in the module",
@@ -2023,16 +2042,16 @@
   "test/development/acceptance-app/error-recovery.test.ts": {
     "passed": [
       "Error recovery app can recover from a event handler error",
-      "Error recovery app server component can recover from a component error"
+      "Error recovery app client component can recover from a component error",
+      "Error recovery app server component can recover from a component error",
+      "Error recovery app stuck error"
     ],
     "failed": [
       "Error recovery app can recover from a syntax error without losing state",
-      "Error recovery app client component can recover from a component error",
       "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
       "Error recovery app server component can recover from syntax error",
-      "Error recovery app stuck error",
       "Error recovery app syntax > runtime error"
     ],
     "pending": [],
@@ -2753,6 +2772,7 @@
       "segment-explorer should handle show file segments in order",
       "segment-explorer should handle special built-in not-found segments",
       "segment-explorer should indicate segment explorer is not available for pages router",
+      "segment-explorer should render route for index page",
       "segment-explorer should render the segment explorer for nested routes",
       "segment-explorer should render the segment explorer for parallel routes",
       "segment-explorer should render the segment explorer for parallel routes in edge runtime",
@@ -6157,6 +6177,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/dynamic-io/dynamic-io.console.test.ts": {
+    "passed": ["dynamic-io dims console calls during prospective rendering"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/dynamic-io/dynamic-io.cookies.test.ts": {
     "passed": [
       "dynamic-io should be able to access cookie properties",
@@ -6305,6 +6332,7 @@
       "dynamic-io should fully prerender pages that use `unstable_noStore()`",
       "dynamic-io should not have route specific errors",
       "dynamic-io should not log not-found errors",
+      "dynamic-io should not resume when client components are dynamic but the RSC render was static",
       "dynamic-io should partially prerender pages that do any uncached IO",
       "dynamic-io should partially prerender pages that do any uncached IO (use cache)",
       "dynamic-io should partially prerender pages that take longer than a task to render",
@@ -6474,10 +6502,10 @@
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
     "passed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
+      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
       "app-dir - error-on-next-codemod-comment should error with inline comment as well"
     ],
     "failed": [
-      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
@@ -9517,6 +9545,7 @@
   "test/e2e/app-dir/server-source-maps/server-source-maps.test.ts": {
     "passed": [
       "app-dir - server source maps handles invalid sourcemaps gracefully",
+      "app-dir - server source maps ignore-lists anonymous ssr stack frame sandwiches",
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
       "app-dir - server source maps logged errors preserve their name",
@@ -9524,6 +9553,7 @@
       "app-dir - server source maps thrown SSR errors"
     ],
     "failed": [
+      "app-dir - server source maps ignore-lists anonymous rsc stack frame sandwiches",
       "app-dir - server source maps sourcemaps errors during module evaluation",
       "app-dir - server source maps stack frames are ignore-listed in rsc"
     ],
