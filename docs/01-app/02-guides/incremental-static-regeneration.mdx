@@ -35,17 +35,11 @@ interface Post {
 // request comes in, at most once every 60 seconds.
 export const revalidate = 60
 
-// We'll prerender only the params from `generateStaticParams` at build time.
-// If a request comes in for a path that hasn't been generated,
-// Next.js will server-render the page on-demand.
-export const dynamicParams = true
-
 export async function generateStaticParams() {
   const posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  // Generate params for 24 posts and leave 25th post for on-demand generation
-  return posts.slice(0, 24).map((post) => ({
+  return posts.map((post) => ({
     id: String(post.id),
   }))
 }
@@ -73,17 +67,11 @@ export default async function Page({
 // request comes in, at most once every 60 seconds.
 export const revalidate = 60
 
-// We'll prerender only the params from `generateStaticParams` at build time.
-// If a request comes in for a path that hasn't been generated,
-// Next.js will server-render the page on-demand.
-export const dynamicParams = true
-
 export async function generateStaticParams() {
   const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  // Generate params for 24 posts and leave 25th post for on-demand generation
-  return posts.slice(0, 24).map((post) => ({
+  return posts.map((post) => ({
     id: String(post.id),
   }))
 }
@@ -101,6 +89,15 @@ export default async function Page({ params }) {
   )
 }
 ```
+
+Here's how this example works:
+
+1. During `next build`, all known blog posts are generated
+2. All requests made to these pages (e.g. `/blog/1`) are cached and instantaneous
+3. After 60 seconds has passed, the next request will still return the cached (now stale) page
+4. The cache is invalidated and a new version of the page begins generating in the background
+5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
+6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [dynamicParams](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) value. However, if the post does not exist, then 404 is returned.
 
 </AppOnly>
 
@@ -123,13 +120,10 @@ export const getStaticPaths: GetStaticPaths = async () => {
   const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  // Generate params for 24 posts and leave 25th post for on-demand generation
-  const paths = posts.slice(0, 24).map((post: Post) => ({
+  const paths = posts.map((post: Post) => ({
     params: { id: String(post.id) },
   }))
 
-  // If a request comes in for a path that hasn't been generated (e.g. /blog/25),
-  // Next.js will server-render the page on-demand.
   return { paths, fallback: 'blocking' }
 }
 
@@ -165,13 +159,10 @@ export async function getStaticPaths() {
   const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  // Generate params for 24 posts and leave 25th post for on-demand generation
-  const paths = posts.slice(0, 24).map((post) => ({
+  const paths = posts.map((post) => ({
     params: { id: post.id },
   }))
 
-  // If a request comes in for a path that hasn't been generated (e.g. /blog/25),
-  // Next.js will server-render the page on-demand.
   return { paths, fallback: 'blocking' }
 }
 
@@ -198,16 +189,16 @@ export default function Page({ post }) {
 }
 ```
 
-</PagesOnly>
-
 Here's how this example works:
 
-1. During `next build`, the first 24 blog posts are generated (out of 25 available from the API)
+1. During `next build`, all known blog posts are generated
 2. All requests made to these pages (e.g. `/blog/1`) are cached and instantaneous
-3. After 60 seconds has passed, the next request will still show the cached (stale) page
+3. After 60 seconds has passed, the next request will still return the cached (now stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
-5. Once generated successfully, the next request will show the updated page
-6. If `/blog/25` is requested (a post not generated at build time), the page will be generated on-demand, shown, and cached. If `dynamicParams` was set to `false`, the page would 404 instead.
+5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
+6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [fallback](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-false) value. However, if the post does not exist, then 404 is returned.
+
+</PagesOnly>
 
 ## Reference
 
