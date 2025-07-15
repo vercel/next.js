@@ -1283,7 +1283,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig = {
+export const defaultConfig = Object.freeze({
   env: {},
   webpack: null,
   eslint: {
@@ -1503,7 +1503,7 @@ export const defaultConfig = {
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-} satisfies NextConfig
+} satisfies NextConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

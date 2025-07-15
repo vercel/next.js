@@ -1227,6 +1227,7 @@ export default async function loadConfig(
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
+  const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
 
   // If config file was found
   if (path?.length) {
@@ -1279,8 +1280,6 @@ export default async function loadConfig(
         interopDefault(userConfigModule)
       )) as NextConfig
     )
-
-    const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
 
     if (reportExperimentalFeatures && loadedConfig.experimental) {
       for (const name of Object.keys(
@@ -1420,58 +1419,13 @@ export default async function loadConfig(
       userConfig.htmlLimitedBots = userConfig.htmlLimitedBots.source
     }
 
-    if (
-      userConfig.experimental &&
-      userConfig.experimental.enablePrerenderSourceMaps === undefined &&
-      userConfig.experimental.dynamicIO === true
-    ) {
-      userConfig.experimental.enablePrerenderSourceMaps = true
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'enablePrerenderSourceMaps',
-        true,
-        'enabled by `experimental.dynamicIO`'
-      )
-    }
-
-    if (
-      debugPrerender &&
-      (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
-    ) {
-      userConfig.experimental ??= {}
-
-      setExperimentalFeatureForDebugPrerender(
-        userConfig.experimental,
-        'serverSourceMaps',
-        true,
-        reportExperimentalFeatures ? configuredExperimentalFeatures : undefined
-      )
-
-      setExperimentalFeatureForDebugPrerender(
-        userConfig.experimental,
-        process.env.TURBOPACK ? 'turbopackMinify' : 'serverMinification',
-        false,
-        reportExperimentalFeatures ? configuredExperimentalFeatures : undefined
-      )
-
-      setExperimentalFeatureForDebugPrerender(
-        userConfig.experimental,
-        'enablePrerenderSourceMaps',
-        true,
-        reportExperimentalFeatures ? configuredExperimentalFeatures : undefined
-      )
-
-      setExperimentalFeatureForDebugPrerender(
-        userConfig.experimental,
-        'prerenderEarlyExit',
-        false,
-        reportExperimentalFeatures ? configuredExperimentalFeatures : undefined
-      )
-    }
-
-    if (reportExperimentalFeatures) {
-      reportExperimentalFeatures(configuredExperimentalFeatures)
-    }
+    enforceExperimentalFeatures(userConfig, {
+      configuredExperimentalFeatures: reportExperimentalFeatures
+        ? configuredExperimentalFeatures
+        : undefined,
+      debugPrerender,
+      phase,
+    })
 
     const completeConfig = assignDefaults(
       dir,
@@ -1483,6 +1437,11 @@ export default async function loadConfig(
       },
       silent
     ) as NextConfigComplete
+
+    if (reportExperimentalFeatures) {
+      reportExperimentalFeatures(configuredExperimentalFeatures)
+    }
+
     return await applyModifyConfig(completeConfig, phase, silent)
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
@@ -1506,14 +1465,30 @@ export default async function loadConfig(
     }
   }
 
+  const clonedDefaultConfig = cloneObject(defaultConfig) as NextConfig
+
+  enforceExperimentalFeatures(clonedDefaultConfig, {
+    configuredExperimentalFeatures: reportExperimentalFeatures
+      ? configuredExperimentalFeatures
+      : undefined,
+    debugPrerender,
+    phase,
+  })
+
   // always call assignDefaults to ensure settings like
   // reactRoot can be updated correctly even with no next.config.js
   const completeConfig = assignDefaults(
     dir,
-    { ...defaultConfig, configFileName },
+    { ...clonedDefaultConfig, configFileName },
     silent
   ) as NextConfigComplete
+
   setHttpClientAndAgentOptions(completeConfig)
+
+  if (reportExperimentalFeatures) {
+    reportExperimentalFeatures(configuredExperimentalFeatures)
+  }
+
   return await applyModifyConfig(completeConfig, phase, silent)
 }
 
@@ -1523,7 +1498,70 @@ export type ConfiguredExperimentalFeature = {
   reason?: string
 }
 
-export function addConfiguredExperimentalFeature<
+function enforceExperimentalFeatures(
+  config: NextConfig,
+  options: {
+    configuredExperimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+    debugPrerender: boolean | undefined
+    phase: string
+  }
+) {
+  const { configuredExperimentalFeatures, debugPrerender, phase } = options
+
+  if (
+    config.experimental &&
+    config.experimental.enablePrerenderSourceMaps === undefined &&
+    config.experimental.dynamicIO === true
+  ) {
+    config.experimental.enablePrerenderSourceMaps = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'enablePrerenderSourceMaps',
+        true,
+        'enabled by `experimental.dynamicIO`'
+      )
+    }
+  }
+
+  config.experimental ??= {}
+
+  if (
+    debugPrerender &&
+    (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
+  ) {
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'serverSourceMaps',
+      true,
+      configuredExperimentalFeatures
+    )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      process.env.TURBOPACK ? 'turbopackMinify' : 'serverMinification',
+      false,
+      configuredExperimentalFeatures
+    )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'enablePrerenderSourceMaps',
+      true,
+      configuredExperimentalFeatures
+    )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'prerenderEarlyExit',
+      false,
+      configuredExperimentalFeatures
+    )
+  }
+}
+
+function addConfiguredExperimentalFeature<
   KeyType extends keyof ExperimentalConfig,
 >(
   configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
@@ -1564,20 +1602,50 @@ function setExperimentalFeatureForDebugPrerender<
 }
 
 function cloneObject(obj: any): any {
+  // Primitives & null
   if (obj === null || typeof obj !== 'object') {
     return obj
   }
 
-  if (Array.isArray(obj)) {
-    return obj.map(cloneObject)
+  // RegExp → clone via constructor
+  if (obj instanceof RegExp) {
+    return new RegExp(obj.source, obj.flags)
   }
-  const keys = Object.keys(obj)
-  if (keys.length === 0) {
+
+  // Function → just reuse the function reference
+  if (typeof obj === 'function') {
     return obj
   }
 
-  return keys.reduce((acc, key) => {
-    ;(acc as any)[key] = cloneObject(obj[key])
-    return acc
-  }, {})
+  // Arrays → map each element
+  if (Array.isArray(obj)) {
+    return obj.map(cloneObject)
+  }
+
+  // Detect non‑plain objects (class instances)
+  const proto = Object.getPrototypeOf(obj)
+  const isPlainObject = proto === Object.prototype || proto === null
+
+  // If it's not a plain object, just return the original
+  if (!isPlainObject) {
+    return obj
+  }
+
+  // Plain object → create a new object with the same prototype
+  // and copy all properties, cloning data properties and keeping
+  // accessor properties (getters/setters) as‑is.
+  const result = Object.create(proto)
+  for (const key of Reflect.ownKeys(obj)) {
+    const descriptor = Object.getOwnPropertyDescriptor(obj, key)
+
+    if (descriptor && (descriptor.get || descriptor.set)) {
+      // Accessor property → copy descriptor as‑is (get/set functions)
+      Object.defineProperty(result, key, descriptor)
+    } else {
+      // Data property → clone the value
+      result[key] = cloneObject(obj[key])
+    }
+  }
+
+  return result
 }
