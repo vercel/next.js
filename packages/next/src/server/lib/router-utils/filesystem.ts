@@ -611,8 +611,14 @@ export async function setupFsCheck(opts: {
               itemsRoot = publicFolderPath
               break
             }
-            default: {
+            case 'appFile':
+            case 'pageFile':
+            case 'nextImage':
+            case 'devVirtualFsItem': {
               break
+            }
+            default: {
+              ;(type) satisfies never
             }
           }
 

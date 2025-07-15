@@ -2,15 +2,31 @@ import type { DispatcherEvent, OverlayState } from '../shared'
 
 import { useReducer } from 'react'
 import {
-  ACTION_DEVTOOLS_POSITION,
+  ACTION_BEFORE_REFRESH,
+  ACTION_BUILD_ERROR,
+  ACTION_BUILD_OK,
+  ACTION_BUILDING_INDICATOR_HIDE,
+  ACTION_BUILDING_INDICATOR_SHOW,
+  ACTION_DEBUG_INFO,
+  ACTION_DEV_INDICATOR,
+  ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
   ACTION_DEVTOOLS_PANEL_CLOSE,
+  ACTION_DEVTOOLS_PANEL_OPEN,
   ACTION_DEVTOOLS_PANEL_TOGGLE,
+  ACTION_DEVTOOLS_POSITION,
+  ACTION_DEVTOOLS_SCALE,
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
   ACTION_ERROR_OVERLAY_TOGGLE,
-  ACTION_DEVTOOLS_SCALE,
+  ACTION_REFRESH,
+  ACTION_RENDERING_INDICATOR_HIDE,
+  ACTION_RENDERING_INDICATOR_SHOW,
+  ACTION_RESTART_SERVER_BUTTON,
+  ACTION_STATIC_INDICATOR,
+  ACTION_UNHANDLED_ERROR,
+  ACTION_UNHANDLED_REJECTION,
+  ACTION_VERSION_INFO,
   INITIAL_OVERLAY_STATE,
-  ACTION_DEVTOOLS_PANEL_OPEN,
 } from '../shared'
 
 export const storybookDefaultOverlayState: OverlayState = {
@@ -52,8 +68,25 @@ export function useStorybookOverlayReducer(initialState?: OverlayState) {
         case ACTION_DEVTOOLS_SCALE: {
           return { ...state, scale: action.scale }
         }
-        default: {
+        case ACTION_BEFORE_REFRESH:
+        case ACTION_BUILD_ERROR:
+        case ACTION_BUILD_OK:
+        case ACTION_BUILDING_INDICATOR_HIDE:
+        case ACTION_BUILDING_INDICATOR_SHOW:
+        case ACTION_DEBUG_INFO:
+        case ACTION_DEV_INDICATOR:
+        case ACTION_DEVTOOL_UPDATE_ROUTE_STATE:
+        case ACTION_REFRESH:
+        case ACTION_RENDERING_INDICATOR_HIDE:
+        case ACTION_RENDERING_INDICATOR_SHOW:
+        case ACTION_RESTART_SERVER_BUTTON:
+        case ACTION_STATIC_INDICATOR:
+        case ACTION_UNHANDLED_ERROR:
+        case ACTION_UNHANDLED_REJECTION:
+        case ACTION_VERSION_INFO:
           return state
+        default: {
+          return action satisfies never
         }
       }
     },

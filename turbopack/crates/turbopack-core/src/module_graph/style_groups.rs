@@ -93,7 +93,7 @@ pub async fn compute_style_groups(
         }
         let mut visited = FxHashSet::default();
         let mut items_in_postorder = FxIndexSet::default();
-        batches_graph.traverse_edges_from_entries_topological(
+        batches_graph.traverse_edges_from_entries_dfs(
             entries.iter().copied(),
             &mut (),
             |parent_info, module, _| {

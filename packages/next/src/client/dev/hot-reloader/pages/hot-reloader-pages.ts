@@ -361,13 +361,16 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       dispatcher.onRefresh()
       break
     }
-    default: {
+    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
+    case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE:
+    case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE:
+    case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE:
       if (customHmrEventHandler) {
         customHmrEventHandler(obj)
-        break
       }
       break
-    }
+    default:
+      obj satisfies never
   }
 }
 

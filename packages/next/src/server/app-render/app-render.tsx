@@ -125,7 +125,7 @@ import {
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   accessedDynamicData,
-  createPostponedAbortSignal,
+  createRenderInBrowserAbortSignal,
   formatDynamicAPIAccesses,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
@@ -153,10 +153,7 @@ import { createMutableActionQueue } from '../../client/components/app-router-ins
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { FallbackRouteParams } from '../request/fallback-params'
-import {
-  ServerPrerenderStreamResult,
-  processPrelude,
-} from './app-render-prerender-utils'
+import { processPrelude } from './app-render-prerender-utils'
 import {
   type ReactServerPrerenderResult,
   ReactServerResult,
@@ -1233,12 +1230,24 @@ async function renderToHTMLOrFlightImpl(
         return true
       }
       const workUnitStore = workUnitAsyncStorage.getStore()
-      return !!(
-        workUnitStore &&
-        (workUnitStore.type === 'prerender' ||
-          workUnitStore.type === 'prerender-client' ||
-          workUnitStore.type === 'cache')
-      )
+
+      if (!workUnitStore) {
+        return false
+      }
+
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-client':
+        case 'cache':
+          return true
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'unstable-cache':
+          return false
+        default:
+          workUnitStore satisfies never
+      }
     }
 
     const __next_require__: typeof instrumented.require = (...args) => {
@@ -2877,10 +2886,7 @@ async function prerenderToStream(
     onHTMLRenderSSRError
   )
 
-  let reactServerPrerenderResult:
-    | null
-    | ReactServerPrerenderResult
-    | ServerPrerenderStreamResult = null
+  let reactServerPrerenderResult: null | ReactServerPrerenderResult = null
   const setMetadataHeader = (name: string) => {
     metadata.headers ??= {}
     metadata.headers[name] = res.getHeader(name)
@@ -3258,7 +3264,6 @@ async function prerenderToStream(
         captureOwnerStack: undefined, // Not available in production.
       }
 
-      let clientIsDynamic = false
       let dynamicValidation = createDynamicValidationState()
 
       const prerender = (
@@ -3285,8 +3290,6 @@ async function prerenderToStream(
                     isPrerenderInterruptedError(err) ||
                     finalClientController.signal.aborted
                   ) {
-                    clientIsDynamic = true
-
                     const componentStack: string | undefined = (
                       errorInfo as any
                     ).componentStack
@@ -3350,7 +3353,12 @@ async function prerenderToStream(
         fallbackRouteParams
       )
 
-      if (serverIsDynamic || clientIsDynamic) {
+      if (serverIsDynamic) {
+        // Dynamic case
+        // We will always need to perform a "resume" render of some kind when this route is accessed
+        // because the RSC data itself is dynamic. We determine if there are any HTML holes or not
+        // but generally this is a "partial" prerender in that there will be a per-request compute
+        // concatenated to the static shell.
         if (postponed != null) {
           // Dynamic HTML case
           metadata.postponed = await getDynamicHTMLPostponedState(
@@ -3384,6 +3392,8 @@ async function prerenderToStream(
         }
       } else {
         // Static case
+        // We will not perform resumption per request. The result can be served statically to the requestor
+        // and if there was anything dynamic it will only be rendered in the browser.
         if (workStore.forceDynamic) {
           throw new StaticGenBailoutError(
             'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
@@ -3413,7 +3423,7 @@ async function prerenderToStream(
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
-              signal: createPostponedAbortSignal('static prerender resume'),
+              signal: createRenderInBrowserAbortSignal(),
               onError: htmlRendererErrorHandler,
               nonce,
             }
@@ -3650,7 +3660,7 @@ async function prerenderToStream(
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
-              signal: createPostponedAbortSignal('static prerender resume'),
+              signal: createRenderInBrowserAbortSignal(),
               onError: htmlRendererErrorHandler,
               nonce,
             }
@@ -3933,10 +3943,7 @@ async function prerenderToStream(
 
       // This is intentionally using the readable datastream from the main
       // render rather than the flight data from the error page render
-      const flightStream =
-        reactServerPrerenderResult instanceof ServerPrerenderStreamResult
-          ? reactServerPrerenderResult.asStream()
-          : reactServerPrerenderResult.consumeAsStream()
+      const flightStream = reactServerPrerenderResult.consumeAsStream()
 
       return {
         // Returning the error that was thrown so it can be used to handle

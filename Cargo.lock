@@ -9639,10 +9639,12 @@ dependencies = [
  "turbo-prehash",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
+ "turbo-tasks-testing",
  "urlencoding",
 ]
 

@@ -621,9 +621,11 @@ export async function handleEntrypoints({
         currentEntrypoints.app.set(route.originalName, route)
         break
       }
-      default:
+      case 'conflict':
         Log.info(`skipping ${pathname} (${route.type})`)
         break
+      default:
+        route satisfies never
     }
   }
 

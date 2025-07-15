@@ -4,7 +4,7 @@ import {
   type SegmentTrieNode,
 } from '../../segment-explorer-trie'
 import { cx } from '../../utils/cx'
-import { SegmentBoundaryTrigger, Trigger } from './segment-boundary-trigger'
+import { SegmentBoundaryTrigger } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
 import { useCallback, useMemo } from 'react'
 import {
@@ -257,12 +257,6 @@ function PageSegmentTreeLayerPresentation({
 
   const filesChildrenKeysBesidesSelectedBoundary = filesChildrenKeys
 
-  const isChildPageOrBoundary =
-    firstChild &&
-    firstChild.value &&
-    firstChild.value.type !== 'layout' &&
-    firstChild.value.type !== 'template'
-
   return (
     <>
       {hasFilesChildren && (
@@ -359,13 +353,12 @@ function PageSegmentTreeLayerPresentation({
                   )}
                 </span>
               )}
-              {firstChild && firstChild.value && isChildPageOrBoundary && (
+              {firstChild && firstChild.value && (
                 <SegmentBoundaryTrigger
                   nodeState={firstChild.value}
                   boundaries={boundaries}
                 />
               )}
-              {!isChildPageOrBoundary && <Trigger disabled />}
             </div>
           </div>
         </div>
