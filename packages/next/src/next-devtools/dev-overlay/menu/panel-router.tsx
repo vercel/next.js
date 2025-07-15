@@ -21,6 +21,7 @@ import {
   ACTION_DEV_INDICATOR_SET,
   ACTION_DEVTOOLS_POSITION,
   ACTION_DEVTOOLS_SCALE,
+  ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../shared'
 import GearIcon from '../icons/gear-icon'
@@ -41,6 +42,13 @@ const MenuPanel = () => {
           label: 'Issues',
           value: <IssueCount>{totalErrorCount}</IssueCount>,
           onClick: () => {
+            if (state.isErrorOverlayOpen) {
+              dispatch({
+                type: ACTION_ERROR_OVERLAY_CLOSE,
+              })
+              setPanel(null)
+              return
+            }
             setPanel(null)
             setSelectedIndex(-1)
             if (totalErrorCount > 0) {

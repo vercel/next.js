@@ -160,7 +160,7 @@ export const DevtoolMenu = ({
         borderRadius: 'var(--rounded-xl)',
         position: 'fixed',
         fontFamily: 'var(--font-stack-sans)',
-        zIndex: 3,
+        zIndex: 'var(--top-z-index)',
         overflow: 'hidden',
         opacity: 1,
         minWidth: '248px',
