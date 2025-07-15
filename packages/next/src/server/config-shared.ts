@@ -51,10 +51,10 @@ export type AdapterOutputs = Array<{
 
 export interface NextAdapter {
   name: string
-  modifyConfig(
+  modifyConfig?: (
     config: NextConfigComplete
-  ): Promise<NextConfigComplete> | NextConfigComplete
-  onBuildComplete(ctx: {
+  ) => Promise<NextConfigComplete> | NextConfigComplete
+  onBuildComplete?: (ctx: {
     routes: {
       headers: Array<ManifestHeaderRoute>
       redirects: Array<ManifestRedirectRoute>
@@ -66,7 +66,7 @@ export interface NextAdapter {
       dynamicRoutes: Array<{}>
     }
     outputs: AdapterOutputs
-  }): Promise<void> | void
+  }) => Promise<void> | void
 }
 
 export type I18NDomains = readonly DomainLocale[]
