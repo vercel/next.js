@@ -1106,12 +1106,17 @@ export default class NextNodeServer extends BaseServer<
       routerServerGlobal[RouterServerContextSymbol] = {}
     }
     const relativeProjectDir = relative(process.cwd(), this.dir)
+    const existingServerContext =
+      routerServerGlobal[RouterServerContextSymbol][relativeProjectDir]
 
-    if (!routerServerGlobal[RouterServerContextSymbol][relativeProjectDir]) {
+    if (!existingServerContext) {
       routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
         render404: this.render404.bind(this),
       }
     }
+    routerServerGlobal[RouterServerContextSymbol][
+      relativeProjectDir
+    ].nextConfig = this.nextConfig
 
     try {
       // next.js core assumes page path without trailing slash
