@@ -37,12 +37,42 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
     [message]
   )
 
+  const generateAIPrompt = useCallback(() => {
+    const parts: string[] = []
+
+    // 1. Error Type
+    parts.push(`## Error Type\nBuild Error`)
+
+    // 2. Error Message
+    if (formattedMessage) {
+      parts.push(`## Error Message\n${formattedMessage}`)
+    }
+
+    // 3. Build Output (decoded stderr)
+    if (message) {
+      const decodedOutput = stripAnsi(message)
+      parts.push(`## Build Output\n${decodedOutput}`)
+    }
+
+    // Format as AI prompt
+    const prompt = `Fix this error in Next.js app:
+
+${parts.join('\n\n')}
+
+Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})
+
+Explain what's wrong and fix it.`
+
+    return prompt
+  }, [message, formattedMessage, props.versionInfo])
+
   return (
     <ErrorOverlayLayout
       errorType="Build Error"
       errorMessage={formattedMessage}
       onClose={noop}
       error={error}
+      generateAIPrompt={generateAIPrompt}
       {...props}
     >
       <Terminal content={message} />
