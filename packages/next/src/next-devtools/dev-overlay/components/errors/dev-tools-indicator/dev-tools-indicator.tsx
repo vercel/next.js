@@ -18,7 +18,7 @@ import { UserPreferences } from './dev-tools-info/user-preferences'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
-  useClickOutside,
+  useClickOutsideAndEscape,
   useFocusTrap,
 } from './utils'
 import {
@@ -28,7 +28,6 @@ import {
 } from './dev-tools-info/preferences'
 import { Draggable } from './draggable'
 import { useShortcuts } from '../../../hooks/use-shortcuts'
-import { SegmentsExplorer } from './dev-tools-info/segments-explorer'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -78,12 +77,12 @@ export function DevToolsIndicator({
 //////////////////////////////////////////////////////////////////////////////////////
 
 interface C {
-  closeMenu: () => void
+  closeMenu?: () => void
   selectedIndex: number
   setSelectedIndex: Dispatch<SetStateAction<number>>
 }
 
-const Context = createContext({} as C)
+export const MenuContext = createContext({} as C)
 
 const OVERLAYS = {
   Root: 'root',
@@ -96,6 +95,15 @@ const OVERLAYS = {
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
 
 const INDICATOR_PADDING = 20
+
+// Dynamic import for SegmentsExplorer which including base-ui that causing Edge browser crash
+// x-ref: https://github.com/vercel/next.js/pull/64602
+// TODO: remove this once the new base-ui version is released
+const SegmentsExplorer = process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
+  ? (
+      require('./dev-tools-info/segments-explorer') as typeof import('./dev-tools-info/segments-explorer')
+    ).SegmentsExplorer
+  : () => null
 
 function DevToolsPopover({
   routerType,
@@ -156,7 +164,7 @@ function DevToolsPopover({
 
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
-  useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
+  useClickOutsideAndEscape(menuRef, triggerRef, menuMounted, closeMenu)
   useShortcuts(hideShortcut ? { [hideShortcut]: hideDevTools } : {}, triggerRef)
 
   useEffect(() => {
@@ -389,7 +397,7 @@ function DevToolsPopover({
           data-rendered={menuRendered}
           style={popover}
         >
-          <Context.Provider
+          <MenuContext.Provider
             value={{
               closeMenu,
               selectedIndex,
@@ -449,7 +457,7 @@ function DevToolsPopover({
                 />
               ) : null}
             </div>
-          </Context.Provider>
+          </MenuContext.Provider>
         </div>
       )}
     </Toast>
@@ -475,7 +483,7 @@ function ChevronRight() {
   )
 }
 
-function MenuItem({
+export function MenuItem({
   index,
   label,
   value,
@@ -492,13 +500,13 @@ function MenuItem({
 }) {
   const isInteractive =
     typeof onClick === 'function' || typeof href === 'string'
-  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(Context)
+  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(MenuContext)
   const selected = selectedIndex === index
 
   function click() {
     if (isInteractive) {
       onClick?.()
-      closeMenu()
+      closeMenu?.()
       if (href) {
         window.open(href, '_blank', 'noopener, noreferrer')
       }

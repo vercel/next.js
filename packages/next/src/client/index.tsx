@@ -14,7 +14,7 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-ru
 import mitt from '../shared/lib/mitt'
 import type { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
-import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from '../shared/lib/router/utils/disable-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
@@ -770,7 +770,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
     if (input.scroll) {
       const { x, y } = input.scroll
-      handleSmoothScroll(() => {
+      disableSmoothScrollDuringRouteTransition(() => {
         window.scrollTo(x, y)
       })
     }

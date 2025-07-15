@@ -85,7 +85,7 @@ impl EffectInstance {
                     EffectState::NotStarted(_) => {
                         let EffectState::NotStarted(inner) = std::mem::replace(
                             &mut *guard,
-                            EffectState::Started(Event::new(|| "Effect".to_string())),
+                            EffectState::Started(Event::new(|| || "Effect".to_string())),
                         ) else {
                             unreachable!();
                         };

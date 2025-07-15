@@ -28,6 +28,7 @@ import type {
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
   BOUNDARY_PREFIX,
+  BOUNDARY_SUFFIX,
   getConventionPathByType,
 } from './segment-explorer-path'
 
@@ -104,7 +105,6 @@ async function createComponentTreeInternal({
     workStore,
     componentMod: {
       SegmentViewNode,
-      SegmentViewStateNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -293,15 +293,21 @@ async function createComponentTreeInternal({
     const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore) {
-      if (
-        workUnitStore.type === 'prerender' ||
-        workUnitStore.type === 'prerender-legacy' ||
-        workUnitStore.type === 'prerender-ppr' ||
-        workUnitStore.type === 'cache'
-      ) {
-        if (workUnitStore.revalidate > defaultRevalidate) {
-          workUnitStore.revalidate = defaultRevalidate
-        }
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-legacy':
+        case 'prerender-ppr':
+        case 'cache':
+          if (workUnitStore.revalidate > defaultRevalidate) {
+            workUnitStore.revalidate = defaultRevalidate
+          }
+          break
+        case 'prerender-client':
+        case 'request':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
       }
     }
 
@@ -565,7 +571,7 @@ async function createComponentTreeInternal({
         // Add a suffix to avoid conflict with the segment view node representing rendered file.
         // existence: not-found.tsx@boundary
         // rendered: not-found.tsx
-        const fileNameSuffix = '@boundary'
+        const fileNameSuffix = BOUNDARY_SUFFIX
         const segmentViewBoundaries = isSegmentViewEnabled ? (
           <>
             {notFoundFilePath && (
@@ -799,7 +805,6 @@ async function createComponentTreeInternal({
         pageElement
       )
 
-    const pagePrefix = ctx.renderOpts.page.replace(/\/page$/, '')
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
@@ -809,7 +814,6 @@ async function createComponentTreeInternal({
           <MetadataOutlet ready={getViewportReady} />
           {metadataOutlet}
         </OutletBoundary>
-        <SegmentViewStateNode page={pagePrefix} />
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,

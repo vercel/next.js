@@ -1,14 +1,21 @@
 export {}
 
 type ReactServerRequests = Array<{
+  type: 'performance' | 'console'
   name: string
   properties: any
+  startTime: number
+  endTime: number
 }>
 
 declare global {
   interface Window {
     reactServerRequests: {
-      getSnapshot(): ReactServerRequests
+      /** For tests */
+      getSnapshot: () => Array<
+        Omit<ReactServerRequests[number], 'startTime' | 'endTime' | 'type'>
+      >
+      getStoreSnapshot(): ReactServerRequests
       subscribe(callback: () => void): () => void
     }
   }
@@ -26,6 +33,19 @@ const listeners = new Set<() => void>()
 window.reactServerRequests = {
   getSnapshot: () => {
     return reactServerRequests
+      .filter((request) => {
+        const isRegisterTrackRequest =
+          request.type === 'console' &&
+          request.name === undefined &&
+          request.startTime === 0.001 &&
+          request.endTime === 0.001
+
+        return !isRegisterTrackRequest
+      })
+      .map(({ startTime, endTime, type, ...rest }) => rest)
+  },
+  getStoreSnapshot: () => {
+    return reactServerRequests
   },
   subscribe: (callback) => {
     listeners.add(callback)
@@ -33,6 +53,31 @@ window.reactServerRequests = {
       listeners.delete(callback)
     }
   },
+}
+
+let registeredServerRequestsTrack = false
+
+const originalConsoleTimeStamp = console.timeStamp
+console.timeStamp = (...args: any) => {
+  originalConsoleTimeStamp.apply(console, args)
+  const [_entryName, startTime, endTime, track, name] = args
+
+  if (track === 'Server Requests ⚛') {
+    // React will always call one console.timeStamp to register the track in Chrome's performance panel.
+    if (registeredServerRequestsTrack) {
+      reactServerRequests.push({
+        type: 'console',
+        name: name ?? '',
+        properties: [],
+        startTime,
+        endTime,
+      })
+      for (const listener of listeners) {
+        listener()
+      }
+    }
+    registeredServerRequestsTrack = true
+  }
 }
 
 // We're trying to mock how the Chrome DevTools performance panel will display
@@ -45,8 +90,11 @@ new PerformanceObserver((entries) => {
   for (const entry of entries.getEntries()) {
     if (entry.detail?.devtools?.track === 'Server Requests ⚛') {
       newRequests.push({
+        type: 'performance',
         name: entry.name,
         properties: entry.detail.devtools.properties,
+        startTime: entry.startTime,
+        endTime: entry.startTime + entry.duration,
       })
     }
   }

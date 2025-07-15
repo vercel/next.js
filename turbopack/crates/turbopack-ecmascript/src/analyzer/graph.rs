@@ -1332,32 +1332,26 @@ impl VisitAstPath for Analyzer<'_> {
                     if let Some(key) = n.left.as_ident() {
                         let value = match n.op {
                             AssignOp::AndAssign | AssignOp::OrAssign | AssignOp::NullishAssign => {
-                                let right = self.eval_context.eval(&n.right);
                                 // We can handle the right value as alternative to the existing
                                 // value
-                                Some(right)
+                                self.eval_context.eval(&n.right)
                             }
                             AssignOp::AddAssign => {
                                 let left = self.eval_context.eval(&Expr::Ident(key.clone().into()));
 
                                 let right = self.eval_context.eval(&n.right);
 
-                                Some(JsValue::add(vec![left, right]))
+                                JsValue::add(vec![left, right])
                             }
-                            _ => Some(JsValue::unknown_empty(true, "unsupported assign operation")),
+                            _ => JsValue::unknown_empty(true, "unsupported assign operation"),
                         };
-                        if let Some(value) = value {
-                            // We should visit this to handle `+=` like
-                            //
-                            // clientComponentLoadTimes += performance.now() - startTime
-
-                            self.current_value = Some(value);
-                            n.left.visit_children_with_ast_path(self, &mut ast_path);
-                            self.current_value = None;
-                        }
-                    }
-
-                    if n.left.as_ident().is_none() {
+                        // We should visit this to handle `+=` like
+                        //
+                        // clientComponentLoadTimes += performance.now() - startTime
+                        self.current_value = Some(value);
+                        n.left.visit_children_with_ast_path(self, &mut ast_path);
+                        self.current_value = None;
+                    } else {
                         n.left.visit_children_with_ast_path(self, &mut ast_path);
                     }
                 }

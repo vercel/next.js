@@ -47,11 +47,12 @@ export interface OverlayState {
    *  which is viewing the "Issues Tab" as a fullscreen.
    */
   isErrorOverlayOpen: boolean
-  isDevToolsPanelOpen: boolean
   devToolsPosition: Corners
+  devToolsPanelPosition: Record<DevtoolsPanelName, Corners>
   scale: number
   page: string
 }
+type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
@@ -64,6 +65,7 @@ export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_DEBUG_INFO = 'debug-info'
 export const ACTION_DEV_INDICATOR = 'dev-indicator'
+export const ACTION_DEV_INDICATOR_SET = 'dev-indicator-disable'
 
 export const ACTION_ERROR_OVERLAY_OPEN = 'error-overlay-open'
 export const ACTION_ERROR_OVERLAY_CLOSE = 'error-overlay-close'
@@ -79,11 +81,20 @@ export const ACTION_DEVTOOLS_PANEL_CLOSE = 'devtools-panel-close'
 export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'devtools-panel-toggle'
 
 export const ACTION_DEVTOOLS_POSITION = 'devtools-position'
+export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
+export const ACTION_DEVTOOLS_PANEL_SIZE = 'devtools-panel-size'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
+export const STORAGE_KEY_PANEL_POSITION_PREFIX =
+  '__nextjs-dev-tools-panel-position'
+export const STORE_KEY_PANEL_SIZE_PREFIX = '__nextjs-dev-tools-panel-size'
+export const STORE_KEY_SHARED_PANEL_SIZE =
+  '__nextjs-dev-tools-shared-panel-size'
+export const STORE_KEY_SHARED_PANEL_LOCATION =
+  '__nextjs-dev-tools-shared-panel-location'
 export const STORAGE_KEY_SCALE = '__nextjs-dev-tools-scale'
 export const STORAGE_KEY_ACTIVE_TAB = '__nextjs-devtools-active-tab'
 
@@ -133,6 +144,11 @@ interface DevIndicatorAction {
   devIndicator: DevIndicatorServerState
 }
 
+interface DevIndicatorSetAction {
+  type: typeof ACTION_DEV_INDICATOR_SET
+  disabled: boolean
+}
+
 export interface ErrorOverlayOpenAction {
   type: typeof ACTION_ERROR_OVERLAY_OPEN
 }
@@ -157,19 +173,15 @@ export interface RenderingIndicatorHideAction {
   type: typeof ACTION_RENDERING_INDICATOR_HIDE
 }
 
-export interface DevToolsPanelOpenAction {
-  type: typeof ACTION_DEVTOOLS_PANEL_OPEN
-}
-export interface DevToolsPanelCloseAction {
-  type: typeof ACTION_DEVTOOLS_PANEL_CLOSE
-}
-export interface DevToolsPanelToggleAction {
-  type: typeof ACTION_DEVTOOLS_PANEL_TOGGLE
-}
-
 export interface DevToolsIndicatorPositionAction {
   type: typeof ACTION_DEVTOOLS_POSITION
   devToolsPosition: Corners
+}
+
+export interface DevToolsPanelPositionAction {
+  type: typeof ACTION_DEVTOOLS_PANEL_POSITION
+  key: string
+  devToolsPanelPosition: Corners
 }
 
 export interface DevToolsScaleAction {
@@ -205,13 +217,12 @@ export type DispatcherEvent =
   | BuildingIndicatorHideAction
   | RenderingIndicatorShowAction
   | RenderingIndicatorHideAction
-  | DevToolsPanelOpenAction
-  | DevToolsPanelCloseAction
-  | DevToolsPanelToggleAction
   | DevToolsIndicatorPositionAction
+  | DevToolsPanelPositionAction
   | DevToolsScaleAction
   | DevToolUpdateRouteStateAction
   | RestartServerButtonAction
+  | DevIndicatorSetAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -230,6 +241,41 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
 
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
+
+// TODO: change local storage impl
+function getStoredPosition(): Corners {
+  if (typeof localStorage === 'undefined') {
+    return 'bottom-left' as const
+  }
+  const stored = localStorage.getItem(STORAGE_KEY_POSITION)
+  if (
+    stored &&
+    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
+  ) {
+    return stored as Corners
+  } else {
+    localStorage.removeItem(STORAGE_KEY_POSITION)
+  }
+
+  // we give priority to local storage over next.config
+  return (process.env.__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
+}
+
+export function getStoredPanelPosition() {
+  if (typeof localStorage === 'undefined') {
+    return 'bottom-left' as const
+  }
+  const stored = localStorage.getItem(STORE_KEY_SHARED_PANEL_LOCATION)
+  if (
+    stored &&
+    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
+  ) {
+    return stored as Corners
+  } else {
+    localStorage.removeItem(STORE_KEY_SHARED_PANEL_LOCATION)
+  }
+  return 'bottom-left' as const
+}
 
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
@@ -252,9 +298,12 @@ export const INITIAL_OVERLAY_STATE: Omit<
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
-  isDevToolsPanelOpen: false,
   showRestartServerButton: false,
-  devToolsPosition: 'bottom-left',
+  devToolsPosition: getStoredPosition(),
+  devToolsPanelPosition: {
+    [STORE_KEY_SHARED_PANEL_LOCATION]: getStoredPanelPosition(),
+  },
+
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
 }
@@ -390,6 +439,9 @@ export function useErrorOverlayReducer(
         case ACTION_VERSION_INFO: {
           return { ...state, versionInfo: action.versionInfo }
         }
+        case ACTION_DEV_INDICATOR_SET: {
+          return { ...state, disableDevIndicator: action.disabled }
+        }
         case ACTION_DEV_INDICATOR: {
           return {
             ...state,
@@ -419,18 +471,20 @@ export function useErrorOverlayReducer(
         case ACTION_RENDERING_INDICATOR_HIDE: {
           return { ...state, renderingIndicator: false }
         }
-        case ACTION_DEVTOOLS_PANEL_OPEN: {
-          return { ...state, isDevToolsPanelOpen: true }
-        }
-        case ACTION_DEVTOOLS_PANEL_CLOSE: {
-          return { ...state, isDevToolsPanelOpen: false }
-        }
-        case ACTION_DEVTOOLS_PANEL_TOGGLE: {
-          return { ...state, isDevToolsPanelOpen: !state.isDevToolsPanelOpen }
-        }
+
         case ACTION_DEVTOOLS_POSITION: {
           return { ...state, devToolsPosition: action.devToolsPosition }
         }
+        case ACTION_DEVTOOLS_PANEL_POSITION: {
+          return {
+            ...state,
+            devToolsPanelPosition: {
+              ...state.devToolsPanelPosition,
+              [action.key]: action.devToolsPanelPosition,
+            },
+          }
+        }
+
         case ACTION_DEVTOOLS_SCALE: {
           return { ...state, scale: action.scale }
         }

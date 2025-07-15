@@ -841,8 +841,7 @@ function serializeThenable(request, task, thenable) {
         return (
           request.abortableTasks.delete(newTask),
           21 === request.type
-            ? (haltTask(newTask),
-              3 === newTask.status && request.pendingChunks--)
+            ? (haltTask(newTask), finishHaltedTask(newTask, request))
             : ((task = request.fatalError),
               abortTask(newTask),
               finishAbortedTask(newTask, request, task)),
@@ -895,8 +894,8 @@ function serializeReadableStream(request, task, stream) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$9) {
-          error(x$9);
+        } catch (x$8) {
+          error(x$8);
         }
   }
   function error(reason) {
@@ -912,7 +911,9 @@ function serializeReadableStream(request, task, stream) {
       signal.removeEventListener("abort", abortStream);
       signal = signal.reason;
       21 === request.type
-        ? (haltTask(streamTask), request.abortableTasks.delete(streamTask))
+        ? (request.abortableTasks.delete(streamTask),
+          haltTask(streamTask),
+          finishHaltedTask(streamTask, request))
         : (erroredTask(request, streamTask, signal), enqueueFlush(request));
       reader.cancel(signal).then(error, error);
     }
@@ -973,8 +974,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$10) {
-          error(x$10);
+        } catch (x$9) {
+          error(x$9);
         }
   }
   function error(reason) {
@@ -994,7 +995,9 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
       signal.removeEventListener("abort", abortIterable);
       var reason = signal.reason;
       21 === request.type
-        ? (haltTask(streamTask), request.abortableTasks.delete(streamTask))
+        ? (request.abortableTasks.delete(streamTask),
+          haltTask(streamTask),
+          finishHaltedTask(streamTask, request))
         : (erroredTask(request, streamTask, signal.reason),
           enqueueFlush(request));
       "function" === typeof iterator.throw &&
@@ -1393,7 +1396,9 @@ function serializeBlob(request, blob) {
       signal.removeEventListener("abort", abortBlob);
       signal = signal.reason;
       21 === request.type
-        ? haltTask(newTask)
+        ? (request.abortableTasks.delete(newTask),
+          haltTask(newTask),
+          finishHaltedTask(newTask, request))
         : (erroredTask(request, newTask, signal), enqueueFlush(request));
       reader.cancel(signal).then(error, error);
     }
@@ -1884,7 +1889,7 @@ function retryTask(request, task) {
           (task.status = 0),
           21 === request.type)
         )
-          haltTask(task), 3 === task.status && request.pendingChunks--;
+          haltTask(task), finishHaltedTask(task, request);
         else {
           var errorId = request.fatalError;
           abortTask(task);
@@ -1929,8 +1934,7 @@ function performWork(request) {
     request.pingedTasks = [];
     for (var i = 0; i < pingedTasks.length; i++)
       retryTask(request, pingedTasks[i]);
-    null !== request.destination &&
-      flushCompletedChunks(request, request.destination);
+    flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   } finally {
@@ -1951,65 +1955,71 @@ function finishAbortedTask(task, request, errorId) {
 function haltTask(task) {
   0 === task.status && (task.status = 3);
 }
-function flushCompletedChunks(request, destination) {
-  currentView = new Uint8Array(2048);
-  writtenBytes = 0;
-  destinationHasCapacity = !0;
-  try {
-    for (
-      var importsChunks = request.completedImportChunks, i = 0;
-      i < importsChunks.length;
-      i++
-    )
-      if (
-        (request.pendingChunks--,
-        !writeChunkAndReturn(destination, importsChunks[i]))
-      ) {
-        request.destination = null;
-        i++;
-        break;
-      }
-    importsChunks.splice(0, i);
-    var hintChunks = request.completedHintChunks;
-    for (i = 0; i < hintChunks.length; i++)
-      if (!writeChunkAndReturn(destination, hintChunks[i])) {
-        request.destination = null;
-        i++;
-        break;
-      }
-    hintChunks.splice(0, i);
-    var regularChunks = request.completedRegularChunks;
-    for (i = 0; i < regularChunks.length; i++)
-      if (
-        (request.pendingChunks--,
-        !writeChunkAndReturn(destination, regularChunks[i]))
-      ) {
-        request.destination = null;
-        i++;
-        break;
-      }
-    regularChunks.splice(0, i);
-    var errorChunks = request.completedErrorChunks;
-    for (i = 0; i < errorChunks.length; i++)
-      if (
-        (request.pendingChunks--,
-        !writeChunkAndReturn(destination, errorChunks[i]))
-      ) {
-        request.destination = null;
-        i++;
-        break;
-      }
-    errorChunks.splice(0, i);
-  } finally {
-    (request.flushScheduled = !1),
-      currentView &&
-        0 < writtenBytes &&
-        destination.write(currentView.subarray(0, writtenBytes)),
-      (currentView = null),
-      (writtenBytes = 0),
-      (destinationHasCapacity = !0);
+function finishHaltedTask(task, request) {
+  3 === task.status && request.pendingChunks--;
+}
+function flushCompletedChunks(request) {
+  var destination = request.destination;
+  if (null !== destination) {
+    currentView = new Uint8Array(2048);
+    writtenBytes = 0;
+    destinationHasCapacity = !0;
+    try {
+      for (
+        var importsChunks = request.completedImportChunks, i = 0;
+        i < importsChunks.length;
+        i++
+      )
+        if (
+          (request.pendingChunks--,
+          !writeChunkAndReturn(destination, importsChunks[i]))
+        ) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      importsChunks.splice(0, i);
+      var hintChunks = request.completedHintChunks;
+      for (i = 0; i < hintChunks.length; i++)
+        if (!writeChunkAndReturn(destination, hintChunks[i])) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      hintChunks.splice(0, i);
+      var regularChunks = request.completedRegularChunks;
+      for (i = 0; i < regularChunks.length; i++)
+        if (
+          (request.pendingChunks--,
+          !writeChunkAndReturn(destination, regularChunks[i]))
+        ) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      regularChunks.splice(0, i);
+      var errorChunks = request.completedErrorChunks;
+      for (i = 0; i < errorChunks.length; i++)
+        if (
+          (request.pendingChunks--,
+          !writeChunkAndReturn(destination, errorChunks[i]))
+        ) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      errorChunks.splice(0, i);
+    } finally {
+      (request.flushScheduled = !1),
+        currentView &&
+          0 < writtenBytes &&
+          destination.write(currentView.subarray(0, writtenBytes)),
+        (currentView = null),
+        (writtenBytes = 0),
+        (destinationHasCapacity = !0);
+    }
+    "function" === typeof destination.flush && destination.flush();
   }
-  "function" === typeof destination.flush && destination.flush();
   0 === request.pendingChunks &&
     (cleanupTaintQueue(request),
     12 > request.status &&
@@ -2019,8 +2029,8 @@ function flushCompletedChunks(request, destination) {
         )
       ),
     (request.status = 14),
-    destination.end(),
-    (request.destination = null));
+    null !== request.destination &&
+      (request.destination.end(), (request.destination = null)));
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
@@ -2038,8 +2048,7 @@ function enqueueFlush(request) {
     ((request.flushScheduled = !0),
     setImmediate(function () {
       request.flushScheduled = !1;
-      var destination = request.destination;
-      destination && flushCompletedChunks(request, destination);
+      flushCompletedChunks(request);
     }));
 }
 function callOnAllReadyIfReady(request) {
@@ -2052,7 +2061,7 @@ function startFlowing(request, destination) {
   else if (14 !== request.status && null === request.destination) {
     request.destination = destination;
     try {
-      flushCompletedChunks(request, destination);
+      flushCompletedChunks(request);
     } catch (error) {
       logRecoverableError(request, error, null), fatalError(request, error);
     }
@@ -2061,12 +2070,11 @@ function startFlowing(request, destination) {
 function finishHalt(request, abortedTasks) {
   try {
     abortedTasks.forEach(function (task) {
-      3 === task.status && request.pendingChunks--;
+      return finishHaltedTask(task, request);
     });
     var onAllReady = request.onAllReady;
     onAllReady();
-    null !== request.destination &&
-      flushCompletedChunks(request, request.destination);
+    flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   }
@@ -2078,8 +2086,7 @@ function finishAbort(request, abortedTasks, errorId) {
     });
     var onAllReady = request.onAllReady;
     onAllReady();
-    null !== request.destination &&
-      flushCompletedChunks(request, request.destination);
+    flushCompletedChunks(request);
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   }
@@ -2128,26 +2135,25 @@ function abort(request, reason) {
                     )
                   : reason,
             digest = logRecoverableError(request, error, null),
-            errorId$27 = request.nextChunkId++;
-          request.fatalError = errorId$27;
+            errorId$26 = request.nextChunkId++;
+          request.fatalError = errorId$26;
           request.pendingChunks++;
-          emitErrorChunk(request, errorId$27, digest, error, !1);
+          emitErrorChunk(request, errorId$26, digest, error, !1);
           abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId$27);
+            return abortTask(task, request, errorId$26);
           });
           setImmediate(function () {
-            return finishAbort(request, abortableTasks, errorId$27);
+            return finishAbort(request, abortableTasks, errorId$26);
           });
         }
       else {
         var onAllReady = request.onAllReady;
         onAllReady();
-        null !== request.destination &&
-          flushCompletedChunks(request, request.destination);
+        flushCompletedChunks(request);
       }
-    } catch (error$28) {
-      logRecoverableError(request, error$28, null),
-        fatalError(request, error$28);
+    } catch (error$27) {
+      logRecoverableError(request, error$27, null),
+        fatalError(request, error$27);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2561,8 +2567,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$31 = createPendingChunk(response);
-        chunk$31.then(
+        var chunk$30 = createPendingChunk(response);
+        chunk$30.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2570,10 +2576,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$31;
+        previousBlockedChunk = chunk$30;
         chunk.then(function () {
-          previousBlockedChunk === chunk$31 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$31, json, -1);
+          previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$30, json, -1);
         });
       }
     },
@@ -2994,12 +3000,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_263 = [];
+    var JSCompiler_object_inline_chunks_272 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_263.push(chunk);
+      JSCompiler_object_inline_chunks_272.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_263, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_272, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);

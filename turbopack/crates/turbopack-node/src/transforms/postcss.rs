@@ -169,7 +169,7 @@ impl Asset for PostCssTransformedAsset {
         let this = self.await?;
         Ok(*transform_process_operation(self)
             .issue_file_path(
-                this.source.ident().path().await?.clone_value(),
+                this.source.ident().path().owned().await?,
                 "PostCSS processing",
             )
             .await?
@@ -403,8 +403,8 @@ async fn postcss_executor(
     Ok(asset_context.process(
         Vc::upcast(FileSource::new(
             embed_file_path(rcstr!("transforms/postcss.ts"))
-                .await?
-                .clone_value(),
+                .owned()
+                .await?,
         )),
         ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             rcstr!("CONFIG") => config_asset

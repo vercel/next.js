@@ -11,7 +11,7 @@ const ServerRequestsStore = {
   getSnapshot:
     typeof window === 'undefined'
       ? () => []
-      : window.reactServerRequests.getSnapshot,
+      : window.reactServerRequests.getStoreSnapshot,
   getServerSnapshot: () => reactServerRequestsServerSnapshot,
 }
 
@@ -30,7 +30,11 @@ export function ReactServerRequests() {
           <li key={index}>
             <details>
               <summary>
-                <strong>{request.name}</strong>
+                <strong>
+                  {request.type}: {request.name || '<Unnamed>'}
+                </strong>
+                ({Math.round(request.startTime)}ms–
+                {Math.round(request.endTime)}ms)
               </summary>
               <pre>{JSON.stringify(request.properties, null, 2)}</pre>
             </details>

@@ -339,6 +339,8 @@ export function getDefineEnv({
     // no-op that just restarts the development server.
     'process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE':
       !isTurbopack || (config.experimental.turbopackPersistentCaching ?? false),
+    'process.env.__NEXT_OPTIMIZE_ROUTER_SCROLL':
+      config.experimental.optimizeRouterScrolling ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

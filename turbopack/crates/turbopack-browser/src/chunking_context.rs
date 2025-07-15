@@ -106,6 +106,15 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn dynamic_chunk_content_loading(
+        mut self,
+        enable_dynamic_chunk_content_loading: bool,
+    ) -> Self {
+        self.chunking_context.enable_dynamic_chunk_content_loading =
+            enable_dynamic_chunk_content_loading;
+        self
+    }
+
     pub fn asset_base_path(mut self, asset_base_path: Option<RcStr>) -> Self {
         self.chunking_context.asset_base_path = asset_base_path;
         self
@@ -218,6 +227,8 @@ pub struct BrowserChunkingContext {
     enable_tracing: bool,
     /// Enable module merging
     enable_module_merging: bool,
+    /// Enable dynamic chunk content loading.
+    enable_dynamic_chunk_content_loading: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -267,6 +278,7 @@ impl BrowserChunkingContext {
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
                 enable_module_merging: false,
+                enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -279,36 +291,6 @@ impl BrowserChunkingContext {
                 chunking_configs: Default::default(),
             },
         }
-    }
-}
-
-impl BrowserChunkingContext {
-    /// Returns the kind of runtime to include in output chunks.
-    ///
-    /// This is defined directly on `BrowserChunkingContext` so it is zero-cost
-    /// when `RuntimeType` has a single variant.
-    pub fn runtime_type(&self) -> RuntimeType {
-        self.runtime_type
-    }
-
-    /// Returns the asset base path.
-    pub fn chunk_base_path(&self) -> Option<RcStr> {
-        self.chunk_base_path.clone()
-    }
-
-    /// Returns the asset suffix path.
-    pub fn chunk_suffix_path(&self) -> Option<RcStr> {
-        self.chunk_suffix_path.clone()
-    }
-
-    /// Returns the source map type.
-    pub fn source_maps_type(&self) -> SourceMapsType {
-        self.source_maps_type
-    }
-
-    /// Returns the minify type.
-    pub fn minify_type(&self) -> MinifyType {
-        self.minify_type
     }
 }
 
@@ -372,6 +354,39 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn current_chunk_method(&self) -> Vc<CurrentChunkMethod> {
         self.current_chunk_method.cell()
+    }
+
+    /// Returns the kind of runtime to include in output chunks.
+    ///
+    /// This is defined directly on `BrowserChunkingContext` so it is zero-cost
+    /// when `RuntimeType` has a single variant.
+    #[turbo_tasks::function]
+    pub fn runtime_type(&self) -> Vc<RuntimeType> {
+        self.runtime_type.cell()
+    }
+
+    /// Returns the asset base path.
+    #[turbo_tasks::function]
+    pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.chunk_base_path.clone())
+    }
+
+    /// Returns the asset suffix path.
+    #[turbo_tasks::function]
+    pub fn chunk_suffix_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.chunk_suffix_path.clone())
+    }
+
+    /// Returns the source map type.
+    #[turbo_tasks::function]
+    pub fn source_maps_type(&self) -> Vc<SourceMapsType> {
+        self.source_maps_type.cell()
+    }
+
+    /// Returns the minify type.
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
     }
 }
 
@@ -531,6 +546,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn is_module_merging_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_module_merging)
+    }
+
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_dynamic_chunk_content_loading)
     }
 
     #[turbo_tasks::function]

@@ -251,7 +251,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             let mut visited = FxHashSet::default();
 
             module_graph
-                .traverse_edges_from_entries_topological(
+                .traverse_edges_from_entries_dfs(
                     chunk_group.entries(),
                     &mut (),
                     |parent_info, node, _| {
@@ -332,7 +332,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
 
         module_graph
-            .traverse_edges_from_entries_topological(
+            .traverse_edges_from_entries_dfs(
                 entries,
                 &mut (),
                 |_, _, _| Ok(GraphTraversalAction::Continue),

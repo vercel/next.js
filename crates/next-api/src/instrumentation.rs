@@ -83,7 +83,7 @@ impl InstrumentationEndpoint {
 
         let edge_entry_module = wrap_edge_entry(
             *self.asset_context,
-            self.project.project_path().await?.clone_value(),
+            self.project.project_path().owned().await?,
             *userland_module,
             rcstr!("instrumentation"),
         )
@@ -177,7 +177,7 @@ impl InstrumentationEndpoint {
             let edge_files = self.edge_files();
             let mut output_assets = edge_files.owned().await?;
 
-            let node_root = this.project.node_root().await?.clone_value();
+            let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
 
             let file_paths_from_root =
@@ -243,7 +243,7 @@ impl Endpoint for InstrumentationEndpoint {
             let output_assets = self.output_assets();
 
             let server_paths = if this.project.next_mode().await?.is_development() {
-                let node_root = this.project.node_root().await?.clone_value();
+                let node_root = this.project.node_root().owned().await?;
                 all_server_paths(output_assets, node_root).owned().await?
             } else {
                 vec![]

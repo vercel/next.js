@@ -32,7 +32,7 @@ impl ManifestChunkItem {
     #[turbo_tasks::function]
     async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
-            self.chunking_context.output_root().await?.clone_value(),
+            self.chunking_context.output_root().owned().await?,
             self.manifest.chunks(),
         ))
     }

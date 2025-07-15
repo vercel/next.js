@@ -226,6 +226,7 @@ export async function handleRouteType({
 
         const type = writtenEndpoint?.type
 
+        await manifestLoader.loadClientBuildManifest(page)
         await manifestLoader.loadBuildManifest(page)
         await manifestLoader.loadPagesManifest(page)
         if (type === 'edge') {
@@ -621,9 +622,11 @@ export async function handleEntrypoints({
         currentEntrypoints.app.set(route.originalName, route)
         break
       }
-      default:
+      case 'conflict':
         Log.info(`skipping ${pathname} (${route.type})`)
         break
+      default:
+        route satisfies never
     }
   }
 
@@ -940,6 +943,7 @@ export async function handlePagesErrorRoute({
     )
     processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
+  await manifestLoader.loadClientBuildManifest('_error')
   await manifestLoader.loadBuildManifest('_error')
   await manifestLoader.loadPagesManifest('_error')
   await manifestLoader.loadFontManifest('_error')

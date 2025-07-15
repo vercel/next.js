@@ -1,0 +1,9 @@
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  height: 300vh; /* Make it very scrollable */
+  min-height: 2000px; /* Ensure minimum height for scrolling */
+}

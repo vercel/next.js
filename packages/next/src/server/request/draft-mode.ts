@@ -13,6 +13,7 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
   postponeWithTracking,
+  trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -81,8 +82,7 @@ export function draftMode(): Promise<DraftMode> {
       return createOrGetCachedDraftMode(null, workStore)
 
     default:
-      const _exhaustiveCheck: never = workUnitStore
-      return _exhaustiveCheck
+      return workUnitStore satisfies never
   }
 }
 
@@ -244,16 +244,28 @@ class DraftMode {
 
 function syncIODev(route: string | undefined, expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
-    // When we're rendering dynamically in dev we need to advance out of the
-    // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'request':
+        if (workUnitStore.prerenderPhase === true) {
+          // When we're rendering dynamically in dev, we need to advance out of
+          // the Prerender environment when we read Request data synchronously.
+          trackSynchronousRequestDataAccessInDev(workUnitStore)
+        }
+        break
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
+
   // In all cases we warn normally
   warnForSyncAccess(route, expression)
 }
@@ -280,20 +292,10 @@ function trackDynamicDraftMode(expression: string) {
   if (store) {
     // We have a store we want to track dynamic data access to ensure we
     // don't statically generate routes that manipulate draft mode.
-    if (workUnitStore) {
-      if (workUnitStore.type === 'cache') {
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-        )
-      } else if (workUnitStore.type === 'unstable-cache') {
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-        )
-      } else if (workUnitStore.phase === 'after') {
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
-        )
-      }
+    if (workUnitStore?.phase === 'after') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+      )
     }
 
     if (store.dynamicShouldError) {
@@ -304,33 +306,36 @@ function trackDynamicDraftMode(expression: string) {
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
+        case 'cache':
+          throw new Error(
+            `Route ${store.route} used "${expression}" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+          )
+        case 'unstable-cache':
+          throw new Error(
+            `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          )
         case 'prerender':
-          // dynamicIO Prerender
           const error = new Error(
             `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-headers`
           )
-          abortAndThrowOnSynchronousRequestDataAccess(
+          return abortAndThrowOnSynchronousRequestDataAccess(
             store.route,
             expression,
             error,
             workUnitStore
           )
-          break
         case 'prerender-client':
           const exportName = '`draftMode`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
         case 'prerender-ppr':
-          // PPR Prerender
-          postponeWithTracking(
+          return postponeWithTracking(
             store.route,
             expression,
             workUnitStore.dynamicTracking
           )
-          break
         case 'prerender-legacy':
-          // legacy Prerender
           workUnitStore.revalidate = 0
 
           const err = new DynamicServerError(
@@ -341,12 +346,10 @@ function trackDynamicDraftMode(expression: string) {
 
           throw err
         case 'request':
-          if (process.env.NODE_ENV === 'development') {
-            workUnitStore.usedDynamic = true
-          }
+          trackDynamicDataInDynamicRender(workUnitStore)
           break
         default:
-        // fallthrough
+          workUnitStore satisfies never
       }
     }
   }

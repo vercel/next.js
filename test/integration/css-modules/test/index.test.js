@@ -718,7 +718,6 @@ describe('Catch-all Route CSS Module Usage', () => {
           expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
             .toMatchInlineSnapshot(`
            ".index-module___rV4CG__home{background:red}
-
            .\\35 5css-module__qe774W__home{color:green}"
           `)
         } else {

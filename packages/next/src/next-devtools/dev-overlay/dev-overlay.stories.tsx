@@ -10,6 +10,8 @@ import {
   storybookDefaultOverlayState,
   useStorybookOverlayReducer,
 } from './storybook/use-overlay-reducer'
+import { DevOverlayContext } from '../dev-overlay.browser'
+import { getSquashedHydrationErrorDetails } from '../userspace/pages/hydration-error-state'
 
 const meta: Meta<typeof DevOverlay> = {
   component: DevOverlay,
@@ -39,14 +41,20 @@ function getNoSquashedHydrationErrorDetails() {
 
 const initialState: OverlayState = {
   ...storybookDefaultOverlayState,
-  errors,
+  errors: errors,
 }
 
 export const Default: Story = {
   render: function DevOverlayStory() {
     const [state, dispatch] = useStorybookOverlayReducer(initialState)
     return (
-      <>
+      <div
+        style={{
+          height: '100vh',
+          backgroundColor: 'black',
+        }}
+      >
+        {/* TODO: get lots of real hard examples so we have better debug */}
         <img
           src={imgApp}
           style={{
@@ -55,19 +63,26 @@ export const Default: Story = {
             objectFit: 'contain',
           }}
         />
-        <DevOverlay
-          state={state}
-          dispatch={dispatch}
-          getSquashedHydrationErrorDetails={
-            // Testing like App Router where we no longer quash hydration errors
-            getNoSquashedHydrationErrorDetails
-          }
-        />
-      </>
+        <DevOverlayContext
+          value={{
+            dispatch,
+            getSquashedHydrationErrorDetails:
+              getNoSquashedHydrationErrorDetails,
+            state,
+          }}
+        >
+          <DevOverlay
+            state={state}
+            dispatch={dispatch}
+            getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+          />
+        </DevOverlayContext>
+      </div>
     )
   },
 }
 
+// todo: fix story with "Context arg provider" wrapper
 export const WithPanel: Story = {
   beforeEach: () => {
     process.env.__NEXT_DEVTOOL_NEW_PANEL_UI = 'true'
@@ -89,14 +104,20 @@ export const WithPanel: Story = {
             objectFit: 'contain',
           }}
         />
-        <DevOverlay
-          state={state}
-          dispatch={dispatch}
-          getSquashedHydrationErrorDetails={
-            // Testing like App Router where we no longer quash hydration errors
-            getNoSquashedHydrationErrorDetails
-          }
-        />
+        <DevOverlayContext
+          value={{
+            dispatch,
+            getSquashedHydrationErrorDetails:
+              getNoSquashedHydrationErrorDetails,
+            state,
+          }}
+        >
+          <DevOverlay
+            dispatch={dispatch}
+            getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+            state={state}
+          />
+        </DevOverlayContext>
       </>
     )
   },

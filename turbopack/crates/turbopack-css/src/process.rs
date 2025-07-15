@@ -65,7 +65,7 @@ async fn get_lightningcss_browser_targets(
 ) -> Result<Vc<LightningCssTargets>> {
     match environment {
         Some(environment) => {
-            let browserslist_query = (*environment.browserslist_query().await?).clone();
+            let browserslist_query = environment.browserslist_query().owned().await?;
             let browserslist_browsers =
                 lightningcss::targets::Browsers::from_browserslist_with_config(
                     browserslist_query.split(','),

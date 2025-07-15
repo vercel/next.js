@@ -267,7 +267,6 @@ describe('ReactRefreshLogBox', () => {
            |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -281,7 +280,6 @@ describe('ReactRefreshLogBox', () => {
            |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -300,7 +298,6 @@ describe('ReactRefreshLogBox', () => {
              |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -317,7 +314,6 @@ describe('ReactRefreshLogBox', () => {
              |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "Set.forEach <anonymous>",
            ],
          }
         `)
@@ -484,7 +480,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -498,7 +493,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -517,7 +511,6 @@ describe('ReactRefreshLogBox', () => {
              |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -534,7 +527,6 @@ describe('ReactRefreshLogBox', () => {
              |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
-             "Set.forEach <anonymous>",
            ],
          }
         `)

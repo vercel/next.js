@@ -526,7 +526,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
 
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new();
-    let path = origin.origin_path().await?.clone_value();
+    let path = origin.origin_path().owned().await?;
 
     // Is this a typescript file that requires analyzing type references?
     let analyze_types = match &ty {
@@ -545,8 +545,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let ModuleTypeResult {
         module_type: specified_type,
-        referenced_package_json,
-    } = module.determine_module_type().await?.clone_value();
+        ref referenced_package_json,
+    } = *module.determine_module_type().await?;
 
     if let Some(package_json) = referenced_package_json {
         let span = tracing::info_span!("package.json reference");
@@ -692,7 +692,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 static JSON_DATA_URL_BASE64: LazyLock<Regex> = LazyLock::new(|| {
                     Regex::new(r"^data:application\/json;(?:charset=utf-8;)?base64").unwrap()
                 });
-                let origin_path = origin.origin_path().await?.clone_value();
+                let origin_path = origin.origin_path().owned().await?;
                 if path.ends_with(".map") {
                     let source_map_origin = origin_path.parent().join(path)?;
                     let reference = SourceMapReference::new(origin_path, source_map_origin)
@@ -1421,7 +1421,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
-                            source.ident().path().await?.clone_value(),
+                            source.ident().path().owned().await?,
                         ));
                     }
 
@@ -1948,7 +1948,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
 
         JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(..)) => {
-            let parent_path = origin.origin_path().await?.clone_value().parent();
+            let parent_path = origin.origin_path().owned().await?.parent();
             let args = linked_args(args).await?;
 
             let linked_func_call = state
@@ -2220,12 +2220,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     .await?;
                 if let Some(s) = first_arg.as_str() {
                     analysis.add_reference(
-                        NodeBindingsReference::new(
-                            origin.origin_path().await?.clone_value(),
-                            s.into(),
-                        )
-                        .to_resolved()
-                        .await?,
+                        NodeBindingsReference::new(origin.origin_path().owned().await?, s.into())
+                            .to_resolved()
+                            .await?,
                     );
                     return Ok(());
                 }
@@ -2637,7 +2634,7 @@ async fn handle_free_var_reference(
             ));
         }
         FreeVarReference::InputRelative(kind) => {
-            let source_path = (*state.source).ident().path().await?.clone_value();
+            let source_path = (*state.source).ident().path().owned().await?;
             let source_path = match kind {
                 InputRelativeConstant::DirName => source_path.parent(),
                 InputRelativeConstant::FileName => source_path,
@@ -2982,10 +2979,10 @@ async fn value_visitor_inner(
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
-            "__dirname" => as_abs_path(origin.origin_path().await?.clone_value().parent())
+            "__dirname" => as_abs_path(origin.origin_path().owned().await?.parent())
                 .await?
                 .into(),
-            "__filename" => as_abs_path(origin.origin_path().await?.clone_value())
+            "__filename" => as_abs_path(origin.origin_path().owned().await?)
                 .await?
                 .into(),
 
@@ -3050,7 +3047,7 @@ async fn require_resolve_visitor(
             .await?
             .iter()
             .map(|&source| async move {
-                require_resolve(source.ident().path().await?.clone_value())
+                require_resolve(source.ident().path().owned().await?)
                     .await
                     .map(JsValue::from)
             })
@@ -3107,8 +3104,8 @@ async fn require_context_visitor(
 
     let dir = origin
         .origin_path()
+        .owned()
         .await?
-        .clone_value()
         .parent()
         .join(options.dir.as_str())?;
 

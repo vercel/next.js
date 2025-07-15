@@ -516,6 +516,32 @@ pub async fn get_next_edge_import_map(
     Ok(import_map.cell())
 }
 
+/// Computes the Next-specific server-side and edge-side fallback import map.
+#[turbo_tasks::function]
+pub async fn get_next_edge_and_server_fallback_import_map(
+    project_path: FileSystemPath,
+    runtime: NextRuntime,
+) -> Result<Vc<ImportMap>> {
+    let mut fallback_import_map = ImportMap::empty();
+
+    let external_cjs_if_node = move |context_dir: FileSystemPath, request: &str| match runtime {
+        NextRuntime::Edge => request_to_import_mapping(context_dir, request),
+        NextRuntime::NodeJs => external_request_to_cjs_import_mapping(context_dir, request),
+    };
+
+    fallback_import_map.insert_exact_alias(
+        "@opentelemetry/api",
+        // It needs to prefer the local version of @opentelemetry/api, so put this in the fallback
+        // import map
+        ImportMapping::Alternatives(vec![external_cjs_if_node(
+            project_path,
+            "next/dist/compiled/@opentelemetry/api",
+        )])
+        .resolved_cell(),
+    );
+    Ok(fallback_import_map.cell())
+}
+
 /// Insert default aliases for the node.js's internal to raise unsupported
 /// runtime errors. User may provide polyfills for their own by setting user
 /// config's alias.
@@ -604,19 +630,6 @@ async fn insert_next_server_special_aliases(
         .resolved_cell(),
     );
 
-    import_map.insert_exact_alias(
-        "@opentelemetry/api",
-        // It needs to prefer the local version of @opentelemetry/api
-        ImportMapping::Alternatives(vec![
-            external_cjs_if_node(project_path.clone(), "@opentelemetry/api"),
-            external_cjs_if_node(
-                project_path.clone(),
-                "next/dist/compiled/@opentelemetry/api",
-            ),
-        ])
-        .resolved_cell(),
-    );
-
     match &ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
         ServerContextType::PagesData { .. } => {}
@@ -624,7 +637,7 @@ async fn insert_next_server_special_aliases(
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
         | ServerContextType::AppRoute { app_dir, .. } => {
-            let next_package = get_next_package(app_dir.clone()).await?.clone_value();
+            let next_package = get_next_package(app_dir.clone()).owned().await?;
             import_map.insert_exact_alias(
                 "styled-jsx",
                 request_to_import_mapping(next_package.clone(), "styled-jsx"),
@@ -966,7 +979,7 @@ async fn insert_next_shared_aliases(
     next_mode: Vc<NextMode>,
     is_runtime_edge: bool,
 ) -> Result<()> {
-    let package_root = next_js_fs().root().await?.clone_value();
+    let package_root = next_js_fs().root().owned().await?;
 
     insert_alias_to_alternatives(
         import_map,
@@ -1033,7 +1046,7 @@ async fn insert_next_shared_aliases(
         .resolved_cell(),
     );
 
-    let next_package = get_next_package(project_path.clone()).await?.clone_value();
+    let next_package = get_next_package(project_path.clone()).owned().await?;
     import_map.insert_singleton_alias("@swc/helpers", next_package.clone());
     import_map.insert_singleton_alias("styled-jsx", next_package.clone());
     import_map.insert_singleton_alias("next", project_path.clone());
@@ -1108,10 +1121,7 @@ async fn insert_next_shared_aliases(
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
-        turbopack_node::embed_js::embed_fs()
-            .root()
-            .await?
-            .clone_value(),
+        turbopack_node::embed_js::embed_fs().root().owned().await?,
     );
 
     let image_config = next_config.image_config().await?;
@@ -1138,7 +1148,7 @@ pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<Fi
         context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
-        node_cjs_resolve_options(context_directory.root().await?.clone_value()),
+        node_cjs_resolve_options(context_directory.root().owned().await?),
     );
     let source = result
         .first_source()
@@ -1248,8 +1258,8 @@ async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
         "@vercel/turbopack-ecmascript-runtime/",
         turbopack_ecmascript_runtime::embed_fs()
             .root()
-            .await?
-            .clone_value(),
+            .owned()
+            .await?,
     );
     Ok(())
 }

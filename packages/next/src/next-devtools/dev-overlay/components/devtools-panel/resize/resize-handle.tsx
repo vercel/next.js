@@ -3,14 +3,20 @@ import type { Corners } from '../../../shared'
 import { useResize, type ResizeDirection } from './resize-provider'
 import './resize-handle.css'
 
-const STORAGE_KEY_DIMENSIONS = 'nextjs-devtools-dimensions'
-
-export const ResizeHandle = ({ direction }: { direction: ResizeDirection }) => {
+export const ResizeHandle = ({
+  direction,
+  position,
+}: {
+  direction: ResizeDirection
+  position: Corners
+}) => {
   const {
     resizeRef,
     minWidth,
     minHeight,
-    devToolsPosition,
+    maxWidth,
+    maxHeight,
+    storageKey,
     draggingDirection,
     setDraggingDirection,
   } = useResize()
@@ -44,13 +50,13 @@ export const ResizeHandle = ({ direction }: { direction: ResizeDirection }) => {
     // we block the sides of the corner its in (bottom-left has bottom and left sides blocked from resizing)
     // because there shouldn't be anywhere to resize, and if the user decides to resize from that point it
     // would be unhandled/slightly janky (the component would have to re-magnetic-snap after the resize)
-    if (devToolsPosition.split('-').includes(direction)) return false
+    if (position.split('-').includes(direction)) return false
 
     // same logic as above, but the only corner resize that makes
     // sense is the corner fully exposed (the opposing corner)
     const isCorner = direction.includes('-')
     if (isCorner) {
-      const opposite = getOppositeCorner(devToolsPosition)
+      const opposite = getOppositeCorner(position)
       return direction === opposite
     }
 
@@ -85,8 +91,6 @@ export const ResizeHandle = ({ direction }: { direction: ResizeDirection }) => {
 
     const element = resizeRef.current
     const initialRect = element.getBoundingClientRect()
-    const initialLeft = element.offsetLeft
-    const initialTop = element.offsetTop
     const startX = mouseDownEvent.clientX
     const startY = mouseDownEvent.clientY
 
@@ -94,25 +98,22 @@ export const ResizeHandle = ({ direction }: { direction: ResizeDirection }) => {
       const deltaX = mouseMoveEvent.clientX - startX
       const deltaY = mouseMoveEvent.clientY - startY
 
-      const { newWidth, newHeight, newLeft, newTop } = getNewDimensions(
+      const { newWidth, newHeight } = getNewDimensions(
         direction,
         deltaX,
         deltaY,
         initialRect,
-        initialLeft,
-        initialTop,
         minWidth,
-        minHeight
+        minHeight,
+        maxWidth,
+        maxHeight
       )
 
-      element.style.width = `${newWidth}px`
-      element.style.height = `${newHeight}px`
-
-      if (direction.includes('left') || direction === 'left') {
-        element.style.left = `${newLeft}px`
+      if (newWidth !== undefined) {
+        element.style.width = `${newWidth}px`
       }
-      if (direction.includes('top') || direction === 'top') {
-        element.style.top = `${newTop}px`
+      if (newHeight !== undefined) {
+        element.style.height = `${newHeight}px`
       }
     }
 
@@ -120,13 +121,14 @@ export const ResizeHandle = ({ direction }: { direction: ResizeDirection }) => {
       setDraggingDirection(null)
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      if (!resizeRef.current) {
+        // possible if the user closes during drag
+        return
+      }
 
-      // invariant ref exists
-      const { width, height } = resizeRef.current!.getBoundingClientRect()
-      localStorage.setItem(
-        STORAGE_KEY_DIMENSIONS,
-        JSON.stringify({ width, height })
-      )
+      const { width, height } = resizeRef.current.getBoundingClientRect()
+
+      localStorage.setItem(storageKey, JSON.stringify({ width, height }))
     }
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)
@@ -176,37 +178,31 @@ const getNewDimensions = (
   deltaX: number,
   deltaY: number,
   initialRect: DOMRect,
-  initialLeft: number,
-  initialTop: number,
   minWidth: number,
-  minHeight: number
+  minHeight: number,
+  maxWidth?: number,
+  maxHeight?: number
 ) => {
-  const maxWidth = window.innerWidth * 0.95
-  const maxHeight = window.innerHeight * 0.95
+  const effectiveMaxWidth = maxWidth ?? window.innerWidth * 0.95
+  const effectiveMaxHeight = maxHeight ?? window.innerHeight * 0.95
 
   switch (direction) {
     case 'right':
       return {
         newWidth: Math.min(
-          maxWidth,
+          effectiveMaxWidth,
           Math.max(minWidth, initialRect.width + deltaX)
         ),
         newHeight: initialRect.height,
-        newLeft: initialLeft,
-        newTop: initialTop,
       }
 
     case 'left': {
-      const newWidth = Math.min(
-        maxWidth,
-        Math.max(minWidth, initialRect.width - deltaX)
-      )
-      const widthDiff = newWidth - initialRect.width
       return {
-        newWidth,
+        newWidth: Math.min(
+          effectiveMaxWidth,
+          Math.max(minWidth, initialRect.width - deltaX)
+        ),
         newHeight: initialRect.height,
-        newLeft: initialLeft - widthDiff,
-        newTop: initialTop,
       }
     }
 
@@ -214,92 +210,70 @@ const getNewDimensions = (
       return {
         newWidth: initialRect.width,
         newHeight: Math.min(
-          maxHeight,
+          effectiveMaxHeight,
           Math.max(minHeight, initialRect.height + deltaY)
         ),
-        newLeft: initialLeft,
-        newTop: initialTop,
       }
 
     case 'top': {
-      const newHeight = Math.min(
-        maxHeight,
-        Math.max(minHeight, initialRect.height - deltaY)
-      )
-      const heightDiff = newHeight - initialRect.height
       return {
         newWidth: initialRect.width,
-        newHeight,
-        newLeft: initialLeft,
-        newTop: initialTop - heightDiff,
+        newHeight: Math.min(
+          effectiveMaxHeight,
+          Math.max(minHeight, initialRect.height - deltaY)
+        ),
       }
     }
 
     case 'top-left': {
-      const newWidth = Math.min(
-        maxWidth,
-        Math.max(minWidth, initialRect.width - deltaX)
-      )
-      const newHeight = Math.min(
-        maxHeight,
-        Math.max(minHeight, initialRect.height - deltaY)
-      )
-      const widthDiff = newWidth - initialRect.width
-      const heightDiff = newHeight - initialRect.height
       return {
-        newWidth,
-        newHeight,
-        newLeft: initialLeft - widthDiff,
-        newTop: initialTop - heightDiff,
+        newWidth: Math.min(
+          effectiveMaxWidth,
+          Math.max(minWidth, initialRect.width - deltaX)
+        ),
+        newHeight: Math.min(
+          effectiveMaxHeight,
+          Math.max(minHeight, initialRect.height - deltaY)
+        ),
       }
     }
 
     case 'top-right': {
-      const newHeight = Math.min(
-        maxHeight,
-        Math.max(minHeight, initialRect.height - deltaY)
-      )
-      const heightDiff = newHeight - initialRect.height
       return {
         newWidth: Math.min(
-          maxWidth,
+          effectiveMaxWidth,
           Math.max(minWidth, initialRect.width + deltaX)
         ),
-        newHeight,
-        newLeft: initialLeft,
-        newTop: initialTop - heightDiff,
+        newHeight: Math.min(
+          effectiveMaxHeight,
+          Math.max(minHeight, initialRect.height - deltaY)
+        ),
       }
     }
 
     case 'bottom-left': {
-      const newWidth = Math.min(
-        maxWidth,
-        Math.max(minWidth, initialRect.width - deltaX)
-      )
-      const widthDiff = newWidth - initialRect.width
       return {
-        newWidth,
+        newWidth: Math.min(
+          effectiveMaxWidth,
+          Math.max(minWidth, initialRect.width - deltaX)
+        ),
         newHeight: Math.min(
-          maxHeight,
+          effectiveMaxHeight,
           Math.max(minHeight, initialRect.height + deltaY)
         ),
-        newLeft: initialLeft - widthDiff,
-        newTop: initialTop,
       }
     }
 
     case 'bottom-right':
       return {
         newWidth: Math.min(
-          maxWidth,
+          effectiveMaxWidth,
           Math.max(minWidth, initialRect.width + deltaX)
         ),
         newHeight: Math.min(
-          maxHeight,
+          effectiveMaxHeight,
           Math.max(minHeight, initialRect.height + deltaY)
         ),
-        newLeft: initialLeft,
-        newTop: initialTop,
       }
     default: {
       direction satisfies never

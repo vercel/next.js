@@ -454,7 +454,7 @@ pub async fn project_new(
     turbo_tasks.spawn_once_task({
         let tt = turbo_tasks.clone();
         async move {
-            benchmark_file_io(tt, container.project().node_root().await?.clone_value())
+            benchmark_file_io(tt, container.project().node_root().owned().await?)
                 .await
                 .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
         }
@@ -947,10 +947,10 @@ pub async fn all_entrypoints_write_to_disk_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = project
+    project
         .project()
         .emit_all_output_assets(output_assets_operation(project, app_dir_only))
-        .resolve()
+        .as_side_effect()
         .await?;
 
     Ok(project.entrypoints())
@@ -1411,7 +1411,7 @@ pub async fn get_source_map_rope(
                     },
                 )
             }
-            _ => bail!("Unknown url scheme"),
+            _ => bail!("Unknown url scheme '{}'", url.scheme()),
         },
         Err(_) => (file_path.to_string(), None),
     };
@@ -1501,12 +1501,8 @@ pub async fn project_trace_source_operation(
         }
     };
 
-    let project_root_uri = uri_from_file(
-        container.project().project_root_path().await?.clone_value(),
-        None,
-    )
-    .await?
-        + "/";
+    let project_root_uri =
+        uri_from_file(container.project().project_root_path().owned().await?, None).await? + "/";
     let (file, original_file, is_internal) =
         if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
             // Client code uses file://

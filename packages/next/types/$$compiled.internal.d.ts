@@ -141,7 +141,17 @@ declare module 'react-server-dom-webpack/server.edge' {
     options?: {
       temporaryReferences?: TemporaryReferenceSet
       environmentName?: string | (() => string)
-      filterStackFrame?: (url: string, functionName: string) => boolean
+      // This is actually optional.
+      // But we want to not miss callsites accidentally and explicitly choose
+      // at each callsite which implementation to choose.
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
       onError?: (error: unknown) => void
       onPostpone?: (reason: string) => void
       signal?: AbortSignal
@@ -262,7 +272,17 @@ declare module 'react-server-dom-webpack/static' {
     },
     options?: {
       environmentName?: string | (() => string)
-      filterStackFrame?: (url: string, functionName: string) => boolean
+      // This is actually optional.
+      // But we want to not miss callsites accidentally and explicitly choose
+      // at each callsite which implementation to choose.
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
       identifierPrefix?: string
       signal?: AbortSignal
       temporaryReferences?: TemporaryReferenceSet
