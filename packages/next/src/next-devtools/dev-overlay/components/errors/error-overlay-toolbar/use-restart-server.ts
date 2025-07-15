@@ -3,19 +3,18 @@ import { useState } from 'react'
 export function useRestartServer() {
   const [isPending, setIsPending] = useState(false)
 
-  /**
-   * @returns A Promise that resolves to a boolean value of server restart status.
-   */
-  const restartServerAction = async ({
+  const restartServer = async ({
     invalidatePersistentCache,
   }: {
     invalidatePersistentCache: boolean
-  }): Promise<boolean> => {
+  }): Promise<void> => {
     setIsPending(true)
 
     const url = invalidatePersistentCache
       ? '/__nextjs_restart_dev?invalidatePersistentCache=1'
       : '/__nextjs_restart_dev'
+
+    let serverRestarted = false
 
     try {
       const curId = await fetch('/__nextjs_server_status')
@@ -29,6 +28,13 @@ export function useRestartServer() {
           return null
         })
 
+      if (!curId) {
+        console.log(
+          '[Next.js DevTools] Failed to get the current server execution ID while restarting dev server.'
+        )
+        return
+      }
+
       const restartRes = await fetch(url, {
         method: 'POST',
       })
@@ -39,12 +45,13 @@ export function useRestartServer() {
           '[Next.js DevTools] Failed to fetch restart server endpoint. Status:',
           restartRes.status
         )
-        return false
+        return
       }
 
       // Poll for server restart confirmation.
       for (let i = 0; i < 10; i++) {
-        await new Promise((resolveTimeout) => setTimeout(resolveTimeout, 200))
+        // generous 1 second delay for large apps.
+        await new Promise((resolveTimeout) => setTimeout(resolveTimeout, 1_000))
 
         try {
           const nextId = await fetch('/__nextjs_server_status')
@@ -53,7 +60,10 @@ export function useRestartServer() {
 
           // If the execution ID has changed, the server has restarted successfully.
           if (curId !== nextId) {
-            return true
+            serverRestarted = true
+            // Reload the page to ensure the connection to the new server.
+            window.location.reload()
+            return
           }
         } catch (e) {
           continue
@@ -63,17 +73,20 @@ export function useRestartServer() {
       console.log(
         '[Next.js DevTools] Failed to restart server. Exhausted all polling attempts.'
       )
-      return false
+      return
     } catch (error) {
       console.log('[Next.js DevTools] Failed to restart server.', error)
-      return false
+      return
     } finally {
-      setIsPending(false)
+      // If server restarted, don't reset isPending.
+      if (!serverRestarted) {
+        setIsPending(false)
+      }
     }
   }
 
   return {
-    restartServerAction,
+    restartServer,
     isPending,
   }
 }

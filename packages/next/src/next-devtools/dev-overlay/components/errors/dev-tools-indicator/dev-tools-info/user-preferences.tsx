@@ -17,6 +17,7 @@ import {
   type DevToolsScale,
 } from './preferences'
 import { ShortcutRecorder } from './shortcut-recorder'
+import { useRestartServer } from '../../error-overlay-toolbar/use-restart-server'
 
 export function UserPreferences({
   hide,
@@ -69,6 +70,7 @@ export function UserPreferencesBody({
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
 }) {
+  const { restartServer, isPending } = useRestartServer()
   const [theme, setTheme] = useState(getInitialTheme())
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -103,21 +105,6 @@ export function UserPreferencesBody({
   function handleSizeChange({ target }: React.ChangeEvent<HTMLSelectElement>) {
     const value = Number(target.value) as DevToolsScale
     setScale(value)
-  }
-
-  function handleRestartDevServer(invalidatePersistentCache: boolean) {
-    let endpoint = '/__nextjs_restart_dev'
-
-    if (invalidatePersistentCache) {
-      endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
-    }
-
-    fetch(endpoint, {
-      method: 'POST',
-    }).then(() => {
-      // TODO: poll server status and reload when the server is back up.
-      // https://github.com/vercel/next.js/pull/80005
-    })
   }
 
   return (
@@ -253,10 +240,10 @@ export function UserPreferencesBody({
               data-restart-dev-server
               className="action-button"
               onClick={() =>
-                handleRestartDevServer(/*invalidatePersistentCache*/ false)
+                restartServer({ invalidatePersistentCache: false })
               }
             >
-              <span>Restart</span>
+              <span>{isPending ? 'Restarting...' : 'Restart'}</span>
             </button>
           </div>
         </div>
@@ -279,10 +266,10 @@ export function UserPreferencesBody({
                 data-reset-bundler-cache
                 className="action-button"
                 onClick={() =>
-                  handleRestartDevServer(/*invalidatePersistentCache*/ true)
+                  restartServer({ invalidatePersistentCache: true })
                 }
               >
-                <span>Reset Cache</span>
+                <span>{isPending ? 'Resetting...' : 'Reset Cache'}</span>
               </button>
             </div>
           </div>
