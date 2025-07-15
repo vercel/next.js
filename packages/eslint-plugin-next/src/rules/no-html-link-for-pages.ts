@@ -32,6 +32,7 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
   }
 }
 
+
 const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
 const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
@@ -67,8 +68,14 @@ export = defineRule({
 
   /**
    * Creates an ESLint rule listener.
+   * 
+   * 
    */
+  
+
   create(context) {
+    const pageExtensions =
+      context.settings?.next?.pageExtensions || ['js', 'jsx', 'ts', 'tsx']
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
 
@@ -107,7 +114,7 @@ export = defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, pageExtensions)
     const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
