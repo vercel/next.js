@@ -1,51 +1,36 @@
 import type { CSSProperties } from 'react'
-import type { OverlayState, OverlayDispatch } from '../../shared'
 
-import { useState } from 'react'
-import { NextLogo } from './next-logo'
+import { NextLogoNew } from './next-logo'
 import { Toast } from '../toast'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
 } from '../errors/dev-tools-indicator/utils'
 import {
-  ACTION_DEVTOOLS_PANEL_TOGGLE,
   STORAGE_KEY_POSITION,
   ACTION_DEVTOOLS_POSITION,
-  ACTION_DEVTOOLS_PANEL_OPEN,
-  ACTION_ERROR_OVERLAY_OPEN,
+  STORE_KEY_SHARED_PANEL_LOCATION,
+  STORAGE_KEY_PANEL_POSITION_PREFIX,
+  ACTION_DEVTOOLS_PANEL_POSITION,
 } from '../../shared'
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
+import { useDevOverlayContext } from '../../../dev-overlay.browser'
+import { usePanelRouterContext } from '../../menu/context'
+import type { DevToolsIndicatorPosition } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
 
 export const INDICATOR_PADDING = 20
 
-export function DevToolsIndicator({
-  state,
-  dispatch,
-  errorCount,
-  isBuildError,
-}: {
-  state: OverlayState
-  dispatch: OverlayDispatch
-  errorCount: number
-  isBuildError: boolean
-}) {
-  const [open, setOpen] = useState(false)
+export function DevToolsIndicatorNew() {
+  const { state, dispatch } = useDevOverlayContext()
+  const { panel, setPanel, setSelectedIndex } = usePanelRouterContext()
+  const updateAllPanelPositions = useUpdateAllPanelPositions()
 
   const [vertical, horizontal] = state.devToolsPosition.split('-', 2)
 
-  const enableErrorOverlayMode = () => {
-    dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-    // Open the DevTools panel to view as error overlay mode.
-    dispatch({ type: ACTION_DEVTOOLS_PANEL_OPEN })
-  }
-
-  const toggleDevToolsPanel = () => {
-    dispatch({ type: ACTION_DEVTOOLS_PANEL_TOGGLE })
-  }
-
   return (
+    // TODO: why is this called a toast
     <Toast
+      id="devtools-indicator"
       data-nextjs-toast
       style={
         {
@@ -54,16 +39,14 @@ export function DevToolsIndicator({
           boxShadow: 'none',
           [vertical]: `${INDICATOR_PADDING}px`,
           [horizontal]: `${INDICATOR_PADDING}px`,
-          visibility:
-            state.isDevToolsPanelOpen || state.isErrorOverlayOpen
-              ? 'hidden'
-              : 'visible',
+          visibility: state.isErrorOverlayOpen ? 'hidden' : 'visible',
         } as CSSProperties
       }
     >
       <Draggable
+        // avoids a lot of weird edge cases that would cause jank if the logo and panel were de-synced
+        disableDrag={panel !== null}
         padding={INDICATOR_PADDING}
-        onDragStart={() => setOpen(false)}
         position={state.devToolsPosition}
         setPosition={(p) => {
           dispatch({
@@ -71,25 +54,54 @@ export function DevToolsIndicator({
             devToolsPosition: p,
           })
           localStorage.setItem(STORAGE_KEY_POSITION, p)
+
+          updateAllPanelPositions(p)
         }}
       >
-        {/* Trigger */}
-        <NextLogo
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-controls="nextjs-dev-tools-menu"
-          aria-label={`${open ? 'Close' : 'Open'} Next.js Dev Tools`}
-          data-nextjs-dev-tools-button
-          disabled={state.disableDevIndicator}
-          issueCount={errorCount}
-          onTriggerClick={toggleDevToolsPanel}
-          toggleErrorOverlay={enableErrorOverlayMode}
-          isDevBuilding={state.buildingIndicator}
-          isDevRendering={state.renderingIndicator}
-          isBuildError={isBuildError}
-          scale={state.scale}
+        <NextLogoNew
+          onTriggerClick={() => {
+            const newPanel =
+              panel === 'panel-selector' ? null : 'panel-selector'
+            setPanel(newPanel)
+            if (!newPanel) {
+              setSelectedIndex(-1)
+              return
+            }
+          }}
         />
       </Draggable>
     </Toast>
   )
+}
+
+/**
+ * makes sure we eventually sync the panel to the logo, otherwise
+ * it will be jarring if the panels start appearing on the other
+ * side of the logo. This wont teleport the panel because the indicator
+ * cannot be dragged when any panel is open
+ */
+export const useUpdateAllPanelPositions = () => {
+  const { dispatch } = useDevOverlayContext()
+  return (position: DevToolsIndicatorPosition) => {
+    dispatch({
+      type: ACTION_DEVTOOLS_PANEL_POSITION,
+      devToolsPanelPosition: position,
+      key: STORE_KEY_SHARED_PANEL_LOCATION,
+    })
+
+    localStorage.setItem(STORE_KEY_SHARED_PANEL_LOCATION, position)
+
+    const panelPositionKeys = Object.keys(localStorage).filter((key) =>
+      key.startsWith(STORAGE_KEY_PANEL_POSITION_PREFIX)
+    )
+
+    panelPositionKeys.forEach((key) => {
+      dispatch({
+        type: ACTION_DEVTOOLS_PANEL_POSITION,
+        devToolsPanelPosition: position,
+        key,
+      })
+      localStorage.setItem(key, position)
+    })
+  }
 }

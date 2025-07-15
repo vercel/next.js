@@ -1,21 +1,31 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { NextLogo } from './next-logo'
+import { NextLogoNew } from './next-logo'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
+// TODO(rob): this storybook's configurability is broken intentionally
+// it will be restored when we wrap it in the storybook context addon https://storybook.js.org/addons/storybook-react-context
+const StoryBookNextLogo = (
+  _: {
+    issueCount: number
+    isDevBuilding: boolean
+    isDevRendering: boolean
+  } & Record<string, unknown>
+) => {
+  return <NextLogoNew onTriggerClick={() => {}} />
+}
 
-const meta: Meta<typeof NextLogo> = {
-  component: NextLogo,
+const meta: Meta<typeof StoryBookNextLogo> = {
+  component: StoryBookNextLogo,
   parameters: {
     layout: 'centered',
   },
   args: {
     'aria-label': 'Open Next.js DevTools',
-    onClick: () => console.log('Clicked!'),
   },
   decorators: [withShadowPortal],
 }
 
 export default meta
-type Story = StoryObj<typeof NextLogo>
+type Story = StoryObj<typeof StoryBookNextLogo>
 
 export const NoIssues: Story = {
   args: {

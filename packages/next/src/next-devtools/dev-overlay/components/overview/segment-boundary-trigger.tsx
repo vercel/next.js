@@ -3,7 +3,7 @@ import { useCallback, useState, useRef, useMemo } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
 import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
 import { normalizeBoundaryFilename } from '../../../../server/app-render/segment-explorer-path'
-import { useClickOutside } from '../errors/dev-tools-indicator/utils'
+import { useClickOutsideAndEscape } from '../errors/dev-tools-indicator/utils'
 
 const composeRefs = (...refs: (React.Ref<HTMLButtonElement> | undefined)[]) => {
   return (node: HTMLButtonElement | null) => {
@@ -39,7 +39,7 @@ export function SegmentBoundaryTrigger({
   const popupRef = useRef<HTMLDivElement>(null)
 
   // Click outside of popup should close the menu
-  useClickOutside(
+  useClickOutsideAndEscape(
     popupRef,
     triggerRef,
     isOpen,
