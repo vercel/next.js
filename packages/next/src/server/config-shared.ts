@@ -1397,19 +1397,7 @@ export const defaultConfig = Object.freeze({
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache:
-      // TODO: Remove once we've made clientSegmentCache the default. We're
-      // piggybacking on the PPR test flag, instead of introducing a separate
-      // CI run.
-      //
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment
-      // variable has been set to `true`, enable the experimental
-      // clientSegmentCache feature so long as it wasn't explicitly disabled in
-      // the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+    clientSegmentCache: false,
     dynamicOnHover: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
@@ -1454,15 +1442,7 @@ export const defaultConfig = Object.freeze({
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
-    ppr:
-      // TODO: remove once we've made PPR default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
-      // has been set to `true`, enable the experimental PPR feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+    ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
@@ -1483,15 +1463,7 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
-    dynamicIO:
-      // TODO: remove once we've made dynamicIO the default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS` environment
-      // variable has been set to `true`, enable the experimental dynamicIO feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-      ),
+    dynamicIO: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
