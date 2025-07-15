@@ -38,7 +38,6 @@ export function DevToolsIndicatorNew() {
           boxShadow: 'none',
           [vertical]: `${INDICATOR_PADDING}px`,
           [horizontal]: `${INDICATOR_PADDING}px`,
-          display: state.disableDevIndicator && 'none',
         } as CSSProperties
       }
     >
