@@ -366,7 +366,7 @@ describe('dynamic-io', () => {
     } else {
       expect(await browser.elementById('layout').text()).toBe('at buildtime')
       expect(await browser.elementById('page').text()).toBe('at buildtime')
-      // Assert that we rendered a time within the last 5 seconds.
+      // Assert that we rendered a time within the last 2 seconds.
       const inPageDate = new Date(
         await browser.waitForElementByCss('#time').text()
       )
