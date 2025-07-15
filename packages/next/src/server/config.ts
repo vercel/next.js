@@ -1501,23 +1501,6 @@ function enforceExperimentalFeatures(
     phase,
   } = options
 
-  if (
-    config.experimental &&
-    config.experimental.enablePrerenderSourceMaps === undefined &&
-    config.experimental.dynamicIO === true
-  ) {
-    config.experimental.enablePrerenderSourceMaps = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'enablePrerenderSourceMaps',
-        true,
-        'enabled by `experimental.dynamicIO`'
-      )
-    }
-  }
-
   config.experimental ??= {}
 
   if (
@@ -1555,9 +1538,29 @@ function enforceExperimentalFeatures(
 
   // TODO: Remove this once we've made Cache Components the default.
   if (
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.ppr === undefined ||
+      (isDefaultConfig && !config.experimental.ppr))
+  ) {
+    config.experimental.ppr = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'ppr',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Cache Components the default.
+  if (
     process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.ppr === undefined || isDefaultConfig)
+    (config.experimental.ppr === undefined ||
+      (isDefaultConfig && !config.experimental.ppr))
   ) {
     config.experimental.ppr = true
 
@@ -1575,7 +1578,8 @@ function enforceExperimentalFeatures(
   if (
     process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.clientSegmentCache === undefined || isDefaultConfig)
+    (config.experimental.clientSegmentCache === undefined ||
+      (isDefaultConfig && !config.experimental.clientSegmentCache))
   ) {
     config.experimental.clientSegmentCache = true
 
@@ -1593,7 +1597,8 @@ function enforceExperimentalFeatures(
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.dynamicIO === undefined || isDefaultConfig)
+    (config.experimental.dynamicIO === undefined ||
+      (isDefaultConfig && !config.experimental.dynamicIO))
   ) {
     config.experimental.dynamicIO = true
 
@@ -1603,6 +1608,22 @@ function enforceExperimentalFeatures(
         'dynamicIO',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  if (
+    config.experimental.enablePrerenderSourceMaps === undefined &&
+    config.experimental.dynamicIO === true
+  ) {
+    config.experimental.enablePrerenderSourceMaps = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'enablePrerenderSourceMaps',
+        true,
+        'enabled by `experimental.dynamicIO`'
       )
     }
   }
