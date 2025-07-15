@@ -56,7 +56,10 @@ export function NextLogoNew({
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors
-          display: state.disableDevIndicator && dismissed ? 'none' : 'block',
+          display:
+            state.disableDevIndicator && (!hasError || dismissed)
+              ? 'none'
+              : 'block',
         } as React.CSSProperties
       }
     >
