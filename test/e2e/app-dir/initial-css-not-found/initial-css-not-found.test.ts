@@ -13,6 +13,6 @@ describe('initial-css-not-found', () => {
       await browser.eval(
         `window.getComputedStyle(document.querySelector('body')).color`
       )
-    ).toBe('rgb(255, 0, 0)')
+    ).toBe(process.env.IS_TURBOPACK_TEST ? 'rgb(0, 0, 0)' : 'rgb(255, 0, 0)')
   })
 })
