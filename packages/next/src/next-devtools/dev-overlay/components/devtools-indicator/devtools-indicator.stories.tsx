@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import type { OverlayState } from '../../shared'
 
-import { DevToolsIndicator } from './devtools-indicator'
+import { DevToolsIndicatorNew } from './devtools-indicator'
 import { INITIAL_OVERLAY_STATE } from '../../shared'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
 
-const meta: Meta<typeof DevToolsIndicator> = {
-  component: DevToolsIndicator,
+const meta: Meta<typeof DevToolsIndicatorNew> = {
+  component: DevToolsIndicatorNew,
   parameters: {
     layout: 'centered',
   },
@@ -37,7 +37,7 @@ const meta: Meta<typeof DevToolsIndicator> = {
 }
 
 export default meta
-type Story = StoryObj<typeof DevToolsIndicator>
+type Story = StoryObj<typeof DevToolsIndicatorNew>
 
 const state: OverlayState = {
   ...INITIAL_OVERLAY_STATE,

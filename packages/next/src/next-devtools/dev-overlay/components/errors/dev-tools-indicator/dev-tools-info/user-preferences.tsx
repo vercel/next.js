@@ -19,25 +19,56 @@ import {
 import { ShortcutRecorder } from './shortcut-recorder'
 
 export function UserPreferences({
-  setPosition,
-  position,
   hide,
-  scale,
-  setScale,
   hideShortcut,
   setHideShortcut,
+  setScale,
+  scale,
+  position,
+  setPosition,
   ...props
 }: {
+  hide: () => void
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
   setPosition: (position: DevToolsIndicatorPosition) => void
   position: DevToolsIndicatorPosition
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
+} & DevToolsInfoPropsCore &
+  Omit<HTMLProps<HTMLDivElement>, 'size'>) {
+  return (
+    <DevToolsInfo title="Preferences" {...props}>
+      <UserPreferencesBody
+        scale={scale}
+        position={position}
+        setPosition={setPosition}
+        setScale={setScale}
+        hide={hide}
+        hideShortcut={hideShortcut}
+        setHideShortcut={setHideShortcut}
+      />
+    </DevToolsInfo>
+  )
+}
+
+export function UserPreferencesBody({
+  hide,
+  hideShortcut,
+  setHideShortcut,
+  scale,
+  setPosition,
+  setScale,
+  position,
+}: {
   hide: () => void
   hideShortcut: string | null
   setHideShortcut: (value: string | null) => void
-} & DevToolsInfoPropsCore &
-  Omit<HTMLProps<HTMLDivElement>, 'size'>) {
-  // derive initial theme from system preference
+  setPosition: (position: DevToolsIndicatorPosition) => void
+  position: DevToolsIndicatorPosition
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
+}) {
   const [theme, setTheme] = useState(getInitialTheme())
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -90,7 +121,7 @@ export function UserPreferences({
   }
 
   return (
-    <DevToolsInfo title="Preferences" {...props}>
+    <>
       <h2 className="dev-tools-info-section-title">General</h2>
       <div className="preferences-container">
         <div className="preference-section">
@@ -257,7 +288,7 @@ export function UserPreferences({
           </div>
         </div>
       ) : null}
-    </DevToolsInfo>
+    </>
   )
 }
 

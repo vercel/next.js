@@ -4,7 +4,7 @@ import {
   type SegmentTrieNode,
 } from '../../segment-explorer-trie'
 import { cx } from '../../utils/cx'
-import { SegmentBoundaryTrigger, Trigger } from './segment-boundary-trigger'
+import { SegmentBoundaryTrigger } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
 import { useCallback, useMemo } from 'react'
 import {
@@ -118,11 +118,22 @@ export function PageSegmentTree({
   }, [tree, isAppRouter])
 
   return (
-    <div data-nextjs-devtools-panel-segments-explorer>
+    <div
+      data-nextjs-devtools-panel-segments-explorer
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+      }}
+    >
       {isAppRouter && <PageRouteBar page={page} />}
       <div
         className="segment-explorer-content"
         data-nextjs-devtool-segment-explorer
+        style={{
+          flex: '1 1 auto',
+          overflow: 'auto',
+        }}
       >
         {isAppRouter ? (
           <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
@@ -257,12 +268,6 @@ function PageSegmentTreeLayerPresentation({
 
   const filesChildrenKeysBesidesSelectedBoundary = filesChildrenKeys
 
-  const isChildPageOrBoundary =
-    firstChild &&
-    firstChild.value &&
-    firstChild.value.type !== 'layout' &&
-    firstChild.value.type !== 'template'
-
   return (
     <>
       {hasFilesChildren && (
@@ -359,13 +364,12 @@ function PageSegmentTreeLayerPresentation({
                   )}
                 </span>
               )}
-              {firstChild && firstChild.value && isChildPageOrBoundary && (
+              {firstChild && firstChild.value && (
                 <SegmentBoundaryTrigger
                   nodeState={firstChild.value}
                   boundaries={boundaries}
                 />
               )}
-              {!isChildPageOrBoundary && <Trigger disabled />}
             </div>
           </div>
         </div>

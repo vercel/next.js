@@ -81,16 +81,17 @@ describe('segment cache (staleness)', () => {
 
   it('reuses dynamic data up to the staleTimes.dynamic threshold', async () => {
     let page: Playwright.Page
+    const startDate = Date.now()
+
     const browser = await next.browser('/', {
-      beforePageLoad(p: Playwright.Page) {
+      async beforePageLoad(p: Playwright.Page) {
         page = p
+        await page.clock.install()
+        await page.clock.setFixedTime(startDate)
       },
     })
-    const act = createRouterAct(page)
 
-    await page.clock.install()
-    const startDate = Date.now()
-    await page.clock.setFixedTime(startDate)
+    const act = createRouterAct(page)
 
     // Navigate to the dynamic page
     await act(

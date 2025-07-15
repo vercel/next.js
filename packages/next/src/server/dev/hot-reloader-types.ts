@@ -119,11 +119,6 @@ export interface AppIsrManifestAction {
   data: Record<string, boolean>
 }
 
-export interface DevIndicatorAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_INDICATOR
-  devIndicator: DevIndicatorServerState
-}
-
 export type HMR_ACTION_TYPES =
   | TurbopackMessageAction
   | TurbopackConnectedAction
@@ -140,7 +135,6 @@ export type HMR_ACTION_TYPES =
   | DevPagesManifestUpdateAction
   | ServerErrorAction
   | AppIsrManifestAction
-  | DevIndicatorAction
 
 export type TurbopackMsgToBrowser =
   | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }

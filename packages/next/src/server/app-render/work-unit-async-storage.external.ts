@@ -264,8 +264,7 @@ export function getExpectedRequestStore(
       )
 
     default:
-      const _exhaustiveCheck: never = workUnitStore
-      return _exhaustiveCheck
+      return workUnitStore satisfies never
   }
 }
 
@@ -278,16 +277,22 @@ export function throwForMissingRequestStore(callingExpression: string): never {
 export function getPrerenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): PrerenderResumeDataCache | null {
-  if (
-    workUnitStore.type === 'prerender' ||
-    // TODO eliminate fetch caching in client scope and stop exposing this data cache during SSR
-    workUnitStore.type === 'prerender-client' ||
-    workUnitStore.type === 'prerender-ppr'
-  ) {
-    return workUnitStore.prerenderResumeDataCache
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-ppr':
+      return workUnitStore.prerenderResumeDataCache
+    case 'prerender-client':
+      // TODO eliminate fetch caching in client scope and stop exposing this data
+      // cache during SSR.
+      return workUnitStore.prerenderResumeDataCache
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
   }
-
-  return null
 }
 
 export function getRenderResumeDataCache(
@@ -308,8 +313,12 @@ export function getRenderResumeDataCache(
       // Otherwise we return the mutable resume data cache here as an immutable
       // version of the cache as it can also be used for reading.
       return workUnitStore.prerenderResumeDataCache
-    default:
+    case 'cache':
+    case 'unstable-cache':
+    case 'prerender-legacy':
       return null
+    default:
+      return workUnitStore satisfies never
   }
 }
 
@@ -317,15 +326,24 @@ export function getHmrRefreshHash(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): string | undefined {
-  if (!workStore.dev) {
-    return undefined
+  if (workStore.dev) {
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'prerender':
+        return workUnitStore.hmrRefreshHash
+      case 'request':
+        return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
 
-  return workUnitStore.type === 'cache' || workUnitStore.type === 'prerender'
-    ? workUnitStore.hmrRefreshHash
-    : workUnitStore.type === 'request'
-      ? workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
-      : undefined
+  return undefined
 }
 
 /**
@@ -341,10 +359,33 @@ export function getDraftModeProviderForCacheScope(
       case 'unstable-cache':
       case 'request':
         return workUnitStore.draftMode
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        break
       default:
-        return undefined
+        workUnitStore satisfies never
     }
   }
 
   return undefined
+}
+
+export function getCacheSignal(
+  workUnitStore: WorkUnitStore
+): CacheSignal | null {
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-client':
+      return workUnitStore.cacheSignal
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
 }
