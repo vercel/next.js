@@ -6,6 +6,7 @@ describe('initial-css-not-found', () => {
   })
 
   // Regression test for a bug where the existence of a not-found page would prevent the css from being discovered.
+  // See https://github.com/vercel/next.js/issues/77861 and https://github.com/vercel/next.js/issues/79535
   it('should serve styles', async () => {
     const browser = await next.browser('/')
 
