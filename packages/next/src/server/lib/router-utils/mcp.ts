@@ -412,7 +412,7 @@ function runQuery(
   entries: Module[]
 ): CallToolResult['content'] {
   const response: CallToolResult['content'] = []
-  const contextObject = Object.create({
+  const proto = {
     modules,
     entries,
     log: (...data: any[]) => {
@@ -433,7 +433,14 @@ function runQuery(
       }
       return path.reverse()
     },
-  })
+    global: undefined,
+    self: undefined,
+    globalThis: undefined,
+  }
+  const contextObject = Object.create(proto)
+  proto.global = contextObject
+  proto.self = contextObject
+  proto.globalThis = contextObject
   runInNewContext(query, contextObject, {
     displayErrors: true,
     filename: 'query.js',
@@ -442,6 +449,7 @@ function runQuery(
   })
   for (const [key, value] of Object.entries(contextObject)) {
     if (typeof value === 'function') continue
+    if (key === 'global' || key === 'self' || key === 'globalThis') continue
     response.push({
       type: 'text',
       text: `Global variable \`${key}\` = ${JSON.stringify(value, null, 2)}`,
