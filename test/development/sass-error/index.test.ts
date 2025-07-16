@@ -38,7 +38,7 @@ describe('app dir - css', () => {
 
            Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")' at [project]/app/global.scss.css:0:884
 
-           Import trace:
+           Import trace [Client Component Browser]:
              ./app/global.scss.css [Client Component Browser]
              ./app/layout.js [Client Component Browser]
              ./app/layout.js [Server Component]"
