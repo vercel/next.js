@@ -230,7 +230,7 @@ pub fn format_issue(
             let trace = &traces[0];
             match leaf_layer_name(trace) {
                 Some(layer) => {
-                    writeln!(styled_issue, "Import trace [{layer}:").unwrap();
+                    writeln!(styled_issue, "Import trace [{layer}]:").unwrap();
                 }
                 None => {
                     writeln!(styled_issue, "Import trace:").unwrap();
