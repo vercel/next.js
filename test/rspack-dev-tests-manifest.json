@@ -448,12 +448,48 @@
       "assignErrorIfEmpty should handle more complex routes",
       "assignErrorIfEmpty should handle multiple routes at the same trie node",
       "assignErrorIfEmpty should handle nested routes with multiple parameter depths",
-      "assignErrorIfEmpty should handle parameter value collisions",
       "assignErrorIfEmpty should handle routes at same trie node with different fallback parameter lengths",
       "filterUniqueParams should filter out duplicate parameters",
       "filterUniqueParams should handle more complex routes",
-      "filterUniqueRootParamsCombinations should handle multiple root parameters",
-      "filterUniqueRootParamsCombinations should return only the root parameters"
+      "generateParamPrefixCombinations should handle deep parameter hierarchies",
+      "generateParamPrefixCombinations should handle empty inputs",
+      "generateParamPrefixCombinations should handle empty routeParams with root params",
+      "generateParamPrefixCombinations should handle missing parameter keys in objects",
+      "generateParamPrefixCombinations should handle missing root params gracefully",
+      "generateParamPrefixCombinations should handle multiple route parameters",
+      "generateParamPrefixCombinations should handle parameter value collisions",
+      "generateParamPrefixCombinations should handle parameters with pipe characters",
+      "generateParamPrefixCombinations should handle root params not in route params",
+      "generateParamPrefixCombinations should handle routes without root params normally",
+      "generateParamPrefixCombinations should handle single root param",
+      "generateParamPrefixCombinations should handle test case scenario: route with extra param but missing value",
+      "generateParamPrefixCombinations should handle undefined parameters",
+      "generateParamPrefixCombinations should only generate combinations with complete root params",
+      "generateParamPrefixCombinations should prevent collisions with special characters",
+      "generateParamPrefixCombinations should return only the route parameters",
+      "generateRouteStaticParams Array parameter values should handle array parameter values",
+      "generateRouteStaticParams Array parameter values should handle mixed array and string parameters",
+      "generateRouteStaticParams Basic functionality should process multiple segments with generateStaticParams",
+      "generateRouteStaticParams Basic functionality should process single segment with generateStaticParams",
+      "generateRouteStaticParams Basic functionality should return empty array for empty segments",
+      "generateRouteStaticParams Basic functionality should return empty array for segments without generateStaticParams",
+      "generateRouteStaticParams Complex real-world scenarios should handle blog with optional catch-all",
+      "generateRouteStaticParams Complex real-world scenarios should handle e-commerce routing pattern",
+      "generateRouteStaticParams Complex real-world scenarios should handle i18n routing pattern",
+      "generateRouteStaticParams Deep nesting scenarios should handle deeply nested segments",
+      "generateRouteStaticParams Deep nesting scenarios should handle many parameter combinations",
+      "generateRouteStaticParams Empty and undefined handling should handle empty generateStaticParams results",
+      "generateRouteStaticParams Empty and undefined handling should handle generateStaticParams returning empty array with parent params",
+      "generateRouteStaticParams Empty and undefined handling should handle missing parameters in parent params",
+      "generateRouteStaticParams Error handling should handle generateStaticParams returning a rejected promise",
+      "generateRouteStaticParams Error handling should handle generateStaticParams throwing an error",
+      "generateRouteStaticParams Error handling should handle partially failing generateStaticParams",
+      "generateRouteStaticParams FetchCache configuration should not modify fetchCache when segment has no fetchCache config",
+      "generateRouteStaticParams FetchCache configuration should set fetchCache on store when segment has fetchCache config",
+      "generateRouteStaticParams FetchCache configuration should update fetchCache for multiple segments",
+      "generateRouteStaticParams Parameter inheritance should handle mixed segments (some with generateStaticParams, some without)",
+      "generateRouteStaticParams Parameter inheritance should inherit parent parameters",
+      "generateRouteStaticParams Performance considerations should handle recursive calls without stack overflow"
     ],
     "failed": [],
     "pending": [],
@@ -1580,6 +1616,18 @@
       "PagesRouteMatcherProvider manifest matching returns the correct routes for /users",
       "PagesRouteMatcherProvider manifest matching returns the correct routes for /users/[id]",
       "PagesRouteMatcherProvider returns no routes with an empty manifest"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/route-modules/app-page/helpers/prerender-manifest-matcher.test.ts": {
+    "passed": [
+      "PrerenderManifestMatcher match no match scenarios should return null when no matching route is found",
+      "PrerenderManifestMatcher match no match scenarios should return null when no routes match the fallback source route",
+      "PrerenderManifestMatcher match successful matches should handle when the fallbackSourceRoute is not set",
+      "PrerenderManifestMatcher match successful matches should respect route specificity order"
     ],
     "failed": [],
     "pending": [],
@@ -6129,9 +6177,7 @@
       "Dynamic IO Errors Dev Sync Dynamic Platform With Fallback - Math.random() should not show a collapsed redbox error",
       "Dynamic IO Errors Dev Sync Dynamic Platform Without Fallback - Math.random() should show a collapsed redbox error",
       "Dynamic IO Errors Dev Sync Dynamic Request client params should return `undefined` for `params.slug`",
-      "Dynamic IO Errors Dev Sync Dynamic Request client params should show a collapsed redbox with a sync access error",
       "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should return `undefined` for `searchParams.foo`",
-      "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should show a collapsed redbox with a sync access error",
       "Dynamic IO Errors Dev Sync Dynamic Request draftMode should return `undefined` for `draftMode().isEnabled`",
       "Dynamic IO Errors Dev Sync Dynamic Request server params should return `undefined` for `params.slug`",
       "Dynamic IO Errors Dev Sync Dynamic Request server params should show a collapsed redbox with a sync access error",
@@ -6139,6 +6185,8 @@
       "Dynamic IO Errors Dev Sync Dynamic Request server searchParams should show a collapsed redbox with a sync access error"
     ],
     "failed": [
+      "Dynamic IO Errors Dev Sync Dynamic Request client params should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should show a collapsed redbox with a sync access error",
       "Dynamic IO Errors Dev Sync Dynamic Request cookies should show a redbox with a sync access error and a runtime error",
       "Dynamic IO Errors Dev Sync Dynamic Request draftMode should show a collapsed redbox with a sync access error",
       "Dynamic IO Errors Dev Sync Dynamic Request headers should show a redbox with a sync access error and a runtime error"
@@ -7131,6 +7179,7 @@
       "app-dir - metadata-icons should only have 1 favicon link in root page",
       "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
       "app-dir - metadata-icons should re-insert the body icons into the head",
+      "app-dir - metadata-icons should re-insert the icons into head when icons are inserted in body during initial chunk",
       "app-dir - metadata-icons should render custom icons along with favicon in nested page",
       "app-dir - metadata-icons should render custom icons along with favicon in root page"
     ],
@@ -8916,6 +8965,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/script-before-interactive/script-before-interactive.test.ts": {
+    "passed": [
+      "Script component with beforeInteractive strategy CSS class rendering should execute beforeInteractive script correctly",
+      "Script component with beforeInteractive strategy CSS class rendering should render multiple beforeInteractive scripts with correct class attributes",
+      "Script component with beforeInteractive strategy CSS class rendering should render script in document head with beforeInteractive strategy",
+      "Script component with beforeInteractive strategy CSS class rendering should render script tag with correct class attribute instead of classname"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/scss/3rd-party-module/3rd-party-module.test.ts": {
     "passed": [
       "3rd Party CSS Module Support ({\"sass\": \"1.54.0\"}) should render the module",
@@ -9630,6 +9691,13 @@
     "passed": ["static-shell-debugging should render the full page"],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/sub-shell-generation/sub-shell-generation.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["sub-shell-generation skipping dev test"],
     "flakey": [],
     "runtimeError": false
   },
@@ -11106,6 +11174,7 @@
   "test/e2e/middleware-base-path/test/index.test.ts": {
     "passed": [
       "Middleware base tests router.query must exist when Link clicked page routing",
+      "Middleware base tests should allow client-side navigation to the root",
       "Middleware base tests should execute from absolute paths"
     ],
     "failed": [],
@@ -19805,6 +19874,7 @@
       "Image Component Tests development mode should warn when img with layout=responsive is inside flex container",
       "Image Component Tests development mode should warn when loader is missing width",
       "Image Component Tests development mode should warn when priority prop is missing on LCP image",
+      "Image Component Tests development mode should warn when quality is 50",
       "Image Component Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Tests development mode should warn when using sizes with incorrect layout",
       "Image Component Tests development mode should work when using flexbox",
@@ -20073,6 +20143,7 @@
       "Image Component Default Tests development mode should warn when legacy prop layout=responsive",
       "Image Component Default Tests development mode should warn when loader is missing width",
       "Image Component Default Tests development mode should warn when priority prop is missing on LCP image",
+      "Image Component Default Tests development mode should warn when quality is 50",
       "Image Component Default Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Default Tests development mode should work when using flexbox",
       "Image Component Default Tests development mode should work when using overrideSrc prop",
@@ -20295,6 +20366,7 @@
       "Image Component Default Tests development mode should warn when legacy prop layout=responsive",
       "Image Component Default Tests development mode should warn when loader is missing width",
       "Image Component Default Tests development mode should warn when priority prop is missing on LCP image",
+      "Image Component Default Tests development mode should warn when quality is 50",
       "Image Component Default Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Default Tests development mode should work when using flexbox",
       "Image Component Default Tests development mode should work when using overrideSrc prop",
