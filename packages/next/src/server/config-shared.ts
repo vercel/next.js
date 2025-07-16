@@ -1466,6 +1466,7 @@ export const defaultConfig = Object.freeze({
     devtoolSegmentExplorer: false,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
+    strictNextHead: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
