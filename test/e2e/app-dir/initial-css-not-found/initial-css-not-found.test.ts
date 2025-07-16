@@ -15,7 +15,7 @@ describe('initial-css-not-found', () => {
       )
     ).toBe(
       // This only fails in production turbopack builds
-      process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_DEV
+      process.env.IS_TURBOPACK_TEST && process.env.NEXT_TEST_MODE !== 'dev'
         ? 'rgb(0, 0, 0)'
         : 'rgb(255, 0, 0)'
     )
