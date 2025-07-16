@@ -187,13 +187,13 @@ export function Errors({
         const stackLines = visibleFrames
           .map((frame) => {
             if (frame.originalStackFrame) {
-              const { methodName, file, lineNumber, column } =
+              const { methodName, file, line1, column1 } =
                 frame.originalStackFrame
-              return `    at ${methodName} (${file}:${lineNumber}:${column})`
+              return `    at ${methodName} (${file}:${line1}:${column1})`
             } else if (frame.sourceStackFrame) {
-              const { methodName, file, lineNumber, column } =
+              const { methodName, file, line1, column1 } =
                 frame.sourceStackFrame
-              return `    at ${methodName} (${file}:${lineNumber}:${column})`
+              return `    at ${methodName} (${file}:${line1}:${column1})`
             }
             return ''
           })
