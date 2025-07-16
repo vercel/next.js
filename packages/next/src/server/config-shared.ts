@@ -1463,7 +1463,7 @@ export const defaultConfig = Object.freeze({
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolSegmentExplorer: false,
+    devtoolSegmentExplorer: true,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
     strictNextHead: true,
