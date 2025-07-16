@@ -1,6 +1,11 @@
 {
+  // GitHub integration settings for Vercel deployments
   "github": {
+    // Prevents posting Vercel deployment comments on pull requests
     "silent": true,
+
+    // Automatically cancels previous builds when a new commit is pushed
     "autoJobCancelation": true
   }
 }
+
