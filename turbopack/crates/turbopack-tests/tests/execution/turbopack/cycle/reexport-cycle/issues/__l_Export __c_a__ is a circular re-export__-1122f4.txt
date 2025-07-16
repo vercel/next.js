@@ -11,7 +11,7 @@ error - [bindings] /turbopack/crates/turbopack-tests/tests/execution/turbopack/c
   
   
   
-  Import trace:
+  Import trace [test:
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/b.js
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/a.js
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/index.js

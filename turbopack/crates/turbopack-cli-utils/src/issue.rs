@@ -228,10 +228,14 @@ pub fn format_issue(
         }
         if traces.len() == 1 {
             let trace = &traces[0];
-            // We don't put the layer in the header for the single case. Either they are all the
-            // same in which case it should be clear from the filename or they are different and we
-            // need to print them on the items anyway.
-            writeln!(styled_issue, "Import trace:").unwrap();
+            match leaf_layer_name(trace) {
+                Some(layer) => {
+                    writeln!(styled_issue, "Import trace [{layer}:").unwrap();
+                }
+                None => {
+                    writeln!(styled_issue, "Import trace:").unwrap();
+                }
+            }
             format_trace_items(&mut styled_issue, "  ", !are_layers_identical(trace), trace);
         } else {
             // When there are multiple traces we:
