@@ -109,6 +109,8 @@ const isTestMode = !!(
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
+declare const __next__clear_chunk_cache__: (() => void) | null | undefined
+
 /**
  * Replaces turbopack:///[project] with the specified project in the `source` field.
  */
@@ -342,10 +344,11 @@ export async function createHotReloaderTurbopack(
 
     resetFetch()
 
-    // Edge uses the browser runtime which already disposes chunks individually.
-    // TODO: process.env.NEXT_RUNTIME is 'nodejs' even though Node.js runtime is not used.
-    if ('__turbopack_clear_chunk_cache__' in globalThis) {
-      ;(globalThis as any).__turbopack_clear_chunk_cache__()
+    // Not available in:
+    // - Pages Router (no server-side HMR)
+    // - Edge Runtime (uses browser runtime which already disposes chunks individually)
+    if (typeof __next__clear_chunk_cache__ === 'function') {
+      __next__clear_chunk_cache__()
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>

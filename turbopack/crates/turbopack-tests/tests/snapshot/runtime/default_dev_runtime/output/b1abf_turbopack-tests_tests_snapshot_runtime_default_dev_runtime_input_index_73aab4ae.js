@@ -783,6 +783,7 @@ function instantiateModule(moduleId, source) {
                 n: exportNamespace.bind(null, module, devModuleCache),
                 m: module,
                 c: devModuleCache,
+                C: null,
                 M: moduleFactories,
                 l: loadChunk.bind(null, sourceInfo),
                 L: loadChunkByUrl.bind(null, sourceInfo),

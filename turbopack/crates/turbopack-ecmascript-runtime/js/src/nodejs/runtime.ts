@@ -302,6 +302,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
         type: SourceType.Parent,
         parentId: id,
       }),
+      C: clearChunkCache,
       w: loadWebAssembly,
       u: loadWebAssemblyModule,
       P: resolveAbsolutePath,
@@ -380,9 +381,6 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
   return regexJsUrl.test(chunkUrlOrPath)
 }
-
-// For hot-reloader
-;(globalThis as any).__turbopack_clear_chunk_cache__ = clearChunkCache
 
 module.exports = {
   getOrInstantiateRuntimeModule,
