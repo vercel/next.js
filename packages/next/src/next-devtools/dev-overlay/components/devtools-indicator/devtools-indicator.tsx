@@ -1,6 +1,6 @@
+import './devtools-indicator.css'
 import type { CSSProperties } from 'react'
-
-import { NextLogoNew } from './next-logo'
+import { NextLogo } from './next-logo'
 import { Toast } from '../toast'
 import {
   MENU_CURVE,
@@ -20,7 +20,7 @@ import type { DevToolsIndicatorPosition } from '../errors/dev-tools-indicator/de
 
 export const INDICATOR_PADDING = 20
 
-export function DevToolsIndicatorNew() {
+export function DevToolsIndicator() {
   const { state, dispatch } = useDevOverlayContext()
   const { panel, setPanel, setSelectedIndex } = usePanelRouterContext()
   const updateAllPanelPositions = useUpdateAllPanelPositions()
@@ -56,7 +56,7 @@ export function DevToolsIndicatorNew() {
           updateAllPanelPositions(p)
         }}
       >
-        <NextLogoNew
+        <NextLogo
           onTriggerClick={() => {
             const newPanel =
               panel === 'panel-selector' ? null : 'panel-selector'
