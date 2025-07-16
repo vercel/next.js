@@ -121,8 +121,15 @@ https://nextjs.org/docs/messages/module-not-found
       importTraces: [trace],
     }
     const output = formatIssue(issue)
-    expect(output).toContain('Import trace:')
-    expect(output).toContain('./src/app/page.ts')
-    expect(output).toContain('./src/lib/foo.ts')
+    expect(output).toBe(`\
+./src/app/page.ts
+Module not found
+Import trace:
+  ./src/app/page.ts
+  ./src/lib/foo.ts
+
+https://nextjs.org/docs/messages/module-not-found
+
+`)
   })
 })
