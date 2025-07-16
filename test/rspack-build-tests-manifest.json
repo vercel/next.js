@@ -3169,6 +3169,7 @@
       "app-dir - metadata-icons should only have 1 favicon link in root page",
       "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
       "app-dir - metadata-icons should re-insert the body icons into the head",
+      "app-dir - metadata-icons should re-insert the icons into head when icons are inserted in body during initial chunk",
       "app-dir - metadata-icons should render custom icons along with favicon in nested page",
       "app-dir - metadata-icons should render custom icons along with favicon in root page"
     ],
@@ -5172,6 +5173,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/script-before-interactive/script-before-interactive.test.ts": {
+    "passed": [
+      "Script component with beforeInteractive strategy CSS class rendering should execute beforeInteractive script correctly",
+      "Script component with beforeInteractive strategy CSS class rendering should render multiple beforeInteractive scripts with correct class attributes",
+      "Script component with beforeInteractive strategy CSS class rendering should render script in document head with beforeInteractive strategy",
+      "Script component with beforeInteractive strategy CSS class rendering should render script tag with correct class attribute instead of classname"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/scss/3rd-party-module/3rd-party-module.test.ts": {
     "passed": [
       "3rd Party CSS Module Support ({\"sass\": \"1.54.0\"}) should render the module",
@@ -5944,6 +5957,21 @@
   },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
     "passed": ["static-shell-debugging should render the full page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/sub-shell-generation/sub-shell-generation.test.ts": {
+    "passed": [
+      "sub-shell-generation should serve the correct shell /[lang]/[slug] should serve the correct shell for /es/1",
+      "sub-shell-generation should serve the correct shell /[lang]/[slug] should serve the correct shell for /es/2",
+      "sub-shell-generation should serve the correct shell /en/[slug] should serve the correct shell for /en/1",
+      "sub-shell-generation should serve the correct shell /en/[slug] should serve the correct shell for /en/2",
+      "sub-shell-generation should serve the correct shell /fr/1 should serve the correct shell for /fr/1",
+      "sub-shell-generation should serve the correct shell /fr/[slug] should serve the correct shell for /fr/2",
+      "sub-shell-generation should serve the correct shell /fr/[slug] should serve the correct shell for /fr/3"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7408,6 +7436,7 @@
   "test/e2e/middleware-base-path/test/index.test.ts": {
     "passed": [
       "Middleware base tests router.query must exist when Link clicked page routing",
+      "Middleware base tests should allow client-side navigation to the root",
       "Middleware base tests should execute from absolute paths"
     ],
     "failed": [],
@@ -16177,6 +16206,7 @@
       "Image Component Tests development mode should warn when img with layout=responsive is inside flex container",
       "Image Component Tests development mode should warn when loader is missing width",
       "Image Component Tests development mode should warn when priority prop is missing on LCP image",
+      "Image Component Tests development mode should warn when quality is 50",
       "Image Component Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Tests development mode should warn when using sizes with incorrect layout",
       "Image Component Tests development mode should work when using flexbox",
@@ -16455,6 +16485,7 @@
       "Image Component Default Tests development mode should warn when legacy prop layout=responsive",
       "Image Component Default Tests development mode should warn when loader is missing width",
       "Image Component Default Tests development mode should warn when priority prop is missing on LCP image",
+      "Image Component Default Tests development mode should warn when quality is 50",
       "Image Component Default Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Default Tests development mode should work when using flexbox",
       "Image Component Default Tests development mode should work when using overrideSrc prop",
@@ -16678,6 +16709,7 @@
       "Image Component Default Tests development mode should warn when legacy prop layout=responsive",
       "Image Component Default Tests development mode should warn when loader is missing width",
       "Image Component Default Tests development mode should warn when priority prop is missing on LCP image",
+      "Image Component Default Tests development mode should warn when quality is 50",
       "Image Component Default Tests development mode should warn when using a very small image with placeholder=blur",
       "Image Component Default Tests development mode should work when using flexbox",
       "Image Component Default Tests development mode should work when using overrideSrc prop",
@@ -18691,12 +18723,14 @@
   },
   "test/production/app-dir/build-output-prerender/build-output-prerender.test.ts": {
     "passed": [
-      "build-output-prerender with --debug-prerender shows all prerender errors with readable stacks and code frames",
-      "build-output-prerender without --debug-prerender shows only a single prerender error with a mangled stack"
+      "build-output-prerender with a next config file with --debug-prerender shows all prerender errors with readable stacks and code frames",
+      "build-output-prerender with a next config file without --debug-prerender shows only a single prerender error with a mangled stack"
     ],
     "failed": [
-      "build-output-prerender with --debug-prerender prints a warning and the customized experimental flags",
-      "build-output-prerender without --debug-prerender prints only the user-selected experimental flags"
+      "build-output-prerender with a next config file with --debug-prerender prints a warning and the customized experimental flags",
+      "build-output-prerender with a next config file without --debug-prerender prints only the user-selected experimental flags",
+      "build-output-prerender without a next config file with --debug-prerender prints a warning and the customized experimental flags",
+      "build-output-prerender without a next config file without --debug-prerender prints no experimental flags"
     ],
     "pending": [],
     "flakey": [],
@@ -19105,6 +19139,12 @@
       "custom server can navigate to /a",
       "custom server can navigate to /b",
       "custom server can navigate to /c",
+      "custom server provided config can navigate to /a",
+      "custom server provided config can navigate to /b",
+      "custom server provided config can navigate to /c",
+      "custom server provided config with app dir should render app with react canary",
+      "custom server provided config with app dir should render pages with installed react",
+      "custom server provided config with app dir when using \"use cache\" with a custom cache handler should not unset the custom server's ALS context",
       "custom server should log any error messages when server is started without \"quiet\" setting",
       "custom server with app dir should render app with react canary",
       "custom server with app dir should render pages with installed react",
@@ -19677,11 +19717,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
