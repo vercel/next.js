@@ -694,7 +694,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     ) -> Result<Vc<bool>> {
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
         let pkg_side_effect_free = is_marked_as_side_effect_free(
-            self.ident().path().await?.clone_value(),
+            self.ident().path().owned().await?,
             side_effect_free_packages,
         );
         Ok(if *pkg_side_effect_free.await? {

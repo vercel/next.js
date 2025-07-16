@@ -15,6 +15,7 @@
   "@react-pdf/renderer",
   "@sentry/profiling-node",
   "@sparticuz/chromium",
+  "@sparticuz/chromium-min",
   "@swc/core",
   "@xenova/transformers",
   "argon2",

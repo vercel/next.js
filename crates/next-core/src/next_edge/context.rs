@@ -22,7 +22,7 @@ use crate::{
     mode::NextMode,
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
-    next_import_map::get_next_edge_import_map,
+    next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
     next_shared::resolve::{
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
@@ -94,6 +94,10 @@ pub async fn get_edge_resolve_options_context(
     )
     .to_resolved()
     .await?;
+    let next_edge_fallback_import_map =
+        get_next_edge_and_server_fallback_import_map(project_path.clone(), NextRuntime::Edge)
+            .to_resolved()
+            .await?;
 
     let mut before_resolve_plugins = vec![ResolvedVc::upcast(
         ModuleFeatureReportResolvePlugin::new(project_path.clone())
@@ -154,10 +158,11 @@ pub async fn get_edge_resolve_options_context(
     };
 
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().await?.clone_value()),
+        enable_node_modules: Some(project_path.root().owned().await?),
         enable_edge_node_externals: true,
         custom_conditions,
         import_map: Some(next_edge_import_map),
+        fallback_import_map: Some(next_edge_fallback_import_map),
         module: true,
         browser: true,
         after_resolve_plugins,

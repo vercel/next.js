@@ -166,8 +166,8 @@ export async function handler(
 
   let { isOnDemandRevalidate } = prepareResult
 
-  const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
-  const isPrerendered = prerenderManifest.routes[resolvedPathname]
+  const prerenderInfo = routeModule.match(pathname, prerenderManifest)
+  const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
   let isSSG = Boolean(
     prerenderInfo ||
@@ -663,10 +663,17 @@ export async function handler(
         let fallbackResponse: ResponseCacheEntry | null | undefined
 
         if (isRoutePPREnabled && !isRSCRequest) {
+          const cacheKey =
+            typeof prerenderInfo?.fallback === 'string'
+              ? prerenderInfo.fallback
+              : isProduction
+                ? normalizedSrcPage
+                : null
+
           // We use the response cache here to handle the revalidation and
           // management of the fallback shell.
           fallbackResponse = await routeModule.handleResponse({
-            cacheKey: isProduction ? normalizedSrcPage : null,
+            cacheKey,
             req,
             nextConfig,
             routeKind: RouteKind.APP_PAGE,

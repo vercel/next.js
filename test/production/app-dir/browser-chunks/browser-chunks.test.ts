@@ -34,7 +34,7 @@ describe('browser-chunks', () => {
 
   it('must not bundle any dev overlay into browser chunks', () => {
     const devOverlaySources = sources.filter((source) => {
-      return source.includes('next-devtools/dev-overlay')
+      return source.includes('next-devtools')
     })
 
     if (devOverlaySources.length > 0) {

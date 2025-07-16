@@ -730,7 +730,7 @@ async fn get_mock_stylesheet(
         )
         .module();
 
-    let root = mock_fs.root().await?.clone_value();
+    let root = mock_fs.root().owned().await?;
     let val = evaluate(
         mocked_response_asset,
         root,

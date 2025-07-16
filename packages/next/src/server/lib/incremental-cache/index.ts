@@ -293,8 +293,12 @@ export class IncrementalCache implements IncrementalCacheType {
     const decoder = new TextDecoder()
 
     if (init.body) {
-      // handle ReadableStream body
-      if (typeof (init.body as any).getReader === 'function') {
+      // handle Uint8Array body
+      if (init.body instanceof Uint8Array) {
+        bodyChunks.push(decoder.decode(init.body))
+        ;(init as any)._ogBody = init.body
+      } // handle ReadableStream body
+      else if (typeof (init.body as any).getReader === 'function') {
         const readableBody = init.body as ReadableStream<Uint8Array | string>
 
         const chunks: Uint8Array[] = []

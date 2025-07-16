@@ -177,31 +177,30 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       `)
     } else if (process.env.NEXT_RSPACK) {
       expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
-         "./pages/hmr/about2.js
-           × Module build failed:
-           ├─▶   ×
-           │     │   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-           │     │    ,-[TEST_DIR/pages/hmr/about2.js:7:1]
-           │     │  4 |       <p>This is the about page.</p>
-           │     │  5 |     div
-           │     │  6 |   )
-           │     │  7 | }
-           │     │    : ^
-           │     │    \`----
-           │     │
-           │     │   x Unexpected eof
-           │     │    ,-[TEST_DIR/pages/hmr/about2.js:7:3]
-           │     │  5 |     div
-           │     │  6 |   )
-           │     │  7 | }
-           │     │    \`----
-           │     │
-           │
-           ╰─▶ Syntax Error
+       "./pages/hmr/about2.js
+         × Module build failed:
+         ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+               │    ,-[7:1]
+               │  4 |       <p>This is the about page.</p>
+               │  5 |     div
+               │  6 |   )
+               │  7 | }
+               │    : ^
+               │    \`----
+               │   x Unexpected eof
+               │    ,-[7:3]
+               │  5 |     div
+               │  6 |   )
+               │  7 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
 
-         Import trace for requested module:
-         ./pages/hmr/about2.js"
-        `)
+       Import trace for requested module:
+       ./pages/hmr/about2.js"
+      `)
     } else {
       expect(source).toMatchInlineSnapshot(`
           "./pages/hmr/about2.js
@@ -517,25 +516,25 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       } else if (process.env.NEXT_RSPACK) {
         expect(trimEndMultiline(await getRedboxSource(browser)))
           .toMatchInlineSnapshot(`
-           "./components/parse-error.xyz
-             × Module parse failed:
-             ╰─▶   × JavaScript parsing error: Expression expected
-                    ╭─[3:0]
-                  1 │ This
-                  2 │ is
-                  3 │ }}}
-                    · ─
-                  4 │ invalid
-                  5 │ js
-                    ╰────
+         "./components/parse-error.xyz
+           × Module parse failed:
+           ╰─▶   × JavaScript parse error: Expression expected
+                  ╭─[3:0]
+                1 │ This
+                2 │ is
+                3 │ }}}
+                  · ─
+                4 │ invalid
+                5 │ js
+                  ╰────
 
-             help:
-                   You may need an appropriate loader to handle this file type.
+           help:
+                 You may need an appropriate loader to handle this file type.
 
-           Import trace for requested module:
-           ./components/parse-error.xyz
-           ./pages/hmr/about8.js"
-          `)
+         Import trace for requested module:
+         ./components/parse-error.xyz
+         ./pages/hmr/about8.js"
+        `)
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
                       "./components/parse-error.xyz
@@ -625,26 +624,26 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       } else if (process.env.NEXT_RSPACK) {
         expect(trimEndMultiline(next.normalizeTestDirContent(redboxSource)))
           .toMatchInlineSnapshot(`
-           "./components/parse-error.js
-             × Module build failed:
-             ├─▶   ×
-             │     │   x Expression expected
-             │     │    ,-[./components/parse-error.js:3:1]
-             │     │  1 | This
-             │     │  2 | is
-             │     │  3 | }}}
-             │     │    : ^
-             │     │  4 | invalid
-             │     │  5 | js
-             │     │    \`----
-             │     │
-             │
-             ╰─▶ Syntax Error
+         "./components/parse-error.js
+           × Module build failed:
+           ╰─▶   × Error:   x Expression expected
+                 │    ,-[3:1]
+                 │  1 | This
+                 │  2 | is
+                 │  3 | }}}
+                 │    : ^
+                 │  4 | invalid
+                 │  5 | js
+                 │    \`----
+                 │
+                 │
+                 │ Caused by:
+                 │     Syntax Error
 
-           Import trace for requested module:
-           ./components/parse-error.js
-           ./pages/hmr/about9.js"
-          `)
+         Import trace for requested module:
+         ./components/parse-error.js
+         ./pages/hmr/about9.js"
+        `)
       } else {
         redboxSource = redboxSource.substring(0, redboxSource.indexOf('`----'))
 

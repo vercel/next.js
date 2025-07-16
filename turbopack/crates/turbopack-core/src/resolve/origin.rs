@@ -75,7 +75,7 @@ where
     ) -> Result<Vc<ResolveOptions>> {
         Ok(self
             .asset_context()
-            .resolve_options(self.origin_path().await?.clone_value(), reference_type))
+            .resolve_options(self.origin_path().owned().await?, reference_type))
     }
 
     fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>> {
@@ -103,7 +103,7 @@ async fn resolve_asset(
         .resolve()
         .await?
         .resolve_asset(
-            resolve_origin.origin_path().await?.clone_value(),
+            resolve_origin.origin_path().owned().await?,
             request.resolve().await?,
             options.resolve().await?,
             reference_type,

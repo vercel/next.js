@@ -2256,6 +2256,18 @@ export async function ncc_https_proxy_agent(task, opts) {
     .target('src/compiled/https-proxy-agent')
 }
 
+externals['safe-stable-stringify'] = 'next/dist/compiled/safe-stable-stringify'
+export async function ncc_safe_stable_stringify(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('safe-stable-stringify')))
+    .ncc({
+      packageName: 'safe-stable-stringify',
+      externals,
+      target: 'es5',
+    })
+    .target('src/compiled/safe-stable-stringify')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
@@ -2275,6 +2287,7 @@ export async function ncc(task, opts) {
     .clear('src/compiled')
     .parallel(
       [
+        'ncc_safe_stable_stringify',
         'ncc_amp_optimizer',
         'ncc_node_html_parser',
         'ncc_napirs_triples',

@@ -149,7 +149,7 @@ pub async fn get_client_resolve_options_context(
             .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().await?.clone_value()),
+        enable_node_modules: Some(project_path.root().owned().await?),
         custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
@@ -210,7 +210,6 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
-    no_mangling: Vc<bool>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -368,16 +367,6 @@ pub async fn get_client_module_options_context(
         },
         enable_webpack_loaders,
         enable_mdx_rs,
-        css: CssOptionsContext {
-            minify_type: if *next_config.turbo_minify(mode).await? {
-                MinifyType::Minify {
-                    mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-                }
-            } else {
-                MinifyType::NoMinify
-            },
-            ..module_options_context.css
-        },
         rules: vec![
             (
                 foreign_code_context_condition(next_config, project_path).await?,
@@ -442,9 +431,7 @@ pub async fn get_client_chunking_context(
         client_root_to_root_path,
         client_root.clone(),
         client_root.join("static/chunks")?,
-        get_client_assets_path(client_root.clone())
-            .await?
-            .clone_value(),
+        get_client_assets_path(client_root.clone()).owned().await?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
@@ -468,7 +455,10 @@ pub async fn get_client_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?);
 
     if next_mode.is_development() {
-        builder = builder.hot_module_replacement().use_file_source_map_uris();
+        builder = builder
+            .hot_module_replacement()
+            .use_file_source_map_uris()
+            .dynamic_chunk_content_loading(true);
     } else {
         builder = builder
             .chunking_config(

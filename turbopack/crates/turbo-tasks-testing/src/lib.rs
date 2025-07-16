@@ -52,7 +52,7 @@ impl VcStorage {
             let mut tasks = self.tasks.lock().unwrap();
             let i = tasks.len();
             tasks.push(Task::Spawned(Event::new(move || {
-                format!("Task({i})::event")
+                move || format!("Task({i})::event")
             })));
             i
         };

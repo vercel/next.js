@@ -48,86 +48,86 @@ impl UpdateOutputOperation {
         output: Result<RawVc, TurboTasksExecutionError>,
         mut ctx: impl ExecuteContext,
     ) {
-        let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let Some(InProgressState::InProgress(box InProgressStateInner {
-            stale,
-            new_children,
-            ..
-        })) = get!(task, InProgress)
-        else {
-            panic!("Task is not in progress while updating the output");
-        };
-        if *stale {
-            // Skip updating the output when the task is stale
-            return;
-        }
-        let children = if ctx.should_track_children() {
-            new_children.iter().copied().collect()
-        } else {
-            Default::default()
-        };
-
-        let current_output = get!(task, Output);
-        let output_value = match output {
-            Ok(RawVc::TaskOutput(output_task_id)) => {
-                if let Some(OutputValue::Output(current_task_id)) = current_output
-                    && *current_task_id == output_task_id
-                {
-                    return;
-                }
-                OutputValue::Output(output_task_id)
-            }
-            Ok(RawVc::TaskCell(output_task_id, cell)) => {
-                if let Some(OutputValue::Cell(CellRef {
-                    task: current_task_id,
-                    cell: current_cell,
-                })) = current_output
-                    && *current_task_id == output_task_id
-                    && *current_cell == cell
-                {
-                    return;
-                }
-                OutputValue::Cell(CellRef {
-                    task: output_task_id,
-                    cell,
-                })
-            }
-            Ok(RawVc::LocalOutput(..)) => {
-                panic!("Non-local tasks must not return a local Vc");
-            }
-            Err(err) => {
-                if let Some(OutputValue::Error(old_error)) = current_output
-                    && old_error == &err
-                {
-                    return;
-                }
-                OutputValue::Error(err)
-            }
-        };
-        let old_content = task.insert(CachedDataItem::Output {
-            value: output_value,
-        });
-
-        let dependent_tasks = if ctx.should_track_dependencies() {
-            get_many!(task, OutputDependent { task } => task)
-        } else {
-            Default::default()
-        };
-
+        let mut dependent_tasks = Default::default();
+        let mut children = Default::default();
         let mut queue = AggregationUpdateQueue::new();
 
-        make_task_dirty_internal(
-            &mut task,
-            task_id,
-            false,
-            #[cfg(feature = "trace_task_dirty")]
-            TaskDirtyCause::InitialDirty,
-            &mut queue,
-            &ctx,
-        );
+        'output: {
+            let mut task = ctx.task(task_id, TaskDataCategory::All);
+            let Some(InProgressState::InProgress(box InProgressStateInner {
+                stale,
+                new_children,
+                ..
+            })) = get!(task, InProgress)
+            else {
+                panic!("Task is not in progress while updating the output");
+            };
+            if *stale {
+                // Skip updating the output when the task is stale
+                break 'output;
+            }
+            if ctx.should_track_children() {
+                children = new_children.iter().copied().collect();
+            }
 
-        drop(task);
-        drop(old_content);
+            let current_output = get!(task, Output);
+            let output_value = match output {
+                Ok(RawVc::TaskOutput(output_task_id)) => {
+                    if let Some(OutputValue::Output(current_task_id)) = current_output
+                        && *current_task_id == output_task_id
+                    {
+                        break 'output;
+                    }
+                    OutputValue::Output(output_task_id)
+                }
+                Ok(RawVc::TaskCell(output_task_id, cell)) => {
+                    if let Some(OutputValue::Cell(CellRef {
+                        task: current_task_id,
+                        cell: current_cell,
+                    })) = current_output
+                        && *current_task_id == output_task_id
+                        && *current_cell == cell
+                    {
+                        break 'output;
+                    }
+                    OutputValue::Cell(CellRef {
+                        task: output_task_id,
+                        cell,
+                    })
+                }
+                Ok(RawVc::LocalOutput(..)) => {
+                    panic!("Non-local tasks must not return a local Vc");
+                }
+                Err(err) => {
+                    if let Some(OutputValue::Error(old_error)) = current_output
+                        && old_error == &err
+                    {
+                        break 'output;
+                    }
+                    OutputValue::Error(err)
+                }
+            };
+            let old_content = task.insert(CachedDataItem::Output {
+                value: output_value,
+            });
+
+            if ctx.should_track_dependencies() {
+                dependent_tasks = get_many!(task, OutputDependent { task } => task);
+            }
+
+            make_task_dirty_internal(
+                &mut task,
+                task_id,
+                false,
+                #[cfg(feature = "trace_task_dirty")]
+                TaskDirtyCause::InitialDirty,
+                &mut queue,
+                &ctx,
+            );
+
+            drop(task);
+            drop(old_content);
+        }
 
         UpdateOutputOperation::MakeDependentTasksDirty {
             #[cfg(feature = "trace_task_dirty")]

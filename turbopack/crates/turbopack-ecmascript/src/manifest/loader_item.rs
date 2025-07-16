@@ -69,7 +69,7 @@ impl ManifestLoaderChunkItem {
     pub async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         let chunks = self.manifest.manifest_chunks();
         Ok(ChunkData::from_assets(
-            self.chunking_context.output_root().await?.clone_value(),
+            self.chunking_context.output_root().owned().await?,
             chunks,
         ))
     }
@@ -95,7 +95,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        let mut references = (*this.manifest.manifest_chunks().await?).clone();
+        let mut references = this.manifest.manifest_chunks().owned().await?;
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?);
         }

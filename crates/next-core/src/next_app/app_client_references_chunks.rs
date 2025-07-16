@@ -179,7 +179,7 @@ pub async fn get_app_client_references_chunks(
 
                 let base_ident = server_component.ident();
 
-                let server_path = server_component.server_path().await?.clone_value();
+                let server_path = server_component.server_path().owned().await?;
                 let is_layout = server_path.file_stem() == Some("layout");
                 let server_component_path = server_path.value_to_string().await?;
 

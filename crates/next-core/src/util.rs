@@ -187,19 +187,14 @@ pub async fn foreign_code_context_condition(
 // subject to Next.js's configuration even if it's embedded assets.
 pub async fn internal_assets_conditions() -> Result<ContextCondition> {
     Ok(ContextCondition::any(vec![
-        ContextCondition::InPath(next_js_fs().root().await?.clone_value()),
+        ContextCondition::InPath(next_js_fs().root().owned().await?),
         ContextCondition::InPath(
             turbopack_ecmascript_runtime::embed_fs()
                 .root()
-                .await?
-                .clone_value(),
+                .owned()
+                .await?,
         ),
-        ContextCondition::InPath(
-            turbopack_node::embed_js::embed_fs()
-                .root()
-                .await?
-                .clone_value(),
-        ),
+        ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root().owned().await?),
     ]))
 }
 

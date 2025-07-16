@@ -291,7 +291,7 @@ impl ClientReferencesGraph {
             let mut client_references_by_server_component =
                 FxIndexMap::from_iter([(None, Vec::new())]);
 
-            graph.traverse_edges_from_entries_topological(
+            graph.traverse_edges_from_entries_dfs(
                 entries,
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut FxHashMap::default(),
@@ -408,8 +408,8 @@ impl Issue for CssGlobalImportIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let parent_path = self.parent_module.ident().path().await?.clone_value();
-        let module_path = self.module.ident().path().await?.clone_value();
+        let parent_path = self.parent_module.ident().path().owned().await?;
+        let module_path = self.module.ident().path().owned().await?;
         let relative_import_location = parent_path.parent();
 
         let import_path = match relative_import_location.get_relative_path_to(&module_path) {
@@ -752,7 +752,7 @@ impl GlobalBuildInformation {
                 .collect::<FxIndexMap<_, _>>();
             let identifier_map = ModuleNameMap(identifier_map).cell();
 
-            let _ = graphs
+            graphs
                 .iter()
                 .map(|graph| {
                     validate_pages_css_imports(
@@ -762,6 +762,7 @@ impl GlobalBuildInformation {
                         app_module,
                         identifier_map,
                     )
+                    .as_side_effect()
                 })
                 .try_join()
                 .await?;

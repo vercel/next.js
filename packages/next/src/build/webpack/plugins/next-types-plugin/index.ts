@@ -240,18 +240,21 @@ const pluginState = getProxiedPluginState({
   collectedRootParams: {} as Record<string, string[]>,
   routeTypes: {
     edge: {
-      static: '',
-      dynamic: '',
+      static: [],
+      dynamic: [],
     },
     node: {
-      static: '',
-      dynamic: '',
+      static: [],
+      dynamic: [],
     },
     extra: {
-      static: '',
-      dynamic: '',
+      static: [],
+      dynamic: [],
     },
-  } as Record<'edge' | 'node' | 'extra', Record<'static' | 'dynamic', string>>,
+  } as Record<
+    'edge' | 'node' | 'extra',
+    Record<'static' | 'dynamic', string[]>
+  >,
 })
 
 function formatRouteToRouteType(route: string) {
@@ -278,7 +281,7 @@ function formatRouteToRouteType(route: string) {
 
   return {
     isDynamic,
-    routeType: `\n    | \`${route}\``,
+    routeType: route,
   }
 }
 
@@ -356,8 +359,9 @@ function addRedirectsRewritesRouteTypes(
 
       for (const normalizedRoute of possibleNormalizedRoutes) {
         const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
-        pluginState.routeTypes.extra[isDynamic ? 'dynamic' : 'static'] +=
+        pluginState.routeTypes.extra[isDynamic ? 'dynamic' : 'static'].push(
           routeType
+        )
       }
     }
   }
@@ -385,18 +389,31 @@ function addRedirectsRewritesRouteTypes(
   }
 }
 
+function serializeRouteTypes(routeTypes: string[]) {
+  // route collection is not deterministic, this makes the output of the file deterministic
+  return routeTypes
+    .sort()
+    .map((route) => `\n    | \`${route}\``)
+    .join('')
+}
+
 function createRouteDefinitions() {
-  let staticRouteTypes = ''
-  let dynamicRouteTypes = ''
+  let staticRouteTypes = []
+  let dynamicRouteTypes = []
 
   for (const type of ['edge', 'node', 'extra'] as const) {
-    staticRouteTypes += pluginState.routeTypes[type].static
-    dynamicRouteTypes += pluginState.routeTypes[type].dynamic
+    staticRouteTypes.push(...pluginState.routeTypes[type].static)
+    dynamicRouteTypes.push(...pluginState.routeTypes[type].dynamic)
   }
+
+  const serializedStaticRouteTypes = serializeRouteTypes(staticRouteTypes)
+  const serializedDynamicRouteTypes = serializeRouteTypes(dynamicRouteTypes)
 
   // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string & {}'.
   const routeTypesFallback =
-    !staticRouteTypes && !dynamicRouteTypes ? 'string & {}' : ''
+    !serializedStaticRouteTypes && !serializedDynamicRouteTypes
+      ? 'string & {}'
+      : ''
 
   return `// Type definitions for Next.js routes
 
@@ -428,9 +445,9 @@ declare namespace __next_route_internal_types__ {
   type OptionalCatchAllSlug<S extends string> =
     S extends \`\${string}\${SearchOrHash}\` ? never : S
 
-  type StaticRoutes = ${staticRouteTypes || 'never'}
+  type StaticRoutes = ${serializedStaticRouteTypes || 'never'}
   type DynamicRoutes<T extends string = string> = ${
-    dynamicRouteTypes || 'never'
+    serializedDynamicRouteTypes || 'never'
   }
 
   type RouteImpl<T> = ${
@@ -887,7 +904,7 @@ export class NextTypesPlugin {
 
     pluginState.routeTypes[this.isEdgeServer ? 'edge' : 'node'][
       isDynamic ? 'dynamic' : 'static'
-    ] += routeType
+    ].push(routeType)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -1014,11 +1031,11 @@ export class NextTypesPlugin {
 
           // Clear routes
           if (this.isEdgeServer) {
-            pluginState.routeTypes.edge.dynamic = ''
-            pluginState.routeTypes.edge.static = ''
+            pluginState.routeTypes.edge.dynamic = []
+            pluginState.routeTypes.edge.static = []
           } else {
-            pluginState.routeTypes.node.dynamic = ''
-            pluginState.routeTypes.node.static = ''
+            pluginState.routeTypes.node.dynamic = []
+            pluginState.routeTypes.node.static = []
           }
 
           compilation.chunkGroups.forEach((chunkGroup) => {

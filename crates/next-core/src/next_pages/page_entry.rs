@@ -111,7 +111,7 @@ pub async fn create_page_ssr_entry_module(
         let file = File::from(result.build());
 
         source = Vc::upcast(VirtualSource::new(
-            source.ident().path().await?.clone_value(),
+            source.ident().path().owned().await?,
             AssetContent::file(file.into()),
         ));
     }
@@ -188,7 +188,7 @@ async fn process_global_item(
     reference_type: ReferenceType,
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let source = Vc::upcast(FileSource::new(item.file_path().await?.clone_value()));
+    let source = Vc::upcast(FileSource::new(item.file_path().owned().await?));
     Ok(module_context.process(source, reference_type).module())
 }
 

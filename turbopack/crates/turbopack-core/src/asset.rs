@@ -92,16 +92,18 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(file) => {
-                let _ = path.write(**file);
+                path.write(**file).as_side_effect().await?;
             }
             AssetContent::Redirect { target, link_type } => {
-                let _ = path.write_link(
+                path.write_link(
                     LinkContent::Link {
                         target: target.clone(),
                         link_type: *link_type,
                     }
                     .cell(),
-                );
+                )
+                .as_side_effect()
+                .await?;
             }
         }
         Ok(())

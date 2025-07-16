@@ -1,8 +1,4 @@
-// imports polyfill from `@next/polyfill-module` after build.
-import '../build/polyfills/polyfill-module'
-
-import '../next-devtools/userspace/app/app-dev-overlay-setup'
-
+import './app-globals'
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
 // TODO: Explicitly import from client.browser
@@ -217,7 +213,6 @@ function onDefaultTransitionIndicator() {
 }
 
 const reactRootOptions: ReactDOMClient.RootOptions = {
-  // @ts-expect-error: Should pass on `@types/react` bump.
   onDefaultTransitionIndicator: onDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,

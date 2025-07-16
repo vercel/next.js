@@ -119,8 +119,6 @@ export function getDefineEnv({
   const isDynamicIOEnabled = !!config.experimental.dynamicIO
   const isUseCacheEnabled = !!config.experimental.useCache
 
-  const isDevToolPanelUIEnabled = Boolean(config.experimental.devtoolNewPanelUI)
-
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: true,
@@ -317,9 +315,11 @@ export function getDefineEnv({
         }
       : {}),
     'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
-      // Enable segment explorer in devtools
-      isDevToolPanelUIEnabled || !!config.experimental.devtoolSegmentExplorer,
-    'process.env.__NEXT_DEVTOOL_NEW_PANEL_UI': isDevToolPanelUIEnabled,
+      !!config.experimental.devtoolSegmentExplorer,
+
+    'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
+      config.experimental.browserDebugInfoInTerminal || false
+    ),
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's
@@ -335,6 +335,8 @@ export function getDefineEnv({
     // no-op that just restarts the development server.
     'process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE':
       !isTurbopack || (config.experimental.turbopackPersistentCaching ?? false),
+    'process.env.__NEXT_OPTIMIZE_ROUTER_SCROLL':
+      config.experimental.optimizeRouterScrolling ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

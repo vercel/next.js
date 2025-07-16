@@ -68,8 +68,12 @@ export function createParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      case 'request':
+      case 'cache':
+      case 'unstable-cache':
+        break
       default:
-      // fallthrough
+        workUnitStore satisfies never
     }
   }
   return createRenderParams(underlyingParams, workStore)
@@ -92,8 +96,12 @@ export function createServerParamsForRoute(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      case 'request':
+      case 'cache':
+      case 'unstable-cache':
+        break
       default:
-      // fallthrough
+        workUnitStore satisfies never
     }
   }
   return createRenderParams(underlyingParams, workStore)
@@ -111,8 +119,12 @@ export function createServerParamsForServerSegment(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      case 'request':
+      case 'cache':
+      case 'unstable-cache':
+        break
       default:
-      // fallthrough
+        workUnitStore satisfies never
     }
   }
   return createRenderParams(underlyingParams, workStore)
@@ -122,22 +134,32 @@ export function createPrerenderParamsForClientSegment(
   underlyingParams: Params,
   workStore: WorkStore
 ): Promise<Params> {
-  const prerenderStore = workUnitAsyncStorage.getStore()
-  if (
-    prerenderStore &&
-    (prerenderStore.type === 'prerender' ||
-      prerenderStore.type === 'prerender-client')
-  ) {
-    const fallbackParams = workStore.fallbackRouteParams
-    if (fallbackParams) {
-      for (let key in underlyingParams) {
-        if (fallbackParams.has(key)) {
-          // This params object has one of more fallback params so we need to consider
-          // the awaiting of this params object "dynamic". Since we are in dynamicIO mode
-          // we encode this as a promise that never resolves
-          return makeHangingPromise(prerenderStore.renderSignal, '`params`')
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-client':
+        const fallbackParams = workStore.fallbackRouteParams
+        if (fallbackParams) {
+          for (let key in underlyingParams) {
+            if (fallbackParams.has(key)) {
+              // This params object has one or more fallback params, so we need
+              // to consider the awaiting of this params object "dynamic". Since
+              // we are in dynamicIO mode we encode this as a promise that never
+              // resolves.
+              return makeHangingPromise(workUnitStore.renderSignal, '`params`')
+            }
+          }
         }
-      }
+        break
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'request':
+      case 'cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
   // We're prerendering in a mode that does not abort. We resolve the promise without
@@ -168,13 +190,16 @@ function createPrerenderParams(
         case 'prerender-client':
           // We are in a dynamicIO prerender
           return makeHangingParams(underlyingParams, prerenderStore)
-        default:
+        case 'prerender-ppr':
+        case 'prerender-legacy':
           return makeErroringExoticParams(
             underlyingParams,
             fallbackParams,
             workStore,
             prerenderStore
           )
+        default:
+          prerenderStore satisfies never
       }
     }
   }
@@ -516,15 +541,25 @@ function syncIODev(
   missingProperties?: Array<string>
 ) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
-    // When we're rendering dynamically in dev we need to advance out of the
-    // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'request':
+        if (workUnitStore.prerenderPhase === true) {
+          // When we're rendering dynamically in dev, we need to advance out of
+          // the Prerender environment when we read Request data synchronously.
+          trackSynchronousRequestDataAccessInDev(workUnitStore)
+        }
+        break
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
   // In all cases we warn normally
   if (missingProperties && missingProperties.length > 0) {

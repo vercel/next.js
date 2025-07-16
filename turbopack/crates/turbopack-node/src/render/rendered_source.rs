@@ -207,7 +207,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
             self.debug,
         )
         .issue_file_path(
-            entry.module.ident().path().await?.clone_value(),
+            entry.module.ident().path().owned().await?,
             format!("server-side rendering {pathname}"),
         )
         .await?;

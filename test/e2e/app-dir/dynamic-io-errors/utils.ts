@@ -1,6 +1,7 @@
 // Used to deterministically stub out minified local names in stack traces.
 const abc = 'abcdefghijklmnopqrstuvwxyz'
 const hostElementsUsedInFixtures = ['html', 'body', 'main', 'div']
+const ignoredLines = ['Generating static pages', 'Inlining static env']
 
 export function getPrerenderOutput(
   cliOutput: string,
@@ -31,7 +32,10 @@ export function getPrerenderOutput(
       break
     }
 
-    if (foundPrerenderingLine && !line.includes('Generating static pages')) {
+    if (
+      foundPrerenderingLine &&
+      !ignoredLines.some((ignoredLine) => line.includes(ignoredLine))
+    ) {
       if (isMinified) {
         line = line
           .replace(/at \S+ \(.next[^)]+\)/, replaceNextDistStackFrame)

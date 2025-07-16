@@ -853,10 +853,43 @@ async fn directory_tree_to_loader_tree(
         plain_tree,
         app_page,
         for_app_path,
+        AppDirModules::default(),
     )
     .await?;
 
     Ok(Vc::cell(tree.map(AppPageLoaderTree::resolved_cell)))
+}
+
+/// Checks the current module if it needs to be updated with the default page.
+/// If the module is already set, update the parent module to the same value.
+/// If the parent module is set and module is not set, set the module to the parent module.
+/// If the module and the parent module are not set, set them to the default value.
+///
+/// # Arguments
+/// * `app_dir` - The application directory.
+/// * `module` - The current module to check and update if it is not set.
+/// * `parent_module` - The parent module to update if the current module is set or both are not
+///   set.
+/// * `file_path` - The file path to the default page if neither the current module nor the parent
+///   module is set.
+async fn check_and_update_module_references(
+    app_dir: FileSystemPath,
+    module: &mut Option<FileSystemPath>,
+    parent_module: &mut Option<FileSystemPath>,
+    file_path: &str,
+) -> Result<()> {
+    match (module.as_mut(), parent_module.as_mut()) {
+        (Some(module), _) => *parent_module = Some(module.clone()),
+        (None, Some(parent_module)) => *module = Some(parent_module.clone()),
+        (None, None) => {
+            let default_page = get_next_package(app_dir.clone()).await?.join(file_path)?;
+
+            *module = Some(default_page.clone());
+            *parent_module = Some(default_page);
+        }
+    }
+
+    Ok(())
 }
 
 async fn directory_tree_to_loader_tree_internal(
@@ -867,6 +900,7 @@ async fn directory_tree_to_loader_tree_internal(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
+    mut parent_modules: AppDirModules,
 ) -> Result<Option<AppPageLoaderTree>> {
     let app_path = AppPath::from(app_page.clone());
 
@@ -887,34 +921,37 @@ async fn directory_tree_to_loader_tree_internal(
     let is_root_layout = app_path.is_root() && modules.layout.is_some();
 
     if is_root_directory || is_root_layout {
-        if modules.not_found.is_none() {
-            modules.not_found = Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/not-found.js")?,
-            );
-        }
-        if modules.forbidden.is_none() {
-            modules.forbidden = Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/forbidden.js")?,
-            );
-        }
-        if modules.unauthorized.is_none() {
-            modules.unauthorized = Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/unauthorized.js")?,
-            );
-        }
-        if modules.global_error.is_none() {
-            modules.global_error = Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/global-error.js")?,
-            );
-        }
+        check_and_update_module_references(
+            app_dir.clone(),
+            &mut modules.not_found,
+            &mut parent_modules.not_found,
+            "dist/client/components/builtin/not-found.js",
+        )
+        .await?;
+
+        check_and_update_module_references(
+            app_dir.clone(),
+            &mut modules.forbidden,
+            &mut parent_modules.forbidden,
+            "dist/client/components/builtin/forbidden.js",
+        )
+        .await?;
+
+        check_and_update_module_references(
+            app_dir.clone(),
+            &mut modules.unauthorized,
+            &mut parent_modules.unauthorized,
+            "dist/client/components/builtin/unauthorized.js",
+        )
+        .await?;
+
+        check_and_update_module_references(
+            app_dir.clone(),
+            &mut modules.global_error,
+            &mut parent_modules.global_error,
+            "dist/client/components/builtin/global-error.js",
+        )
+        .await?;
     }
 
     let mut tree = AppPageLoaderTree {
@@ -977,6 +1014,7 @@ async fn directory_tree_to_loader_tree_internal(
             subdirectory,
             child_app_page.clone(),
             for_app_path.clone(),
+            parent_modules.clone(),
         ))
         .await?;
 
@@ -1353,7 +1391,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             },
             global_metadata,
         }
-        .resolved_cell();
+            .resolved_cell();
 
         {
             let app_page = app_page

@@ -72,17 +72,6 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       return makeUntrackedExoticCookies(underlyingCookies)
     }
 
-    if (workUnitStore) {
-      if (workUnitStore.type === 'cache') {
-        throw new Error(
-          `Route ${workStore.route} used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-        )
-      } else if (workUnitStore.type === 'unstable-cache') {
-        throw new Error(
-          `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-        )
-      }
-    }
     if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
         `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
@@ -91,6 +80,14 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
+        case 'cache':
+          throw new Error(
+            `Route ${workStore.route} used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+          )
+        case 'unstable-cache':
+          throw new Error(
+            `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          )
         case 'prerender':
           return makeHangingCookies(workUnitStore)
         case 'prerender-client':
@@ -99,32 +96,28 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
         case 'prerender-ppr':
-          // PPR Prerender (no dynamicIO)
-          // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how cookies has worked in PPR without dynamicIO.
-          postponeWithTracking(
+          // We need track dynamic access here eagerly to keep continuity with
+          // how cookies has worked in PPR without dynamicIO.
+          return postponeWithTracking(
             workStore.route,
             callingExpression,
             workUnitStore.dynamicTracking
           )
-          break
         case 'prerender-legacy':
-          // Legacy Prerender
-          // We track dynamic access here so we don't need to wrap the cookies in
-          // individual property access tracking.
-          throwToInterruptStaticGeneration(
+          // We track dynamic access here so we don't need to wrap the cookies
+          // in individual property access tracking.
+          return throwToInterruptStaticGeneration(
             callingExpression,
             workStore,
             workUnitStore
           )
+        case 'request':
+          trackDynamicDataInDynamicRender(workUnitStore)
           break
         default:
-        // fallthrough
+          workUnitStore satisfies never
       }
     }
-    // We fall through to the dynamic context below but we still track dynamic access
-    // because in dev we can still error for things like using cookies inside a cache context
-    trackDynamicDataInDynamicRender(workStore, workUnitStore)
   }
 
   // cookies is being called in a dynamic context
@@ -459,16 +452,28 @@ function describeNameArg(arg: unknown) {
 
 function syncIODev(route: string | undefined, expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
-    // When we're rendering dynamically in dev we need to advance out of the
-    // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'request':
+        if (workUnitStore.prerenderPhase === true) {
+          // When we're rendering dynamically in dev, we need to advance out of
+          // the Prerender environment when we read Request data synchronously.
+          trackSynchronousRequestDataAccessInDev(workUnitStore)
+        }
+        break
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
+
   // In all cases we warn normally
   warnForSyncAccess(route, expression)
 }

@@ -117,7 +117,7 @@ function startObservingForPortal() {
         cache.isObserving = false
       } else {
         // Try again after a short delay
-        setTimeout(checkShadowRoot, 50)
+        setTimeout(checkShadowRoot, 20)
       }
     }
     checkShadowRoot()

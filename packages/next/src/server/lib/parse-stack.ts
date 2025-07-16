@@ -3,7 +3,10 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
 const regexNextStatic = /\/_next(\/static\/.+)/
 
-export function parseStack(stack: string): StackFrame[] {
+export function parseStack(
+  stack: string,
+  distDir = process.env.__NEXT_DIST_DIR
+): StackFrame[] {
   if (!stack) return []
 
   // throw away eval information that stacktrace-parser doesn't support
@@ -28,11 +31,12 @@ export function parseStack(stack: string): StackFrame[] {
       const url = new URL(frame.file!)
       const res = regexNextStatic.exec(url.pathname)
       if (res) {
-        const distDir = process.env.__NEXT_DIST_DIR
+        const effectiveDistDir = distDir
           ?.replace(/\\/g, '/')
           ?.replace(/\/$/, '')
-        if (distDir) {
-          frame.file = 'file://' + distDir.concat(res.pop()!) + url.search
+        if (effectiveDistDir) {
+          frame.file =
+            'file://' + effectiveDistDir.concat(res.pop()!) + url.search
         }
       }
     } catch {}

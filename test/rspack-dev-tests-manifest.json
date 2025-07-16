@@ -440,11 +440,19 @@
   },
   "packages/next/src/build/static-paths/app.test.ts": {
     "passed": [
-      "assignErrorIfEmpty should assign throwOnEmptyStaticShell false for a static route",
-      "assignErrorIfEmpty should assign throwOnEmptyStaticShell to the prerendered routes",
+      "assignErrorIfEmpty should assign throwOnEmptyStaticShell based on route hierarchy",
+      "assignErrorIfEmpty should assign throwOnEmptyStaticShell true for a static route with no children",
+      "assignErrorIfEmpty should handle blog/[slug] not throwing when concrete routes exist (from docs example)",
+      "assignErrorIfEmpty should handle catch-all routes with different fallback parameter counts (from docs example)",
+      "assignErrorIfEmpty should handle empty input",
       "assignErrorIfEmpty should handle more complex routes",
+      "assignErrorIfEmpty should handle multiple routes at the same trie node",
+      "assignErrorIfEmpty should handle nested routes with multiple parameter depths",
+      "assignErrorIfEmpty should handle parameter value collisions",
+      "assignErrorIfEmpty should handle routes at same trie node with different fallback parameter lengths",
       "filterUniqueParams should filter out duplicate parameters",
       "filterUniqueParams should handle more complex routes",
+      "filterUniqueRootParamsCombinations should handle multiple root parameters",
       "filterUniqueRootParamsCombinations should return only the root parameters"
     ],
     "failed": [],
@@ -994,6 +1002,25 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/next-devtools/userspace/app/forward-logs.test.ts": {
+    "passed": [
+      "forward-logs serialization logStringify should handle objects with circular references",
+      "forward-logs serialization logStringify should return UNAVAILABLE_MARKER on stringify failure",
+      "forward-logs serialization logStringify should stringify safe cloned data",
+      "forward-logs serialization safeClone should handle array items that throw",
+      "forward-logs serialization safeClone should handle arrays",
+      "forward-logs serialization safeClone should handle circular references",
+      "forward-logs serialization safeClone should handle non-plain objects as toString",
+      "forward-logs serialization safeClone should handle objects with getters that throw",
+      "forward-logs serialization safeClone should handle plain objects",
+      "forward-logs serialization safeClone should handle primitive values and null",
+      "forward-logs serialization safeClone should handle promises"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/after/after-context.test.ts": {
     "passed": [
       "AfterContext does NOT shadow workAsyncStorage within after callbacks",
@@ -1098,6 +1125,20 @@
       "loadConfig nextConfig.images defaults should not assign a duplicate `images.remotePatterns` value when using assetPrefix",
       "loadConfig with a canary version errors when dynamicIO is enabled but PPR is disabled",
       "loadConfig with a canary version errors when dynamicIO is enabled but PPR set to \"incremental\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/dev/browser-logs/receive-logs.test.ts": {
+    "passed": [
+      "stripFormatSpecifiers should handle % at end of string",
+      "stripFormatSpecifiers should handle escaped percent signs",
+      "stripFormatSpecifiers should only process when first arg is string containing %",
+      "stripFormatSpecifiers should preserve excess arguments after all specifiers consumed",
+      "stripFormatSpecifiers should replace format specifiers with their arguments",
+      "stripFormatSpecifiers should strip CSS styling from %c format specifier"
     ],
     "failed": [],
     "pending": [],
@@ -1234,6 +1275,25 @@
     "passed": [
       "decoding path params should decode path params",
       "decoding path params should throw an error when the path param is improperly encoded"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/source-maps.test.ts": {
+    "passed": [
+      "does not hide sandwiches without a lid",
+      "does not ignore list anonymous frames by default",
+      "does not ignore list anonymous frames that are not likely JS native methods",
+      "does not ignore list anonymous frames where the bottom is shown",
+      "does not ignore list if bottom is not ignore-listed",
+      "does not ignore list if bottom is unknown",
+      "does not ignore list if top is not ignore-listed",
+      "does not ignore list if top is unknown",
+      "hides big macs",
+      "hides big sandwiches",
+      "hides small sandwiches"
     ],
     "failed": [],
     "pending": [],
@@ -1854,11 +1914,13 @@
       "ReactRefreshLogBox app Call stack for client error",
       "ReactRefreshLogBox app Call stack for server error",
       "ReactRefreshLogBox app Server component errors should open up in fullscreen",
+      "ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app Should show error location for server actions in client component",
       "ReactRefreshLogBox app Should show error location for server actions in server component",
+      "ReactRefreshLogBox app Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app boundaries",
+      "ReactRefreshLogBox app conversion to class component (1)",
       "ReactRefreshLogBox app logbox: anchors links in error messages",
-      "ReactRefreshLogBox app server component can recover from error thrown in the module",
       "ReactRefreshLogBox app should hide unrelated frames in stack trace with nodejs internal calls",
       "ReactRefreshLogBox app should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app should strip whitespace correctly with newline"
@@ -1866,11 +1928,9 @@
     "failed": [
       "ReactRefreshLogBox app Can't resolve @import in CSS file",
       "ReactRefreshLogBox app Import trace when module not found in layout",
-      "ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function",
-      "ReactRefreshLogBox app Unhandled errors and rejections opens up in the minimized state",
-      "ReactRefreshLogBox app conversion to class component (1)",
       "ReactRefreshLogBox app css syntax errors",
       "ReactRefreshLogBox app module init error not shown",
+      "ReactRefreshLogBox app server component can recover from error thrown in the module",
       "ReactRefreshLogBox app should collapse bundler internal stack frames",
       "ReactRefreshLogBox app unterminated JSX"
     ],
@@ -1982,16 +2042,16 @@
   "test/development/acceptance-app/error-recovery.test.ts": {
     "passed": [
       "Error recovery app can recover from a event handler error",
-      "Error recovery app server component can recover from a component error"
+      "Error recovery app client component can recover from a component error",
+      "Error recovery app server component can recover from a component error",
+      "Error recovery app stuck error"
     ],
     "failed": [
       "Error recovery app can recover from a syntax error without losing state",
-      "Error recovery app client component can recover from a component error",
       "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
       "Error recovery app server component can recover from syntax error",
-      "Error recovery app stuck error",
       "Error recovery app syntax > runtime error"
     ],
     "pending": [],
@@ -2191,6 +2251,8 @@
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox Call stack count is correct for pages error",
+      "ReactRefreshLogBox boundaries",
+      "ReactRefreshLogBox conversion to class component (1)",
       "ReactRefreshLogBox logbox: anchors links in error messages",
       "ReactRefreshLogBox non-Error errors are handled properly",
       "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace",
@@ -2198,8 +2260,6 @@
       "ReactRefreshLogBox should strip whitespace correctly with newline"
     ],
     "failed": [
-      "ReactRefreshLogBox boundaries",
-      "ReactRefreshLogBox conversion to class component (1)",
       "ReactRefreshLogBox css syntax errors",
       "ReactRefreshLogBox module init error not shown",
       "ReactRefreshLogBox unterminated JSX"
@@ -2256,13 +2316,13 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "pages/ error recovery logbox: can recover from a event handler error"
+      "pages/ error recovery logbox: can recover from a component error",
+      "pages/ error recovery logbox: can recover from a event handler error",
+      "pages/ error recovery stuck error"
     ],
     "failed": [
-      "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a syntax error without losing state",
       "pages/ error recovery render error not shown right after syntax error",
-      "pages/ error recovery stuck error",
       "pages/ error recovery syntax > runtime error"
     ],
     "pending": [],
@@ -2438,13 +2498,13 @@
   },
   "test/development/app-dir/dynamic-io-dev-errors/dynamic-io-dev-errors.test.ts": {
     "passed": [
+      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary",
       "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
       "Dynamic IO Dev Errors should show a red box error on client navigations",
       "Dynamic IO Dev Errors should show a red box error on the SSR render"
     ],
     "failed": [
-      "Dynamic IO Dev Errors should clear segment errors after correcting them",
-      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary"
+      "Dynamic IO Dev Errors should clear segment errors after correcting them"
     ],
     "pending": [],
     "flakey": [],
@@ -2684,6 +2744,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/react-performance-track/react-performance-track.test.ts": {
+    "passed": [
+      "react-performance-track should show fetch",
+      "react-performance-track should show setTimeout"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/segment-explorer-globals/segment-explorer-globals.test.ts": {
     "passed": [
       "segment-explorer - globals should display parallel routes default page when present",
@@ -2697,10 +2767,12 @@
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
     "passed": [
       "segment-explorer should cleanup on soft navigation",
+      "segment-explorer should display boundary selector when a segment has only boundary files",
       "segment-explorer should display parallel routes default page when present",
       "segment-explorer should handle show file segments in order",
       "segment-explorer should handle special built-in not-found segments",
       "segment-explorer should indicate segment explorer is not available for pages router",
+      "segment-explorer should render route for index page",
       "segment-explorer should render the segment explorer for nested routes",
       "segment-explorer should render the segment explorer for parallel routes",
       "segment-explorer should render the segment explorer for parallel routes in edge runtime",
@@ -2891,10 +2963,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3010,10 +3082,12 @@
   },
   "test/development/basic/hmr/error-recovery-no-base-path-no-asset-prefix.test.ts": {
     "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after undefined exported as default",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after webpack parse error in an imported file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
@@ -3024,9 +3098,7 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "pending": [],
     "flakey": [],
@@ -3034,10 +3106,12 @@
   },
   "test/development/basic/hmr/error-recovery-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after undefined exported as default",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after webpack parse error in an imported file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
@@ -3048,9 +3122,7 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
     ],
     "pending": [],
     "flakey": [],
@@ -3058,10 +3130,12 @@
   },
   "test/development/basic/hmr/error-recovery-yes-base-path-no-asset-prefix.test.ts": {
     "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after undefined exported as default",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after webpack parse error in an imported file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
@@ -3072,9 +3146,7 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "pending": [],
     "flakey": [],
@@ -3082,10 +3154,12 @@
   },
   "test/development/basic/hmr/error-recovery-yes-base-path-yes-asset-prefix.test.ts": {
     "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after undefined exported as default",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after webpack parse error in an imported file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
@@ -3096,9 +3170,7 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
     ],
     "pending": [],
     "flakey": [],
@@ -3448,6 +3520,25 @@
   },
   "test/development/basic/theme-ui/theme-ui.test.ts": {
     "passed": ["theme-ui SWC option should have theme provided styling"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/browser-logs/browser-logs.test.ts": {
+    "passed": [
+      "Terminal Logging (Webpack) App Router - Client Components should forward client component logs in app router",
+      "Terminal Logging (Webpack) App Router - Client Components should show source-mapped errors for client components",
+      "Terminal Logging (Webpack) App Router - Edge Runtime should handle edge runtime errors with source mapping",
+      "Terminal Logging (Webpack) App Router - Server Components should not re-log server component logs",
+      "Terminal Logging (Webpack) App Router - Server Components should show source-mapped errors for server components",
+      "Terminal Logging (Webpack) Configuration Options showSourceLocation disabled should omit source location when disabled",
+      "Terminal Logging (Webpack) Pages Router should forward client component logs",
+      "Terminal Logging (Webpack) Pages Router should handle circular references safely",
+      "Terminal Logging (Webpack) Pages Router should respect default depth limit",
+      "Terminal Logging (Webpack) Pages Router should show source-mapped errors for server errors from pages router ",
+      "Terminal Logging (Webpack) Pages Router should show source-mapped errors in pages router"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -3889,7 +3980,6 @@
       "Client Navigation rendering Rendering via HTTP asPath",
       "Client Navigation rendering Rendering via HTTP default Content-Type",
       "Client Navigation rendering Rendering via HTTP default export is not a React Component",
-      "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
       "Client Navigation rendering Rendering via HTTP error-inside-page",
       "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
       "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
@@ -3915,7 +4005,9 @@
       "Client Navigation rendering Rendering via HTTP with the HOC based router should include asPath",
       "Client Navigation rendering Rendering via HTTP with the HOC based router should navigate as expected"
     ],
-    "failed": [],
+    "failed": [
+      "Client Navigation rendering Rendering via HTTP error-in-the-global-scope"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5546,6 +5638,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/conflicting-search-and-route-params/conflicting-search-and-route-params.test.ts": {
+    "passed": [
+      "conflicting-search-and-route-params should handle conflicting search and route params on API route",
+      "conflicting-search-and-route-params should handle conflicting search and route params on page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/create-root-layout/create-root-layout.test.ts": {
     "passed": [
       "app-dir create root layout page.js find available dir create root layout",
@@ -5999,16 +6101,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.platform-dynamic.test.ts": {
-    "passed": [
-      "Dynamic IO Errors - Dev Sync Dynamic - With Fallback - Math.random() should not show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Sync Dynamic - Without Fallback - Math.random() should show a collapsed redbox error"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-errors.test.ts": {
     "passed": [
       "Dynamic IO Prospective Render Errors - Debug Build should error on the first visit to each page",
@@ -6019,52 +6111,38 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
-    "passed": [
-      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
-      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should show a collapsed redbox error"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
-    "passed": [
-      "Dynamic IO Errors - Dev Sync Dynamic - client params should return `undefined` for `params.slug`",
-      "Dynamic IO Errors - Dev Sync Dynamic - client params should show a collapsed redbox with a sync access error",
-      "Dynamic IO Errors - Dev Sync Dynamic - client searchParams should return `undefined` for `searchParams.foo`",
-      "Dynamic IO Errors - Dev Sync Dynamic - client searchParams should show a collapsed redbox with a sync access error",
-      "Dynamic IO Errors - Dev Sync Dynamic - draftMode should return `undefined` for `draftMode().isEnabled`",
-      "Dynamic IO Errors - Dev Sync Dynamic - server params should return `undefined` for `params.slug`",
-      "Dynamic IO Errors - Dev Sync Dynamic - server params should show a collapsed redbox with a sync access error",
-      "Dynamic IO Errors - Dev Sync Dynamic - server searchParams should return `undefined` for `searchParams.foo`",
-      "Dynamic IO Errors - Dev Sync Dynamic - server searchParams should show a collapsed redbox with a sync access error"
-    ],
-    "failed": [
-      "Dynamic IO Errors - Dev Sync Dynamic - cookies should show a redbox with a sync access error and a runtime error",
-      "Dynamic IO Errors - Dev Sync Dynamic - draftMode should show a collapsed redbox with a sync access error",
-      "Dynamic IO Errors - Dev Sync Dynamic - headers should show a redbox with a sync access error and a runtime error"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.test.ts": {
     "passed": [
-      "Dynamic IO Errors - Dev Dynamic Boundary should not show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Metadata - Dynamic Route should not show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Metadata - Error Route should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Metadata - Static Route With Suspense should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Metadata - Static Route should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Root should show a collapsed redbox with two errors",
-      "Dynamic IO Errors - Dev Dynamic Viewport - Dynamic Route should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Dynamic Viewport - Static Route should show a collapsed redbox error",
-      "Dynamic IO Errors - Dev Static Route should not show a collapsed redbox error"
+      "Dynamic IO Errors Dev Dynamic Boundary should not show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Metadata - Dynamic Route should not show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Metadata - Error Route should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Metadata - Static Route With Suspense should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Metadata - Static Route should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Root should show a collapsed redbox with two errors",
+      "Dynamic IO Errors Dev Dynamic Viewport - Dynamic Route should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Dynamic Viewport - Static Route should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Error Attribution with Sync IO Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
+      "Dynamic IO Errors Dev Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Static Route should not show a collapsed redbox error",
+      "Dynamic IO Errors Dev Sync Dynamic Platform With Fallback - Math.random() should not show a collapsed redbox error",
+      "Dynamic IO Errors Dev Sync Dynamic Platform Without Fallback - Math.random() should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Sync Dynamic Request client params should return `undefined` for `params.slug`",
+      "Dynamic IO Errors Dev Sync Dynamic Request client params should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should return `undefined` for `searchParams.foo`",
+      "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors Dev Sync Dynamic Request draftMode should return `undefined` for `draftMode().isEnabled`",
+      "Dynamic IO Errors Dev Sync Dynamic Request server params should return `undefined` for `params.slug`",
+      "Dynamic IO Errors Dev Sync Dynamic Request server params should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors Dev Sync Dynamic Request server searchParams should return `undefined` for `searchParams.foo`",
+      "Dynamic IO Errors Dev Sync Dynamic Request server searchParams should show a collapsed redbox with a sync access error"
     ],
-    "failed": [],
+    "failed": [
+      "Dynamic IO Errors Dev Sync Dynamic Request cookies should show a redbox with a sync access error and a runtime error",
+      "Dynamic IO Errors Dev Sync Dynamic Request draftMode should show a collapsed redbox with a sync access error",
+      "Dynamic IO Errors Dev Sync Dynamic Request headers should show a redbox with a sync access error and a runtime error"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6094,6 +6172,13 @@
       "dynamic-io should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
       "dynamic-io should partially prerender pages that use connection"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-io/dynamic-io.console.test.ts": {
+    "passed": ["dynamic-io dims console calls during prospective rendering"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6247,6 +6332,7 @@
       "dynamic-io should fully prerender pages that use `unstable_noStore()`",
       "dynamic-io should not have route specific errors",
       "dynamic-io should not log not-found errors",
+      "dynamic-io should not resume when client components are dynamic but the RSC render was static",
       "dynamic-io should partially prerender pages that do any uncached IO",
       "dynamic-io should partially prerender pages that do any uncached IO (use cache)",
       "dynamic-io should partially prerender pages that take longer than a task to render",
@@ -7791,10 +7877,10 @@
       "non-root-project-monorepo import.meta.url should work on client-side",
       "non-root-project-monorepo monorepo-package should work during RSC",
       "non-root-project-monorepo monorepo-package should work during SSR",
-      "non-root-project-monorepo monorepo-package should work on client-side",
-      "non-root-project-monorepo source-maps should work on RSC"
+      "non-root-project-monorepo monorepo-package should work on client-side"
     ],
     "failed": [
+      "non-root-project-monorepo source-maps should work on RSC",
       "non-root-project-monorepo source-maps should work on SSR",
       "non-root-project-monorepo source-maps should work on client-side"
     ],
@@ -7811,6 +7897,24 @@
       "app dir - not found with default 404 page should render default 404 with root layout for non-existent page",
       "app dir - not found with default 404 page should render default not found for group routes if not found is not defined",
       "app dir - not found with default 404 page should return 404 status code for default not-found page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/not-found-with-layout-and-group-not-found/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts and custom not-found should render the custom not-found page when notFound() is thrown from a page within the group"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/not-found-with-nested-layouts/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts should render the custom not-found page when notFound() is thrown from a page"
     ],
     "failed": [],
     "pending": [],
@@ -8697,6 +8801,26 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.legacy.test.ts": {
+    "passed": [
+      "router smooth scroll optimization (legacy with data attribute) should not warn when data attribute is present even in legacy mode",
+      "router smooth scroll optimization (legacy) should work with smooth scroll CSS and warn in development"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.optimized.test.ts": {
+    "passed": [
+      "router smooth scroll optimization (optimized early exit) should exit early when CSS smooth scroll detected but no data attribute",
+      "router smooth scroll optimization (optimized) should work with smooth scroll CSS and data attribute without warning"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/router-stuck-dynamic-static-segment/router-stuck-dynamic-static-segment.test.ts": {
     "passed": [
       "router-stuck-dynamic-static-segment should allow navigation between dynamic parameter and static parameter of the same value"
@@ -9421,6 +9545,7 @@
   "test/e2e/app-dir/server-source-maps/server-source-maps.test.ts": {
     "passed": [
       "app-dir - server source maps handles invalid sourcemaps gracefully",
+      "app-dir - server source maps ignore-lists anonymous ssr stack frame sandwiches",
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
       "app-dir - server source maps logged errors preserve their name",
@@ -9428,6 +9553,8 @@
       "app-dir - server source maps thrown SSR errors"
     ],
     "failed": [
+      "app-dir - server source maps ignore-lists anonymous rsc stack frame sandwiches",
+      "app-dir - server source maps sourcemaps errors during module evaluation",
       "app-dir - server source maps stack frames are ignore-listed in rsc"
     ],
     "pending": [],
@@ -9752,6 +9879,16 @@
       "use-cache-unknown-cache-kind should recover from the build error if the cache handler is defined"
     ],
     "failed": ["use-cache-unknown-cache-kind should show a build error"],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-with-server-function-props/use-cache-with-server-function-props.test.ts": {
+    "passed": [
+      "use-cache-with-server-function-props should be able to use inline server actions as props",
+      "use-cache-with-server-function-props should be able to use nested cache functions as props"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

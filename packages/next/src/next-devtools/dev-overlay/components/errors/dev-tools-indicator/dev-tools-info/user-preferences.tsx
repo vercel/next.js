@@ -16,23 +16,59 @@ import {
   type DevToolsIndicatorPosition,
   type DevToolsScale,
 } from './preferences'
+import { ShortcutRecorder } from './shortcut-recorder'
 
 export function UserPreferences({
-  setPosition,
-  position,
   hide,
-  scale,
+  hideShortcut,
+  setHideShortcut,
   setScale,
+  scale,
+  position,
+  setPosition,
   ...props
 }: {
+  hide: () => void
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
   setPosition: (position: DevToolsIndicatorPosition) => void
   position: DevToolsIndicatorPosition
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
-  hide: () => void
 } & DevToolsInfoPropsCore &
   Omit<HTMLProps<HTMLDivElement>, 'size'>) {
-  // derive initial theme from system preference
+  return (
+    <DevToolsInfo title="Preferences" {...props}>
+      <UserPreferencesBody
+        scale={scale}
+        position={position}
+        setPosition={setPosition}
+        setScale={setScale}
+        hide={hide}
+        hideShortcut={hideShortcut}
+        setHideShortcut={setHideShortcut}
+      />
+    </DevToolsInfo>
+  )
+}
+
+export function UserPreferencesBody({
+  hide,
+  hideShortcut,
+  setHideShortcut,
+  scale,
+  setPosition,
+  setScale,
+  position,
+}: {
+  hide: () => void
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
+  setPosition: (position: DevToolsIndicatorPosition) => void
+  position: DevToolsIndicatorPosition
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
+}) {
   const [theme, setTheme] = useState(getInitialTheme())
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -85,7 +121,7 @@ export function UserPreferences({
   }
 
   return (
-    <DevToolsInfo title="Preferences" {...props}>
+    <>
       <h2 className="dev-tools-info-section-title">General</h2>
       <div className="preferences-container">
         <div className="preference-section">
@@ -174,6 +210,21 @@ export function UserPreferences({
 
         <div className="preference-section">
           <div className="preference-header">
+            <label id="hide-dev-tools">Hide Dev Tools shortcut</label>
+            <p className="preference-description">
+              Set a custom keyboard shortcut to toggle visibility.
+            </p>
+          </div>
+          <div className="preference-control">
+            <ShortcutRecorder
+              value={hideShortcut?.split('+') ?? null}
+              onChange={setHideShortcut}
+            />
+          </div>
+        </div>
+
+        <div className="preference-section">
+          <div className="preference-header">
             <label>Disable Dev Tools for this project</label>
             <p className="preference-description">
               To disable this UI completely, set{' '}
@@ -237,7 +288,7 @@ export function UserPreferences({
           </div>
         </div>
       ) : null}
-    </DevToolsInfo>
+    </>
   )
 }
 
@@ -328,15 +379,23 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     font-size: var(--size-14);
     color: var(--color-gray-1000);
     padding: 6px 8px;
+    transition: border-color 150ms var(--timing-swift);
 
     &:hover {
-      background: var(--color-gray-100);
+      border-color: var(--color-gray-500);
+    }
+
+    svg {
+      width: 14px;
+      height: 14px;
+      overflow: visible;
     }
   }
 
   .select-button {
     &:focus-within {
       outline: var(--focus-ring);
+      outline-offset: -1px;
     }
 
     select {
