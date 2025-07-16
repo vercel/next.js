@@ -4,6 +4,7 @@ import type { NextParsedUrlQuery } from '../../../../server/request-meta'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import type { BaseNextRequest } from '../../../../server/base-http'
 
+import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
 import {
@@ -12,7 +13,6 @@ import {
 } from './interception-routes'
 import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
 import type { Params } from '../../../../server/request/params'
-import { safePathToRegexp, safeCompile } from './route-match-utils'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -156,7 +156,7 @@ export function compileNonPath(value: string, params: Params): string {
 
   // the value needs to start with a forward-slash to be compiled
   // correctly
-  return safeCompile(`/${value}`, { validate: false })(params).slice(1)
+  return compile(`/${value}`, { validate: false })(params).slice(1)
 }
 
 export function parseDestination(args: {
@@ -222,20 +222,20 @@ export function prepareDestination(args: {
   const destParams: (string | number)[] = []
 
   const destPathParamKeys: Key[] = []
-  safePathToRegexp(destPath, destPathParamKeys)
+  pathToRegexp(destPath, destPathParamKeys)
   for (const key of destPathParamKeys) {
     destParams.push(key.name)
   }
 
   if (destHostname) {
     const destHostnameParamKeys: Key[] = []
-    safePathToRegexp(destHostname, destHostnameParamKeys)
+    pathToRegexp(destHostname, destHostnameParamKeys)
     for (const key of destHostnameParamKeys) {
       destParams.push(key.name)
     }
   }
 
-  const destPathCompiler = safeCompile(
+  const destPathCompiler = compile(
     destPath,
     // we don't validate while compiling the destination since we should
     // have already validated before we got to this point and validating
@@ -248,7 +248,7 @@ export function prepareDestination(args: {
 
   let destHostnameCompiler
   if (destHostname) {
-    destHostnameCompiler = safeCompile(destHostname, { validate: false })
+    destHostnameCompiler = compile(destHostname, { validate: false })
   }
 
   // update any params in query values
