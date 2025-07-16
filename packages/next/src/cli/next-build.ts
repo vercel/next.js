@@ -27,9 +27,6 @@ export type NextBuildOptions = {
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {
-  process.on('SIGTERM', () => process.exit(143))
-  process.on('SIGINT', () => process.exit(130))
-
   const {
     debug,
     debugPrerender,
@@ -41,6 +38,21 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     experimentalBuildMode,
     experimentalUploadTrace,
   } = options
+
+  const cleanup = () => {
+    if (experimentalDebugMemoryUsage) {
+      disableMemoryDebuggingMode()
+    }
+  }
+
+  process.on('SIGTERM', () => {
+    cleanup()
+    process.exit(143)
+  })
+  process.on('SIGINT', () => {
+    cleanup()
+    process.exit(130)
+  })
 
   let traceUploadUrl: string | undefined
   if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
@@ -102,9 +114,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     traceUploadUrl
   )
     .catch((err) => {
-      if (experimentalDebugMemoryUsage) {
-        disableMemoryDebuggingMode()
-      }
       console.error('')
       if (
         isError(err) &&
@@ -121,11 +130,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
         printAndExit(err)
       }
     })
-    .finally(() => {
-      if (experimentalDebugMemoryUsage) {
-        disableMemoryDebuggingMode()
-      }
-    })
+    .finally(cleanup)
 }
 
 export { nextBuild }
