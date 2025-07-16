@@ -2216,13 +2216,6 @@ export default async function getBaseWebpackConfig(
         : undefined,
   }
 
-  if (isRspack) {
-    // @ts-ignore
-    webpack5Config.experiments.cache = {
-      type: 'persistent',
-    }
-  }
-
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
@@ -2356,6 +2349,19 @@ export default async function getBaseWebpackConfig(
   })
 
   webpack5Config.cache = cache
+
+  if (isRspack) {
+    // @ts-ignore
+    webpack5Config.experiments.cache = {
+      type: 'persistent',
+      buildDependencies: cache.buildDependencies.config,
+      storage: {
+        type: 'filesystem',
+        directory: cache.cacheDirectory,
+      },
+      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}`,
+    }
+  }
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
     const infra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
