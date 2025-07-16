@@ -9107,6 +9107,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbo-dyn-eq-hash"
+version = "0.0.1"
+
+[[package]]
 name = "turbo-esregex"
 version = "0.1.0"
 dependencies = [
@@ -9223,6 +9227,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "triomphe 0.1.12",
+ "turbo-dyn-eq-hash",
  "turbo-rcstr",
  "turbo-tasks-build",
  "turbo-tasks-hash",

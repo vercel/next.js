@@ -1,7 +1,6 @@
 use std::{
-    any::{Any, TypeId},
     fmt::Display,
-    hash::{Hash, Hasher},
+    hash::Hash,
     mem::replace,
     sync::{Arc, Weak},
 };
@@ -10,10 +9,12 @@ use anyhow::Result;
 use indexmap::map::Entry;
 use serde::{Deserialize, Serialize, de::Visitor};
 use tokio::runtime::Handle;
+use turbo_dyn_eq_hash::{
+    DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
+};
 
 use crate::{
     FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
-    magic_any::HasherMut,
     manager::{current_task, mark_invalidator, with_turbo_tasks},
     trace::TraceRawVcs,
     util::StaticOrArc,
@@ -138,34 +139,11 @@ impl<'de> Deserialize<'de> for Invalidator {
     }
 }
 
-pub trait DynamicEqHash {
-    fn as_any(&self) -> &dyn Any;
-    fn dyn_eq(&self, other: &dyn Any) -> bool;
-    fn dyn_hash(&self, state: &mut dyn Hasher);
-}
-
-impl<T: Any + PartialEq + Eq + Hash> DynamicEqHash for T {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn dyn_eq(&self, other: &dyn Any) -> bool {
-        other
-            .downcast_ref::<Self>()
-            .map(|other| self.eq(other))
-            .unwrap_or(false)
-    }
-
-    fn dyn_hash(&self, state: &mut dyn Hasher) {
-        Hash::hash(&(TypeId::of::<Self>(), self), &mut HasherMut(state));
-    }
-}
-
 /// A user-facing reason why a task was invalidated. This should only be used
 /// for invalidation that were triggered by the user.
 ///
 /// Reasons are deduplicated, so this need to implement [Eq] and [Hash]
-pub trait InvalidationReason: DynamicEqHash + Display + Send + Sync + 'static {
+pub trait InvalidationReason: DynEq + DynHash + Display + Send + Sync + 'static {
     fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
         None
     }
@@ -176,7 +154,7 @@ pub trait InvalidationReason: DynamicEqHash + Display + Send + Sync + 'static {
 ///
 /// Reason kinds are used a hash map key, so this need to implement [Eq] and
 /// [Hash]
-pub trait InvalidationReasonKind: DynamicEqHash + Send + Sync + 'static {
+pub trait InvalidationReasonKind: DynEq + DynHash + Send + Sync + 'static {
     /// Displays a description of multiple invalidation reasons of the same
     /// kind. It is only called with two or more reasons.
     fn fmt(
@@ -186,27 +164,13 @@ pub trait InvalidationReasonKind: DynamicEqHash + Send + Sync + 'static {
     ) -> std::fmt::Result;
 }
 
-macro_rules! impl_eq_hash {
-    ($ty:ty) => {
-        impl PartialEq for $ty {
-            fn eq(&self, other: &Self) -> bool {
-                DynamicEqHash::dyn_eq(self, other.as_any())
-            }
-        }
+impl_partial_eq_for_dyn!(dyn InvalidationReason);
+impl_eq_for_dyn!(dyn InvalidationReason);
+impl_hash_for_dyn!(dyn InvalidationReason);
 
-        impl Eq for $ty {}
-
-        impl Hash for $ty {
-            fn hash<H: Hasher>(&self, state: &mut H) {
-                self.as_any().type_id().hash(state);
-                DynamicEqHash::dyn_hash(self, state as &mut dyn Hasher)
-            }
-        }
-    };
-}
-
-impl_eq_hash!(dyn InvalidationReason);
-impl_eq_hash!(dyn InvalidationReasonKind);
+impl_partial_eq_for_dyn!(dyn InvalidationReasonKind);
+impl_eq_for_dyn!(dyn InvalidationReasonKind);
+impl_hash_for_dyn!(dyn InvalidationReasonKind);
 
 #[derive(PartialEq, Eq, Hash)]
 enum MapKey {
