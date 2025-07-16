@@ -3,6 +3,7 @@ import type RenderResult from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
 import type { NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
+import type { PrerenderManifest } from '../../../build'
 
 import {
   renderToHTMLOrFlight,
@@ -17,6 +18,8 @@ import * as vendoredContexts from './vendored/contexts/entrypoints'
 import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
 import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { FallbackRouteParams } from '../../request/fallback-params'
+import { PrerenderManifestMatcher } from './helpers/prerender-manifest-matcher'
+import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -65,6 +68,28 @@ export class AppPageRouteModule extends RouteModule<
   ) {
     super(options)
     this.isAppRouter = true
+  }
+
+  private matchers = new WeakMap<
+    DeepReadonly<PrerenderManifest>,
+    PrerenderManifestMatcher
+  >()
+  public match(
+    pathname: string,
+    prerenderManifest: DeepReadonly<PrerenderManifest>
+  ) {
+    // Lazily create the matcher based on the provided prerender manifest.
+    let matcher = this.matchers.get(prerenderManifest)
+    if (!matcher) {
+      matcher = new PrerenderManifestMatcher(
+        this.definition.pathname,
+        prerenderManifest
+      )
+      this.matchers.set(prerenderManifest, matcher)
+    }
+
+    // Match the pathname to the dynamic route.
+    return matcher.match(pathname)
   }
 
   public render(

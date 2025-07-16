@@ -2249,6 +2249,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/dynamic-io/dynamic-io.console.test.ts": {
+    "passed": ["dynamic-io dims console calls during prospective rendering"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/dynamic-io/dynamic-io.cookies.test.ts": {
     "passed": [
       "dynamic-io should be able to access cookie properties",
@@ -2398,6 +2405,7 @@
       "dynamic-io does not prerender pages with parallel routes that uses a dynamic API",
       "dynamic-io should fully prerender pages that use `unstable_noStore()`",
       "dynamic-io should not have route specific errors",
+      "dynamic-io should not resume when client components are dynamic but the RSC render was static",
       "dynamic-io should not warn about potential memory leak for even listeners on AbortSignal",
       "dynamic-io should partially prerender pages that do any uncached IO",
       "dynamic-io should partially prerender pages that do any uncached IO (use cache)",
@@ -5049,6 +5057,26 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.legacy.test.ts": {
+    "passed": [
+      "router smooth scroll optimization (legacy with data attribute) should not warn when data attribute is present even in legacy mode",
+      "router smooth scroll optimization (legacy) should work with smooth scroll CSS and warn in development"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.optimized.test.ts": {
+    "passed": [
+      "router smooth scroll optimization (optimized early exit) should exit early when CSS smooth scroll detected but no data attribute",
+      "router smooth scroll optimization (optimized) should work with smooth scroll CSS and data attribute without warning"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/router-stuck-dynamic-static-segment/router-stuck-dynamic-static-segment.test.ts": {
     "passed": [
       "router-stuck-dynamic-static-segment should allow navigation between dynamic parameter and static parameter of the same value"
@@ -5834,6 +5862,8 @@
   "test/e2e/app-dir/server-source-maps/server-source-maps.test.ts": {
     "passed": [
       "app-dir - server source maps handles invalid sourcemaps gracefully",
+      "app-dir - server source maps ignore-lists anonymous rsc stack frame sandwiches",
+      "app-dir - server source maps ignore-lists anonymous ssr stack frame sandwiches",
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
       "app-dir - server source maps logged errors preserve their name",
@@ -19647,10 +19677,11 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm",
+      "pnpm support should build with dependencies installed via pnpm"
+    ],
+    "failed": [
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    devtoolNewPanelUI: true,
+    devtoolSegmentExplorer: true,
   },
 }
 

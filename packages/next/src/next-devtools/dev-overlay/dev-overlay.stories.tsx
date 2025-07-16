@@ -84,14 +84,6 @@ export const Default: Story = {
 
 // todo: fix story with "Context arg provider" wrapper
 export const WithPanel: Story = {
-  beforeEach: () => {
-    process.env.__NEXT_DEVTOOL_NEW_PANEL_UI = 'true'
-
-    // clean up callback function
-    return () => {
-      delete process.env.__NEXT_DEVTOOL_NEW_PANEL_UI
-    }
-  },
   render: function DevOverlayStory() {
     const [state, dispatch] = useStorybookOverlayReducer(initialState)
     return (

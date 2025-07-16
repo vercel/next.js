@@ -51,10 +51,10 @@ export type AdapterOutputs = Array<{
 
 export interface NextAdapter {
   name: string
-  modifyConfig(
+  modifyConfig?: (
     config: NextConfigComplete
-  ): Promise<NextConfigComplete> | NextConfigComplete
-  onBuildComplete(ctx: {
+  ) => Promise<NextConfigComplete> | NextConfigComplete
+  onBuildComplete?: (ctx: {
     routes: {
       headers: Array<ManifestHeaderRoute>
       redirects: Array<ManifestRedirectRoute>
@@ -66,7 +66,7 @@ export interface NextAdapter {
       dynamicRoutes: Array<{}>
     }
     outputs: AdapterOutputs
-  }): Promise<void> | void
+  }) => Promise<void> | void
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -742,11 +742,6 @@ export interface ExperimentalConfig {
   devtoolSegmentExplorer?: boolean
 
   /**
-   * Enable new panel UI for the Next.js DevTools.
-   */
-  devtoolNewPanelUI?: boolean
-
-  /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr
    */
   browserDebugInfoInTerminal?:
@@ -1283,7 +1278,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig = {
+export const defaultConfig = Object.freeze({
   env: {},
   webpack: null,
   eslint: {
@@ -1496,14 +1491,13 @@ export const defaultConfig = {
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
-    devtoolSegmentExplorer: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
+    devtoolSegmentExplorer: false,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-} satisfies NextConfig
+} satisfies NextConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

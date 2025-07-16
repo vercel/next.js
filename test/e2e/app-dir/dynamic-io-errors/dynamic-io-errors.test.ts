@@ -554,10 +554,11 @@ describe('Dynamic IO Errors', () => {
                  "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": "app/dynamic-root/page.tsx (45:56) @ FetchingComponent
-             > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
-                  |                                                        ^",
+                 "source": "app/dynamic-root/page.tsx (59:26) @ fetchRandom
+             > 59 |   const response = await fetch(
+                  |                          ^",
                  "stack": [
+                   "fetchRandom app/dynamic-root/page.tsx (59:26)",
                    "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (22:9)",
                    "LogSafely <anonymous>",
@@ -567,10 +568,11 @@ describe('Dynamic IO Errors', () => {
                  "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": "app/dynamic-root/page.tsx (45:56) @ FetchingComponent
-             > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
-                  |                                                        ^",
+                 "source": "app/dynamic-root/page.tsx (59:26) @ fetchRandom
+             > 59 |   const response = await fetch(
+                  |                          ^",
                  "stack": [
+                   "fetchRandom app/dynamic-root/page.tsx (59:26)",
                    "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (27:7)",
                    "LogSafely <anonymous>",

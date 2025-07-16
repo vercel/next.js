@@ -41,9 +41,7 @@ export function DevOverlay({
   return (
     <ShadowPortal>
       <CssReset />
-      <Base
-        scale={process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? state.scale : scale}
-      />
+      <Base scale={state.scale} />
       <Colors />
       <ComponentStyles />
       <DarkTheme />
@@ -52,8 +50,7 @@ export function DevOverlay({
         {({ runtimeErrors, totalErrorCount }) => {
           return (
             <>
-              {state.showIndicator &&
-              process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? (
+              {state.showIndicator ? (
                 <>
                   <RenderErrorContext
                     value={{ runtimeErrors, totalErrorCount }}

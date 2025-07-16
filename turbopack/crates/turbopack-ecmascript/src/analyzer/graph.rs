@@ -1312,6 +1312,14 @@ impl Analyzer<'_> {
 }
 
 impl VisitAstPath for Analyzer<'_> {
+    fn visit_import_specifier<'ast: 'r, 'r>(
+        &mut self,
+        _import_specifier: &'ast ImportSpecifier,
+        _ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        // Skip these nodes entirely: We gather imports in a separate pass
+    }
+
     fn visit_assign_expr<'ast: 'r, 'r>(
         &mut self,
         n: &'ast AssignExpr,
@@ -1837,71 +1845,55 @@ impl VisitAstPath for Analyzer<'_> {
         ident: &'ast Ident,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if !(matches!(
-            ast_path.last(),
-            Some(AstParentNodeRef::Expr(_, ExprField::Ident))
-                | Some(AstParentNodeRef::Prop(_, PropField::Shorthand))
-        ) || matches!(
-            ast_path.get(ast_path.len() - 2),
-            Some(AstParentNodeRef::SimpleAssignTarget(
-                _,
-                SimpleAssignTargetField::Ident,
-            ))
-        )) {
-            return;
-        }
+        // Note: `Ident` is (generally) only used for nodes referencing a variable, as it has scope
+        // information. In other cases (e.g. object literals, properties of member expressions),
+        // `IdentName` is used instead.
 
+        // Note: The `Ident` children of `ImportSpecifier` are not visited because
+        // `visit_import_specifier` bails out.
+
+        // Attempt to add import effects.
         if let Some((esm_reference_index, export)) =
             self.eval_context.imports.get_binding(&ident.to_id())
         {
+            // Optimization: Look for a MemberExpr to see if we only access a few members from the
+            // module, add those specific effects instead of depending on the entire module.
+            //
+            // export.is_none() checks for a namespace import (*).
             if export.is_none()
                 && !self
                     .eval_context
                     .imports
                     .should_import_all(esm_reference_index)
-            {
-                // export.is_none() checks for a namespace import.
-
-                // Note: This is optimization that can be applied if we don't need to
-                // import all bindings
-                if let Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) =
+                && let Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) =
                     ast_path.get(ast_path.len() - 2)
-                {
-                    // Skip if it's on the LHS of assignment
-                    let is_lhs = matches!(
-                        ast_path.get(ast_path.len() - 3),
-                        Some(AstParentNodeRef::SimpleAssignTarget(
-                            _,
-                            SimpleAssignTargetField::Member
-                        ))
-                    );
-
-                    if !is_lhs
-                        && let Some(prop) = self.eval_context.eval_member_prop(&member.prop)
-                        && let Some(prop_str) = prop.as_str()
-                    {
-                        // a namespace member access like
-                        // `import * as ns from "..."; ns.exportName`
-                        self.add_effect(Effect::ImportedBinding {
-                            esm_reference_index,
-                            export: Some(prop_str.into()),
-                            ast_path: as_parent_path_skip(ast_path, 1),
-                            span: member.span(),
-                            in_try: is_in_try(ast_path),
-                        });
-                        return;
-                    }
-                }
+                && let Some(prop) = self.eval_context.eval_member_prop(&member.prop)
+                && let Some(prop_str) = prop.as_str()
+            {
+                // a namespace member access like
+                // `import * as ns from "..."; ns.exportName`
+                self.add_effect(Effect::ImportedBinding {
+                    esm_reference_index,
+                    export: Some(prop_str.into()),
+                    // point to the MemberExpression instead
+                    ast_path: as_parent_path_skip(ast_path, 1),
+                    span: member.span(),
+                    in_try: is_in_try(ast_path),
+                });
+            } else {
+                self.add_effect(Effect::ImportedBinding {
+                    esm_reference_index,
+                    export,
+                    ast_path: as_parent_path(ast_path),
+                    span: ident.span(),
+                    in_try: is_in_try(ast_path),
+                })
             }
+            return;
+        }
 
-            self.add_effect(Effect::ImportedBinding {
-                esm_reference_index,
-                export,
-                ast_path: as_parent_path(ast_path),
-                span: ident.span(),
-                in_try: is_in_try(ast_path),
-            })
-        } else if is_unresolved(ident, self.eval_context.unresolved_mark)
+        // If this variable is unresolved, track it as a free (unbound) variable
+        if is_unresolved(ident, self.eval_context.unresolved_mark)
             || self.eval_context.force_free_values.contains(&ident.to_id())
         {
             self.add_effect(Effect::FreeVar {
