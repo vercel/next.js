@@ -1,7 +1,7 @@
 import styles from './styles.module.css'
 
 /**
- * The mere existence of a not found page importing the same css as a layout used to prevent it frombeing served.
+ * The mere existence of a not found page importing the same css as a layout used to prevent it from being served.
  */
 export default function NotFoundPage() {
   return (
