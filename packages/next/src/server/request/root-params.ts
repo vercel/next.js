@@ -66,6 +66,19 @@ function createPrerenderRootParams(
   workStore: WorkStore,
   prerenderStore: PrerenderStore
 ): Promise<Params> {
+  switch (prerenderStore.type) {
+    case 'prerender-client': {
+      const exportName = '`unstable_rootParams`'
+      throw new InvariantError(
+        `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
+      )
+    }
+    case 'prerender':
+    case 'prerender-legacy':
+    case 'prerender-ppr':
+    default:
+  }
+
   const fallbackParams = workStore.fallbackRouteParams
   if (fallbackParams) {
     let hasSomeFallbackParams = false
@@ -93,11 +106,6 @@ function createPrerenderRootParams(
           CachedParams.set(underlyingParams, promise)
 
           return promise
-        case 'prerender-client':
-          const exportName = '`unstable_rootParams`'
-          throw new InvariantError(
-            `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
-          )
         case 'prerender-ppr':
         case 'prerender-legacy':
           // We aren't in a dynamicIO prerender but we do have fallback params at this
