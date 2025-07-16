@@ -86,9 +86,9 @@ function createResolvePathFromModule(
 
 function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
   if (typeof chunkData === 'string') {
-    return loadChunkPath(chunkData, source)
+    loadChunkPath(chunkData, source)
   } else {
-    return loadChunkPath(chunkData.path, source)
+    loadChunkPath(chunkData.path, source)
   }
 }
 
@@ -119,7 +119,7 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
         if (Array.isArray(moduleFactory)) {
-          let [moduleFactoryFn, otherIds] = moduleFactory
+          const [moduleFactoryFn, otherIds] = moduleFactory
           moduleFactories[moduleId] = moduleFactoryFn
           for (const otherModuleId of otherIds) {
             moduleFactories[otherModuleId] = moduleFactoryFn
@@ -150,30 +150,14 @@ async function loadChunkAsyncUncached(
   const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
 
   try {
-    const contents = await fs.readFile(resolved, 'utf-8')
-
-    const localRequire = (id: string) => {
-      let resolvedId = require.resolve(id, { paths: [path.dirname(resolved)] })
-      return require(resolvedId)
-    }
-    const module = {
-      exports: {},
-    }
-    // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
-    // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
-    ;(0, eval)(
-      '(function(module, exports, require, __dirname, __filename) {' +
-        contents +
-        '\n})' +
-        '\n//# sourceURL=' +
-        url.pathToFileURL(resolved)
-    )(module, module.exports, localRequire, path.dirname(resolved), resolved)
-
-    const chunkModules: CompressedModuleFactories = module.exports
+    // use await to ensure that evaluation happens in another microtask
+    // Because we are using a resolved absolute path require shouldn't waste time probing node_modules.
+    const exports = await require(resolved)
+    const chunkModules: CompressedModuleFactories = exports
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
         if (Array.isArray(moduleFactory)) {
-          let [moduleFactoryFn, otherIds] = moduleFactory
+          const [moduleFactoryFn, otherIds] = moduleFactory
           moduleFactories[moduleId] = moduleFactoryFn
           for (const otherModuleId of otherIds) {
             moduleFactories[otherModuleId] = moduleFactoryFn
