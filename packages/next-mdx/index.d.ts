@@ -21,7 +21,22 @@ declare namespace nextMDX {
      *
      * @see https://mdxjs.com/packages/mdx/#api
      */
-    options?: Options
+    options?: Options & {
+      remarkPlugins?:
+        | (
+            | string
+            | [name: string, options: any]
+            | NonNullable<Options['remarkPlugins']>[number]
+          )[]
+        | Options['remarkPlugins']
+      rehypePlugins?:
+        | (
+            | string
+            | [name: string, options: any]
+            | NonNullable<Options['rehypePlugins']>[number]
+          )[]
+        | Options['rehypePlugins']
+    }
   }
 }
 

@@ -2,8 +2,11 @@ import nextMDX from '@next/mdx'
 const withMDX = nextMDX({
   extension: /\.mdx?$/,
   options: {
-    remarkPlugins: [],
-    rehypePlugins: [['rehype-katex', { strict: true, throwOnError: true }]],
+    remarkPlugins: ['remark-gfm', ['remark-toc', { heading: 'The Table' }]],
+    rehypePlugins: [
+      'rehype-slug',
+      ['rehype-katex', { strict: true, throwOnError: true }],
+    ],
   },
 })
 
