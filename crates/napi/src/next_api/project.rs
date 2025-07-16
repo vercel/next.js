@@ -987,6 +987,40 @@ async fn output_assets_operation(
     Ok(Vc::cell(output_assets.into_iter().collect()))
 }
 
+#[napi]
+pub async fn project_entrypoints(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
+    let container = project.container;
+
+    let (entrypoints, issues, diags) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
+
+            // Read and compile the files
+            let EntrypointsWithIssues {
+                entrypoints,
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*entrypoints_with_issues_op
+                .read_strongly_consistent()
+                .await?;
+
+            Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &project.turbopack_ctx)?,
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+    })
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,

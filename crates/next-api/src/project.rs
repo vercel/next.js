@@ -973,7 +973,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
+    pub async fn whole_app_module_graphs(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<BaseAndFullModuleGraph>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
             let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
@@ -1813,7 +1815,7 @@ impl Project {
 #[turbo_tasks::function(operation)]
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
-) -> Result<Vc<ModuleGraphs>> {
+) -> Result<Vc<BaseAndFullModuleGraph>> {
     mark_root();
 
     let should_trace = project.next_mode().await?.is_production();
@@ -1831,7 +1833,7 @@ async fn whole_app_module_graph_operation(
     );
 
     let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
-    Ok(ModuleGraphs {
+    Ok(BaseAndFullModuleGraph {
         base: base.to_resolved().await?,
         full: full.to_resolved().await?,
     }
@@ -1839,7 +1841,7 @@ async fn whole_app_module_graph_operation(
 }
 
 #[turbo_tasks::value(shared)]
-pub struct ModuleGraphs {
+pub struct BaseAndFullModuleGraph {
     pub base: ResolvedVc<ModuleGraph>,
     pub full: ResolvedVc<ModuleGraph>,
 }

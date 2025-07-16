@@ -85,6 +85,9 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
 import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+import { createMcpServer } from './mcp'
+import { parseBody } from '../../api-utils/node/parse-body'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -969,8 +972,47 @@ async function startWatcher(
   const devTurbopackMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
 
+  const mcpPath = `/_next/mcp`
+  opts.fsChecker.devVirtualFsItems.add(mcpPath)
+
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     const parsedUrl = url.parse(req.url || '/')
+
+    if (parsedUrl.pathname?.includes(mcpPath)) {
+      const server = createMcpServer(hotReloader)
+      if (server) {
+        try {
+          const transport: StreamableHTTPServerTransport =
+            new StreamableHTTPServerTransport({
+              sessionIdGenerator: undefined,
+            })
+          res.on('close', () => {
+            transport.close()
+            server.close()
+          })
+          await server.connect(transport)
+          const parsedBody = await parseBody(req, 1024 * 1024 * 1024)
+          await transport.handleRequest(req, res, parsedBody)
+        } catch (error) {
+          console.error('Error handling MCP request:', error)
+          if (!res.headersSent) {
+            res.statusCode = 500
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            res.end(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                error: {
+                  code: -32603,
+                  message: 'Internal server error',
+                },
+                id: null,
+              })
+            )
+          }
+        }
+        return { finished: true }
+      }
+    }
 
     if (parsedUrl.pathname?.includes(clientPagesManifestPath)) {
       res.statusCode = 200

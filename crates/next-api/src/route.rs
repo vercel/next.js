@@ -47,6 +47,9 @@ pub enum Route {
     Conflict,
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
+
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
     #[turbo_tasks::function]
@@ -65,6 +68,8 @@ pub trait Endpoint {
     fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }
+    #[turbo_tasks::function]
+    fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
 }
 
 #[turbo_tasks::value(transparent)]

@@ -1221,6 +1221,13 @@ impl ModuleGraph {
         Ok(idx)
     }
 
+    pub async fn has_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<bool> {
+        let graphs = self.get_graphs().await?;
+        Ok(graphs
+            .iter()
+            .any(|graph| graph.modules.contains_key(&entry)))
+    }
+
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
     /// target.
     ///

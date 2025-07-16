@@ -64,7 +64,28 @@ export interface NapiWrittenEndpoint {
   serverPaths: Array<NapiServerPath>
   config: NapiEndpointConfig
 }
+export interface NapiModuleReference {
+  /** The index of the referenced/referencing module in the modules list. */
+  i: number
+}
+export interface NapiModuleInfo {
+  ident: RcStr
+  path: RcStr
+  depth: number
+  references: Array<NapiModuleReference>
+  incomingReferences: Array<NapiModuleReference>
+}
+export interface NapiModuleGraphSnapshot {
+  modules: Array<NapiModuleInfo>
+  entries: Array<number>
+}
+export interface NapiModuleGraphSnapshots {
+  moduleGraphs: Array<NapiModuleGraphSnapshot>
+}
 export declare function endpointWriteToDisk(endpoint: {
+  __napiType: 'Endpoint'
+}): Promise<TurbopackResult>
+export declare function endpointModuleGraphs(endpoint: {
   __napiType: 'Endpoint'
 }): Promise<TurbopackResult>
 export declare function endpointServerChangedSubscribe(
@@ -286,6 +307,9 @@ export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectEntrypoints(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any

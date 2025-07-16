@@ -5,6 +5,7 @@ import type {
   RefCell,
   NapiTurboEngineOptions,
   NapiSourceDiagnostic,
+  NapiModuleGraphSnapshots,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
@@ -216,6 +217,7 @@ export interface Project {
     appDirOnly: boolean
   ): Promise<TurbopackResult<RawEntrypoints>>
 
+  getEntrypoints(): Promise<TurbopackResult<RawEntrypoints>>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
@@ -295,6 +297,11 @@ export interface Endpoint {
   serverChanged(
     includeIssues: boolean
   ): Promise<AsyncIterableIterator<TurbopackResult>>
+
+  /**
+   * Gets a snapshot of the module graphs for the endpoint.
+   */
+  moduleGraphs(): Promise<TurbopackResult<NapiModuleGraphSnapshots>>
 }
 
 interface EndpointConfig {

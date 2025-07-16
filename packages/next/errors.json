@@ -752,5 +752,8 @@
   "751": "%s cannot not be used outside of a request context.",
   "752": "Route %s used \"connection\" inside \"use cache\". The \\`connection()\\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
   "753": "Route %s used \"connection\" inside \"use cache: private\". The \\`connection()\\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-  "754": "%s cannot be used outside of a request context."
+  "754": "%s cannot be used outside of a request context.",
+  "755": "Route must be a string",
+  "756": "Route %s not found",
+  "757": "Unknown styled string type: %s"
 }
