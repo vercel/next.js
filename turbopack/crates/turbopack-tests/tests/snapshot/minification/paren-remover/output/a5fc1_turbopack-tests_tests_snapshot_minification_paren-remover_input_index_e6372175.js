@@ -1,0 +1,3 @@
+(globalThis.TURBOPACK=globalThis.TURBOPACK||[]).push(["output/a5fc1_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_e6372175.js",{},{otherChunks:["output/b1abf_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_032d7ee7.js"],runtimeModuleIds:["[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/paren-remover/input/index.js [test] (ecmascript)"]}]);
+
+//# sourceMappingURL=b1abf_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_e6372175.js.map
