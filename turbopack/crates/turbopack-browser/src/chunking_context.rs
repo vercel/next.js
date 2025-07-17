@@ -431,6 +431,7 @@ impl ChunkingContext for BrowserChunkingContext {
         &self,
         asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
+        content_hashing_prefix: Option<RcStr>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         debug_assert!(
@@ -453,7 +454,11 @@ impl ChunkingContext for BrowserChunkingContext {
                 if let AssetContent::File(file) = &*content {
                     let hash = hash_xxh3_hash64(&file.await?);
                     let length = length as usize;
-                    format!("{hash:0length$x}{extension}").into()
+                    if let Some(content_hashing_prefix) = content_hashing_prefix {
+                        format!("{content_hashing_prefix}-{hash:0length$x}{extension}").into()
+                    } else {
+                        format!("{hash:0length$x}{extension}").into()
+                    }
                 } else {
                     bail!(
                         "chunk_path requires an asset with file content when content hashing is \

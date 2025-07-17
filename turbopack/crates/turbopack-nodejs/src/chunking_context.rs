@@ -317,6 +317,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         &self,
         _asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
+        _content_hashing_prefix: Option<RcStr>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = self.chunk_root_path.clone();
