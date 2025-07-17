@@ -412,6 +412,15 @@ export type ManifestRoute = ManifestBuiltRoute & {
   skipInternalRouting?: boolean
 }
 
+type DynamicManifestRoute = ManifestRoute & {
+  /**
+   * The source page that this route is based on. This is used to determine the
+   * source page for the route and is only relevant for app pages where PPR is
+   * enabled and the page differs from the source page.
+   */
+  sourcePage: string | undefined
+}
+
 type ManifestDataRoute = {
   page: string
   routeKeys?: { [key: string]: string }
@@ -431,7 +440,7 @@ export type RoutesManifest = {
   }
   headers: Array<ManifestHeaderRoute>
   staticRoutes: Array<ManifestRoute>
-  dynamicRoutes: ReadonlyArray<ManifestRoute>
+  dynamicRoutes: ReadonlyArray<DynamicManifestRoute>
   dataRoutes: Array<ManifestDataRoute>
   i18n?: {
     domains?: ReadonlyArray<{
@@ -479,11 +488,35 @@ export type RoutesManifest = {
   }
 }
 
-function pageToRoute(page: string): ManifestRoute {
+/**
+ * Converts a page to a manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @returns A route object.
+ */
+function pageToRoute(page: string): ManifestRoute
+/**
+ * Converts a page to a dynamic manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @param sourcePage The source page that this route is based on. This is used
+ * to determine the source page for the route and is only relevant for app
+ * pages when PPR is enabled on them.
+ * @returns A route object.
+ */
+function pageToRoute(
+  page: string,
+  sourcePage: string | undefined
+): DynamicManifestRoute
+function pageToRoute(
+  page: string,
+  sourcePage?: string
+): DynamicManifestRoute | ManifestRoute {
   const routeRegex = getNamedRouteRegex(page, {
     prefixRouteKeys: true,
   })
   return {
+    sourcePage,
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
     routeKeys: routeRegex.routeKeys,
@@ -1329,7 +1362,7 @@ export default async function build(
       const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-      const dynamicRoutes: Array<ManifestRoute> = []
+      const dynamicRoutes: Array<DynamicManifestRoute> = []
 
       /**
        * A map of all the pages to their sourcePage value. This is only used for
@@ -1347,7 +1380,13 @@ export default async function build(
 
           for (const route of sortedRoutes) {
             if (isDynamicRoute(route)) {
-              dynamicRoutes.push(pageToRoute(route))
+              dynamicRoutes.push(
+                pageToRoute(
+                  route,
+                  // This property is only relevant when PPR is enabled.
+                  undefined
+                )
+              )
             } else if (!isReservedPage(route)) {
               staticRoutes.push(pageToRoute(route))
             }
@@ -3123,7 +3162,7 @@ export default async function build(
                   // entry in the app routes manifest which enables routing for
                   // this fallback shell.
                   if (!dynamicRoute) {
-                    dynamicRoute = pageToRoute(route.pathname)
+                    dynamicRoute = pageToRoute(route.pathname, page)
                     sourcePages.set(route.pathname, page)
 
                     // This route is not for the internal router, but instead
