@@ -1,5 +1,5 @@
-import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
+import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
 
 // convert robots data to txt string
 export function resolveRobots(data: MetadataRoute.Robots): string {
@@ -52,7 +52,7 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
 
   let content = ''
   content += '<?xml version="1.0" encoding="UTF-8"?>\n'
-  content += '<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9"'
+  content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
   if (hasImages) {
     content += ' xmlns:image="https://www.google.com/schemas/sitemap-image/1.1"'
   }
