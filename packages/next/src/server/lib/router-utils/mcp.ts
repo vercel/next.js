@@ -23,6 +23,8 @@ It can access the module graph and extract information it finds useful.
 The value of all newly created global variables will be returned in the response and can be used to report results.
 The \`console.log\` function can be used to log messages, which will also be returned in the response.
 No Node.js or browser APIs are available, but JavaScript language features are available.
+When the user is interested in used exports of modules, you can use the \`export\` property of ModuleReferences (\`incomingReferences\`).
+When the user is interested in the import path of a module, follow one of the \`incomingReferences\` with a smaller \`depth\` value than the current module until you hit the root.
 See the following TypeScript typings for reference:
 
 \`\`\` typescript
@@ -50,14 +52,28 @@ interface Module {
   /// Example: 0 for the entrypoint, 1 for the first layer of modules, etc.
   depth: number,
   /// The modules that are referenced by this module.
-  /// Modules could be references by \`import\`, \`require\`, \`new URL\`, etc.
+  /// Modules could be referenced by \`import\`, \`require\`, \`new URL\`, etc.
   references: ModuleReference[],
   /// The modules that reference this module.
   incomingReferences: ModuleReference[],
 }
 
 interface ModuleReference {
+  /// The referenced/referencing module.
   module: Module
+  /// The thing that is used from the module.
+  /// export {name}: The named export that is used.
+  /// evaluation: Imported for side effects only.
+  /// all: All exports and the side effects.
+  export: "evaluation" | "all" | \`export \${string}\`
+  /// How this reference affects chunking of the module.
+  /// hoisted | sync: The module is placed in the same chunk group as the referencing module.
+  /// hoisted: The module is loaded before all "sync" modules.
+  /// async: The module forms a separate chunk group which is loaded asynchronously.
+  /// isolated: The module forms a separate chunk group which is loaded as separate entry. When it has a name, all modules imported with this name are placed in the same chunk group.
+  /// shared: The module forms a separate chunk group which is loaded before the current chunk group. When it has a name, all modules imported with this name are placed in the same chunk group.
+  /// traced: The module is not bundled, but the graph is still traced and all modules are included unbundled.
+  chunkingType: "hoisted" | "sync" | "async" | "isolated" | \`isolated \${string}\` | "shared" | \`shared \${string}\` | "traced"
 }
 
 // The following global variables are available in the query:
@@ -237,6 +253,8 @@ function arrayOrSingle<T>(value: T | T[]): T[] {
 
 interface ModuleReference {
   module: Module
+  export: string
+  chunkingType: string
 }
 interface Module {
   /// The identifier of the module, which is a unique string.
@@ -273,12 +291,16 @@ function processModuleGraphSnapshot(
 
     queryModule.references = rawModule.references.map(
       (ref: NapiModuleReference) => ({
-        module: queryModules[ref.i],
+        module: queryModules[ref.index],
+        export: ref.export,
+        chunkingType: ref.chunkingType,
       })
     )
     queryModule.incomingReferences = rawModule.incomingReferences.map(
       (ref: NapiModuleReference) => ({
-        module: queryModules[ref.i],
+        module: queryModules[ref.index],
+        export: ref.export,
+        chunkingType: ref.chunkingType,
       })
     )
     modules.push(queryModule)
@@ -350,7 +372,7 @@ You can use the Model Context Protocol to query information about pages and modu
     {
       title: 'Entrypoints',
       description:
-        'Get all entrypoints of a Turbopack project, which are all pages, routes and the middleware. Also reports issues found while accumulating the entrypoints.',
+        'Get all entrypoints of a Turbopack project, which are all pages, routes and the middleware.',
     },
     async () =>
       measureAndHandleErrors('entrypoints', async () => {

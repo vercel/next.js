@@ -84,7 +84,11 @@ export declare function endpointClientChangedSubscribe(
 ): { __napiType: 'RootTask' }
 export interface NapiModuleReference {
   /** The index of the referenced/referencing module in the modules list. */
-  i: number
+  index: number
+  /** The export used in the module reference. */
+  export: string
+  /** The type of chunking for the module reference. */
+  chunkingType: string
 }
 export interface NapiModuleInfo {
   ident: RcStr

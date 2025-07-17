@@ -1,16 +1,42 @@
 use next_api::module_graph_snapshot::{ModuleGraphSnapshot, ModuleInfo, ModuleReference};
 use turbo_rcstr::RcStr;
+use turbopack_core::chunk::ChunkingType;
 
 #[napi(object)]
 pub struct NapiModuleReference {
     /// The index of the referenced/referencing module in the modules list.
-    pub i: u32,
+    pub index: u32,
+    /// The export used in the module reference.
+    pub export: String,
+    /// The type of chunking for the module reference.
+    pub chunking_type: String,
 }
 
 impl From<&ModuleReference> for NapiModuleReference {
     fn from(reference: &ModuleReference) -> Self {
         Self {
-            i: reference.index as u32,
+            index: reference.index as u32,
+            export: reference.export.to_string(),
+            chunking_type: match &reference.chunking_type {
+                ChunkingType::Parallel { hoisted: true, .. } => "hoisted".to_string(),
+                ChunkingType::Parallel { hoisted: false, .. } => "sync".to_string(),
+                ChunkingType::Async => "async".to_string(),
+                ChunkingType::Isolated {
+                    merge_tag: None, ..
+                } => "isolated".to_string(),
+                ChunkingType::Isolated {
+                    merge_tag: Some(name),
+                    ..
+                } => format!("isolated {name}"),
+                ChunkingType::Shared {
+                    merge_tag: None, ..
+                } => "shared".to_string(),
+                ChunkingType::Shared {
+                    merge_tag: Some(name),
+                    ..
+                } => format!("shared {name}"),
+                ChunkingType::Traced => "traced".to_string(),
+            },
         }
     }
 }
