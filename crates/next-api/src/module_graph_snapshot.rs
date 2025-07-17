@@ -91,14 +91,14 @@ pub async fn get_module_graph_snapshot(
                     let parent_module = &mut modules[parent_index];
                     let parent_depth = parent_module.depth;
                     debug_assert!(parent_depth < u32::MAX);
-                    parent_module.incoming_references.push(ModuleReference {
+                    parent_module.references.push(ModuleReference {
                         index: module_index,
                         chunking_type: ty.chunking_type.clone(),
                         export: ty.export.clone(),
                     });
                     let module = &mut modules[module_index];
                     module.depth = module.depth.min(parent_depth + 1);
-                    module.references.push(ModuleReference {
+                    module.incoming_references.push(ModuleReference {
                         index: parent_index,
                         chunking_type: ty.chunking_type.clone(),
                         export: ty.export.clone(),
