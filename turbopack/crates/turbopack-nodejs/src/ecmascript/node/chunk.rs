@@ -82,7 +82,7 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
         let ident = this.chunk.ident().with_modifier(modifier());
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
 
     #[turbo_tasks::function]

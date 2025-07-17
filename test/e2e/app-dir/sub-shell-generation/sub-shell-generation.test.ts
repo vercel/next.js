@@ -4,8 +4,6 @@ import * as cheerio from 'cheerio'
 describe('sub-shell-generation', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    // FIXME: re-enable once we've re-enabled the sub-shell generation in Vercel
-    skipDeployment: true,
   })
 
   if (isNextDev) {

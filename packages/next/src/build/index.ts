@@ -81,11 +81,7 @@ import {
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
-import {
-  getSortedRoutes,
-  isDynamicRoute,
-  getSortedRouteObjects,
-} from '../shared/lib/router/utils'
+import { isDynamicRoute } from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
@@ -210,6 +206,11 @@ import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
 import { generatePreviewKeys } from './preview-key-utils'
 import { handleBuildComplete } from './adapter/build-complete'
+import {
+  sortPageObjects,
+  sortPages,
+  sortSortableRouteObjects,
+} from '../shared/lib/router/utils/sortable-routes'
 
 type Fallback = null | boolean | string
 
@@ -430,7 +431,7 @@ export type RoutesManifest = {
   }
   headers: Array<ManifestHeaderRoute>
   staticRoutes: Array<ManifestRoute>
-  dynamicRoutes: Array<ManifestRoute>
+  dynamicRoutes: ReadonlyArray<ManifestRoute>
   dataRoutes: Array<ManifestDataRoute>
   i18n?: {
     domains?: ReadonlyArray<{
@@ -1328,14 +1329,20 @@ export default async function build(
       const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
+      const dynamicRoutes: Array<ManifestRoute> = []
+
+      /**
+       * A map of all the pages to their sourcePage value. This is only used for
+       * routes that have PPR enabled and clientSegmentEnabled is true.
+       */
+      const sourcePages = new Map<string, string>()
       const routesManifest: RoutesManifest = nextBuildSpan
         .traceChild('generate-routes-manifest')
         .traceFn(() => {
-          const sortedRoutes = getSortedRoutes([
+          const sortedRoutes = sortPages([
             ...pageKeys.pages,
             ...(pageKeys.app ?? []),
           ])
-          const dynamicRoutes: Array<ManifestRoute> = []
           const staticRoutes: Array<ManifestRoute> = []
 
           for (const route of sortedRoutes) {
@@ -2466,7 +2473,7 @@ export default async function build(
       if (serverPropsPages.size > 0 || ssgPages.size > 0) {
         // We update the routes manifest after the build with the
         // data routes since we can't determine these until after build
-        routesManifest.dataRoutes = getSortedRoutes([
+        routesManifest.dataRoutes = sortPages([
           ...serverPropsPages,
           ...ssgPages,
         ]).map((page) => {
@@ -2930,39 +2937,39 @@ export default async function build(
             // route), any routes that were generated with unknown route params
             // should be collected and included in the dynamic routes part
             // of the manifest instead.
-            const routes: PrerenderedRoute[] = []
-            const dynamicRoutes: PrerenderedRoute[] = []
+            const staticPrerenderedRoutes: PrerenderedRoute[] = []
+            const dynamicPrerenderedRoutes: PrerenderedRoute[] = []
 
             // Sort the outputted routes to ensure consistent output. Any route
             // though that has unknown route params will be pulled and sorted
             // independently. This is because the routes with unknown route
             // params will contain the dynamic path parameters, some of which
             // may conflict with the actual prerendered routes.
-            let unknownPrerenderRoutes: PrerenderedRoute[] = []
-            let knownPrerenderRoutes: PrerenderedRoute[] = []
+            const unsortedUnknownPrerenderRoutes: PrerenderedRoute[] = []
+            const unsortedKnownPrerenderRoutes: PrerenderedRoute[] = []
             for (const prerenderedRoute of prerenderedRoutes) {
               if (
                 prerenderedRoute.fallbackRouteParams &&
                 prerenderedRoute.fallbackRouteParams.length > 0
               ) {
-                unknownPrerenderRoutes.push(prerenderedRoute)
+                unsortedUnknownPrerenderRoutes.push(prerenderedRoute)
               } else {
-                knownPrerenderRoutes.push(prerenderedRoute)
+                unsortedKnownPrerenderRoutes.push(prerenderedRoute)
               }
             }
 
-            unknownPrerenderRoutes = getSortedRouteObjects(
-              unknownPrerenderRoutes,
+            const sortedUnknownPrerenderRoutes = sortPageObjects(
+              unsortedUnknownPrerenderRoutes,
               (prerenderedRoute) => prerenderedRoute.pathname
             )
-            knownPrerenderRoutes = getSortedRouteObjects(
-              knownPrerenderRoutes,
+            const sortedKnownPrerenderRoutes = sortPageObjects(
+              unsortedKnownPrerenderRoutes,
               (prerenderedRoute) => prerenderedRoute.pathname
             )
 
             prerenderedRoutes = [
-              ...knownPrerenderRoutes,
-              ...unknownPrerenderRoutes,
+              ...sortedKnownPrerenderRoutes,
+              ...sortedUnknownPrerenderRoutes,
             ]
 
             for (const prerenderedRoute of prerenderedRoutes) {
@@ -2979,16 +2986,16 @@ export default async function build(
               ) {
                 // If the route has unknown params, then we need to add it to
                 // the list of dynamic routes.
-                dynamicRoutes.push(prerenderedRoute)
+                dynamicPrerenderedRoutes.push(prerenderedRoute)
               } else {
                 // If the route doesn't have unknown params, then we need to
-                // add it to the list of routes.
-                routes.push(prerenderedRoute)
+                // add it to the list of static routes.
+                staticPrerenderedRoutes.push(prerenderedRoute)
               }
             }
 
             // Handle all the static routes.
-            for (const route of routes) {
+            for (const route of staticPrerenderedRoutes) {
               if (isDynamicRoute(page) && route.pathname === page) continue
               if (route.pathname === UNDERSCORE_NOT_FOUND_ROUTE) continue
 
@@ -3075,7 +3082,7 @@ export default async function build(
               // they are enabled, then it'll already be included in the
               // prerendered routes.
               if (!isRoutePPREnabled) {
-                dynamicRoutes.push({
+                dynamicPrerenderedRoutes.push({
                   params: {},
                   pathname: page,
                   encodedPathname: page,
@@ -3088,7 +3095,7 @@ export default async function build(
                 })
               }
 
-              for (const route of dynamicRoutes) {
+              for (const route of dynamicPrerenderedRoutes) {
                 const normalizedRoute = normalizePagePath(route.pathname)
 
                 const metadata = exportResult.byPath.get(
@@ -3103,18 +3110,43 @@ export default async function build(
                 }
 
                 let prefetchDataRoute: string | undefined
+                let dynamicRoute = routesManifest.dynamicRoutes.find(
+                  (r) => r.page === route.pathname
+                )
                 if (!isAppRouteHandler && isAppPPREnabled) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
+
+                  // If the dynamic route wasn't found, then we need to create
+                  // it. This ensures that for each fallback shell there's an
+                  // entry in the app routes manifest which enables routing for
+                  // this fallback shell.
+                  if (!dynamicRoute) {
+                    dynamicRoute = pageToRoute(route.pathname)
+                    sourcePages.set(route.pathname, page)
+
+                    // This route is not for the internal router, but instead
+                    // for external routers.
+                    dynamicRoute.skipInternalRouting = true
+
+                    // Push this to the end of the array. The dynamic routes are
+                    // sorted by page later.
+                    dynamicRoutes.push(dynamicRoute)
+                  }
                 }
 
                 if (!isAppRouteHandler && metadata?.segmentPaths) {
-                  const dynamicRoute = routesManifest.dynamicRoutes.find(
-                    (r) => r.page === page
-                  )
+                  // If PPR isn't enabled, then we might not find the dynamic
+                  // route by pathname. If that's the case, we need to find the
+                  // route by page.
                   if (!dynamicRoute) {
-                    throw new InvariantError('Dynamic route not found')
+                    dynamicRoute = dynamicRoutes.find((r) => r.page === page)
+
+                    // If it can't be found by page, we must throw an error.
+                    if (!dynamicRoute) {
+                      throw new InvariantError('Dynamic route not found')
+                    }
                   }
 
                   dynamicRoute.prefetchSegmentDataRoutes ??= []
@@ -3573,11 +3605,16 @@ export default async function build(
           }
         })
 
-        // As we may have modified the routesManifest.dynamicRoutes, we need to
-        // sort the dynamic routes by page.
-        routesManifest.dynamicRoutes = getSortedRouteObjects(
-          routesManifest.dynamicRoutes,
-          (route) => route.page
+        // As we may have modified the dynamicRoutes, we need to sort the
+        // dynamic routes by page.
+        routesManifest.dynamicRoutes = sortSortableRouteObjects(
+          dynamicRoutes,
+          (route) => ({
+            // If the route is PPR enabled, and has an associated source page,
+            // use it. Otherwise fallback to the page which should be the same.
+            sourcePage: sourcePages.get(route.page) ?? route.page,
+            page: route.page,
+          })
         )
 
         // Now write the routes manifest out.

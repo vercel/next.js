@@ -80,9 +80,9 @@ import { store as consoleStore } from '../../../build/output/store'
 import {
   isPersistentCachingEnabled,
   ModuleBuildError,
-  TurbopackInternalError,
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
+import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance

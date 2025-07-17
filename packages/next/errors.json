@@ -720,5 +720,6 @@
   "719": "Failed to get source map for '%s'. This is a bug in Next.js",
   "720": "A client prerender store should not be used for a route handler.",
   "721": "Render in Browser",
-  "722": "Unable to match pathname to a dynamic route"
+  "722": "Unable to match pathname to a dynamic route",
+  "723": "NAPI type conversion error in throwTurbopackInternalError"
 }

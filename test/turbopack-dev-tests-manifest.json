@@ -7165,6 +7165,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/middleware-rewrite-catchall-priority-with-parallel-route/middleware-rewrite-catchall-priority-with-parallel-route.test.js": {
+    "passed": [
+      "app-dir - middleware rewrite with catch-all and parallel routes should rewrite to the specific page instead of the catch-all with parallel route",
+      "app-dir - middleware rewrite with catch-all and parallel routes should redirect to the specific page instead of the catch-all with parallel route",
+      "app-dir - middleware rewrite with catch-all and parallel routes should rewrite to the specific page instead of the catch-all without parallel route",
+      "app-dir - middleware rewrite with catch-all and parallel routes should redirect to the specific page instead of the catch-all without parallel route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/middleware-sitemap/matcher-exclude-sitemap/index.test.ts": {
     "passed": [
       "middleware-sitemap should not be affected by middleware if sitemap.xml is excluded from the matcher"
