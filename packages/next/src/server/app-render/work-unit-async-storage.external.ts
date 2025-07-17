@@ -107,11 +107,11 @@ interface PrerenderStoreModernCommon extends CommonWorkUnitStore {
 
   /**
    * This is the AbortController which represents the boundary between Prerender
-   * and dynamic. In some renders it is the same as the controller for the
-   * renderSignal but in others it is a separate controller. It should be
-   * aborted whenever the we are no longer in the prerender phase of rendering.
-   * Typically this is after one task or when you call a sync API which requires
-   * the prerender to end immediately.
+   * and dynamic. In some renders it is the same as the controller for React,
+   * but in others it is a separate controller. It should be aborted whenever we
+   * are no longer in the prerender phase of rendering. Typically this is after
+   * one task, or when you call a sync API which requires the prerender to end
+   * immediately.
    */
   readonly controller: AbortController
 

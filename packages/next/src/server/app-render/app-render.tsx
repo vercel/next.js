@@ -2338,16 +2338,6 @@ async function spawnDynamicValidationInDev(
   // want to end the React prerender until all caches are filled.
   const initialServerRenderController = new AbortController()
 
-  // This controller orchestrates the other controllers, so that they are
-  // aborted in the correct order.
-  const initialServerController = new AbortController()
-
-  initialServerController.signal.addEventListener('abort', () => {
-    initialServerPrerenderController.abort()
-    initialServerReactController.abort()
-    initialServerRenderController.abort()
-  })
-
   // The cacheSignal helps us track whether caches are still filling or we are
   // ready to cut the render off.
   const cacheSignal = new CacheSignal()
@@ -2434,11 +2424,22 @@ async function spawnDynamicValidationInDev(
     }
   )
 
+  // The listener to abort our own render controller must be added after React
+  // has added its listener, to ensure that pending I/O is not aborted/rejected
+  // too early.
+  initialServerReactController.signal.addEventListener(
+    'abort',
+    () => {
+      initialServerRenderController.abort()
+    },
+    { once: true }
+  )
+
   // Wait for all caches to be finished filling and for async imports to resolve
   trackPendingModules(cacheSignal)
   await cacheSignal.cacheReady()
 
-  initialServerController.abort()
+  initialServerReactController.abort()
 
   // We don't need to continue the prerender process if we already
   // detected invalid dynamic usage in the initial prerender phase.
@@ -2478,13 +2479,6 @@ async function spawnDynamicValidationInDev(
     const initialClientPrerenderController = new AbortController()
     const initialClientReactController = new AbortController()
     const initialClientRenderController = new AbortController()
-    const initialClientController = new AbortController()
-
-    initialClientController.signal.addEventListener('abort', () => {
-      initialClientPrerenderController.abort()
-      initialClientReactController.abort()
-      initialClientRenderController.abort()
-    })
 
     const initialClientPrerenderStore: PrerenderStore = {
       type: 'prerender-client',
@@ -2553,6 +2547,17 @@ async function spawnDynamicValidationInDev(
       }
     )
 
+    // The listener to abort our own render controller must be added after React
+    // has added its listener, to ensure that pending I/O is not
+    // aborted/rejected too early.
+    initialClientReactController.signal.addEventListener(
+      'abort',
+      () => {
+        initialClientRenderController.abort()
+      },
+      { once: true }
+    )
+
     pendingInitialClientResult.catch((err) => {
       if (
         initialClientReactController.signal.aborted ||
@@ -2573,17 +2578,11 @@ async function spawnDynamicValidationInDev(
     // Promises passed to client were already awaited above (assuming that they came from cached functions)
     trackPendingModules(cacheSignal)
     await cacheSignal.cacheReady()
-    initialClientController.abort()
+    initialClientReactController.abort()
   }
 
   const finalServerReactController = new AbortController()
   const finalServerRenderController = new AbortController()
-  const finalServerController = new AbortController()
-
-  finalServerController.signal.addEventListener('abort', () => {
-    finalServerReactController.abort()
-    finalServerRenderController.abort()
-  })
 
   const serverDynamicTracking = createDynamicTrackingState(
     false // isDebugDynamicAccesses
@@ -2595,7 +2594,7 @@ async function spawnDynamicValidationInDev(
     rootParams,
     implicitTags,
     renderSignal: finalServerRenderController.signal,
-    controller: finalServerController,
+    controller: finalServerReactController,
     // All caches we could read must already be filled so no tracking is necessary
     cacheSignal: null,
     dynamicTracking: serverDynamicTracking,
@@ -2621,7 +2620,7 @@ async function spawnDynamicValidationInDev(
   const reactServerResult = await createReactServerPrerenderResult(
     prerenderAndAbortInSequentialTasks(
       async () => {
-        const prerenderResult = await workUnitAsyncStorage.run(
+        const pendingPrerenderResult = workUnitAsyncStorage.run(
           // The store to scope
           finalServerPrerenderStore,
           // The function to run
@@ -2650,10 +2649,22 @@ async function spawnDynamicValidationInDev(
             signal: finalServerReactController.signal,
           }
         )
-        return prerenderResult
+
+        // The listener to abort our own render controller must be added after
+        // React has added its listener, to ensure that pending I/O is not
+        // aborted/rejected too early.
+        finalServerReactController.signal.addEventListener(
+          'abort',
+          () => {
+            finalServerRenderController.abort()
+          },
+          { once: true }
+        )
+
+        return pendingPrerenderResult
       },
       () => {
-        finalServerController.abort()
+        finalServerReactController.abort()
       }
     )
   )
@@ -2663,12 +2674,6 @@ async function spawnDynamicValidationInDev(
   )
   const finalClientReactController = new AbortController()
   const finalClientRenderController = new AbortController()
-  const finalClientController = new AbortController()
-
-  finalClientController.signal.addEventListener('abort', () => {
-    finalClientReactController.abort()
-    finalClientRenderController.abort()
-  })
 
   const finalClientPrerenderStore: PrerenderStore = {
     type: 'prerender-client',
@@ -2676,7 +2681,7 @@ async function spawnDynamicValidationInDev(
     rootParams,
     implicitTags,
     renderSignal: finalClientRenderController.signal,
-    controller: finalClientController,
+    controller: finalClientReactController,
     // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
     cacheSignal: null,
     dynamicTracking: clientDynamicTracking,
@@ -2699,8 +2704,8 @@ async function spawnDynamicValidationInDev(
     ).prerender
     let { prelude: unprocessedPrelude } =
       await prerenderAndAbortInSequentialTasks(
-        () =>
-          workUnitAsyncStorage.run(
+        () => {
+          const pendingFinalClientResult = workUnitAsyncStorage.run(
             finalClientPrerenderStore,
             prerender,
             <App
@@ -2741,9 +2746,23 @@ async function spawnDynamicValidationInDev(
               // We don't need bootstrap scripts in this prerender
               // bootstrapScripts: [bootstrapScript],
             }
-          ),
+          )
+
+          // The listener to abort our own render controller must be added after
+          // React has added its listener, to ensure that pending I/O is not
+          // aborted/rejected too early.
+          finalClientReactController.signal.addEventListener(
+            'abort',
+            () => {
+              finalClientRenderController.abort()
+            },
+            { once: true }
+          )
+
+          return pendingFinalClientResult
+        },
         () => {
-          finalClientController.abort()
+          finalClientReactController.abort()
         }
       )
 
@@ -3003,16 +3022,6 @@ async function prerenderToStream(
       // until all caches are filled.
       const initialServerRenderController = new AbortController()
 
-      // This controller orchestrates the other controllers, so that they are
-      // aborted in the correct order.
-      const initialServerController = new AbortController()
-
-      initialServerController.signal.addEventListener('abort', () => {
-        initialServerPrerenderController.abort()
-        initialServerReactController.abort()
-        initialServerRenderController.abort()
-      })
-
       // The cacheSignal helps us track whether caches are still filling or we are ready
       // to cut the render off.
       const cacheSignal = new CacheSignal()
@@ -3108,11 +3117,22 @@ async function prerenderToStream(
         }
       )
 
+      // The listener to abort our own render controller must be added after
+      // React has added its listener, to ensure that pending I/O is not
+      // aborted/rejected too early.
+      initialServerReactController.signal.addEventListener(
+        'abort',
+        () => {
+          initialServerRenderController.abort()
+        },
+        { once: true }
+      )
+
       // Wait for all caches to be finished filling and for async imports to resolve
       trackPendingModules(cacheSignal)
       await cacheSignal.cacheReady()
 
-      initialServerController.abort()
+      initialServerReactController.abort()
 
       // We don't need to continue the prerender process if we already
       // detected invalid dynamic usage in the initial prerender phase.
@@ -3146,13 +3166,6 @@ async function prerenderToStream(
         const initialClientPrerenderController = new AbortController()
         const initialClientReactController = new AbortController()
         const initialClientRenderController = new AbortController()
-        const initialClientController = new AbortController()
-
-        initialClientController.signal.addEventListener('abort', () => {
-          initialClientPrerenderController.abort()
-          initialClientReactController.abort()
-          initialClientRenderController.abort()
-        })
 
         const initialClientPrerenderStore: PrerenderStore = {
           type: 'prerender-client',
@@ -3220,6 +3233,17 @@ async function prerenderToStream(
           }
         )
 
+        // The listener to abort our own render controller must be added after
+        // React has added its listener, to ensure that pending I/O is not
+        // aborted/rejected too early.
+        initialClientReactController.signal.addEventListener(
+          'abort',
+          () => {
+            initialClientRenderController.abort()
+          },
+          { once: true }
+        )
+
         pendingInitialClientResult.catch((err) => {
           if (
             initialClientReactController.signal.aborted ||
@@ -3240,18 +3264,12 @@ async function prerenderToStream(
         // Promises passed to client were already awaited above (assuming that they came from cached functions)
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
-        initialClientController.abort()
+        initialClientReactController.abort()
       }
 
       let serverIsDynamic = false
       const finalServerReactController = new AbortController()
       const finalServerRenderController = new AbortController()
-      const finalServerController = new AbortController()
-
-      finalServerController.signal.addEventListener('abort', () => {
-        finalServerReactController.abort()
-        finalServerRenderController.abort()
-      })
 
       const serverDynamicTracking = createDynamicTrackingState(
         isDebugDynamicAccesses
@@ -3263,7 +3281,7 @@ async function prerenderToStream(
         rootParams,
         implicitTags,
         renderSignal: finalServerRenderController.signal,
-        controller: finalServerController,
+        controller: finalServerReactController,
         // All caches we could read must already be filled so no tracking is necessary
         cacheSignal: null,
         dynamicTracking: serverDynamicTracking,
@@ -3290,7 +3308,7 @@ async function prerenderToStream(
         await createReactServerPrerenderResult(
           prerenderAndAbortInSequentialTasks(
             async () => {
-              const prerenderResult = await workUnitAsyncStorage.run(
+              const pendingPrerenderResult = workUnitAsyncStorage.run(
                 // The store to scope
                 finalServerPrerenderStore,
                 // The function to run
@@ -3306,7 +3324,21 @@ async function prerenderToStream(
                   signal: finalServerReactController.signal,
                 }
               )
+
+              // The listener to abort our own render controller must be added
+              // after React has added its listener, to ensure that pending I/O
+              // is not aborted/rejected too early.
+              finalServerReactController.signal.addEventListener(
+                'abort',
+                () => {
+                  finalServerRenderController.abort()
+                },
+                { once: true }
+              )
+
+              const prerenderResult = await pendingPrerenderResult
               prerenderIsPending = false
+
               return prerenderResult
             },
             () => {
@@ -3322,7 +3354,8 @@ async function prerenderToStream(
                 // there is something unfinished.
                 serverIsDynamic = true
               }
-              finalServerController.abort()
+
+              finalServerReactController.abort()
             }
           )
         ))
@@ -3333,12 +3366,6 @@ async function prerenderToStream(
 
       const finalClientReactController = new AbortController()
       const finalClientRenderController = new AbortController()
-      const finalClientController = new AbortController()
-
-      finalClientController.signal.addEventListener('abort', () => {
-        finalClientReactController.abort()
-        finalClientRenderController.abort()
-      })
 
       const finalClientPrerenderStore: PrerenderStore = {
         type: 'prerender-client',
@@ -3346,7 +3373,7 @@ async function prerenderToStream(
         rootParams,
         implicitTags,
         renderSignal: finalClientRenderController.signal,
-        controller: finalClientController,
+        controller: finalClientReactController,
         // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
         cacheSignal: null,
         dynamicTracking: clientDynamicTracking,
@@ -3368,8 +3395,8 @@ async function prerenderToStream(
       ).prerender
       let { prelude: unprocessedPrelude, postponed } =
         await prerenderAndAbortInSequentialTasks(
-          () =>
-            workUnitAsyncStorage.run(
+          () => {
+            const pendingFinalClientResult = workUnitAsyncStorage.run(
               finalClientPrerenderStore,
               prerender,
               <App
@@ -3411,9 +3438,23 @@ async function prerenderToStream(
                 maxHeadersLength: reactMaxHeadersLength,
                 bootstrapScripts: [bootstrapScript],
               }
-            ),
+            )
+
+            // The listener to abort our own render controller must be added
+            // after React has added its listener, to ensure that pending I/O is
+            // not aborted/rejected too early.
+            finalClientReactController.signal.addEventListener(
+              'abort',
+              () => {
+                finalClientRenderController.abort()
+              },
+              { once: true }
+            )
+
+            return pendingFinalClientResult
+          },
           () => {
-            finalClientController.abort()
+            finalClientReactController.abort()
           }
         )
 
