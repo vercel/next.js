@@ -694,7 +694,6 @@ export async function imageOptimizer(
   maxAge: number
   etag: string
   upstreamEtag: string
-  error?: unknown
 }> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
@@ -821,6 +820,10 @@ export async function imageOptimizer(
     }
   } catch (error) {
     if (upstreamType) {
+      Log.error(
+        `The requested image "${href}" could not be optimized, falling back to original image`,
+        error
+      )
       // If we fail to optimize, fallback to the original image
       return {
         buffer: upstreamBuffer,
@@ -828,7 +831,6 @@ export async function imageOptimizer(
         maxAge: nextConfig.images.minimumCacheTTL,
         etag: upstreamEtag,
         upstreamEtag,
-        error,
       }
     } else {
       throw new ImageError(
