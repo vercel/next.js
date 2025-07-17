@@ -100,15 +100,20 @@ export interface NapiWatchOptions {
 }
 export interface NapiProjectOptions {
   /**
-   * A root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail. Think of this as a chroot.
+   * An absolute root path from which all files must be nested under. Trying to access
+   * a file outside this root will fail, so think of this as a chroot.
+   * E.g. `/home/user/projects/my-repo`.
    */
   rootPath: RcStr
-  /** A path inside the root_path which contains the app/pages directories. */
+  /**
+   * A path which contains the app/pages directories, relative to [`Project::root_path`].
+   * E.g. `apps/my-app`
+   */
   projectPath: RcStr
   /**
-   * next.config's distDir. Project initialization occurs earlier than
-   * deserializing next.config, so passing it as separate option.
+   * A path where to emit the build outputs, relative to [`Project::project_path`].
+   * Corresponds to next.config.js's `distDir`.
+   * E.g. `.next`
    */
   distDir: RcStr
   /** Filesystem watcher options. */
@@ -146,15 +151,20 @@ export interface NapiProjectOptions {
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
   /**
-   * A root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail. Think of this as a chroot.
+   * An absolute root path from which all files must be nested under. Trying to access
+   * a file outside this root will fail, so think of this as a chroot.
+   * E.g. `/home/user/projects/my-repo`.
    */
   rootPath?: RcStr
-  /** A path inside the root_path which contains the app/pages directories. */
+  /**
+   * A path which contains the app/pages directories, relative to [`Project::root_path`].
+   * E.g. `apps/my-app`
+   */
   projectPath?: RcStr
   /**
-   * next.config's distDir. Project initialization occurs earlier than
-   * deserializing next.config, so passing it as separate option.
+   * A path where to emit the build outputs, relative to [`Project::project_path`].
+   * Corresponds to next.config.js's `distDir`.
+   * E.g. `.next`
    */
   distDir?: RcStr | undefined | null
   /** Filesystem watcher options. */
