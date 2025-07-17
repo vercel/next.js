@@ -88,7 +88,7 @@ describe('resolveRouteData', () => {
         ])
       ).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
-       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
+       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
        <url>
        <loc>https://example.com</loc>
        <lastmod>2021-01-01</lastmod>
@@ -115,7 +115,7 @@ describe('resolveRouteData', () => {
         ])
       ).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
-       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="https://www.w3.org/1999/xhtml">
+       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
        <url>
        <loc>https://example.com</loc>
        <xhtml:link rel="alternate" hreflang="es" href="https://example.com/es" />
@@ -139,7 +139,7 @@ describe('resolveRouteData', () => {
         ])
       ).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
-       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="https://www.google.com/schemas/sitemap-image/1.1">
+       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
        <url>
        <loc>https://example.com</loc>
        <image:image>
@@ -195,7 +195,7 @@ describe('resolveRouteData', () => {
         ])
       ).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
-       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="https://www.google.com/schemas/sitemap-video/1.1">
+       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
        <url>
        <loc>https://example.com</loc>
        <video:video>
