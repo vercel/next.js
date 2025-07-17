@@ -16,10 +16,13 @@ import type {
 import { runInNewContext } from 'node:vm'
 import * as Log from '../../../build/output/log'
 import { formatImportTraces } from '../../../shared/lib/turbopack/utils'
+import { inspect } from 'node:util'
 
 const QUERY_DESCRIPTION = `A piece of JavaScript code that will be executed.
 It can access the module graph and extract information it finds useful.
 The value of all newly created global variables will be returned in the response and can be used to report results.
+The \`console.log\` function can be used to log messages, which will also be returned in the response.
+No Node.js or browser APIs are available, but JavaScript language features are available.
 See the following TypeScript typings for reference:
 
 \`\`\` typescript
@@ -70,6 +73,13 @@ const entries: Module[]
 /// Make sure to iterate over this array and not only consider the first one.
 /// Prefer to use \`modules\` over \`entries\` as it contains all modules, not only the entrypoints.
 const modules: Module[]
+
+const console: {
+  /// Logs a message to the console.
+  /// The message will be returned in the response.
+  /// The message can be a string or any other value that can be inspected.
+  log: (...data: any[]) => void
+}
 \`\`\`
 `
 
@@ -288,6 +298,14 @@ function runQuery(
   const proto = {
     modules,
     entries,
+    console: {
+      log: (...data: any[]) => {
+        response.push({
+          type: 'text',
+          text: data.map((item) => inspect(item, false, 2, false)).join(' '),
+        })
+      },
+    },
     global: undefined,
     self: undefined,
     globalThis: undefined,
