@@ -657,14 +657,16 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at c (turbopack:///[project]/app/dynamic-root/indirection.tsx:9:1)
+                   at c (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:41)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                  7 | export function IndirectionTwo({ children }) {
+                  5 | }
+                  6 |
+               >  7 | export function IndirectionTwo({ children }) {
+                    |                                         ^
                   8 |   return children
-               >  9 | }
-                    | ^
+                  9 | }
                  10 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
@@ -1680,14 +1682,14 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:9:7)
-                    7 |   return (
-                    8 |     <main>
-                 >  9 |       <h1>Sync IO Access</h1>
-                      |       ^
-                   10 |       <p suppressHydrationWarning>Current date and time: {data}</p>
-                   11 |     </main>
-                   12 |   )
+                     at c (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:15)
+                   3 | export function SyncIO() {
+                   4 |   // This is a sync IO access that should not cause an error
+                 > 5 |   const data = new Date().toISOString()
+                     |               ^
+                   6 |
+                   7 |   return (
+                   8 |     <main>
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1989,14 +1991,14 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:9:7)
-                    7 |   return (
-                    8 |     <main>
-                 >  9 |       <h1>Sync IO Access</h1>
-                      |       ^
-                   10 |       <p suppressHydrationWarning>Current date and time: {data}</p>
-                   11 |     </main>
-                   12 |   )
+                     at c (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:15)
+                   3 | export function SyncIO() {
+                   4 |   // This is a sync IO access that should not cause an error
+                 > 5 |   const data = new Date().toISOString()
+                     |               ^
+                   6 |
+                   7 |   return (
+                   8 |     <main>
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
