@@ -1074,64 +1074,128 @@ describe('Error overlay for hydration errors in App router', () => {
       )
     })
 
-    await expect(browser).toDisplayCollapsedRedbox(`
-     [
-       {
-         "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/layout.js (7:7) @ Layout
-     >  7 |       <Script
-          |       ^",
-         "stack": [
-           "Layout app/layout.js (7:7)",
-         ],
-       },
-       {
-         "componentStack": "...
-         <HotReload assetPrefix="" globalError={[...]}>
-           <AppDevOverlayErrorBoundary globalError={[...]}>
-             <ReplaySsrOnlyErrors>
-             <DevRootHTTPAccessFallbackBoundary>
-               <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
-                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
-                   <RedirectBoundary>
-                     <RedirectErrorBoundary router={{...}}>
-                       <Head>
-                       <SegmentViewNode type="layout" pagePath="layout.js">
-                         <SegmentTrieNode>
-                         <Layout>
-     >                     <html>
-                             <body>
-                             <Script src="https://ex..." strategy="beforeInte...">
-     >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                       ...",
-         "description": "In HTML, <script> cannot be a child of <html>.
-     This will cause a hydration error.",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/layout.js (7:7) @ Layout
-     >  7 |       <Script
-          |       ^",
-         "stack": [
-           "script <anonymous>",
-           "Layout app/layout.js (7:7)",
-         ],
-       },
-       {
-         "description": "<html> cannot contain a nested <script>.
-     See this log for the ancestor stack trace.",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/layout.js (5:5) @ Layout
-     > 5 |     <html>
-         |     ^",
-         "stack": [
-           "html <anonymous>",
-           "Layout app/layout.js (5:5)",
-         ],
-       },
-     ]
-    `)
+    if (isTurbopack) {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       [
+         {
+           "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (7:7) @ Layout
+       >  7 |       <Script
+            |       ^",
+           "stack": [
+             "Layout app/layout.js (7:7)",
+           ],
+         },
+         {
+           "componentStack": "...
+           <HotReload assetPrefix="" globalError={[...]}>
+             <AppDevOverlayErrorBoundary globalError={[...]}>
+               <ReplaySsrOnlyErrors>
+               <DevRootHTTPAccessFallbackBoundary>
+                 <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <Head>
+                         <SegmentViewNode type="layout" pagePath="layout.js">
+                           <SegmentTrieNode>
+                           <script>
+                           <script>
+                           <Layout>
+       >                     <html>
+                               <body>
+                               <Script src="https://ex..." strategy="beforeInte...">
+       >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                         ...",
+           "description": "In HTML, <script> cannot be a child of <html>.
+       This will cause a hydration error.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (7:7) @ Layout
+       >  7 |       <Script
+            |       ^",
+           "stack": [
+             "script <anonymous>",
+             "Layout app/layout.js (7:7)",
+           ],
+         },
+         {
+           "description": "<html> cannot contain a nested <script>.
+       See this log for the ancestor stack trace.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (5:5) @ Layout
+       > 5 |     <html>
+           |     ^",
+           "stack": [
+             "html <anonymous>",
+             "Layout app/layout.js (5:5)",
+           ],
+         },
+       ]
+      `)
+    } else {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       [
+         {
+           "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (7:7) @ Layout
+       >  7 |       <Script
+            |       ^",
+           "stack": [
+             "Layout app/layout.js (7:7)",
+           ],
+         },
+         {
+           "componentStack": "...
+           <HotReload assetPrefix="" globalError={[...]}>
+             <AppDevOverlayErrorBoundary globalError={[...]}>
+               <ReplaySsrOnlyErrors>
+               <DevRootHTTPAccessFallbackBoundary>
+                 <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <Head>
+                         <SegmentViewNode type="layout" pagePath="layout.js">
+                           <SegmentTrieNode>
+                           <Layout>
+       >                     <html>
+                               <body>
+                               <Script src="https://ex..." strategy="beforeInte...">
+       >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                         ...",
+           "description": "In HTML, <script> cannot be a child of <html>.
+       This will cause a hydration error.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (7:7) @ Layout
+       >  7 |       <Script
+            |       ^",
+           "stack": [
+             "script <anonymous>",
+             "Layout app/layout.js (7:7)",
+           ],
+         },
+         {
+           "description": "<html> cannot contain a nested <script>.
+       See this log for the ancestor stack trace.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (5:5) @ Layout
+       > 5 |     <html>
+           |     ^",
+           "stack": [
+             "html <anonymous>",
+             "Layout app/layout.js (5:5)",
+           ],
+         },
+       ]
+      `)
+    }
   })
 })
