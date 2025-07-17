@@ -111,5 +111,8 @@ pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctio
     ("__turbopack_refresh__", TURBOPACK_REFRESH),
     ("__turbopack_require_stub__", TURBOPACK_REQUIRE_STUB),
     ("__turbopack_require_real__", TURBOPACK_REQUIRE_REAL),
-    ("__next__clear_chunk_cache__", TURBOPACK_CLEAR_CHUNK_CACHE),
+    (
+        "__turbopack_clear_chunk_cache__",
+        TURBOPACK_CLEAR_CHUNK_CACHE,
+    ),
 ];
