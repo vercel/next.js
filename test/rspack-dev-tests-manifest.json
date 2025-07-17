@@ -449,6 +449,14 @@
       "assignErrorIfEmpty should handle multiple routes at the same trie node",
       "assignErrorIfEmpty should handle nested routes with multiple parameter depths",
       "assignErrorIfEmpty should handle routes at same trie node with different fallback parameter lengths",
+      "calculateFallbackMode should handle single root param correctly",
+      "calculateFallbackMode should prioritize root params over base fallback mode",
+      "calculateFallbackMode should return BLOCKING_STATIC_RENDER when dynamic params are enabled and root params exist",
+      "calculateFallbackMode should return NOT_FOUND when dynamic params are disabled",
+      "calculateFallbackMode should return NOT_FOUND when dynamic params are disabled regardless of root params",
+      "calculateFallbackMode should return NOT_FOUND when dynamic params are enabled but no base fallback mode provided",
+      "calculateFallbackMode should return base fallback mode when dynamic params are enabled and empty root params",
+      "calculateFallbackMode should return base fallback mode when dynamic params are enabled and no root params",
       "filterUniqueParams should filter out duplicate parameters",
       "filterUniqueParams should handle more complex routes",
       "generateParamPrefixCombinations should handle deep parameter hierarchies",
@@ -3011,10 +3019,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3990,6 +3998,7 @@
   },
   "test/development/pages-dir/client-navigation/rendering-head.test.ts": {
     "passed": [
+      "Client Navigation rendering <Head /> with strictNextHead=false custom meta properties are rendered only once",
       "Client Navigation rendering <Head /> with strictNextHead=false header helper avoids dedupe of meta tags with the same name if they use unique keys",
       "Client Navigation rendering <Head /> with strictNextHead=false header helper avoids dedupe of specific tags",
       "Client Navigation rendering <Head /> with strictNextHead=false header helper dedupes tags",
@@ -4001,6 +4010,7 @@
       "Client Navigation rendering <Head /> with strictNextHead=false header renders default viewport",
       "Client Navigation rendering <Head /> with strictNextHead=false should handle undefined prop in head server-side",
       "Client Navigation rendering <Head /> with strictNextHead=false should place charset element at the top of <head>",
+      "Client Navigation rendering <Head /> with strictNextHead=true custom meta properties are rendered only once",
       "Client Navigation rendering <Head /> with strictNextHead=true header helper avoids dedupe of meta tags with the same name if they use unique keys",
       "Client Navigation rendering <Head /> with strictNextHead=true header helper avoids dedupe of specific tags",
       "Client Navigation rendering <Head /> with strictNextHead=true header helper dedupes tags",
@@ -4011,7 +4021,19 @@
       "Client Navigation rendering <Head /> with strictNextHead=true header renders default charset",
       "Client Navigation rendering <Head /> with strictNextHead=true header renders default viewport",
       "Client Navigation rendering <Head /> with strictNextHead=true should handle undefined prop in head server-side",
-      "Client Navigation rendering <Head /> with strictNextHead=true should place charset element at the top of <head>"
+      "Client Navigation rendering <Head /> with strictNextHead=true should place charset element at the top of <head>",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined custom meta properties are rendered only once",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined header helper avoids dedupe of meta tags with the same name if they use unique keys",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined header helper avoids dedupe of specific tags",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined header helper dedupes tags",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined header helper dedupes tags with the same key as the default",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined header helper renders Fragment children",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined header helper renders boolean attributes correctly children",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined header helper renders header information",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined header renders default charset",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined header renders default viewport",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined should handle undefined prop in head server-side",
+      "Client Navigation rendering <Head /> with strictNextHead=undefined should place charset element at the top of <head>"
     ],
     "failed": [],
     "pending": [],
@@ -6173,11 +6195,16 @@
       "Dynamic IO Errors Dev Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should show a collapsed redbox error",
       "Dynamic IO Errors Dev Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should show a collapsed redbox error",
       "Dynamic IO Errors Dev Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should show a collapsed redbox error",
+      "Dynamic IO Errors Dev Inside `use cache` cookies should show a redbox error",
+      "Dynamic IO Errors Dev Inside `use cache` draftMode should show a redbox error",
+      "Dynamic IO Errors Dev Inside `use cache` headers should show a redbox error",
       "Dynamic IO Errors Dev Static Route should not show a collapsed redbox error",
       "Dynamic IO Errors Dev Sync Dynamic Platform With Fallback - Math.random() should not show a collapsed redbox error",
       "Dynamic IO Errors Dev Sync Dynamic Platform Without Fallback - Math.random() should show a collapsed redbox error",
       "Dynamic IO Errors Dev Sync Dynamic Request client params should return `undefined` for `params.slug`",
+      "Dynamic IO Errors Dev Sync Dynamic Request client params should show a collapsed redbox with a sync access error",
       "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should return `undefined` for `searchParams.foo`",
+      "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should show a collapsed redbox with a sync access error",
       "Dynamic IO Errors Dev Sync Dynamic Request draftMode should return `undefined` for `draftMode().isEnabled`",
       "Dynamic IO Errors Dev Sync Dynamic Request server params should return `undefined` for `params.slug`",
       "Dynamic IO Errors Dev Sync Dynamic Request server params should show a collapsed redbox with a sync access error",
@@ -6185,8 +6212,6 @@
       "Dynamic IO Errors Dev Sync Dynamic Request server searchParams should show a collapsed redbox with a sync access error"
     ],
     "failed": [
-      "Dynamic IO Errors Dev Sync Dynamic Request client params should show a collapsed redbox with a sync access error",
-      "Dynamic IO Errors Dev Sync Dynamic Request client searchParams should show a collapsed redbox with a sync access error",
       "Dynamic IO Errors Dev Sync Dynamic Request cookies should show a redbox with a sync access error and a runtime error",
       "Dynamic IO Errors Dev Sync Dynamic Request draftMode should show a collapsed redbox with a sync access error",
       "Dynamic IO Errors Dev Sync Dynamic Request headers should show a redbox with a sync access error and a runtime error"
@@ -6872,6 +6897,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/initial-css-not-found/initial-css-not-found.test.ts": {
+    "passed": ["initial-css-not-found should serve styles"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/instrumentation-order/instrumentation-order.test.ts": {
     "passed": ["instrumentation-order should work"],
     "failed": [],
@@ -7105,7 +7137,8 @@
       "mdx with-mdx-rs pages directory should work using browser with mdx import",
       "mdx without-mdx-rs app directory should allow importing client components",
       "mdx without-mdx-rs app directory should allow overriding components",
-      "mdx without-mdx-rs app directory should run plugins",
+      "mdx without-mdx-rs app directory should run rehype plugins",
+      "mdx without-mdx-rs app directory should run remark plugins",
       "mdx without-mdx-rs app directory should work in initial html",
       "mdx without-mdx-rs app directory should work in initial html with mdx import",
       "mdx without-mdx-rs app directory should work using browser",
@@ -9987,10 +10020,11 @@
       "use-cache should cache results in route handlers",
       "use-cache should dedupe cached data in the RSC payload",
       "use-cache should dedupe with react cache inside \"use cache\"",
-      "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
       "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO",
-      "use-cache should not read nor write cached data when draft mode is enabled js disabled",
-      "use-cache should not read nor write cached data when draft mode is enabled js enabled",
+      "use-cache should not read nor write cached data when draft mode is enabled js disabled, with cookies",
+      "use-cache should not read nor write cached data when draft mode is enabled js disabled, without cookies",
+      "use-cache should not read nor write cached data when draft mode is enabled js enabled, with cookies",
+      "use-cache should not read nor write cached data when draft mode is enabled js enabled, without cookies",
       "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
