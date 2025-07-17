@@ -138,7 +138,7 @@ export const PanelRouter = () => {
   const { triggerRef } = usePanelRouterContext()
   const toggleDevtools = useToggleDevtoolsVisibility()
 
-  const [hideShortcut] = useHideShortcutStorage()
+  const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
   useShortcuts(
     hideShortcut ? { [hideShortcut]: toggleDevtools } : {},
     triggerRef
@@ -160,7 +160,10 @@ export const PanelRouter = () => {
           closeOnClickOutside
           header={<DevToolsHeader title="Preferences" />}
         >
-          <UserPreferencesWrapper />
+          <UserPreferencesWrapper
+            hideShortcut={hideShortcut}
+            setHideShortcut={setHideShortcut}
+          />
         </DynamicPanel>
       </PanelRoute>
 
@@ -272,12 +275,16 @@ const InfoFooter = ({ href }: { href: string }) => {
   )
 }
 
-const UserPreferencesWrapper = () => {
+const UserPreferencesWrapper = ({
+  hideShortcut,
+  setHideShortcut,
+}: {
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
+}) => {
   const { dispatch, state } = useDevOverlayContext()
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const updateAllPanelPositions = useUpdateAllPanelPositions()
-
-  const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
 
   return (
     <div

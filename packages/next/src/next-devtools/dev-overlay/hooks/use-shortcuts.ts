@@ -22,7 +22,7 @@ export function useShortcuts(
         e.key !== 'Alt' &&
         e.key !== 'Shift'
       ) {
-        keys.push(e.key)
+        keys.push(e.code)
       }
 
       const shortcut = keys.join('+')
