@@ -1,4 +1,4 @@
-use std::{path::MAIN_SEPARATOR, time::Duration};
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
@@ -36,10 +36,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{
-    DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, get_relative_path_to,
-    invalidation,
-};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, invalidation};
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
@@ -149,11 +146,13 @@ pub struct WatchOptions {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
-    /// A root path from which all files must be nested under. Trying to access
-    /// a file outside this root will fail. Think of this as a chroot.
+    /// An absolute root path from which all files must be nested under. Trying to access
+    /// a file outside this root will fail, so think of this as a chroot.
+    /// E.g. `/home/user/projects/my-repo`.
     pub root_path: RcStr,
 
-    /// A path inside the root_path which contains the app/pages directories.
+    /// A path which contains the app/pages directories, relative to [`Project::root_path`].
+    /// E.g. `apps/my-app`
     pub project_path: RcStr,
 
     /// The contents of next.config.js, serialized to JSON.
@@ -538,15 +537,19 @@ impl ProjectContainer {
 
 #[turbo_tasks::value]
 pub struct Project {
-    /// A root path from which all files must be nested under. Trying to access
-    /// a file outside this root will fail. Think of this as a chroot.
-    root_path: RcStr,
+    /// An absolute root path from which all files must be nested under. Trying to access
+    /// a file outside this root will fail, so think of this as a chroot.
+    /// E.g. `/home/user/projects/my-repo`.
+    pub root_path: RcStr,
 
-    /// A path where to emit the build outputs. next.config.js's distDir.
-    dist_dir: RcStr,
-
-    /// A path inside the root_path which contains the app/pages directories.
+    /// A path which contains the app/pages directories, relative to [`Project::root_path`].
+    /// E.g. `apps/my-app`
     pub project_path: RcStr,
+
+    /// A path where to emit the build outputs, relative to [`Project::project_path`].
+    /// Corresponds to next.config.js's `distDir`.
+    /// E.g. `.next`
+    dist_dir: RcStr,
 
     /// Filesystem watcher options.
     watch: WatchOptions,
@@ -692,14 +695,12 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let relative_from_root_to_project_path =
-            get_relative_path_to(&this.root_path, &this.project_path);
         Ok(self
             .output_fs()
             .root()
             .await?
-            .join(&relative_from_root_to_project_path)?
-            .join(&this.dist_dir.clone())?
+            .join(&this.project_path)?
+            .join(&this.dist_dir)?
             .cell())
     }
 
@@ -742,12 +743,7 @@ impl Project {
     pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path().await?;
-        let project_relative = this.project_path.strip_prefix(&*this.root_path).unwrap();
-        let project_relative = project_relative
-            .strip_prefix(MAIN_SEPARATOR)
-            .unwrap_or(project_relative)
-            .replace(MAIN_SEPARATOR, "/");
-        Ok(root.join(&project_relative)?.cell())
+        Ok(root.join(&this.project_path)?.cell())
     }
 
     #[turbo_tasks::function]

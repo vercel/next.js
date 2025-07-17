@@ -1,6 +1,6 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
-import { join, extname } from 'path'
+import { join, extname, relative } from 'path'
 import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -209,13 +209,14 @@ export async function createHotReloaderTurbopack(
   const supportedBrowsers = getSupportedBrowsers(projectPath, dev)
   const currentNodeJsVersion = process.versions.node
 
+  const rootPath =
+    opts.nextConfig.turbopack?.root ||
+    opts.nextConfig.outputFileTracingRoot ||
+    projectPath
   const project = await bindings.turbo.createProject(
     {
-      projectPath: projectPath,
-      rootPath:
-        opts.nextConfig.turbopack?.root ||
-        opts.nextConfig.outputFileTracingRoot ||
-        projectPath,
+      rootPath,
+      projectPath: relative(rootPath, projectPath),
       distDir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(projectPath, nextConfig),
