@@ -65,35 +65,29 @@ You can use the Model Context Protocol to query information about pages and modu
     return `${indentStr}${str.replace(/\n/g, `\n${indentStr}`)}`
   }
 
-  function issueToString(issue: Issue): string {
-    return (
-      `${issue.severity} in ${issue.stage} {` +
-      indent(
-        [
-          `File Path: ${issue.filePath}`,
-          issue.source &&
-            `Source:
+  function issueToString(issue: Issue & { route: string }): string {
+    return [
+      `${issue.severity} in ${issue.stage} on ${issue.route}`,
+      `File Path: ${issue.filePath}`,
+      issue.source &&
+        `Source:
   ${issue.source.source.ident}
   ${issue.source.range ? `Range: ${issue.source.range?.start.line}:${issue.source.range?.start.column} - ${issue.source.range?.end.line}:${issue.source.range?.end.column}` : 'Unknown range'}
 `,
-          `Title: ${issue.title}`,
-          issue.description &&
-            `Description:
+      `Title: ${styledStringToMarkdown(issue.title)}`,
+      issue.description &&
+        `Description:
 ${indent(styledStringToMarkdown(issue.description))}`,
-          issue.detail &&
-            `Details:
+      issue.detail &&
+        `Details:
 ${indent(styledStringToMarkdown(issue.detail))}`,
-          issue.documentationLink &&
-            `Documentation: ${issue.documentationLink}`,
-          issue.importTraces &&
-            issue.importTraces.length > 0 &&
-            formatImportTraces(issue.importTraces),
-        ]
-          .filter(Boolean)
-          .join('\n')
-      ) +
-      '\n}'
-    )
+      issue.documentationLink && `Documentation: ${issue.documentationLink}`,
+      issue.importTraces &&
+        issue.importTraces.length > 0 &&
+        formatImportTraces(issue.importTraces),
+    ]
+      .filter(Boolean)
+      .join('\n')
   }
 
   function issuesReference(issues: Issue[]): { type: 'text'; text: string } {
@@ -118,31 +112,6 @@ ${indent(styledStringToMarkdown(issue.detail))}`,
         .map(([severity, count]) => `${count} x ${severity}`)
         .join(', ')}.`,
     ]
-
-    const reportedSeverities = ['bug', 'fatal', 'error', 'warning']
-
-    const reportedServerity = reportedSeverities.find(
-      (severity) => countBySeverity.get(severity) > 0
-    )
-
-    if (reportedServerity) {
-      const count = countBySeverity.get(reportedServerity) || 0
-      const visibleCount = Math.min(count, 5)
-      text.push(
-        `Showing the first ${visibleCount} of ${count} issues of severity \`${reportedServerity}\`:`
-      )
-      let remainingCount = visibleCount
-      for (const issue of issues) {
-        if (issue.severity !== reportedServerity) {
-          continue
-        }
-        text.push(`- ${issueToString(issue)}`)
-        remainingCount--
-        if (remainingCount <= 0) {
-          break
-        }
-      }
-    }
 
     return {
       type: 'text',
@@ -182,6 +151,10 @@ ${indent(styledStringToMarkdown(issue.detail))}`,
       default:
         invariant(route, (r) => `Unknown route type: ${r.type}`)
     }
+  }
+
+  function arrayOrSingle<T>(value: T | T[]): T[] {
+    return Array.isArray(value) ? value : [value]
   }
 
   server.registerTool(
@@ -234,12 +207,13 @@ ${list.map((e) => `- ${e}`).join('\n')}`,
     'query-module-graph',
     {
       title: 'Query module graph',
-      description:
-        'Query details about the module graph of a route. Also reports issues found in that route.',
+      description: 'Query details about the module graph of routes.',
       inputSchema: {
-        route: z
-          .string()
-          .describe('The route from which to query the module graph.'),
+        routes: z
+          .union([z.string(), z.array(z.string())])
+          .describe(
+            'The routes from which to query the module graph. Can be a single string or an array of strings.'
+          ),
         query: z.string().describe(
           `A piece of JavaScript code that will be executed.
 It can access the module graph and log out information it finds useful.
@@ -267,6 +241,7 @@ interface Module {
   /// Example: "[project]/pages/folder/index.js",
   path: string,
   /// The distance to the entries of the module graph. Use this to traverse the graph in the right direction.
+  /// This is useful when trying to find the path from a module to the root of the module graph.
   /// Example: 0 for the entrypoint, 1 for the first layer of modules, etc.
   depth: number,
   /// The modules that are referenced by this module.
@@ -299,24 +274,22 @@ const modules: Module[]
 /// Prints the gives data as JSON to the tool response.
 /// It might be useful to use a string as first argument to identify the result in the response when using multiple different log calls.
 declare function log(...data: any[]): void
-
-/// Finds a path to the root of the module graph, starting from the given module.
-/// The return value is an array of modules, starting with the given module and ending with the root module.
-/// When the user asks to find a module, they are often interested to know the path of the module too.
-declare function findPathToRoot(module: Module): Module[];
 \`\`\`
 `
         ),
       },
     },
-    async ({ route, query }) => {
+    async ({ routes, query }) => {
       const start = performance.now()
       const entrypoints = await turbopack.getEntrypoints()
-      const routeInfo = entrypoints.routes.get(route)
-      if (!routeInfo) {
-        throw new Error(`Route ${route} not found`)
+      const endpoints = []
+      for (const route of arrayOrSingle(routes)) {
+        const routeInfo = entrypoints.routes.get(route)
+        if (!routeInfo) {
+          throw new Error(`Route ${route} not found`)
+        }
+        endpoints.push(...routeToEndpoints(routeInfo))
       }
-      const endpoints = routeToEndpoints(routeInfo)
       const issues = []
       const modules = []
       const entries = []
@@ -380,7 +353,99 @@ declare function findPathToRoot(module: Module): Module[];
         duration > 2000
           ? `${Math.round(duration / 100) / 10}s`
           : `${Math.round(duration)}ms`
-      Log.event(`MCP query on ${route} in ${formatDurationText}`)
+      Log.event(
+        `MCP query on ${arrayOrSingle(routes).join(', ')} in ${formatDurationText}`
+      )
+      return {
+        content,
+      }
+    }
+  )
+
+  server.registerTool(
+    'query-issues',
+    {
+      title: 'Query issues of routes',
+      description:
+        'Query issues (errors, warnings, lints, etc.) that are reported on routes.',
+      inputSchema: {
+        routes: z
+          .union([z.string(), z.array(z.string())])
+          .describe(
+            'The routes from which to query the module graph. Can be a single string or an array of strings.'
+          ),
+        page: z
+          .optional(z.number())
+          .describe(
+            'Issues are paginated when there are more than 50 issues. The first page is number 0.'
+          ),
+      },
+    },
+    async ({ routes, page }) => {
+      const start = performance.now()
+      const entrypoints = await turbopack.getEntrypoints()
+      const issues = []
+      for (const route of arrayOrSingle(routes)) {
+        const routeInfo = entrypoints.routes.get(route)
+        if (!routeInfo) {
+          throw new Error(`Route ${route} not found`)
+        }
+        for (const endpoint of routeToEndpoints(routeInfo)) {
+          const result = await endpoint.moduleGraphs()
+          for (const issue of result.issues) {
+            const issuesWithRoute = issue as Issue & { route: string }
+            issuesWithRoute.route = route
+            issues.push(issuesWithRoute)
+          }
+        }
+      }
+      const severitiesArray = [
+        'bug',
+        'fatal',
+        'error',
+        'warning',
+        'hint',
+        'note',
+        'suggestion',
+        'info',
+      ]
+      const severities = new Map(
+        severitiesArray.map((severity, index) => [severity, index])
+      )
+      issues.sort((a, b) => {
+        const severityA = severities.get(a.severity)
+        const severityB = severities.get(b.severity)
+        if (severityA !== undefined && severityB !== undefined) {
+          return severityA - severityB
+        }
+        return 0
+      })
+
+      const content: CallToolResult['content'] = []
+      content.push(issuesReference(issues))
+      page = page ?? 0
+      const currentPage = issues.slice(page * 50, (page + 1) * 50)
+      for (const issue of currentPage) {
+        content.push({
+          type: 'text',
+          text: issueToString(issue),
+        })
+      }
+      if (issues.length >= (page + 1) * 50) {
+        content.push({
+          type: 'text',
+          text: `Note: There are more issues available. Use the \`page\` parameter to query the next page.`,
+        })
+      }
+
+      const duration = performance.now() - start
+      const formatDurationText =
+        duration > 2000
+          ? `${Math.round(duration / 100) / 10}s`
+          : `${Math.round(duration)}ms`
+      Log.event(
+        `MCP query on ${arrayOrSingle(routes).join(', ')} in ${formatDurationText}`
+      )
       return {
         content,
       }
@@ -420,18 +485,6 @@ function runQuery(
         type: 'text',
         text: `Log: ${data.map((d) => JSON.stringify(d, null, 2)).join('\n')}`,
       })
-    },
-    findPathToRoot: (module: Module): Module[] => {
-      const path: Module[] = []
-      let current: Module | undefined = module
-      while (current) {
-        path.push(current)
-        const depth: number = current.depth
-        const reference: ModuleReference | undefined =
-          current.incomingReferences.find((ref) => ref.module.depth < depth)
-        current = reference?.module
-      }
-      return path.reverse()
     },
     global: undefined,
     self: undefined,
