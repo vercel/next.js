@@ -339,7 +339,7 @@ function runQuery(
   runInNewContext(query, contextObject, {
     displayErrors: true,
     filename: 'query.js',
-    timeout: 5000,
+    timeout: 20000,
     contextName: 'Query Context',
   })
   for (const [key, value] of Object.entries(contextObject)) {
