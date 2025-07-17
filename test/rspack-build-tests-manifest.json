@@ -2181,6 +2181,9 @@
       "Dynamic IO Errors Build With --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
       "Dynamic IO Errors Build With --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
       "Dynamic IO Errors Build With --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors Build With --prerender-debug Inside `use cache` cookies should error the build",
+      "Dynamic IO Errors Build With --prerender-debug Inside `use cache` draftMode should error the build",
+      "Dynamic IO Errors Build With --prerender-debug Inside `use cache` headers should error the build",
       "Dynamic IO Errors Build With --prerender-debug Static Route should not error the build when all routes are static",
       "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
       "Dynamic IO Errors Build With --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
@@ -2203,6 +2206,9 @@
       "Dynamic IO Errors Build Without --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
       "Dynamic IO Errors Build Without --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
       "Dynamic IO Errors Build Without --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors Build Without --prerender-debug Inside `use cache` cookies should error the build",
+      "Dynamic IO Errors Build Without --prerender-debug Inside `use cache` draftMode should error the build",
+      "Dynamic IO Errors Build Without --prerender-debug Inside `use cache` headers should error the build",
       "Dynamic IO Errors Build Without --prerender-debug Static Route should not error the build when all routes are static",
       "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
       "Dynamic IO Errors Build Without --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
@@ -2903,6 +2909,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/initial-css-not-found/initial-css-not-found.test.ts": {
+    "passed": ["initial-css-not-found should serve styles"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/instrumentation-order/instrumentation-order.test.ts": {
     "passed": ["instrumentation-order should work"],
     "failed": [],
@@ -3088,7 +3101,8 @@
       "mdx with-mdx-rs pages directory should work using browser with mdx import",
       "mdx without-mdx-rs app directory should allow importing client components",
       "mdx without-mdx-rs app directory should allow overriding components",
-      "mdx without-mdx-rs app directory should run plugins",
+      "mdx without-mdx-rs app directory should run rehype plugins",
+      "mdx without-mdx-rs app directory should run remark plugins",
       "mdx without-mdx-rs app directory should work in initial html",
       "mdx without-mdx-rs app directory should work in initial html with mdx import",
       "mdx without-mdx-rs app directory should work using browser",
@@ -5718,6 +5732,7 @@
   },
   "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts": {
     "passed": [
+      "segment cache (incremental opt in) fully prefetch a page with a dynamic title",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled",
@@ -6252,11 +6267,12 @@
       "use-cache should cache results in route handlers",
       "use-cache should dedupe cached data in the RSC payload",
       "use-cache should dedupe with react cache inside \"use cache\"",
-      "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
       "use-cache should match the expected revalidate and expire configs on the prerender manifest",
       "use-cache should match the expected stale config in the page header",
-      "use-cache should not read nor write cached data when draft mode is enabled js disabled",
-      "use-cache should not read nor write cached data when draft mode is enabled js enabled",
+      "use-cache should not read nor write cached data when draft mode is enabled js disabled, with cookies",
+      "use-cache should not read nor write cached data when draft mode is enabled js disabled, without cookies",
+      "use-cache should not read nor write cached data when draft mode is enabled js enabled, with cookies",
+      "use-cache should not read nor write cached data when draft mode is enabled js enabled, without cookies",
       "use-cache should not store a fetch response with no-store in the incremental cache handler during build",
       "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
@@ -18728,9 +18744,9 @@
     ],
     "failed": [
       "build-output-prerender with a next config file with --debug-prerender prints a warning and the customized experimental flags",
-      "build-output-prerender with a next config file without --debug-prerender prints only the user-selected experimental flags",
+      "build-output-prerender with a next config file without --debug-prerender prints only the user-selected experimental flags (and the ones enabled via env variable)",
       "build-output-prerender without a next config file with --debug-prerender prints a warning and the customized experimental flags",
-      "build-output-prerender without a next config file without --debug-prerender prints no experimental flags"
+      "build-output-prerender without a next config file without --debug-prerender prints no experimental flags (unless enabled via env variable)"
     ],
     "pending": [],
     "flakey": [],
@@ -19717,10 +19733,11 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm",
+      "pnpm support should build with dependencies installed via pnpm"
+    ],
+    "failed": [
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
