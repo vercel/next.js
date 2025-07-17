@@ -9,7 +9,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
-use turbo_tasks_fetch::{HttpResponseBody, fetch};
+use turbo_tasks_fetch::{HttpResponseBody, ReqwestClientConfig, fetch};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
     json::parse_json_with_source_context,
@@ -663,7 +663,7 @@ async fn fetch_from_google_fonts(
     let result = fetch(
         url,
         Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)),
-        Vc::cell(None),
+        ReqwestClientConfig { proxy: None }.cell(),
     )
     .await?;
 
