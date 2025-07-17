@@ -64,7 +64,7 @@ export function ShortcutRecorder({
         )
         if (existingNonModifierIndex !== -1) {
           const next = [...prev]
-          next[existingNonModifierIndex] = e.key
+          next[existingNonModifierIndex] = e.code
           handleValidation(next)
           return next
         }
