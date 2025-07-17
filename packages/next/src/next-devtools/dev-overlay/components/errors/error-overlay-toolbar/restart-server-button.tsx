@@ -86,7 +86,6 @@ export function usePersistentCacheErrorDetection({
 
 export const RESTART_SERVER_BUTTON_STYLES = `
   .restart-dev-server-button {
-    -webkit-font-smoothing: antialiased;
     display: flex;
     justify-content: center;
     align-items: center;
