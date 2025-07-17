@@ -125,6 +125,7 @@ export type Icons = {
 
 export type Verification = {
   google?: null | string | number | (string | number)[] | undefined
+  facebook?: null | string | number | (string | number)[] | undefined
   yahoo?: null | string | number | (string | number)[] | undefined
   yandex?: null | string | number | (string | number)[] | undefined
   me?: null | string | number | (string | number)[] | undefined
@@ -138,6 +139,7 @@ export type Verification = {
 
 export type ResolvedVerification = {
   google?: null | (string | number)[] | undefined
+  facebook?: null | (string | number)[] | undefined
   yahoo?: null | (string | number)[] | undefined
   yandex?: null | (string | number)[] | undefined
   me?: null | (string | number)[] | undefined

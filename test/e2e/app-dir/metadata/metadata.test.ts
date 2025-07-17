@@ -257,6 +257,7 @@ describe('app dir - metadata', () => {
       const matchMultiDom = createMultiHtmlMatcher($)
       matchMultiDom('meta', 'name', 'content', {
         'google-site-verification': 'google',
+        'facebook-domain-verification': 'facebook',
         y_key: 'yahoo',
         'yandex-verification': 'yandex',
         me: ['my-email', 'my-link'],

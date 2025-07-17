@@ -234,6 +234,10 @@ export function VerificationMeta({
       namePrefix: 'google-site-verification',
       contents: verification.google,
     }),
+    MultiMeta({
+      namePrefix: 'facebook-domain-verification',
+      contents: verification.facebook,
+    }),
     MultiMeta({ namePrefix: 'y_key', contents: verification.yahoo }),
     MultiMeta({
       namePrefix: 'yandex-verification',
