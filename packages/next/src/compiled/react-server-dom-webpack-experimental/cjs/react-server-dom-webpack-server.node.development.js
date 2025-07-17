@@ -727,6 +727,23 @@
       }
       return url;
     }
+    function isPromiseCreationInternal(url, functionName) {
+      if ("node:internal/async_hooks" === url) return !0;
+      if ("" !== url) return !1;
+      switch (functionName) {
+        case "new Promise":
+        case "Function.withResolvers":
+        case "Function.reject":
+        case "Function.resolve":
+        case "Function.all":
+        case "Function.allSettled":
+        case "Function.race":
+        case "Function.try":
+          return !0;
+        default:
+          return !1;
+      }
+    }
     function filterStackTrace(request, stack) {
       request = request.filterStackFrame;
       for (var filteredStack = [], i = 0; i < stack.length; i++) {
@@ -756,10 +773,29 @@
       }
       return !1;
     }
+    function isPromiseAwaitInternal(url, functionName) {
+      if ("node:internal/async_hooks" === url) return !0;
+      if ("" !== url) return !1;
+      switch (functionName) {
+        case "Promise.then":
+        case "Promise.catch":
+        case "Promise.finally":
+        case "Function.reject":
+        case "Function.resolve":
+        case "Function.all":
+        case "Function.allSettled":
+        case "Function.race":
+        case "Function.try":
+          return !0;
+        default:
+          return !1;
+      }
+    }
     function isAwaitInUserspace(request, stack) {
       for (
         var firstFrame = 0;
-        stack.length > firstFrame && "Promise.then" === stack[firstFrame][0];
+        stack.length > firstFrame &&
+        isPromiseAwaitInternal(stack[firstFrame][1], stack[firstFrame][0]);
 
       )
         firstFrame++;
@@ -2928,33 +2964,43 @@
       existingRef = null;
       var name = "";
       if (null !== ioNode.stack) {
-        name = ioNode.stack;
+        a: {
+          existingRef = ioNode.stack;
+          for (name = 0; name < existingRef.length; name++) {
+            var callsite = existingRef[name];
+            if (!isPromiseCreationInternal(callsite[1], callsite[0])) {
+              name = 0 < name ? existingRef.slice(name) : existingRef;
+              break a;
+            }
+          }
+          name = [];
+        }
         existingRef = filterStackTrace(request, name);
         a: {
+          callsite = "";
           for (
-            var bestMatch = "",
-              filterStackFrame = request.filterStackFrame,
-              i = 0;
+            var filterStackFrame = request.filterStackFrame, i = 0;
             i < name.length;
             i++
           ) {
-            var callsite = name[i],
-              functionName = callsite[0],
-              url = devirtualizeURL(callsite[1]),
-              lineNumber = callsite[2];
-            callsite = callsite[3];
+            var callsite$jscomp$0 = name[i],
+              functionName = callsite$jscomp$0[0],
+              url = devirtualizeURL(callsite$jscomp$0[1]);
             if (
-              "new Promise" !== functionName &&
-              "node:internal/async_hooks" !== url
-            )
-              if (filterStackFrame(url, functionName, lineNumber, callsite)) {
-                if ("" === bestMatch) {
-                  name = functionName;
-                  break a;
-                }
-                name = bestMatch;
+              filterStackFrame(
+                url,
+                functionName,
+                callsite$jscomp$0[2],
+                callsite$jscomp$0[3]
+              )
+            ) {
+              if ("" === callsite) {
+                name = functionName;
                 break a;
-              } else bestMatch = functionName;
+              }
+              name = callsite;
+              break a;
+            } else callsite = functionName;
           }
           name = "";
         }
@@ -2962,28 +3008,28 @@
           ? (name = name.slice(7))
           : name.startsWith("<anonymous>.") && (name = name.slice(7));
       }
-      bestMatch = ioNode.owner;
-      null != bestMatch && outlineComponentInfo(request, bestMatch);
+      callsite = ioNode.owner;
+      null != callsite && outlineComponentInfo(request, callsite);
       filterStackFrame = void 0;
       null !== promiseRef && (filterStackFrame = promiseRef.deref());
       promiseRef = (0, request.environmentName)();
       i = 3 === ioNode.tag ? request.abortTime : ioNode.end;
       request.pendingDebugChunks++;
-      functionName = request.nextChunkId++;
+      callsite$jscomp$0 = request.nextChunkId++;
       emitIOInfoChunk(
         request,
-        functionName,
+        callsite$jscomp$0,
         name,
         ioNode.start,
         i,
         filterStackFrame,
         promiseRef,
-        bestMatch,
+        callsite,
         existingRef
       );
-      existingRef = serializeByValueID(functionName);
-      request.writtenDebugObjects.set(ioNode, existingRef);
-      return existingRef;
+      promiseRef = serializeByValueID(callsite$jscomp$0);
+      request.writtenDebugObjects.set(ioNode, promiseRef);
+      return promiseRef;
     }
     function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
       if (TaintRegistryByteLengths.has(typedArray.byteLength)) {
@@ -5726,12 +5772,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_237 = [];
+        var JSCompiler_object_inline_chunks_243 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_237.push(chunk);
+          JSCompiler_object_inline_chunks_243.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_237, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_243, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);
