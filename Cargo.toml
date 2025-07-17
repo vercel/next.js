@@ -299,21 +299,25 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "30.1.1", features = [
+swc_core = { version = "34", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-testing = { version = "14.0.0" }
+testing = "15.0.0"
 
 # Keep consistent with preset_env_base through swc_core
-browserslist-rs = { version = "0.19.0" }
+browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = { version = "0.90.0" }
-styled_components = { version = "0.118.0" }
-styled_jsx = { version = "0.94.0" }
-swc_emotion = { version = "0.94.0" }
-swc_relay = { version = "0.64.0" }
+modularize_imports = "0.93.0"
+styled_components = "0.121.0"
+styled_jsx = "0.97.0"
+swc_emotion = "0.97.0"
+swc_relay = "0.67.0"
+react_remove_properties = "0.47.0"
+remove_console = "0.48.0"
+preset_env_base = "5.0.0"
+
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -439,6 +443,6 @@ webbrowser = "0.8.7"
 
 [patch.crates-io]
 hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-macos-intel-miscompilation-workaround" }
+mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
 lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
-mdxjs = { git = "https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-30" }
 parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
