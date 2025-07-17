@@ -1,6 +1,6 @@
 import { CopyButton } from '../../copy-button'
 
-export function CopyStackTraceButton({
+export function CopyErrorButton({
   error,
   generateAIPrompt,
 }: {
@@ -10,7 +10,7 @@ export function CopyStackTraceButton({
   return (
     <CopyButton
       data-nextjs-data-runtime-error-copy-stack
-      className="copy-stack-trace-button"
+      className="copy-error-button"
       actionLabel="Copy AI Debug Prompt"
       successLabel="AI Debug Prompt Copied"
       getContent={generateAIPrompt}

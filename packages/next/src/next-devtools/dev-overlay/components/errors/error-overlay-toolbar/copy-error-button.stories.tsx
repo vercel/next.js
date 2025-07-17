@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { CopyStackTraceButton } from './copy-stack-trace-button'
+import { CopyErrorButton } from './copy-error-button'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
-const meta: Meta<typeof CopyStackTraceButton> = {
-  component: CopyStackTraceButton,
+const meta: Meta<typeof CopyErrorButton> = {
+  component: CopyErrorButton,
   parameters: {
     layout: 'centered',
   },
@@ -11,7 +11,7 @@ const meta: Meta<typeof CopyStackTraceButton> = {
 }
 
 export default meta
-type Story = StoryObj<typeof CopyStackTraceButton>
+type Story = StoryObj<typeof CopyErrorButton>
 
 export const WithStackTrace: Story = {
   args: {
