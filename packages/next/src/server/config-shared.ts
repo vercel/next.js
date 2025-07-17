@@ -18,6 +18,7 @@ import type {
   ManifestHeaderRoute,
   ManifestRedirectRoute,
   RouteType,
+  ManifestRoute,
 } from '../build'
 import { isStableBuild } from '../shared/lib/canary-only'
 
@@ -63,7 +64,7 @@ export interface NextAdapter {
         afterFiles: Array<ManifestRewriteRoute>
         fallback: Array<ManifestRewriteRoute>
       }
-      dynamicRoutes: Array<{}>
+      dynamicRoutes: ReadonlyArray<ManifestRoute>
     }
     outputs: AdapterOutputs
   }) => Promise<void> | void
