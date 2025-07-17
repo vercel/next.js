@@ -56,7 +56,7 @@ export function connection(): Promise<void> {
           // We return a promise that never resolves to allow the prerender to
           // stall at this point.
           return makeHangingPromise(
-            workUnitStore.hangingPromiseSignal,
+            workUnitStore.renderSignal,
             '`connection()`'
           )
         case 'prerender-ppr':

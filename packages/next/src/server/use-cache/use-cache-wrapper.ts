@@ -822,7 +822,7 @@ export function cache(
 
             if (dynamicAccessAbortController.signal.aborted) {
               return makeHangingPromise(
-                workUnitStore.hangingPromiseSignal,
+                workUnitStore.renderSignal,
                 dynamicAccessAbortController.signal.reason.message
               )
             }
@@ -887,7 +887,7 @@ export function cache(
                   cacheSignal.endRead()
                 }
                 return makeHangingPromise(
-                  workUnitStore.hangingPromiseSignal,
+                  workUnitStore.renderSignal,
                   'dynamic "use cache"'
                 )
               case 'prerender-client':
@@ -936,7 +936,7 @@ export function cache(
                 // the "use cache" function, which escapes the instrumentation.
                 if (workUnitStore.allowEmptyStaticShell) {
                   return makeHangingPromise(
-                    workUnitStore.hangingPromiseSignal,
+                    workUnitStore.renderSignal,
                     'dynamic "use cache"'
                   )
                 }
@@ -1031,7 +1031,7 @@ export function cache(
                 cacheSignal.endRead()
               }
               return makeHangingPromise(
-                workUnitStore.hangingPromiseSignal,
+                workUnitStore.renderSignal,
                 'dynamic "use cache"'
               )
             case 'prerender-client':

@@ -577,9 +577,7 @@ export function useDynamicRouteParams(expression: string) {
           // We are in a prerender with cacheComponents semantics. We are going to
           // hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole.
-          React.use(
-            makeHangingPromise(workUnitStore.hangingPromiseSignal, expression)
-          )
+          React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
           break
         case 'prerender':
         case 'prerender-ppr':

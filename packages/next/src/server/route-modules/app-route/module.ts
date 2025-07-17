@@ -389,9 +389,6 @@ export class AppRouteRouteModule extends RouteModule<
               rootParams: {},
               implicitTags,
               renderSignal: prospectiveController.signal,
-              // There's no React rendering involved here, so the hanging
-              // promise signal can be the same as the render signal.
-              hangingPromiseSignal: prospectiveController.signal,
               controller: prospectiveController,
               cacheSignal,
               // During prospective render we don't use a controller
@@ -486,9 +483,6 @@ export class AppRouteRouteModule extends RouteModule<
             rootParams: {},
             implicitTags,
             renderSignal: finalController.signal,
-            // There's no React rendering involved here, so the hanging promise
-            // signal can be the same as the render signal.
-            hangingPromiseSignal: finalController.signal,
             controller: finalController,
             cacheSignal: null,
             dynamicTracking,

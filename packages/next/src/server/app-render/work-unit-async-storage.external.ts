@@ -92,25 +92,18 @@ interface PrerenderStoreModernServer extends PrerenderStoreModernCommon {
 
 interface PrerenderStoreModernCommon extends CommonWorkUnitStore {
   /**
-   * The render signal is passed to React's `prerender` function to abort the
-   * prerendering:
-   * 1. when all caches are filled during the prospective prerender
-   * 2. when the final prerender is aborted immediately after the prerender was
-   *    started
+   * The render signal is aborted after React's `prerender` function is aborted
+   * (using a separate signal), which happens in two cases:
+   *
+   * 1. When all caches are filled during the prospective prerender.
+   * 2. When the final prerender is aborted immediately after the prerender was
+   *    started.
+   *
+   * It can be used to reject any pending I/O, including hanging promises. This
+   * allows React to properly track the async I/O in dev mode, which yields
+   * better owner stacks for dynamic validation errors.
    */
   readonly renderSignal: AbortSignal
-
-  /**
-   * The hanging promise signal is used to reject any hanging promises after
-   * prerendering is aborted with the `renderSignal`. It's a separate signal to
-   * ensure that hanging promises that were created before React started
-   * rendering, are not rejected before React has added its own abort listener
-   * to the `renderSignal`. This allows React to properly track the async I/O in
-   * dev mode, which yields better owner stacks for dynamic validation errors.
-   * For parity, we're also using this signal in production, so that the hanging
-   * promise rejection handling is always the same.
-   */
-  readonly hangingPromiseSignal: AbortSignal
 
   /**
    * This is the AbortController which represents the boundary between Prerender
