@@ -50,7 +50,7 @@ function createPrerenderPathname(
     switch (prerenderStore.type) {
       case 'prerender':
         return makeHangingPromise<string>(
-          prerenderStore.renderSignal,
+          prerenderStore.hangingPromiseSignal,
           '`pathname`'
         )
       case 'prerender-client':

@@ -560,7 +560,7 @@ export function createPatchedFetcher(
               }
 
               return makeHangingPromise<Response>(
-                workUnitStore.renderSignal,
+                workUnitStore.hangingPromiseSignal,
                 'fetch()'
               )
             case 'prerender-ppr':
@@ -670,7 +670,7 @@ export function createPatchedFetcher(
                     cacheSignal = null
                   }
                   return makeHangingPromise<Response>(
-                    workUnitStore.renderSignal,
+                    workUnitStore.hangingPromiseSignal,
                     'fetch()'
                   )
                 case 'prerender-ppr':
@@ -1011,7 +1011,7 @@ export function createPatchedFetcher(
                     cacheSignal = null
                   }
                   return makeHangingPromise<Response>(
-                    workUnitStore.renderSignal,
+                    workUnitStore.hangingPromiseSignal,
                     'fetch()'
                   )
                 case 'prerender-ppr':
@@ -1045,7 +1045,7 @@ export function createPatchedFetcher(
                   case 'prerender':
                   case 'prerender-client':
                     return makeHangingPromise<Response>(
-                      workUnitStore.renderSignal,
+                      workUnitStore.hangingPromiseSignal,
                       'fetch()'
                     )
                   case 'request':

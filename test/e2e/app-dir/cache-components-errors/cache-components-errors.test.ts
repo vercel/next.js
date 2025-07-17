@@ -554,10 +554,11 @@ describe('Cache Components Errors', () => {
                  "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": "app/dynamic-root/page.tsx (45:56) @ FetchingComponent
-             > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
-                  |                                                        ^",
+                 "source": "app/dynamic-root/page.tsx (59:26) @ fetchRandom
+             > 59 |   const response = await fetch(
+                  |                          ^",
                  "stack": [
+                   "fetchRandom app/dynamic-root/page.tsx (59:26)",
                    "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (22:9)",
                    "LogSafely <anonymous>",
@@ -567,10 +568,11 @@ describe('Cache Components Errors', () => {
                  "description": "Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
                  "environmentLabel": "Server",
                  "label": "Console Error",
-                 "source": "app/dynamic-root/page.tsx (45:56) @ FetchingComponent
-             > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
-                  |                                                        ^",
+                 "source": "app/dynamic-root/page.tsx (59:26) @ fetchRandom
+             > 59 |   const response = await fetch(
+                  |                          ^",
                  "stack": [
+                   "fetchRandom app/dynamic-root/page.tsx (59:26)",
                    "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (27:7)",
                    "LogSafely <anonymous>",
@@ -1756,20 +1758,20 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-                              "environmentLabel": "Server",
-                              "label": "Console Error",
-                              "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (33:16) @ RequestData
-                            > 33 | async function RequestData() {
-                                 |                ^",
-                              "stack": [
-                                "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (33:16)",
-                                "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
-                                "LogSafely <anonymous>",
-                              ],
-                            }
-                          `)
+               {
+                 "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
+               > 34 |   ;(await cookies()).get('foo')
+                    |                  ^",
+                 "stack": [
+                   "RequestData app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18)",
+                   "Page app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (27:9)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
             }
           })
         } else {

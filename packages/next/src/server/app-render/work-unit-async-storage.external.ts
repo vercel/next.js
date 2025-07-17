@@ -92,20 +92,39 @@ interface PrerenderStoreModernServer extends PrerenderStoreModernCommon {
 
 interface PrerenderStoreModernCommon extends CommonWorkUnitStore {
   /**
-   * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
+   * The render signal is passed to React's `prerender` function to abort the
+   * prerendering:
+   * 1. when all caches are filled during the prospective prerender
+   * 2. when the final prerender is aborted immediately after the prerender was
+   *    started
    */
   readonly renderSignal: AbortSignal
+
   /**
-   * This is the AbortController which represents the boundary between Prerender and dynamic. In some renders it is
-   * the same as the controller for the renderSignal but in others it is a separate controller. It should be aborted
-   * whenever the we are no longer in the prerender phase of rendering. Typically this is after one task or when you call
-   * a sync API which requires the prerender to end immediately
+   * The hanging promise signal is used to reject any hanging promises after
+   * prerendering is aborted with the `renderSignal`. It's a separate signal to
+   * ensure that hanging promises that were created before React started
+   * rendering, are not rejected before React has added its own abort listener
+   * to the `renderSignal`. This allows React to properly track the async I/O in
+   * dev mode, which yields better owner stacks for dynamic validation errors.
+   * For parity, we're also using this signal in production, so that the hanging
+   * promise rejection handling is always the same.
+   */
+  readonly hangingPromiseSignal: AbortSignal
+
+  /**
+   * This is the AbortController which represents the boundary between Prerender
+   * and dynamic. In some renders it is the same as the controller for the
+   * renderSignal but in others it is a separate controller. It should be
+   * aborted whenever the we are no longer in the prerender phase of rendering.
+   * Typically this is after one task or when you call a sync API which requires
+   * the prerender to end immediately.
    */
   readonly controller: AbortController
 
   /**
-   * when not null this signal is used to track cache reads during prerendering and
-   * to await all cache reads completing before aborting the prerender.
+   * When not null, this signal is used to track cache reads during prerendering
+   * and to await all cache reads completing, before aborting the prerender.
    */
   readonly cacheSignal: null | CacheSignal
 

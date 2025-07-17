@@ -100,7 +100,7 @@ function createPrerenderRootParams(
           }
 
           const promise = makeHangingPromise<Params>(
-            prerenderStore.renderSignal,
+            prerenderStore.hangingPromiseSignal,
             '`unstable_rootParams`'
           )
           CachedParams.set(underlyingParams, promise)

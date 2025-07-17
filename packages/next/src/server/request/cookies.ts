@@ -174,7 +174,7 @@ function makeHangingCookies(
   }
 
   const promise = makeHangingPromise<ReadonlyRequestCookies>(
-    prerenderStore.renderSignal,
+    prerenderStore.hangingPromiseSignal,
     '`cookies()`'
   )
   CachedCookies.set(prerenderStore, promise)

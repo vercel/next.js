@@ -147,7 +147,10 @@ export function createPrerenderParamsForClientSegment(
               // to consider the awaiting of this params object "dynamic". Since
               // we are in cacheComponents mode we encode this as a promise that never
               // resolves.
-              return makeHangingPromise(workUnitStore.renderSignal, '`params`')
+              return makeHangingPromise(
+                workUnitStore.hangingPromiseSignal,
+                '`params`'
+              )
             }
           }
         }
@@ -273,7 +276,7 @@ function makeHangingParams(
   }
 
   const promise = new Proxy(
-    makeHangingPromise<Params>(prerenderStore.renderSignal, '`params`'),
+    makeHangingPromise<Params>(prerenderStore.hangingPromiseSignal, '`params`'),
     fallbackParamsProxyHandler
   )
 

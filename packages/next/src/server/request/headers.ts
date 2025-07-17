@@ -174,7 +174,7 @@ function makeHangingHeaders(
   }
 
   const promise = makeHangingPromise<ReadonlyHeaders>(
-    prerenderStore.renderSignal,
+    prerenderStore.hangingPromiseSignal,
     '`headers()`'
   )
   CachedHeaders.set(prerenderStore, promise)

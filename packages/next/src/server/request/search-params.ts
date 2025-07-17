@@ -126,7 +126,10 @@ export function createPrerenderSearchParamsForClientPage(
       case 'prerender-client':
         // We're prerendering in a mode that aborts (cacheComponents) and should stall
         // the promise to ensure the RSC side is considered dynamic
-        return makeHangingPromise(workUnitStore.renderSignal, '`searchParams`')
+        return makeHangingPromise(
+          workUnitStore.hangingPromiseSignal,
+          '`searchParams`'
+        )
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
@@ -219,7 +222,7 @@ function makeHangingSearchParams(
   }
 
   const promise = makeHangingPromise<SearchParams>(
-    prerenderStore.renderSignal,
+    prerenderStore.hangingPromiseSignal,
     '`searchParams`'
   )
 
