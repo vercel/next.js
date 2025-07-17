@@ -269,7 +269,7 @@ export async function loadProjectInfo({
     dir,
     config
   )
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+  const supportedBrowsers = getSupportedBrowsers(dir, dev)
   return {
     jsConfig,
     jsConfigPath,

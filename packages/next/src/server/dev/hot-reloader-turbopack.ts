@@ -204,7 +204,7 @@ export async function createHotReloaderTurbopack(
     // TODO this need to be set correctly for persistent caching to work
   }
 
-  const supportedBrowsers = await getSupportedBrowsers(projectPath, dev)
+  const supportedBrowsers = getSupportedBrowsers(projectPath, dev)
   const currentNodeJsVersion = process.versions.node
 
   const project = await bindings.turbo.createProject(

@@ -49,7 +49,7 @@ export async function turbopackBuild(): Promise<{
   const bindings = await loadBindings(config?.experimental?.useWasmBinary)
   const dev = false
 
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+  const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
   const persistentCaching = isPersistentCachingEnabled(config)
   const project = await bindings.turbo.createProject(
