@@ -120,7 +120,9 @@ describe('getImageProps()', () => {
       height: 200,
       quality: 50,
     })
-    expect(warningMessages).toStrictEqual([])
+    expect(warningMessages).toStrictEqual([
+      'Image with src "/test.png" is using quality "50" which is not configured in images.qualities. This config will be required starting in Next.js 16.\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities',
+    ])
     expect(Object.entries(props)).toStrictEqual([
       ['alt', 'a nice desc'],
       ['id', 'my-image'],
@@ -134,6 +136,31 @@ describe('getImageProps()', () => {
         '/_next/image?url=%2Ftest.png&w=128&q=50 1x, /_next/image?url=%2Ftest.png&w=256&q=50 2x',
       ],
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=50'],
+    ])
+  })
+  it('should handle quality as a string and not warn', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+      quality: '75',
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
   it('should handle loading eager', async () => {

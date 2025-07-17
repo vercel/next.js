@@ -3,14 +3,13 @@ import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   type ModernSourceMapPayload,
   findApplicableSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
-import { parseStack } from './lib/parse-stack'
+import { parseStack, type StackFrame } from './lib/parse-stack'
 import { getOriginalCodeFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim } from '../lib/picocolors'
@@ -30,7 +29,7 @@ export function setBundlerFindSourceMapImplementation(
   bundlerFindSourceMapPayload = findSourceMapImplementation
 }
 
-interface IgnoreableStackFrame extends StackFrame {
+interface IgnorableStackFrame extends StackFrame {
   ignored: boolean
 }
 
@@ -39,31 +38,36 @@ type SourceMapCache = Map<
   null | { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
 
-function frameToString(frame: StackFrame): string {
-  let sourceLocation = frame.lineNumber !== null ? `:${frame.lineNumber}` : ''
-  if (frame.column !== null && sourceLocation !== '') {
-    sourceLocation += `:${frame.column}`
+function frameToString(
+  methodName: string | null,
+  sourceURL: string | null,
+  line1: number | null,
+  column1: number | null
+): string {
+  let sourceLocation = line1 !== null ? `:${line1}` : ''
+  if (column1 !== null && sourceLocation !== '') {
+    sourceLocation += `:${column1}`
   }
 
   let fileLocation: string | null
   if (
-    frame.file !== null &&
-    frame.file.startsWith('file://') &&
-    URL.canParse(frame.file)
+    sourceURL !== null &&
+    sourceURL.startsWith('file://') &&
+    URL.canParse(sourceURL)
   ) {
     // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
     // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
     // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
     // since relative to cwd is both the shortest and snappiest.
-    fileLocation = path.relative(process.cwd(), url.fileURLToPath(frame.file))
-  } else if (frame.file !== null && frame.file.startsWith('/')) {
-    fileLocation = path.relative(process.cwd(), frame.file)
+    fileLocation = path.relative(process.cwd(), url.fileURLToPath(sourceURL))
+  } else if (sourceURL !== null && sourceURL.startsWith('/')) {
+    fileLocation = path.relative(process.cwd(), sourceURL)
   } else {
-    fileLocation = frame.file
+    fileLocation = sourceURL
   }
 
-  return frame.methodName
-    ? `    at ${frame.methodName} (${fileLocation}${sourceLocation})`
+  return methodName
+    ? `    at ${methodName} (${fileLocation}${sourceLocation})`
     : `    at ${fileLocation}${sourceLocation}`
 }
 
@@ -100,7 +104,7 @@ interface SourcemappableStackFrame extends StackFrame {
 }
 
 interface SourceMappedFrame {
-  stack: IgnoreableStackFrame
+  stack: IgnorableStackFrame
   // DEV only
   code: string | null
 }
@@ -110,11 +114,11 @@ function createUnsourcemappedFrame(
 ): SourceMappedFrame {
   return {
     stack: {
-      arguments: frame.arguments,
-      column: frame.column,
       file: frame.file,
-      lineNumber: frame.lineNumber,
+      line1: frame.line1,
+      column1: frame.column1,
       methodName: frame.methodName,
+      arguments: frame.arguments,
       ignored: shouldIgnoreListGeneratedFrame(frame.file),
     },
     code: null,
@@ -123,7 +127,7 @@ function createUnsourcemappedFrame(
 
 function ignoreListAnonymousStackFramesIfSandwiched(
   sourceMappedFrames: Array<{
-    stack: IgnoreableStackFrame
+    stack: IgnorableStackFrame
     code: string | null
   }>
 ) {
@@ -148,7 +152,7 @@ function getSourcemappedFrameIfPossible(
   sourceMapCache: SourceMapCache,
   inspectOptions: util.InspectOptions
 ): {
-  stack: IgnoreableStackFrame
+  stack: IgnorableStackFrame
   code: string | null
 } {
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
@@ -222,13 +226,13 @@ function getSourcemappedFrameIfPossible(
   }
 
   const sourcePosition = sourceMapConsumer.originalPositionFor({
-    column: frame.column ?? 0,
-    line: frame.lineNumber ?? 1,
+    column: (frame.column1 ?? 1) - 1,
+    line: frame.line1 ?? 1,
   })
 
   const applicableSourceMap = findApplicableSourceMapPayload(
-    frame.lineNumber ?? 0,
-    frame.column ?? 0,
+    (frame.line1 ?? 1) - 1,
+    (frame.column1 ?? 1) - 1,
     sourceMapPayload
   )
   let ignored =
@@ -238,9 +242,9 @@ function getSourcemappedFrameIfPossible(
     return {
       stack: {
         arguments: frame.arguments,
-        column: frame.column,
         file: frame.file,
-        lineNumber: frame.lineNumber,
+        line1: frame.line1,
+        column1: frame.column1,
         methodName: frame.methodName,
         ignored: ignored || shouldIgnoreListGeneratedFrame(frame.file),
       },
@@ -267,7 +271,7 @@ function getSourcemappedFrameIfPossible(
     ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
   }
 
-  const originalFrame: IgnoreableStackFrame = {
+  const originalFrame: IgnorableStackFrame = {
     // We ignore the sourcemapped name since it won't be the correct name.
     // The callsite will point to the column of the variable name instead of the
     // name of the enclosing function.
@@ -275,9 +279,9 @@ function getSourcemappedFrameIfPossible(
     methodName: frame.methodName
       ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
       ?.replace('__webpack_exports__.', ''),
-    column: sourcePosition.column,
     file: sourcePosition.source,
-    lineNumber: sourcePosition.line,
+    line1: sourcePosition.line,
+    column1: sourcePosition.column + 1,
     // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
     arguments: [],
     ignored,
@@ -343,7 +347,7 @@ function parseAndSourceMap(
   const sourceMapCache: SourceMapCache = new Map()
 
   const sourceMappedFrames: Array<{
-    stack: IgnoreableStackFrame
+    stack: IgnorableStackFrame
     code: string | null
   }> = []
   let sourceFrame: null | string = null
@@ -352,11 +356,11 @@ function parseAndSourceMap(
       sourceMappedFrames.push({
         code: null,
         stack: {
-          arguments: frame.arguments,
-          column: frame.column,
           file: frame.file,
-          lineNumber: frame.lineNumber,
+          line1: frame.line1,
+          column1: frame.column1,
           methodName: frame.methodName,
+          arguments: frame.arguments,
           ignored: false,
         },
       })
@@ -390,9 +394,25 @@ function parseAndSourceMap(
     const frame = sourceMappedFrames[i]
 
     if (!frame.stack.ignored) {
-      sourceMappedStack += '\n' + frameToString(frame.stack)
+      sourceMappedStack +=
+        '\n' +
+        frameToString(
+          frame.stack.methodName,
+          frame.stack.file,
+          frame.stack.line1,
+          frame.stack.column1
+        )
     } else if (showIgnoreListed) {
-      sourceMappedStack += '\n' + dim(frameToString(frame.stack))
+      sourceMappedStack +=
+        '\n' +
+        dim(
+          frameToString(
+            frame.stack.methodName,
+            frame.stack.file,
+            frame.stack.line1,
+            frame.stack.column1
+          )
+        )
     }
   }
 

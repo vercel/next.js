@@ -73,15 +73,13 @@
         i < chunks.length;
         i++
       ) {
-        var chunkFilename = chunks[i],
-          entry = chunkCache.get(chunkFilename);
-        if (void 0 === entry) {
-          entry = globalThis.__next_chunk_load__(chunkFilename);
-          promises.push(entry);
-          var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
-          entry.then(resolve, ignoreReject);
-          chunkCache.set(chunkFilename, entry);
-        } else null !== entry && promises.push(entry);
+        var thenable = globalThis.__next_chunk_load__(chunks[i]);
+        loadedChunks.has(thenable) || promises.push(thenable);
+        if (!instrumentedChunks.has(thenable)) {
+          var resolve = loadedChunks.add.bind(loadedChunks, thenable);
+          thenable.then(resolve, ignoreReject);
+          instrumentedChunks.add(thenable);
+        }
       }
       return 4 === metadata.length
         ? 0 === promises.length
@@ -1551,6 +1549,13 @@
       map,
       path
     ) {
+      if (
+        void 0 === response._debugChannel &&
+        "pending" === referencedChunk.status &&
+        parentObject[0] === REACT_ELEMENT_TYPE &&
+        ("4" === key || "5" === key)
+      )
+        return null;
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;
@@ -3102,7 +3107,8 @@
       React = require("react"),
       decoderOptions = { stream: !0 },
       bind$1 = Function.prototype.bind,
-      chunkCache = new Map(),
+      instrumentedChunks = new WeakSet(),
+      loadedChunks = new WeakSet(),
       ReactDOMSharedInternals =
         ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),

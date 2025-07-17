@@ -37,7 +37,7 @@ import {
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { deleteCache, deleteFromRequireCache } from './require-cache'
+import { deleteCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -342,21 +342,10 @@ export async function createHotReloaderTurbopack(
 
     resetFetch()
 
-    const hasAppPaths = writtenEndpoint.serverPaths.some(({ path: p }) =>
-      p.startsWith('server/app')
-    )
-
-    if (hasAppPaths) {
-      deleteFromRequireCache(
-        require.resolve(
-          'next/dist/compiled/next-server/app-page-turbo.runtime.dev.js'
-        )
-      )
-      deleteFromRequireCache(
-        require.resolve(
-          'next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js'
-        )
-      )
+    // Edge uses the browser runtime which already disposes chunks individually.
+    // TODO: process.env.NEXT_RUNTIME is 'nodejs' even though Node.js runtime is not used.
+    if ('__turbopack_clear_chunk_cache__' in globalThis) {
+      ;(globalThis as any).__turbopack_clear_chunk_cache__()
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>

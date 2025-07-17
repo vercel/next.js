@@ -998,9 +998,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if let Some(directive) = directive {
+            let fn_name = self
+                .fn_decl_ident
+                .clone()
+                .or(self.arrow_or_fn_expr_ident.clone());
+
             if !f.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
-                    span: f.span,
+                    span: fn_name.as_ref().map_or(f.span, |ident| ident.span),
                     directive,
                 });
 
@@ -1066,9 +1071,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
                     child_names,
                     f,
-                    self.fn_decl_ident
-                        .clone()
-                        .or(self.arrow_or_fn_expr_ident.clone()),
+                    fn_name,
                 );
 
                 if self.in_default_export_decl {
@@ -1170,7 +1173,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if let Some(directive) = directive {
             if !a.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
-                    span: a.span,
+                    span: self
+                        .arrow_or_fn_expr_ident
+                        .as_ref()
+                        .map_or(a.span, |ident| ident.span),
                     directive,
                 });
 

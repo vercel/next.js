@@ -5,6 +5,8 @@
  * - next/script with `beforeInteractive` strategy
  */
 
+import { setAttributesFromProps } from './set-attributes-from-props'
+
 const version = process.env.__NEXT_VERSION
 
 window.next = {
@@ -27,11 +29,7 @@ function loadScriptsInSequence(
           const el = document.createElement('script')
 
           if (props) {
-            for (const key in props) {
-              if (key !== 'children') {
-                el.setAttribute(key, props[key])
-              }
-            }
+            setAttributesFromProps(el, props)
           }
 
           if (src) {

@@ -193,35 +193,43 @@ async function loadChunk(
   return promise
 }
 
-async function loadChunkByUrl(source: SourceInfo, chunkUrl: ChunkUrl) {
-  try {
-    await BACKEND.loadChunk(chunkUrl, source)
-  } catch (error) {
-    let loadReason
-    switch (source.type) {
-      case SourceType.Runtime:
-        loadReason = `as a runtime dependency of chunk ${source.chunkPath}`
-        break
-      case SourceType.Parent:
-        loadReason = `from module ${source.parentId}`
-        break
-      case SourceType.Update:
-        loadReason = 'from an HMR update'
-        break
-      default:
-        invariant(source, (source) => `Unknown source type: ${source?.type}`)
-    }
-    throw new Error(
-      `Failed to load chunk ${chunkUrl} ${loadReason}${
-        error ? `: ${error}` : ''
-      }`,
-      error
-        ? {
-            cause: error,
-          }
-        : undefined
-    )
+const instrumentedBackendLoadChunks = new WeakMap<Promise<any>, Promise<any>>()
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkByUrl(source: SourceInfo, chunkUrl: ChunkUrl): Promise<any> {
+  const thenable = BACKEND.loadChunk(chunkUrl, source)
+  let entry = instrumentedBackendLoadChunks.get(thenable)
+  if (entry === undefined) {
+    entry = thenable.catch((error) => {
+      let loadReason
+      switch (source.type) {
+        case SourceType.Runtime:
+          loadReason = `as a runtime dependency of chunk ${source.chunkPath}`
+          break
+        case SourceType.Parent:
+          loadReason = `from module ${source.parentId}`
+          break
+        case SourceType.Update:
+          loadReason = 'from an HMR update'
+          break
+        default:
+          invariant(source, (source) => `Unknown source type: ${source?.type}`)
+      }
+      throw new Error(
+        `Failed to load chunk ${chunkUrl} ${loadReason}${
+          error ? `: ${error}` : ''
+        }`,
+        error
+          ? {
+              cause: error,
+            }
+          : undefined
+      )
+    })
+    // TODO: Free the Promise once it resolves.
+    instrumentedBackendLoadChunks.set(thenable, entry)
   }
+
+  return entry
 }
 
 async function loadChunkPath(

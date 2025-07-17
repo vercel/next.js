@@ -678,7 +678,10 @@ export enum PreludeState {
   Errored = 2,
 }
 
-function logDisallowedDynamicError(workStore: WorkStore, error: Error): void {
+export function logDisallowedDynamicError(
+  workStore: WorkStore,
+  error: Error
+): void {
   console.error(error)
 
   if (!workStore.dev) {
@@ -700,11 +703,6 @@ export function throwIfDisallowedDynamic(
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState
 ): void {
-  if (workStore.invalidDynamicUsageError) {
-    logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
-    throw new StaticGenBailoutError()
-  }
-
   if (prelude !== PreludeState.Full) {
     if (dynamicValidation.hasSuspenseAboveBody) {
       // This route has opted into allowing fully dynamic rendering

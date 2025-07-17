@@ -135,6 +135,7 @@ import {
   PreludeState,
   consumeDynamicAccess,
   type DynamicAccess,
+  logDisallowedDynamicError,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
@@ -1456,7 +1457,8 @@ async function renderToHTMLOrFlightImpl(
     // If we encountered any unexpected errors during build we fail the
     // prerendering phase and the build.
     if (workStore.invalidDynamicUsageError) {
-      throw workStore.invalidDynamicUsageError
+      logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
+      throw new StaticGenBailoutError()
     }
     if (response.digestErrorsMap.size) {
       const buildFailingError = response.digestErrorsMap.values().next().value
@@ -3047,7 +3049,8 @@ async function prerenderToStream(
       // We don't need to continue the prerender process if we already
       // detected invalid dynamic usage in the initial prerender phase.
       if (workStore.invalidDynamicUsageError) {
-        throw workStore.invalidDynamicUsageError
+        logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
+        throw new StaticGenBailoutError()
       }
 
       let initialServerResult

@@ -496,6 +496,12 @@ function loadChunk(chunkData, source) {
     }
 }
 const loadedChunks = new Set();
+const unsupportedLoadChunk = Promise.resolve(undefined);
+const loadedChunk = Promise.resolve(undefined);
+const chunkCache = new Map();
+function clearChunkCache() {
+    chunkCache.clear();
+}
 function loadChunkPath(chunkPath, source) {
     if (!isJs(chunkPath)) {
         // We only support loading JS chunks in Node.js.
@@ -532,16 +538,7 @@ function loadChunkPath(chunkPath, source) {
         });
     }
 }
-async function loadChunkAsync(source, chunkData) {
-    const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path;
-    if (!isJs(chunkPath)) {
-        // We only support loading JS chunks in Node.js.
-        // This branch can be hit when trying to load a CSS chunk.
-        return;
-    }
-    if (loadedChunks.has(chunkPath)) {
-        return;
-    }
+async function loadChunkAsyncUncached(source, chunkPath) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     try {
         const contents = await fs.readFile(resolved, 'utf-8');
@@ -571,7 +568,6 @@ async function loadChunkAsync(source, chunkData) {
                 }
             }
         }
-        loadedChunks.add(chunkPath);
     } catch (e) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
         if (source) {
@@ -582,7 +578,25 @@ async function loadChunkAsync(source, chunkData) {
         });
     }
 }
-async function loadChunkAsyncByUrl(source, chunkUrl) {
+function loadChunkAsync(source, chunkData) {
+    const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path;
+    if (!isJs(chunkPath)) {
+        // We only support loading JS chunks in Node.js.
+        // This branch can be hit when trying to load a CSS chunk.
+        return unsupportedLoadChunk;
+    }
+    let entry = chunkCache.get(chunkPath);
+    if (entry === undefined) {
+        const resolve = chunkCache.set.bind(chunkCache, chunkPath, null);
+        // A new Promise ensures callers that don't handle rejection will still trigger one unhandled rejection.
+        // Handling the rejection will not trigger unhandled rejections.
+        entry = loadChunkAsyncUncached(source, chunkPath).then(resolve);
+        chunkCache.set(chunkPath, entry);
+    }
+    // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
+    return entry === null ? loadedChunk : entry;
+}
+function loadChunkAsyncByUrl(source, chunkUrl) {
     const path1 = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
     return loadChunkAsync(source, path1);
 }
@@ -710,6 +724,9 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
  */ function isJs(chunkUrlOrPath) {
     return regexJsUrl.test(chunkUrlOrPath);
 }
+// For hot-reloader
+;
+globalThis.__turbopack_clear_chunk_cache__ = clearChunkCache;
 module.exports = {
     getOrInstantiateRuntimeModule,
     loadChunk

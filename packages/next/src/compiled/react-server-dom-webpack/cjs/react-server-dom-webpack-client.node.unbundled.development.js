@@ -1516,6 +1516,13 @@
       map,
       path
     ) {
+      if (
+        void 0 === response._debugChannel &&
+        "pending" === referencedChunk.status &&
+        parentObject[0] === REACT_ELEMENT_TYPE &&
+        ("4" === key || "5" === key)
+      )
+        return null;
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;

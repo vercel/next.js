@@ -51,10 +51,10 @@ export type AdapterOutputs = Array<{
 
 export interface NextAdapter {
   name: string
-  modifyConfig(
+  modifyConfig?: (
     config: NextConfigComplete
-  ): Promise<NextConfigComplete> | NextConfigComplete
-  onBuildComplete(ctx: {
+  ) => Promise<NextConfigComplete> | NextConfigComplete
+  onBuildComplete?: (ctx: {
     routes: {
       headers: Array<ManifestHeaderRoute>
       redirects: Array<ManifestRedirectRoute>
@@ -66,7 +66,7 @@ export interface NextAdapter {
       dynamicRoutes: Array<{}>
     }
     outputs: AdapterOutputs
-  }): Promise<void> | void
+  }) => Promise<void> | void
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -742,11 +742,6 @@ export interface ExperimentalConfig {
   devtoolSegmentExplorer?: boolean
 
   /**
-   * Enable new panel UI for the Next.js DevTools.
-   */
-  devtoolNewPanelUI?: boolean
-
-  /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr
    */
   browserDebugInfoInTerminal?:
@@ -1283,7 +1278,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig = {
+export const defaultConfig = Object.freeze({
   env: {},
   webpack: null,
   eslint: {
@@ -1397,19 +1392,7 @@ export const defaultConfig = {
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache:
-      // TODO: Remove once we've made clientSegmentCache the default. We're
-      // piggybacking on the PPR test flag, instead of introducing a separate
-      // CI run.
-      //
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment
-      // variable has been set to `true`, enable the experimental
-      // clientSegmentCache feature so long as it wasn't explicitly disabled in
-      // the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+    clientSegmentCache: false,
     dynamicOnHover: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
@@ -1454,15 +1437,7 @@ export const defaultConfig = {
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
-    ppr:
-      // TODO: remove once we've made PPR default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
-      // has been set to `true`, enable the experimental PPR feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+    ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
@@ -1483,27 +1458,19 @@ export const defaultConfig = {
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
-    dynamicIO:
-      // TODO: remove once we've made dynamicIO the default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS` environment
-      // variable has been set to `true`, enable the experimental dynamicIO feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-      ),
+    dynamicIO: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
-    devtoolSegmentExplorer: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
+    devtoolSegmentExplorer: false,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
+    strictNextHead: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-} satisfies NextConfig
+} satisfies NextConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

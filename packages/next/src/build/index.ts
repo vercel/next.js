@@ -402,6 +402,13 @@ export type ManifestRoute = ManifestBuiltRoute & {
   namedRegex?: string
   routeKeys?: { [key: string]: string }
   prefetchSegmentDataRoutes?: PrefetchSegmentDataRoute[]
+
+  /**
+   * If true, this indicates that the route should not be considered for routing
+   * for the internal router, and instead has been added to support external
+   * routers.
+   */
+  skipInternalRouting?: boolean
 }
 
 type ManifestDataRoute = {
@@ -3107,7 +3114,7 @@ export default async function build(
                     (r) => r.page === page
                   )
                   if (!dynamicRoute) {
-                    throw new Error('Dynamic route not found')
+                    throw new InvariantError('Dynamic route not found')
                   }
 
                   dynamicRoute.prefetchSegmentDataRoutes ??= []
@@ -3566,8 +3573,14 @@ export default async function build(
           }
         })
 
-        // We need to write the manifest with rewrites after build as it might
-        // have been modified.
+        // As we may have modified the routesManifest.dynamicRoutes, we need to
+        // sort the dynamic routes by page.
+        routesManifest.dynamicRoutes = getSortedRouteObjects(
+          routesManifest.dynamicRoutes,
+          (route) => route.page
+        )
+
+        // Now write the routes manifest out.
         await nextBuildSpan
           .traceChild('write-routes-manifest')
           .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
