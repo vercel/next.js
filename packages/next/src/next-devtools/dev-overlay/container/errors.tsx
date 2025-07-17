@@ -149,7 +149,7 @@ export function Errors({
     return frames[firstFirstPartyFrameIndex] ?? null
   }, [frames])
 
-  const generateAIPrompt = useCallback(() => {
+  const generateErrorInfo = useCallback(() => {
     if (!activeError) return ''
 
     const parts: string[] = []
@@ -171,16 +171,7 @@ export function Errors({
     if (message) {
       parts.push(`## Error Message\n${message}`)
     }
-
-    // 3. Code Frame (decoded)
-    if (firstFrame?.originalCodeFrame) {
-      const decodedCodeFrame = stripAnsi(
-        formatCodeFrame(firstFrame.originalCodeFrame)
-      )
-      parts.push(`## Code Frame\n${decodedCodeFrame}`)
-    }
-
-    // 4. Call Stack (using parsed frames)
+    // Append call stack
     if (frames.length > 0) {
       const visibleFrames = frames.filter((frame) => !frame.ignored)
       if (visibleFrames.length > 0) {
@@ -200,21 +191,25 @@ export function Errors({
           .filter(Boolean)
 
         if (stackLines.length > 0) {
-          parts.push(`## Call Stack\n${stackLines.join('\n')}`)
+          parts.push(`\n${stackLines.join('\n')}`)
         }
       }
     }
 
-    // Format as AI prompt
-    const prompt = `Fix this error in Next.js app:
+    // 3. Code Frame (decoded)
+    if (firstFrame?.originalCodeFrame) {
+      const decodedCodeFrame = stripAnsi(
+        formatCodeFrame(firstFrame.originalCodeFrame)
+      )
+      parts.push(`## Code Frame\n${decodedCodeFrame}`)
+    }
 
-${parts.join('\n\n')}
+    // Format as markdown error info
+    const errorInfo = `${parts.join('\n\n')}
 
-Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})
+Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
 
-Explain what's wrong and fix it.`
-
-    return prompt
+    return errorInfo
   }, [activeError, errorType, firstFrame, frames, props.versionInfo])
 
   if (isLoading) {
@@ -253,7 +248,7 @@ Explain what's wrong and fix it.`
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       dialogResizerRef={dialogResizerRef}
-      generateAIPrompt={generateAIPrompt}
+      generateErrorInfo={generateErrorInfo}
       {...props}
     >
       <div className="error-overlay-notes-container">

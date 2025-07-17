@@ -7,20 +7,20 @@ type ErrorOverlayToolbarProps = {
   error: Error
   debugInfo: DebugInfo | undefined
   feedbackButton?: React.ReactNode
-  generateAIPrompt: () => string
+  generateErrorInfo: () => string
 }
 
 export function ErrorOverlayToolbar({
   error,
   debugInfo,
   feedbackButton,
-  generateAIPrompt,
+  generateErrorInfo,
 }: ErrorOverlayToolbarProps) {
   return (
     <span className="error-overlay-toolbar">
       {/* TODO: Move the button inside and remove the feedback on the footer of the error overlay.  */}
       {feedbackButton}
-      <CopyErrorButton error={error} generateAIPrompt={generateAIPrompt} />
+      <CopyErrorButton error={error} generateErrorInfo={generateErrorInfo} />
       <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}

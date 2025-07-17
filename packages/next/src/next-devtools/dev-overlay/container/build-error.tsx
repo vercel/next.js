@@ -37,7 +37,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
     [message]
   )
 
-  const generateAIPrompt = useCallback(() => {
+  const generateErrorInfo = useCallback(() => {
     const parts: string[] = []
 
     // 1. Error Type
@@ -55,15 +55,11 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
     }
 
     // Format as AI prompt
-    const prompt = `Fix this error in Next.js app:
+    const errorInfo = `${parts.join('\n\n')}
 
-${parts.join('\n\n')}
+Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
 
-Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})
-
-Explain what's wrong and fix it.`
-
-    return prompt
+    return errorInfo
   }, [message, formattedMessage, props.versionInfo])
 
   return (
@@ -72,7 +68,7 @@ Explain what's wrong and fix it.`
       errorMessage={formattedMessage}
       onClose={noop}
       error={error}
-      generateAIPrompt={generateAIPrompt}
+      generateErrorInfo={generateErrorInfo}
       {...props}
     >
       <Terminal content={message} />

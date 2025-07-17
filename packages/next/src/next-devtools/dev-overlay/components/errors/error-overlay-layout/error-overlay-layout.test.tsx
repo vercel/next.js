@@ -29,7 +29,7 @@ const renderTestComponent = () => {
         installed: '15.0.0',
         staleness: 'fresh',
       }}
-      generateAIPrompt={() => ''}
+      generateErrorInfo={() => ''}
     >
       Module not found: Cannot find module './missing-module'
     </ErrorOverlayLayout>
