@@ -1604,11 +1604,11 @@ importers:
         specifier: 8.2.3
         version: 8.2.3
       zod:
-        specifier: 3.22.3
-        version: 3.22.3
+        specifier: 3.25.76
+        version: 3.25.76
       zod-validation-error:
         specifier: 3.4.0
-        version: 3.4.0(zod@3.22.3)
+        version: 3.4.0(zod@3.25.76)
 
   packages/next-bundle-analyzer:
     dependencies:
@@ -16970,8 +16970,8 @@ packages:
     peerDependencies:
       zod: ^3.18.0
 
-  zod@3.22.3:
-    resolution: {integrity: sha512-EjIevzuJRiRPbVH4mGc8nApb/lVLKVpmUhAaR5R5doKGfAnGJ6Gr3CViAVjP+4FWSxCsybeWQdcgCtbX+7oZug==}
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
   zwitch@1.0.5:
     resolution: {integrity: sha512-V50KMwwzqJV0NpZIZFwfOD5/lyny3WlSzRiXgA0G7VUnRlqttta1L6UQIHzd6EuBY/cHGfwTIck7w1yH6Q5zUw==}
@@ -35864,11 +35864,11 @@ snapshots:
 
   yoga-wasm-web@0.3.3: {}
 
-  zod-validation-error@3.4.0(zod@3.22.3):
+  zod-validation-error@3.4.0(zod@3.25.76):
     dependencies:
-      zod: 3.22.3
+      zod: 3.25.76
 
-  zod@3.22.3: {}
+  zod@3.25.76: {}
 
   zwitch@1.0.5: {}
 
