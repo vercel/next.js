@@ -1100,8 +1100,6 @@ describe('Error overlay for hydration errors in App router', () => {
                        <Head>
                        <SegmentViewNode type="layout" pagePath="layout.js">
                          <SegmentTrieNode>
-                         <script>
-                         <script>
                          <Layout>
      >                     <html>
                              <body>
