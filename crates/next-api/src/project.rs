@@ -36,7 +36,10 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, invalidation};
+use turbo_tasks_fs::{
+    DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, invalidation,
+    util::{join_path, unix_to_sys},
+};
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
@@ -540,11 +543,11 @@ pub struct Project {
     /// An absolute root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
-    pub root_path: RcStr,
+    root_path: RcStr,
 
     /// A path which contains the app/pages directories, relative to [`Project::root_path`].
     /// E.g. `apps/my-app`
-    pub project_path: RcStr,
+    project_path: RcStr,
 
     /// A path where to emit the build outputs, relative to [`Project::project_path`].
     /// Corresponds to next.config.js's `distDir`.
@@ -688,8 +691,19 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub fn dist_dir(&self) -> Vc<RcStr> {
-        Vc::cell(self.dist_dir.clone())
+    pub fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!(
+                "{}{}{}",
+                self.root_path,
+                std::path::MAIN_SEPARATOR,
+                unix_to_sys(
+                    &join_path(&self.project_path, &self.dist_dir)
+                        .context("expected project_path to be inside of root_path")?
+                )
+            )
+            .into(),
+        ))
     }
 
     #[turbo_tasks::function]

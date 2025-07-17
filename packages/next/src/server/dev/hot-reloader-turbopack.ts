@@ -99,6 +99,7 @@ import { getRestartDevServerMiddleware } from '../../next-devtools/server/restar
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../../build/utils'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
+import { normalizePath } from '../../lib/normalize-path'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -216,7 +217,7 @@ export async function createHotReloaderTurbopack(
   const project = await bindings.turbo.createProject(
     {
       rootPath,
-      projectPath: relative(rootPath, projectPath),
+      projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
       distDir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(projectPath, nextConfig),

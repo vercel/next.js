@@ -1426,14 +1426,9 @@ pub async fn get_source_map_rope(
         Err(_) => (file_path.to_string(), None),
     };
 
-    let Some(chunk_base) = file.strip_prefix(
-        &(format!(
-            "{}/{}/{}",
-            container.project().await?.root_path,
-            container.project().await?.project_path,
-            container.project().dist_dir().await?
-        )),
-    ) else {
+    let Some(chunk_base) =
+        file.strip_prefix(container.project().dist_dir_absolute().await?.as_str())
+    else {
         // File doesn't exist within the dist dir
         return Ok(OptionStringifiedSourceMap::none());
     };

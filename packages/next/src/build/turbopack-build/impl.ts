@@ -57,7 +57,7 @@ export async function turbopackBuild(): Promise<{
   const project = await bindings.turbo.createProject(
     {
       rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
-      projectPath: normalizePath(path.relative(rootPath, dir)),
+      projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
       nextConfig: config,
       jsConfig: await getTurbopackJsConfig(dir, config),
