@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry;
 
 use anyhow::Result;
+use either::Either;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
@@ -39,7 +40,7 @@ pub struct ModuleGraphSnapshot {
 #[turbo_tasks::function]
 pub async fn get_module_graph_snapshot(
     module_graph: Vc<ModuleGraph>,
-    entry_modules: Vc<Modules>,
+    entry_modules: Option<Vc<Modules>>,
 ) -> Result<Vc<ModuleGraphSnapshot>> {
     let module_graph = module_graph.await?;
 
@@ -75,43 +76,42 @@ pub async fn get_module_graph_snapshot(
         }
     }
 
+    let entry_modules = if let Some(entry_modules) = entry_modules {
+        Either::Left(entry_modules.await?)
+    } else {
+        Either::Right(module_graph.entries().await?)
+    };
     module_graph
-        .traverse_edges_from_entries_bfs(
-            entry_modules.await?.iter().copied(),
-            |parent_info, node| {
-                let module = node.module;
-                let module_index = get_or_create_module(&mut modules, &mut module_to_index, module);
+        .traverse_edges_from_entries_bfs(entry_modules.iter().copied(), |parent_info, node| {
+            let module = node.module;
+            let module_index = get_or_create_module(&mut modules, &mut module_to_index, module);
 
-                if let Some((parent_module, ty)) = parent_info {
-                    let parent_index = get_or_create_module(
-                        &mut modules,
-                        &mut module_to_index,
-                        parent_module.module,
-                    );
-                    let parent_module = &mut modules[parent_index];
-                    let parent_depth = parent_module.depth;
-                    debug_assert!(parent_depth < u32::MAX);
-                    parent_module.references.push(ModuleReference {
-                        index: module_index,
-                        chunking_type: ty.chunking_type.clone(),
-                        export: ty.export.clone(),
-                    });
-                    let module = &mut modules[module_index];
-                    module.depth = module.depth.min(parent_depth + 1);
-                    module.incoming_references.push(ModuleReference {
-                        index: parent_index,
-                        chunking_type: ty.chunking_type.clone(),
-                        export: ty.export.clone(),
-                    });
-                } else {
-                    entries.push(module_index);
-                    let module = &mut modules[module_index];
-                    module.depth = 0;
-                }
+            if let Some((parent_module, ty)) = parent_info {
+                let parent_index =
+                    get_or_create_module(&mut modules, &mut module_to_index, parent_module.module);
+                let parent_module = &mut modules[parent_index];
+                let parent_depth = parent_module.depth;
+                debug_assert!(parent_depth < u32::MAX);
+                parent_module.references.push(ModuleReference {
+                    index: module_index,
+                    chunking_type: ty.chunking_type.clone(),
+                    export: ty.export.clone(),
+                });
+                let module = &mut modules[module_index];
+                module.depth = module.depth.min(parent_depth + 1);
+                module.incoming_references.push(ModuleReference {
+                    index: parent_index,
+                    chunking_type: ty.chunking_type.clone(),
+                    export: ty.export.clone(),
+                });
+            } else {
+                entries.push(module_index);
+                let module = &mut modules[module_index];
+                module.depth = 0;
+            }
 
-                Ok(GraphTraversalAction::Continue)
-            },
-        )
+            Ok(GraphTraversalAction::Continue)
+        })
         .await?;
 
     let modules = modules

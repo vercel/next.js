@@ -19,6 +19,7 @@ import { isDeepStrictEqual } from 'util'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
+  NapiModuleGraphSnapshot,
   NapiModuleGraphSnapshots,
   NapiPartialProjectOptions,
   NapiProjectOptions,
@@ -750,6 +751,15 @@ function bindingToApi(
             eventTypes
           )
         }
+      )
+    }
+
+    async moduleGraph(): Promise<TurbopackResult<NapiModuleGraphSnapshot>> {
+      return await withErrorCause(
+        () =>
+          binding.projectModuleGraph(this._nativeProject) as Promise<
+            TurbopackResult<NapiModuleGraphSnapshot>
+          >
       )
     }
 

@@ -6,6 +6,7 @@ import type {
   NapiTurboEngineOptions,
   NapiSourceDiagnostic,
   NapiModuleGraphSnapshots,
+  NapiModuleGraphSnapshot,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
@@ -245,6 +246,8 @@ export interface Project {
   ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
   invalidatePersistentCache(): Promise<void>
+
+  moduleGraph(): Promise<TurbopackResult<NapiModuleGraphSnapshot>>
 
   shutdown(): Promise<void>
 

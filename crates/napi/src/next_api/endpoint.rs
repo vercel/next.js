@@ -4,9 +4,7 @@ use anyhow::Result;
 use futures_util::TryFutureExt;
 use napi::{JsFunction, bindgen_prelude::External};
 use next_api::{
-    module_graph_snapshot::{
-        ModuleGraphSnapshot, ModuleInfo, ModuleReference, get_module_graph_snapshot,
-    },
+    module_graph_snapshot::{ModuleGraphSnapshot, get_module_graph_snapshot},
     operation::OptionEndpoint,
     paths::ServerPath,
     route::{
@@ -15,7 +13,6 @@ use next_api::{
     },
 };
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, Effects, OperationVc, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
@@ -25,6 +22,7 @@ use super::utils::{
     DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
     strongly_consistent_catch_collectables, subscribe,
 };
+use crate::next_api::module_graph::NapiModuleGraphSnapshot;
 
 #[napi(object)]
 #[derive(Default)]
@@ -83,75 +81,6 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 r#type: "none".to_string(),
                 ..Default::default()
             },
-        }
-    }
-}
-
-#[napi(object)]
-pub struct NapiModuleReference {
-    /// The index of the referenced/referencing module in the modules list.
-    pub i: u32,
-}
-
-impl From<&ModuleReference> for NapiModuleReference {
-    fn from(reference: &ModuleReference) -> Self {
-        Self {
-            i: reference.index as u32,
-        }
-    }
-}
-
-#[napi(object)]
-pub struct NapiModuleInfo {
-    pub ident: RcStr,
-    pub path: RcStr,
-    pub depth: u32,
-    pub references: Vec<NapiModuleReference>,
-    pub incoming_references: Vec<NapiModuleReference>,
-}
-
-impl From<&ModuleInfo> for NapiModuleInfo {
-    fn from(info: &ModuleInfo) -> Self {
-        Self {
-            ident: info.ident.clone(),
-            path: info.path.clone(),
-            depth: info.depth,
-            references: info
-                .references
-                .iter()
-                .map(|r| NapiModuleReference::from(r))
-                .collect(),
-            incoming_references: info
-                .incoming_references
-                .iter()
-                .map(|r| NapiModuleReference::from(r))
-                .collect(),
-        }
-    }
-}
-
-#[napi(object)]
-pub struct NapiModuleGraphSnapshot {
-    pub modules: Vec<NapiModuleInfo>,
-    pub entries: Vec<u32>,
-}
-
-impl From<&ModuleGraphSnapshot> for NapiModuleGraphSnapshot {
-    fn from(snapshot: &ModuleGraphSnapshot) -> Self {
-        Self {
-            modules: snapshot
-                .modules
-                .iter()
-                .map(|info| NapiModuleInfo::from(info))
-                .collect(),
-            entries: snapshot
-                .entries
-                .iter()
-                .map(|&i| {
-                    // If you have more that 4294967295 entries, you probably have other problems...
-                    i.try_into().unwrap()
-                })
-                .collect(),
         }
     }
 }
@@ -289,7 +218,9 @@ async fn get_module_graphs_operation(
         .map(|(graph, entry_modules)| (graph, Vc::cell(entry_modules)))
         .collect::<Vec<_>>()
         .into_iter()
-        .map(async |(graph, entry_modules)| get_module_graph_snapshot(graph, entry_modules).await)
+        .map(async |(graph, entry_modules)| {
+            get_module_graph_snapshot(graph, Some(entry_modules)).await
+        })
         .try_join()
         .await?;
     Ok(Vc::cell(snapshots))

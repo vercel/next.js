@@ -1221,6 +1221,16 @@ impl ModuleGraph {
         Ok(idx)
     }
 
+    pub async fn entries(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+        Ok(self
+            .get_graphs()
+            .await?
+            .iter()
+            .flat_map(|g| g.entries.iter())
+            .flat_map(|e| e.entries())
+            .collect())
+    }
+
     pub async fn has_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<bool> {
         let graphs = self.get_graphs().await?;
         Ok(graphs
