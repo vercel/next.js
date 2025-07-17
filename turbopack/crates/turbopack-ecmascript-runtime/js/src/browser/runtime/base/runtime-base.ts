@@ -74,7 +74,10 @@ type SourceInfo =
 
 interface RuntimeBackend {
   registerChunk: (chunkPath: ChunkPath, params?: RuntimeParams) => void
-  loadChunk: (chunkUrl: ChunkUrl, source: SourceInfo) => Promise<void>
+  /**
+   * Returns the same Promise for the same chunk URL.
+   */
+  loadChunkCached: (chunkUrl: ChunkUrl, source: SourceInfo) => Promise<void>
 }
 
 interface DevRuntimeBackend {
@@ -193,13 +196,22 @@ async function loadChunk(
   return promise
 }
 
-const instrumentedBackendLoadChunks = new WeakMap<Promise<any>, Promise<any>>()
+const loadedChunk = Promise.resolve(undefined)
+const instrumentedBackendLoadChunks = new WeakMap<
+  Promise<any>,
+  Promise<any> | typeof loadedChunk
+>()
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(source: SourceInfo, chunkUrl: ChunkUrl): Promise<any> {
-  const thenable = BACKEND.loadChunk(chunkUrl, source)
+  const thenable = BACKEND.loadChunkCached(chunkUrl, source)
   let entry = instrumentedBackendLoadChunks.get(thenable)
   if (entry === undefined) {
-    entry = thenable.catch((error) => {
+    const resolve = instrumentedBackendLoadChunks.set.bind(
+      instrumentedBackendLoadChunks,
+      thenable,
+      loadedChunk
+    )
+    entry = thenable.then(resolve).catch((error) => {
       let loadReason
       switch (source.type) {
         case SourceType.Runtime:
@@ -225,7 +237,6 @@ function loadChunkByUrl(source: SourceInfo, chunkUrl: ChunkUrl): Promise<any> {
           : undefined
       )
     })
-    // TODO: Free the Promise once it resolves.
     instrumentedBackendLoadChunks.set(thenable, entry)
   }
 

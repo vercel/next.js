@@ -587,14 +587,14 @@ function loadChunkAsync(source, chunkData) {
     }
     let entry = chunkCache.get(chunkPath);
     if (entry === undefined) {
-        const resolve = chunkCache.set.bind(chunkCache, chunkPath, null);
+        const resolve = chunkCache.set.bind(chunkCache, chunkPath, loadedChunk);
         // A new Promise ensures callers that don't handle rejection will still trigger one unhandled rejection.
         // Handling the rejection will not trigger unhandled rejections.
         entry = loadChunkAsyncUncached(source, chunkPath).then(resolve);
         chunkCache.set(chunkPath, entry);
     }
     // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
-    return entry === null ? loadedChunk : entry;
+    return entry;
 }
 function loadChunkAsyncByUrl(source, chunkUrl) {
     const path1 = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
