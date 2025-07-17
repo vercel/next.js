@@ -657,14 +657,14 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at c (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:41)
+                   at c (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
                   5 | }
                   6 |
                >  7 | export function IndirectionTwo({ children }) {
-                    |                                         ^
+                    |                                  ^
                   8 |   return children
                   9 | }
                  10 |
@@ -1682,11 +1682,11 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:15)
+                     at c (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
-                     |               ^
+                     |                ^
                    6 |
                    7 |   return (
                    8 |     <main>
@@ -1991,11 +1991,11 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:15)
+                     at c (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
-                     |               ^
+                     |                ^
                    6 |
                    7 |   return (
                    8 |     <main>

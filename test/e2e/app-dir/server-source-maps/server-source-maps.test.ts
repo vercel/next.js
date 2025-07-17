@@ -233,12 +233,12 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/ssr-error-log-ignore-listed/page.js:9:16)'
+          '(bundler:///app/ssr-error-log-ignore-listed/page.js:9:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '\n' +
             ">  9 |   const error = new Error('ssr-error-log-ignore-listed')\n" +
-            '     |                ^\n'
+            '     |                 ^\n'
         )
       } else {
         // TODO(veil): line/column numbers are flaky in Webpack
