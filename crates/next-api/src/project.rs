@@ -742,15 +742,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn node_root_to_root_path(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
-        let output_root_to_root_path = self
-            .project_path()
-            .await?
-            .join(&this.dist_dir.clone())?
-            .get_relative_path_to(&*self.project_root_path().await?)
+    pub async fn node_root_to_root_path(&self) -> Result<Vc<RcStr>> {
+        let output_root_to_root_path = join_path(&self.project_path, &self.dist_dir)
             .context("Project path need to be in root path")?;
-        Ok(Vc::cell(output_root_to_root_path))
+        Ok(Vc::cell(output_root_to_root_path.into()))
     }
 
     #[turbo_tasks::function]

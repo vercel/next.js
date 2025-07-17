@@ -187,26 +187,21 @@ describe('next.rs api', () => {
   let project: Project
   let projectUpdateSubscription: AsyncIterableIterator<UpdateInfo>
   beforeAll(async () => {
-    console.log(next.testDir)
     const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, next.testDir)
     const bindings = await loadBindings()
-    const distDir = path.join(
-      process.env.NEXT_SKIP_ISOLATE
-        ? path.resolve(__dirname, '../../..')
-        : next.testDir,
-      '.next'
-    )
+    const rootPath = process.env.NEXT_SKIP_ISOLATE
+      ? path.resolve(__dirname, '../../..')
+      : next.testDir
+    const distDir = '.next'
     project = await bindings.turbo.createProject({
       env: {},
       jsConfig: {
         compilerOptions: {},
       },
       nextConfig: nextConfig,
-      projectPath: next.testDir,
+      rootPath,
+      projectPath: path.relative(rootPath, next.testDir) || '.',
       distDir,
-      rootPath: process.env.NEXT_SKIP_ISOLATE
-        ? path.resolve(__dirname, '../../..')
-        : next.testDir,
       watch: {
         enable: true,
       },
@@ -217,7 +212,7 @@ describe('next.rs api', () => {
         clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
-        distDir: distDir,
+        distDir: path.join(rootPath, distDir),
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
@@ -265,7 +260,7 @@ describe('next.rs api', () => {
     expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
       'diagnostics'
     )
-    entrypointsSubscription.return()
+    await entrypointsSubscription.return()
   })
 
   const routes = [
