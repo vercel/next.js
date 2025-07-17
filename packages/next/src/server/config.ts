@@ -240,21 +240,6 @@ function assignDefaults(
     {}
   ) as NextConfig & { configFileName: string }
 
-  // TODO: remove these once we've made PPR default
-  // If this was defaulted to true, it implies that the configuration was
-  // overridden for testing to be defaulted on.
-  if (defaultConfig.experimental?.ppr) {
-    Log.warn(
-      `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
-    )
-  }
-
-  if (defaultConfig.experimental?.dynamicIO) {
-    Log.warn(
-      `\`experimental.dynamicIO\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\` was set to \`true\` during testing.`
-    )
-  }
-
   const result = {
     ...defaultConfig,
     ...config,
@@ -1416,6 +1401,7 @@ export default async function loadConfig(
     }
 
     enforceExperimentalFeatures(userConfig, {
+      isDefaultConfig: false,
       configuredExperimentalFeatures: reportExperimentalFeatures
         ? configuredExperimentalFeatures
         : undefined,
@@ -1464,6 +1450,7 @@ export default async function loadConfig(
   const clonedDefaultConfig = cloneObject(defaultConfig) as NextConfig
 
   enforceExperimentalFeatures(clonedDefaultConfig, {
+    isDefaultConfig: true,
     configuredExperimentalFeatures: reportExperimentalFeatures
       ? configuredExperimentalFeatures
       : undefined,
@@ -1497,29 +1484,18 @@ export type ConfiguredExperimentalFeature = {
 function enforceExperimentalFeatures(
   config: NextConfig,
   options: {
+    isDefaultConfig: boolean
     configuredExperimentalFeatures: ConfiguredExperimentalFeature[] | undefined
     debugPrerender: boolean | undefined
     phase: string
   }
 ) {
-  const { configuredExperimentalFeatures, debugPrerender, phase } = options
-
-  if (
-    config.experimental &&
-    config.experimental.enablePrerenderSourceMaps === undefined &&
-    config.experimental.dynamicIO === true
-  ) {
-    config.experimental.enablePrerenderSourceMaps = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'enablePrerenderSourceMaps',
-        true,
-        'enabled by `experimental.dynamicIO`'
-      )
-    }
-  }
+  const {
+    configuredExperimentalFeatures,
+    debugPrerender,
+    isDefaultConfig,
+    phase,
+  } = options
 
   config.experimental ??= {}
 
@@ -1554,6 +1530,98 @@ function enforceExperimentalFeatures(
       false,
       configuredExperimentalFeatures
     )
+  }
+
+  // TODO: Remove this once we've made Cache Components the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.ppr === undefined ||
+      (isDefaultConfig && !config.experimental.ppr))
+  ) {
+    config.experimental.ppr = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'ppr',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Cache Components the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.ppr === undefined ||
+      (isDefaultConfig && !config.experimental.ppr))
+  ) {
+    config.experimental.ppr = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'ppr',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Client Segment Cache the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.clientSegmentCache === undefined ||
+      (isDefaultConfig && !config.experimental.clientSegmentCache))
+  ) {
+    config.experimental.clientSegmentCache = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'clientSegmentCache',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Cache Components the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.dynamicIO === undefined ||
+      (isDefaultConfig && !config.experimental.dynamicIO))
+  ) {
+    config.experimental.dynamicIO = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'dynamicIO',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  if (
+    config.experimental.enablePrerenderSourceMaps === undefined &&
+    config.experimental.dynamicIO === true
+  ) {
+    config.experimental.enablePrerenderSourceMaps = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'enablePrerenderSourceMaps',
+        true,
+        'enabled by `experimental.dynamicIO`'
+      )
+    }
   }
 }
 

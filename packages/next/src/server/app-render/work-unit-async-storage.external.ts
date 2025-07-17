@@ -78,12 +78,19 @@ export interface RequestStore extends CommonWorkUnitStore {
  * only needs to happen during the RSC prerender when we are prospectively prerendering
  * to fill all caches.
  */
-export interface PrerenderStoreModern extends CommonWorkUnitStore {
-  // In the future the prerender-client variant will get it's own type.
-  // prerender represents the RSC scope of the prerender.
-  // prerender-client represents the HTML scope of the prerender.
-  type: 'prerender' | 'prerender-client'
+export type PrerenderStoreModern =
+  | PrerenderStoreModernClient
+  | PrerenderStoreModernServer
 
+interface PrerenderStoreModernClient extends PrerenderStoreModernCommon {
+  type: 'prerender-client'
+}
+
+interface PrerenderStoreModernServer extends PrerenderStoreModernCommon {
+  type: 'prerender'
+}
+
+interface PrerenderStoreModernCommon extends CommonWorkUnitStore {
   /**
    * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
    */

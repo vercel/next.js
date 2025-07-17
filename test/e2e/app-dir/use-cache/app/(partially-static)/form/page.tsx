@@ -12,7 +12,7 @@ export default async function Page() {
   return (
     <form action={refresh}>
       <button id="refresh">Refresh</button>
-      <p id="t">{Date.now()}</p>
+      <p id="t">{new Date().toISOString()}</p>
     </form>
   )
 }

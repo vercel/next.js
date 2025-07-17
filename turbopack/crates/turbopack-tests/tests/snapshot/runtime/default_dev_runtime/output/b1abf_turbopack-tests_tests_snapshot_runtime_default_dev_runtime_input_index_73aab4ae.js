@@ -482,28 +482,35 @@ async function loadChunk(source, chunkData) {
     }
     return promise;
 }
-async function loadChunkByUrl(source, chunkUrl) {
-    try {
-        await BACKEND.loadChunk(chunkUrl, source);
-    } catch (error) {
-        let loadReason;
-        switch(source.type){
-            case 0:
-                loadReason = `as a runtime dependency of chunk ${source.chunkPath}`;
-                break;
-            case 1:
-                loadReason = `from module ${source.parentId}`;
-                break;
-            case 2:
-                loadReason = 'from an HMR update';
-                break;
-            default:
-                invariant(source, (source)=>`Unknown source type: ${source?.type}`);
-        }
-        throw new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${error ? `: ${error}` : ''}`, error ? {
-            cause: error
-        } : undefined);
+const instrumentedBackendLoadChunks = new WeakMap();
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkByUrl(source, chunkUrl) {
+    const thenable = BACKEND.loadChunk(chunkUrl, source);
+    let entry = instrumentedBackendLoadChunks.get(thenable);
+    if (entry === undefined) {
+        entry = thenable.catch((error)=>{
+            let loadReason;
+            switch(source.type){
+                case 0:
+                    loadReason = `as a runtime dependency of chunk ${source.chunkPath}`;
+                    break;
+                case 1:
+                    loadReason = `from module ${source.parentId}`;
+                    break;
+                case 2:
+                    loadReason = 'from an HMR update';
+                    break;
+                default:
+                    invariant(source, (source)=>`Unknown source type: ${source?.type}`);
+            }
+            throw new Error(`Failed to load chunk ${chunkUrl} ${loadReason}${error ? `: ${error}` : ''}`, error ? {
+                cause: error
+            } : undefined);
+        });
+        // TODO: Free the Promise once it resolves.
+        instrumentedBackendLoadChunks.set(thenable, entry);
     }
+    return entry;
 }
 async function loadChunkPath(source, chunkPath) {
     const url = getChunkRelativeUrl(chunkPath);

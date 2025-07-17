@@ -289,9 +289,8 @@ export async function handler(
                   reactLoadableManifest,
 
                   assetPrefix: nextConfig.assetPrefix,
-                  strictNextHead: Boolean(
-                    nextConfig.experimental.strictNextHead
-                  ),
+                  strictNextHead:
+                    nextConfig.experimental.strictNextHead ?? true,
                   previewProps: prerenderManifest.preview,
                   images: nextConfig.images as any,
                   nextConfigOutput: nextConfig.output,

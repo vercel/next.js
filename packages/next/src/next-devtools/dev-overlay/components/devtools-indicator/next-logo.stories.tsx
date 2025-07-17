@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { NextLogoNew } from './next-logo'
+import { NextLogo } from './next-logo'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
 // TODO(rob): this storybook's configurability is broken intentionally
 // it will be restored when we wrap it in the storybook context addon https://storybook.js.org/addons/storybook-react-context
@@ -10,7 +10,7 @@ const StoryBookNextLogo = (
     isDevRendering: boolean
   } & Record<string, unknown>
 ) => {
-  return <NextLogoNew onTriggerClick={() => {}} />
+  return <NextLogo onTriggerClick={() => {}} />
 }
 
 const meta: Meta<typeof StoryBookNextLogo> = {

@@ -12,7 +12,6 @@ import { styles as containerErrorStyles } from '../container/errors'
 import { styles as containerRuntimeErrorStyles } from '../container/runtime-error'
 import { COPY_BUTTON_STYLES } from '../components/copy-button'
 import { CALL_STACK_FRAME_STYLES } from '../components/call-stack-frame/call-stack-frame'
-import { DEV_TOOLS_INDICATOR_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-indicator'
 import { css } from '../utils/css'
 import { EDITOR_LINK_STYLES } from '../components/terminal/editor-link'
 import { ENVIRONMENT_NAME_LABEL_STYLES } from '../components/errors/environment-name-label/environment-name-label'
@@ -48,7 +47,6 @@ export function ComponentStyles() {
         ${containerRuntimeErrorStyles}
         ${versionStaleness}
         ${RESTART_SERVER_BUTTON_STYLES}
-        ${DEV_TOOLS_INDICATOR_STYLES}
         ${DEV_TOOLS_INFO_STYLES}
         ${DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES}
         ${DEV_TOOLS_INFO_ROUTE_INFO_STYLES}

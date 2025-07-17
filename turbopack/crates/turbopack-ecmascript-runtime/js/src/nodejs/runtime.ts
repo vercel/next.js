@@ -93,6 +93,13 @@ function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
 }
 
 const loadedChunks = new Set<ChunkPath>()
+const unsupportedLoadChunk = Promise.resolve(undefined)
+const loadedChunk = Promise.resolve(undefined)
+const chunkCache = new Map<ChunkPath, Promise<any> | null>()
+
+function clearChunkCache() {
+  chunkCache.clear()
+}
 
 function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   if (!isJs(chunkPath)) {
@@ -136,21 +143,10 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   }
 }
 
-async function loadChunkAsync(
+async function loadChunkAsyncUncached(
   source: SourceInfo,
-  chunkData: ChunkData
-): Promise<any> {
-  const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
-  if (!isJs(chunkPath)) {
-    // We only support loading JS chunks in Node.js.
-    // This branch can be hit when trying to load a CSS chunk.
-    return
-  }
-
-  if (loadedChunks.has(chunkPath)) {
-    return
-  }
-
+  chunkPath: ChunkPath
+): Promise<void> {
   const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
 
   try {
@@ -187,7 +183,6 @@ async function loadChunkAsync(
         }
       }
     }
-    loadedChunks.add(chunkPath)
   } catch (e) {
     let errorMessage = `Failed to load chunk ${chunkPath}`
 
@@ -201,7 +196,30 @@ async function loadChunkAsync(
   }
 }
 
-async function loadChunkAsyncByUrl(source: SourceInfo, chunkUrl: string) {
+function loadChunkAsync(
+  source: SourceInfo,
+  chunkData: ChunkData
+): Promise<any> {
+  const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
+  if (!isJs(chunkPath)) {
+    // We only support loading JS chunks in Node.js.
+    // This branch can be hit when trying to load a CSS chunk.
+    return unsupportedLoadChunk
+  }
+
+  let entry = chunkCache.get(chunkPath)
+  if (entry === undefined) {
+    const resolve = chunkCache.set.bind(chunkCache, chunkPath, null)
+    // A new Promise ensures callers that don't handle rejection will still trigger one unhandled rejection.
+    // Handling the rejection will not trigger unhandled rejections.
+    entry = loadChunkAsyncUncached(source, chunkPath).then(resolve)
+    chunkCache.set(chunkPath, entry)
+  }
+  // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
+  return entry === null ? loadedChunk : entry
+}
+
+function loadChunkAsyncByUrl(source: SourceInfo, chunkUrl: string) {
   const path = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT)) as ChunkPath
   return loadChunkAsync(source, path)
 }
@@ -362,6 +380,9 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
   return regexJsUrl.test(chunkUrlOrPath)
 }
+
+// For hot-reloader
+;(globalThis as any).__turbopack_clear_chunk_cache__ = clearChunkCache
 
 module.exports = {
   getOrInstantiateRuntimeModule,

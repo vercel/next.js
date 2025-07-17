@@ -1,14 +1,85 @@
 import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { useClickOutsideAndEscape } from '../components/errors/dev-tools-indicator/utils'
-import { useLayoutEffect, useRef, type CSSProperties } from 'react'
+import {
+  useLayoutEffect,
+  useRef,
+  createContext,
+  useContext,
+  type CSSProperties,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import { getIndicatorOffset } from '../utils/indicator-metrics'
 import { INDICATOR_PADDING } from '../components/devtools-indicator/devtools-indicator'
-import {
-  MenuContext,
-  MenuItem,
-} from '../components/errors/dev-tools-indicator/dev-tools-indicator'
 import { usePanelRouterContext } from './context'
 import { usePanelContext } from './panel-router'
+
+interface C {
+  closeMenu?: () => void
+  selectedIndex: number
+  setSelectedIndex: Dispatch<SetStateAction<number>>
+}
+
+export const MenuContext = createContext({} as C)
+
+export function MenuItem({
+  index,
+  label,
+  value,
+  onClick,
+  href,
+  ...props
+}: {
+  index?: number
+  title?: string
+  label: string
+  value: React.ReactNode
+  href?: string
+  onClick?: () => void
+}) {
+  const isInteractive =
+    typeof onClick === 'function' || typeof href === 'string'
+  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(MenuContext)
+  const selected = selectedIndex === index
+
+  function click() {
+    if (isInteractive) {
+      onClick?.()
+      closeMenu?.()
+      if (href) {
+        window.open(href, '_blank', 'noopener, noreferrer')
+      }
+    }
+  }
+
+  return (
+    <div
+      className="dev-tools-indicator-item"
+      data-index={index}
+      data-selected={selected}
+      onClick={click}
+      // Needs `onMouseMove` instead of enter to work together
+      // with keyboard and mouse input
+      onMouseMove={() => {
+        if (isInteractive && index !== undefined && selectedIndex !== index) {
+          setSelectedIndex(index)
+        }
+      }}
+      onMouseLeave={() => setSelectedIndex(-1)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          click()
+        }
+      }}
+      role={isInteractive ? 'menuitem' : undefined}
+      tabIndex={selected ? 0 : -1}
+      {...props}
+    >
+      <span className="dev-tools-indicator-label">{label}</span>
+      <span className="dev-tools-indicator-value">{value}</span>
+    </div>
+  )
+}
 
 export const DevtoolMenu = ({
   closeOnClickOutside = true,

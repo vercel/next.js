@@ -3103,44 +3103,18 @@ export default async function build(
                 }
 
                 let prefetchDataRoute: string | undefined
-                let dynamicRoute = routesManifest.dynamicRoutes.find(
-                  (r) => r.page === route.pathname
-                )
                 if (!isAppRouteHandler && isAppPPREnabled) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
-
-                  // If the dynamic route wasn't found, then we need to create
-                  // it. This ensures that for each fallback shell there's an
-                  // entry in the app routes manifest which enables routing for
-                  // this fallback shell.
-                  if (!dynamicRoute) {
-                    dynamicRoute = pageToRoute(route.pathname)
-
-                    // This route is not for the internal router, but instead
-                    // for external routers.
-                    dynamicRoute.skipInternalRouting = true
-
-                    // Push this to the end of the array. The dynamic routes are
-                    // sorted by page later.
-                    routesManifest.dynamicRoutes.push(dynamicRoute)
-                  }
                 }
 
                 if (!isAppRouteHandler && metadata?.segmentPaths) {
-                  // If PPR isn't enabled, then we might not find the dynamic
-                  // route by pathname. If that's the case, we need to find the
-                  // route by page.
+                  const dynamicRoute = routesManifest.dynamicRoutes.find(
+                    (r) => r.page === page
+                  )
                   if (!dynamicRoute) {
-                    dynamicRoute = routesManifest.dynamicRoutes.find(
-                      (r) => r.page === page
-                    )
-
-                    // If it can't be found by page, we must throw an error.
-                    if (!dynamicRoute) {
-                      throw new InvariantError('Dynamic route not found')
-                    }
+                    throw new InvariantError('Dynamic route not found')
                   }
 
                   dynamicRoute.prefetchSegmentDataRoutes ??= []

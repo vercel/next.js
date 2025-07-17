@@ -3,7 +3,7 @@
 import { useActionState } from 'react'
 import { getRandomValue } from './cached'
 
-export default function Page() {
+export function Form() {
   const [result, formAction, isPending] = useActionState(getRandomValue, -1)
 
   return (

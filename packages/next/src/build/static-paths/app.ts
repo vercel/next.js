@@ -76,17 +76,17 @@ export function filterUniqueParams(
 }
 
 /**
- * Generates all unique sub-combinations of route params from a list of parameters.
- * This function creates all possible prefixes of the route parameters, which is
- * useful for generating partial routes that can serve as shells for more specific routes.
+ * Generates all unique sub-combinations of Route Parameters from a list of Static Parameters.
+ * This function creates all possible prefixes of the Route Parameters, which is
+ * useful for generating Static Shells that can serve as Fallback Shells for more specific Route Shells.
  *
- * When rootParamKeys are provided, the function ensures that partial shells only
- * include complete sets of root params. This prevents generating invalid partial
- * routes that are missing required root parameters.
+ * When Root Parameters are provided, the function ensures that Static Shells only
+ * include complete sets of Root Parameters. This prevents generating invalid Static Shells
+ * that are missing required Root Parameters.
  *
- * Example with root params ('lang', 'region') and route params ('lang', 'region', 'slug'):
+ * Example with Root Parameters ('lang', 'region') and Route Parameters ('lang', 'region', 'slug'):
  *
- * Given the following routeParams:
+ * Given the following Static Parameters:
  * ```
  * [
  *   { lang: 'en', region: 'US', slug: ['home'] },
@@ -98,41 +98,41 @@ export function filterUniqueParams(
  * The result will be:
  * ```
  * [
- *   { lang: 'en', region: 'US' },  // Complete root params
+ *   { lang: 'en', region: 'US' },  // Complete Root Parameters
  *   { lang: 'en', region: 'US', slug: ['home'] },
  *   { lang: 'en', region: 'US', slug: ['about'] },
- *   { lang: 'fr', region: 'CA' },  // Complete root params
+ *   { lang: 'fr', region: 'CA' },  // Complete Root Parameters
  *   { lang: 'fr', region: 'CA', slug: ['about'] },
  * ]
  * ```
  *
  * Note that partial combinations like `{ lang: 'en' }` are NOT generated because
- * they don't include the complete set of root params.
+ * they don't include the complete set of Root Parameters.
  *
- * For routes without root params (e.g., `/[slug]`), all sub-combinations are generated
+ * For routes without Root Parameters (e.g., `/[slug]`), all sub-combinations are generated
  * as before.
  *
- * @param routeParamKeys - The keys of the route params. These should be sorted
+ * @param routeParamKeys - The keys of the Route Parameters. These should be sorted
  *   to ensure consistent key generation for the internal Map.
- * @param routeParams - The list of parameter objects to filter.
- * @param rootParamKeys - The keys of the root params. When provided, ensures partial
- *   shells include all root params.
- * @returns A new array containing all unique sub-combinations of route params.
+ * @param routeParams - The list of Static Parameters to filter.
+ * @param rootParamKeys - The keys of the Root Parameters. When provided, ensures Static Shells
+ *   include all Root Parameters.
+ * @returns A new array containing all unique sub-combinations of Route Parameters.
  */
-export function generateParamPrefixCombinations(
+export function generateAllParamCombinations(
   routeParamKeys: readonly string[],
   routeParams: readonly Params[],
   rootParamKeys: readonly string[]
 ): Params[] {
-  // A Map is used to store unique combinations of route parameters.
-  // The key of the Map is a string representation of the route parameter
+  // A Map is used to store unique combinations of Route Parameters.
+  // The key of the Map is a string representation of the Route Parameter
   // combination, and the value is the `Params` object containing only
-  // the route parameters.
+  // the Route Parameters.
   const combinations = new Map<string, Params>()
 
-  // Determine the minimum index where all root params are included.
+  // Determine the minimum index where all Root Parameters are included.
   // This optimization ensures we only generate combinations that include
-  // a complete set of root parameters, preventing invalid partial shells.
+  // a complete set of Root Parameters, preventing invalid Static Shells.
   //
   // For example, if rootParamKeys = ['lang', 'region'] and routeParamKeys = ['lang', 'region', 'slug']:
   // - 'lang' is at index 0, 'region' is at index 1
@@ -140,19 +140,19 @@ export function generateParamPrefixCombinations(
   // - We'll only generate combinations starting from index 1 (which includes both lang and region)
   let minIndexForCompleteRootParams = -1
   if (rootParamKeys.length > 0) {
-    // Find the index of the last root param in routeParamKeys.
-    // This tells us the minimum combination length needed to include all root params.
+    // Find the index of the last Root Parameter in routeParamKeys.
+    // This tells us the minimum combination length needed to include all Root Parameters.
     for (const rootParamKey of rootParamKeys) {
       const index = routeParamKeys.indexOf(rootParamKey)
       if (index === -1) {
-        // Root param not found in route params - this shouldn't happen in normal cases
-        // but we handle it gracefully by treating it as if there are no root params.
+        // Root Parameter not found in Route Parameters - this shouldn't happen in normal cases
+        // but we handle it gracefully by treating it as if there are no Root Parameters.
         // This allows the function to fall back to generating all sub-combinations.
         minIndexForCompleteRootParams = -1
         break
       }
-      // Track the highest index among all root params.
-      // This ensures all root params are included in any generated combination.
+      // Track the highest index among all Root Parameters.
+      // This ensures all Root Parameters are included in any generated combination.
       minIndexForCompleteRootParams = Math.max(
         minIndexForCompleteRootParams,
         index
@@ -160,22 +160,22 @@ export function generateParamPrefixCombinations(
     }
   }
 
-  // Iterate over each parameter object in the input array.
+  // Iterate over each Static Parameter object in the input array.
   // Each params object represents one potential route combination (e.g., { lang: 'en', region: 'US', slug: 'home' })
   for (const params of routeParams) {
-    // Generate all possible prefix combinations for this parameter set.
+    // Generate all possible prefix combinations for this Static Parameter set.
     // For routeParamKeys = ['lang', 'region', 'slug'], we'll generate combinations at:
     // - i=0: { lang: 'en' }
     // - i=1: { lang: 'en', region: 'US' }
     // - i=2: { lang: 'en', region: 'US', slug: 'home' }
     //
     // The iteration order is crucial for generating stable and unique keys
-    // for each route parameter combination.
+    // for each Route Parameter combination.
     for (let i = 0; i < routeParamKeys.length; i++) {
-      // Skip generating combinations that don't include all root params.
-      // This prevents creating invalid partial shells that are missing required root parameters.
+      // Skip generating combinations that don't include all Root Parameters.
+      // This prevents creating invalid Static Shells that are missing required Root Parameters.
       //
-      // For example, if root params are ['lang', 'region'] and minIndexForCompleteRootParams = 1:
+      // For example, if Root Parameters are ['lang', 'region'] and minIndexForCompleteRootParams = 1:
       // - Skip i=0 (would only include 'lang', missing 'region')
       // - Process i=1 and higher (includes both 'lang' and 'region')
       if (
@@ -207,8 +207,8 @@ export function generateParamPrefixCombinations(
           !params.hasOwnProperty(routeKey) ||
           params[routeKey] === undefined
         ) {
-          // If this missing parameter is a root param, mark the combination as invalid.
-          // Root params are required for PPR shells, so we can't generate partial combinations without them.
+          // If this missing parameter is a Root Parameter, mark the combination as invalid.
+          // Root Parameters are required for Static Shells, so we can't generate partial combinations without them.
           if (rootParamKeys.includes(routeKey)) {
             hasAllRootParams = false
           }
@@ -243,10 +243,10 @@ export function generateParamPrefixCombinations(
       const currentKey = keyParts.join('|')
 
       // Only add the combination if it meets our criteria:
-      // 1. hasAllRequiredParams: Contains all required root parameters
+      // 1. hasAllRootParams: Contains all required Root Parameters
       // 2. !combinations.has(currentKey): Is not a duplicate of an existing combination
       //
-      // This ensures we only generate valid, unique parameter combinations for PPR shells.
+      // This ensures we only generate valid, unique parameter combinations for Static Shells.
       if (hasAllRootParams && !combinations.has(currentKey)) {
         combinations.set(currentKey, combination)
       }
@@ -257,6 +257,28 @@ export function generateParamPrefixCombinations(
   // The Map ensures all combinations are unique, and we return only the
   // parameter objects themselves, discarding the internal deduplication keys.
   return Array.from(combinations.values())
+}
+
+/**
+ * Calculates the fallback mode based on the given parameters.
+ *
+ * @param dynamicParams - Whether dynamic params are enabled.
+ * @param fallbackRootParams - The root params that are part of the fallback.
+ * @param baseFallbackMode - The base fallback mode to use.
+ * @returns The calculated fallback mode.
+ */
+export function calculateFallbackMode(
+  dynamicParams: boolean,
+  fallbackRootParams: readonly string[],
+  baseFallbackMode: FallbackMode | undefined
+): FallbackMode {
+  return dynamicParams
+    ? // If the fallback params includes any root params, then we need to
+      // perform a blocking static render.
+      fallbackRootParams.length > 0
+      ? FallbackMode.BLOCKING_STATIC_RENDER
+      : baseFallbackMode ?? FallbackMode.NOT_FOUND
+    : FallbackMode.NOT_FOUND
 }
 
 /**
@@ -755,33 +777,46 @@ export async function buildAppStaticPaths({
 
   const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>()
 
+  // Precompile the regex patterns for the route params.
+  const paramPatterns = new Map<string, string>()
+  for (const key of routeParamKeys) {
+    const { repeat, optional } = regex.groups[key]
+    let pattern = `[${repeat ? '...' : ''}${key}]`
+    if (optional) {
+      pattern = `[${pattern}]`
+    }
+    paramPatterns.set(key, pattern)
+  }
+
+  // Convert rootParamKeys to Set for O(1) lookup.
+  const rootParamSet = new Set(rootParamKeys)
+
   if (hadAllParamsGenerated || isRoutePPREnabled) {
+    let paramsToProcess = routeParams
+
     if (isRoutePPREnabled) {
       // Discover all unique combinations of the routeParams so we can generate
       // routes that won't throw on empty static shell for each of them if
       // they're available.
-      routeParams.unshift(
-        ...generateParamPrefixCombinations(
-          routeParamKeys,
-          routeParams,
-          rootParamKeys
-        )
+      paramsToProcess = generateAllParamCombinations(
+        routeParamKeys,
+        routeParams,
+        rootParamKeys
       )
 
+      // Add the base route, this is the route with all the placeholders as it's
+      // derived from the `page` string.
       prerenderedRoutesByPathname.set(page, {
         params: {},
         pathname: page,
         encodedPathname: page,
         fallbackRouteParams: routeParamKeys,
-        fallbackMode: dynamicParams
-          ? // If the fallback params includes any root params, then we need to
-            // perform a blocking static render.
-            rootParamKeys.length > 0
-            ? FallbackMode.BLOCKING_STATIC_RENDER
-            : fallbackMode
-          : FallbackMode.NOT_FOUND,
+        fallbackMode: calculateFallbackMode(
+          dynamicParams,
+          rootParamKeys,
+          fallbackMode
+        ),
         fallbackRootParams: rootParamKeys,
-        // This is set later after all the routes have been processed.
         throwOnEmptyStaticShell: true,
       })
     }
@@ -794,30 +829,29 @@ export async function buildAppStaticPaths({
         isRoutePPREnabled,
         routeParamKeys,
         rootParamKeys,
-        routeParams
+        paramsToProcess
       )
     ).forEach((params) => {
-      let pathname: string = page
-      let encodedPathname: string = page
+      let pathname = page
+      let encodedPathname = page
 
-      let fallbackRouteParams: string[] = []
+      const fallbackRouteParams: string[] = []
 
       for (const key of routeParamKeys) {
-        if (fallbackRouteParams.length > 0) {
-          // This is a partial route, so we should add the value to the
-          // fallbackRouteParams.
-          fallbackRouteParams.push(key)
-          continue
-        }
-
-        let paramValue = params[key]
+        const paramValue = params[key]
 
         if (!paramValue) {
           if (isRoutePPREnabled) {
-            // This is a partial route, so we should add the value to the
-            // fallbackRouteParams.
+            // Mark remaining params as fallback params.
             fallbackRouteParams.push(key)
-            continue
+            for (
+              let i = routeParamKeys.indexOf(key) + 1;
+              i < routeParamKeys.length;
+              i++
+            ) {
+              fallbackRouteParams.push(routeParamKeys[i])
+            }
+            break
           } else {
             // This route is not complete, and we aren't performing a partial
             // prerender, so we should return, skipping this route.
@@ -825,25 +859,24 @@ export async function buildAppStaticPaths({
           }
         }
 
-        const { repeat, optional } = regex.groups[key]
-        let replaced = `[${repeat ? '...' : ''}${key}]`
-        if (optional) {
-          replaced = `[${replaced}]`
-        }
-
+        // Use pre-compiled pattern for replacement
+        const pattern = paramPatterns.get(key)!
         pathname = pathname.replace(
-          replaced,
+          pattern,
           encodeParam(paramValue, (value) => escapePathDelimiters(value, true))
         )
         encodedPathname = encodedPathname.replace(
-          replaced,
+          pattern,
           encodeParam(paramValue, encodeURIComponent)
         )
       }
 
-      const fallbackRootParams = rootParamKeys.filter((param) =>
-        fallbackRouteParams.includes(param)
-      )
+      const fallbackRootParams: string[] = []
+      for (const param of fallbackRouteParams) {
+        if (rootParamSet.has(param)) {
+          fallbackRootParams.push(param)
+        }
+      }
 
       pathname = normalizePathname(pathname)
 
@@ -852,15 +885,12 @@ export async function buildAppStaticPaths({
         pathname,
         encodedPathname: normalizePathname(encodedPathname),
         fallbackRouteParams,
-        fallbackMode: dynamicParams
-          ? // If the fallback params includes any root params, then we need to
-            // perform a blocking static render.
-            fallbackRootParams.length > 0
-            ? FallbackMode.BLOCKING_STATIC_RENDER
-            : fallbackMode
-          : FallbackMode.NOT_FOUND,
+        fallbackMode: calculateFallbackMode(
+          dynamicParams,
+          fallbackRootParams,
+          fallbackMode
+        ),
         fallbackRootParams,
-        // This is set later after all the routes have been processed.
         throwOnEmptyStaticShell: true,
       })
     })

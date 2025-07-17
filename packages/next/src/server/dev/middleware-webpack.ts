@@ -2,7 +2,6 @@ import { findSourceMap, type SourceMap } from 'module'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from './get-source-map-from-file'
 import {
   devirtualizeReactServerURL,
@@ -15,6 +14,8 @@ import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import {
   getOriginalCodeFrame,
   ignoreListAnonymousStackFramesIfSandwiched,
+  type StackFrame,
+  type IgnorableStackFrame,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
@@ -41,10 +42,6 @@ function shouldIgnoreSource(sourceURL: string): boolean {
 }
 
 type IgnoredSources = Array<{ url: string; ignored: boolean }>
-
-export interface IgnorableStackFrame extends StackFrame {
-  ignored: boolean
-}
 
 type SourceAttributes = {
   sourcePosition: NullableMappedPosition
@@ -92,7 +89,7 @@ function getSourcePath(source: string) {
  */
 async function findOriginalSourcePositionAndContent(
   sourceMap: ModernSourceMapPayload,
-  position: { lineNumber: number | null; column: number | null }
+  position: { line1: number | null; column1: number | null }
 ): Promise<SourceAttributes | null> {
   let consumer: SourceMapConsumer
   try {
@@ -109,9 +106,9 @@ async function findOriginalSourcePositionAndContent(
 
   try {
     const sourcePosition = consumer.originalPositionFor({
-      line: position.lineNumber ?? 1,
+      line: position.line1 ?? 1,
       // 0-based columns out requires 0-based columns in.
-      column: (position.column ?? 1) - 1,
+      column: (position.column1 ?? 1) - 1,
     })
 
     if (!sourcePosition.source) {
@@ -241,8 +238,8 @@ export async function createOriginalStackFrame({
 
   const traced: IgnorableStackFrame = {
     file: resolvedFilePath,
-    lineNumber: sourcePosition.line,
-    column: (sourcePosition.column ?? 0) + 1,
+    line1: sourcePosition.line,
+    column1: sourcePosition.column === null ? null : sourcePosition.column + 1,
     methodName:
       // We ignore the sourcemapped name since it won't be the correct name.
       // The callsite will point to the column of the variable name instead of the
@@ -290,8 +287,8 @@ async function getSourceMapFromCompilation(
 async function getSource(
   frame: {
     file: string | null
-    lineNumber: number | null
-    column: number | null
+    line1: number | null
+    column1: number | null
   },
   options: {
     getCompilations: () => webpack.Compilation[]
@@ -317,8 +314,8 @@ async function getSource(
     return {
       type: 'file',
       sourceMap: findApplicableSourceMapPayload(
-        frame.lineNumber ?? 0,
-        frame.column ?? 0,
+        (frame.line1 ?? 1) - 1,
+        (frame.column1 ?? 1) - 1,
         sourceMapPayload
       )!,
 
@@ -504,8 +501,8 @@ async function getOriginalStackFrame({
   // This stack frame is used for the one that couldn't locate the source or source mapped frame
   const defaultStackFrame: IgnorableStackFrame = {
     file: defaultNormalizedStackFrameLocation,
-    lineNumber: frame.lineNumber,
-    column: frame.column ?? 1,
+    line1: frame.line1,
+    column1: frame.column1,
     methodName: frame.methodName,
     ignored: shouldIgnoreSource(filename),
     arguments: [],
@@ -578,11 +575,7 @@ export function getOverlayMiddleware(options: {
             isServer,
             isEdgeServer,
             isAppDirectory,
-            frames: frames.map((frame) => ({
-              ...frame,
-              lineNumber: frame.lineNumber ?? 0,
-              column: frame.column ?? 0,
-            })),
+            frames,
             clientStats,
             serverStats,
             edgeServerStats,
@@ -596,8 +589,8 @@ export function getOverlayMiddleware(options: {
       const frame = {
         file: searchParams.get('file') as string,
         methodName: searchParams.get('methodName') as string,
-        lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-        column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+        line1: parseInt(searchParams.get('line1') ?? '1', 10) || 1,
+        column1: parseInt(searchParams.get('column1') ?? '1', 10) || 1,
         arguments: searchParams.getAll('arguments').filter(Boolean),
       } satisfies StackFrame
 
@@ -622,8 +615,8 @@ export function getOverlayMiddleware(options: {
         )
         openEditorResult = await openFileInEditor(
           filePath,
-          frame.lineNumber,
-          frame.column ?? 1
+          frame.line1,
+          frame.column1 ?? 1
         )
       }
       if (openEditorResult.error) {
@@ -674,8 +667,8 @@ export function getSourceMapMiddleware(options: {
         {
           file: filename,
           // Webpack doesn't use Index Source Maps
-          lineNumber: null,
-          column: null,
+          line1: null,
+          column1: null,
         },
         {
           getCompilations: () => {

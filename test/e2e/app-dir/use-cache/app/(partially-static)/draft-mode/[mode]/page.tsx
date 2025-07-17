@@ -1,5 +1,3 @@
-'use cache'
-
 import { cookies, draftMode } from 'next/headers'
 import { Button } from './button'
 
@@ -24,7 +22,14 @@ async function getCachedValue(
   return [date.toISOString(), fn]
 }
 
-export default async function Page() {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ mode: string }>
+}) {
+  'use cache'
+
+  const { mode } = await params
   const offset = 1000
 
   const cachedClosure = async () => {
@@ -36,14 +41,8 @@ export default async function Page() {
 
   // Accessing request-scoped data in "use cache" should not be allowed, even if
   // draft mode is enabled. We expect the access to throw.
-  let isAccessingRequestScopedDataAllowedInUseCache = isEnabled
-
-  if (isAccessingRequestScopedDataAllowedInUseCache) {
-    try {
-      await cookies()
-    } catch {
-      isAccessingRequestScopedDataAllowedInUseCache = false
-    }
+  if (isEnabled && mode === 'with-cookies') {
+    await cookies()
   }
 
   const [cachedValue, passthroughFn] = await getCachedValue(
@@ -71,11 +70,12 @@ export default async function Page() {
     >
       <p id="top-level">{cachedValue}</p>
       <p id="closure">{await cachedClosure()}</p>
-      <p id="is-accessing-request-scoped-data-allowed-in-use-cache">
-        {isAccessingRequestScopedDataAllowedInUseCache.toString()}
-      </p>
       <p>{passthroughFn()}</p>
       <Button id="toggle">{isEnabled ? 'Disable' : 'Enable'} Draft Mode</Button>
     </form>
   )
+}
+
+export function generateStaticParams() {
+  return [{ mode: 'with-cookies' }, { mode: 'without-cookies' }]
 }

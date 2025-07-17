@@ -2,7 +2,8 @@ import { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
 import {
   assignErrorIfEmpty,
-  generateParamPrefixCombinations,
+  generateAllParamCombinations,
+  calculateFallbackMode,
   filterUniqueParams,
   generateRouteStaticParams,
 } from './app'
@@ -356,7 +357,7 @@ describe('generateParamPrefixCombinations', () => {
       { id: '2', name: 'test' },
     ]
 
-    const unique = generateParamPrefixCombinations(['id'], params, [])
+    const unique = generateAllParamCombinations(['id'], params, [])
 
     expect(unique).toEqual([{ id: '1' }, { id: '2' }])
   })
@@ -369,11 +370,7 @@ describe('generateParamPrefixCombinations', () => {
       { lang: 'fr', region: 'CA', page: 'about' },
     ]
 
-    const unique = generateParamPrefixCombinations(
-      ['lang', 'region'],
-      params,
-      []
-    )
+    const unique = generateAllParamCombinations(['lang', 'region'], params, [])
 
     expect(unique).toEqual([
       { lang: 'en' },
@@ -386,20 +383,20 @@ describe('generateParamPrefixCombinations', () => {
   it('should handle parameter value collisions', () => {
     const params = [{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }]
 
-    const unique = generateParamPrefixCombinations(['slug'], params, [])
+    const unique = generateAllParamCombinations(['slug'], params, [])
 
     expect(unique).toEqual([{ slug: ['foo', 'bar'] }, { slug: 'foo,bar' }])
   })
 
   it('should handle empty inputs', () => {
     // Empty routeParamKeys
-    expect(generateParamPrefixCombinations([], [{ id: '1' }], [])).toEqual([])
+    expect(generateAllParamCombinations([], [{ id: '1' }], [])).toEqual([])
 
     // Empty routeParams
-    expect(generateParamPrefixCombinations(['id'], [], [])).toEqual([])
+    expect(generateAllParamCombinations(['id'], [], [])).toEqual([])
 
     // Both empty
-    expect(generateParamPrefixCombinations([], [], [])).toEqual([])
+    expect(generateAllParamCombinations([], [], [])).toEqual([])
   })
 
   it('should handle undefined parameters', () => {
@@ -409,7 +406,7 @@ describe('generateParamPrefixCombinations', () => {
       { id: '3' }, // missing name key
     ]
 
-    const unique = generateParamPrefixCombinations(['id', 'name'], params, [])
+    const unique = generateAllParamCombinations(['id', 'name'], params, [])
 
     expect(unique).toEqual([
       { id: '1' },
@@ -426,7 +423,7 @@ describe('generateParamPrefixCombinations', () => {
       { lang: 'fr' }, // missing region and category
     ]
 
-    const unique = generateParamPrefixCombinations(
+    const unique = generateAllParamCombinations(
       ['lang', 'region', 'category'],
       params,
       []
@@ -450,7 +447,7 @@ describe('generateParamPrefixCombinations', () => {
       { slug: 'U:undefined' }, // String that looks like undefined prefix
     ]
 
-    const unique = generateParamPrefixCombinations(['slug'], params, [])
+    const unique = generateAllParamCombinations(['slug'], params, [])
 
     expect(unique).toEqual([
       { slug: ['foo', 'bar'] },
@@ -468,7 +465,7 @@ describe('generateParamPrefixCombinations', () => {
       { slug: ['foo', 'bar|baz'] }, // Array with pipe in element
     ]
 
-    const unique = generateParamPrefixCombinations(['slug'], params, [])
+    const unique = generateAllParamCombinations(['slug'], params, [])
 
     expect(unique).toEqual([{ slug: 'foo|bar' }, { slug: ['foo', 'bar|baz'] }])
   })
@@ -480,7 +477,7 @@ describe('generateParamPrefixCombinations', () => {
       { a: '1', b: '2', c: '3', d: '7' },
     ]
 
-    const unique = generateParamPrefixCombinations(
+    const unique = generateAllParamCombinations(
       ['a', 'b', 'c', 'd', 'e'],
       params,
       []
@@ -505,7 +502,7 @@ describe('generateParamPrefixCombinations', () => {
       { lang: 'fr', region: 'CA', slug: 'about' },
     ]
 
-    const unique = generateParamPrefixCombinations(
+    const unique = generateAllParamCombinations(
       ['lang', 'region', 'slug'],
       params,
       ['lang', 'region'] // Root params
@@ -529,7 +526,7 @@ describe('generateParamPrefixCombinations', () => {
       { category: 'sports', slug: 'news' },
     ]
 
-    const unique = generateParamPrefixCombinations(
+    const unique = generateAllParamCombinations(
       ['category', 'slug'],
       params,
       [] // No root params
@@ -552,7 +549,7 @@ describe('generateParamPrefixCombinations', () => {
       { lang: 'fr', page: 'home' },
     ]
 
-    const unique = generateParamPrefixCombinations(
+    const unique = generateAllParamCombinations(
       ['lang', 'page'],
       params,
       ['lang'] // Single root param
@@ -575,7 +572,7 @@ describe('generateParamPrefixCombinations', () => {
       { page: 'contact' }, // Missing lang root param
     ]
 
-    const unique = generateParamPrefixCombinations(
+    const unique = generateAllParamCombinations(
       ['lang', 'page'],
       params,
       ['lang'] // Root param
@@ -596,7 +593,7 @@ describe('generateParamPrefixCombinations', () => {
       { category: 'sports', slug: 'news' },
     ]
 
-    const unique = generateParamPrefixCombinations(
+    const unique = generateAllParamCombinations(
       ['category', 'slug'],
       params,
       ['lang', 'region'] // Root params not in route params
@@ -620,7 +617,7 @@ describe('generateParamPrefixCombinations', () => {
       { lang: 'en', locale: 'us' }, // Missing slug parameter
     ]
 
-    const unique = generateParamPrefixCombinations(
+    const unique = generateAllParamCombinations(
       ['lang', 'locale', 'slug'], // All route params
       params,
       ['lang', 'locale'] // Root params
@@ -637,7 +634,7 @@ describe('generateParamPrefixCombinations', () => {
     // This might be what's happening for the [slug] route
     const params: Params[] = [] // No generateStaticParams results
 
-    const unique = generateParamPrefixCombinations(
+    const unique = generateAllParamCombinations(
       ['lang', 'locale', 'slug'], // All route params
       params,
       ['lang', 'locale'] // Root params
@@ -1025,5 +1022,75 @@ describe('generateRouteStaticParams', () => {
       expect(result).toHaveLength(1)
       expect(Object.keys(result[0])).toHaveLength(5000)
     })
+  })
+})
+
+describe('calculateFallbackMode', () => {
+  it('should return NOT_FOUND when dynamic params are disabled', () => {
+    const result = calculateFallbackMode(false, [], FallbackMode.PRERENDER)
+
+    expect(result).toBe(FallbackMode.NOT_FOUND)
+  })
+
+  it('should return NOT_FOUND when dynamic params are disabled regardless of root params', () => {
+    const result = calculateFallbackMode(
+      false,
+      ['rootParam'],
+      FallbackMode.BLOCKING_STATIC_RENDER
+    )
+
+    expect(result).toBe(FallbackMode.NOT_FOUND)
+  })
+
+  it('should return BLOCKING_STATIC_RENDER when dynamic params are enabled and root params exist', () => {
+    const result = calculateFallbackMode(
+      true,
+      ['rootParam1', 'rootParam2'],
+      FallbackMode.PRERENDER
+    )
+
+    expect(result).toBe(FallbackMode.BLOCKING_STATIC_RENDER)
+  })
+
+  it('should return base fallback mode when dynamic params are enabled and no root params', () => {
+    const result = calculateFallbackMode(true, [], FallbackMode.PRERENDER)
+
+    expect(result).toBe(FallbackMode.PRERENDER)
+  })
+
+  it('should return base fallback mode when dynamic params are enabled and empty root params', () => {
+    const result = calculateFallbackMode(
+      true,
+      [],
+      FallbackMode.BLOCKING_STATIC_RENDER
+    )
+
+    expect(result).toBe(FallbackMode.BLOCKING_STATIC_RENDER)
+  })
+
+  it('should return NOT_FOUND when dynamic params are enabled but no base fallback mode provided', () => {
+    const result = calculateFallbackMode(true, [], undefined)
+
+    expect(result).toBe(FallbackMode.NOT_FOUND)
+  })
+
+  it('should prioritize root params over base fallback mode', () => {
+    const result = calculateFallbackMode(
+      true,
+      ['rootParam'],
+      FallbackMode.PRERENDER
+    )
+
+    expect(result).toBe(FallbackMode.BLOCKING_STATIC_RENDER)
+  })
+
+  it('should handle single root param correctly', () => {
+    const result = calculateFallbackMode(
+      true,
+      ['singleParam'],
+      FallbackMode.PRERENDER
+    )
+
+    expect(result).toBe(FallbackMode.BLOCKING_STATIC_RENDER)
   })
 })
