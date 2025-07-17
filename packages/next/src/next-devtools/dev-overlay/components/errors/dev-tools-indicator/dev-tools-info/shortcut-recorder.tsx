@@ -56,6 +56,17 @@ export function ShortcutRecorder({
       // Don't add duplicate keys
       if (prev.includes(e.code) || prev.includes(e.key)) return prev
 
+      /**
+       * Why are we using `e.code` for non-modifier keys?
+       *
+       * Consider this keybind: Alt + L
+       *
+       * If we capture `e.key` here then it will correspond to an awkward symbol (¬)
+       * because pressing Alt + L creates this symbol.
+       *
+       * While `e.code` will give us `KeyL` as the value which we also later use in
+       * `useShortcuts()` to match the keybind correctly without relying on modifier symbols.
+       */
       // Handle non-modifier keys (action keys)
       if (!modifierKeys.includes(e.key)) {
         // Replace existing non-modifier key if present
