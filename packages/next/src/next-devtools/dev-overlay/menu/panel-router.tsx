@@ -34,6 +34,8 @@ const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const { state, dispatch } = useDevOverlayContext()
   const { totalErrorCount } = useRenderErrorContext()
+  const isAppRouter = state.routerType === 'app'
+
   return (
     <DevtoolMenu
       items={[
@@ -82,14 +84,15 @@ const MenuPanel = () => {
               value: <ChevronRight />,
               onClick: () => setPanel('turbo-info'),
             },
-        !!process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && {
-          label: 'Route Info',
-          value: <ChevronRight />,
-          onClick: () => setPanel('segment-explorer'),
-          attributes: {
-            'data-segment-explorer': true,
+        !!process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER &&
+          isAppRouter && {
+            label: 'Route Info',
+            value: <ChevronRight />,
+            onClick: () => setPanel('segment-explorer'),
+            attributes: {
+              'data-segment-explorer': true,
+            },
           },
-        },
         {
           label: 'Preferences',
           value: <GearIcon />,
@@ -137,6 +140,7 @@ export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
   const { triggerRef } = usePanelRouterContext()
   const toggleDevtools = useToggleDevtoolsVisibility()
+  const isAppRouter = state.routerType === 'app'
 
   const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
   useShortcuts(
@@ -206,7 +210,7 @@ export const PanelRouter = () => {
         </DynamicPanel>
       </PanelRoute>
 
-      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && (
+      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && isAppRouter && (
         <PanelRoute name="segment-explorer">
           <DynamicPanel
             sharePanelSizeGlobally={false}
@@ -225,10 +229,7 @@ export const PanelRouter = () => {
             }}
             header={<DevToolsHeader title="Route Info" />}
           >
-            <PageSegmentTree
-              isAppRouter={state.routerType === 'app'}
-              page={state.page}
-            />
+            <PageSegmentTree page={state.page} />
           </DynamicPanel>
         </PanelRoute>
       )}

@@ -96,26 +96,18 @@ function SegmentExplorerFooter({
   )
 }
 
-export function PageSegmentTree({
-  isAppRouter,
-  page,
-}: {
-  isAppRouter: boolean
-  page: string
-}) {
+export function PageSegmentTree({ page }: { page: string }) {
   const tree = useSegmentTree()
 
   // Count active boundaries for the badge
   const activeBoundariesCount = useMemo(() => {
-    return isAppRouter ? countActiveBoundaries(tree) : 0
-  }, [tree, isAppRouter])
+    return countActiveBoundaries(tree)
+  }, [tree])
 
   // Global reset handler
   const handleGlobalReset = useCallback(() => {
-    if (isAppRouter) {
-      traverseTreeAndResetBoundaries(tree)
-    }
-  }, [tree, isAppRouter])
+    traverseTreeAndResetBoundaries(tree)
+  }, [tree])
 
   return (
     <div
@@ -126,7 +118,7 @@ export function PageSegmentTree({
         height: '100%',
       }}
     >
-      {isAppRouter && <PageRouteBar page={page} />}
+      <PageRouteBar page={page} />
       <div
         className="segment-explorer-content"
         data-nextjs-devtool-segment-explorer
@@ -135,18 +127,12 @@ export function PageSegmentTree({
           overflow: 'auto',
         }}
       >
-        {isAppRouter ? (
-          <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
-        ) : (
-          <p>Route Info currently is only available for the App Router.</p>
-        )}
+        <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
       </div>
-      {isAppRouter && (
-        <SegmentExplorerFooter
-          activeBoundariesCount={activeBoundariesCount}
-          onGlobalReset={handleGlobalReset}
-        />
-      )}
+      <SegmentExplorerFooter
+        activeBoundariesCount={activeBoundariesCount}
+        onGlobalReset={handleGlobalReset}
+      />
     </div>
   )
 }

@@ -375,6 +375,10 @@ export class Playwright<TCurrent = undefined> {
     return this.waitForElementByCss(selector, 5_000)
   }
 
+  hasElementByCss(selector: string) {
+    return this.startChain(() => page.locator(selector).isVisible())
+  }
+
   elementById(id: string) {
     return this.elementByCss(`#${id}`)
   }

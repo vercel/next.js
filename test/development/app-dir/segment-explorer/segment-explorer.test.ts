@@ -73,9 +73,9 @@ describe('segment-explorer', () => {
     expect(await getSegmentExplorerRoute(browser)).toBe('/file-segments')
   })
 
-  it('should indicate segment explorer is not available for pages router', async () => {
+  it('should not have route info panel for pages router', async () => {
     const browser = await next.browser('/pages-router')
-    expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`""`)
+    expect(await browser.hasElementByCss('[data-segment-explorer]')).toBe(false)
   })
 
   it('should handle special built-in not-found segments', async () => {
