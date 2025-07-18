@@ -45,10 +45,6 @@ pub struct ClientReferencesSet {
 }
 
 impl ClientReferencesSet {
-    fn new(client_references: ClientReferencesSet) -> Vc<Self> {
-        Self::cell(client_references)
-    }
-
     /// Returns all the server components that depend on the given client reference
     pub fn server_components_for_client_reference(
         &self,
@@ -146,7 +142,7 @@ pub async fn map_client_references(
                     // self cycle. They don't introduce new bits anyway.
                     && module != *parent_module
                     {
-                        // copy parent bits down.  `traverse_edges_from_entries_fixed_point`` always visits parents before
+                        // Copy parent bits down.  `traverse_edges_from_entries_fixed_point` always visits parents before
                         // children so we can simply assert that the parent it set.
                         let [Some(current), Some(parent)] =
                             module_to_server_component_bits.get_disjoint_mut([&module, parent_module])
@@ -158,7 +154,7 @@ pub async fn map_client_references(
                             let len = current.len();
                             *current |= &*parent;
                              // did we find new bits? If so visit the children again
-                            should_visit_children |= len != current.len();
+                            should_visit_children = len != current.len();
                         } else {
                             *current |= &*parent;
                         }
@@ -199,7 +195,7 @@ pub async fn map_client_references(
             })
             .collect();
 
-        Ok(ClientReferencesSet::new(ClientReferencesSet {
+        Ok(ClientReferencesSet::cell(ClientReferencesSet {
             client_references,
             server_components,
             server_components_for_client_references,
