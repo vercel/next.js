@@ -1,5 +1,6 @@
 import './devtools-indicator.css'
 import type { CSSProperties } from 'react'
+import type { DevToolsIndicatorPosition } from '../../shared'
 import { NextLogo } from './next-logo'
 import { Toast } from '../toast'
 import {
@@ -9,13 +10,12 @@ import {
 import {
   ACTION_DEVTOOLS_POSITION,
   STORE_KEY_SHARED_PANEL_LOCATION,
-  ACTION_DEVTOOLS_PANEL_POSITION,
   STORAGE_KEY_PANEL_POSITION_PREFIX,
+  ACTION_DEVTOOLS_PANEL_POSITION,
 } from '../../shared'
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { usePanelRouterContext } from '../../menu/context'
-import type { DevToolsIndicatorPosition } from '../../shared'
 import { saveDevToolsConfig } from '../../utils/save-devtools-config'
 
 export const INDICATOR_PADDING = 20
