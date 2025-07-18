@@ -12,12 +12,12 @@ Next.js improves your application's performance and reduces costs by caching ren
 
 Here's a high-level overview of the different caching mechanisms and their purpose:
 
-| Mechanism                                   | What                       | Where  | Purpose                                         | Duration                        |
-| ------------------------------------------- | -------------------------- | ------ | ----------------------------------------------- | ------------------------------- |
-| [Request Memoization](#request-memoization) | Return values of functions | Server | Re-use data in a React Component tree           | Per-request lifecycle           |
-| [Data Cache](#data-cache)                   | Data                       | Server | Store data across user requests and deployments | Persistent (can be revalidated) |
-| [Full Route Cache](#full-route-cache)       | HTML and RSC payload       | Server | Reduce rendering cost and improve performance   | Persistent (can be revalidated) |
-| [Router Cache](#client-side-router-cache)   | RSC Payload                | Client | Reduce server requests on navigation            | User session or time-based      |
+| Mechanism                                   | What                       | Where  | Purpose                                         | Duration                        | Framework       |
+| ------------------------------------------- | -------------------------- | ------ | ----------------------------------------------- | ------------------------------- | --------------- |
+| [Request Memoization](#request-memoization) | Return values of functions | Server | Re-use data in a React Component tree           | Per-request lifecycle           | React feature   |
+| [Data Cache](#data-cache)                   | Data                       | Server | Store data across user requests and deployments | Persistent (can be revalidated) | Next.js feature |
+| [Full Route Cache](#full-route-cache)       | HTML and RSC payload       | Server | Reduce rendering cost and improve performance   | Persistent (can be revalidated) | Next.js feature |
+| [Router Cache](#client-side-router-cache)   | RSC Payload                | Client | Reduce server requests on navigation            | User session or time-based      | Next.js feature |
 
 By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are **statically rendered** and data requests are **cached** unless you opt out. The diagram below shows the default caching behavior: when a route is statically rendered at build time and when a static route is first visited.
 
@@ -33,7 +33,7 @@ Caching behavior changes depending on whether the route is statically or dynamic
 
 Fetch caching is **not** supported in `middleware`. Any fetches done inside of your `middleware` will be uncached.
 
-## Request Memoization
+## Request Memoization (React Features)
 
 Next.js extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
 
@@ -119,6 +119,34 @@ To manage individual requests, you can use the [`signal`](https://developer.mozi
 const { signal } = new AbortController()
 fetch(url, { signal })
 ```
+
+### React `cache` function
+
+For cases where `fetch` is not suitable (e.g. some database clients, CMS clients, or GraphQL clients), you can use the React `cache` function to manually memoize data requests.
+
+The React `cache` function allows you to memoize the return value of a function, allowing you to call the same function multiple times while only executing it once.
+
+```ts filename="utils/get-item.ts" switcher
+import { cache } from 'react'
+import db from '@/lib/db'
+
+export const getItem = cache(async (id: string) => {
+  const item = await db.item.findUnique({ id })
+  return item
+})
+```
+
+```js filename="utils/get-item.js" switcher
+import { cache } from 'react'
+import db from '@/lib/db'
+
+export const getItem = cache(async (id) => {
+  const item = await db.item.findUnique({ id })
+  return item
+})
+```
+
+`fetch` requests using the `GET` or `HEAD` methods are automatically memoized, so you do not need to wrap them in React `cache`. However, for other `fetch` methods, or when using data fetching libraries that don't inherently memoize requests, you can use `cache` to manually apply the same memoization behavior.
 
 ## Data Cache
 
@@ -568,29 +596,3 @@ export const dynamic = 'force-static'
 ```
 
 To disable caching at request time, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments)).
-
-### React `cache` function
-
-The React `cache` function allows you to memoize the return value of a function, allowing you to call the same function multiple times while only executing it once.
-
-`fetch` requests using the `GET` or `HEAD` methods are automatically memoized, so you do not need to wrap it in React `cache`. However, for other `fetch` methods, or when using data fetching libraries (such as some database, CMS, or GraphQL clients) that don't inherently memoize requests, you can use `cache` to manually memoize data requests.
-
-```ts filename="utils/get-item.ts" switcher
-import { cache } from 'react'
-import db from '@/lib/db'
-
-export const getItem = cache(async (id: string) => {
-  const item = await db.item.findUnique({ id })
-  return item
-})
-```
-
-```js filename="utils/get-item.js" switcher
-import { cache } from 'react'
-import db from '@/lib/db'
-
-export const getItem = cache(async (id) => {
-  const item = await db.item.findUnique({ id })
-  return item
-})
-```
