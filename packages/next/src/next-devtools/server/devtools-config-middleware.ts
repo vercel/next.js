@@ -72,6 +72,7 @@ export async function getDevToolsConfig(
 
   if (!existsSync(configPath)) {
     await writeFile(configPath, JSON.stringify({}))
+    return {}
   }
 
   return JSON.parse(await readFile(configPath, 'utf8'))
