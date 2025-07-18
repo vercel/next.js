@@ -442,7 +442,7 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG_UPDATED: {
+    case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG_PATCH: {
       dispatcher.onDevToolsConfigPatch(obj.data)
       return
     }

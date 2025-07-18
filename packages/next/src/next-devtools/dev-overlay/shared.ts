@@ -97,7 +97,7 @@ export const ACTION_DEVTOOLS_PANEL_SIZE = 'devtools-panel-size'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
-export const ACTION_DEVTOOLS_CONFIG_HYDRATE = 'devtools-config-hydrate'
+export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
 export const ACTION_DEVTOOLS_CONFIG_PATCH = 'devtools-config-patch'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
@@ -213,7 +213,7 @@ export interface RestartServerButtonAction {
 }
 
 export interface DevToolsConfigHydrateAction {
-  type: typeof ACTION_DEVTOOLS_CONFIG_HYDRATE
+  type: typeof ACTION_DEVTOOLS_CONFIG
   devToolsConfig: DevToolsConfig
 }
 
@@ -489,7 +489,7 @@ export function useErrorOverlayReducer(
             showRestartServerButton: action.showRestartServerButton,
           }
         }
-        case ACTION_DEVTOOLS_CONFIG_HYDRATE: {
+        case ACTION_DEVTOOLS_CONFIG: {
           const {
             theme,
             disableDevIndicator,

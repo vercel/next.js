@@ -27,7 +27,8 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   TURBOPACK_CONNECTED = 'turbopack-connected',
   ISR_MANIFEST = 'isrManifest',
   DEV_INDICATOR = 'devIndicator',
-  DEVTOOLS_CONFIG_UPDATED = 'devtoolsConfigUpdated',
+  DEVTOOLS_CONFIG = 'devtoolsConfig',
+  DEVTOOLS_CONFIG_PATCH = 'devtoolsConfigPatch',
 }
 
 interface ServerErrorAction {
@@ -123,7 +124,7 @@ export interface AppIsrManifestAction {
 }
 
 export interface DevToolsConfigUpdatedAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG_UPDATED
+  action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG_PATCH
   data: DevToolsConfig
 }
 

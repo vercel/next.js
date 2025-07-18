@@ -1623,7 +1623,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           this.webpackHotMiddleware?.updateDevToolsConfig(data)
 
           this.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG_UPDATED,
+            action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG_PATCH,
             data,
           })
         },

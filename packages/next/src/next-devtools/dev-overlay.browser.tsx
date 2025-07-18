@@ -18,7 +18,7 @@ import {
   ACTION_RENDERING_INDICATOR_HIDE,
   ACTION_RENDERING_INDICATOR_SHOW,
   ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
-  ACTION_DEVTOOLS_CONFIG_HYDRATE,
+  ACTION_DEVTOOLS_CONFIG,
   ACTION_DEVTOOLS_CONFIG_PATCH,
   type OverlayState,
   type DispatcherEvent,
@@ -122,7 +122,7 @@ export const dispatcher: Dispatcher = {
   ),
   onDevToolsConfig: createQueuable(
     (dispatch: Dispatch, devToolsConfig: DevToolsConfig) => {
-      dispatch({ type: ACTION_DEVTOOLS_CONFIG_HYDRATE, devToolsConfig })
+      dispatch({ type: ACTION_DEVTOOLS_CONFIG, devToolsConfig })
     }
   ),
   onDevToolsConfigPatch: createQueuable(
