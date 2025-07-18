@@ -346,21 +346,21 @@ export type WrittenEndpoint =
 
 export interface ProjectOptions {
   /**
-   * An absolute root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail, so think of this as a chroot.
+   * An absolute root path (Unix or Windows path) from which all files must be nested under. Trying
+   * to access a file outside this root will fail, so think of this as a chroot.
    * E.g. `/home/user/projects/my-repo`.
    */
   rootPath: string
 
   /**
-   * A path which contains the app/pages directories, relative to `root_path`.
+   * A path which contains the app/pages directories, relative to `root_path`, always a Unix path.
    * E.g. `apps/my-app`
    */
   projectPath: string
 
   /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`].
-   * Corresponds to next.config.js's `distDir`.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always a Unix
+   * path. Corresponds to next.config.js's `distDir`.
    * E.g. `.next`
    */
   distDir: string
