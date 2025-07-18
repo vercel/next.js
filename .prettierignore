@@ -70,4 +70,9 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/turbopack-tests/tests/**/output*
 /turbopack/crates/turbopack-tests/tests/**/static
 
+# Symlink test files that contain relative paths instead of code
+test/development/app-dir/hmr-symlink/app/symlink-chain/**
+test/development/app-dir/hmr-symlink/app/symlink-link/**
+test/production/app-dir/symbolic-file-links/src/**
+
 /apps/docs/.source/*
