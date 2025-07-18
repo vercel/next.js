@@ -156,7 +156,9 @@ pub async fn get_module_graph_snapshot(
                     .content()
                     .len()
                     .owned()
-                    .await?
+                    .await
+                    // TODO all modules should report some content and should not crash
+                    .unwrap_or_default()
                     .unwrap_or_default()
                     .try_into()
                     .unwrap_or(u32::MAX),
