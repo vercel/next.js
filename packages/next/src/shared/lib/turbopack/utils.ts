@@ -200,7 +200,7 @@ export function formatIssue(issue: Issue) {
       for (let i = 0; i < importTraces.length; i++) {
         const trace = importTraces[i]
         const layer = leafLayerName(trace)
-        // If this is true, layer must be be present
+        // If this is true, layer must be present
         if (everyTraceHasADistinctRootLayer) {
           message += `  ${layer}:\n`
         } else {
