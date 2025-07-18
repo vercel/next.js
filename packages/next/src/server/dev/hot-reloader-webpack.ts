@@ -94,7 +94,6 @@ import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
-  type DevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
@@ -1618,7 +1617,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
       devToolsConfigMiddleware({
         distDir: this.distDir,
-        sendUpdateSignal: (data: DevToolsConfig) => {
+        sendUpdateSignal: (data) => {
           // Update the local machine's devToolsConfig value,
           // which will be used for the next onHMR call.
           this.webpackHotMiddleware?.updateDevToolsConfig(data)

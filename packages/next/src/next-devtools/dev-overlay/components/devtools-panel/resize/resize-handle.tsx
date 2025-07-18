@@ -2,6 +2,7 @@ import { useState, useLayoutEffect } from 'react'
 import type { Corners } from '../../../shared'
 import { useResize, type ResizeDirection } from './resize-provider'
 import './resize-handle.css'
+import { saveDevToolsConfig } from '../../../utils/save-devtools-config'
 
 export const ResizeHandle = ({
   direction,
@@ -127,8 +128,9 @@ export const ResizeHandle = ({
       }
 
       const { width, height } = resizeRef.current.getBoundingClientRect()
-
-      localStorage.setItem(storageKey, JSON.stringify({ width, height }))
+      saveDevToolsConfig({
+        devToolsPanelSize: { [storageKey]: { width, height } },
+      })
     }
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)

@@ -8,7 +8,7 @@ import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../next-devtools/shared/types'
 import type { DevIndicatorServerState } from './dev-indicator-server-state'
-import type { DevToolsConfig } from '../../next-devtools/server/devtools-config-middleware'
+import type { DevToolsConfig } from '../../next-devtools/shared/devtools-config-schema'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',

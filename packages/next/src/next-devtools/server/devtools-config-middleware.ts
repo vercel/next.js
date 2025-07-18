@@ -1,11 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { DevToolsConfig } from '../shared/devtools-config-schema'
 
 import { existsSync } from 'fs'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { z } from 'next/dist/compiled/zod'
 
 import { middlewareResponse } from './middleware-response'
+import { devToolsConfigSchema } from '../shared/devtools-config-schema'
+import { deepMerge } from '../shared/deepmerge'
 
 const DEVTOOLS_CONFIG_FILENAME = 'next-devtools-config.json'
 const DEVTOOLS_CONFIG_MIDDLEWARE_ENDPOINT = '/__nextjs_devtools_config'
@@ -15,7 +17,7 @@ export function devToolsConfigMiddleware({
   sendUpdateSignal,
 }: {
   distDir: string
-  sendUpdateSignal: (data: any) => void
+  sendUpdateSignal: (data: DevToolsConfig) => void
 }) {
   const configPath = join(distDir, 'cache', DEVTOOLS_CONFIG_FILENAME)
 
@@ -34,32 +36,26 @@ export function devToolsConfigMiddleware({
       return middlewareResponse.methodNotAllowed(res)
     }
 
-    const devToolsConfig = await getDevToolsConfig(distDir)
+    const currentConfig = await getDevToolsConfig(distDir)
 
     if (req.method === 'GET') {
-      return middlewareResponse.json(res, devToolsConfig)
+      return middlewareResponse.json(res, currentConfig)
     }
 
     if (req.method === 'POST') {
-      console.log('POST MAN')
       const chunks: Buffer[] = []
       for await (const chunk of req) {
         chunks.push(Buffer.from(chunk))
-        console.log({ chunk })
       }
+
       const body = Buffer.concat(chunks).toString('utf8')
-
-      console.log({ body })
-
       const validation = devToolsConfigSchema.safeParse(JSON.parse(body))
 
-      console.log({ validation })
       if (!validation.success) {
-        console.log({ errors: validation.error.errors })
         return middlewareResponse.badRequest(res)
       }
 
-      const newConfig = { ...devToolsConfig, ...validation.data }
+      const newConfig = deepMerge(currentConfig, validation.data)
       await writeFile(configPath, JSON.stringify(newConfig, null, 2))
 
       sendUpdateSignal(newConfig)
@@ -80,27 +76,3 @@ export async function getDevToolsConfig(
 
   return JSON.parse(await readFile(configPath, 'utf8'))
 }
-
-export type DevToolsConfig = z.infer<typeof devToolsConfigSchema>
-
-const devToolsConfigSchema = z.object({
-  theme: z.enum(['light', 'dark', 'system']).optional(),
-  indicatorDisabled: z.boolean().optional(),
-  devToolsPosition: z
-    .enum(['top-left', 'top-right', 'bottom-left', 'bottom-right'])
-    .optional(),
-  panelPosition: z
-    .enum(['top-left', 'top-right', 'bottom-left', 'bottom-right'])
-    .optional(),
-  panelPositions: z
-    .record(
-      z.string(),
-      z.enum(['top-left', 'top-right', 'bottom-left', 'bottom-right'])
-    )
-    .optional(),
-  panelSizes: z
-    .record(z.string(), z.object({ w: z.number(), h: z.number() }))
-    .optional(),
-  scale: z.number().optional(),
-  hideShortcut: z.boolean().optional(),
-})

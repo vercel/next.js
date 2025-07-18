@@ -2,14 +2,15 @@ import { useReducer } from 'react'
 
 import type { VersionInfo } from '../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './container/runtime-error/render-error'
+import type { DevToolsConfig } from '../shared/devtools-config-schema'
 import { parseComponentStack } from './utils/parse-component-stack'
 import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
-import type { DevToolsConfig } from '../server/devtools-config-middleware'
 
 export type Corners = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+export type DevToolsIndicatorPosition = Corners
 
 const BASE_SIZE = 16
 
@@ -18,6 +19,9 @@ export const NEXT_DEV_TOOLS_SCALE = {
   Medium: BASE_SIZE / 16,
   Large: BASE_SIZE / 18,
 }
+
+export type DevToolsScale =
+  (typeof NEXT_DEV_TOOLS_SCALE)[keyof typeof NEXT_DEV_TOOLS_SCALE]
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -50,9 +54,14 @@ export interface OverlayState {
   isErrorOverlayOpen: boolean
   devToolsPosition: Corners
   devToolsPanelPosition: Record<DevtoolsPanelName, Corners>
+  devToolsPanelSize: Record<
+    DevtoolsPanelName,
+    { width: number; height: number }
+  >
   scale: number
   page: string
-  theme?: 'light' | 'dark' | 'system'
+  theme: 'light' | 'dark' | 'system'
+  hideShortcut: string | null
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -280,16 +289,15 @@ export const INITIAL_OVERLAY_STATE: Omit<
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
   showRestartServerButton: false,
-  // TODO(jiwon): fix flickering due to mismatch with server and default
   devToolsPosition: 'bottom-left',
   devToolsPanelPosition: {
     [STORE_KEY_SHARED_PANEL_LOCATION]: 'bottom-left',
   },
-
+  devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
-  // TODO(jiwon): fix flickering due to mismatch with server and default
   theme: 'system',
+  hideShortcut: null,
 }
 
 function getInitialState(
@@ -484,58 +492,68 @@ export function useErrorOverlayReducer(
         case ACTION_DEVTOOLS_CONFIG_HYDRATE: {
           const {
             theme,
-            indicatorDisabled,
+            disableDevIndicator,
             devToolsPosition,
-            panelPosition,
-            panelPositions,
+            devToolsPanelPosition,
+            devToolsPanelSize,
             scale,
+            hideShortcut,
           } = action.config
 
           return {
             ...state,
             ...(theme && { theme }),
-            ...(indicatorDisabled !== undefined && {
-              disableDevIndicator: indicatorDisabled,
+            ...(disableDevIndicator !== undefined && {
+              disableDevIndicator: disableDevIndicator,
             }),
             ...(devToolsPosition && { devToolsPosition }),
-            ...((panelPosition || panelPositions) && {
+            ...(devToolsPanelPosition && {
               devToolsPanelPosition: {
                 ...state.devToolsPanelPosition,
-                ...(panelPosition && {
-                  [STORE_KEY_SHARED_PANEL_LOCATION]: panelPosition,
-                }),
-                ...(panelPositions && panelPositions),
+                ...(devToolsPanelPosition && devToolsPanelPosition),
               },
             }),
             ...(scale !== undefined && { scale }),
+            ...(devToolsPanelSize && {
+              devToolsPanelSize: {
+                ...state.devToolsPanelSize,
+                ...(devToolsPanelSize && devToolsPanelSize),
+              },
+            }),
+            ...(hideShortcut !== undefined && { hideShortcut }),
           }
         }
         case ACTION_DEVTOOLS_CONFIG_PATCH: {
           const {
             theme,
-            indicatorDisabled,
+            disableDevIndicator,
             devToolsPosition,
-            panelPosition,
-            panelPositions,
+            devToolsPanelPosition,
+            devToolsPanelSize,
             scale,
+            hideShortcut,
           } = action.patch
           return {
             ...state,
             ...(theme && { theme }),
-            ...(indicatorDisabled !== undefined && {
-              disableDevIndicator: indicatorDisabled,
+            ...(disableDevIndicator !== undefined && {
+              disableDevIndicator: disableDevIndicator,
             }),
             ...(devToolsPosition && { devToolsPosition }),
-            ...((panelPosition || panelPositions) && {
+            ...(devToolsPanelPosition && {
               devToolsPanelPosition: {
                 ...state.devToolsPanelPosition,
-                ...(panelPosition && {
-                  [STORE_KEY_SHARED_PANEL_LOCATION]: panelPosition,
-                }),
-                ...(panelPositions && panelPositions),
+                ...(devToolsPanelPosition && devToolsPanelPosition),
               },
             }),
             ...(scale !== undefined && { scale }),
+            ...(devToolsPanelSize && {
+              devToolsPanelSize: {
+                ...state.devToolsPanelSize,
+                ...(devToolsPanelSize && devToolsPanelSize),
+              },
+            }),
+            ...(hideShortcut !== undefined && { hideShortcut }),
           }
         }
         default: {
