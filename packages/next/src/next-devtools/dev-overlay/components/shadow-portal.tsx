@@ -16,18 +16,15 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
     const ownerDocument = document
     portalNode.current = ownerDocument.querySelector('nextjs-portal')!
 
-    switch (state.theme) {
-      case 'dark':
-        portalNode.current.classList.add('dark')
-        portalNode.current.classList.remove('light')
-        break
-      case 'light':
-        portalNode.current.classList.add('light')
-        portalNode.current.classList.remove('dark')
-        break
-      default:
-        portalNode.current.classList.remove('dark')
-        portalNode.current.classList.remove('light')
+    if (state.theme === 'dark') {
+      portalNode.current.classList.add('dark')
+      portalNode.current.classList.remove('light')
+    } else if (state.theme === 'light') {
+      portalNode.current.classList.add('light')
+      portalNode.current.classList.remove('dark')
+    } else {
+      portalNode.current.classList.remove('dark')
+      portalNode.current.classList.remove('light')
     }
 
     // We can only attach but never detach a shadow root.
