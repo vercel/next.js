@@ -86,7 +86,7 @@ Unlike `not-found.js`, this file must return a full HTML document, including `<h
 
 `not-found.js` or `global-not-found.js` components do not accept any props.
 
-> **Good to know**: In addition to catching expected `notFound()` errors, the root `app/not-found.js` file handles any unmatched URLs for your whole application by default. This means users that visit a URL that is not handled by your app will be shown the UI exported by the `app/not-found.js` file. When the experimental `globalNotFound` flag is enabled, this behavior changes and the `app/global-not-found.js` file will handle unmatched URLs instead.
+> **Good to know**: In addition to catching expected `notFound()` errors, the root `app/not-found.js` and `app/global-not-found.js` files handle any unmatched URLs for your whole application. This means users that visit a URL that is not handled by your app will be shown the exported UI.
 
 ## Examples
 
