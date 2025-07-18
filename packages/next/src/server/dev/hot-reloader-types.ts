@@ -28,7 +28,6 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ISR_MANIFEST = 'isrManifest',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
-  DEVTOOLS_CONFIG_PATCH = 'devtoolsConfigPatch',
 }
 
 interface ServerErrorAction {
@@ -123,8 +122,8 @@ export interface AppIsrManifestAction {
   data: Record<string, boolean>
 }
 
-export interface DevToolsConfigUpdatedAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG_PATCH
+export interface DevToolsConfigAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG
   data: DevToolsConfig
 }
 
@@ -144,7 +143,7 @@ export type HMR_ACTION_TYPES =
   | DevPagesManifestUpdateAction
   | ServerErrorAction
   | AppIsrManifestAction
-  | DevToolsConfigUpdatedAction
+  | DevToolsConfigAction
 
 export type TurbopackMsgToBrowser =
   | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }

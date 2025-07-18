@@ -371,8 +371,8 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         customHmrEventHandler(obj)
       }
       break
-    case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG_PATCH:
-      dispatcher.onDevToolsConfigPatch(obj.data)
+    case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
+      dispatcher.onDevToolsConfig(obj.data)
       break
     default:
       obj satisfies never

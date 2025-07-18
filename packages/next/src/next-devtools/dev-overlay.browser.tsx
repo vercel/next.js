@@ -19,7 +19,6 @@ import {
   ACTION_RENDERING_INDICATOR_SHOW,
   ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
   ACTION_DEVTOOLS_CONFIG,
-  ACTION_DEVTOOLS_CONFIG_PATCH,
   type OverlayState,
   type DispatcherEvent,
 } from './dev-overlay/shared'
@@ -55,7 +54,6 @@ export interface Dispatcher {
   onStaticIndicator(status: boolean): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
   onDevToolsConfig(config: DevToolsConfig): void
-  onDevToolsConfigPatch(patch: DevToolsConfig): void
   onUnhandledError(reason: Error): void
   onUnhandledRejection(reason: Error): void
   openErrorOverlay(): void
@@ -123,11 +121,6 @@ export const dispatcher: Dispatcher = {
   onDevToolsConfig: createQueuable(
     (dispatch: Dispatch, devToolsConfig: DevToolsConfig) => {
       dispatch({ type: ACTION_DEVTOOLS_CONFIG, devToolsConfig })
-    }
-  ),
-  onDevToolsConfigPatch: createQueuable(
-    (dispatch: Dispatch, devToolsConfigPatch: DevToolsConfig) => {
-      dispatch({ type: ACTION_DEVTOOLS_CONFIG_PATCH, devToolsConfigPatch })
     }
   ),
   onUnhandledError: createQueuable((dispatch: Dispatch, error: Error) => {

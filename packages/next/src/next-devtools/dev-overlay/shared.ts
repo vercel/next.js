@@ -98,7 +98,6 @@ export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
-export const ACTION_DEVTOOLS_CONFIG_PATCH = 'devtools-config-patch'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -212,14 +211,9 @@ export interface RestartServerButtonAction {
   showRestartServerButton: boolean
 }
 
-export interface DevToolsConfigHydrateAction {
+export interface DevToolsConfigAction {
   type: typeof ACTION_DEVTOOLS_CONFIG
   devToolsConfig: DevToolsConfig
-}
-
-export interface DevToolsConfigPatchAction {
-  type: typeof ACTION_DEVTOOLS_CONFIG_PATCH
-  devToolsConfigPatch: DevToolsConfig
 }
 
 export type DispatcherEvent =
@@ -246,8 +240,7 @@ export type DispatcherEvent =
   | DevToolUpdateRouteStateAction
   | RestartServerButtonAction
   | DevIndicatorSetAction
-  | DevToolsConfigHydrateAction
-  | DevToolsConfigPatchAction
+  | DevToolsConfigAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -502,58 +495,15 @@ export function useErrorOverlayReducer(
 
           return {
             ...state,
-            ...(theme && { theme }),
-            ...(disableDevIndicator !== undefined && {
-              disableDevIndicator: disableDevIndicator,
-            }),
-            ...(devToolsPosition && { devToolsPosition }),
-            ...(devToolsPanelPosition && {
-              devToolsPanelPosition: {
-                ...state.devToolsPanelPosition,
-                ...(devToolsPanelPosition && devToolsPanelPosition),
-              },
-            }),
-            ...(scale !== undefined && { scale }),
-            ...(devToolsPanelSize && {
-              devToolsPanelSize: {
-                ...state.devToolsPanelSize,
-                ...(devToolsPanelSize && devToolsPanelSize),
-              },
-            }),
-            ...(hideShortcut !== undefined && { hideShortcut }),
-          }
-        }
-        case ACTION_DEVTOOLS_CONFIG_PATCH: {
-          const {
-            theme,
-            disableDevIndicator,
-            devToolsPosition,
-            devToolsPanelPosition,
-            devToolsPanelSize,
-            scale,
-            hideShortcut,
-          } = action.devToolsConfigPatch
-          return {
-            ...state,
-            ...(theme && { theme }),
-            ...(disableDevIndicator !== undefined && {
-              disableDevIndicator: disableDevIndicator,
-            }),
-            ...(devToolsPosition && { devToolsPosition }),
-            ...(devToolsPanelPosition && {
-              devToolsPanelPosition: {
-                ...state.devToolsPanelPosition,
-                ...(devToolsPanelPosition && devToolsPanelPosition),
-              },
-            }),
-            ...(scale !== undefined && { scale }),
-            ...(devToolsPanelSize && {
-              devToolsPanelSize: {
-                ...state.devToolsPanelSize,
-                ...(devToolsPanelSize && devToolsPanelSize),
-              },
-            }),
-            ...(hideShortcut !== undefined && { hideShortcut }),
+            theme: theme ?? state.theme,
+            disableDevIndicator:
+              disableDevIndicator ?? state.disableDevIndicator,
+            devToolsPosition: devToolsPosition ?? state.devToolsPosition,
+            devToolsPanelPosition:
+              devToolsPanelPosition ?? state.devToolsPanelPosition,
+            scale: scale ?? state.scale,
+            devToolsPanelSize: devToolsPanelSize ?? state.devToolsPanelSize,
+            hideShortcut: hideShortcut ?? state.hideShortcut,
           }
         }
         default: {

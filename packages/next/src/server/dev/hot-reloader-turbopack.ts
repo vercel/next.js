@@ -666,7 +666,7 @@ export async function createHotReloaderTurbopack(
       distDir,
       sendUpdateSignal: (data) => {
         hotReloader.send({
-          action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG_PATCH,
+          action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
           data,
         })
       },
