@@ -44,6 +44,10 @@ export function connection(): Promise<void> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache':
+        case 'private-cache':
+          // It might not be intuitive to throw for private caches as well, but
+          // we don't consider dynamic prefetches as "actual requests" (in the
+          // navigation sense), despite allowing them to read cookies.
           throw new Error(
             `Route ${workStore.route} used "connection" inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )

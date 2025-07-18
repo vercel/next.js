@@ -147,6 +147,7 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
         case 'prerender-legacy':
         case 'request':
         case 'cache':
+        case 'private-cache':
         case 'unstable-cache':
         case undefined:
           originalMethod.apply(this, args)

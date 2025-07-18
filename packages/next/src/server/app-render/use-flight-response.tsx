@@ -68,6 +68,7 @@ export function useFlightStream<T>(
       case 'prerender-legacy':
       case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
         break
       default:

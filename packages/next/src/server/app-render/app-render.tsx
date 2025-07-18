@@ -1242,6 +1242,7 @@ async function renderToHTMLOrFlightImpl(
         case 'prerender':
         case 'prerender-client':
         case 'cache':
+        case 'private-cache':
           return true
         case 'prerender-ppr':
         case 'prerender-legacy':

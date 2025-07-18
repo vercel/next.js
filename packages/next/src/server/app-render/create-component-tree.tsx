@@ -297,13 +297,17 @@ async function createComponentTreeInternal({
         case 'prerender':
         case 'prerender-legacy':
         case 'prerender-ppr':
-        case 'cache':
           if (workUnitStore.revalidate > defaultRevalidate) {
             workUnitStore.revalidate = defaultRevalidate
           }
           break
-        case 'prerender-client':
         case 'request':
+          // A request store doesn't have a revalidate property.
+          break
+        // createComponentTree is not called for these stores:
+        case 'cache':
+        case 'private-cache':
+        case 'prerender-client':
         case 'unstable-cache':
           break
         default:

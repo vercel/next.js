@@ -39,8 +39,9 @@ export async function unstable_rootParams(): Promise<Params> {
   }
 
   switch (workUnitStore.type) {
-    case 'unstable-cache':
-    case 'cache': {
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache': {
       throw new Error(
         `Route ${workStore.route} used \`unstable_rootParams()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
       )
