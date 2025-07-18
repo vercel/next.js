@@ -2,7 +2,6 @@ import { createContext, useContext, useRef, useState } from 'react'
 import { ShadowPortal } from './components/shadow-portal'
 import { Base } from './styles/base'
 import { ComponentStyles } from './styles/component-styles'
-import { CssReset } from './styles/css-reset'
 import { Colors } from './styles/colors'
 import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
 import { RenderError } from './container/runtime-error/render-error'
@@ -36,7 +35,6 @@ export function DevOverlay({
   const triggerRef = useRef<HTMLButtonElement>(null)
   return (
     <ShadowPortal>
-      <CssReset />
       <Base scale={state.scale} />
       <Colors />
       <ComponentStyles />
