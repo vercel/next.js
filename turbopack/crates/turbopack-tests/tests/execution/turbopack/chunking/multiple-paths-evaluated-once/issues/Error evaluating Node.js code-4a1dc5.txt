@@ -1,0 +1,32 @@
+error - [transform] /turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/input/index.js  Error evaluating Node.js code
+  
+  Error: Could not parse module '[project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/input/index.js'
+      [at [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/input/index.js [test] (ecmascript) (WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/output/457d9_execution_turbopack_chunking_multiple-paths-evaluated-once_input_index_990ab784.js:7:11)]
+      at instantiateModule (turbopack:///[turbopack]/nodejs/runtime.ts:266:19) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/output/[turbopack]_runtime.js:634:23]
+      at getOrInstantiateModuleFromParent (turbopack:///[turbopack]/nodejs/runtime.ts:324:10) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/output/[turbopack]_runtime.js:686:12]
+      at esmImport (turbopack:///[turbopack]/shared/runtime-utils.ts:264:18) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/output/[turbopack]_runtime.js:162:20]
+      at <unknown> (turbopack/crates/turbopack-tests/js/jest-entry.ts:64:1) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/output/[root-of-the-server]__e6c7098d._.js:83:16]
+      60 |     jestResult,
+      61 |     uncaughtExceptions,
+      62 |     unhandledRejections,
+      63 |   }
+         | v
+      64 + }
+         | ^
+      65 | 
+  
+      [at process.processTicksAndRejections (node:internal/process/task_queues:95:5)]
+      at async run (turbopack/crates/turbopack-tests/js/jest-entry.ts:36:3) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/output/[root-of-the-server]__e6c7098d._.js:52:5]
+      32 | 
+      33 | export default async function run() {
+      34 |   setupGlobals()
+      35 | 
+         |   v
+      36 +   await import('TESTS')
+         |   ^
+      37 | 
+      38 |   let jestResult = await jest.run()
+      39 |   // Jest test results can contain references to arbitrary objects.
+      40 |   // Defensively remove circular references to avoid breaking our serialization protocol.
+  
+      at async run (turbopack:///[turbopack-node]/ipc/evaluate.ts:92:23) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/chunking/multiple-paths-evaluated-once/output/[turbopack-node]__b5ff6c9f._.js:411:31]
