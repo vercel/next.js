@@ -291,7 +291,7 @@ impl ClientReferencesGraph {
             let mut client_references_by_server_component =
                 FxIndexMap::from_iter([(None, Vec::new())]);
 
-            graph.traverse_edges_from_entries_topological(
+            graph.traverse_edges_from_entries_dfs(
                 entries,
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut FxHashMap::default(),

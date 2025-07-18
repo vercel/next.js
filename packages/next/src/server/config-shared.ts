@@ -18,6 +18,7 @@ import type {
   ManifestHeaderRoute,
   ManifestRedirectRoute,
   RouteType,
+  ManifestRoute,
 } from '../build'
 import { isStableBuild } from '../shared/lib/canary-only'
 
@@ -51,10 +52,10 @@ export type AdapterOutputs = Array<{
 
 export interface NextAdapter {
   name: string
-  modifyConfig(
+  modifyConfig?: (
     config: NextConfigComplete
-  ): Promise<NextConfigComplete> | NextConfigComplete
-  onBuildComplete(ctx: {
+  ) => Promise<NextConfigComplete> | NextConfigComplete
+  onBuildComplete?: (ctx: {
     routes: {
       headers: Array<ManifestHeaderRoute>
       redirects: Array<ManifestRedirectRoute>
@@ -63,10 +64,10 @@ export interface NextAdapter {
         afterFiles: Array<ManifestRewriteRoute>
         fallback: Array<ManifestRewriteRoute>
       }
-      dynamicRoutes: Array<{}>
+      dynamicRoutes: ReadonlyArray<ManifestRoute>
     }
     outputs: AdapterOutputs
-  }): Promise<void> | void
+  }) => Promise<void> | void
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -699,6 +700,11 @@ export interface ExperimentalConfig {
    * Prerendering feature of Next.js, and it enables `react@experimental` being
    * used for the `app` directory.
    */
+  cacheComponents?: boolean
+
+  /**
+   * @deprecated Use `experimental.cacheComponents` instead.
+   */
   dynamicIO?: boolean
 
   /**
@@ -740,11 +746,6 @@ export interface ExperimentalConfig {
    * Enable segment viewer for the app directory in Next.js DevTools.
    */
   devtoolSegmentExplorer?: boolean
-
-  /**
-   * Enable new panel UI for the Next.js DevTools.
-   */
-  devtoolNewPanelUI?: boolean
 
   /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr
@@ -831,7 +832,7 @@ export type ExportPathMap = {
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
-     * the app has `experimental.ppr` and `experimental.dynamicIO` enabled, and
+     * the app has `experimental.ppr` and `experimental.cacheComponents` enabled, and
      * there are also routes prerendered with a more complete set of params.
      * Prerendering those routes would catch any invalid dynamic accesses.
      *
@@ -1283,7 +1284,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig = {
+export const defaultConfig = Object.freeze({
   env: {},
   webpack: null,
   eslint: {
@@ -1392,24 +1393,12 @@ export const defaultConfig = {
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
-    // Will default to dynamicIO value.
+    // Will default to cacheComponents value.
     enablePrerenderSourceMaps: undefined,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache:
-      // TODO: Remove once we've made clientSegmentCache the default. We're
-      // piggybacking on the PPR test flag, instead of introducing a separate
-      // CI run.
-      //
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment
-      // variable has been set to `true`, enable the experimental
-      // clientSegmentCache feature so long as it wasn't explicitly disabled in
-      // the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+    clientSegmentCache: false,
     dynamicOnHover: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
@@ -1454,15 +1443,7 @@ export const defaultConfig = {
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
-    ppr:
-      // TODO: remove once we've made PPR default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
-      // has been set to `true`, enable the experimental PPR feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+    ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
@@ -1483,27 +1464,19 @@ export const defaultConfig = {
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
-    dynamicIO:
-      // TODO: remove once we've made dynamicIO the default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS` environment
-      // variable has been set to `true`, enable the experimental dynamicIO feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-      ),
+    cacheComponents: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolNewPanelUI: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
-    devtoolSegmentExplorer: process.env.__NEXT_DEVTOOL_NEW_PANEL_UI === 'true',
+    devtoolSegmentExplorer: true,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
+    strictNextHead: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-} satisfies NextConfig
+} satisfies NextConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

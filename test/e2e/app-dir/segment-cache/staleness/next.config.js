@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     clientSegmentCache: true,
     staleTimes: {
       dynamic: 30,

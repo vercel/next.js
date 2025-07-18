@@ -727,8 +727,7 @@ pub struct ExperimentalConfig {
     server_actions: Option<ServerActionsOrLegacyBool>,
     sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
-    #[serde(rename = "dynamicIO")]
-    dynamic_io: Option<bool>,
+    cache_components: Option<bool>,
     use_cache: Option<bool>,
     // ---
     // UNSUPPORTED
@@ -1583,8 +1582,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_dynamic_io(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
+    pub fn enable_cache_components(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.cache_components.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1593,9 +1592,9 @@ impl NextConfig {
             self.experimental
                 .use_cache
                 // "use cache" was originally implicitly enabled with the
-                // dynamicIO flag, so we transfer the value for dynamicIO to the
+                // cacheComponents flag, so we transfer the value for cacheComponents to the
                 // explicit useCache flag to ensure backwards compatibility.
-                .unwrap_or(self.experimental.dynamic_io.unwrap_or(false)),
+                .unwrap_or(self.experimental.cache_components.unwrap_or(false)),
         )
     }
 

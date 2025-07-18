@@ -13,7 +13,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::glob::Glob;
@@ -345,7 +345,7 @@ async fn get_all_export_names(
                 if let ReferencedAsset::Some(m) =
                     *ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                 {
-                    Some(get_all_export_names(*m))
+                    Some(expand_star_exports(*m))
                 } else {
                     None
                 },
@@ -374,16 +374,16 @@ async fn get_all_export_names(
 
 #[turbo_tasks::value]
 pub struct ExpandStarResult {
-    pub star_exports: Vec<RcStr>,
-    pub has_dynamic_exports: bool,
+    pub esm_exports: FxIndexMap<RcStr, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    pub dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::function]
 pub async fn expand_star_exports(
-    root_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    root_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<ExpandStarResult>> {
-    let mut set = FxIndexSet::default();
-    let mut has_dynamic_exports = false;
+    let mut esm_exports = FxIndexMap::default();
+    let mut dynamic_exporting_modules = Vec::new();
     let mut checked_modules = FxHashSet::default();
     checked_modules.insert(root_module);
     let mut queue = vec![(root_module, root_module.get_exports())];
@@ -391,13 +391,18 @@ pub async fn expand_star_exports(
         match &*exports.await? {
             EcmascriptExports::EsmExports(exports) => {
                 let exports = exports.await?;
-                set.extend(exports.exports.keys().filter(|n| *n != "default").cloned());
+                for key in exports.exports.keys() {
+                    if key == "default" {
+                        continue;
+                    }
+                    esm_exports.entry(key.clone()).or_insert_with(|| asset);
+                }
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =
                         &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
-                        && checked_modules.insert(**asset)
+                        && checked_modules.insert(*asset)
                     {
-                        queue.push((**asset, asset.get_exports()));
+                        queue.push((*asset, asset.get_exports()));
                     }
                 }
             }
@@ -429,7 +434,7 @@ pub async fn expand_star_exports(
                 .await?
             }
             EcmascriptExports::CommonJs => {
-                has_dynamic_exports = true;
+                dynamic_exporting_modules.push(asset);
                 emit_star_exports_issue(
                     asset.ident(),
                     format!(
@@ -444,18 +449,18 @@ pub async fn expand_star_exports(
                 .await?;
             }
             EcmascriptExports::DynamicNamespace => {
-                has_dynamic_exports = true;
+                dynamic_exporting_modules.push(asset);
             }
             EcmascriptExports::Unknown => {
                 // Propagate the Unknown export type to a certain extent.
-                has_dynamic_exports = true;
+                dynamic_exporting_modules.push(asset);
             }
         }
     }
 
     Ok(ExpandStarResult {
-        star_exports: set.into_iter().collect(),
-        has_dynamic_exports,
+        esm_exports,
+        dynamic_exporting_modules,
     }
     .cell())
 }
@@ -520,7 +525,10 @@ impl EsmExports {
 
             let export_info = expand_star_exports(**asset).await?;
 
-            for export in &export_info.star_exports {
+            for export in export_info.esm_exports.keys() {
+                if export == "default" {
+                    continue;
+                }
                 if !export_usage_info.is_export_used(export) {
                     continue;
                 }
@@ -537,7 +545,7 @@ impl EsmExports {
                 }
             }
 
-            if export_info.has_dynamic_exports {
+            if !export_info.dynamic_exporting_modules.is_empty() {
                 dynamic_exports.push(*asset);
             }
         }

@@ -18,9 +18,17 @@ import {
   ACTION_RENDERING_INDICATOR_HIDE,
   ACTION_RENDERING_INDICATOR_SHOW,
   ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
+  type OverlayState,
+  type DispatcherEvent,
 } from './dev-overlay/shared'
 
-import { startTransition, useInsertionEffect } from 'react'
+import {
+  createContext,
+  startTransition,
+  useContext,
+  useInsertionEffect,
+  type ActionDispatch,
+} from 'react'
 import { createRoot } from 'react-dom/client'
 import { FontStyles } from './dev-overlay/font/font-styles'
 import type { HydrationErrorState } from './shared/hydration-error'
@@ -208,14 +216,31 @@ function DevOverlayRoot({
     <>
       {/* Fonts can only be loaded outside the Shadow DOM. */}
       <FontStyles />
-      <DevOverlay
-        state={state}
-        dispatch={dispatch}
-        getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
-      />
+      <DevOverlayContext
+        value={{
+          dispatch,
+          getSquashedHydrationErrorDetails,
+          state,
+        }}
+      >
+        <DevOverlay
+          // we also pass props for legacy UI
+          dispatch={dispatch}
+          state={state}
+          getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+        />
+      </DevOverlayContext>
     </>
   )
 }
+export const DevOverlayContext = createContext<{
+  state: OverlayState & {
+    routerType: 'pages' | 'app'
+  }
+  dispatch: ActionDispatch<[action: DispatcherEvent]>
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
+}>(null!)
+export const useDevOverlayContext = () => useContext(DevOverlayContext)
 
 let isPagesMounted = false
 let isAppMounted = false

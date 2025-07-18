@@ -1,12 +1,12 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useLayoutEffect,
   useState,
   type RefObject,
 } from 'react'
-import type { Corners } from '../../../shared'
-const STORAGE_KEY_DIMENSIONS = 'nextjs-devtools-dimensions'
+import { STORE_KEY_SHARED_PANEL_SIZE, type Corners } from '../../../shared'
 
 export type ResizeDirection =
   | 'top'
@@ -22,9 +22,11 @@ interface ResizeContextValue {
   resizeRef: RefObject<HTMLElement | null>
   minWidth: number
   minHeight: number
-  devToolsPosition: Corners
+  maxWidth?: number
+  maxHeight?: number
   draggingDirection: ResizeDirection | null
   setDraggingDirection: (direction: ResizeDirection | null) => void
+  storageKey: string
 }
 
 const ResizeContext = createContext<ResizeContextValue>(null!)
@@ -44,8 +46,8 @@ const constrainDimensions = (params: {
   }
 }
 
-const parseResizeLocalStorage = () => {
-  const savedDimensions = localStorage.getItem(STORAGE_KEY_DIMENSIONS)
+const parseResizeLocalStorage = (key: string) => {
+  const savedDimensions = localStorage.getItem(key)
   if (!savedDimensions) return null
   try {
     const parsed = JSON.parse(savedDimensions)
@@ -59,7 +61,7 @@ const parseResizeLocalStorage = () => {
     }
     return null
   } catch (e) {
-    localStorage.removeItem(STORAGE_KEY_DIMENSIONS)
+    localStorage.removeItem(key)
     return null
   }
 }
@@ -69,7 +71,11 @@ interface ResizeProviderProps {
     resizeRef: RefObject<HTMLElement | null>
     minWidth?: number
     minHeight?: number
+    maxWidth?: number
+    maxHeight?: number
     devToolsPosition: Corners
+    storageKey?: string
+    initialSize?: { height: number; width: number }
   }
   children: React.ReactNode
 }
@@ -77,40 +83,73 @@ interface ResizeProviderProps {
 export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
   const minWidth = value.minWidth ?? 100
   const minHeight = value.minHeight ?? 80
+  const maxWidth = value.maxWidth
+  const maxHeight = value.maxHeight
   const [draggingDirection, setDraggingDirection] =
     useState<ResizeDirection | null>(null)
 
+  const storageKey = value.storageKey ?? STORE_KEY_SHARED_PANEL_SIZE
+
+  const applyConstrainedDimensions = useCallback(() => {
+    if (!value.resizeRef.current) return
+
+    // this feels weird to read local storage on resize, but we don't
+    // track the dimensions of the container, and this is better than
+    // getBoundingClientReact
+
+    // an optimization if this is too expensive is to maintain the current
+    // container size in a ref and update it on resize, which is essentially
+    // what we're doing here, just dumber
+    if (draggingDirection !== null) {
+      // Don't override live resizing operation with stale cached values.
+      return
+    }
+
+    const dim = parseResizeLocalStorage(storageKey)
+    if (!dim) {
+      return
+    }
+    const { height, width } = constrainDimensions({
+      ...dim,
+      minWidth: minWidth ?? 100,
+      minHeight: minHeight ?? 80,
+    })
+
+    value.resizeRef.current.style.width = `${width}px`
+    value.resizeRef.current.style.height = `${height}px`
+    return true
+  }, [value.resizeRef, draggingDirection, storageKey, minWidth, minHeight])
+
   useLayoutEffect(() => {
-    const applyConstrainedDimensions = () => {
-      if (!value.resizeRef.current) return
-
-      // this feels weird to read local storage on resize, but we don't
-      // track the dimensions of the container, and this is better than
-      // getBoundingClientReact
-
-      // an optimization if this is too expensive is to maintain the current
-      // container size in a ref and update it on resize, which is essentially
-      // what we're doing here, just dumber
-      const dim = parseResizeLocalStorage()
-      if (!dim) {
-        return
-      }
+    const applied = applyConstrainedDimensions()
+    if (
+      !applied &&
+      value.resizeRef.current &&
+      value.initialSize?.height &&
+      value.initialSize.width
+    ) {
       const { height, width } = constrainDimensions({
-        ...dim,
+        height: value.initialSize.height,
+        width: value.initialSize.width,
         minWidth: minWidth ?? 100,
         minHeight: minHeight ?? 80,
       })
-
       value.resizeRef.current.style.width = `${width}px`
       value.resizeRef.current.style.height = `${height}px`
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-    applyConstrainedDimensions()
-
+  useLayoutEffect(() => {
     window.addEventListener('resize', applyConstrainedDimensions)
     return () =>
       window.removeEventListener('resize', applyConstrainedDimensions)
-  }, [value.resizeRef, minWidth, minHeight])
+  }, [
+    applyConstrainedDimensions,
+    value.initialSize?.height,
+    value.initialSize?.width,
+    value.resizeRef,
+  ])
 
   return (
     <ResizeContext.Provider
@@ -118,9 +157,11 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
         resizeRef: value.resizeRef,
         minWidth,
         minHeight,
-        devToolsPosition: value.devToolsPosition,
+        maxWidth,
+        maxHeight,
         draggingDirection,
         setDraggingDirection,
+        storageKey,
       }}
     >
       {children}

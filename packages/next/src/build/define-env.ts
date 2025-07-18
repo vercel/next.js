@@ -116,10 +116,8 @@ export function getDefineEnv({
   const nextConfigEnv = getNextConfigEnv(config)
 
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
-  const isDynamicIOEnabled = !!config.experimental.dynamicIO
+  const isCacheComponentsEnabled = !!config.experimental.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
-
-  const isDevToolPanelUIEnabled = Boolean(config.experimental.devtoolNewPanelUI)
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -164,7 +162,7 @@ export function getDefineEnv({
       config.experimental.appNavFailHandling
     ),
     'process.env.__NEXT_PPR': isPPREnabled,
-    'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
+    'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
 
     'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
@@ -317,9 +315,7 @@ export function getDefineEnv({
         }
       : {}),
     'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
-      // Enable segment explorer in devtools
-      isDevToolPanelUIEnabled || !!config.experimental.devtoolSegmentExplorer,
-    'process.env.__NEXT_DEVTOOL_NEW_PANEL_UI': isDevToolPanelUIEnabled,
+      !!config.experimental.devtoolSegmentExplorer,
 
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
       config.experimental.browserDebugInfoInTerminal || false

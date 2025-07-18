@@ -2,4 +2,4 @@
 "next": patch
 ---
 
-Enable `ppr` when `dynamicIO` is enabled
+Enable `ppr` when `cacheComponents` is enabled

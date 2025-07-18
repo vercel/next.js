@@ -166,8 +166,8 @@ export async function handler(
 
   let { isOnDemandRevalidate } = prepareResult
 
-  const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
-  const isPrerendered = prerenderManifest.routes[resolvedPathname]
+  const prerenderInfo = routeModule.match(pathname, prerenderManifest)
+  const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
   let isSSG = Boolean(
     prerenderInfo ||
@@ -350,7 +350,7 @@ export async function handler(
       // we should seed the resume data cache.
       if (process.env.NODE_ENV === 'development') {
         if (
-          nextConfig.experimental.dynamicIO &&
+          nextConfig.experimental.cacheComponents &&
           !isPrefetchRSCRequest &&
           !context.renderOpts.isPossibleServerAction
         ) {
@@ -497,7 +497,7 @@ export async function handler(
             isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
-            dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
+            cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
             clientSegmentCache: Boolean(
               nextConfig.experimental.clientSegmentCache
             ),
@@ -663,10 +663,17 @@ export async function handler(
         let fallbackResponse: ResponseCacheEntry | null | undefined
 
         if (isRoutePPREnabled && !isRSCRequest) {
+          const cacheKey =
+            typeof prerenderInfo?.fallback === 'string'
+              ? prerenderInfo.fallback
+              : isProduction
+                ? normalizedSrcPage
+                : null
+
           // We use the response cache here to handle the revalidation and
           // management of the fallback shell.
           fallbackResponse = await routeModule.handleResponse({
-            cacheKey: isProduction ? normalizedSrcPage : null,
+            cacheKey,
             req,
             nextConfig,
             routeKind: RouteKind.APP_PAGE,

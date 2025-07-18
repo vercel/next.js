@@ -168,6 +168,7 @@ pub trait ChunkingContext {
         self: Vc<Self>,
         asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
+        content_hashing_prefix: Option<RcStr>,
         extension: RcStr,
     ) -> Vc<FileSystemPath>;
 

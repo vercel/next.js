@@ -16,6 +16,7 @@ const meta: Meta<typeof Errors> = {
 export default meta
 type Story = StoryObj<typeof Errors>
 
+// todo: update the stories to be wrapped in context providers necessary, instead of passing props directly, before they expected props
 export const Default: Story = {
   args: {
     getSquashedHydrationErrorDetails: () => null,
@@ -97,8 +98,8 @@ export const WithHydrationWarning: Story = {
                 file: 'app/page.tsx',
                 methodName: 'Home',
                 arguments: [],
-                lineNumber: 10,
-                column: 5,
+                line1: 10,
+                column1: 5,
               },
             },
           ]),

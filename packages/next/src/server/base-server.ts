@@ -451,7 +451,7 @@ export default abstract class Server<
 
   /**
    * This is used to persist cache scopes across
-   * prefetch -> full route requests for dynamic IO
+   * prefetch -> full route requests for cache components
    * it's only fully used in dev
    */
 
@@ -600,7 +600,7 @@ export default abstract class Server<
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
+        cacheComponents: this.nextConfig.experimental.cacheComponents ?? false,
         clientSegmentCache:
           this.nextConfig.experimental.clientSegmentCache === 'client-only'
             ? 'client-only'
@@ -2777,7 +2777,7 @@ export default abstract class Server<
               // If we're in dev, and this isn't a prefetch or a server action,
               // we should seed the resume data cache.
               if (
-                this.nextConfig.experimental.dynamicIO &&
+                this.nextConfig.experimental.cacheComponents &&
                 this.renderOpts.dev &&
                 !isPrefetchRSCRequest &&
                 !isPossibleServerAction

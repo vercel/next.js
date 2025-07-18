@@ -78,27 +78,46 @@ export interface RequestStore extends CommonWorkUnitStore {
  * only needs to happen during the RSC prerender when we are prospectively prerendering
  * to fill all caches.
  */
-export interface PrerenderStoreModern extends CommonWorkUnitStore {
-  // In the future the prerender-client variant will get it's own type.
-  // prerender represents the RSC scope of the prerender.
-  // prerender-client represents the HTML scope of the prerender.
-  type: 'prerender' | 'prerender-client'
+export type PrerenderStoreModern =
+  | PrerenderStoreModernClient
+  | PrerenderStoreModernServer
 
+interface PrerenderStoreModernClient extends PrerenderStoreModernCommon {
+  type: 'prerender-client'
+}
+
+interface PrerenderStoreModernServer extends PrerenderStoreModernCommon {
+  type: 'prerender'
+}
+
+interface PrerenderStoreModernCommon extends CommonWorkUnitStore {
   /**
-   * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
+   * The render signal is aborted after React's `prerender` function is aborted
+   * (using a separate signal), which happens in two cases:
+   *
+   * 1. When all caches are filled during the prospective prerender.
+   * 2. When the final prerender is aborted immediately after the prerender was
+   *    started.
+   *
+   * It can be used to reject any pending I/O, including hanging promises. This
+   * allows React to properly track the async I/O in dev mode, which yields
+   * better owner stacks for dynamic validation errors.
    */
   readonly renderSignal: AbortSignal
+
   /**
-   * This is the AbortController which represents the boundary between Prerender and dynamic. In some renders it is
-   * the same as the controller for the renderSignal but in others it is a separate controller. It should be aborted
-   * whenever the we are no longer in the prerender phase of rendering. Typically this is after one task or when you call
-   * a sync API which requires the prerender to end immediately
+   * This is the AbortController which represents the boundary between Prerender
+   * and dynamic. In some renders it is the same as the controller for React,
+   * but in others it is a separate controller. It should be aborted whenever we
+   * are no longer in the prerender phase of rendering. Typically this is after
+   * one task, or when you call a sync API which requires the prerender to end
+   * immediately.
    */
   readonly controller: AbortController
 
   /**
-   * when not null this signal is used to track cache reads during prerendering and
-   * to await all cache reads completing before aborting the prerender.
+   * When not null, this signal is used to track cache reads during prerendering
+   * and to await all cache reads completing, before aborting the prerender.
    */
   readonly cacheSignal: null | CacheSignal
 
@@ -264,8 +283,7 @@ export function getExpectedRequestStore(
       )
 
     default:
-      const _exhaustiveCheck: never = workUnitStore
-      return _exhaustiveCheck
+      return workUnitStore satisfies never
   }
 }
 
@@ -278,16 +296,22 @@ export function throwForMissingRequestStore(callingExpression: string): never {
 export function getPrerenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): PrerenderResumeDataCache | null {
-  if (
-    workUnitStore.type === 'prerender' ||
-    // TODO eliminate fetch caching in client scope and stop exposing this data cache during SSR
-    workUnitStore.type === 'prerender-client' ||
-    workUnitStore.type === 'prerender-ppr'
-  ) {
-    return workUnitStore.prerenderResumeDataCache
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-ppr':
+      return workUnitStore.prerenderResumeDataCache
+    case 'prerender-client':
+      // TODO eliminate fetch caching in client scope and stop exposing this data
+      // cache during SSR.
+      return workUnitStore.prerenderResumeDataCache
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
   }
-
-  return null
 }
 
 export function getRenderResumeDataCache(
@@ -308,8 +332,12 @@ export function getRenderResumeDataCache(
       // Otherwise we return the mutable resume data cache here as an immutable
       // version of the cache as it can also be used for reading.
       return workUnitStore.prerenderResumeDataCache
-    default:
+    case 'cache':
+    case 'unstable-cache':
+    case 'prerender-legacy':
       return null
+    default:
+      return workUnitStore satisfies never
   }
 }
 
@@ -317,15 +345,24 @@ export function getHmrRefreshHash(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): string | undefined {
-  if (!workStore.dev) {
-    return undefined
+  if (workStore.dev) {
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'prerender':
+        return workUnitStore.hmrRefreshHash
+      case 'request':
+        return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
 
-  return workUnitStore.type === 'cache' || workUnitStore.type === 'prerender'
-    ? workUnitStore.hmrRefreshHash
-    : workUnitStore.type === 'request'
-      ? workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
-      : undefined
+  return undefined
 }
 
 /**
@@ -341,10 +378,33 @@ export function getDraftModeProviderForCacheScope(
       case 'unstable-cache':
       case 'request':
         return workUnitStore.draftMode
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        break
       default:
-        return undefined
+        workUnitStore satisfies never
     }
   }
 
   return undefined
+}
+
+export function getCacheSignal(
+  workUnitStore: WorkUnitStore
+): CacheSignal | null {
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-client':
+      return workUnitStore.cacheSignal
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
 }

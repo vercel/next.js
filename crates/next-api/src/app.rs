@@ -1337,6 +1337,7 @@ impl AppEndpoint {
             .chunk_path(
                 Some(Vc::upcast(polyfill_source)),
                 polyfill_source.ident(),
+                None,
                 rcstr!(".js"),
             )
             .owned()

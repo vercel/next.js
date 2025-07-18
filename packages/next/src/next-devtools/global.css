@@ -1,4 +1,10 @@
 /* devtool global css variables */
 :host {
+  /* variables */
   --top-z-index: 2147483647;
+}
+
+/* global styles */
+* {
+  -webkit-font-smoothing: antialiased;
 }

@@ -281,6 +281,12 @@ export async function setupFsCheck(opts: {
     }
 
     for (const route of routesManifest.dynamicRoutes) {
+      // If a route is marked as skipInternalRouting, it's not for the internal
+      // router, and instead has been added to support external routers.
+      if (route.skipInternalRouting) {
+        continue
+      }
+
       dynamicRoutes.push({
         ...route,
         match: getRouteMatcher(getRouteRegex(route.page)),
@@ -611,8 +617,14 @@ export async function setupFsCheck(opts: {
               itemsRoot = publicFolderPath
               break
             }
-            default: {
+            case 'appFile':
+            case 'pageFile':
+            case 'nextImage':
+            case 'devVirtualFsItem': {
               break
+            }
+            default: {
+              ;(type) satisfies never
             }
           }
 

@@ -219,7 +219,7 @@ function installProcessErrorHandlers(
     // Immediately log the error.
     // TODO: Ideally, if we knew that this error was triggered by application
     // code, we would suppress it entirely without logging. We can't reliably
-    // detect all of these, but when dynamicIO is enabled, we could suppress
+    // detect all of these, but when cacheComponents is enabled, we could suppress
     // at least some of them by waiting to log the error until after all in-
     // progress renders have completed. Then, only log errors for which there
     // was not a corresponding "rejectionHandled" event.
@@ -1106,12 +1106,17 @@ export default class NextNodeServer extends BaseServer<
       routerServerGlobal[RouterServerContextSymbol] = {}
     }
     const relativeProjectDir = relative(process.cwd(), this.dir)
+    const existingServerContext =
+      routerServerGlobal[RouterServerContextSymbol][relativeProjectDir]
 
-    if (!routerServerGlobal[RouterServerContextSymbol][relativeProjectDir]) {
+    if (!existingServerContext) {
       routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
         render404: this.render404.bind(this),
       }
     }
+    routerServerGlobal[RouterServerContextSymbol][
+      relativeProjectDir
+    ].nextConfig = this.nextConfig
 
     try {
       // next.js core assumes page path without trailing slash

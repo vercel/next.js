@@ -40,6 +40,7 @@ import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
 import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 const Activity = process.env.__NEXT_ROUTER_BF_CACHE
   ? (require('react') as typeof import('react')).unstable_Activity
@@ -616,12 +617,18 @@ export default function OuterLayoutRouter({
       : ErrorBoundary
 
     let segmentBoundaryTriggerNode: React.ReactNode = null
+    let segmentViewStateNode: React.ReactNode = null
     if (
       process.env.NODE_ENV !== 'production' &&
       process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
     ) {
-      const { SegmentBoundaryTriggerNode } =
+      const { SegmentBoundaryTriggerNode, SegmentViewStateNode } =
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+
+      const pagePrefix = normalizeAppPath(url)
+      segmentViewStateNode = (
+        <SegmentViewStateNode key={pagePrefix} page={pagePrefix} />
+      )
 
       segmentBoundaryTriggerNode = (
         <>
@@ -667,6 +674,7 @@ export default function OuterLayoutRouter({
                 </HTTPAccessFallbackBoundary>
               </LoadingBoundary>
             </ErrorBoundaryComponent>
+            {segmentViewStateNode}
           </ScrollAndFocusHandler>
         }
       >

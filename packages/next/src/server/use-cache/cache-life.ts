@@ -92,10 +92,22 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (!workUnitStore || workUnitStore.type !== 'cache') {
-    throw new Error(
-      'cacheLife() can only be called inside a "use cache" function.'
-    )
+
+  switch (workUnitStore?.type) {
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'unstable-cache':
+    case undefined:
+      throw new Error(
+        'cacheLife() can only be called inside a "use cache" function.'
+      )
+    case 'cache':
+      break
+    default:
+      workUnitStore satisfies never
   }
 
   if (typeof profile === 'string') {

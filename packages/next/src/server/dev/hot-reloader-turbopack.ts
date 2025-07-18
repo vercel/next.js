@@ -37,7 +37,7 @@ import {
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { deleteCache, deleteFromRequireCache } from './require-cache'
+import { deleteCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -108,6 +108,8 @@ const isTestMode = !!(
 )
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
+
+declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
 /**
  * Replaces turbopack:///[project] with the specified project in the `source` field.
@@ -204,7 +206,7 @@ export async function createHotReloaderTurbopack(
     // TODO this need to be set correctly for persistent caching to work
   }
 
-  const supportedBrowsers = await getSupportedBrowsers(projectPath, dev)
+  const supportedBrowsers = getSupportedBrowsers(projectPath, dev)
   const currentNodeJsVersion = process.versions.node
 
   const project = await bindings.turbo.createProject(
@@ -342,21 +344,11 @@ export async function createHotReloaderTurbopack(
 
     resetFetch()
 
-    const hasAppPaths = writtenEndpoint.serverPaths.some(({ path: p }) =>
-      p.startsWith('server/app')
-    )
-
-    if (hasAppPaths) {
-      deleteFromRequireCache(
-        require.resolve(
-          'next/dist/compiled/next-server/app-page-turbo.runtime.dev.js'
-        )
-      )
-      deleteFromRequireCache(
-        require.resolve(
-          'next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js'
-        )
-      )
+    // Not available in:
+    // - Pages Router (no server-side HMR)
+    // - Edge Runtime (uses browser runtime which already disposes chunks individually)
+    if (typeof __next__clear_chunk_cache__ === 'function') {
+      __next__clear_chunk_cache__()
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>

@@ -10,7 +10,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 ;
-const StyledButton = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__["default"])("button", {
+const StyledButton = (0, /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__["default"])("button", {
     target: "e14dbx1z0"
 })("background:blue;");
 function ClassNameButton({ children }) {

@@ -2763,27 +2763,51 @@ describe('app-dir static/dynamic handling', () => {
     for (let i = 0; i < 6; i++) {
       await waitFor(1000)
 
-      const timings = {
-        start: Date.now(),
-        startedStreaming: 0,
-      }
-
       res = await next.fetch(path)
 
-      // eslint-disable-next-line no-loop-func
-      await new Promise<void>((resolve) => {
-        res.body.on('data', () => {
-          if (!timings.startedStreaming) {
-            timings.startedStreaming = Date.now()
-          }
-        })
-
-        res.body.on('end', () => {
-          resolve()
-        })
+      let data: any
+      let startedStreaming: number = -1
+      res.body.on('data', () => {
+        if (startedStreaming === -1) {
+          startedStreaming = Date.now()
+        }
       })
+      if (res.headers.get('content-type').includes('application/json')) {
+        data = await res.json()
+      } else {
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const dataJSON = $('#data').text()
+        try {
+          data = JSON.parse(dataJSON)
+        } catch (cause) {
+          throw new Error(
+            `Failed to parse JSON from data-start attribute: "${dataJSON}"`,
+            { cause }
+          )
+        }
+      }
 
-      expect(timings.startedStreaming - timings.start).toBeLessThan(3000)
+      const startedResponding = +data.start
+      if (Number.isNaN(startedResponding)) {
+        throw new Error(
+          `Expected start to be a number. Received: "${data.start}"`
+        )
+      }
+      if (startedStreaming === -1) {
+        throw new Error(
+          'Expected startedStreaming to be set. This is a bug in the test.'
+        )
+      }
+
+      // We just want to ensure the response isn't blocked on revalidating the fetch.
+      // So we use the start time when route started processing not when we
+      // send off the response because that includes cold boots of the infra.
+      if (startedStreaming - startedResponding >= 3000) {
+        throw new Error(
+          `Response #${i} took too long to complete: ${startedStreaming - startedResponding}ms`
+        )
+      }
     }
   })
 

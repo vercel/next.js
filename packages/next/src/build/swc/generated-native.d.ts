@@ -204,7 +204,8 @@ export interface NapiTurboEngineOptions {
 }
 export declare function projectNew(
   options: NapiProjectOptions,
-  turboEngineOptions: NapiTurboEngineOptions
+  turboEngineOptions: NapiTurboEngineOptions,
+  napiCallbacks: NapiNextTurbopackCallbacksJsObject
 ): Promise<{ __napiType: 'Project' }>
 export declare function projectUpdate(
   project: { __napiType: 'Project' },
@@ -350,6 +351,31 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+/**
+ * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
+ *
+ * This can be converted into a [`NapiNextTurbopackCallbacks`] with
+ * [`NapiNextTurbopackCallbacks::from_js`].
+ */
+export interface NapiNextTurbopackCallbacksJsObject {
+  /**
+   * Called when we've encountered a bug in Turbopack and not in the user's code. Constructs and
+   * throws a `TurbopackInternalError` type. Logs to anonymized telemetry.
+   *
+   * As a result of the use of `ErrorStrategy::CalleeHandled`, the first argument is an error if
+   * there's a runtime conversion error. This should never happen, but if it does, the function
+   * can throw it instead.
+   */
+  throwTurbopackInternalError: (
+    conversionError: Error | null,
+    opts: TurbopackInternalErrorOpts
+  ) => never
+}
+/** Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`]. */
+export interface TurbopackInternalErrorOpts {
+  message: string
+  anonymizedLocation?: string
+}
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
 }): void
