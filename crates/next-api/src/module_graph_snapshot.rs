@@ -134,9 +134,9 @@ pub async fn get_module_graph_snapshot(
             for ref_info in &module.incoming_references {
                 let ref_module = &modules[ref_info.index];
                 if ref_module.depth < depth {
-                    let mut retained_modules = modules[module_index].retained_modules.borrow_mut();
+                    let mut retained_modules = ref_module.retained_modules.borrow_mut();
                     retained_modules.insert(module_index as u32);
-                    for retained in ref_module.retained_modules.borrow().iter() {
+                    for retained in module.retained_modules.borrow().iter() {
                         retained_modules.insert(*retained);
                     }
                 }
@@ -181,7 +181,7 @@ pub async fn get_module_graph_snapshot(
             })
             .reduce(|a, b| a.saturating_add(b))
             .unwrap_or_default();
-        final_modules[index].retained_size = retained_size;
+        final_modules[index].retained_size = retained_size + final_modules[index].size;
     }
 
     Ok(ModuleGraphSnapshot {
