@@ -7,6 +7,7 @@ import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
+import type { DevToolsConfig } from '../server/devtools-config-middleware'
 
 export type Corners = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
@@ -51,6 +52,7 @@ export interface OverlayState {
   devToolsPanelPosition: Record<DevtoolsPanelName, Corners>
   scale: number
   page: string
+  theme?: 'light' | 'dark' | 'system'
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -86,6 +88,9 @@ export const ACTION_DEVTOOLS_PANEL_SIZE = 'devtools-panel-size'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
+export const ACTION_DEVTOOLS_CONFIG_HYDRATE = 'devtools-config-hydrate'
+export const ACTION_DEVTOOLS_CONFIG_PATCH = 'devtools-config-patch'
+
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
@@ -96,7 +101,6 @@ export const STORE_KEY_SHARED_PANEL_SIZE =
 export const STORE_KEY_SHARED_PANEL_LOCATION =
   '__nextjs-dev-tools-shared-panel-location'
 export const STORAGE_KEY_SCALE = '__nextjs-dev-tools-scale'
-export const STORAGE_KEY_ACTIVE_TAB = '__nextjs-devtools-active-tab'
 
 export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
   'segment-explorer-update-route-state'
@@ -199,6 +203,16 @@ export interface RestartServerButtonAction {
   showRestartServerButton: boolean
 }
 
+export interface DevToolsConfigHydrateAction {
+  type: typeof ACTION_DEVTOOLS_CONFIG_HYDRATE
+  config: DevToolsConfig
+}
+
+export interface DevToolsConfigPatchAction {
+  type: typeof ACTION_DEVTOOLS_CONFIG_PATCH
+  patch: DevToolsConfig
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -223,6 +237,8 @@ export type DispatcherEvent =
   | DevToolUpdateRouteStateAction
   | RestartServerButtonAction
   | DevIndicatorSetAction
+  | DevToolsConfigHydrateAction
+  | DevToolsConfigPatchAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -241,41 +257,6 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
 
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
-
-// TODO: change local storage impl
-function getStoredPosition(): Corners {
-  if (typeof localStorage === 'undefined') {
-    return 'bottom-left' as const
-  }
-  const stored = localStorage.getItem(STORAGE_KEY_POSITION)
-  if (
-    stored &&
-    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
-  ) {
-    return stored as Corners
-  } else {
-    localStorage.removeItem(STORAGE_KEY_POSITION)
-  }
-
-  // we give priority to local storage over next.config
-  return (process.env.__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
-}
-
-export function getStoredPanelPosition() {
-  if (typeof localStorage === 'undefined') {
-    return 'bottom-left' as const
-  }
-  const stored = localStorage.getItem(STORE_KEY_SHARED_PANEL_LOCATION)
-  if (
-    stored &&
-    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
-  ) {
-    return stored as Corners
-  } else {
-    localStorage.removeItem(STORE_KEY_SHARED_PANEL_LOCATION)
-  }
-  return 'bottom-left' as const
-}
 
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
@@ -299,13 +280,16 @@ export const INITIAL_OVERLAY_STATE: Omit<
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
   showRestartServerButton: false,
-  devToolsPosition: getStoredPosition(),
+  // TODO(jiwon): fix flickering due to mismatch with server and default
+  devToolsPosition: 'bottom-left',
   devToolsPanelPosition: {
-    [STORE_KEY_SHARED_PANEL_LOCATION]: getStoredPanelPosition(),
+    [STORE_KEY_SHARED_PANEL_LOCATION]: 'bottom-left',
   },
 
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
+  // TODO(jiwon): fix flickering due to mismatch with server and default
+  theme: 'system',
 }
 
 function getInitialState(
@@ -495,6 +479,63 @@ export function useErrorOverlayReducer(
           return {
             ...state,
             showRestartServerButton: action.showRestartServerButton,
+          }
+        }
+        case ACTION_DEVTOOLS_CONFIG_HYDRATE: {
+          const {
+            theme,
+            indicatorDisabled,
+            devToolsPosition,
+            panelPosition,
+            panelPositions,
+            scale,
+          } = action.config
+
+          return {
+            ...state,
+            ...(theme && { theme }),
+            ...(indicatorDisabled !== undefined && {
+              disableDevIndicator: indicatorDisabled,
+            }),
+            ...(devToolsPosition && { devToolsPosition }),
+            ...((panelPosition || panelPositions) && {
+              devToolsPanelPosition: {
+                ...state.devToolsPanelPosition,
+                ...(panelPosition && {
+                  [STORE_KEY_SHARED_PANEL_LOCATION]: panelPosition,
+                }),
+                ...(panelPositions && panelPositions),
+              },
+            }),
+            ...(scale !== undefined && { scale }),
+          }
+        }
+        case ACTION_DEVTOOLS_CONFIG_PATCH: {
+          const {
+            theme,
+            indicatorDisabled,
+            devToolsPosition,
+            panelPosition,
+            panelPositions,
+            scale,
+          } = action.patch
+          return {
+            ...state,
+            ...(theme && { theme }),
+            ...(indicatorDisabled !== undefined && {
+              disableDevIndicator: indicatorDisabled,
+            }),
+            ...(devToolsPosition && { devToolsPosition }),
+            ...((panelPosition || panelPositions) && {
+              devToolsPanelPosition: {
+                ...state.devToolsPanelPosition,
+                ...(panelPosition && {
+                  [STORE_KEY_SHARED_PANEL_LOCATION]: panelPosition,
+                }),
+                ...(panelPositions && panelPositions),
+              },
+            }),
+            ...(scale !== undefined && { scale }),
           }
         }
         default: {
