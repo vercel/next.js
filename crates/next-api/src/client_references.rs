@@ -116,14 +116,14 @@ pub async fn map_client_references(
             .collect::<FxHashMap<_, _>>();
 
         let mut server_components = FxIndexSet::default();
-        let mut parent_modules = FxHashMap::default();
+        let mut module_to_server_component_bits = FxHashMap::default();
         if !client_references.is_empty() {
             graph.traverse_edges_from_entries_fixed_point(
                 graph.entry_modules(),
                 |parent_info, node| {
                     let module = node.module();
                     let module_type = client_references.get(&module);
-                    let mut should_visit_children = match parent_modules.entry(module) {
+                    let mut should_visit_children = match module_to_server_component_bits.entry(module) {
                         std::collections::hash_map::Entry::Occupied(_) => false,
                         std::collections::hash_map::Entry::Vacant(vacant_entry) => {
                             // only do this the first time we visit the node.
@@ -149,7 +149,7 @@ pub async fn map_client_references(
                         // copy parent bits down.  `traverse_edges_from_entries_fixed_point`` always visits parents before
                         // children so we can simply assert that the parent it set.
                         let [Some(current), Some(parent)] =
-                            parent_modules.get_disjoint_mut([&module, parent_module])
+                            module_to_server_component_bits.get_disjoint_mut([&module, parent_module])
                         else {
                             unreachable!()
                         };
@@ -188,7 +188,7 @@ pub async fn map_client_references(
         }
 
         // Filter down to just the client reference modules to reduce datastructure size
-        let server_components_for_client_references = parent_modules
+        let server_components_for_client_references = module_to_server_component_bits
             .into_iter()
             .filter_map(|(k, v)| match client_references.get(&k) {
                 Some(

@@ -280,9 +280,9 @@ impl ClientReferencesGraph {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(ClientReferenceGraphResult::default().cell());
                 }
-                vec![entry]
+                Either::Left(std::iter::once(entry))
             } else {
-                graph.entry_modules().collect()
+                Either::Right(graph.entry_modules())
             };
 
             // Because we care about 'evaluation order' we need to collect client references in the
