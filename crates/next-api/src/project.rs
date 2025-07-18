@@ -154,7 +154,7 @@ pub struct ProjectOptions {
     /// E.g. `/home/user/projects/my-repo`.
     pub root_path: RcStr,
 
-    /// A path which contains the app/pages directories, relative to [`Project::root_path`].
+    /// A path which contains the app/pages directories, relative to [`ProjectOptions::root_path`].
     /// E.g. `apps/my-app`
     pub project_path: RcStr,
 
