@@ -214,12 +214,12 @@ export interface RestartServerButtonAction {
 
 export interface DevToolsConfigHydrateAction {
   type: typeof ACTION_DEVTOOLS_CONFIG_HYDRATE
-  config: DevToolsConfig
+  devToolsConfig: DevToolsConfig
 }
 
 export interface DevToolsConfigPatchAction {
   type: typeof ACTION_DEVTOOLS_CONFIG_PATCH
-  patch: DevToolsConfig
+  devToolsConfigPatch: DevToolsConfig
 }
 
 export type DispatcherEvent =
@@ -498,7 +498,7 @@ export function useErrorOverlayReducer(
             devToolsPanelSize,
             scale,
             hideShortcut,
-          } = action.config
+          } = action.devToolsConfig
 
           return {
             ...state,
@@ -532,7 +532,7 @@ export function useErrorOverlayReducer(
             devToolsPanelSize,
             scale,
             hideShortcut,
-          } = action.patch
+          } = action.devToolsConfigPatch
           return {
             ...state,
             ...(theme && { theme }),

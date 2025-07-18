@@ -1,25 +1,25 @@
 import {
+  ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
   ACTION_DEBUG_INFO,
   ACTION_DEV_INDICATOR,
   ACTION_REFRESH,
-  ACTION_BEFORE_REFRESH,
+  ACTION_ERROR_OVERLAY_CLOSE,
+  ACTION_ERROR_OVERLAY_OPEN,
+  ACTION_ERROR_OVERLAY_TOGGLE,
   ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
-  ACTION_ERROR_OVERLAY_OPEN,
-  ACTION_ERROR_OVERLAY_CLOSE,
-  ACTION_ERROR_OVERLAY_TOGGLE,
-  ACTION_BUILDING_INDICATOR_SHOW,
+  useErrorOverlayReducer,
   ACTION_BUILDING_INDICATOR_HIDE,
-  ACTION_RENDERING_INDICATOR_SHOW,
+  ACTION_BUILDING_INDICATOR_SHOW,
   ACTION_RENDERING_INDICATOR_HIDE,
+  ACTION_RENDERING_INDICATOR_SHOW,
   ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
   ACTION_DEVTOOLS_CONFIG_HYDRATE,
   ACTION_DEVTOOLS_CONFIG_PATCH,
-  useErrorOverlayReducer,
   type OverlayState,
   type DispatcherEvent,
 } from './dev-overlay/shared'
@@ -43,6 +43,7 @@ import {
   removeSegmentNode,
 } from './dev-overlay/segment-explorer-trie'
 import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
+import type { DevToolsConfig } from './shared/devtools-config-schema'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -53,8 +54,8 @@ export interface Dispatcher {
   onRefresh(): void
   onStaticIndicator(status: boolean): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
-  onDevToolsConfig(config: Record<string, any>): void
-  onDevToolsConfigPatch(patch: Record<string, any>): void
+  onDevToolsConfig(config: DevToolsConfig): void
+  onDevToolsConfigPatch(patch: DevToolsConfig): void
   onUnhandledError(reason: Error): void
   onUnhandledRejection(reason: Error): void
   openErrorOverlay(): void
@@ -120,13 +121,13 @@ export const dispatcher: Dispatcher = {
     }
   ),
   onDevToolsConfig: createQueuable(
-    (dispatch: Dispatch, config: Record<string, any>) => {
-      dispatch({ type: ACTION_DEVTOOLS_CONFIG_HYDRATE, config })
+    (dispatch: Dispatch, devToolsConfig: DevToolsConfig) => {
+      dispatch({ type: ACTION_DEVTOOLS_CONFIG_HYDRATE, devToolsConfig })
     }
   ),
   onDevToolsConfigPatch: createQueuable(
-    (dispatch: Dispatch, patch: Record<string, any>) => {
-      dispatch({ type: ACTION_DEVTOOLS_CONFIG_PATCH, patch })
+    (dispatch: Dispatch, devToolsConfigPatch: DevToolsConfig) => {
+      dispatch({ type: ACTION_DEVTOOLS_CONFIG_PATCH, devToolsConfigPatch })
     }
   ),
   onUnhandledError: createQueuable((dispatch: Dispatch, error: Error) => {
