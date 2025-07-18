@@ -244,7 +244,7 @@ export function UserPreferencesBody({
               }
               disabled={isPending}
             >
-              <span>{isPending ? 'Restarting...' : 'Restart'}</span>
+              <span>Restart</span>
             </button>
           </div>
         </div>
@@ -271,7 +271,7 @@ export function UserPreferencesBody({
                 }
                 disabled={isPending}
               >
-                <span>{isPending ? 'Resetting...' : 'Reset Cache'}</span>
+                <span>Reset Cache</span>
               </button>
             </div>
           </div>

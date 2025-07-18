@@ -38,7 +38,7 @@ export function RestartServerButton({ showButton }: { showButton: boolean }) {
             : undefined,
         }}
       />
-      {isPending ? 'Restarting...' : 'Reset Bundler Cache'}
+      Reset Bundler Cache
     </button>
   )
 }
