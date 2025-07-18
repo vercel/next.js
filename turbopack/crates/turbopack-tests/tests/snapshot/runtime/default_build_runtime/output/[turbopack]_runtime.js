@@ -541,6 +541,8 @@ function loadChunkPath(chunkPath, source) {
 function loadChunkUncached(chunkPath) {
     // resolve to an absolute path to simplify `require` handling
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
+    // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+    // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
     const chunkModules = require(resolved);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
         if (!moduleFactories[moduleId]) {
