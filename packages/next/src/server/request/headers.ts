@@ -3,7 +3,7 @@ import {
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
+import { throwForMissingRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
@@ -55,6 +55,7 @@ export type UnsafeUnwrappedHeaders = ReadonlyHeaders
  * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
  */
 export function headers(): Promise<ReadonlyHeaders> {
+  const callingExpression = 'headers'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
@@ -122,7 +123,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           // TODO consider switching the semantic to throw on property access instead
           return postponeWithTracking(
             workStore.route,
-            'headers',
+            callingExpression,
             workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
@@ -131,12 +132,31 @@ export function headers(): Promise<ReadonlyHeaders> {
           // We track dynamic access here so we don't need to wrap the headers in
           // individual property access tracking.
           return throwToInterruptStaticGeneration(
-            'headers',
+            callingExpression,
             workStore,
             workUnitStore
           )
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
+
+          if (
+            process.env.NODE_ENV === 'development' &&
+            !workStore?.isPrefetchRequest
+          ) {
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedHeadersWithDevWarnings(
+                workUnitStore.headers,
+                workStore?.route
+              )
+            }
+
+            return makeUntrackedExoticHeadersWithDevWarnings(
+              workUnitStore.headers,
+              workStore?.route
+            )
+          } else {
+            return makeUntrackedExoticHeaders(workUnitStore.headers)
+          }
           break
         default:
           workUnitStore satisfies never
@@ -144,22 +164,8 @@ export function headers(): Promise<ReadonlyHeaders> {
     }
   }
 
-  const requestStore = getExpectedRequestStore('headers')
-  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      return makeUntrackedHeadersWithDevWarnings(
-        requestStore.headers,
-        workStore?.route
-      )
-    }
-
-    return makeUntrackedExoticHeadersWithDevWarnings(
-      requestStore.headers,
-      workStore?.route
-    )
-  } else {
-    return makeUntrackedExoticHeaders(requestStore.headers)
-  }
+  // If we end up here, there was no work store or work unit store present.
+  throwForMissingRequestStore(callingExpression)
 }
 
 interface CacheLifetime {}

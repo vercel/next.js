@@ -7,6 +7,7 @@ import {
 import { RequestCookies } from '../web/spec-extension/cookies'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import {
+  throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
@@ -16,7 +17,6 @@ import {
   trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
-import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -116,6 +116,36 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           )
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
+
+          let underlyingCookies: ReadonlyRequestCookies
+
+          if (areCookiesMutableInCurrentPhase(workUnitStore)) {
+            // We can't conditionally return different types here based on the context.
+            // To avoid confusion, we always return the readonly type here.
+            underlyingCookies =
+              workUnitStore.userspaceMutableCookies as unknown as ReadonlyRequestCookies
+          } else {
+            underlyingCookies = workUnitStore.cookies
+          }
+
+          if (
+            process.env.NODE_ENV === 'development' &&
+            !workStore?.isPrefetchRequest
+          ) {
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedCookiesWithDevWarnings(
+                underlyingCookies,
+                workStore?.route
+              )
+            }
+
+            return makeUntrackedExoticCookiesWithDevWarnings(
+              underlyingCookies,
+              workStore?.route
+            )
+          } else {
+            return makeUntrackedExoticCookies(underlyingCookies)
+          }
           break
         default:
           workUnitStore satisfies never
@@ -123,36 +153,8 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     }
   }
 
-  // cookies is being called in a dynamic context
-
-  const requestStore = getExpectedRequestStore(callingExpression)
-
-  let underlyingCookies: ReadonlyRequestCookies
-
-  if (areCookiesMutableInCurrentPhase(requestStore)) {
-    // We can't conditionally return different types here based on the context.
-    // To avoid confusion, we always return the readonly type here.
-    underlyingCookies =
-      requestStore.userspaceMutableCookies as unknown as ReadonlyRequestCookies
-  } else {
-    underlyingCookies = requestStore.cookies
-  }
-
-  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      return makeUntrackedCookiesWithDevWarnings(
-        underlyingCookies,
-        workStore?.route
-      )
-    }
-
-    return makeUntrackedExoticCookiesWithDevWarnings(
-      underlyingCookies,
-      workStore?.route
-    )
-  } else {
-    return makeUntrackedExoticCookies(underlyingCookies)
-  }
+  // If we end up here, there was no work store or work unit store present.
+  throwForMissingRequestStore(callingExpression)
 }
 
 function createEmptyCookies(): ReadonlyRequestCookies {

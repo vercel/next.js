@@ -250,43 +250,6 @@ export type WorkUnitAsyncStorage = AsyncLocalStorage<WorkUnitStore>
 
 export { workUnitAsyncStorageInstance as workUnitAsyncStorage }
 
-export function getExpectedRequestStore(
-  callingExpression: string
-): RequestStore {
-  const workUnitStore = workUnitAsyncStorageInstance.getStore()
-
-  if (!workUnitStore) {
-    throwForMissingRequestStore(callingExpression)
-  }
-
-  switch (workUnitStore.type) {
-    case 'request':
-      return workUnitStore
-
-    case 'prerender':
-    case 'prerender-client':
-    case 'prerender-ppr':
-    case 'prerender-legacy':
-      // This should not happen because we should have checked it already.
-      throw new Error(
-        `\`${callingExpression}\` cannot be called inside a prerender. This is a bug in Next.js.`
-      )
-
-    case 'cache':
-      throw new Error(
-        `\`${callingExpression}\` cannot be called inside "use cache". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache`
-      )
-
-    case 'unstable-cache':
-      throw new Error(
-        `\`${callingExpression}\` cannot be called inside unstable_cache. Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-      )
-
-    default:
-      return workUnitStore satisfies never
-  }
-}
-
 export function throwForMissingRequestStore(callingExpression: string): never {
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
