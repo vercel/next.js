@@ -19,6 +19,7 @@ import {
   STORE_KEY_SHARED_PANEL_SIZE,
 } from '../shared'
 import { getIndicatorOffset } from '../utils/indicator-metrics'
+import './dynamic-panel.css'
 
 function resolveCSSValue(
   value: string | number,
@@ -235,23 +236,30 @@ export function DynamicPanel({
       <div
         tabIndex={-1}
         ref={resizeContainerRef}
-        style={{
-          position: 'fixed',
-          zIndex: 2147483646,
-          outline: 'none',
-          ...positionStyle,
-          ...(isResizable
-            ? {
-                minWidth,
-                minHeight,
-                maxWidth,
-                maxHeight,
-              }
-            : {
-                height: panelSize ? panelSize.height : sizeConfig.height,
-                width: panelSize ? panelSize.width : sizeConfig.width,
-              }),
-        }}
+        className="dynamic-panel-container"
+        style={
+          {
+            '--panel-top': positionStyle.top,
+            '--panel-bottom': positionStyle.bottom,
+            '--panel-left': positionStyle.left,
+            '--panel-right': positionStyle.right,
+            ...(isResizable
+              ? {
+                  '--panel-min-width': minWidth ? `${minWidth}px` : undefined,
+                  '--panel-min-height': minHeight
+                    ? `${minHeight}px`
+                    : undefined,
+                  '--panel-max-width': maxWidth ? `${maxWidth}px` : undefined,
+                  '--panel-max-height': maxHeight
+                    ? `${maxHeight}px`
+                    : undefined,
+                }
+              : {
+                  '--panel-height': `${panelSize ? panelSize.height : sizeConfig.height}px`,
+                  '--panel-width': `${panelSize ? panelSize.width : sizeConfig.width}px`,
+                }),
+          } as React.CSSProperties & Record<string, string | number | undefined>
+        }
       >
         <DragProvider disabled={!draggable}>
           <Draggable
@@ -283,20 +291,18 @@ export function DynamicPanel({
             <>
               <div
                 {...containerProps}
+                className={`panel-content-container ${containerProps?.className || ''}`}
                 style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%',
-                  border: '1px solid var(--color-gray-alpha-400)',
-                  borderRadius: 'var(--rounded-xl)',
-                  background: 'var(--color-background-100)',
-                  display: 'flex',
-                  flexDirection: 'column',
                   ...containerProps?.style,
                 }}
               >
                 <DragHandle>{header}</DragHandle>
-                <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
+                <div
+                  data-nextjs-scrollable-content
+                  className="draggable-content"
+                >
+                  {children}
+                </div>
               </div>
               {isResizable && (
                 <>

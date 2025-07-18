@@ -29,6 +29,7 @@ import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/de
 import { useHideShortcutStorage } from '../components/errors/dev-tools-indicator/dev-tools-info/preferences'
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
+import './panel-router.css'
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
@@ -189,12 +190,7 @@ export const PanelRouter = () => {
             />
           }
         >
-          <div
-            style={{
-              padding: '16px',
-              paddingTop: '8px',
-            }}
-          >
+          <div className="panel-content">
             <RouteInfoBody
               routerType={state.routerType}
               isStaticRoute={state.staticIndicator}
@@ -246,12 +242,7 @@ export const PanelRouter = () => {
           closeOnClickOutside
           header={<DevToolsHeader title="Try Turbopack" />}
         >
-          <div
-            style={{
-              padding: '16px',
-              paddingTop: '8px',
-            }}
-          >
+          <div className="panel-content">
             <TurbopackInfoBody />
             <InfoFooter href="https://nextjs.org/docs/app/api-reference/turbopack" />
           </div>
@@ -288,12 +279,7 @@ const UserPreferencesWrapper = ({
   const updateAllPanelPositions = useUpdateAllPanelPositions()
 
   return (
-    <div
-      style={{
-        padding: '20px',
-        paddingTop: '8px',
-      }}
-    >
+    <div className="user-preferences-wrapper">
       <UserPreferencesBody
         position={state.devToolsPosition}
         scale={state.scale}
@@ -358,10 +344,13 @@ function PanelRoute({
     >
       <div
         id="panel-route"
-        style={{
-          opacity: rendered ? 1 : 0,
-          transition: `opacity ${MENU_DURATION_MS}ms ${MENU_CURVE}`,
-        }}
+        className="panel-route"
+        style={
+          {
+            '--panel-opacity': rendered ? 1 : 0,
+            '--panel-transition': `opacity ${MENU_DURATION_MS}ms ${MENU_CURVE}`,
+          } as React.CSSProperties
+        }
       >
         {children}
       </div>
