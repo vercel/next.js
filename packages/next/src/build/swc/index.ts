@@ -672,13 +672,11 @@ function bindingToApi(
     }
 
     async getEntrypoints() {
-      return await withErrorCause(async () => {
-        const napiEndpoints = (await binding.projectEntrypoints(
-          this._nativeProject
-        )) as TurbopackResult<NapiEntrypoints>
+      const napiEndpoints = (await binding.projectEntrypoints(
+        this._nativeProject
+      )) as TurbopackResult<NapiEntrypoints>
 
-        return napiEntrypointsToRawEntrypoints(napiEndpoints)
-      })
+      return napiEntrypointsToRawEntrypoints(napiEndpoints)
     }
 
     entrypointsSubscribe() {
@@ -754,13 +752,10 @@ function bindingToApi(
       )
     }
 
-    async moduleGraph(): Promise<TurbopackResult<NapiModuleGraphSnapshot>> {
-      return await withErrorCause(
-        () =>
-          binding.projectModuleGraph(this._nativeProject) as Promise<
-            TurbopackResult<NapiModuleGraphSnapshot>
-          >
-      )
+    moduleGraph(): Promise<TurbopackResult<NapiModuleGraphSnapshot>> {
+      return binding.projectModuleGraph(this._nativeProject) as Promise<
+        TurbopackResult<NapiModuleGraphSnapshot>
+      >
     }
 
     invalidatePersistentCache(): Promise<void> {
@@ -816,12 +811,9 @@ function bindingToApi(
     }
 
     async moduleGraphs(): Promise<TurbopackResult<NapiModuleGraphSnapshots>> {
-      return await withErrorCause(
-        () =>
-          binding.endpointModuleGraphs(this._nativeEndpoint) as Promise<
-            TurbopackResult<NapiModuleGraphSnapshots>
-          >
-      )
+      return binding.endpointModuleGraphs(this._nativeEndpoint) as Promise<
+        TurbopackResult<NapiModuleGraphSnapshots>
+      >
     }
   }
 
