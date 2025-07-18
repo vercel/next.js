@@ -3,6 +3,13 @@ title: not-found.js
 description: API reference for the not-found.js file.
 ---
 
+Next.js provides two conventions to handle not found cases:
+
+- **`global-not-found.js`**: For your entire application.
+- **`not-found.js`**: For nested route segments.
+
+## `not-found.js`
+
 The **not-found** file is used to render UI when the [`notFound`](/docs/app/api-reference/functions/not-found) function is thrown within a route segment. Along with serving a custom UI, Next.js will return a `200` HTTP status code for streamed responses, and `404` for non-streamed responses.
 
 ```tsx filename="app/not-found.tsx" switcher
@@ -33,13 +40,53 @@ export default function NotFound() {
 }
 ```
 
+## `global-not-found.js` (experimental)
+
+The `global-not-found.js` file lets you define a custom 404 page for your entire app, including its layout.
+
+This is useful for:
+
+- Apps with multiple root layouts.
+- Projects where composing a 404 page from `layout.js` and `not-found.js` is not possible.
+
+To enable it, add the `globalNotFound` flag in `next.config.ts`:
+
+```tsx filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    globalNotFound: true,
+  },
+}
+
+export default nextConfig
+```
+
+Then, create a file in the root of the `app` directory: `app/global-not-found.js`:
+
+```tsx filename="app/global-not-found.tsx" switcher
+export default function GlobalNotFound() {
+  return (
+    <html>
+      <body>
+        <h1>404 - Page Not Found</h1>
+        <p>This page does not exist.</p>
+      </body>
+    </html>
+  )
+}
+```
+
+Unlike `not-found.js`, this file must return a full HTML document, including `<html>` and `<body>` tags.
+
 ## Reference
 
 ### Props
 
-`not-found.js` components do not accept any props.
+`not-found.js` or `global-not-found.js` components do not accept any props.
 
-> **Good to know**: In addition to catching expected `notFound()` errors, the root `app/not-found.js` file also handles any unmatched URLs for your whole application. This means users that visit a URL that is not handled by your app will be shown the UI exported by the `app/not-found.js` file.
+> **Good to know**: In addition to catching expected `notFound()` errors, the root `app/global-not-found.js` file also handles any unmatched URLs for your whole application. This means users that visit a URL that is not handled by your app will be shown the UI exported by the `app/global-not-found.js` file.
 
 ## Examples
 
@@ -89,9 +136,30 @@ export default async function NotFound() {
 
 If you need to use Client Component hooks like `usePathname` to display content based on the path, you must fetch data on the client-side instead.
 
+### Metadata
+
+You can export a `metadata` object or a [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to customize the `<title>`, `<meta>`, and other head tags for your 404 page:
+
+```tsx filename="app/not-found.tsx" switcher
+export const metadata = {
+  title: 'Not Found',
+  description: 'The page you are looking for does not exist.',
+}
+
+export default function NotFound() {
+  return (
+    <div>
+      <h1>Not Found</h1>
+      <p>The page you are looking for does not exist.</p>
+    </div>
+  )
+}
+```
+
 ## Version History
 
 | Version   | Changes                                             |
 | --------- | --------------------------------------------------- |
+| `v15.x`   | `global-not-found.js` introduced (experimental).    |
 | `v13.3.0` | Root `app/not-found` handles global unmatched URLs. |
 | `v13.0.0` | `not-found` introduced.                             |
