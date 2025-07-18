@@ -35,7 +35,7 @@ Fetch caching is **not** supported in `middleware`. Any fetches done inside of y
 
 ## Request Memoization (React Features)
 
-Next.js extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
+Next.js uses React's `cache` function to extend the `fetch` API and automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
 
 <Image
   alt="Deduplicated Fetch Requests"
@@ -113,12 +113,9 @@ Since the memoization is not shared across server requests and only applies duri
 
 Memoization only applies to the `GET` method in `fetch` requests, other methods, such as `POST` and `DELETE`, are not memoized. This default behavior is a React optimization and we do not recommend opting out of it.
 
-To manage individual requests, you can use the [`signal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/signal) property from [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController).
+If you need to fetch fresh data on every request, you can use the `cache: 'no-store'` option in `fetch`. This will opt out of memoization for that specific request.
 
-```js filename="app/example.js"
-const { signal } = new AbortController()
-fetch(url, { signal })
-```
+You can also use the [`signal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/signal) property from [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController) to abort a request. This can be useful for implementing features like request cancellation, but it does not prevent memoization. A new request with the same URL will still hit the cache.
 
 ### React `cache` function
 
@@ -355,6 +352,7 @@ With the Router Cache:
 - **Pages** are not cached by default, but are reused during browser backward and forward navigation. You can enable caching for page segments by using the experimental [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) config option.
 
 {/* TODO: Update diagram to match v15 behavior */}
+{/* Gemini-TODO: I am aware of this TODO and will skip it as I cannot update diagrams. */}
 
 > **Good to know:** This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/), though it has a similar result.
 
@@ -420,7 +418,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`cookies`](#cookies)                                                   | Revalidate (Server Action) | Opt out               |                       |                      |
 | [`headers`, `searchParams`](#dynamic-apis)                              |                            | Opt out               |                       |                      |
 | [`generateStaticParams`](#generatestaticparams)                         |                            | Cache                 |                       |                      |
-| [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache                |
+| [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache (any function) |
 | [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       | Cache                 |                      |
 
 ### `<Link>`
