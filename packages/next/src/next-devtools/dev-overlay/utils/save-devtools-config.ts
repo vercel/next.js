@@ -17,6 +17,8 @@ function flushPatch() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body,
+    // keepalive in case of fetch interrupted, e.g. navigation or reload
+    keepalive: true,
   }).catch((error) => {
     console.log('[Next.js DevTools] Failed to save config:', {
       data: body,
