@@ -46,6 +46,8 @@ pub struct NapiModuleInfo {
     pub ident: RcStr,
     pub path: RcStr,
     pub depth: u32,
+    pub size: u32,
+    pub retained_size: u32,
     pub references: Vec<NapiModuleReference>,
     pub incoming_references: Vec<NapiModuleReference>,
 }
@@ -56,6 +58,8 @@ impl From<&ModuleInfo> for NapiModuleInfo {
             ident: info.ident.clone(),
             path: info.path.clone(),
             depth: info.depth,
+            size: info.size,
+            retained_size: info.retained_size,
             references: info
                 .references
                 .iter()

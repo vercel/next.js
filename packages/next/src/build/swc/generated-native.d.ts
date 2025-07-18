@@ -94,6 +94,8 @@ export interface NapiModuleInfo {
   ident: RcStr
   path: RcStr
   depth: number
+  size: number
+  retainedSize: number
   references: Array<NapiModuleReference>
   incomingReferences: Array<NapiModuleReference>
 }

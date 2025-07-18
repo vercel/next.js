@@ -1,14 +1,15 @@
-use std::collections::hash_map::Entry;
+use std::{cell::RefCell, cmp::Reverse, collections::hash_map::Entry, mem::take, u32};
 
 use anyhow::Result;
 use either::Either;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbopack_core::{
+    asset::Asset,
     chunk::ChunkingType,
     module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph},
@@ -27,6 +28,8 @@ pub struct ModuleInfo {
     pub ident: RcStr,
     pub path: RcStr,
     pub depth: u32,
+    pub size: u32,
+    pub retained_size: u32,
     pub references: Vec<ModuleReference>,
     pub incoming_references: Vec<ModuleReference>,
 }
@@ -47,6 +50,7 @@ pub async fn get_module_graph_snapshot(
     struct RawModuleInfo {
         module: ResolvedVc<Box<dyn Module>>,
         depth: u32,
+        retained_modules: RefCell<FxHashSet<u32>>,
         references: Vec<ModuleReference>,
         incoming_references: Vec<ModuleReference>,
     }
@@ -69,6 +73,7 @@ pub async fn get_module_graph_snapshot(
                     depth: u32::MAX,
                     references: Vec::new(),
                     incoming_references: Vec::new(),
+                    retained_modules: Default::default(),
                 });
                 entry.insert(index);
                 return index;
@@ -114,19 +119,72 @@ pub async fn get_module_graph_snapshot(
         })
         .await?;
 
-    let modules = modules
-        .into_iter()
+    let mut modules_by_depth = FxHashMap::default();
+    for (index, info) in modules.iter().enumerate() {
+        modules_by_depth
+            .entry(info.depth)
+            .or_insert_with(Vec::new)
+            .push(index);
+    }
+    let mut modules_by_depth = modules_by_depth.into_iter().collect::<Vec<_>>();
+    modules_by_depth.sort_by_key(|(depth, _)| Reverse(*depth));
+    for (depth, module_indicies) in modules_by_depth {
+        for module_index in module_indicies {
+            let module = &modules[module_index];
+            for ref_info in &module.incoming_references {
+                let ref_module = &modules[ref_info.index];
+                if ref_module.depth < depth {
+                    let mut retained_modules = modules[module_index].retained_modules.borrow_mut();
+                    retained_modules.insert(module_index as u32);
+                    for retained in ref_module.retained_modules.borrow().iter() {
+                        retained_modules.insert(*retained);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut final_modules = modules
+        .iter_mut()
         .map(async |info| {
             Ok(ModuleInfo {
                 ident: info.module.ident().to_string().owned().await?,
                 path: info.module.ident().path().to_string().owned().await?,
                 depth: info.depth,
-                references: info.references,
-                incoming_references: info.incoming_references,
+                size: info
+                    .module
+                    .content()
+                    .len()
+                    .owned()
+                    .await?
+                    .unwrap_or_default()
+                    .try_into()
+                    .unwrap_or(u32::MAX),
+                retained_size: 0,
+                references: take(&mut info.references),
+                incoming_references: take(&mut info.incoming_references),
             })
         })
         .try_join()
         .await?;
 
-    Ok(ModuleGraphSnapshot { modules, entries }.cell())
+    for (index, info) in modules.into_iter().enumerate() {
+        let retained_size = info
+            .retained_modules
+            .into_inner()
+            .iter()
+            .map(|&retained_index| {
+                let retained_info = &final_modules[retained_index as usize];
+                retained_info.size
+            })
+            .reduce(|a, b| a.saturating_add(b))
+            .unwrap_or_default();
+        final_modules[index].retained_size = retained_size;
+    }
+
+    Ok(ModuleGraphSnapshot {
+        modules: final_modules,
+        entries,
+    }
+    .cell())
 }

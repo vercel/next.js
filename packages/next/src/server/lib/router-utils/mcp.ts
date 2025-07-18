@@ -51,6 +51,13 @@ interface Module {
   /// This is useful when trying to find the path from a module to the root of the module graph.
   /// Example: 0 for the entrypoint, 1 for the first layer of modules, etc.
   depth: number,
+  /// The size of the source code of the module in bytes.
+  /// Note that it's not the final size of the generated code, but can be a good indicator of that.
+  /// It's only the size of this single module, not the size of the whole subgraph behind it (see retainedSize instead).
+  size: number,
+  /// The size of the whole subgraph behind this module in bytes.
+  /// Note that it's not the final size of the generated code, but can be a good indicator of that.
+  retainedSize: number,
   /// The modules that are referenced by this module.
   /// Modules could be referenced by \`import\`, \`require\`, \`new URL\`, etc.
   references: ModuleReference[],
@@ -263,6 +270,10 @@ interface Module {
   path: string
   /// The distance to the entries of the module graph. Use this to traverse the graph in the right direction.
   depth: number
+  /// The size of the source code of the module in bytes.
+  size: number
+  /// The size of the whole subgraph behind this module in bytes.
+  retainedSize: number
   /// The modules that are referenced by this module.
   references: ModuleReference[]
   /// The modules that reference this module.
@@ -274,6 +285,8 @@ function createModuleObject(rawModule: NapiModuleInfo): Module {
     ident: rawModule.ident,
     path: rawModule.path,
     depth: rawModule.depth,
+    size: rawModule.size,
+    retainedSize: rawModule.retainedSize,
     references: [],
     incomingReferences: [],
   }
