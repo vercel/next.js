@@ -741,11 +741,17 @@ impl Project {
             .cell())
     }
 
+    /// Returns the relative path from the node root to the output root.
+    /// E.g. from `[project]/test/e2e/app-dir/non-root-project-monorepo/apps/web/app/
+    /// import-meta-url-ssr/page.tsx` to `[project]/`.
     #[turbo_tasks::function]
-    pub async fn node_root_to_root_path(&self) -> Result<Vc<RcStr>> {
-        let output_root_to_root_path = join_path(&self.project_path, &self.dist_dir)
-            .context("Project path need to be in root path")?;
-        Ok(Vc::cell(output_root_to_root_path.into()))
+    pub async fn node_root_to_root_path(self: Vc<Self>) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            self.node_root()
+                .await?
+                .get_relative_path_to(&*self.output_fs().root().await?)
+                .context("Expected node root to be inside of output fs")?,
+        ))
     }
 
     #[turbo_tasks::function]
