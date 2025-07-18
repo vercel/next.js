@@ -12647,7 +12647,8 @@ function recursivelyTraverseReconnectPassiveEffects(
       prevEffectStart = pushComponentEffectStart(),
       prevEffectDuration = pushComponentEffectDuration(),
       prevEffectErrors = pushComponentEffectErrors();
-    0 !== (child.mode & 2) &&
+    includeWorkInProgressEffects &&
+      0 !== (child.mode & 2) &&
       0 < child.actualStartTime &&
       0 !== (child.flags & 1) &&
       logComponentRender(
@@ -20939,14 +20940,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2391 = React.version;
 if (
-  "19.2.0-experimental-d85ec5f5-20250716" !==
+  "19.2.0-experimental-dffacc7b-20250717" !==
   isomorphicReactPackageVersion$jscomp$inline_2391
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2391,
-      "19.2.0-experimental-d85ec5f5-20250716"
+      "19.2.0-experimental-dffacc7b-20250717"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20968,10 +20969,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3078 = {
   bundleType: 0,
-  version: "19.2.0-experimental-d85ec5f5-20250716",
+  version: "19.2.0-experimental-dffacc7b-20250717",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-d85ec5f5-20250716"
+  reconcilerVersion: "19.2.0-experimental-dffacc7b-20250717"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3079 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -21238,7 +21239,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-d85ec5f5-20250716";
+exports.version = "19.2.0-experimental-dffacc7b-20250717";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
