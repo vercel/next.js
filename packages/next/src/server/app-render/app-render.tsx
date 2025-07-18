@@ -3491,7 +3491,14 @@ async function prerenderToStream(
         fallbackRouteParams
       )
 
-      if (serverIsDynamic) {
+      // If there are fallback route params, the RSC data is inherently dynamic
+      // today because it's encoded into the flight router state. Until we can
+      // move the fallback route params out of the flight router state, we need
+      // to always perform a dynamic resume after the static prerender.
+      const hasFallbackRouteParams =
+        workStore.fallbackRouteParams && workStore.fallbackRouteParams.size > 0
+
+      if (serverIsDynamic || hasFallbackRouteParams) {
         // Dynamic case
         // We will always need to perform a "resume" render of some kind when this route is accessed
         // because the RSC data itself is dynamic. We determine if there are any HTML holes or not

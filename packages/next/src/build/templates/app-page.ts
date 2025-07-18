@@ -1075,6 +1075,16 @@ export async function handler(
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
       if (!didPostpone || minimalMode) {
+        // If we're in test mode, we should add a sentinel chunk to the response
+        // that's between the static and dynamic parts so we can compare the
+        // chunks and add assertions.
+        if (process.env.__NEXT_TEST_MODE && minimalMode && isRoutePPREnabled) {
+          // As we're in minimal mode, the static part would have already been
+          // streamed first. The only part that this streams is the dynamic part
+          // so we should FIRST stream the sentinel and THEN the dynamic part.
+          body.unshift(createPPRBoundarySentinel())
+        }
+
         return sendRenderResult({
           req,
           res,
@@ -1093,7 +1103,7 @@ export async function handler(
       if (isDebugStaticShell || isDebugDynamicAccesses) {
         // Since we're not resuming the render, we need to at least add the
         // closing body and html tags to create valid HTML.
-        body.chain(
+        body.push(
           new ReadableStream({
             start(controller) {
               controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
@@ -1113,11 +1123,18 @@ export async function handler(
         })
       }
 
+      // If we're in test mode, we should add a sentinel chunk to the response
+      // that's between the static and dynamic parts so we can compare the
+      // chunks and add assertions.
+      if (process.env.__NEXT_TEST_MODE) {
+        body.push(createPPRBoundarySentinel())
+      }
+
       // This request has postponed, so let's create a new transformer that the
       // dynamic data can pipe to that will attach the dynamic data to the end
       // of the response.
       const transformer = new TransformStream<Uint8Array, Uint8Array>()
-      body.chain(transformer.readable)
+      body.push(transformer.readable)
 
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
@@ -1207,4 +1224,21 @@ export async function handler(
     // rethrow so that we can handle serving error page
     throw err
   }
+}
+
+// TODO: omit this from production builds, only test builds should include it
+/**
+ * Creates a readable stream that emits a PPR boundary sentinel.
+ *
+ * @returns A readable stream that emits a PPR boundary sentinel.
+ */
+function createPPRBoundarySentinel() {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(
+        new TextEncoder().encode('<!-- PPR_BOUNDARY_SENTINEL -->')
+      )
+      controller.close()
+    },
+  })
 }

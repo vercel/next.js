@@ -212,6 +212,44 @@ export default class RenderResult<
   }
 
   /**
+   * Coerces the response to an array of streams. This will convert the response
+   * to an array of streams if it is not already one.
+   *
+   * @returns An array of streams
+   */
+  private coerce(): ReadableStream<Uint8Array>[] {
+    if (this.response === null) {
+      throw new Error('Invariant: response is null. This is a bug in Next.js')
+    }
+
+    if (typeof this.response === 'string') {
+      return [streamFromString(this.response)]
+    } else if (Array.isArray(this.response)) {
+      return this.response
+    } else if (Buffer.isBuffer(this.response)) {
+      return [streamFromBuffer(this.response)]
+    } else {
+      return [this.response]
+    }
+  }
+
+  /**
+   * Unshifts a new stream to the response. This will convert the response to an
+   * array of streams if it is not already one and will add the new stream to
+   * the start of the array. When this response is piped, all of the streams
+   * will be piped one after the other.
+   *
+   * @param readable The new stream to unshift
+   */
+  public unshift(readable: ReadableStream<Uint8Array>): void {
+    // Coerce the response to an array of streams.
+    this.response = this.coerce()
+
+    // Add the new stream to the start of the array.
+    this.response.unshift(readable)
+  }
+
+  /**
    * Chains a new stream to the response. This will convert the response to an
    * array of streams if it is not already one and will add the new stream to
    * the end. When this response is piped, all of the streams will be piped
@@ -219,28 +257,12 @@ export default class RenderResult<
    *
    * @param readable The new stream to chain
    */
-  public chain(readable: ReadableStream<Uint8Array>) {
-    if (this.response === null) {
-      throw new Error('Invariant: response is null. This is a bug in Next.js')
-    }
+  public push(readable: ReadableStream<Uint8Array>): void {
+    // Coerce the response to an array of streams.
+    this.response = this.coerce()
 
-    // If the response is not an array of streams already, make it one.
-    let responses: ReadableStream<Uint8Array>[]
-    if (typeof this.response === 'string') {
-      responses = [streamFromString(this.response)]
-    } else if (Array.isArray(this.response)) {
-      responses = this.response
-    } else if (Buffer.isBuffer(this.response)) {
-      responses = [streamFromBuffer(this.response)]
-    } else {
-      responses = [this.response]
-    }
-
-    // Add the new stream to the array.
-    responses.push(readable)
-
-    // Update the response.
-    this.response = responses
+    // Add the new stream to the end of the array.
+    this.response.push(readable)
   }
 
   /**
