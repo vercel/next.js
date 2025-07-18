@@ -2,12 +2,24 @@ import { useReducer } from 'react'
 
 import type { VersionInfo } from '../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './container/runtime-error/render-error'
-import type { DevToolsConfig } from '../shared/devtools-config-schema'
 import { parseComponentStack } from './utils/parse-component-stack'
 import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
+
+export type DevToolsConfig = {
+  theme?: 'light' | 'dark' | 'system'
+  disableDevIndicator?: boolean
+  devToolsPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  devToolsPanelPosition?: Record<
+    string,
+    'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  >
+  devToolsPanelSize?: Record<string, { width: number; height: number }>
+  scale?: number
+  hideShortcut?: string | null
+}
 
 export type Corners = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 export type DevToolsIndicatorPosition = Corners

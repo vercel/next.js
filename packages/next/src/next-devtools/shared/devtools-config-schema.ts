@@ -1,8 +1,7 @@
+import type { DevToolsConfig } from '../dev-overlay/shared'
 import { z } from 'next/dist/compiled/zod'
 
-export type DevToolsConfig = z.infer<typeof devToolsConfigSchema>
-
-export const devToolsConfigSchema = z.object({
+export const devToolsConfigSchema: z.ZodType<DevToolsConfig> = z.object({
   theme: z.enum(['light', 'dark', 'system']).optional(),
   disableDevIndicator: z.boolean().optional(),
   devToolsPosition: z

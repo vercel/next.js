@@ -1,4 +1,4 @@
-import type { DevToolsConfig } from '../../shared/devtools-config-schema'
+import type { DevToolsConfig } from '../shared'
 import { devToolsConfigSchema } from '../../shared/devtools-config-schema'
 import { deepMerge } from '../../shared/deepmerge'
 

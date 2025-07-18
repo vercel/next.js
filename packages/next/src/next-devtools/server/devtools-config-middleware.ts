@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { DevToolsConfig } from '../shared/devtools-config-schema'
+import type { DevToolsConfig } from '../dev-overlay/shared'
 
 import { existsSync } from 'fs'
 import { readFile, writeFile } from 'fs/promises'

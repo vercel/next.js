@@ -42,7 +42,7 @@ import {
   removeSegmentNode,
 } from './dev-overlay/segment-explorer-trie'
 import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
-import type { DevToolsConfig } from './shared/devtools-config-schema'
+import type { DevToolsConfig } from './dev-overlay/shared'
 
 export interface Dispatcher {
   onBuildOk(): void
