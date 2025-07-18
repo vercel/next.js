@@ -819,7 +819,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Ensure distDir exists before writing package.json
     await fs.mkdir(this.distDir, { recursive: true })
 
-    const initDevToolsConfig = await getDevToolsConfig(this.distDir)
+    const initialDevToolsConfig = await getDevToolsConfig(this.distDir)
 
     const distPackageJsonPath = join(this.distDir, 'package.json')
     // Ensure commonjs handling is used for files in the distDir (generally .next)
@@ -1560,7 +1560,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.multiCompiler.compilers,
       this.versionInfo,
       this.devtoolsFrontendUrl,
-      initDevToolsConfig
+      initialDevToolsConfig
     )
 
     let booted = false
@@ -1618,7 +1618,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       devToolsConfigMiddleware({
         distDir: this.distDir,
         sendUpdateSignal: (data) => {
-          // Update the local machine's devToolsConfig value,
+          // Update the in-memory devToolsConfig value
           // which will be used for the next onHMR call.
           this.webpackHotMiddleware?.updateDevToolsConfig(data)
 
