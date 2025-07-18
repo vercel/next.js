@@ -20,17 +20,17 @@ import { inspect } from 'node:util'
 
 const QUERY_DESCRIPTION = `A piece of JavaScript code that will be executed.
 It can access the module graph and extract information it finds useful.
-The value of all newly created global variables will be returned in the response and can be used to report results.
 The \`console.log\` function can be used to log messages, which will also be returned in the response.
 No Node.js or browser APIs are available, but JavaScript language features are available.
 When the user is interested in used exports of modules, you can use the \`export\` property of ModuleReferences (\`incomingReferences\`).
 When the user is interested in the import path of a module, follow one of the \`incomingReferences\` with a smaller \`depth\` value than the current module until you hit the root.
+Do not try to make any assumptions or estimations. See the typings to see which data you have available. If you don't have the data, tell the user that this data is not available and list alternatives that are available.
 See the following TypeScript typings for reference:
 
 \`\`\` typescript
 interface Module {
   /// The identifier of the module, which is a unique string.
-  /// Example: "[project]/packages/next-app/src/app/folder/page.tsx [app-rsc] (ecmascript, Next.js Server Component) <locals>"
+  /// Example: "[project]/packages/next-app/src/app/folder/page.tsx [app-rsc] (ecmascript, Next.js Server Component)"
   /// These layers exist in App Router:
   /// * Server Components: [app-rsc], [app-edge-rsc]
   /// * API routes: [app-route], [app-edge-route]
@@ -45,7 +45,10 @@ interface Module {
   /// * Instrumentation: [instrumentation], [instrumentation-edge]
   ident: string,
   /// The path of the module. It's not unique as multiple modules can have the same path.
+  /// Separate between application code and node_modules (npm packages, vendor code).
   /// Example: "[project]/pages/folder/index.js",
+  /// Example: "[project]/node_modules/.pnpm/next@file+..+next.js+packages+next_@babel+core@7.27.4_@opentelemetry+api@1.7.0_@playwright+te_5kenhtwdm6lrgjpao5hc34lkgy/node_modules/next/dist/compiled/fresh/index.js",
+  /// Example: "[project]/apps/site/node_modules/@opentelemtry/api/build/src/trace/instrumentation.js",
   path: string,
   /// The distance to the entries of the module graph. Use this to traverse the graph in the right direction.
   /// This is useful when trying to find the path from a module to the root of the module graph.
@@ -56,12 +59,16 @@ interface Module {
   /// It's only the size of this single module, not the size of the whole subgraph behind it (see retainedSize instead).
   size: number,
   /// The size of the whole subgraph behind this module in bytes.
-  /// Note that it's not the final size of the generated code, but can be a good indicator of that.
+  /// Use this value if the user is interested in sizes of modules (except when they are interested in the size of the module itself).
+  /// Never try to compute the retained size yourself, but use this value instead.
   retainedSize: number,
   /// The modules that are referenced by this module.
   /// Modules could be referenced by \`import\`, \`require\`, \`new URL\`, etc.
+  /// Beware cycles in the module graph. You can avoid that by only walking edges with a bigger \`depth\` value than the current module.
   references: ModuleReference[],
   /// The modules that reference this module.
+  /// Beware cycles in the module graph. 
+  /// You can use this to walk up the graph up to the root. When doing this only walk edges with a smaller \`depth\` value than the current module.
   incomingReferences: ModuleReference[],
 }
 
@@ -337,7 +344,11 @@ function runQuery(
       log: (...data: any[]) => {
         response.push({
           type: 'text',
-          text: data.map((item) => inspect(item, false, 2, false)).join(' '),
+          text: data
+            .map((item) =>
+              typeof item === 'string' ? item : inspect(item, false, 2, false)
+            )
+            .join(' '),
         })
       },
     },
@@ -360,7 +371,7 @@ function runQuery(
     if (key === 'global' || key === 'self' || key === 'globalThis') continue
     response.push({
       type: 'text',
-      text: `Global variable \`${key}\` = ${JSON.stringify(value, null, 2)}`,
+      text: `Global variable \`${key}\` = ${inspect(value, false, 2, false)}`,
     })
   }
   return response
