@@ -221,14 +221,21 @@ export interface CommonUseCacheStore extends CommonCacheStore, RevalidateStore {
   readonly forceRevalidate: boolean
 }
 
-export interface UseCacheStore extends CommonUseCacheStore {
+export interface PublicUseCacheStore extends CommonUseCacheStore {
   readonly type: 'cache'
 }
 
 export interface PrivateUseCacheStore extends CommonUseCacheStore {
   readonly type: 'private-cache'
+
+  /**
+   * As opposed to the public cache store, the private cache store is allowed to
+   * access the request cookies.
+   */
   readonly cookies: ReadonlyRequestCookies
 }
+
+export type UseCacheStore = PublicUseCacheStore | PrivateUseCacheStore
 
 export interface UnstableCacheStore extends CommonCacheStore {
   readonly type: 'unstable-cache'
@@ -243,10 +250,7 @@ export interface UnstableCacheStore extends CommonCacheStore {
  * cache store, instead of generally making the request store available to cache
  * functions.
  */
-export type CacheStore =
-  | UseCacheStore
-  | PrivateUseCacheStore
-  | UnstableCacheStore
+export type CacheStore = UseCacheStore | UnstableCacheStore
 
 export type WorkUnitStore = RequestStore | CacheStore | PrerenderStore
 
