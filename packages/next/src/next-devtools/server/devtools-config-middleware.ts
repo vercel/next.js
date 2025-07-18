@@ -2,8 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { DevToolsConfig } from '../dev-overlay/shared'
 
 import { existsSync } from 'fs'
-import { readFile, writeFile } from 'fs/promises'
-import { join } from 'path'
+import { readFile, writeFile, mkdir } from 'fs/promises'
+import { dirname, join } from 'path'
 
 import { middlewareResponse } from './middleware-response'
 import { devToolsConfigSchema } from '../shared/devtools-config-schema'
@@ -71,6 +71,7 @@ export async function getDevToolsConfig(
   const configPath = join(distDir, 'cache', DEVTOOLS_CONFIG_FILENAME)
 
   if (!existsSync(configPath)) {
+    await mkdir(dirname(configPath), { recursive: true })
     await writeFile(configPath, JSON.stringify({}))
     return {}
   }
