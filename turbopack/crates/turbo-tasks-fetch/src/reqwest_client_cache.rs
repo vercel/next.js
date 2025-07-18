@@ -26,6 +26,29 @@ pub enum ProxyConfig {
 #[derive(Hash)]
 pub struct ReqwestClientConfig {
     pub proxy: Option<ProxyConfig>,
+    /// Whether to load embedded webpki root certs with rustls. Default is true.
+    ///
+    /// Ignored for:
+    /// - Windows on ARM, which uses `native-tls` instead of `rustls-tls`.
+    /// - Ignored for WASM targets, which use the runtime's TLS implementation.
+    pub tls_built_in_webpki_certs: bool,
+    /// Whether to load native root certs using the `rustls-native-certs` crate. This may make
+    /// reqwest client initialization slower, so it's not used by default.
+    ///
+    /// Ignored for:
+    /// - Windows on ARM, which uses `native-tls` instead of `rustls-tls`.
+    /// - Ignored for WASM targets, which use the runtime's TLS implementation.
+    pub tls_built_in_native_certs: bool,
+}
+
+impl Default for ReqwestClientConfig {
+    fn default() -> Self {
+        Self {
+            proxy: None,
+            tls_built_in_webpki_certs: true,
+            tls_built_in_native_certs: false,
+        }
+    }
 }
 
 impl ReqwestClientConfig {
@@ -40,6 +63,17 @@ impl ReqwestClientConfig {
             }
             None => {}
         };
+
+        // make sure this cfg matches the one in `Cargo.toml`!
+        #[cfg(not(any(
+            all(target_os = "windows", target_arch = "aarch64"),
+            target_arch = "wasm32"
+        )))]
+        let client_builder = client_builder
+            .tls_built_in_root_certs(false)
+            .tls_built_in_webpki_certs(self.tls_built_in_webpki_certs)
+            .tls_built_in_native_certs(self.tls_built_in_native_certs);
+
         client_builder.build()
     }
 }

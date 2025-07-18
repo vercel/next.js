@@ -182,6 +182,7 @@ pub struct NextFontGoogleCssModuleReplacer {
     project_path: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
     next_mode: ResolvedVc<NextMode>,
+    reqwest_client_config: ResolvedVc<ReqwestClientConfig>,
 }
 
 #[turbo_tasks::value_impl]
@@ -191,11 +192,13 @@ impl NextFontGoogleCssModuleReplacer {
         project_path: FileSystemPath,
         execution_context: ResolvedVc<ExecutionContext>,
         next_mode: ResolvedVc<NextMode>,
+        reqwest_client_config: ResolvedVc<ReqwestClientConfig>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
             execution_context,
             next_mode,
+            reqwest_client_config,
         })
     }
 
@@ -228,7 +231,14 @@ impl NextFontGoogleCssModuleReplacer {
         let stylesheet_str = mocked_responses_path
             .as_ref()
             .map_or_else(
-                || fetch_real_stylesheet(stylesheet_url.clone(), css_virtual_path.clone()).boxed(),
+                || {
+                    fetch_real_stylesheet(
+                        stylesheet_url.clone(),
+                        css_virtual_path.clone(),
+                        *self.reqwest_client_config,
+                    )
+                    .boxed()
+                },
                 |p| get_mock_stylesheet(stylesheet_url.clone(), p, *self.execution_context).boxed(),
             )
             .await?;
@@ -365,13 +375,20 @@ struct NextFontGoogleFontFileOptions {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: FileSystemPath,
+    reqwest_client_config: ResolvedVc<ReqwestClientConfig>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: FileSystemPath) -> Vc<Self> {
-        Self::cell(NextFontGoogleFontFileReplacer { project_path })
+    pub fn new(
+        project_path: FileSystemPath,
+        reqwest_client_config: ResolvedVc<ReqwestClientConfig>,
+    ) -> Vc<Self> {
+        Self::cell(NextFontGoogleFontFileReplacer {
+            project_path,
+            reqwest_client_config,
+        })
     }
 }
 
@@ -426,7 +443,12 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
-        let Some(font) = fetch_from_google_fonts(url.into(), font_virtual_path.clone()).await?
+        let Some(font) = fetch_from_google_fonts(
+            url.into(),
+            font_virtual_path.clone(),
+            *self.reqwest_client_config,
+        )
+        .await?
         else {
             return Ok(ImportMapResult::Result(ResolveResult::unresolvable()).cell());
         };
@@ -650,8 +672,10 @@ fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontGoogleFontF
 async fn fetch_real_stylesheet(
     stylesheet_url: RcStr,
     css_virtual_path: FileSystemPath,
+    reqwest_client_config: Vc<ReqwestClientConfig>,
 ) -> Result<Option<Vc<RcStr>>> {
-    let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path).await?;
+    let body =
+        fetch_from_google_fonts(stylesheet_url, css_virtual_path, reqwest_client_config).await?;
 
     Ok(body.map(|body| body.to_string()))
 }
@@ -659,11 +683,12 @@ async fn fetch_real_stylesheet(
 async fn fetch_from_google_fonts(
     url: RcStr,
     virtual_path: FileSystemPath,
+    reqwest_client_config: Vc<ReqwestClientConfig>,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch(
         url,
         Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)),
-        ReqwestClientConfig { proxy: None }.cell(),
+        reqwest_client_config,
     )
     .await?;
 
