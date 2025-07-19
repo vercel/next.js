@@ -1657,6 +1657,10 @@ async function renderToHTMLOrFlightImpl(
       metadata
     )
 
+    if (workStore.invalidDynamicUsageError && workStore.dev) {
+      throw workStore.invalidDynamicUsageError
+    }
+
     // If we have pending revalidates, wait until they are all resolved.
     if (
       workStore.pendingRevalidates ||
