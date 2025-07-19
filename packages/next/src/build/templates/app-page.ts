@@ -32,6 +32,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
 import { getBotType, isBot } from '../../shared/lib/router/utils/is-bot'
 import {
@@ -1074,11 +1075,19 @@ export async function handler(
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
-      if (!didPostpone || minimalMode) {
+      if (!didPostpone || minimalMode || isRSCRequest) {
         // If we're in test mode, we should add a sentinel chunk to the response
         // that's between the static and dynamic parts so we can compare the
         // chunks and add assertions.
-        if (process.env.__NEXT_TEST_MODE && minimalMode && isRoutePPREnabled) {
+        if (
+          process.env.__NEXT_TEST_MODE &&
+          minimalMode &&
+          isRoutePPREnabled &&
+          // If the response body is an RSC content type of the request was for
+          // an RSC request then we shouldn't add the sentinel.
+          body.contentType !== RSC_CONTENT_TYPE_HEADER &&
+          !isRSCRequest
+        ) {
           // As we're in minimal mode, the static part would have already been
           // streamed first. The only part that this streams is the dynamic part
           // so we should FIRST stream the sentinel and THEN the dynamic part.
@@ -1088,7 +1097,7 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'html',
+          type: isRSCRequest ? 'rsc' : 'html',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
