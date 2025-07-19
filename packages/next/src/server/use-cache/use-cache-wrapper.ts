@@ -46,7 +46,7 @@ import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
-import { DYNAMIC_EXPIRE } from './constants'
+import { DYNAMIC_EXPIRE, DYNAMIC_PREFETCH_DYNAMIC_STALE } from './constants'
 import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import {
@@ -1108,38 +1108,44 @@ export function cache(
         if (cachedEntry !== undefined) {
           const existingEntry = await cachedEntry
           propagateCacheLifeAndTags(cacheContext, existingEntry)
-          if (
-            workUnitStore !== undefined &&
-            existingEntry !== undefined &&
-            (existingEntry.revalidate === 0 ||
-              existingEntry.expire < DYNAMIC_EXPIRE)
-          ) {
-            switch (workUnitStore.type) {
-              case 'prerender':
-                // In a Dynamic I/O prerender, if the cache entry has
-                // revalidate: 0 or if the expire time is under 5 minutes, then
-                // we consider this cache entry dynamic as it's not worth
-                // generating static pages for such data. It's better to leave a
-                // PPR hole that can be filled in dynamically with a potentially
-                // cached entry.
-                if (cacheSignal) {
-                  cacheSignal.endRead()
-                }
-                return makeHangingPromise(
-                  workUnitStore.renderSignal,
-                  'dynamic "use cache"'
-                )
-              case 'prerender-ppr':
-              case 'prerender-legacy':
-              case 'request':
-              case 'cache':
-              case 'private-cache':
-              case 'unstable-cache':
-                break
-              default:
-                workUnitStore satisfies never
+
+          if (workUnitStore !== undefined && existingEntry !== undefined) {
+            if (
+              existingEntry.revalidate === 0 ||
+              existingEntry.expire < DYNAMIC_EXPIRE
+            ) {
+              switch (workUnitStore.type) {
+                case 'prerender':
+                  // In a Dynamic I/O prerender, if the cache entry has
+                  // revalidate: 0 or if the expire time is under 5 minutes, then
+                  // we consider this cache entry dynamic as it's not worth
+                  // generating static pages for such data. It's better to leave a
+                  // PPR hole that can be filled in dynamically with a potentially
+                  // cached entry.
+                  if (cacheSignal) {
+                    cacheSignal.endRead()
+                  }
+                  return makeHangingPromise(
+                    workUnitStore.renderSignal,
+                    'dynamic "use cache"'
+                  )
+                case 'prerender-ppr':
+                case 'prerender-legacy':
+                case 'request':
+                case 'cache':
+                case 'private-cache':
+                case 'unstable-cache':
+                  break
+                default:
+                  workUnitStore satisfies never
+              }
+            }
+
+            if (existingEntry.stale < DYNAMIC_PREFETCH_DYNAMIC_STALE) {
+              // TODO: Return hanging promise for dynamic prefetches.
             }
           }
+
           const [streamA, streamB] = existingEntry.value.tee()
           existingEntry.value = streamB
 
