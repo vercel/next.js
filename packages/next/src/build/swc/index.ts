@@ -634,7 +634,7 @@ function bindingToApi(
       ...options,
       nextConfig: await serializeNextConfig(
         options.nextConfig,
-        options.projectPath!
+        path.join(options.rootPath, options.projectPath)
       ),
       jsConfig: JSON.stringify(options.jsConfig),
       env: rustifyEnv(options.env),
@@ -648,7 +648,10 @@ function bindingToApi(
       ...options,
       nextConfig:
         options.nextConfig &&
-        (await serializeNextConfig(options.nextConfig, options.projectPath!)),
+        (await serializeNextConfig(
+          options.nextConfig,
+          path.join(options.rootPath!, options.projectPath!)
+        )),
       jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
       env: options.env && rustifyEnv(options.env),
     }
