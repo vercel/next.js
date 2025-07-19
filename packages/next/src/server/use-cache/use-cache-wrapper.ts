@@ -940,13 +940,21 @@ export function cache(
       // fallback params that are hanging promises). It allows us to avoid
       // waiting for the timeout, when prerendering a fallback shell of a cached
       // page or layout that awaits params.
-      // TODO: Allow accessing searchParams in private cache scopes.
       if (isPageComponent(args)) {
         isPageOrLayout = true
 
         const [{ params: outerParams, searchParams: outerSearchParams }] = args
-        // Overwrite the props to omit $$isPageComponent.
-        args = [{ params: outerParams, searchParams: outerSearchParams }]
+        const keepSearchParams = workStore.cacheComponentsEnabled || isPrivate
+
+        args = [
+          {
+            params: outerParams,
+            searchParams: keepSearchParams
+              ? outerSearchParams
+              : Promise.resolve({}),
+            // omit $$isPageComponent.
+          },
+        ]
 
         fn = {
           [name]: async ({
@@ -956,16 +964,16 @@ export function cache(
             originalFn.apply(null, [
               {
                 params: outerParams,
-                searchParams: workStore.cacheComponentsEnabled
+                searchParams: keepSearchParams
                   ? innerSearchParams
                   : // When cacheComponents is not enabled, we can not encode
                     // searchParams as a hanging promise. To still avoid unused
                     // search params from making a page dynamic, we define them
-                    // in `createComponentTree` as a promise that resolves to an
-                    // empty object. And here, we're creating an erroring
-                    // searchParams prop, when invoking the original function.
-                    // This ensures that used searchParams inside of cached
-                    // functions would still yield an error.
+                    // as a promise that resolves to an empty object above. And
+                    // here, we're creating an erroring searchParams prop, when
+                    // invoking the original function. This ensures that used
+                    // searchParams inside of cached functions would still yield
+                    // an error.
                     makeErroringExoticSearchParamsForUseCache(workStore),
               },
             ]),

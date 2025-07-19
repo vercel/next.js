@@ -770,13 +770,6 @@ async function createComponentTreeInternal({
         const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
           PageComponent
 
-        if (!experimental.cacheComponents) {
-          // The "use cache" wrapper takes care of converting this into an
-          // erroring search params promise when passing it to the original
-          // function.
-          searchParams = Promise.resolve({})
-        }
-
         pageElement = (
           <UseCachePageComponent
             params={params}
