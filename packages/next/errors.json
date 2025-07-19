@@ -749,5 +749,7 @@
   "748": "cacheLifeProfiles should always be provided.",
   "749": "A private cache entry must not be retrieved from the cache handler.",
   "750": "A default cacheLife profile must always be provided.",
-  "751": "%s cannot not be used outside of a request context."
+  "751": "%s cannot not be used outside of a request context.",
+  "752": "Route %s used \"connection\" inside \"use cache\". The \\`connection()\\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "753": "Route %s used \"connection\" inside \"use cache: private\". The \\`connection()\\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache"
 }
