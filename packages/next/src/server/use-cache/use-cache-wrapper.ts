@@ -989,7 +989,14 @@ export function cache(
 
       const temporaryReferences = createClientTemporaryReferenceSet()
 
-      // TODO: Include cookies in the cache key for private caches.
+      // For private caches, which are allowed to read cookies, we still don't
+      // need to include the cookies in the cache key. This is because we don't
+      // store the cache entries in a cache handler, but only in the Resume Data
+      // Cache (RDC). Private caches are only used during dynamic requests and
+      // dynamic prefetches. For dynamic requests, the RDC is immutable, so it
+      // does not include any private caches. For dynamic prefetches, the RDC is
+      // mutable, but only lives as long as the request, so the key does not
+      // need to include cookies.
       const cacheKeyParts: CacheKeyParts = hmrRefreshHash
         ? [buildId, id, args, hmrRefreshHash]
         : [buildId, id, args]
