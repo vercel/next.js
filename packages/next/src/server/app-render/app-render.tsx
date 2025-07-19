@@ -1657,10 +1657,6 @@ async function renderToHTMLOrFlightImpl(
       metadata
     )
 
-    if (workStore.invalidDynamicUsageError) {
-      throw workStore.invalidDynamicUsageError
-    }
-
     // If we have pending revalidates, wait until they are all resolved.
     if (
       workStore.pendingRevalidates ||
@@ -2449,11 +2445,12 @@ async function spawnDynamicValidationInDev(
 
   // We don't need to continue the prerender process if we already
   // detected invalid dynamic usage in the initial prerender phase.
-  if (workStore.invalidDynamicUsageError) {
+  const { invalidDynamicUsageError } = workStore
+  if (invalidDynamicUsageError) {
     resolveValidation(
       <LogSafely
         fn={() => {
-          console.error(workStore.invalidDynamicUsageError)
+          console.error(invalidDynamicUsageError)
         }}
       />
     )

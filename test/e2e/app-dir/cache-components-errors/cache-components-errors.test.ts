@@ -2050,7 +2050,7 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(pathname)
 
             if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "description": "Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
@@ -2064,7 +2064,7 @@ describe('Cache Components Errors', () => {
                }
               `)
             } else {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "description": "Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
@@ -2173,7 +2173,7 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(pathname)
 
             if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
@@ -2187,7 +2187,7 @@ describe('Cache Components Errors', () => {
                }
               `)
             } else {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
@@ -2293,7 +2293,7 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(pathname)
 
             if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "description": "Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
@@ -2307,7 +2307,7 @@ describe('Cache Components Errors', () => {
                }
               `)
             } else {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "description": "Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
@@ -2404,6 +2404,577 @@ describe('Cache Components Errors', () => {
                 `)
               }
             }
+          })
+        }
+      })
+    })
+
+    describe('With `use cache: private`', () => {
+      describe('in `unstable_cache`', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser(
+              '/use-cache-private-in-unstable-cache'
+            )
+
+            // TODO: Ideally, the error should only be shown once.
+            if (isTurbopack) {
+              await expect(browser).toDisplayRedbox(`
+               [
+                 {
+                   "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                   "environmentLabel": "Server",
+                   "label": "Console Error",
+                   "source": "app/use-cache-private-in-unstable-cache/page.tsx (16:16) @ ComponentWithCachedData
+               > 16 |   const data = await getCachedData()
+                    |                ^",
+                   "stack": [
+                     "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+                     "LogSafely <anonymous>",
+                   ],
+                 },
+                 {
+                   "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                   "environmentLabel": "Server",
+                   "label": "Runtime Error",
+                   "source": "app/use-cache-private-in-unstable-cache/page.tsx (16:16) @ ComponentWithCachedData
+               > 16 |   const data = await getCachedData()
+                    |                ^",
+                   "stack": [
+                     "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+                   ],
+                 },
+               ]
+              `)
+            } else {
+              await expect(browser).toDisplayRedbox(`
+               [
+                 {
+                   "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                   "environmentLabel": "Server",
+                   "label": "Console Error",
+                   "source": "app/use-cache-private-in-unstable-cache/page.tsx (16:16) @ ComponentWithCachedData
+               > 16 |   const data = await getCachedData()
+                    |                ^",
+                   "stack": [
+                     "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+                     "LogSafely <anonymous>",
+                   ],
+                 },
+                 {
+                   "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                   "environmentLabel": "Server",
+                   "label": "Runtime Error",
+                   "source": "app/use-cache-private-in-unstable-cache/page.tsx (16:16) @ ComponentWithCachedData
+               > 16 |   const data = await getCachedData()
+                    |                ^",
+                   "stack": [
+                     "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+                   ],
+                 },
+               ]
+              `)
+            }
+          })
+        } else {
+          it('should error the build', async () => {
+            try {
+              await prerender('/use-cache-private-in-unstable-cache')
+            } catch {
+              // we expect the build to fail
+            }
+
+            const output = getPrerenderOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            if (isTurbopack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at async ComponentWithCachedData (turbopack:///[project]/app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                   14 |
+                   15 | async function ComponentWithCachedData() {
+                 > 16 |   const data = await getCachedData()
+                      |                ^
+                   17 |
+                   18 |   return <p>{data}</p>
+                   19 | }
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at async g (turbopack:///[project]/app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                   14 |
+                   15 | async function ComponentWithCachedData() {
+                 > 16 |   const data = await getCachedData()
+                      |                ^
+                   17 |
+                   18 |   return <p>{data}</p>
+                   19 | }
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+                `)
+              }
+            } else {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at <unknown> (webpack://<next-src>)
+                     at async ComponentWithCachedData (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                   826 |           case 'unstable-cache': {
+                   827 |             // TODO: Add a link to an error documentation page when we have one.
+                 > 828 |             const error = new Error(
+                       |                           ^
+                   829 |               \`\${expression} must not be used within \\\`unstable_cache()\\\`.\`
+                   830 |             )
+                   831 |             workStore.invalidDynamicUsageError ??= error
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                     at async i (.next/server/app/use-cache-private-in-unstable-cache/page.js:1:1204)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+                `)
+              }
+            }
+          })
+        }
+      })
+
+      describe('in `use cache`', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser(
+              '/use-cache-private-in-use-cache'
+            )
+
+            // TODO: Ideally, the error should only be shown once.
+            if (isTurbopack) {
+              await expect(browser).toDisplayRedbox(`
+               [
+                 {
+                   "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+                   "environmentLabel": "Server",
+                   "label": "Console Error",
+                   "source": null,
+                   "stack": [
+                     "LogSafely <anonymous>",
+                   ],
+                 },
+                 {
+                   "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+                   "environmentLabel": "Cache",
+                   "label": "Runtime Error",
+                   "source": null,
+                   "stack": [],
+                 },
+               ]
+              `)
+            } else {
+              await expect(browser).toDisplayRedbox(`
+               [
+                 {
+                   "description": " null",
+                   "environmentLabel": "Server",
+                   "label": "Console Error",
+                   "source": null,
+                   "stack": [
+                     "LogSafely <anonymous>",
+                   ],
+                 },
+                 {
+                   "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+                   "environmentLabel": "Cache",
+                   "label": "Runtime Error",
+                   "source": null,
+                   "stack": [],
+                 },
+               ]
+              `)
+            }
+          })
+        } else {
+          it('should error the build', async () => {
+            try {
+              await prerender('/use-cache-private-in-use-cache')
+            } catch {
+              // we expect the build to fail
+            }
+
+            const output = getPrerenderOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            // TODO: Ideally, the error should only be shown once.
+            if (isTurbopack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at stringify (<anonymous>)
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at stringify (<anonymous>)
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at a (<anonymous>)
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at b (<anonymous>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
+                `)
+              }
+            } else {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at Private (webpack://<next-src>)
+                     at stringify (<anonymous>)
+                   834 |           case 'cache': {
+                   835 |             // TODO: Add a link to an error documentation page when we have one.
+                 > 836 |             const error = new Error(
+                       |                           ^
+                   837 |               \`\${expression} must not be used within "use cache". It can only be nested inside of another \${expression}.\`
+                   838 |             )
+                   839 |             workStore.invalidDynamicUsageError ??= error
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at Private (webpack://<next-src>)
+                     at stringify (<anonymous>)
+                   834 |           case 'cache': {
+                   835 |             // TODO: Add a link to an error documentation page when we have one.
+                 > 836 |             const error = new Error(
+                       |                           ^
+                   837 |               \`\${expression} must not be used within "use cache". It can only be nested inside of another \${expression}.\`
+                   838 |             )
+                   839 |             workStore.invalidDynamicUsageError ??= error
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at a (<next-dist-dir>)
+                     at b (<anonymous>)
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at c (<next-dist-dir>)
+                     at d (<anonymous>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
+                `)
+              }
+            }
+          })
+        }
+      })
+
+      describe('without Suspense', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser(
+              '/use-cache-private-without-suspense'
+            )
+
+            if (isTurbopack) {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
+               > 10 |       <Private />
+                    |       ^",
+                 "stack": [
+                   "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
+               > 10 |       <Private />
+                    |       ^",
+                 "stack": [
+                   "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            }
+          })
+        } else {
+          it('should error the build', async () => {
+            try {
+              await prerender('/use-cache-private-without-suspense')
+            } catch {
+              // we expect the build to fail
+            }
+
+            const output = getPrerenderOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            if (isTurbopack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-without-suspense/page: /use-cache-private-without-suspense"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
+                `)
+              }
+            } else {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at InnerLayoutRouter (webpack://<next-src>)
+                     at RedirectErrorBoundary (webpack://<next-src>)
+                     at RedirectBoundary (webpack://<next-src>)
+                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
+                     at LoadingBoundary (webpack://<next-src>)
+                     at ErrorBoundary (webpack://<next-src>)
+                     at InnerScrollAndFocusHandler (webpack://<next-src>)
+                     at ScrollAndFocusHandler (webpack://<next-src>)
+                     at RenderFromTemplateContext (webpack://<next-src>)
+                     at OuterLayoutRouter (webpack://<next-src>)
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at InnerLayoutRouter (webpack://<next-src>)
+                     at RedirectErrorBoundary (webpack://<next-src>)
+                     at RedirectBoundary (webpack://<next-src>)
+                     at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
+                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
+                     at LoadingBoundary (webpack://<next-src>)
+                     at ErrorBoundary (webpack://<next-src>)
+                     at InnerScrollAndFocusHandler (webpack://<next-src>)
+                     at ScrollAndFocusHandler (webpack://<next-src>)
+                     at RenderFromTemplateContext (webpack://<next-src>)
+                     at OuterLayoutRouter (webpack://<next-src>)
+                   333 |  */
+                   334 | function InnerLayoutRouter({
+                 > 335 |   tree,
+                       |   ^
+                   336 |   segmentPath,
+                   337 |   cacheNode,
+                   338 |   url,
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-without-suspense/page: /use-cache-private-without-suspense"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
+                     at e (<next-dist-dir>)
+                     at f (<next-dist-dir>)
+                     at g (<next-dist-dir>)
+                     at h (<next-dist-dir>)
+                     at i (<next-dist-dir>)
+                     at j (<next-dist-dir>)
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at k (<next-dist-dir>)
+                     at l (<next-dist-dir>)
+                     at m (<next-dist-dir>)
+                     at n (<next-dist-dir>)
+                     at o (<next-dist-dir>)
+                     at p (<next-dist-dir>)
+                     at q (<next-dist-dir>)
+                     at r (<next-dist-dir>)
+                     at s (<next-dist-dir>)
+                     at t (<next-dist-dir>)
+                     at u (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
+                `)
+              }
+            }
+          })
+        }
+      })
+
+      describe('with `connection()`', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser('/use-cache-private-connection')
+
+            if (isTurbopack) {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Route /use-cache-private-connection used "connection" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-private-connection/page.tsx (24:21) @ Private
+               > 24 |     await connection()
+                    |                     ^",
+                 "stack": [
+                   "Private app/use-cache-private-connection/page.tsx (24:21)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Route /use-cache-private-connection used "connection" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-private-connection/page.tsx (24:21) @ Private
+               > 24 |     await connection()
+                    |                     ^",
+                 "stack": [
+                   "Private app/use-cache-private-connection/page.tsx (24:21)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            }
+          })
+        } else {
+          // TODO: With prefetch sentinels this should yield a build error.
+          it('should not fail the build and show no runtime error (caught in userland)', async () => {
+            await prerender('/use-cache-private-connection')
+            await next.start({ skipBuild: true })
+
+            const browser = await next.browser(
+              '/use-cache-private-connection',
+              { pushErrorAsConsoleLog: true }
+            )
+
+            expect(await browser.elementById('private').text()).toBe('Private')
+
+            expect(await browser.log()).not.toContainEqual(
+              expect.objectContaining({ source: 'error' })
+            )
+
+            expect(next.cliOutput.slice(cliOutputLength)).not.toInclude('Error')
+          })
+        }
+      })
+
+      describe('with `headers()`', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser('/use-cache-private-headers')
+
+            if (isTurbopack) {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-private-headers/page.tsx (24:18) @ Private
+               > 24 |     await headers()
+                    |                  ^",
+                 "stack": [
+                   "Private app/use-cache-private-headers/page.tsx (24:18)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-private-headers/page.tsx (24:18) @ Private
+               > 24 |     await headers()
+                    |                  ^",
+                 "stack": [
+                   "Private app/use-cache-private-headers/page.tsx (24:18)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            }
+          })
+        } else {
+          // TODO: With prefetch sentinels this should yield a build error.
+          it('should not fail the build and show no runtime error (caught in userland)', async () => {
+            await prerender('/use-cache-private-headers')
+            await next.start({ skipBuild: true })
+            cliOutputLength = next.cliOutput.length
+
+            const browser = await next.browser('/use-cache-private-headers', {
+              pushErrorAsConsoleLog: true,
+            })
+
+            expect(await browser.elementById('private').text()).toBe('Private')
+
+            expect(await browser.log()).not.toContainEqual(
+              expect.objectContaining({ source: 'error' })
+            )
+
+            expect(next.cliOutput.slice(cliOutputLength)).not.toInclude('Error')
           })
         }
       })

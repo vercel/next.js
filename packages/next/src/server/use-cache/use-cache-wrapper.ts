@@ -828,7 +828,7 @@ export function cache(
             const error = new Error(
               `${expression} must not be used within \`unstable_cache()\`.`
             )
-            workStore.invalidDynamicUsageError = error
+            workStore.invalidDynamicUsageError ??= error
             throw error
           }
           case 'cache': {
@@ -836,7 +836,7 @@ export function cache(
             const error = new Error(
               `${expression} must not be used within "use cache". It can only be nested inside of another ${expression}.`
             )
-            workStore.invalidDynamicUsageError = error
+            workStore.invalidDynamicUsageError ??= error
             throw error
           }
           case 'request':
