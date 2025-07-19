@@ -761,12 +761,19 @@ export function cache(
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>
 ) {
-  const cacheHandler = getCacheHandler(kind)
-  if (cacheHandler === undefined) {
+  const isPrivate = kind === 'private'
+
+  // Private caches are currently only stored in the Resume Data Cache (RDC),
+  // and not in cache handlers.
+  const cacheHandler = isPrivate ? undefined : getCacheHandler(kind)
+
+  if (!isPrivate && !cacheHandler) {
     throw new Error('Unknown cache handler: ' + kind)
   }
 
   // Capture the timeout error here to ensure a useful stack.
+  // TODO: Capture a general error stack here, to be used for all errors we
+  // throw in the cache function.
   const timeoutError = new UseCacheTimeoutError()
   Error.captureStackTrace(timeoutError, cache)
 
@@ -786,7 +793,7 @@ export function cache(
 
       let cacheContext: CacheContext
 
-      if (kind === 'private') {
+      if (isPrivate) {
         const expression = '"use cache: private"'
 
         if (!workUnitStore) {
@@ -1163,12 +1170,8 @@ export function cache(
 
         let entry: CacheEntry | undefined
 
-        if (
-          // We don't store private cache entries in the cache handler.
-          cacheContext.kind !== 'private' &&
-          // And we ignore existing cache entries when force revalidating.
-          !shouldForceRevalidate(workStore, workUnitStore)
-        ) {
+        // We ignore existing cache entries when force revalidating.
+        if (cacheHandler && !shouldForceRevalidate(workStore, workUnitStore)) {
           entry = await cacheHandler.get(
             serializedCacheKey,
             workUnitStore?.implicitTags?.tags ?? []
@@ -1307,8 +1310,7 @@ export function cache(
               savedCacheEntry = pendingCacheEntry
             }
 
-            // We don't save private cache entries in the cache handler.
-            if (cacheContext.kind !== 'private') {
+            if (cacheHandler) {
               const promise = cacheHandler.set(
                 serializedCacheKey,
                 savedCacheEntry
@@ -1384,13 +1386,15 @@ export function cache(
                 savedCacheEntry = pendingCacheEntry
               }
 
-              const promise = cacheHandler.set(
-                serializedCacheKey,
-                savedCacheEntry
-              )
+              if (cacheHandler) {
+                const promise = cacheHandler.set(
+                  serializedCacheKey,
+                  savedCacheEntry
+                )
 
-              workStore.pendingRevalidateWrites ??= []
-              workStore.pendingRevalidateWrites.push(promise)
+                workStore.pendingRevalidateWrites ??= []
+                workStore.pendingRevalidateWrites.push(promise)
+              }
 
               await ignoredStream.cancel()
             }
