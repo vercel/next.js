@@ -20,7 +20,7 @@ describe('use-cache-private', () => {
   })
 
   it('allows reading cookies in private caches', async () => {
-    const browser = await next.browser('/with-cookies')
+    const browser = await next.browser('/cookies')
 
     expect(await browser.elementById('test-cookie').text()).toBe('')
 
@@ -28,5 +28,15 @@ describe('use-cache-private', () => {
     await browser.refresh()
 
     expect(await browser.elementById('test-cookie').text()).toBe('foo')
+  })
+
+  it('allows reading search params in private caches', async () => {
+    const browser = await next.browser('/search-params?q=foo')
+
+    expect(await browser.elementById('search-param').text()).toBe('foo')
+
+    await browser.loadPage(new URL('/search-params?q=bar', next.url).href)
+
+    expect(await browser.elementById('search-param').text()).toBe('bar')
   })
 })
