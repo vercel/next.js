@@ -2,6 +2,8 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { assertNoErrorToast } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
 
+const isRspack = process.env.NEXT_RSPACK !== undefined
+
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
@@ -2434,6 +2436,22 @@ describe('Cache Components Errors', () => {
                  ],
                }
               `)
+            } else if (isRspack) {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
+               > 21 | const getCachedData = unstable_cache(async () => {
+                    |                                      ^",
+                 "stack": [
+                   "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "<FIXME-next-dist-dir>",
+                   "<FIXME-next-dist-dir>",
+                 ],
+               }
+              `)
             } else {
               await expect(browser).toDisplayRedbox(`
                {
@@ -2558,6 +2576,22 @@ describe('Cache Components Errors', () => {
                    "[project]/app/use-cache-private-in-use-cache/page.tsx [app-rsc] (ecmascript) app/use-cache-private-in-use-cache/page.tsx (15:1)",
                    "<FIXME-file-protocol>",
                    "<FIXME-file-protocol>",
+                   "<FIXME-next-dist-dir>",
+                 ],
+               }
+              `)
+            } else if (isRspack) {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ eval
+               > 15 | async function Private() {
+                    | ^",
+                 "stack": [
+                   "eval app/use-cache-private-in-use-cache/page.tsx (15:1)",
+                   "<FIXME-next-dist-dir>",
                    "<FIXME-next-dist-dir>",
                  ],
                }
