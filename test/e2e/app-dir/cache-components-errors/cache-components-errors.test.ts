@@ -213,30 +213,30 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at a (bundler://<next-src>)
+                   at b (bundler://<next-src>)
+                   at c (bundler://<next-src>)
+                   at d (bundler://<next-src>)
+                   at e (bundler://<next-src>)
+                   at f (bundler://<next-src>)
+                   at g (bundler://<next-src>)
+                   at h (bundler://<next-src>)
+                   at i (bundler://<next-src>)
+                   at j (bundler://<next-src>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at k (bundler://<next-src>)
+                   at l (bundler://<next-src>)
+                   at m (bundler://<next-src>)
+                   at n (bundler://<next-src>)
+                   at o (bundler://<next-src>)
+                   at p (bundler://<next-src>)
+                   at q (bundler://<next-src>)
+                   at r (bundler://<next-src>)
+                   at s (bundler://<next-src>)
+                   at t (bundler://<next-src>)
+                   at u (bundler://<next-src>)
                  333 |  */
                  334 | function InnerLayoutRouter({
                > 335 |   tree,
@@ -632,7 +632,7 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at IndirectionTwo (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:34)
+                   at a (bundler:///app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -657,7 +657,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at c (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:34)
+                   at a (bundler:///app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -686,31 +686,31 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at IndirectionTwo (webpack:///app/dynamic-root/indirection.tsx:7:34)
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at a (bundler:///app/dynamic-root/indirection.tsx:7:34)
+                   at b (bundler://<next-src>)
+                   at c (bundler://<next-src>)
+                   at d (bundler://<next-src>)
+                   at e (bundler://<next-src>)
+                   at f (bundler://<next-src>)
+                   at g (bundler://<next-src>)
+                   at h (bundler://<next-src>)
+                   at i (bundler://<next-src>)
+                   at j (bundler://<next-src>)
+                   at k (bundler://<next-src>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at l (bundler://<next-src>)
+                   at m (bundler://<next-src>)
+                   at n (bundler://<next-src>)
+                   at o (bundler://<next-src>)
+                   at p (bundler://<next-src>)
+                   at q (bundler://<next-src>)
+                   at r (bundler://<next-src>)
+                   at s (bundler://<next-src>)
+                   at t (bundler://<next-src>)
+                   at u (bundler://<next-src>)
+                   at v (bundler://<next-src>)
                   5 | }
                   6 |
                >  7 | export function IndirectionTwo({ children }) {
@@ -720,30 +720,30 @@ describe('Cache Components Errors', () => {
                  10 |
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at w (bundler://<next-src>)
+                   at x (bundler://<next-src>)
+                   at y (bundler://<next-src>)
+                   at z (bundler://<next-src>)
+                   at a (bundler://<next-src>)
+                   at b (bundler://<next-src>)
+                   at c (bundler://<next-src>)
+                   at d (bundler://<next-src>)
+                   at e (bundler://<next-src>)
+                   at f (bundler://<next-src>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at g (bundler://<next-src>)
+                   at h (bundler://<next-src>)
+                   at i (bundler://<next-src>)
+                   at j (bundler://<next-src>)
+                   at k (bundler://<next-src>)
+                   at l (bundler://<next-src>)
+                   at m (bundler://<next-src>)
+                   at n (bundler://<next-src>)
+                   at o (bundler://<next-src>)
+                   at p (bundler://<next-src>)
+                   at q (bundler://<next-src>)
                  333 |  */
                  334 | function InnerLayoutRouter({
                > 335 |   tree,
@@ -926,8 +926,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at getRandomNumber (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:15)
-                     at RandomReadingComponent (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:40:18)
+                     at a (bundler:///app/sync-random-without-fallback/page.tsx:32:15)
+                     at b (bundler:///app/sync-random-without-fallback/page.tsx:40:18)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -944,7 +944,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at f (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:15)
+                     at a (bundler:///app/sync-random-without-fallback/page.tsx:32:15)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -963,8 +963,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:15)
-                     at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:18)
+                     at a (bundler:///app/sync-random-without-fallback/page.tsx:32:15)
+                     at b (bundler:///app/sync-random-without-fallback/page.tsx:40:18)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -1187,7 +1187,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (turbopack:///[project]/app/sync-cookies/page.tsx:17:67)
+                     at a (bundler:///app/sync-cookies/page.tsx:17:67)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
@@ -1206,8 +1206,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at e (turbopack:///[project]/app/sync-cookies/page.tsx:17:67)
-                     at a (<anonymous>)
+                     at a (bundler:///app/sync-cookies/page.tsx:17:67)
+                     at b (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
                  > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
@@ -1225,7 +1225,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (webpack:///app/sync-cookies/page.tsx:17:67)
+                     at a (bundler:///app/sync-cookies/page.tsx:17:67)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
@@ -1412,7 +1412,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (turbopack:///[project]/app/sync-headers/page.tsx:17:70)
+                     at a (bundler:///app/sync-headers/page.tsx:17:70)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
@@ -1431,8 +1431,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at e (turbopack:///[project]/app/sync-headers/page.tsx:17:70)
-                     at a (<anonymous>)
+                     at a (bundler:///app/sync-headers/page.tsx:17:70)
+                     at b (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
                  > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
@@ -1450,7 +1450,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (webpack:///app/sync-headers/page.tsx:17:70)
+                     at a (bundler:///app/sync-headers/page.tsx:17:70)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
@@ -1665,7 +1665,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at a (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1682,7 +1682,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at a (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1701,7 +1701,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at a (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1831,40 +1831,40 @@ describe('Cache Components Errors', () => {
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                      at section (<anonymous>)
                      at main (<anonymous>)
-                     at InnerLayoutRouter (webpack://<next-src>)
-                     at RedirectErrorBoundary (webpack://<next-src>)
-                     at RedirectBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                     at LoadingBoundary (webpack://<next-src>)
-                     at ErrorBoundary (webpack://<next-src>)
-                     at InnerScrollAndFocusHandler (webpack://<next-src>)
-                     at ScrollAndFocusHandler (webpack://<next-src>)
+                     at a (bundler://<next-src>)
+                     at b (bundler://<next-src>)
+                     at c (bundler://<next-src>)
+                     at d (bundler://<next-src>)
+                     at e (bundler://<next-src>)
+                     at f (bundler://<next-src>)
+                     at g (bundler://<next-src>)
+                     at h (bundler://<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
-                     at OuterLayoutRouter (webpack://<next-src>)
+                     at i (bundler://<next-src>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at InnerLayoutRouter (webpack://<next-src>)
-                     at RedirectErrorBoundary (webpack://<next-src>)
-                     at RedirectBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                     at LoadingBoundary (webpack://<next-src>)
-                     at ErrorBoundary (webpack://<next-src>)
-                     at InnerScrollAndFocusHandler (webpack://<next-src>)
-                     at ScrollAndFocusHandler (webpack://<next-src>)
+                     at j (bundler://<next-src>)
+                     at k (bundler://<next-src>)
+                     at l (bundler://<next-src>)
+                     at m (bundler://<next-src>)
+                     at n (bundler://<next-src>)
+                     at o (bundler://<next-src>)
+                     at p (bundler://<next-src>)
+                     at q (bundler://<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
-                     at OuterLayoutRouter (webpack://<next-src>)
-                     at InnerLayoutRouter (webpack://<next-src>)
-                     at RedirectErrorBoundary (webpack://<next-src>)
-                     at RedirectBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                     at LoadingBoundary (webpack://<next-src>)
-                     at ErrorBoundary (webpack://<next-src>)
-                     at InnerScrollAndFocusHandler (webpack://<next-src>)
-                     at ScrollAndFocusHandler (webpack://<next-src>)
+                     at r (bundler://<next-src>)
+                     at s (bundler://<next-src>)
+                     at t (bundler://<next-src>)
+                     at u (bundler://<next-src>)
+                     at v (bundler://<next-src>)
+                     at w (bundler://<next-src>)
+                     at x (bundler://<next-src>)
+                     at y (bundler://<next-src>)
+                     at z (bundler://<next-src>)
+                     at a (bundler://<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
-                     at OuterLayoutRouter (webpack://<next-src>)
+                     at b (bundler://<next-src>)
                    333 |  */
                    334 | function InnerLayoutRouter({
                  > 335 |   tree,
@@ -1974,7 +1974,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at a (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1991,7 +1991,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at a (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2010,7 +2010,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at a (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2096,7 +2096,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at CookiesReadingComponent (turbopack:///[project]/app/use-cache-cookies/page.tsx:22:18)
+                     at a (bundler:///app/use-cache-cookies/page.tsx:22:18)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
@@ -2113,7 +2113,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at <unknown> (turbopack:///[project]/app/use-cache-cookies/page.tsx:22:11)
+                     at a (bundler:///app/use-cache-cookies/page.tsx:22:11)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
@@ -2132,8 +2132,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at CookiesReadingComponent (webpack:///app/use-cache-cookies/page.tsx:22:18)
-                     at <unknown> (webpack://<next-src>)
+                     at a (bundler:///app/use-cache-cookies/page.tsx:22:18)
+                     at b (bundler://<next-src>)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
@@ -2219,7 +2219,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at DraftModeEnablingComponent (turbopack:///[project]/app/use-cache-draft-mode/page.tsx:20:26)
+                     at a (bundler:///app/use-cache-draft-mode/page.tsx:20:26)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
                    19 |   try {
                  > 20 |     ;(await draftMode()).enable()
@@ -2236,7 +2236,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at <unknown> (turbopack:///[project]/app/use-cache-draft-mode/page.tsx:20:26)
+                     at a (bundler:///app/use-cache-draft-mode/page.tsx:20:26)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
                    19 |   try {
                  > 20 |     ;(await draftMode()).enable()
@@ -2255,7 +2255,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at DraftModeEnablingComponent (webpack:///app/use-cache-draft-mode/page.tsx:20:26)
+                     at a (bundler:///app/use-cache-draft-mode/page.tsx:20:26)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
                    19 |   try {
                  > 20 |     ;(await draftMode()).enable()
@@ -2339,7 +2339,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at HeadersReadingComponent (turbopack:///[project]/app/use-cache-headers/page.tsx:21:18)
+                     at a (bundler:///app/use-cache-headers/page.tsx:21:18)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
@@ -2356,7 +2356,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at <unknown> (turbopack:///[project]/app/use-cache-headers/page.tsx:21:11)
+                     at a (bundler:///app/use-cache-headers/page.tsx:21:11)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
@@ -2375,8 +2375,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at HeadersReadingComponent (webpack:///app/use-cache-headers/page.tsx:21:18)
-                     at <unknown> (webpack://<next-src>)
+                     at a (bundler:///app/use-cache-headers/page.tsx:21:18)
+                     at b (bundler://<next-src>)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
@@ -2501,9 +2501,9 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at 45162 (turbopack:///[project]/app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at 15642 (.next/server/chunks/ssr/[root-of-the-server]__2782b5a0._.js:111:68)
-                     at Object.<anonymous> (.next/server/app/use-cache-private-in-unstable-cache/page.js:20:9)
+                     at a (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -2520,8 +2520,8 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at 45162 (turbopack:///[project]/app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at a (<next-dist-dir>)
+                     at a (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at b (<next-dist-dir>)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -2540,7 +2540,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at 85776 (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at a (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -2663,9 +2663,9 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at 99469 (turbopack:///[project]/app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at 58258 (.next/server/chunks/ssr/[root-of-the-server]__14f7067b._.js:154:68)
-                     at Object.<anonymous> (.next/server/app/use-cache-private-in-use-cache/page.js:19:9)
+                     at a (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2674,9 +2674,9 @@ describe('Cache Components Errors', () => {
                    17 |
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at 99469 (turbopack:///[project]/app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at 58258 (.next/server/chunks/ssr/[root-of-the-server]__14f7067b._.js:154:68)
-                     at Object.<anonymous> (.next/server/app/use-cache-private-in-use-cache/page.js:19:9)
+                     at d (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at e (<next-dist-dir>)
+                     at f (<next-dist-dir>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2693,9 +2693,9 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at 99469 (turbopack:///[project]/app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at 58258 (turbopack:///[project]/app/use-cache-private-in-use-cache/page.tsx:15:16)
-                     at a (<next-dist-dir>)
+                     at a (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at b (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:16)
+                     at c (<next-dist-dir>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2704,9 +2704,9 @@ describe('Cache Components Errors', () => {
                    17 |
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at 99469 (turbopack:///[project]/app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at 58258 (turbopack:///[project]/app/use-cache-private-in-use-cache/page.tsx:15:16)
-                     at b (<next-dist-dir>)
+                     at d (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at e (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:16)
+                     at f (<next-dist-dir>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2725,7 +2725,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at 47983 (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at a (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2734,7 +2734,7 @@ describe('Cache Components Errors', () => {
                    17 |
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at 47983 (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at b (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2850,30 +2850,30 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                     at InnerLayoutRouter (webpack://<next-src>)
-                     at RedirectErrorBoundary (webpack://<next-src>)
-                     at RedirectBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                     at LoadingBoundary (webpack://<next-src>)
-                     at ErrorBoundary (webpack://<next-src>)
-                     at InnerScrollAndFocusHandler (webpack://<next-src>)
-                     at ScrollAndFocusHandler (webpack://<next-src>)
-                     at RenderFromTemplateContext (webpack://<next-src>)
-                     at OuterLayoutRouter (webpack://<next-src>)
+                     at a (bundler://<next-src>)
+                     at b (bundler://<next-src>)
+                     at c (bundler://<next-src>)
+                     at d (bundler://<next-src>)
+                     at e (bundler://<next-src>)
+                     at f (bundler://<next-src>)
+                     at g (bundler://<next-src>)
+                     at h (bundler://<next-src>)
+                     at i (bundler://<next-src>)
+                     at j (bundler://<next-src>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at InnerLayoutRouter (webpack://<next-src>)
-                     at RedirectErrorBoundary (webpack://<next-src>)
-                     at RedirectBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                     at LoadingBoundary (webpack://<next-src>)
-                     at ErrorBoundary (webpack://<next-src>)
-                     at InnerScrollAndFocusHandler (webpack://<next-src>)
-                     at ScrollAndFocusHandler (webpack://<next-src>)
-                     at RenderFromTemplateContext (webpack://<next-src>)
-                     at OuterLayoutRouter (webpack://<next-src>)
+                     at k (bundler://<next-src>)
+                     at l (bundler://<next-src>)
+                     at m (bundler://<next-src>)
+                     at n (bundler://<next-src>)
+                     at o (bundler://<next-src>)
+                     at p (bundler://<next-src>)
+                     at q (bundler://<next-src>)
+                     at r (bundler://<next-src>)
+                     at s (bundler://<next-src>)
+                     at t (bundler://<next-src>)
+                     at u (bundler://<next-src>)
                    333 |  */
                    334 | function InnerLayoutRouter({
                  > 335 |   tree,

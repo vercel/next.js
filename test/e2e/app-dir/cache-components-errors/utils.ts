@@ -14,6 +14,9 @@ export function getPrerenderOutput(
   const replaceNextDistStackFrame = () =>
     `at ${abc[i++ % abc.length]} (<next-dist-dir>)`
 
+  const replaceBundlerProtocolStackFrame = () =>
+    `at ${abc[i++ % abc.length]} (bundler://`
+
   const replaceAnonymousStackFrame = (_m, name) => {
     const deterministicName = hostElementsUsedInFixtures.includes(name)
       ? name
@@ -37,15 +40,24 @@ export function getPrerenderOutput(
       !ignoredLines.some((ignoredLine) => line.includes(ignoredLine))
     ) {
       if (isMinified) {
-        line = line
-          .replace(/at \S+ \(.next[^)]+\)/, replaceNextDistStackFrame)
-          .replace(/at (\S+) \(<anonymous>\)/, replaceAnonymousStackFrame)
+        line = line.replace(
+          /at (\S+) \(<anonymous>\)/,
+          replaceAnonymousStackFrame
+        )
       } else {
         line = line.replace(
           /at (\S+) \((webpack:\/\/)\/src[^)]+\)/,
           `at $1 ($2<next-src>)`
         )
       }
+
+      line = line.replace(/at \S+ \(.next[^)]+\)/, replaceNextDistStackFrame)
+
+      // TODO(veil): Bundler protocols should not appear in stack frames.
+      line = line.replace(
+        /at \S+ \((webpack:\/\/|turbopack:\/\/\/\[project\])/,
+        replaceBundlerProtocolStackFrame
+      )
 
       line = line
         .replace(/digest: '\d+'/, "digest: '<error-digest>'")
