@@ -283,22 +283,14 @@ export default class NextWebServer extends BaseServer<
       )
     }
 
-    let promise: Promise<void> | undefined
-    if (options.result.isDynamic) {
-      promise = options.result.pipeTo(res.transformStream.writable)
-    } else {
-      const payload = options.result.toUnchunkedString()
-      res.setHeader('Content-Length', String(byteLength(payload)))
-      if (options.generateEtags) {
-        res.setHeader('ETag', generateETag(payload))
-      }
-      res.body(payload)
+    const payload = options.result.toUnchunkedString()
+    res.setHeader('Content-Length', String(byteLength(payload)))
+    if (options.generateEtags) {
+      res.setHeader('ETag', generateETag(payload))
     }
+    res.body(payload)
 
     res.send()
-
-    // If we have a promise, wait for it to resolve.
-    if (promise) await promise
   }
 
   protected async findPageComponents({
