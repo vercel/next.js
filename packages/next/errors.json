@@ -728,5 +728,8 @@
   "727": "Route %s couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/cache-components",
   "728": "CacheSignal cannot be used in the edge runtime, because `cacheComponents` does not support it.",
   "729": "\\`experimental.ppr\\` can not be \\`%s\\` when \\`experimental.cacheComponents\\` is \\`true\\`. PPR is implicitly enabled when Cache Components is enabled.",
-  "730": "Dynamic imports should not be instrumented in the edge runtime, because `cacheComponents` doesn't support it"
+  "730": "Dynamic imports should not be instrumented in the edge runtime, because `cacheComponents` doesn't support it",
+  "731": "chainStreams requires at least one stream",
+  "732": "dynamic responses cannot be unchunked. This is a bug in Next.js",
+  "733": "null responses cannot be unchunked"
 }

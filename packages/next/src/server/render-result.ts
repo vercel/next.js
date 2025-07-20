@@ -11,8 +11,19 @@ import {
 } from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
 import type { RenderResumeDataCache } from './resume-data-cache/resume-data-cache'
+import { InvariantError } from '../shared/lib/invariant-error'
+import type {
+  HTML_CONTENT_TYPE_HEADER,
+  JSON_CONTENT_TYPE_HEADER,
+  TEXT_PLAIN_CONTENT_TYPE_HEADER,
+} from '../lib/constants'
+import type { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
 
-type ContentTypeOption = string | undefined
+type ContentTypeOption =
+  | typeof RSC_CONTENT_TYPE_HEADER // For App Page RSC responses
+  | typeof HTML_CONTENT_TYPE_HEADER // For App Page, Pages HTML responses
+  | typeof JSON_CONTENT_TYPE_HEADER // For API routes, Next.js data requests
+  | typeof TEXT_PLAIN_CONTENT_TYPE_HEADER // For simplified errors
 
 export type AppPageRenderResultMetadata = {
   flightData?: Buffer
@@ -70,7 +81,7 @@ export type RenderResultResponse =
 export type RenderResultOptions<
   Metadata extends RenderResultMetadata = RenderResultMetadata,
 > = {
-  contentType?: ContentTypeOption
+  contentType: ContentTypeOption | null
   waitUntil?: Promise<unknown>
   metadata: Metadata
 }
@@ -82,7 +93,7 @@ export default class RenderResult<
    * The detected content type for the response. This is used to set the
    * `Content-Type` header.
    */
-  public readonly contentType: ContentTypeOption
+  public readonly contentType: ContentTypeOption | null
 
   /**
    * The metadata for the response. This is used to set the revalidation times
@@ -99,13 +110,29 @@ export default class RenderResult<
   private response: RenderResultResponse
 
   /**
+   * A render result that represents an empty response. This is used to
+   * represent a response that was not found or was already sent.
+   */
+  public static readonly EMPTY = new RenderResult<StaticRenderResultMetadata>(
+    null,
+    { metadata: {}, contentType: null }
+  )
+
+  /**
    * Creates a new RenderResult instance from a static response.
    *
    * @param value the static response value
+   * @param contentType the content type of the response
    * @returns a new RenderResult instance
    */
-  public static fromStatic(value: string | Buffer) {
-    return new RenderResult<StaticRenderResultMetadata>(value, { metadata: {} })
+  public static fromStatic(
+    value: string | Buffer,
+    contentType: ContentTypeOption
+  ) {
+    return new RenderResult<StaticRenderResultMetadata>(value, {
+      metadata: {},
+      contentType,
+    })
   }
 
   private readonly waitUntil?: Promise<unknown>
@@ -144,13 +171,13 @@ export default class RenderResult<
   public toUnchunkedBuffer(stream: true): Promise<Buffer>
   public toUnchunkedBuffer(stream = false): Promise<Buffer> | Buffer {
     if (this.response === null) {
-      throw new Error('Invariant: null responses cannot be unchunked')
+      throw new InvariantError('null responses cannot be unchunked')
     }
 
     if (typeof this.response !== 'string') {
       if (!stream) {
-        throw new Error(
-          'Invariant: dynamic responses cannot be unchunked. This is a bug in Next.js'
+        throw new InvariantError(
+          'dynamic responses cannot be unchunked. This is a bug in Next.js'
         )
       }
 
@@ -171,13 +198,13 @@ export default class RenderResult<
   public toUnchunkedString(stream: true): Promise<string>
   public toUnchunkedString(stream = false): Promise<string> | string {
     if (this.response === null) {
-      throw new Error('Invariant: null responses cannot be unchunked')
+      throw new InvariantError('null responses cannot be unchunked')
     }
 
     if (typeof this.response !== 'string') {
       if (!stream) {
-        throw new Error(
-          'Invariant: dynamic responses cannot be unchunked. This is a bug in Next.js'
+        throw new InvariantError(
+          'dynamic responses cannot be unchunked. This is a bug in Next.js'
         )
       }
 
@@ -188,15 +215,21 @@ export default class RenderResult<
   }
 
   /**
-   * Returns the response if it is a stream, or throws an error if it is a
-   * string.
+   * Returns a readable stream of the response.
    */
   private get readable(): ReadableStream<Uint8Array> {
     if (this.response === null) {
-      throw new Error('Invariant: null responses cannot be streamed')
+      // If the response is null, return an empty stream. This behavior is
+      // intentional as we're now providing the `RenderResult.EMPTY` value.
+      return new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.close()
+        },
+      })
     }
+
     if (typeof this.response === 'string') {
-      throw new Error('Invariant: static responses cannot be streamed')
+      return streamFromString(this.response)
     }
 
     if (Buffer.isBuffer(this.response)) {

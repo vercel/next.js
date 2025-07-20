@@ -105,6 +105,7 @@ import {
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_IS_PRERENDER_HEADER,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -124,6 +125,8 @@ import { sendResponse } from './send-response'
 import { normalizeNextQueryParam } from './web/utils'
 import {
   CACHE_ONE_YEAR,
+  HTML_CONTENT_TYPE_HEADER,
+  JSON_CONTENT_TYPE_HEADER,
   MATCHED_PATH_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
@@ -314,7 +317,6 @@ export class WrappedBuildError extends Error {
 }
 
 type ResponsePayload = {
-  type: 'html' | 'json' | 'rsc'
   body: RenderResult
   cacheControl?: CacheControl
 }
@@ -391,7 +393,6 @@ export default abstract class Server<
     res: ServerResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
@@ -1811,7 +1812,7 @@ export default abstract class Server<
     }
     const { req, res } = ctx
     const originalStatus = res.statusCode
-    const { body, type } = payload
+    const { body } = payload
     let { cacheControl } = payload
     if (!res.sent) {
       const { generateEtags, poweredByHeader, dev } = this.renderOpts
@@ -1828,7 +1829,6 @@ export default abstract class Server<
 
       await this.sendRenderResult(req, res, {
         result: body,
-        type,
         generateEtags,
         poweredByHeader,
         cacheControl,
@@ -2332,9 +2332,10 @@ export default abstract class Server<
     // handle static page
     if (typeof components.Component === 'string') {
       return {
-        type: 'html',
-        // TODO: Static pages should be serialized as RenderResult
-        body: RenderResult.fromStatic(components.Component),
+        body: RenderResult.fromStatic(
+          components.Component,
+          HTML_CONTENT_TYPE_HEADER
+        ),
       }
     }
 
@@ -3129,7 +3130,7 @@ export default abstract class Server<
           cacheControl: { revalidate: 1, expire: undefined },
           value: {
             kind: CachedRouteKind.PAGES,
-            html: RenderResult.fromStatic(''),
+            html: RenderResult.EMPTY,
             pageData: {},
             headers: undefined,
             status: undefined,
@@ -3365,8 +3366,10 @@ export default abstract class Server<
       if (matchedSegment !== undefined) {
         // Cache hit
         return {
-          type: 'rsc',
-          body: RenderResult.fromStatic(matchedSegment),
+          body: RenderResult.fromStatic(
+            matchedSegment,
+            RSC_CONTENT_TYPE_HEADER
+          ),
           // TODO: Eventually this should use cache control of the individual
           // segment, not the whole page.
           cacheControl: cacheEntry.cacheControl,
@@ -3381,8 +3384,7 @@ export default abstract class Server<
       // issued as part of a prefetch.
       res.statusCode = 204
       return {
-        type: 'rsc',
-        body: RenderResult.fromStatic(''),
+        body: RenderResult.EMPTY,
         cacheControl: cacheEntry?.cacheControl,
       }
     }
@@ -3456,10 +3458,9 @@ export default abstract class Server<
 
       if (isNextDataRequest) {
         return {
-          type: 'json',
           body: RenderResult.fromStatic(
-            // @TODO: Handle flight data.
-            JSON.stringify(cachedData.props)
+            JSON.stringify(cachedData.props),
+            JSON_CONTENT_TYPE_HEADER
           ),
           cacheControl: cacheEntry.cacheControl,
         }
@@ -3543,7 +3544,6 @@ export default abstract class Server<
           }
 
           return {
-            type: 'rsc',
             body: cachedData.html,
             // Dynamic RSC responses cannot be cached, even if they're
             // configured with `force-static` because we have no way of
@@ -3559,8 +3559,10 @@ export default abstract class Server<
         // As this isn't a prefetch request, we should serve the static flight
         // data.
         return {
-          type: 'rsc',
-          body: RenderResult.fromStatic(cachedData.rscData),
+          body: RenderResult.fromStatic(
+            cachedData.rscData,
+            RSC_CONTENT_TYPE_HEADER
+          ),
           cacheControl: cacheEntry.cacheControl,
         }
       }
@@ -3573,7 +3575,6 @@ export default abstract class Server<
       // as a server render (rather than a static render).
       if (!didPostpone || this.minimalMode) {
         return {
-          type: 'html',
           body,
           cacheControl: cacheEntry.cacheControl,
         }
@@ -3596,7 +3597,6 @@ export default abstract class Server<
         )
 
         return {
-          type: 'html',
           body,
           cacheControl: { revalidate: 0, expire: undefined },
         }
@@ -3641,7 +3641,6 @@ export default abstract class Server<
         })
 
       return {
-        type: 'html',
         body,
         // We don't want to cache the response if it has postponed data because
         // the response being sent to the client it's dynamic parts are streamed
@@ -3650,13 +3649,14 @@ export default abstract class Server<
       }
     } else if (isNextDataRequest) {
       return {
-        type: 'json',
-        body: RenderResult.fromStatic(JSON.stringify(cachedData.pageData)),
+        body: RenderResult.fromStatic(
+          JSON.stringify(cachedData.pageData),
+          JSON_CONTENT_TYPE_HEADER
+        ),
         cacheControl: cacheEntry.cacheControl,
       }
     } else {
       return {
-        type: 'html',
         body: cachedData.html,
         cacheControl: cacheEntry.cacheControl,
       }
@@ -3891,7 +3891,7 @@ export default abstract class Server<
         `${locale ? `/${locale}` : ''}${pathname}`
       )
       res.statusCode = 200
-      res.setHeader('content-type', 'application/json')
+      res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.body('{}')
       res.send()
       return null
@@ -3989,8 +3989,7 @@ export default abstract class Server<
     // Since favicon.ico is automatically requested by the browser.
     if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
       return {
-        type: 'html',
-        body: RenderResult.fromStatic(''),
+        body: RenderResult.EMPTY,
       }
     }
     const { res, query } = ctx
@@ -4083,7 +4082,6 @@ export default abstract class Server<
         // which is handled in the parent process in development
         if (this.renderOpts.dev) {
           return {
-            type: 'html',
             // wait for dev-server to restart before refreshing
             body: RenderResult.fromStatic(
               `
@@ -4099,7 +4097,8 @@ export default abstract class Server<
                   }
                 }
                 check()
-              </script>`
+              </script>`,
+              HTML_CONTENT_TYPE_HEADER
             ),
           }
         }
@@ -4177,8 +4176,7 @@ export default abstract class Server<
         )
       }
       return {
-        type: 'html',
-        body: RenderResult.fromStatic('Internal Server Error'),
+        body: RenderResult.fromStatic('Internal Server Error', 'text/plain'),
       }
     }
   }

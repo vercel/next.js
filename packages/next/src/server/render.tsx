@@ -51,6 +51,8 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
+  HTML_CONTENT_TYPE_HEADER,
+  JSON_CONTENT_TYPE_HEADER,
 } from '../lib/constants'
 import {
   NEXT_BUILTIN_DOCUMENT,
@@ -1063,7 +1065,10 @@ export async function renderToHTMLImpl(
 
     // this must come after revalidate is added to renderResultMeta
     if (metadata.isNotFound) {
-      return new RenderResult(null, { metadata })
+      return new RenderResult(null, {
+        metadata,
+        contentType: null,
+      })
     }
   }
 
@@ -1179,7 +1184,10 @@ export async function renderToHTMLImpl(
       }
 
       metadata.isNotFound = true
-      return new RenderResult(null, { metadata })
+      return new RenderResult(null, {
+        metadata,
+        contentType: null,
+      })
     }
 
     if ('redirect' in data && typeof data.redirect === 'object') {
@@ -1229,6 +1237,7 @@ export async function renderToHTMLImpl(
   if ((isNextDataRequest && !isSSG) || metadata.isRedirect) {
     return new RenderResult(JSON.stringify(props), {
       metadata,
+      contentType: JSON_CONTENT_TYPE_HEADER,
     })
   }
 
@@ -1239,7 +1248,7 @@ export async function renderToHTMLImpl(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSSG) return new RenderResult(null, { metadata })
+  if (isResSent(res) && !isSSG) return RenderResult.EMPTY
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
@@ -1453,7 +1462,10 @@ export async function renderToHTMLImpl(
     async () => renderDocument()
   )
   if (!documentResult) {
-    return new RenderResult(null, { metadata })
+    return new RenderResult(null, {
+      metadata,
+      contentType: HTML_CONTENT_TYPE_HEADER,
+    })
   }
 
   const dynamicImportsIds = new Set<string | number>()
@@ -1608,7 +1620,10 @@ export async function renderToHTMLImpl(
     hybridAmp,
   })
 
-  return new RenderResult(optimizedHtml, { metadata })
+  return new RenderResult(optimizedHtml, {
+    metadata,
+    contentType: HTML_CONTENT_TYPE_HEADER,
+  })
 }
 
 export type PagesRender = (

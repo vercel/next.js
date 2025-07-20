@@ -10,6 +10,7 @@ import {
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 import { insertBuildIdComment } from '../../shared/lib/segment-cache/output-export-prefetch-encoding'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -32,7 +33,7 @@ export function chainStreams<T>(
   // We could encode this invariant in the arguments but current uses of this function pass
   // use spread so it would be missed by
   if (streams.length === 0) {
-    throw new Error('Invariant: chainStreams requires at least one stream')
+    throw new InvariantError('chainStreams requires at least one stream')
   }
 
   // If we only have 1 stream we fast path it by returning just this stream

@@ -173,7 +173,7 @@ import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-import { INFINITE_CACHE } from '../../lib/constants'
+import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from './parse-loader-tree'
 import {
@@ -1476,6 +1476,7 @@ async function renderToHTMLOrFlightImpl(
 
     const options: RenderResultOptions = {
       metadata,
+      contentType: HTML_CONTENT_TYPE_HEADER,
     }
     // If we have pending revalidates, wait until they are all resolved.
     if (
@@ -1624,7 +1625,10 @@ async function renderToHTMLOrFlightImpl(
             metadata
           )
 
-          return new RenderResult(stream, { metadata })
+          return new RenderResult(stream, {
+            metadata,
+            contentType: HTML_CONTENT_TYPE_HEADER,
+          })
         } else if (actionRequestResult.type === 'done') {
           if (actionRequestResult.result) {
             actionRequestResult.result.assignMetadata(metadata)
@@ -1638,6 +1642,7 @@ async function renderToHTMLOrFlightImpl(
 
     const options: RenderResultOptions = {
       metadata,
+      contentType: HTML_CONTENT_TYPE_HEADER,
     }
 
     const stream = await renderToStreamWithTracing(

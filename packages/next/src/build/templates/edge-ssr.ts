@@ -28,6 +28,7 @@ import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
+import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 
 // injected by the loader afterwards.
 declare const nextConfig: NextConfigComplete
@@ -195,7 +196,7 @@ async function requestHandler(
     const headers = new Headers()
 
     // Set content type
-    const contentType = result.contentType || 'text/html; charset=utf-8'
+    const contentType = result.contentType || HTML_CONTENT_TYPE_HEADER
     headers.set('Content-Type', contentType)
 
     // Add metadata headers
