@@ -24,7 +24,7 @@ impl CustomTransformer for ClientDirectiveTransformer {
         if is_client_module(program) {
             *program = create_proxy_module(
                 self.transition_name.as_str(),
-                &format!("./{}", ctx.file_name_str),
+                &format!("./{}{}", ctx.file_name_str, ctx.query_str),
             );
             program.visit_mut_with(&mut resolver(
                 ctx.unresolved_mark,
