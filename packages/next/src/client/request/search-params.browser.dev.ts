@@ -177,7 +177,7 @@ function warnForSyncSpread() {
 export function createRenderSearchParamsFromClient(
   underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
-  if (process.env.__NEXT_DYNAMIC_IO) {
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
     return makeUntrackedSearchParamsWithDevWarnings(underlyingSearchParams)
   }
 

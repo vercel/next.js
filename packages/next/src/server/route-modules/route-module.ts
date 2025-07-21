@@ -60,6 +60,7 @@ import {
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
+import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -181,6 +182,7 @@ export abstract class RouteModule<
     clientReferenceManifest: any
     serverActionsManifest: any
     dynamicCssManifest: any
+    interceptionRoutePatterns: RegExp[]
   } {
     if (process.env.NEXT_RUNTIME === 'edge') {
       const { getEdgePreviewProps } =
@@ -227,6 +229,9 @@ export abstract class RouteModule<
           self.__SUBRESOURCE_INTEGRITY_MANIFEST
         ),
         dynamicCssManifest: maybeJSONParse(self.__DYNAMIC_CSS_MANIFEST),
+        interceptionRoutePatterns: (
+          maybeJSONParse(self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST) ?? []
+        ).map((rewrite: any) => new RegExp(rewrite.regex)),
       }
     } else {
       if (!projectDir) {
@@ -344,12 +349,15 @@ export abstract class RouteModule<
         serverActionsManifest,
         subresourceIntegrityManifest,
         dynamicCssManifest,
+        interceptionRoutePatterns: routesManifest.rewrites.beforeFiles
+          .filter(isInterceptionRouteRewrite)
+          .map((rewrite) => new RegExp(rewrite.regex)),
       }
     }
   }
 
   public async loadCustomCacheHandlers(
-    req: IncomingMessage,
+    req: IncomingMessage | BaseNextRequest,
     nextConfig: NextConfigComplete
   ) {
     if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -387,7 +395,7 @@ export abstract class RouteModule<
   }
 
   public async getIncrementalCache(
-    req: IncomingMessage,
+    req: IncomingMessage | BaseNextRequest,
     nextConfig: NextConfigComplete,
     prerenderManifest: DeepReadonly<PrerenderManifest>
   ): Promise<IncrementalCache> {
@@ -501,6 +509,7 @@ export abstract class RouteModule<
         revalidateOnlyGenerated: boolean
         nextConfig: NextConfigComplete
         routerServerContext?: RouterServerContext[string]
+        interceptionRoutePatterns?: any
       }
     | undefined
   > {
@@ -809,7 +818,7 @@ export abstract class RouteModule<
     }
   }
 
-  public getResponseCache(req: IncomingMessage) {
+  public getResponseCache(req: IncomingMessage | BaseNextRequest) {
     if (!this.responseCache) {
       const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
       this.responseCache = new ResponseCache(minimalMode)
@@ -830,7 +839,7 @@ export abstract class RouteModule<
     responseGenerator,
     waitUntil,
   }: {
-    req: IncomingMessage
+    req: IncomingMessage | BaseNextRequest
     nextConfig: NextConfigComplete
     cacheKey: string | null
     routeKind: RouteKind

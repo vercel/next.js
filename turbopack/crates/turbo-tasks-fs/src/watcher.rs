@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     fmt,
     mem::take,
     path::{Path, PathBuf},
@@ -616,12 +617,12 @@ impl InvalidationReasonKind for InvalidateRescanKind {
         reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut fmt::Formatter<'_>,
     ) -> fmt::Result {
+        let first_reason: &dyn InvalidationReason = &*reasons[0];
         write!(
             f,
             "{} items in filesystem invalidated due to notify::Watcher rescan event ({}, ...)",
             reasons.len(),
-            reasons[0]
-                .as_any()
+            (first_reason as &dyn Any)
                 .downcast_ref::<InvalidateRescan>()
                 .unwrap()
                 .path

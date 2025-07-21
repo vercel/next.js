@@ -17,6 +17,7 @@ import type {
 } from '../../server/lib/mock-request'
 import { isInAmpMode } from '../../shared/lib/amp-mode'
 import {
+  HTML_CONTENT_TYPE_HEADER,
   NEXT_DATA_SUFFIX,
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
@@ -96,7 +97,10 @@ export async function exportPagesPage(
   let renderResult: RenderResult | undefined
 
   if (typeof components.Component === 'string') {
-    renderResult = RenderResult.fromStatic(components.Component)
+    renderResult = RenderResult.fromStatic(
+      components.Component,
+      HTML_CONTENT_TYPE_HEADER
+    )
 
     if (hasOrigQueryValues) {
       throw new Error(

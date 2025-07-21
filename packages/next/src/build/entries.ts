@@ -9,7 +9,6 @@ import type {
   MiddlewareMatcher,
   PageStaticInfo,
 } from './analysis/get-page-static-info'
-import * as Log from './output/log'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
@@ -674,19 +673,6 @@ export async function createEntrypoints(
       const isInstrumentation =
         isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
 
-      let pageRuntime = staticInfo?.runtime
-
-      if (
-        isMiddlewareFile(page) &&
-        !config.experimental.nodeMiddleware &&
-        pageRuntime === 'nodejs'
-      ) {
-        Log.warn(
-          'nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config'
-        )
-        pageRuntime = 'edge'
-      }
-
       runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
@@ -865,7 +851,7 @@ export function finalizeEntrypoint({
   isServerComponent,
   hasAppDir,
 }: {
-  compilerType?: CompilerNameValues
+  compilerType: CompilerNameValues
   name: string
   value: ObjectValue<webpack.EntryObject>
   isServerComponent?: boolean
@@ -958,9 +944,7 @@ export function finalizeEntrypoint({
         ...entry,
       }
     }
-    default: {
-      // Should never happen.
-      throw new Error('Invalid compiler type')
-    }
+    default:
+      return compilerType satisfies never
   }
 }

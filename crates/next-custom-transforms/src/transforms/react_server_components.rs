@@ -51,7 +51,7 @@ impl Config {
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     pub is_react_server_layer: bool,
-    pub dynamic_io_enabled: bool,
+    pub cache_components_enabled: bool,
     pub use_cache_enabled: bool,
 }
 
@@ -61,7 +61,7 @@ pub struct Options {
 /// same purpose, so does not run this transform.
 struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,
-    dynamic_io_enabled: bool,
+    cache_components_enabled: bool,
     use_cache_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
@@ -94,14 +94,14 @@ enum RSCErrorKind {
 
 #[derive(Clone, Debug, Copy)]
 enum NextConfigProperty {
-    DynamicIo,
+    CacheComponents,
     UseCache,
 }
 
 impl Display for NextConfigProperty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NextConfigProperty::DynamicIo => write!(f, "experimental.dynamicIO"),
+            NextConfigProperty::CacheComponents => write!(f, "experimental.cacheComponents"),
             NextConfigProperty::UseCache => write!(f, "experimental.useCache"),
         }
     }
@@ -120,7 +120,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
         // Run the validator first to assert, collect directives and imports.
         let mut validator = ReactServerComponentValidator::new(
             self.is_react_server_layer,
-            self.dynamic_io_enabled,
+            self.cache_components_enabled,
             self.use_cache_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
@@ -547,7 +547,7 @@ fn collect_top_level_directives_and_imports(
 /// A visitor to assert given module file is a valid React server component.
 struct ReactServerComponentValidator {
     is_react_server_layer: bool,
-    dynamic_io_enabled: bool,
+    cache_components_enabled: bool,
     use_cache_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
@@ -566,14 +566,14 @@ type RcVec<T> = Rc<Vec<T>>;
 impl ReactServerComponentValidator {
     pub fn new(
         is_react_server_layer: bool,
-        dynamic_io_enabled: bool,
+        cache_components_enabled: bool,
         use_cache_enabled: bool,
         filename: String,
         app_dir: Option<PathBuf>,
     ) -> Self {
         Self {
             is_react_server_layer,
-            dynamic_io_enabled,
+            cache_components_enabled,
             use_cache_enabled,
             filepath: filename,
             app_dir,
@@ -818,12 +818,12 @@ impl ReactServerComponentValidator {
                             .insert(export_name.clone(), (InvalidExportKind::Metadata, *span));
                     }
                     "runtime" => {
-                        if self.dynamic_io_enabled {
+                        if self.cache_components_enabled {
                             possibly_invalid_exports.insert(
                                 export_name.clone(),
                                 (
                                     InvalidExportKind::RouteSegmentConfig(
-                                        NextConfigProperty::DynamicIo,
+                                        NextConfigProperty::CacheComponents,
                                     ),
                                     *span,
                                 ),
@@ -841,12 +841,12 @@ impl ReactServerComponentValidator {
                         }
                     }
                     "dynamicParams" | "dynamic" | "fetchCache" | "revalidate" => {
-                        if self.dynamic_io_enabled {
+                        if self.cache_components_enabled {
                             possibly_invalid_exports.insert(
                                 export_name.clone(),
                                 (
                                     InvalidExportKind::RouteSegmentConfig(
-                                        NextConfigProperty::DynamicIo,
+                                        NextConfigProperty::CacheComponents,
                                     ),
                                     *span,
                                 ),
@@ -1058,8 +1058,8 @@ pub fn server_components_assert(
         Config::WithOptions(x) => x.is_react_server_layer,
         _ => false,
     };
-    let dynamic_io_enabled: bool = match &config {
-        Config::WithOptions(x) => x.dynamic_io_enabled,
+    let cache_components_enabled: bool = match &config {
+        Config::WithOptions(x) => x.cache_components_enabled,
         _ => false,
     };
     let use_cache_enabled: bool = match &config {
@@ -1072,7 +1072,7 @@ pub fn server_components_assert(
     };
     ReactServerComponentValidator::new(
         is_react_server_layer,
-        dynamic_io_enabled,
+        cache_components_enabled,
         use_cache_enabled,
         filename,
         app_dir,
@@ -1091,8 +1091,8 @@ pub fn server_components<C: Comments>(
         Config::WithOptions(x) => x.is_react_server_layer,
         _ => false,
     };
-    let dynamic_io_enabled: bool = match &config {
-        Config::WithOptions(x) => x.dynamic_io_enabled,
+    let cache_components_enabled: bool = match &config {
+        Config::WithOptions(x) => x.cache_components_enabled,
         _ => false,
     };
     let use_cache_enabled: bool = match &config {
@@ -1101,7 +1101,7 @@ pub fn server_components<C: Comments>(
     };
     visit_mut_pass(ReactServerComponents {
         is_react_server_layer,
-        dynamic_io_enabled,
+        cache_components_enabled,
         use_cache_enabled,
         comments,
         filepath: match &*filename {

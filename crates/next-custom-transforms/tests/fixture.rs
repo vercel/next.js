@@ -477,7 +477,7 @@ fn react_server_components_typescript(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
-                    dynamic_io_enabled: false,
+                    cache_components_enabled: false,
                     use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
@@ -505,7 +505,7 @@ fn react_server_components_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer,
-                    dynamic_io_enabled: false,
+                    cache_components_enabled: false,
                     use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),

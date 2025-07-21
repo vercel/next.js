@@ -70,7 +70,7 @@ function getBaseSWCOptions({
   serverComponents,
   serverReferenceHashSalt,
   bundleLayer,
-  isDynamicIo,
+  isCacheComponents,
   cacheHandlers,
   useCacheEnabled,
   trackDynamicImports,
@@ -91,7 +91,7 @@ function getBaseSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
-  isDynamicIo?: boolean
+  isCacheComponents?: boolean
   cacheHandlers?: ExperimentalConfig['cacheHandlers']
   useCacheEnabled?: boolean
   trackDynamicImports?: boolean
@@ -217,7 +217,7 @@ function getBaseSWCOptions({
       serverComponents && !jest
         ? {
             isReactServerLayer,
-            dynamicIoEnabled: isDynamicIo,
+            cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
           }
         : undefined,
@@ -228,7 +228,7 @@ function getBaseSWCOptions({
             isDevelopment: development,
             useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
-            cacheKinds: ['default', 'remote'].concat(
+            cacheKinds: ['default', 'remote', 'private'].concat(
               cacheHandlers ? Object.keys(cacheHandlers) : []
             ),
           }
@@ -276,16 +276,19 @@ function getEmotionOptions(
     return null
   }
   let autoLabel = !!development
-  switch (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
-    case 'never':
-      autoLabel = false
-      break
-    case 'always':
-      autoLabel = true
-      break
-    case 'dev-only':
-    default:
-      break
+  if (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
+    switch (emotionConfig.autoLabel) {
+      case 'never':
+        autoLabel = false
+        break
+      case 'always':
+        autoLabel = true
+        break
+      case 'dev-only':
+        break
+      default:
+        emotionConfig.autoLabel satisfies never
+    }
   }
   return {
     enabled: true,
@@ -370,7 +373,7 @@ export function getLoaderSWCOptions({
   pagesDir,
   appDir,
   isPageFile,
-  isDynamicIo,
+  isCacheComponents,
   hasReactRefresh,
   modularizeImports,
   optimizeServerReact,
@@ -398,7 +401,7 @@ export function getLoaderSWCOptions({
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
-  isDynamicIo?: boolean
+  isCacheComponents?: boolean
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
   >['optimizePackageImports']
@@ -432,7 +435,7 @@ export function getLoaderSWCOptions({
     serverComponents,
     serverReferenceHashSalt,
     esm: !!esm,
-    isDynamicIo,
+    isCacheComponents,
     cacheHandlers,
     useCacheEnabled,
     trackDynamicImports,

@@ -72,6 +72,7 @@ export function createRouterAct(
     }
 
     let expectedResponses: Array<ExpectedResponseConfig> | null
+    let forbiddenResponses: Array<ExpectedResponseConfig> | null = null
     let shouldBlockAll = false
     if (config === undefined || config === null) {
       // Default. Expect at least one request, but don't assert on the response.
@@ -101,6 +102,7 @@ export function createRouterAct(
         expectedResponses = [config]
       } else {
         expectedResponses = []
+        forbiddenResponses = [config]
       }
     } else {
       expectedResponses = []
@@ -113,6 +115,12 @@ export function createRouterAct(
         }
         if (item.block !== 'reject') {
           expectedResponses.push(item)
+        } else {
+          if (forbiddenResponses === null) {
+            forbiddenResponses = [item]
+          } else {
+            forbiddenResponses.push(item)
+          }
         }
       }
     }
@@ -288,14 +296,11 @@ ${fulfilled.body}
 `
               throw error
             }
-            if (expectedResponses !== null) {
-              let alreadyMatchedByThisResponse: string | null = null
-              for (const expectedResponse of expectedResponses) {
-                const includes = expectedResponse.includes
-                const block = expectedResponse.block
+            if (forbiddenResponses !== null) {
+              for (const forbiddenResponse of forbiddenResponses) {
+                const includes = forbiddenResponse.includes
                 if (fulfilled.body.includes(includes)) {
-                  if (block === 'reject') {
-                    error.message = `
+                  error.message = `
 Received a response containing an unexpected substring:
 
 Rejected substring: ${includes}
@@ -303,9 +308,16 @@ Rejected substring: ${includes}
 Response:
 ${fulfilled.body}
 `
-                    throw error
-                  }
-
+                  throw error
+                }
+              }
+            }
+            if (expectedResponses !== null) {
+              let alreadyMatchedByThisResponse: string | null = null
+              for (const expectedResponse of expectedResponses) {
+                const includes = expectedResponse.includes
+                const block = expectedResponse.block
+                if (fulfilled.body.includes(includes)) {
                   // Match. Don't check yet whether the responses are received
                   // in the expected order. Instead collect all the matches and
                   // check at the end so we can include a diff in the

@@ -212,6 +212,7 @@ function instantiateModule(moduleId: ModuleId, source: SourceInfo): Module {
           n: exportNamespace.bind(null, module, devModuleCache),
           m: module,
           c: devModuleCache,
+          C: null,
           M: moduleFactories,
           l: loadChunk.bind(null, sourceInfo),
           L: loadChunkByUrl.bind(null, sourceInfo),
@@ -606,7 +607,7 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
 
       switch (chunkUpdate.type) {
         case 'added':
-          BACKEND.loadChunk(chunkUrl, { type: SourceType.Update })
+          BACKEND.loadChunkCached(chunkUrl, { type: SourceType.Update })
           break
         case 'total':
           DEV_BACKEND.reloadChunk?.(chunkUrl)

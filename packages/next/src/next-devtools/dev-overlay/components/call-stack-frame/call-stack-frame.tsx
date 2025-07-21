@@ -1,4 +1,3 @@
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { OriginalStackFrame } from '../../../shared/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
@@ -11,14 +10,14 @@ export const CallStackFrame: React.FC<{
 }> = function CallStackFrame({ frame }) {
   // TODO: ability to expand resolved frames
 
-  const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
+  const f = frame.originalStackFrame ?? frame.sourceStackFrame
   const hasSource = Boolean(frame.originalCodeFrame)
   const open = useOpenInEditor(
     hasSource
       ? {
           file: f.file,
-          lineNumber: f.lineNumber,
-          column: f.column,
+          line1: f.line1 ?? 1,
+          column1: f.column1 ?? 1,
         }
       : undefined
   )

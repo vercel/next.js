@@ -9,6 +9,9 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
         '@mdx-js/loader': '^2.2.1',
         '@mdx-js/react': '^2.2.1',
         'rehype-katex': '7.0.1',
+        'rehype-slug': '6.0.0',
+        'remark-gfm': '4.0.1',
+        'remark-toc': '9.0.0',
       },
       env: {
         WITH_MDX_RS: type === 'with-mdx-rs' ? 'true' : 'false',
@@ -62,10 +65,22 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       })
 
       if (type === 'without-mdx-rs') {
-        it('should run plugins', async () => {
-          const html = await next.render('/rehype-plugin')
+        it('should run rehype plugins', async () => {
+          const $ = await next.render$('/rehype-plugin')
+          const html = $('html').html()
           expect(html.includes('<mi>C</mi>')).toBe(true)
           expect(html.includes('<mi>L</mi>')).toBe(true)
+          expect($('#rehype-plugin').text()).toBe('Rehype plugin')
+        })
+
+        it('should run remark plugins', async () => {
+          const $ = await next.render$('/remark-plugin')
+          const html = $('html').html()
+          expect(html.includes('The Table')).toBe(true)
+          expect($('a[href="#todo-list"]').text()).toBe('Todo List')
+
+          expect($('input[type="checkbox"]').length).toBe(2)
+          expect($('input[type="checkbox"][checked]').length).toBe(1)
         })
       }
     })

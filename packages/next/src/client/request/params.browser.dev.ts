@@ -169,7 +169,7 @@ function describeListOfPropertyNames(properties: Array<string>) {
 export function createRenderParamsFromClient(
   clientParams: Params
 ): Promise<Params> {
-  if (process.env.__NEXT_DYNAMIC_IO) {
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
     return makeDynamicallyTrackedParamsWithDevWarnings(clientParams)
   }
 

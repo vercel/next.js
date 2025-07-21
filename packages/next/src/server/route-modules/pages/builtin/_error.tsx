@@ -21,6 +21,5 @@ export const routeModule = new PagesRouteModule({
     App,
     Document,
   },
-  // @ts-expect-error -- Types don't account for getInitialProps. `Error` requires to be instantiated with `statusCode` but the types currently don't guarantee that.
   userland: moduleError,
 })

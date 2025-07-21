@@ -2321,9 +2321,9 @@ checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
 name = "futures"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "645c6916888f6cb6350d2550b80fb63e734897a8498abe35cfb732b6487804b0"
+checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -2352,9 +2352,9 @@ checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
 
 [[package]]
 name = "futures-executor"
-version = "0.3.30"
+version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a576fc72ae164fca6b9db127eaa9a9dda0d61316034f33a0a0d4eda41f02b01d"
+checksum = "1e28d1d997f585e54aebc3f97d39e72338912123a67330d723fdbb564d646c9f"
 dependencies = [
  "futures-core",
  "futures-task",
@@ -2799,7 +2799,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -4415,6 +4415,7 @@ dependencies = [
  "console-subscriber",
  "dhat",
  "either",
+ "futures-util",
  "getrandom 0.2.15",
  "iana-time-zone",
  "lightningcss-napi",
@@ -5459,9 +5460,9 @@ checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "quick_cache"
-version = "0.6.11"
+version = "0.6.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0af25b4e960ffdf0dead61cf0cec0c2e44c76927bf933ab4f02e2858fb449397"
+checksum = "6b450dad8382b1b95061d5ca1eb792081fb082adf48c678791fe917509596d5f"
 dependencies = [
  "ahash 0.8.12",
  "equivalent",
@@ -9107,6 +9108,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbo-dyn-eq-hash"
+version = "0.0.1"
+
+[[package]]
 name = "turbo-esregex"
 version = "0.1.0"
 dependencies = [
@@ -9223,6 +9228,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "triomphe 0.1.12",
+ "turbo-dyn-eq-hash",
  "turbo-rcstr",
  "turbo-tasks-build",
  "turbo-tasks-hash",
@@ -9332,7 +9338,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "mockito",
+ "quick_cache",
  "reqwest 0.12.20",
+ "serde",
  "tokio",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9639,10 +9647,12 @@ dependencies = [
  "turbo-prehash",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
+ "turbo-tasks-testing",
  "urlencoding",
 ]
 
