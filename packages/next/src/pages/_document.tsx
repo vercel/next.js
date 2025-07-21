@@ -657,22 +657,12 @@ export class Head extends React.Component<HeadProps> {
           child.props['rel'] === 'preload' &&
           child.props['as'] === 'style'
         ) {
-          if (this.context.strictNextHead) {
-            cssPreloads.push(
-              React.cloneElement(child, { 'data-next-head': '' })
-            )
-          } else {
-            cssPreloads.push(child)
-          }
+          cssPreloads.push(child)
         } else {
           if (child) {
-            if (this.context.strictNextHead) {
-              otherHeadElements.push(
-                React.cloneElement(child, { 'data-next-head': '' })
-              )
-            } else {
-              otherHeadElements.push(child)
-            }
+            otherHeadElements.push(
+              React.cloneElement(child, { 'data-next-head': '' })
+            )
           }
         }
       })
@@ -811,12 +801,6 @@ export class Head extends React.Component<HeadProps> {
           </>
         )}
         {head}
-        {this.context.strictNextHead ? null : (
-          <meta
-            name="next-head-count"
-            content={React.Children.count(head || []).toString()}
-          />
-        )}
 
         {children}
 

@@ -59,6 +59,7 @@ export function draftMode(): Promise<DraftMode> {
       return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
 
     case 'cache':
+    case 'private-cache':
     case 'unstable-cache':
       // Inside of `"use cache"` or `unstable_cache`, draft mode is available if
       // the outmost work unit store is a request store, and if draft mode is
@@ -259,6 +260,7 @@ function syncIODev(route: string | undefined, expression: string) {
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
         break
       default:
@@ -307,7 +309,8 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
-        case 'cache': {
+        case 'cache':
+        case 'private-cache': {
           const error = new Error(
             `Route ${workStore.route} used "${expression}" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )

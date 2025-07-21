@@ -43,6 +43,7 @@ import {
 } from '../../lib/metadata/metadata-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -130,6 +131,9 @@ export function markCurrentScopeAsDynamic(
         // because the outer cache scope creates a cache boundary. This is
         // subtly different from reading a dynamic data source, which is
         // forbidden inside a cache scope.
+        return
+      case 'private-cache':
+        // A private cache scope is already dynamic by definition.
         return
       case 'prerender-legacy':
       case 'prerender-ppr':
@@ -221,6 +225,9 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
       // because the outer cache scope creates a cache boundary. This is
       // subtly different from reading a dynamic data source, which is
       // forbidden inside a cache scope.
+      return
+    case 'private-cache':
+      // A private cache scope is already dynamic by definition.
       return
     case 'prerender':
     case 'prerender-legacy':
@@ -537,6 +544,7 @@ export function createHangingInputAbortSignal(
     case 'prerender-legacy':
     case 'request':
     case 'cache':
+    case 'private-cache':
     case 'unstable-cache':
       return undefined
     default:
@@ -573,13 +581,13 @@ export function useDynamicRouteParams(expression: string) {
     const workUnitStore = workUnitAsyncStorage.getStore()
     if (workUnitStore) {
       switch (workUnitStore.type) {
+        case 'prerender':
         case 'prerender-client':
           // We are in a prerender with cacheComponents semantics. We are going to
           // hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole.
           React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
           break
-        case 'prerender':
         case 'prerender-ppr':
           return postponeWithTracking(
             workStore.route,
@@ -592,8 +600,12 @@ export function useDynamicRouteParams(expression: string) {
             workStore,
             workUnitStore
           )
-        case 'request':
         case 'cache':
+        case 'private-cache':
+          throw new InvariantError(
+            `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+          )
+        case 'request':
         case 'unstable-cache':
           break
         default:

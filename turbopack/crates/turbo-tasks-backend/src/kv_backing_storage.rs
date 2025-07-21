@@ -166,9 +166,11 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
     where
         T: Send + Sync + 'static,
     {
-        let startup_cache_state = check_db_invalidation_and_cleanup(&base_path)?;
-        let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)?;
-        let database = (database)(versioned_path)?;
+        let startup_cache_state = check_db_invalidation_and_cleanup(&base_path)
+            .context("Failed to check database invalidation and cleanup")?;
+        let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)
+            .context("Failed to handle database versioning")?;
+        let database = (database)(versioned_path).context("Failed to open database")?;
         let backing_storage = Self {
             inner: Arc::new_cyclic(
                 move |weak_inner: &Weak<KeyValueDatabaseBackingStorageInner<T>>| {

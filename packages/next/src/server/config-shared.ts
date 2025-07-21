@@ -335,8 +335,6 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
-  /** @default true */
-  strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
   /**
@@ -1472,7 +1470,6 @@ export const defaultConfig = Object.freeze({
     devtoolSegmentExplorer: true,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
-    strictNextHead: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

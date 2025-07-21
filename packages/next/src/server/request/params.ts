@@ -68,9 +68,13 @@ export function createParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
-      case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+        throw new InvariantError(
+          'createParamsFromClient should not be called in cache contexts.'
+        )
+      case 'request':
         break
       default:
         workUnitStore satisfies never
@@ -96,9 +100,13 @@ export function createServerParamsForRoute(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
-      case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called in cache contexts.'
+        )
+      case 'request':
         break
       default:
         workUnitStore satisfies never
@@ -119,9 +127,13 @@ export function createServerParamsForServerSegment(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
-      case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+        throw new InvariantError(
+          'createServerParamsForServerSegment should not be called in cache contexts.'
+        )
+      case 'request':
         break
       default:
         workUnitStore satisfies never
@@ -152,11 +164,15 @@ export function createPrerenderParamsForClientSegment(
           }
         }
         break
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        throw new InvariantError(
+          'createPrerenderParamsForClientSegment should not be called in cache contexts.'
+        )
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
-      case 'cache':
-      case 'unstable-cache':
         break
       default:
         workUnitStore satisfies never
@@ -555,6 +571,7 @@ function syncIODev(
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
         break
       default:

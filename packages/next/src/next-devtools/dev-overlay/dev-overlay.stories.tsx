@@ -11,7 +11,6 @@ import {
   useStorybookOverlayReducer,
 } from './storybook/use-overlay-reducer'
 import { DevOverlayContext } from '../dev-overlay.browser'
-import { getSquashedHydrationErrorDetails } from '../userspace/pages/hydration-error-state'
 
 const meta: Meta<typeof DevOverlay> = {
   component: DevOverlay,
@@ -54,7 +53,7 @@ export const Default: Story = {
           backgroundColor: 'black',
         }}
       >
-        {/* TODO: get lots of real hard examples so we have better debug */}
+        {/* TODO: NEXT-4643 */}
         <img
           src={imgApp}
           style={{
@@ -71,11 +70,7 @@ export const Default: Story = {
             state,
           }}
         >
-          <DevOverlay
-            state={state}
-            dispatch={dispatch}
-            getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
-          />
+          <DevOverlay />
         </DevOverlayContext>
       </div>
     )
@@ -104,11 +99,7 @@ export const WithPanel: Story = {
             state,
           }}
         >
-          <DevOverlay
-            dispatch={dispatch}
-            getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
-            state={state}
-          />
+          <DevOverlay />
         </DevOverlayContext>
       </>
     )

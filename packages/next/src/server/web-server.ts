@@ -35,6 +35,7 @@ import { getEdgeInstrumentationModule } from './web/globals'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import { getEdgePreviewProps } from './web/get-edge-preview-props'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
+import { HTML_CONTENT_TYPE_HEADER } from '../lib/constants'
 
 interface WebServerOptions extends Options {
   buildId: string
@@ -258,7 +259,6 @@ export default class NextWebServer extends BaseServer<
     res: WebNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
@@ -268,19 +268,15 @@ export default class NextWebServer extends BaseServer<
 
     // Add necessary headers.
     // @TODO: Share the isomorphic logic with server/send-payload.ts.
-    if (options.poweredByHeader && options.type === 'html') {
+    if (
+      options.poweredByHeader &&
+      options.result.contentType === HTML_CONTENT_TYPE_HEADER
+    ) {
       res.setHeader('X-Powered-By', 'Next.js')
     }
 
-    if (!res.getHeader('Content-Type')) {
-      res.setHeader(
-        'Content-Type',
-        options.result.contentType
-          ? options.result.contentType
-          : options.type === 'json'
-            ? 'application/json'
-            : 'text/html; charset=utf-8'
-      )
+    if (!res.getHeader('Content-Type') && options.result.contentType) {
+      res.setHeader('Content-Type', options.result.contentType)
     }
 
     let promise: Promise<void> | undefined
