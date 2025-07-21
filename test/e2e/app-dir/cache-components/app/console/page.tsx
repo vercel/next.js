@@ -1,4 +1,19 @@
-function consoleCalls() {
+async function cachedConsoleCalls() {
+  'use cache'
+  console.info('/console: template(one: %s, two: %s)', 'one', 'two')
+  console.log('/console: This is a console page')
+  console.warn('/console: not a template', { foo: 'just-some-object' })
+  // TODO(veil): Assert on inspected errors once we sourcemap errors replayed from Cache environment.
+  // console.error(new Error('/console: test'))
+  console.assert(
+    false,
+    '/console: This is an assert message with a %s',
+    'template'
+  )
+  console.assert(true, '/console: This is an assert message without a template')
+}
+
+export default async function ConsolePage() {
   console.info('/console: template(one: %s, two: %s)', 'one', 'two')
   console.log('/console: This is a console page')
   console.warn('/console: not a template', { foo: 'just-some-object' })
@@ -9,15 +24,6 @@ function consoleCalls() {
     'template'
   )
   console.assert(true, '/console: This is an assert message without a template')
-}
-
-async function cachedConsoleCalls() {
-  'use cache'
-  consoleCalls()
-}
-
-export default async function ConsolePage() {
-  consoleCalls()
 
   await cachedConsoleCalls()
 
