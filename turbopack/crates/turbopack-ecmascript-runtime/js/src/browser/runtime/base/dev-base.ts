@@ -63,6 +63,11 @@ class UpdateApplyError extends Error {
 }
 
 /**
+ * Module IDs that are instantiated as part of the runtime of a chunk.
+ */
+const runtimeModules: Set<ModuleId> = new Set()
+
+/**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
  */

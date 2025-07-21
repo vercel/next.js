@@ -55,23 +55,6 @@ function instantiateModule(
     factoryNotAvailable(id, sourceType, sourceData)
   }
 
-  switch (sourceType) {
-    case SourceType.Runtime:
-      runtimeModules.add(id)
-      break
-    case SourceType.Parent:
-      // No need to add this module as a child of the parent module here, this
-      // has already been taken care of in `getOrInstantiateModuleFromParent`.
-      break
-    case SourceType.Update:
-      throw new Error('Unexpected')
-    default:
-      invariant(
-        sourceType,
-        (sourceType) => `Unknown source type: ${sourceType}`
-      )
-  }
-
   const module: Module = createModuleObject(id)
 
   moduleCache[id] = module

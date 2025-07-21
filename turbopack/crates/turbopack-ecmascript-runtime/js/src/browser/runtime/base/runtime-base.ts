@@ -108,10 +108,6 @@ const moduleFactories: ModuleFactories = Object.create(null)
 contextPrototype.M = moduleFactories
 
 /**
- * Module IDs that are instantiated as part of the runtime of a chunk.
- */
-const runtimeModules: Set<ModuleId> = new Set()
-/**
  * Map from module ID to the chunks that contain this module.
  *
  * In HMR, we need to keep track of which modules are contained in which so
