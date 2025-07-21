@@ -32,7 +32,7 @@ export function saveDevToolsConfig(patch: DevToolsConfig) {
   if (!validation.success) {
     console.warn(
       '[Next.js DevTools] Invalid config patch:',
-      validation.error.errors[0].message
+      validation.error.message
     )
     return
   }
