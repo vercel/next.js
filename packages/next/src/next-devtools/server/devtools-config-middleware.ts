@@ -48,10 +48,20 @@ export function devToolsConfigMiddleware({
         chunks.push(Buffer.from(chunk))
       }
 
-      const body = Buffer.concat(chunks).toString('utf8')
-      const validation = devToolsConfigSchema.safeParse(JSON.parse(body))
+      let body = Buffer.concat(chunks).toString('utf8')
+      try {
+        body = JSON.parse(body)
+      } catch (error) {
+        console.error('[Next.js DevTools] Invalid config body passed:', error)
+        return middlewareResponse.badRequest(res)
+      }
 
+      const validation = devToolsConfigSchema.safeParse(body)
       if (!validation.success) {
+        console.error(
+          '[Next.js DevTools] Invalid config passed:',
+          validation.error.message
+        )
         return middlewareResponse.badRequest(res)
       }
 
