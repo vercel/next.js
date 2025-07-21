@@ -379,7 +379,7 @@ napi = { version = "2", default-features = false, features = [
     "napi5",
     "compat-mode"
 ] }
-notify = "8.0.0"
+notify = "8.1.0"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
 parcel_selectors = "0.28.2"
