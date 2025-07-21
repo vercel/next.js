@@ -1,6 +1,7 @@
 'use client'
 
 import { format, measure } from '../lib/measure'
+import { useState, useEffect } from 'react'
 
 async function measureClientButton(element, name, fn) {
   if (element.textContent.includes('Loading time')) {
@@ -33,10 +34,16 @@ async function measureApiButton(element, url) {
 }
 
 export function Client({ prefix, commonjsAction, esmAction }) {
+  const [runtime, setRuntime] = useState('')
+  useEffect(() => {
+    setRuntime(globalThis.TURBOPACK ? 'Turbopack' : 'Webpack')
+  }, [])
   return (
     <>
+      <h1>{runtime}</h1>
       <p>
         <button
+          type="button"
           onClick={(e) =>
             measureClientButton(
               e.target,
@@ -50,6 +57,7 @@ export function Client({ prefix, commonjsAction, esmAction }) {
       </p>
       <p>
         <button
+          type="button"
           onClick={(e) =>
             measureClientButton(
               e.target,
@@ -64,6 +72,7 @@ export function Client({ prefix, commonjsAction, esmAction }) {
       {commonjsAction && (
         <p>
           <button
+            type="button"
             onClick={(e) => measureActionButton(e.target, commonjsAction)}
           >
             CommonJs server action
@@ -72,20 +81,27 @@ export function Client({ prefix, commonjsAction, esmAction }) {
       )}
       {esmAction && (
         <p>
-          <button onClick={(e) => measureActionButton(e.target, esmAction)}>
+          <button
+            type="button"
+            onClick={(e) => measureActionButton(e.target, esmAction)}
+          >
             ESM server action
           </button>
         </p>
       )}
       <p>
         <button
+          type="button"
           onClick={(e) => measureApiButton(e.target, `${prefix}/commonjs`)}
         >
           CommonJs API
         </button>
       </p>
       <p>
-        <button onClick={(e) => measureApiButton(e.target, `${prefix}/esm`)}>
+        <button
+          type="button"
+          onClick={(e) => measureApiButton(e.target, `${prefix}/esm`)}
+        >
           ESM API
         </button>
       </p>
