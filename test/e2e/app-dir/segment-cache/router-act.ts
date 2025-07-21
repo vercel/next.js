@@ -315,7 +315,6 @@ ${fulfilled.body}
               }
             }
             if (expectedResponses !== null) {
-              let alreadyMatchedByThisResponse: string | null = null
               for (const expectedResponse of expectedResponses) {
                 const includes = expectedResponse.includes
                 const block = expectedResponse.block
@@ -324,21 +323,6 @@ ${fulfilled.body}
                   // in the expected order. Instead collect all the matches and
                   // check at the end so we can include a diff in the
                   // error message.
-                  if (alreadyMatchedByThisResponse) {
-                    error.message = `
-Received a response that includes both of the following substrings.
-
-Expected substrings:
-- ${alreadyMatchedByThisResponse}
-- ${includes}
-
-Response:
-${fulfilled.body}
-
-Choose more specific substrings to assert on.
-`
-                    throw error
-                  }
                   const otherResponse = alreadyMatched.get(includes)
                   if (otherResponse !== undefined) {
                     error.message = `
@@ -357,7 +341,6 @@ Choose a more specific substring to assert on.
 `
                     throw error
                   }
-                  alreadyMatchedByThisResponse = includes
                   alreadyMatched.set(includes, fulfilled.body)
                   if (actualResponses === null) {
                     actualResponses = [expectedResponse]
