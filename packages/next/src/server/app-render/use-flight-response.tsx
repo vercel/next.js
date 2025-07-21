@@ -16,6 +16,12 @@ const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 const flightResponses = new WeakMap<BinaryStreamOf<any>, Promise<any>>()
 const encoder = new TextEncoder()
 
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
+
 /**
  * Render Flight stream.
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
@@ -37,6 +43,7 @@ export function useFlightStream<T>(
     require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
 
   const newResponse = createFromReadableStream<T>(flightStream, {
+    findSourceMapURL,
     serverConsumerManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: isEdgeRuntime
