@@ -1657,6 +1657,9 @@ async function renderToHTMLOrFlightImpl(
       metadata
     )
 
+    // Invalid dynamic usages should only error the request in development.
+    // In production, it's better to produce a result.
+    // (the dynamic error will still be thrown inside the component tree, but it's catchable by error boundaries)
     if (workStore.invalidDynamicUsageError && workStore.dev) {
       throw workStore.invalidDynamicUsageError
     }
