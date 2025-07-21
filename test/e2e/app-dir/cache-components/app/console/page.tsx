@@ -1,7 +1,10 @@
 async function cachedConsoleCalls() {
   'use cache'
   console.info('/console: template(one: %s, two: %s)', 'one', 'two')
-  console.log('/console: This is a console page')
+  console.log(
+    // eslint-disable-next-line no-useless-concat
+    '/console: This is a console page' + ". Don't match the codeframe."
+  )
   console.warn('/console: not a template', { foo: 'just-some-object' })
   // TODO(veil): Assert on inspected errors once we sourcemap errors replayed from Cache environment.
   // console.error(new Error('/console: test'))
@@ -15,7 +18,10 @@ async function cachedConsoleCalls() {
 
 export default async function ConsolePage() {
   console.info('/console: template(one: %s, two: %s)', 'one', 'two')
-  console.log('/console: This is a console page')
+  console.log(
+    // eslint-disable-next-line no-useless-concat
+    '/console: This is a console page' + ". Don't match the codeframe."
+  )
   console.warn('/console: not a template', { foo: 'just-some-object' })
   console.error(new Error('/console: test'))
   console.assert(
