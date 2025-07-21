@@ -1538,10 +1538,6 @@ export default class NextNodeServer extends BaseServer<
 
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
-      if (!this.nextConfig.experimental.nodeMiddleware) {
-        return
-      }
-
       try {
         const functionsConfig = this.renderOpts.dev
           ? {}

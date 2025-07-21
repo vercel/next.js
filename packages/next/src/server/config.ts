@@ -293,8 +293,6 @@ function assignDefaults(
       throw new CanaryOnlyError({
         feature: 'experimental.turbopackPersistentCaching',
       })
-    } else if (result.experimental?.nodeMiddleware) {
-      throw new CanaryOnlyError({ feature: 'experimental.nodeMiddleware' })
     }
   }
 
