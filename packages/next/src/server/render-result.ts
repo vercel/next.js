@@ -6,7 +6,6 @@ import {
   chainStreams,
   streamFromBuffer,
   streamFromString,
-  streamToBuffer,
   streamToString,
 } from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
@@ -167,26 +166,6 @@ export default class RenderResult<
     return typeof this.response !== 'string'
   }
 
-  public toUnchunkedBuffer(stream?: false): Buffer
-  public toUnchunkedBuffer(stream: true): Promise<Buffer>
-  public toUnchunkedBuffer(stream = false): Promise<Buffer> | Buffer {
-    if (this.response === null) {
-      throw new InvariantError('null responses cannot be unchunked')
-    }
-
-    if (typeof this.response !== 'string') {
-      if (!stream) {
-        throw new InvariantError(
-          'dynamic responses cannot be unchunked. This is a bug in Next.js'
-        )
-      }
-
-      return streamToBuffer(this.readable)
-    }
-
-    return Buffer.from(this.response)
-  }
-
   /**
    * Returns the response if it is a string. If the page was dynamic, this will
    * return a promise if the `stream` option is true, or it will throw an error.
@@ -198,7 +177,9 @@ export default class RenderResult<
   public toUnchunkedString(stream: true): Promise<string>
   public toUnchunkedString(stream = false): Promise<string> | string {
     if (this.response === null) {
-      throw new InvariantError('null responses cannot be unchunked')
+      // If the response is null, return an empty string. This behavior is
+      // intentional as we're now providing the `RenderResult.EMPTY` value.
+      return ''
     }
 
     if (typeof this.response !== 'string') {
@@ -252,7 +233,9 @@ export default class RenderResult<
    */
   private coerce(): ReadableStream<Uint8Array>[] {
     if (this.response === null) {
-      throw new Error('Invariant: response is null. This is a bug in Next.js')
+      // If the response is null, return an empty stream. This behavior is
+      // intentional as we're now providing the `RenderResult.EMPTY` value.
+      return []
     }
 
     if (typeof this.response === 'string') {
