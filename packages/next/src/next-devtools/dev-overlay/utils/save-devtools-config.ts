@@ -20,7 +20,7 @@ function flushPatch() {
     // keepalive in case of fetch interrupted, e.g. navigation or reload
     keepalive: true,
   }).catch((error) => {
-    console.log('[Next.js DevTools] Failed to save config:', {
+    console.warn('[Next.js DevTools] Failed to save config:', {
       data: body,
       error,
     })
@@ -30,7 +30,7 @@ function flushPatch() {
 export function saveDevToolsConfig(patch: DevToolsConfig) {
   const validation = devToolsConfigSchema.safeParse(patch)
   if (!validation.success) {
-    console.log(
+    console.warn(
       '[Next.js DevTools] Invalid config patch:',
       validation.error.errors[0].message
     )
