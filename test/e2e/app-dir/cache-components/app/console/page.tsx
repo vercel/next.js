@@ -1,4 +1,4 @@
-export default function ConsolePage() {
+function consoleCalls() {
   console.info('/console: template(one: %s, two: %s)', 'one', 'two')
   console.log('/console: This is a console page')
   console.warn('/console: not a template', { foo: 'just-some-object' })
@@ -9,5 +9,17 @@ export default function ConsolePage() {
     'template'
   )
   console.assert(true, '/console: This is an assert message without a template')
+}
+
+async function cachedConsoleCalls() {
+  'use cache'
+  consoleCalls()
+}
+
+export default async function ConsolePage() {
+  consoleCalls()
+
+  await cachedConsoleCalls()
+
   return null
 }
