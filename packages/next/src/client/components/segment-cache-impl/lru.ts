@@ -94,6 +94,8 @@ export function createLRU<T extends LRUNode>(
           head = null
         } else {
           head = next
+          prev.next = next
+          next.prev = prev
         }
       } else {
         prev.next = next
