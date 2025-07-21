@@ -32,46 +32,40 @@ export function devToolsConfigMiddleware({
       return next()
     }
 
-    if (req.method !== 'GET' && req.method !== 'POST') {
+    if (req.method !== 'POST') {
       return middlewareResponse.methodNotAllowed(res)
     }
 
     const currentConfig = await getDevToolsConfig(distDir)
 
-    if (req.method === 'GET') {
-      return middlewareResponse.json(res, currentConfig)
+    const chunks: Buffer[] = []
+    for await (const chunk of req) {
+      chunks.push(Buffer.from(chunk))
     }
 
-    if (req.method === 'POST') {
-      const chunks: Buffer[] = []
-      for await (const chunk of req) {
-        chunks.push(Buffer.from(chunk))
-      }
-
-      let body = Buffer.concat(chunks).toString('utf8')
-      try {
-        body = JSON.parse(body)
-      } catch (error) {
-        console.error('[Next.js DevTools] Invalid config body passed:', error)
-        return middlewareResponse.badRequest(res)
-      }
-
-      const validation = devToolsConfigSchema.safeParse(body)
-      if (!validation.success) {
-        console.error(
-          '[Next.js DevTools] Invalid config passed:',
-          validation.error.message
-        )
-        return middlewareResponse.badRequest(res)
-      }
-
-      const newConfig = deepMerge(currentConfig, validation.data)
-      await writeFile(configPath, JSON.stringify(newConfig, null, 2))
-
-      sendUpdateSignal(newConfig)
-
-      return middlewareResponse.noContent(res)
+    let body = Buffer.concat(chunks).toString('utf8')
+    try {
+      body = JSON.parse(body)
+    } catch (error) {
+      console.error('[Next.js DevTools] Invalid config body passed:', error)
+      return middlewareResponse.badRequest(res)
     }
+
+    const validation = devToolsConfigSchema.safeParse(body)
+    if (!validation.success) {
+      console.error(
+        '[Next.js DevTools] Invalid config passed:',
+        validation.error.message
+      )
+      return middlewareResponse.badRequest(res)
+    }
+
+    const newConfig = deepMerge(currentConfig, validation.data)
+    await writeFile(configPath, JSON.stringify(newConfig, null, 2))
+
+    sendUpdateSignal(newConfig)
+
+    return middlewareResponse.noContent(res)
   }
 }
 
