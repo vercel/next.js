@@ -2,16 +2,16 @@ import type { DevToolsConfig } from '../shared'
 import { devToolsConfigSchema } from '../../shared/devtools-config-schema'
 import { deepMerge } from '../../shared/deepmerge'
 
-let queuedPatch: DevToolsConfig = {}
+let queuedConfigPatch: DevToolsConfig = {}
 let timer: ReturnType<typeof setTimeout> | null = null
 
 function flushPatch() {
-  if (Object.keys(queuedPatch).length === 0) {
+  if (Object.keys(queuedConfigPatch).length === 0) {
     return
   }
 
-  const body = JSON.stringify(queuedPatch)
-  queuedPatch = {}
+  const body = JSON.stringify(queuedConfigPatch)
+  queuedConfigPatch = {}
 
   fetch('/__nextjs_devtools_config', {
     method: 'POST',
@@ -37,7 +37,7 @@ export function saveDevToolsConfig(patch: DevToolsConfig) {
     return
   }
 
-  queuedPatch = deepMerge(queuedPatch, patch)
+  queuedConfigPatch = deepMerge(queuedConfigPatch, patch)
 
   if (timer) {
     clearTimeout(timer)
