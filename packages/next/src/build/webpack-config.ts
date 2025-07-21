@@ -907,7 +907,6 @@ export default async function getBaseWebpackConfig(
   const builtinModules = (require('module') as typeof import('module'))
     .builtinModules
 
-  // Add Bun builtins to externals
   const bunExternals = [
     'bun:ffi',
     'bun:jsc',

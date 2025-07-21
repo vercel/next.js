@@ -21,6 +21,6 @@ export async function GET() {
 
     return NextResponse.json('Did not throw')
   } catch (e) {
-    return NextResponse.json('Threw')
+    return NextResponse.json(String(e))
   }
 }

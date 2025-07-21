@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   const results: Record<string, string> = {}
 
-  // Test each Bun module
   const modules = [
     { name: 'bunFfi', module: 'bun:ffi' },
     { name: 'bunJsc', module: 'bun:jsc' },

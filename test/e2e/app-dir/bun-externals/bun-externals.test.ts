@@ -25,10 +25,8 @@ describe('app-dir - bun externals', () => {
   it('should handle bun builtins in server actions', async () => {
     const browser = await next.browser('/server-action')
 
-    // Click the button to trigger server action
     await browser.elementByCss('#test-action').click()
 
-    // Wait for result
     await browser.waitForElementByCss('#action-result')
     const result = await browser.elementByCss('#action-result').text()
 
@@ -49,23 +47,20 @@ describe('app-dir - bun externals', () => {
 
   it('should handle bun builtins in edge runtime', async () => {
     const response = await next.fetch('/api/edge-bun-externals')
-    expect(await response.json()).toBe('Threw')
+    expect(await response.json()).toMatch(/Error: Cannot find module 'bun.*'/)
   })
 
-  // Check that the modules are not bundled
   if (!isTurbopack && !isNextDev) {
     it('should not bundle bun builtins in server bundles', async () => {
       await next.fetch('/')
       const rscBundle = await next.readFile('.next/server/app/page.js')
 
-      // These strings should not appear in the bundle as they should be external
       expect(rscBundle).not.toContain('bun:ffi implementation')
       expect(rscBundle).not.toContain('bun:jsc implementation')
       expect(rscBundle).not.toContain('bun:sqlite implementation')
       expect(rscBundle).not.toContain('bun:test implementation')
       expect(rscBundle).not.toContain('bun:wrap implementation')
 
-      // The requires should be preserved as external
       expect(rscBundle).toMatch(/require\(["']bun:ffi["']\)/)
       expect(rscBundle).toMatch(/require\(["']bun:jsc["']\)/)
       expect(rscBundle).toMatch(/require\(["']bun:sqlite["']\)/)
