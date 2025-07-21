@@ -285,7 +285,6 @@ export type RenderOptsPartial = {
   images: ImageConfigComplete
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean
-  strictNextHead: boolean
   isPossibleServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
@@ -1512,7 +1511,6 @@ export async function renderToHTMLImpl(
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
     nonce,
-    strictNextHead: renderOpts.strictNextHead,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,

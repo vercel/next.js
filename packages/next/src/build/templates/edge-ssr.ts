@@ -143,7 +143,6 @@ async function requestHandler(
       ComponentMod: pageMod,
       pageConfig: pageMod.pageConfig,
       routeModule: pageMod.routeModule,
-      strictNextHead: nextConfig.experimental.strictNextHead ?? true,
       canonicalBase: nextConfig.amp.canonicalBase || '',
       previewProps: prerenderManifest.preview,
       ampOptimizerConfig: nextConfig.experimental.amp?.optimizer,
