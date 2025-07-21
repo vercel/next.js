@@ -206,13 +206,11 @@ export function formatIssue(issue: Issue) {
             message += ` [${layer}]`
           }
           message += ':\n'
+        } else if (layer) {
+          message += ` [${layer}]:\n`
         } else {
-          if (layer) {
-            message += ` [${layer}]:\n`
-          } else {
-            // If there is a single trace and no layer name just don't indent it.
-            traceIndent = '  '
-          }
+          // If there is a single trace and no layer name just don't indent it.
+          traceIndent = '  '
         }
       }
       message += formatIssueTrace(trace, traceIndent, !identicalLayers(trace))

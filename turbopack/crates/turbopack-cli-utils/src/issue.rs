@@ -254,12 +254,10 @@ pub fn format_issue(
                         write!(styled_issue, " [{layer}]").unwrap();
                     }
                     writeln!(styled_issue, ":").unwrap();
+                } else if let Some(layer) = layer {
+                    write!(styled_issue, " [{layer}]").unwrap();
                 } else {
-                    if let Some(layer) = layer {
-                        write!(styled_issue, " [{layer}]").unwrap();
-                    } else {
-                        trace_indent = "  ";
-                    }
+                    trace_indent = "  ";
                 }
                 format_trace_items(
                     &mut styled_issue,
