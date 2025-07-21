@@ -40,9 +40,10 @@ describe('formatIssue', () => {
     expect(output).toBe(`\
 ./src/app/page.ts
 Module not found
-Import trace [client]:
-  ./src/app/page.ts
-  ./src/lib/foo.ts
+Import trace:
+  client:
+    ./src/app/page.ts
+    ./src/lib/foo.ts
 
 https://nextjs.org/docs/messages/module-not-found
 
