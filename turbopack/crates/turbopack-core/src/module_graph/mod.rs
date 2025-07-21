@@ -572,7 +572,6 @@ impl SingleModuleGraph {
     /// already been passed to `visit`.
     ///
     /// * `entries` - The entry modules to start the traversal from
-    /// * `state` - The state to be passed to the callbacks
     /// * `visit` - Called for a specific edge
     ///    - Receives: Option(originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode
