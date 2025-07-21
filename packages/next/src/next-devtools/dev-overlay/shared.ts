@@ -515,7 +515,9 @@ export function useErrorOverlayReducer(
               devToolsPanelPosition ?? state.devToolsPanelPosition,
             scale: scale ?? state.scale,
             devToolsPanelSize: devToolsPanelSize ?? state.devToolsPanelSize,
-            hideShortcut: hideShortcut ?? state.hideShortcut,
+            hideShortcut:
+              // hideShortcut can be null.
+              hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
         }
         default: {
