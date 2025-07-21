@@ -68,6 +68,33 @@ class UpdateApplyError extends Error {
 const runtimeModules: Set<ModuleId> = new Set()
 
 /**
+ * Map from module ID to the chunks that contain this module.
+ *
+ * In HMR, we need to keep track of which modules are contained in which so
+ * chunks. This is so we don't eagerly dispose of a module when it is removed
+ * from chunk A, but still exists in chunk B.
+ */
+const moduleChunksMap: Map<ModuleId, Set<ChunkPath>> = new Map()
+/**
+ * Map from a chunk path to all modules it contains.
+ */
+const chunkModulesMap: Map<ChunkPath, Set<ModuleId>> = new Map()
+/**
+ * Chunk lists that contain a runtime. When these chunk lists receive an update
+ * that can't be reconciled with the current state of the page, we need to
+ * reload the runtime entirely.
+ */
+const runtimeChunkLists: Set<ChunkListPath> = new Set()
+/**
+ * Map from a chunk list to the chunk paths it contains.
+ */
+const chunkListChunksMap: Map<ChunkListPath, Set<ChunkPath>> = new Map()
+/**
+ * Map from a chunk path to the chunk lists it belongs to.
+ */
+const chunkChunkListsMap: Map<ChunkPath, Set<ChunkListPath>> = new Map()
+
+/**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
  */
@@ -1058,6 +1085,50 @@ function disposeChunk(chunkPath: ChunkPath): boolean {
   }
 
   return true
+}
+
+/**
+ * Adds a module to a chunk.
+ */
+function addModuleToChunk(moduleId: ModuleId, chunkPath: ChunkPath) {
+  let moduleChunks = moduleChunksMap.get(moduleId)
+  if (!moduleChunks) {
+    moduleChunks = new Set([chunkPath])
+    moduleChunksMap.set(moduleId, moduleChunks)
+  } else {
+    moduleChunks.add(chunkPath)
+  }
+
+  let chunkModules = chunkModulesMap.get(chunkPath)
+  if (!chunkModules) {
+    chunkModules = new Set([moduleId])
+    chunkModulesMap.set(chunkPath, chunkModules)
+  } else {
+    chunkModules.add(moduleId)
+  }
+}
+
+/**
+ * Marks a chunk list as a runtime chunk list. There can be more than one
+ * runtime chunk list. For instance, integration tests can have multiple chunk
+ * groups loaded at runtime, each with its own chunk list.
+ */
+function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
+  runtimeChunkLists.add(chunkListPath)
+}
+
+function registerChunk([
+  chunkScript,
+  chunkModules,
+  runtimeParams,
+]: ChunkRegistration) {
+  const chunkPath = getPathFromScript(chunkScript)
+  for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
+    registerCompressedModuleFactory(moduleId, moduleFactory)
+    addModuleToChunk(moduleId, chunkPath)
+  }
+
+  return BACKEND.registerChunk(chunkPath, runtimeParams)
 }
 
 /**

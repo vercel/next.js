@@ -441,32 +441,25 @@ var SourceType = /*#__PURE__*/ function(SourceType) {
 }(SourceType || {});
 const moduleFactories = Object.create(null);
 contextPrototype.M = moduleFactories;
-/**
- * Module IDs that are instantiated as part of the runtime of a chunk.
- */ const runtimeModules = new Set();
-/**
- * Map from module ID to the chunks that contain this module.
- *
- * In HMR, we need to keep track of which modules are contained in which so
- * chunks. This is so we don't eagerly dispose of a module when it is removed
- * from chunk A, but still exists in chunk B.
- */ const moduleChunksMap = new Map();
-/**
- * Map from a chunk path to all modules it contains.
- */ const chunkModulesMap = new Map();
-/**
- * Chunk lists that contain a runtime. When these chunk lists receive an update
- * that can't be reconciled with the current state of the page, we need to
- * reload the runtime entirely.
- */ const runtimeChunkLists = new Set();
-/**
- * Map from a chunk list to the chunk paths it contains.
- */ const chunkListChunksMap = new Map();
-/**
- * Map from a chunk path to the chunk lists it belongs to.
- */ const chunkChunkListsMap = new Map();
 const availableModules = new Map();
 const availableModuleChunks = new Map();
+function factoryNotAvailable(moduleId, sourceType, sourceData) {
+    let instantiationReason;
+    switch(sourceType){
+        case 0:
+            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
+            break;
+        case 1:
+            instantiationReason = `because it was required from module ${sourceData}`;
+            break;
+        case 2:
+            instantiationReason = 'because of an HMR update';
+            break;
+        default:
+            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
+    }
+    throw new Error(`Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
+}
 function loadChunk(chunkData) {
     return loadChunkInternal(1, this.m.id, chunkData);
 }
@@ -605,39 +598,6 @@ importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_L
 }
 browserContextPrototype.b = getWorkerBlobURL;
 /**
- * Adds a module to a chunk.
- */ function addModuleToChunk(moduleId, chunkPath) {
-    let moduleChunks = moduleChunksMap.get(moduleId);
-    if (!moduleChunks) {
-        moduleChunks = new Set([
-            chunkPath
-        ]);
-        moduleChunksMap.set(moduleId, moduleChunks);
-    } else {
-        moduleChunks.add(chunkPath);
-    }
-    let chunkModules = chunkModulesMap.get(chunkPath);
-    if (!chunkModules) {
-        chunkModules = new Set([
-            moduleId
-        ]);
-        chunkModulesMap.set(chunkPath, chunkModules);
-    } else {
-        chunkModules.add(moduleId);
-    }
-}
-/**
- * Returns the first chunk that included a module.
- * This is used by the Node.js backend, hence why it's marked as unused in this
- * file.
- */ function getFirstModuleChunk(moduleId) {
-    const moduleChunkPaths = moduleChunksMap.get(moduleId);
-    if (moduleChunkPaths == null) {
-        return null;
-    }
-    return moduleChunkPaths.values().next().value;
-}
-/**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
     return instantiateModule(moduleId, 0, chunkPath);
@@ -656,30 +616,18 @@ function getPathFromScript(chunkScript) {
     const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
 }
-/**
- * Marks a chunk list as a runtime chunk list. There can be more than one
- * runtime chunk list. For instance, integration tests can have multiple chunk
- * groups loaded at runtime, each with its own chunk list.
- */ function markChunkListAsRuntime(chunkListPath) {
-    runtimeChunkLists.add(chunkListPath);
-}
-function registerChunk([chunkScript, chunkModules, runtimeParams]) {
-    const chunkPath = getPathFromScript(chunkScript);
-    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
-        if (!moduleFactories[moduleId]) {
-            if (Array.isArray(moduleFactory)) {
-                let [moduleFactoryFn, otherIds] = moduleFactory;
-                moduleFactories[moduleId] = moduleFactoryFn;
-                for (const otherModuleId of otherIds){
-                    moduleFactories[otherModuleId] = moduleFactoryFn;
-                }
-            } else {
-                moduleFactories[moduleId] = moduleFactory;
+function registerCompressedModuleFactory(moduleId, moduleFactory) {
+    if (!moduleFactories[moduleId]) {
+        if (Array.isArray(moduleFactory)) {
+            let [moduleFactoryFn, otherIds] = moduleFactory;
+            moduleFactories[moduleId] = moduleFactoryFn;
+            for (const otherModuleId of otherIds){
+                moduleFactories[otherModuleId] = moduleFactoryFn;
             }
+        } else {
+            moduleFactories[moduleId] = moduleFactory;
         }
-        addModuleToChunk(moduleId, chunkPath);
     }
-    return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
@@ -721,6 +669,30 @@ class UpdateApplyError extends Error {
         this.dependencyChain = dependencyChain;
     }
 }
+/**
+ * Module IDs that are instantiated as part of the runtime of a chunk.
+ */ const runtimeModules = new Set();
+/**
+ * Map from module ID to the chunks that contain this module.
+ *
+ * In HMR, we need to keep track of which modules are contained in which so
+ * chunks. This is so we don't eagerly dispose of a module when it is removed
+ * from chunk A, but still exists in chunk B.
+ */ const moduleChunksMap = new Map();
+/**
+ * Map from a chunk path to all modules it contains.
+ */ const chunkModulesMap = new Map();
+/**
+ * Chunk lists that contain a runtime. When these chunk lists receive an update
+ * that can't be reconciled with the current state of the page, we need to
+ * reload the runtime entirely.
+ */ const runtimeChunkLists = new Set();
+/**
+ * Map from a chunk list to the chunk paths it contains.
+ */ const chunkListChunksMap = new Map();
+/**
+ * Map from a chunk path to the chunk lists it belongs to.
+ */ const chunkChunkListsMap = new Map();
 /**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
@@ -777,21 +749,7 @@ function instantiateModule(moduleId, sourceType, sourceData) {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
-        let instantiationReason;
-        switch(sourceType){
-            case SourceType.Runtime:
-                instantiationReason = `as a runtime entry of chunk ${sourceData}`;
-                break;
-            case SourceType.Parent:
-                instantiationReason = `because it was required from module ${sourceData}`;
-                break;
-            case SourceType.Update:
-                instantiationReason = 'because of an HMR update';
-                break;
-            default:
-                invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-        }
-        throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
+        factoryNotAvailable(id, sourceType, sourceData);
     }
     const hotData = moduleHotData.get(id);
     const { hot, hotState } = createModuleHot(id, hotData);
@@ -1469,6 +1427,43 @@ function createModuleHot(moduleId, hotData) {
         }
     }
     return true;
+}
+/**
+ * Adds a module to a chunk.
+ */ function addModuleToChunk(moduleId, chunkPath) {
+    let moduleChunks = moduleChunksMap.get(moduleId);
+    if (!moduleChunks) {
+        moduleChunks = new Set([
+            chunkPath
+        ]);
+        moduleChunksMap.set(moduleId, moduleChunks);
+    } else {
+        moduleChunks.add(chunkPath);
+    }
+    let chunkModules = chunkModulesMap.get(chunkPath);
+    if (!chunkModules) {
+        chunkModules = new Set([
+            moduleId
+        ]);
+        chunkModulesMap.set(chunkPath, chunkModules);
+    } else {
+        chunkModules.add(moduleId);
+    }
+}
+/**
+ * Marks a chunk list as a runtime chunk list. There can be more than one
+ * runtime chunk list. For instance, integration tests can have multiple chunk
+ * groups loaded at runtime, each with its own chunk list.
+ */ function markChunkListAsRuntime(chunkListPath) {
+    runtimeChunkLists.add(chunkListPath);
+}
+function registerChunk([chunkScript, chunkModules, runtimeParams]) {
+    const chunkPath = getPathFromScript(chunkScript);
+    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
+        registerCompressedModuleFactory(moduleId, moduleFactory);
+        addModuleToChunk(moduleId, chunkPath);
+    }
+    return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
 /**
  * Subscribes to chunk list updates from the update server and applies them.

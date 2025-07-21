@@ -76,3 +76,17 @@ function instantiateModule(
 
   return module
 }
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function registerChunk([
+  chunkScript,
+  chunkModules,
+  runtimeParams,
+]: ChunkRegistration) {
+  const chunkPath = getPathFromScript(chunkScript)
+  for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
+    registerCompressedModuleFactory(moduleId, moduleFactory)
+  }
+
+  return BACKEND.registerChunk(chunkPath, runtimeParams)
+}
