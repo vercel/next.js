@@ -385,20 +385,6 @@ function addModuleToChunk(moduleId: ModuleId, chunkPath: ChunkPath) {
 }
 
 /**
- * Returns the first chunk that included a module.
- * This is used by the Node.js backend, hence why it's marked as unused in this
- * file.
- */
-function getFirstModuleChunk(moduleId: ModuleId) {
-  const moduleChunkPaths = moduleChunksMap.get(moduleId)
-  if (moduleChunkPaths == null) {
-    return null
-  }
-
-  return moduleChunkPaths.values().next().value
-}
-
-/**
  * Instantiates a runtime module.
  */
 function instantiateRuntimeModule(
