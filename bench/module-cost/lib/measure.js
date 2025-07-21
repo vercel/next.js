@@ -18,12 +18,11 @@ export async function measure(name, fn) {
     executeDuration = end - start
   }
 
-  const result = { loadDuration, executeDuration, files }
-  console.log(`${name} Measurement: ${format(result)}`)
+  const result = { name, loadDuration, executeDuration, files }
 
   return result
 }
 
 export function format(result) {
-  return `Load duration: ${result.loadDuration.toFixed(2)}ms, Execution duration: ${result.executeDuration.toFixed(2)}ms, Files: ${result.files}`
+  return `${result.name}: Load duration: ${result.loadDuration.toFixed(2)}ms, Execution duration: ${result.executeDuration.toFixed(2)}ms, Files: ${result.files}`
 }

@@ -1,7 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { format, measure } from '../lib/measure'
-import { useState, useEffect } from 'react'
+
+function log(result) {
+  console.log(format(result))
+}
 
 async function measureClientButton(element, name, fn) {
   if (element.textContent.includes('Loading time')) {
@@ -10,7 +14,8 @@ async function measureClientButton(element, name, fn) {
 
   const result = await measure(name, fn)
 
-  element.textContent += ` (${format(result)})`
+  element.textContent = format(result)
+  log(result)
 }
 
 async function measureActionButton(element, action) {
@@ -20,7 +25,8 @@ async function measureActionButton(element, action) {
 
   const result = await action()
 
-  element.textContent += ` (${format(result)})`
+  element.textContent = format(result)
+  log(result)
 }
 
 async function measureApiButton(element, url) {
@@ -30,7 +36,8 @@ async function measureApiButton(element, url) {
 
   const result = await fetch(url).then((res) => res.json())
 
-  element.textContent += ` (${format(result)})`
+  element.textContent = format(result)
+  log(result)
 }
 
 export function Client({ prefix, commonjsAction, esmAction }) {
