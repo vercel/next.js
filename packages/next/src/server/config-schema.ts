@@ -480,6 +480,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
          *
          * This option is ignored on Windows on ARM, where the native TLS implementation is always
          * used.
+         *
+         * If you need to set a proxy, Turbopack [respects the common `HTTP_PROXY` and `HTTPS_PROXY`
+         * environment variable convention](https://docs.rs/reqwest/latest/reqwest/#proxies). HTTP
+         * proxies are supported, SOCKS proxies are not currently supported.
          */
         turbopackUseSystemTlsCerts: z.boolean().optional(),
         optimizePackageImports: z.array(z.string()).optional(),

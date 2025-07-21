@@ -25,7 +25,6 @@ pub enum ProxyConfig {
 #[turbo_tasks::value(shared)]
 #[derive(Hash)]
 pub struct ReqwestClientConfig {
-    pub proxy: Option<ProxyConfig>,
     /// Whether to load embedded webpki root certs with rustls. Default is true.
     ///
     /// Ignored for:
@@ -44,7 +43,6 @@ pub struct ReqwestClientConfig {
 impl Default for ReqwestClientConfig {
     fn default() -> Self {
         Self {
-            proxy: None,
             tls_built_in_webpki_certs: true,
             tls_built_in_native_certs: false,
         }
@@ -53,16 +51,7 @@ impl Default for ReqwestClientConfig {
 
 impl ReqwestClientConfig {
     fn try_build(&self) -> reqwest::Result<reqwest::Client> {
-        let mut client_builder = reqwest::Client::builder();
-        match &self.proxy {
-            Some(ProxyConfig::Http(proxy)) => {
-                client_builder = client_builder.proxy(reqwest::Proxy::http(proxy.as_str())?)
-            }
-            Some(ProxyConfig::Https(proxy)) => {
-                client_builder = client_builder.proxy(reqwest::Proxy::https(proxy.as_str())?)
-            }
-            None => {}
-        };
+        let client_builder = reqwest::Client::builder();
 
         // make sure this cfg matches the one in `Cargo.toml`!
         #[cfg(not(any(

@@ -1743,7 +1743,6 @@ impl NextConfig {
             .or(self.experimental.turbopack_use_system_tls_certs)
             .unwrap_or(false);
         Ok(ReqwestClientConfig {
-            proxy: None,
             tls_built_in_webpki_certs: !use_system_tls_certs,
             tls_built_in_native_certs: use_system_tls_certs,
         }
