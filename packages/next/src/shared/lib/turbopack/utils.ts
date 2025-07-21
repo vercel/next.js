@@ -185,34 +185,37 @@ export function formatIssue(issue: Issue) {
 
   if (importTraces?.length) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
-    if (importTraces.length === 1) {
-      const trace = importTraces[0]
-      // We only display the layer if there is more than one for the trace
+    // We end up with multiple traces when the file with the error is reachable from multiple
+    // different entry points (e.g. ssr, client)
+    message += `Import trace${importTraces.length > 1 ? 's' : ''}:\n`
+    const everyTraceHasADistinctRootLayer =
+      new Set(importTraces.map(leafLayerName).filter((l) => l != null)).size ===
+      importTraces.length
+    for (let i = 0; i < importTraces.length; i++) {
+      const trace = importTraces[i]
       const layer = leafLayerName(trace)
-      message += `Import trace${layer != null ? ` [${layer}]` : ''}:\n${formatIssueTrace(trace, '  ', !identicalLayers(trace))}`
-    } else {
-      // We end up with multiple traces when the file with the error is reachable from multiple
-      // different entry points (e.g. ssr, client)
-      message += 'Import traces:\n'
-      const everyTraceHasADistinctRootLayer =
-        new Set(importTraces.map(leafLayerName).filter((l) => l != null))
-          .size === importTraces.length
-      for (let i = 0; i < importTraces.length; i++) {
-        const trace = importTraces[i]
-        const layer = leafLayerName(trace)
-        // If this is true, layer must be present
-        if (everyTraceHasADistinctRootLayer) {
-          message += `  ${layer}:\n`
-        } else {
+      let traceIndent = '    '
+      // If this is true, layer must be present
+      if (everyTraceHasADistinctRootLayer) {
+        message += `  ${layer}:\n`
+      } else {
+        if (importTraces.length > 1) {
           // Otherwise use simple 1 based indices to disambiguate
           message += `  #${i + 1}`
           if (layer) {
             message += ` [${layer}]`
           }
           message += ':\n'
+        } else {
+          if (layer) {
+            message += ` [${layer}]:\n`
+          } else {
+            // If there is a single trace and no layer name just don't indent it.
+            traceIndent = '  '
+          }
         }
-        message += formatIssueTrace(trace, '    ', !identicalLayers(trace))
       }
+      message += formatIssueTrace(trace, traceIndent, !identicalLayers(trace))
     }
   }
   if (documentationLink) {
