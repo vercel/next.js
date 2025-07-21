@@ -2370,6 +2370,8 @@ impl Analyzer<'_> {
                 for (idx, (elem_pat, value_item)) in arr
                     .elems
                     .iter()
+                    // TODO: This does not handle inline spreads correctly
+                    // e.g. `let [a,..b,c] = [1,2,3]`
                     .zip(items.into_iter().map(Some).chain(iter::repeat(None)))
                     .enumerate()
                 {
