@@ -171,7 +171,7 @@ export function PageSegmentTree({ page }: { page: string }) {
   )
 }
 
-const GLOBAL_BOUNDARY_TYPES = ['global-error']
+const GLOBAL_ERROR_BOUNDARY_TYPE = 'global-error'
 
 function PageSegmentTreeLayerPresentation({
   segment,
@@ -187,15 +187,13 @@ function PageSegmentTreeLayerPresentation({
     [node.children]
   )
 
-  const missingBoundaryTypes = useMemo(() => {
-    const boundaryTypes = level === 0 ? GLOBAL_BOUNDARY_TYPES : []
-
+  const missingGlobalError = useMemo(() => {
     const existingBoundaries: string[] = []
     childrenKeys.forEach((key) => {
       const childNode = node.children[key]
       if (!childNode || !childNode.value) return
       const boundaryType = getBoundaryOriginFileType(childNode.value.type)
-      const isGlobalConvention = GLOBAL_BOUNDARY_TYPES.includes(boundaryType)
+      const isGlobalConvention = boundaryType === GLOBAL_ERROR_BOUNDARY_TYPE
       if (
         // If global-* convention is not built-in, it's existed
         (isGlobalConvention &&
@@ -208,7 +206,9 @@ function PageSegmentTreeLayerPresentation({
       }
     })
 
-    return boundaryTypes.filter((type) => !existingBoundaries.includes(type))
+    return (
+      level === 0 && !existingBoundaries.includes(GLOBAL_ERROR_BOUNDARY_TYPE)
+    )
   }, [node.children, childrenKeys, level])
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
@@ -345,10 +345,10 @@ function PageSegmentTreeLayerPresentation({
                     <small>{'/'}</small>
                   </span>
                 )}
-                {missingBoundaryTypes.length > 0 && (
+                {missingGlobalError && (
                   <SegmentSuggestion
                     possibleExtension={possibleExtension}
-                    missingBoundaryTypes={missingBoundaryTypes}
+                    missingGlobalError={missingGlobalError}
                   />
                 )}
                 {/* display all the file segments in this level */}
