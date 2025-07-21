@@ -231,12 +231,7 @@ function DevOverlayRoot({
           state,
         }}
       >
-        <DevOverlay
-          // we also pass props for legacy UI
-          dispatch={dispatch}
-          state={state}
-          getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
-        />
+        <DevOverlay />
       </DevOverlayContext>
     </>
   )

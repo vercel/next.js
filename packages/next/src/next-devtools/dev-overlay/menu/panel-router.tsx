@@ -154,6 +154,7 @@ export const PanelRouter = () => {
         <MenuPanel />
       </PanelRoute>
 
+      {/* TODO: NEXT-4644 */}
       <PanelRoute name="preferences">
         <DynamicPanel
           sharePanelSizeGlobally={false}
@@ -230,7 +231,6 @@ export const PanelRouter = () => {
       <PanelRoute name="turbo-info">
         <DynamicPanel
           sharePanelSizeGlobally={false}
-          // this size config is really silly, should calculate initial size dynamically
           sizeConfig={{
             kind: 'fixed',
             height: 470 / state.scale,

@@ -28,8 +28,7 @@ export const ResizeHandle = ({
     left: 0,
   })
 
-  // TODO(rob): if parallel with >2 sides (user resizes panel to be max width/height)
-  // then we need to relax disabled resize heuristic
+  // TODO: NEXT-4645
   const shouldShowHandle = () => {
     const getOppositeCorner = (corner: Corners): ResizeDirection => {
       switch (corner) {
