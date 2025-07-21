@@ -1,25 +1,23 @@
-import { useState, type HTMLProps } from 'react'
+import type { HTMLProps } from 'react'
+import type {
+  DevToolsIndicatorPosition,
+  DevToolsScale,
+} from '../../../../shared'
+
 import { css } from '../../../../utils/css'
 import EyeIcon from '../../../../icons/eye-icon'
-import {
-  NEXT_DEV_TOOLS_SCALE,
-  STORAGE_KEY_POSITION,
-  STORAGE_KEY_THEME,
-} from '../../../../shared'
+import { NEXT_DEV_TOOLS_SCALE } from '../../../../shared'
 import LightIcon from '../../../../icons/light-icon'
 import DarkIcon from '../../../../icons/dark-icon'
 import SystemIcon from '../../../../icons/system-icon'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
-import {
-  getInitialTheme,
-  type DevToolsIndicatorPosition,
-  type DevToolsScale,
-} from './preferences'
 import { ShortcutRecorder } from './shortcut-recorder'
 import { useRestartServer } from '../../error-overlay-toolbar/use-restart-server'
+import { saveDevToolsConfig } from '../../../../utils/save-devtools-config'
 
 export function UserPreferences({
+  theme,
   hide,
   hideShortcut,
   setHideShortcut,
@@ -29,6 +27,7 @@ export function UserPreferences({
   setPosition,
   ...props
 }: {
+  theme: 'dark' | 'light' | 'system'
   hide: () => void
   hideShortcut: string | null
   setHideShortcut: (value: string | null) => void
@@ -41,6 +40,7 @@ export function UserPreferences({
   return (
     <DevToolsInfo title="Preferences" {...props}>
       <UserPreferencesBody
+        theme={theme}
         scale={scale}
         position={position}
         setPosition={setPosition}
@@ -54,6 +54,7 @@ export function UserPreferences({
 }
 
 export function UserPreferencesBody({
+  theme,
   hide,
   hideShortcut,
   setHideShortcut,
@@ -62,6 +63,7 @@ export function UserPreferencesBody({
   setScale,
   position,
 }: {
+  theme: 'dark' | 'light' | 'system'
   hide: () => void
   hideShortcut: string | null
   setHideShortcut: (value: string | null) => void
@@ -71,40 +73,42 @@ export function UserPreferencesBody({
   setScale: (value: DevToolsScale) => void
 }) {
   const { restartServer, isPending } = useRestartServer()
-  const [theme, setTheme] = useState(getInitialTheme())
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const portal = document.querySelector('nextjs-portal')
-    if (!portal) return
-
-    setTheme(e.target.value)
+    if (!portal) {
+      return
+    }
 
     if (e.target.value === 'system') {
       portal.classList.remove('dark')
       portal.classList.remove('light')
-      localStorage.removeItem(STORAGE_KEY_THEME)
+      saveDevToolsConfig({ theme: 'system' })
       return
     }
 
     if (e.target.value === 'dark') {
       portal.classList.add('dark')
       portal.classList.remove('light')
-      localStorage.setItem(STORAGE_KEY_THEME, 'dark')
+      saveDevToolsConfig({ theme: 'dark' })
     } else {
       portal.classList.remove('dark')
       portal.classList.add('light')
-      localStorage.setItem(STORAGE_KEY_THEME, 'light')
+      saveDevToolsConfig({ theme: 'light' })
     }
   }
 
   function handlePositionChange(e: React.ChangeEvent<HTMLSelectElement>) {
     setPosition(e.target.value as DevToolsIndicatorPosition)
-    localStorage.setItem(STORAGE_KEY_POSITION, e.target.value)
+    saveDevToolsConfig({
+      devToolsPosition: e.target.value as DevToolsIndicatorPosition,
+    })
   }
 
   function handleSizeChange({ target }: React.ChangeEvent<HTMLSelectElement>) {
     const value = Number(target.value) as DevToolsScale
     setScale(value)
+    saveDevToolsConfig({ scale: value })
   }
 
   return (

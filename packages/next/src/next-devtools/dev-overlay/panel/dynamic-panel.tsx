@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect, type CSSProperties } from 'react'
+import { useRef, useState, useEffect, type CSSProperties } from 'react'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { INDICATOR_PADDING } from '../components/devtools-indicator/devtools-indicator'
 import { ResizeHandle } from '../components/devtools-panel/resize/resize-handle'
@@ -19,6 +19,7 @@ import {
   STORE_KEY_SHARED_PANEL_SIZE,
 } from '../shared'
 import { getIndicatorOffset } from '../utils/indicator-metrics'
+import { saveDevToolsConfig } from '../utils/save-devtools-config'
 import './dynamic-panel.css'
 
 function resolveCSSValue(
@@ -70,34 +71,6 @@ function useResolvedDimensions(
   }, [minWidth, minHeight, maxWidth, maxHeight])
 
   return dimensions
-}
-
-function getStoredPanelSize(panelName?: string) {
-  const key = panelName
-    ? `${STORE_KEY_PANEL_SIZE_PREFIX}_${panelName}`
-    : STORE_KEY_SHARED_PANEL_SIZE
-  const defaultSize = { width: 450, height: 350 }
-  try {
-    const stored = JSON.parse(localStorage.getItem(key) ?? 'null')
-    if (!stored) {
-      return defaultSize
-    }
-    if (
-      typeof stored === 'object' &&
-      'height' in stored &&
-      'width' in stored &&
-      typeof stored.height === 'number' &&
-      typeof stored.width === 'number'
-    ) {
-      return {
-        width: stored.width as number,
-        height: stored.height as number,
-      }
-    }
-    return null
-  } catch {
-    return null
-  }
 }
 
 export function DynamicPanel({
@@ -217,7 +190,10 @@ export function DynamicPanel({
   const maxWidth = resolvedDimensions.maxWidth
   const maxHeight = resolvedDimensions.maxHeight
 
-  const panelSize = useMemo(() => getStoredPanelSize(name), [name])
+  const panelSizeKey = name
+    ? `${STORE_KEY_PANEL_SIZE_PREFIX}_${name}`
+    : STORE_KEY_SHARED_PANEL_SIZE
+  const panelSize = state.devToolsPanelSize[panelSizeKey]
 
   return (
     <ResizeProvider
@@ -230,6 +206,7 @@ export function DynamicPanel({
         maxWidth,
         maxHeight,
         devToolsPosition: state.devToolsPosition,
+        devToolsPanelSize: state.devToolsPanelSize,
         storageKey: resizeStorageKey,
       }}
     >
@@ -272,14 +249,19 @@ export function DynamicPanel({
             padding={INDICATOR_PADDING}
             position={devtoolsPanelPosition}
             setPosition={(p) => {
-              if (sizeConfig.kind === 'resizable') {
-                localStorage.setItem(positionStorageKey, p)
-              }
               dispatch({
                 type: ACTION_DEVTOOLS_PANEL_POSITION,
                 devToolsPanelPosition: p,
                 key: positionStorageKey,
               })
+
+              if (sizeConfig.kind === 'resizable') {
+                saveDevToolsConfig({
+                  devToolsPanelPosition: {
+                    [positionStorageKey]: p,
+                  },
+                })
+              }
             }}
             style={{
               overflow: 'auto',

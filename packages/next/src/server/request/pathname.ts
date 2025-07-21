@@ -29,9 +29,13 @@ export function createServerPathnameForMetadata(
           workUnitStore
         )
       }
-      case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+        throw new InvariantError(
+          'createServerPathnameForMetadata should not be called in cache contexts.'
+        )
+      case 'request':
         break
       default:
         workUnitStore satisfies never

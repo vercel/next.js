@@ -101,6 +101,7 @@ function revalidate(tags: string[], expression: string) {
 
     switch (workUnitStore.type) {
       case 'cache':
+      case 'private-cache':
         throw new Error(
           `Route ${store.route} used "${expression}" inside a "use cache" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
         )

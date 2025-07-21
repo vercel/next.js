@@ -228,7 +228,7 @@ function getBaseSWCOptions({
             isDevelopment: development,
             useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
-            cacheKinds: ['default', 'remote'].concat(
+            cacheKinds: ['default', 'remote', 'private'].concat(
               cacheHandlers ? Object.keys(cacheHandlers) : []
             ),
           }

@@ -122,8 +122,6 @@ import {
 
 export * from './base-server'
 
-declare const __non_webpack_require__: NodeRequire
-
 // For module that can be both CJS or ESM
 const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
   ? (id: string) =>
@@ -251,7 +249,6 @@ export default class NextNodeServer extends BaseServer<
   protected middlewareManifestPath: string
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
-  private registeredInstrumentation: boolean = false
   protected renderWorkersPromises?: Promise<void>
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
@@ -610,7 +607,6 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
@@ -620,7 +616,6 @@ export default class NextNodeServer extends BaseServer<
       req: req.originalRequest,
       res: res.originalResponse,
       result: options.result,
-      type: options.type,
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       cacheControl: options.cacheControl,

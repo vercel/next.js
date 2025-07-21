@@ -24,6 +24,7 @@ import {
 } from './../index'
 import { getCookieParser } from './../get-cookie-parser'
 import {
+  JSON_CONTENT_TYPE_HEADER,
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../../lib/constants'
@@ -106,7 +107,7 @@ function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
   }
 
   if (isJSONLike) {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
   }
 
   res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
@@ -120,7 +121,7 @@ function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
  */
 function sendJson(res: NextApiResponse, jsonBody: any): void {
   // Set header to application/json
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
 
   // Use send to handle request
   res.send(JSON.stringify(jsonBody))

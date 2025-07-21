@@ -32,6 +32,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
 import { getBotType, isBot } from '../../shared/lib/router/utils/is-bot'
 import {
@@ -43,7 +44,11 @@ import {
 } from '../../server/response-cache'
 import { FallbackMode, parseFallbackField } from '../../lib/fallback'
 import RenderResult from '../../server/render-result'
-import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
+import {
+  CACHE_ONE_YEAR,
+  HTML_CONTENT_TYPE_HEADER,
+  NEXT_CACHE_TAGS_HEADER,
+} from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
@@ -727,7 +732,7 @@ export async function handler(
           cacheControl: { revalidate: 1, expire: undefined },
           value: {
             kind: CachedRouteKind.PAGES,
-            html: RenderResult.fromStatic(''),
+            html: RenderResult.EMPTY,
             pageData: {},
             headers: undefined,
             status: undefined,
@@ -916,10 +921,12 @@ export async function handler(
           return sendRenderResult({
             req,
             res,
-            type: 'rsc',
             generateEtags: nextConfig.generateEtags,
             poweredByHeader: nextConfig.poweredByHeader,
-            result: RenderResult.fromStatic(matchedSegment),
+            result: RenderResult.fromStatic(
+              matchedSegment,
+              RSC_CONTENT_TYPE_HEADER
+            ),
             cacheControl: cacheEntry.cacheControl,
           })
         }
@@ -934,10 +941,9 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'rsc',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
-          result: RenderResult.fromStatic(''),
+          result: RenderResult.EMPTY,
           cacheControl: cacheEntry.cacheControl,
         })
       }
@@ -1040,7 +1046,6 @@ export async function handler(
           return sendRenderResult({
             req,
             res,
-            type: 'rsc',
             generateEtags: nextConfig.generateEtags,
             poweredByHeader: nextConfig.poweredByHeader,
             result: cachedData.html,
@@ -1060,10 +1065,12 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'rsc',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
-          result: RenderResult.fromStatic(cachedData.rscData),
+          result: RenderResult.fromStatic(
+            cachedData.rscData,
+            RSC_CONTENT_TYPE_HEADER
+          ),
           cacheControl: cacheEntry.cacheControl,
         })
       }
@@ -1074,11 +1081,16 @@ export async function handler(
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
-      if (!didPostpone || minimalMode) {
+      if (!didPostpone || minimalMode || isRSCRequest) {
         // If we're in test mode, we should add a sentinel chunk to the response
         // that's between the static and dynamic parts so we can compare the
         // chunks and add assertions.
-        if (process.env.__NEXT_TEST_MODE && minimalMode && isRoutePPREnabled) {
+        if (
+          process.env.__NEXT_TEST_MODE &&
+          minimalMode &&
+          isRoutePPREnabled &&
+          body.contentType === HTML_CONTENT_TYPE_HEADER
+        ) {
           // As we're in minimal mode, the static part would have already been
           // streamed first. The only part that this streams is the dynamic part
           // so we should FIRST stream the sentinel and THEN the dynamic part.
@@ -1088,7 +1100,6 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'html',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
@@ -1115,7 +1126,6 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'html',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
@@ -1171,7 +1181,6 @@ export async function handler(
       return sendRenderResult({
         req,
         res,
-        type: 'html',
         generateEtags: nextConfig.generateEtags,
         poweredByHeader: nextConfig.poweredByHeader,
         result: body,
