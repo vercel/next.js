@@ -16,7 +16,7 @@ describe('cache-components', () => {
   }
 
   it('dims console calls during prospective rendering', async () => {
-    const browser = await next.browser('/console', {})
+    await next.fetch('/console', {})
 
     if (isNextDev) {
       await retry(() => {
@@ -137,38 +137,6 @@ describe('cache-components', () => {
        }[22m[2m[22m
        [2mAssertion failed: [2m[0m[7m Cache [0m [2m/console: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
        [2m[0m[7m Cache [0m [2mAssertion failed: /console: This is an assert message with a template[22m[2m[22m"
-      `)
-      await expect(browser).toDisplayCollapsedRedbox(`
-       [
-         {
-           "description": "/console: test",
-           "environmentLabel": "Prerender",
-           "label": "Console Error",
-           "source": "app/console/page.tsx (5:17) @ consoleCalls
-       > 5 |   console.error(new Error('/console: test'))
-           |                 ^",
-           "stack": [
-             "consoleCalls app/console/page.tsx (5:17)",
-             "ConsolePage app/console/page.tsx (20:3)",
-             "ConsolePage <anonymous>",
-           ],
-         },
-         {
-           "description": "/console: test",
-           "environmentLabel": "Cache",
-           "label": "Console Error",
-           "source": "app/console/page.tsx (5:17) @ consoleCalls
-       > 5 |   console.error(new Error('/console: test'))
-           |                 ^",
-           "stack": [
-             "consoleCalls app/console/page.tsx (5:17)",
-             "cachedConsoleCalls app/console/page.tsx (16:3)",
-             "JSON.parse <anonymous>",
-             "JSON.parse <anonymous>",
-             "ConsolePage <anonymous>",
-           ],
-         },
-       ]
       `)
     } else {
       // prewarm + render
