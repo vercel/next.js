@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { NoInline } from '../../no-inline'
 
 type Params = {
   pageNumber: string
@@ -29,6 +30,7 @@ export default async function LinkCancellationTargetPage({
 }) {
   return (
     <Suspense fallback="Loading...">
+      <NoInline />
       <Content params={params} />
     </Suspense>
   )

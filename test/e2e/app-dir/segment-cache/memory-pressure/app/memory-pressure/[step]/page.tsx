@@ -1,15 +1,17 @@
 import { Suspense } from 'react'
+import { randomBytes } from 'crypto'
 
 type Params = { step: string }
 
 async function Content({ params }: { params: Promise<Params> }) {
+  'use cache'
   const { step } = await params
   return (
     <div id="memory-pressure-step-page">
       <h1>{`Page ${step}.`}</h1>
       {/* Render a large string such that a prefetch of this segment is roughly
           1MB over the network */}
-      <p>{'a'.repeat(1024 * 1024)}</p>
+      <p>{randomBytes(1024 * 1024).toString('base64')}</p>
     </div>
   )
 }

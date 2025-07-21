@@ -1,5 +1,6 @@
 import { connection } from 'next/server'
 import { Suspense } from 'react'
+import { NoInline } from '../../../components/no-inline'
 
 async function Content() {
   await connection()
@@ -9,6 +10,7 @@ async function Content() {
 export default async function PageA() {
   return (
     <Suspense fallback="Loading...">
+      <NoInline />
       <Content />
     </Suspense>
   )

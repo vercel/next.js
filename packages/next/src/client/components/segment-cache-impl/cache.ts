@@ -845,13 +845,21 @@ function rejectSegmentCacheEntry(
   }
 }
 
-function convertRootTreePrefetchToRouteTree(rootTree: RootTreePrefetch) {
-  return convertTreePrefetchToRouteTree(rootTree.tree, ROOT_SEGMENT_KEY)
+function convertRootTreePrefetchToRouteTree(
+  rootTree: RootTreePrefetch,
+  inlinedSegments: Map<string, SegmentPrefetch>
+) {
+  return convertTreePrefetchToRouteTree(
+    rootTree.tree,
+    ROOT_SEGMENT_KEY,
+    inlinedSegments
+  )
 }
 
 function convertTreePrefetchToRouteTree(
   prefetch: TreePrefetch,
-  key: string
+  key: string,
+  inlinedSegments: Map<string, SegmentPrefetch>
 ): RouteTree {
   // Converts the route tree sent by the server into the format used by the
   // cache. The cached version of the tree includes additional fields, such as a
@@ -875,10 +883,17 @@ function convertTreePrefetchToRouteTree(
       )
       slots[parallelRouteKey] = convertTreePrefetchToRouteTree(
         childPrefetch,
-        childKey
+        childKey,
+        inlinedSegments
       )
     }
   }
+
+  const inlinedSegment = prefetch.data
+  if (inlinedSegment !== null) {
+    inlinedSegments.set(key, inlinedSegment)
+  }
+
   return {
     key,
     segment: prefetch.segment,
@@ -1133,17 +1148,34 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      const now = Date.now()
       const staleTimeMs = serverData.staleTime * 1000
-      fulfillRouteCacheEntry(
+      const staleAt = now + staleTimeMs
+      const inlinedSegments = new Map<string, SegmentPrefetch>()
+      const route = fulfillRouteCacheEntry(
         entry,
-        convertRootTreePrefetchToRouteTree(serverData),
+        convertRootTreePrefetchToRouteTree(serverData, inlinedSegments),
         serverData.head,
         serverData.isHeadPartial,
-        Date.now() + staleTimeMs,
+        staleAt,
         couldBeIntercepted,
         canonicalUrl,
         routeIsPPREnabled
       )
+      // The tree prefetch response may contain inlined segment data. If so, we
+      // can write those into the cache now to avoid an extra request later.
+      for (const [segmentKey, segment] of inlinedSegments) {
+        writeInlinedSegmentIntoCache(
+          now,
+          task,
+          route,
+          segmentKey,
+          segment.rsc,
+          segment.loading,
+          segment.isPartial,
+          staleAt
+        )
+      }
     } else {
       // PPR is not enabled for this route. The server responds with a
       // different format (FlightRouterState) that we need to convert.
@@ -1644,32 +1676,16 @@ function writeSeedDataIntoCache(
     fulfillSegmentCacheEntry(ownedEntry, rsc, loading, staleAt, isPartial)
   } else {
     // There's no matching entry. Attempt to create a new one.
-    const possiblyNewEntry = readOrCreateSegmentCacheEntry(
+    writeInlinedSegmentIntoCache(
       now,
       task,
       route,
-      key
+      key,
+      rsc,
+      loading,
+      isPartial,
+      staleAt
     )
-    if (possiblyNewEntry.status === EntryStatus.Empty) {
-      // Confirmed this is a new entry. We can fulfill it.
-      const newEntry = possiblyNewEntry
-      fulfillSegmentCacheEntry(newEntry, rsc, loading, staleAt, isPartial)
-    } else {
-      // There was already an entry in the cache. But we may be able to
-      // replace it with the new one from the server.
-      const newEntry = fulfillSegmentCacheEntry(
-        createDetachedSegmentCacheEntry(staleAt),
-        rsc,
-        loading,
-        staleAt,
-        isPartial
-      )
-      upsertSegmentEntry(
-        now,
-        getSegmentKeypathForTask(task, route, key),
-        newEntry
-      )
-    }
   }
   // Recursively write the child data into the cache.
   const seedDataChildren = seedData[2]
@@ -1694,6 +1710,40 @@ function writeSeedDataIntoCache(
         )
       }
     }
+  }
+}
+
+function writeInlinedSegmentIntoCache(
+  now: number,
+  task: PrefetchTask,
+  route: FulfilledRouteCacheEntry,
+  key: string,
+  rsc: React.ReactNode,
+  loading: LoadingModuleData | Promise<LoadingModuleData>,
+  isPartial: boolean,
+  staleAt: number
+) {
+  // Attempt to create a new entry.
+  const possiblyNewEntry = readOrCreateSegmentCacheEntry(now, task, route, key)
+  if (possiblyNewEntry.status === EntryStatus.Empty) {
+    // Confirmed this is a new entry. We can fulfill it.
+    const newEntry = possiblyNewEntry
+    fulfillSegmentCacheEntry(newEntry, rsc, loading, staleAt, isPartial)
+  } else {
+    // There was already an entry in the cache. But we may be able to
+    // replace it with the new one from the server.
+    const newEntry = fulfillSegmentCacheEntry(
+      createDetachedSegmentCacheEntry(staleAt),
+      rsc,
+      loading,
+      staleAt,
+      isPartial
+    )
+    upsertSegmentEntry(
+      now,
+      getSegmentKeypathForTask(task, route, key),
+      newEntry
+    )
   }
 }
 

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { NoInline } from '../no-inline'
 
 export default async function Page() {
   const randomNumber = await new Promise((resolve) => {
@@ -9,6 +10,7 @@ export default async function Page() {
 
   return (
     <>
+      <NoInline />
       <div>
         <Link href="/">Back to Home</Link>
       </div>

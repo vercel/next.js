@@ -1,4 +1,5 @@
 import { LinkAccordion } from '../../components/link-accordion'
+import { NoInline } from '../../components/no-inline'
 
 export default function RefetchOnNewBaseTreeLayout({
   children,
@@ -7,6 +8,7 @@ export default function RefetchOnNewBaseTreeLayout({
 }) {
   return (
     <>
+      <NoInline />
       <div style={{ backgroundColor: 'lightgray', padding: '1rem' }}>
         <p>
           This demonstrates what happens when a link is prefetched using{' '}

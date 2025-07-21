@@ -55,6 +55,11 @@ export type TreePrefetch = {
   // bunch of new prefetch-only fields to FlightRouterState. So think of
   // TreePrefetch as a superset of FlightRouterState.
   isRootLayout: boolean
+
+  // The segment data, if it's small enough to be inlined into the initial
+  // prefetch. If empty, it's because we've decided to outline it. The client
+  // will issue a separate request
+  data: SegmentPrefetch | null
 }
 
 export type SegmentPrefetch = {
@@ -79,6 +84,11 @@ function onSegmentPrerenderError(error: unknown) {
   // when generating the original Flight stream for the whole page.
 }
 
+type AccumulatedSegmentData = {
+  segmentData: Map<string, Buffer>
+  inlinedGzipBytes: number
+}
+
 export async function collectSegmentData(
   fullPageDataBuffer: Buffer,
   staleTime: number,
@@ -88,8 +98,11 @@ export async function collectSegmentData(
 ): Promise<Map<string, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
-  // A mutable map to collect the results as we traverse the route tree.
-  const resultMap = new Map<string, Buffer>()
+  // A mutable object to collect the results as we traverse the route tree.
+  const accumulation: AccumulatedSegmentData = {
+    segmentData: new Map<string, Buffer>(),
+    inlinedGzipBytes: 0,
+  }
 
   // Before we start, warm up the module cache by decoding the page data once.
   // Then we can assume that any remaining async tasks that occur the next time
@@ -114,10 +127,8 @@ export async function collectSegmentData(
   }
 
   // Generate a stream for the route tree prefetch. While we're walking the
-  // tree, we'll also spawn additional tasks to generate the segment prefetches.
-  // The promises for these tasks are pushed to a mutable array that we will
-  // await once the route tree is fully rendered.
-  const segmentTasks: Array<Promise<[string, Buffer]>> = []
+  // tree, we'll also generate the segment prefetches and write the output
+  // to resultMap.
   const { prelude: treeStream } = await prerender(
     // RootTreePrefetch is not a valid return type for a React component, but
     // we need to use a component so that when we decode the original stream
@@ -129,7 +140,7 @@ export async function collectSegmentData(
       serverConsumerManifest={serverConsumerManifest}
       clientModules={clientModules}
       staleTime={staleTime}
-      segmentTasks={segmentTasks}
+      accumulation={accumulation}
       onCompletedProcessingRouteTree={onCompletedProcessingRouteTree}
     />,
     clientModules,
@@ -142,16 +153,10 @@ export async function collectSegmentData(
 
   // Write the route tree to a special `/_tree` segment.
   const treeBuffer = await streamToBuffer(treeStream)
-  resultMap.set('/_tree', treeBuffer)
+  const segmentData = accumulation.segmentData
+  segmentData.set('/_tree', treeBuffer)
 
-  // Now that we've finished rendering the route tree, all the segment tasks
-  // should have been spawned. Await them in parallel and write the segment
-  // prefetches to the result map.
-  for (const [segmentPath, buffer] of await Promise.all(segmentTasks)) {
-    resultMap.set(segmentPath, buffer)
-  }
-
-  return resultMap
+  return segmentData
 }
 
 async function PrefetchTreeData({
@@ -160,7 +165,7 @@ async function PrefetchTreeData({
   serverConsumerManifest,
   clientModules,
   staleTime,
-  segmentTasks,
+  accumulation,
   onCompletedProcessingRouteTree,
 }: {
   fullPageDataBuffer: Buffer
@@ -168,7 +173,7 @@ async function PrefetchTreeData({
   fallbackRouteParams: FallbackRouteParams | null
   clientModules: ManifestNode
   staleTime: number
-  segmentTasks: Array<Promise<[string, Buffer]>>
+  accumulation: AccumulatedSegmentData
   onCompletedProcessingRouteTree: () => void
 }): Promise<RootTreePrefetch | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
@@ -201,14 +206,14 @@ async function PrefetchTreeData({
   // Compute the route metadata tree by traversing the FlightRouterState. As we
   // walk the tree, we will also spawn a task to produce a prefetch response for
   // each segment.
-  const tree = collectSegmentDataImpl(
+  const tree = await collectSegmentDataImpl(
     flightRouterState,
     buildId,
     seedData,
     fallbackRouteParams,
     clientModules,
     ROOT_SEGMENT_KEY,
-    segmentTasks
+    accumulation
   )
 
   const isHeadPartial = await isPartialRSCData(head, clientModules)
@@ -229,18 +234,18 @@ async function PrefetchTreeData({
   return treePrefetch
 }
 
-function collectSegmentDataImpl(
+async function collectSegmentDataImpl(
   route: FlightRouterState,
   buildId: string,
   seedData: CacheNodeSeedData | null,
   fallbackRouteParams: FallbackRouteParams | null,
   clientModules: ManifestNode,
   key: string,
-  segmentTasks: Array<Promise<[string, Buffer]>>
-): TreePrefetch {
+  accumulation: AccumulatedSegmentData
+): Promise<TreePrefetch> {
   // Metadata about the segment. Sent as part of the tree prefetch. Null if
   // there are no children.
-  let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
+  const slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = {}
 
   const children = route[1]
   const seedDataChildren = seedData !== null ? seedData[2] : null
@@ -260,30 +265,86 @@ function collectSegmentDataImpl(
           )
         : encodeSegment(childSegment)
     )
-    const childTree = collectSegmentDataImpl(
+
+    // Intentionally rendering each child in serial. This is because we track the
+    // total number of inlined bytes as we go, to decide whether to inline the
+    // next segment. If we rendered them in parallel, the result would be
+    // non-deterministic. Since this function is not bound by unresolved data,
+    // this is unlikely to impact build times.
+    const childTree = await collectSegmentDataImpl(
       childRoute,
       buildId,
       childSeedData,
       fallbackRouteParams,
       clientModules,
       childKey,
-      segmentTasks
+      accumulation
     )
-    if (slotMetadata === null) {
-      slotMetadata = {}
-    }
     slotMetadata[parallelRouteKey] = childTree
   }
 
+  let possiblyInlinedSegmentData: SegmentPrefetch | null = null
+
   if (seedData !== null) {
-    // Spawn a task to write the segment data to a new Flight stream.
-    segmentTasks.push(
-      // Since we're already in the middle of a render, wait until after the
-      // current task to escape the current rendering context.
-      waitAtLeastOneReactRenderTask().then(() =>
-        renderSegmentPrefetch(buildId, seedData, key, clientModules)
-      )
+    const [segmentPath, buffer, segmentPrefetch] = await renderSegmentPrefetch(
+      buildId,
+      seedData,
+      key,
+      clientModules
     )
+    accumulation.segmentData.set(segmentPath, buffer)
+
+    // Measure the gzipped size of the segment response. If it's below the given
+    // threshold, inline it into the route tree prefetch. This prevents the
+    // client from having to prefetch it separately, at the cost of potentially
+    // greater transfer size when prefetching multiple pages with shared
+    // layouts. If it's above the threshold, omit it from the route tree
+    // prefetch response, i.e. "outline" it to a separate response.
+    //
+    // The benefit of outlining is that the same segment response can be reused
+    // across multiple pages. This is often worth the additional prefetch
+    // request, since each response can be cached independently. It's similar
+    // to how JS bundlers decide whether to inline a module chunk.
+    //
+    // The inlining threshold is only a heuristic. The idea is that below some
+    // size, the potential deduping benefits are not worth the cost of the
+    // additional request.
+    //
+    // TODO: The ideal theoretical thresholds depends on the network conditions.
+    // Consider generating multiple tree prefetches with different thresholds.
+    // The client would then request the appropriate one based on its
+    // connection type.
+    // TODO: We may make these configurable, but ideally the defaults are good
+    // enough that it isn't necessary.
+    const segmentGzipBytes = await getGzipSize(buffer)
+    if (segmentGzipBytes < 2_048) {
+      // In addition to using the size of the segment prefetch, we also take
+      // into consideration the total inlined size of the tree prefetch. The
+      // idea is that even if each individual segment is below the inlining
+      // threshold, at some point it no longer makes sense to add more bytes to
+      // the tree prefetch, because the tree prefetch requests are unique per
+      // URL and cannot be deduped the way segments can.
+      //
+      // Deeper segments are more likely to be unique to a page, so they are
+      // more likely to benefit from inlining. Since we're inside a depth-first
+      // traversal, we're prioritizing inlining the deepest segments first.
+      //
+      // Note that this is only an estimate of the number of bytes added to the
+      // tree prefetch. The actual number is likely smaller, because of object
+      // deduplication by Flight and (similarly) additional gzip chunk
+      // deduplication in the combined result.
+      //
+      // TODO: If we wanted a more accurate value, we could measure the size of
+      // the actual output stream as we process the tree. Since the inlining
+      // thresholds are just a heuristic, leaving this as a future improvement
+      // for now.
+      const totalInlinedGzipBytes =
+        accumulation.inlinedGzipBytes + segmentGzipBytes
+      if (totalInlinedGzipBytes < 10_240) {
+        possiblyInlinedSegmentData = segmentPrefetch
+        accumulation.inlinedGzipBytes = totalInlinedGzipBytes
+      }
+    }
   } else {
     // This segment does not have any seed data. Skip generating a prefetch
     // response for it. We'll still include it in the route tree, though.
@@ -298,7 +359,18 @@ function collectSegmentDataImpl(
     segment: route[0],
     slots: slotMetadata,
     isRootLayout: route[4] === true,
+    data: possiblyInlinedSegmentData,
   }
+}
+
+async function getGzipSize(buffer: Buffer): Promise<number> {
+  const encoder = new TextEncoder()
+  const encoded = encoder.encode(buffer.toString())
+  const stream = new Blob([encoded])
+    .stream()
+    .pipeThrough(new CompressionStream('gzip'))
+  const compressedBlob = await new Response(stream).blob()
+  return compressedBlob.size
 }
 
 function encodeSegmentWithPossibleFallbackParam(
@@ -335,7 +407,7 @@ async function renderSegmentPrefetch(
   seedData: CacheNodeSeedData,
   key: string,
   clientModules: ManifestNode
-): Promise<[string, Buffer]> {
+): Promise<[string, Buffer, SegmentPrefetch]> {
   // Render the segment data to a stream.
   // In the future, this is where we can include additional metadata, like the
   // stale time and cache tags.
@@ -363,9 +435,9 @@ async function renderSegmentPrefetch(
   )
   const segmentBuffer = await streamToBuffer(segmentStream)
   if (key === ROOT_SEGMENT_KEY) {
-    return ['/_index', segmentBuffer]
+    return ['/_index', segmentBuffer, segmentPrefetch]
   } else {
-    return [key, segmentBuffer]
+    return [key, segmentBuffer, segmentPrefetch]
   }
 }
 

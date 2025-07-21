@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
+import { NoInline } from '../../../../../no-inline'
 
 async function DynamicContentInSharedLayout() {
   await connection()
@@ -17,6 +18,7 @@ export default function SharedLayout({
 }) {
   return (
     <div id="shared-layout">
+      <NoInline />
       <Suspense
         fallback={
           <div id="shared-layout-ppr-boundary">
