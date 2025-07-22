@@ -1,3 +1,5 @@
+// @ts-check
+
 const path = require('path')
 const webpack = require('@rspack/core')
 const MODERN_BROWSERSLIST_TARGET = require('./src/shared/lib/modern-browserslist-target')
@@ -10,6 +12,8 @@ function shouldIgnorePath(modulePath) {
   return true
 }
 
+const experimental = false
+
 /**
  * @param {Object} options
  * @param {boolean} options.dev
@@ -17,8 +21,6 @@ function shouldIgnorePath(modulePath) {
  * @returns {webpack.Configuration}
  */
 module.exports = ({ dev, ...rest }) => {
-  const experimental = false
-
   const bundledReactChannel = experimental ? '-experimental' : ''
 
   const target = `browserslist:${MODERN_BROWSERSLIST_TARGET.join(', ')}`
@@ -79,6 +81,7 @@ module.exports = ({ dev, ...rest }) => {
                 syntax: 'typescript',
                 tsx: true,
               },
+              target: 'es2022',
               transform: {
                 react: {
                   development: dev,
