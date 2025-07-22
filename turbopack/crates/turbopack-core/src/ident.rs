@@ -266,6 +266,7 @@ impl AssetIdent {
     pub async fn output_name(
         &self,
         context_path: FileSystemPath,
+        prefix: Option<RcStr>,
         expected_extension: RcStr,
     ) -> Result<Vc<RcStr>> {
         debug_assert!(
@@ -290,6 +291,9 @@ impl AssetIdent {
         // important as some file servers do not serve files with leading dots (e.g.
         // Next.js).
         let mut name = clean_additional_extensions(&name);
+        if let Some(prefix) = prefix {
+            name = format!("{prefix}-{name}");
+        }
 
         let default_modifier = match expected_extension.as_str() {
             ".js" => Some("ecmascript"),

@@ -220,7 +220,7 @@ pub async fn chunk_group_content(
         entries.push(module_batches_graph.get_entry_index(entry).await?);
     }
 
-    module_batches_graph.traverse_edges_from_entries_topological(
+    module_batches_graph.traverse_edges_from_entries_dfs(
         entries,
         &mut state,
         |parent_info, &node, state| {

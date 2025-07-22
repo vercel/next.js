@@ -66,7 +66,6 @@ function getRouteModuleOptions(page: string) {
 const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
   async function edgeSSRLoader(this) {
     const {
-      dev,
       page,
       absolutePagePath,
       absoluteAppPath,
@@ -77,12 +76,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       stringifiedConfig: stringifiedConfigBase64,
       appDirLoader: appDirLoaderBase64,
       pagesType,
-      sriEnabled,
       cacheHandler,
       cacheHandlers: cacheHandlersStringified,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
-      serverActions,
     } = this.getOptions()
 
     const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
@@ -158,14 +155,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_PAGE: page,
         },
         {
-          sriEnabled: JSON.stringify(sriEnabled),
           nextConfig: stringifiedConfig,
-          isServerComponent: JSON.stringify(isServerComponent),
-          dev: JSON.stringify(dev),
-          serverActions:
-            typeof serverActions === 'undefined'
-              ? 'undefined'
-              : JSON.stringify(serverActions),
         },
         {
           incrementalCacheHandler: cacheHandler ?? null,

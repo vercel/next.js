@@ -1,10 +1,12 @@
-import type { HTMLProps } from 'react'
-import type { DevToolsInfoPropsCore } from './dev-tools-info'
+import type { ComponentProps, HTMLProps, RefObject } from 'react'
 import { DevToolsInfo } from './dev-tools-info'
 
-function StaticRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
+function StaticRouteContent({
+  routerType,
+  ...props
+}: { routerType: 'pages' | 'app' } & ComponentProps<'div'>) {
   return (
-    <article className="dev-tools-info-article">
+    <article className="dev-tools-info-article" {...props}>
       <p className="dev-tools-info-paragraph">
         The path{' '}
         <code className="dev-tools-info-code">{window.location.pathname}</code>{' '}
@@ -37,9 +39,12 @@ function StaticRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
   )
 }
 
-function DynamicRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
+function DynamicRouteContent({
+  routerType,
+  ...props
+}: { routerType: 'pages' | 'app' } & ComponentProps<'div'>) {
   return (
-    <article className="dev-tools-info-article">
+    <article className="dev-tools-info-article" {...props}>
       <p className="dev-tools-info-paragraph">
         The path{' '}
         <code className="dev-tools-info-code">{window.location.pathname}</code>{' '}
@@ -95,7 +100,7 @@ function DynamicRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
   )
 }
 
-const learnMoreLink = {
+export const learnMoreLink = {
   pages: {
     static:
       'https://nextjs.org/docs/pages/building-your-application/rendering/static-site-generation',
@@ -110,32 +115,50 @@ const learnMoreLink = {
   },
 } as const
 
-export function RouteInfo({
-  routeType,
+export function RouteInfoBody({
   routerType,
+  isStaticRoute,
   ...props
 }: {
-  routeType: 'Static' | 'Dynamic'
   routerType: 'pages' | 'app'
-} & DevToolsInfoPropsCore &
-  HTMLProps<HTMLDivElement>) {
+  isStaticRoute: boolean
+} & ComponentProps<'div'>) {
+  return isStaticRoute ? (
+    <StaticRouteContent routerType={routerType} {...props} />
+  ) : (
+    <DynamicRouteContent routerType={routerType} {...props} />
+  )
+}
+
+export function RouteInfo({
+  isOpen,
+  close,
+  routerType,
+  routeType,
+  triggerRef,
+  ...props
+}: {
+  isOpen: boolean
+  close: () => void
+  routerType: 'pages' | 'app'
+  routeType: 'Static' | 'Dynamic'
+  triggerRef: RefObject<HTMLButtonElement | null>
+} & HTMLProps<HTMLDivElement>) {
   const isStaticRoute = routeType === 'Static'
 
   const learnMore = isStaticRoute
     ? learnMoreLink[routerType].static
     : learnMoreLink[routerType].dynamic
-
   return (
     <DevToolsInfo
       title={`${routeType} Route`}
       learnMoreLink={learnMore}
+      close={close}
+      isOpen={isOpen}
+      triggerRef={triggerRef}
       {...props}
     >
-      {isStaticRoute ? (
-        <StaticRouteContent routerType={routerType} />
-      ) : (
-        <DynamicRouteContent routerType={routerType} />
-      )}
+      <RouteInfoBody routerType={routerType} isStaticRoute={isStaticRoute} />
     </DevToolsInfo>
   )
 }

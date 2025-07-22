@@ -94,7 +94,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
      */
-    loadChunk(chunkUrl, source) {
+    loadChunkCached(chunkUrl, source) {
       return doLoadChunk(chunkUrl, source)
     },
   }

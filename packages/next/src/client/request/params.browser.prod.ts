@@ -40,7 +40,7 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
 export function createRenderParamsFromClient(
   clientParams: Params
 ): Promise<Params> {
-  if (process.env.__NEXT_DYNAMIC_IO) {
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
     return makeUntrackedParams(clientParams)
   }
 

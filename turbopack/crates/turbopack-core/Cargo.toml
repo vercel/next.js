@@ -50,6 +50,8 @@ turbo-tasks-build = { workspace = true }
 [dev-dependencies]
 rstest = { workspace = true }
 tokio = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 
 [features]
 default = []

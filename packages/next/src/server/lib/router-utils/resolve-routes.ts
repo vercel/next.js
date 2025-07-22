@@ -423,7 +423,10 @@ export function getResolveRoutes(
             // base path.
             if (updated) {
               if (hadBasePath) {
-                normalized = path.posix.join(config.basePath, normalized)
+                normalized =
+                  normalized === '/'
+                    ? config.basePath
+                    : path.posix.join(config.basePath, normalized)
               }
 
               // Re-add the trailing slash (if required).

@@ -1,7 +1,6 @@
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
-import { getFrameSource } from '../../../shared/stack-frame'
+import { getFrameSource, type StackFrame } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 import { ExternalIcon } from '../../icons/external'
 import { FileIcon } from '../../icons/file'
@@ -11,7 +10,10 @@ import {
   parseLineNumberFromCodeFrameLine,
 } from './parse-code-frame'
 
-export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
+export type CodeFrameProps = {
+  stackFrame: StackFrame
+  codeFrame: string
+}
 
 export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   const parsedLineStates = useMemo(() => {
@@ -27,8 +29,8 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 
   const open = useOpenInEditor({
     file: stackFrame.file,
-    lineNumber: stackFrame.lineNumber,
-    column: stackFrame.column,
+    line1: stackFrame.line1 ?? 1,
+    column1: stackFrame.column1 ?? 1,
   })
 
   const fileExtension = stackFrame?.file?.split('.').pop()

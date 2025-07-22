@@ -235,7 +235,7 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    dynamicIO: boolean
+    cacheComponents: boolean
     clientSegmentCache: boolean | 'client-only'
     dynamicOnHover: boolean
     inlineCss: boolean

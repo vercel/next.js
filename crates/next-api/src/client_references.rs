@@ -13,7 +13,7 @@ use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{module::Module, module_graph::SingleModuleGraph};
 
 #[derive(
-    Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue,
+    Copy, Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue,
 )]
 pub enum ClientReferenceMapType {
     EcmascriptClientReference {
@@ -31,7 +31,7 @@ pub struct ClientReferencesSet(FxHashMap<ResolvedVc<Box<dyn Module>>, ClientRefe
 pub async fn map_client_references(
     graph: Vc<SingleModuleGraph>,
 ) -> Result<Vc<ClientReferencesSet>> {
-    let actions = graph
+    let client_references = graph
         .await?
         .iter_nodes()
         .map(|node| async move {
@@ -52,9 +52,9 @@ pub async fn map_client_references(
             {
                 Ok(Some((
                     module,
-                    ClientReferenceMapType::CssClientReference(ResolvedVc::upcast(
+                    ClientReferenceMapType::CssClientReference(
                         client_reference_module.await?.client_module,
-                    )),
+                    ),
                 )))
             } else if let Some(server_component) =
                 ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
@@ -69,5 +69,5 @@ pub async fn map_client_references(
         })
         .try_flat_join()
         .await?;
-    Ok(Vc::cell(actions.into_iter().collect()))
+    Ok(Vc::cell(client_references.into_iter().collect()))
 }

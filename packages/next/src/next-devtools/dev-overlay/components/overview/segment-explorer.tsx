@@ -4,7 +4,7 @@ import {
   type SegmentTrieNode,
 } from '../../segment-explorer-trie'
 import { cx } from '../../utils/cx'
-import { SegmentBoundaryTrigger, Trigger } from './segment-boundary-trigger'
+import { SegmentBoundaryTrigger } from './segment-boundary-trigger'
 import { Tooltip } from '../../../components/tooltip'
 import { useCallback, useMemo } from 'react'
 import {
@@ -96,46 +96,43 @@ function SegmentExplorerFooter({
   )
 }
 
-export function PageSegmentTree({
-  isAppRouter,
-  page,
-}: {
-  isAppRouter: boolean
-  page: string
-}) {
+export function PageSegmentTree({ page }: { page: string }) {
   const tree = useSegmentTree()
 
   // Count active boundaries for the badge
   const activeBoundariesCount = useMemo(() => {
-    return isAppRouter ? countActiveBoundaries(tree) : 0
-  }, [tree, isAppRouter])
+    return countActiveBoundaries(tree)
+  }, [tree])
 
   // Global reset handler
   const handleGlobalReset = useCallback(() => {
-    if (isAppRouter) {
-      traverseTreeAndResetBoundaries(tree)
-    }
-  }, [tree, isAppRouter])
+    traverseTreeAndResetBoundaries(tree)
+  }, [tree])
 
   return (
-    <div data-nextjs-devtools-panel-segments-explorer>
-      {isAppRouter && <PageRouteBar page={page} />}
+    <div
+      data-nextjs-devtools-panel-segments-explorer
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+      }}
+    >
+      <PageRouteBar page={page} />
       <div
         className="segment-explorer-content"
         data-nextjs-devtool-segment-explorer
+        style={{
+          flex: '1 1 auto',
+          overflow: 'auto',
+        }}
       >
-        {isAppRouter ? (
-          <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
-        ) : (
-          <p>Route Info currently is only available for the App Router.</p>
-        )}
+        <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
       </div>
-      {isAppRouter && (
-        <SegmentExplorerFooter
-          activeBoundariesCount={activeBoundariesCount}
-          onGlobalReset={handleGlobalReset}
-        />
-      )}
+      <SegmentExplorerFooter
+        activeBoundariesCount={activeBoundariesCount}
+        onGlobalReset={handleGlobalReset}
+      />
     </div>
   )
 }
@@ -257,12 +254,6 @@ function PageSegmentTreeLayerPresentation({
 
   const filesChildrenKeysBesidesSelectedBoundary = filesChildrenKeys
 
-  const isChildPageOrBoundary =
-    firstChild &&
-    firstChild.value &&
-    firstChild.value.type !== 'layout' &&
-    firstChild.value.type !== 'template'
-
   return (
     <>
       {hasFilesChildren && (
@@ -359,13 +350,12 @@ function PageSegmentTreeLayerPresentation({
                   )}
                 </span>
               )}
-              {firstChild && firstChild.value && isChildPageOrBoundary && (
+              {firstChild && firstChild.value && (
                 <SegmentBoundaryTrigger
                   nodeState={firstChild.value}
                   boundaries={boundaries}
                 />
               )}
-              {!isChildPageOrBoundary && <Trigger disabled />}
             </div>
           </div>
         </div>

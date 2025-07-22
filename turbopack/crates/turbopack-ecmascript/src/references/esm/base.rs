@@ -93,26 +93,29 @@ impl ReferencedAssetIdent {
                 ctxt,
                 export,
             } => {
-                let ns = Ident::new(
-                    namespace_ident.as_str().into(),
-                    span,
-                    ctxt.unwrap_or_default(),
-                );
                 if let Some(export) = export {
                     Either::Right(MemberExpr {
                         span,
-                        obj: Box::new(Expr::Ident(ns)),
+                        obj: Box::new(Expr::Ident(Ident::new(
+                            namespace_ident.as_str().into(),
+                            DUMMY_SP,
+                            ctxt.unwrap_or_default(),
+                        ))),
                         prop: MemberProp::Computed(ComputedPropName {
-                            span,
+                            span: DUMMY_SP,
                             expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                span,
+                                span: DUMMY_SP,
                                 value: export.as_str().into(),
                                 raw: None,
                             }))),
                         }),
                     })
                 } else {
-                    Either::Left(ns)
+                    Either::Left(Ident::new(
+                        namespace_ident.as_str().into(),
+                        span,
+                        ctxt.unwrap_or_default(),
+                    ))
                 }
             }
         }
@@ -125,13 +128,13 @@ impl ReferencedAssetIdent {
                     Expr::Seq(SeqExpr {
                         exprs: vec![
                             Box::new(Expr::Lit(Lit::Num(Number {
-                                span,
+                                span: DUMMY_SP,
                                 value: 0.0,
                                 raw: None,
                             }))),
                             Box::new(member.into()),
                         ],
-                        span,
+                        span: DUMMY_SP,
                     })
                 } else {
                     member.into()

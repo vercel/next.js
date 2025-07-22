@@ -1,6 +1,7 @@
 use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
+use futures_util::TryFutureExt;
 use napi::{JsFunction, bindgen_prelude::External};
 use next_api::{
     operation::OptionEndpoint,
@@ -12,7 +13,7 @@ use next_api::{
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
-use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
+use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue};
 
 use super::utils::{
     DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
@@ -125,6 +126,7 @@ async fn get_written_endpoint_with_issues_operation(
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
+    let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ***endpoint;
     let (written, issues, diags) = endpoint
         .turbopack_ctx()
@@ -144,8 +146,8 @@ pub async fn endpoint_write_to_disk(
 
             Ok((written.clone(), issues.clone(), diagnostics.clone()))
         })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+        .await?;
     Ok(TurbopackResult {
         result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),

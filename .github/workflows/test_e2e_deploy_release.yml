@@ -89,10 +89,20 @@ jobs:
             DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
           fi
 
-  front-sync:
+  sync-repositories:
     needs: test-deploy
     if: ${{ always() && github.repository_owner == 'vercel' && github.event_name == 'release' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo: front
+            workflow_id: cron-update-next.yml
+            workflow_url: https://github.com/vercel/front/actions/workflows/cron-update-next.yml?query=event%3Aworkflow_dispatch
+          - repo: v0
+            workflow_id: update-next.yml
+            workflow_url: https://github.com/vercel/v0/actions/workflows/update-next.yml?query=event%3Aworkflow_dispatch
     steps:
       - uses: actions/checkout@v4
       - id: nextPackageInfo
@@ -128,8 +138,8 @@ jobs:
                 "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}",
                 {
                   owner: "vercel",
-                  repo: "front",
-                  workflow_id: "cron-update-next.yml",
+                  repo: "${{ matrix.repo }}",
+                  workflow_id: "${{ matrix.workflow_id }}",
                 }
               );
               
@@ -143,8 +153,8 @@ jobs:
               return 'false';
             }
       - uses: actions/github-script@v7
-        name: Trigger vercel/front sync
-        id: trigger-front-sync
+        name: Trigger vercel/${{ matrix.repo }} sync
+        id: trigger-sync
         if: steps.check-workflow-enabled.outputs.result == 'true'
         with:
           retries: 3
@@ -152,7 +162,7 @@ jobs:
           # Default github token cannot dispatch events to the remote repo, it should be
           # a PAT with Actions write access (https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28#create-a-workflow-dispatch-event)
           github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
-          # Note `workflow_id` and `inputs` are contract between vercel/front,
+          # Note `workflow_id` and `inputs` are contract between vercel/${{ matrix.repo }},
           # if these need to be changed both side should be updated accordingly.
           script: |
             const immediatelyClose = '${{ steps.test-result.outputs.immediately-close }}';
@@ -168,8 +178,8 @@ jobs:
               "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
               {
                 owner: "vercel",
-                repo: "front",
-                workflow_id: "cron-update-next.yml",
+                repo: "${{ matrix.repo }}",
+                workflow_id: "${{ matrix.workflow_id }}",
                 ref: "main",
                 inputs: inputs,
               }
@@ -177,10 +187,10 @@ jobs:
             // Ideally we'd include a URL to this specific sync.
             // However, creating a workflow_dispatch event does not produce an ID: https://github.com/orgs/community/discussions/9752
             console.info(
-              "Sync started in https://github.com/vercel/front/actions/workflows/cron-update-next.yml?query=event%3Aworkflow_dispatch"
+              "Sync started in ${{ matrix.workflow_url }}"
             );
             console.info(
-              "This may not start a new sync if one is already in progress. Check the logs of the cron-update-next Workflow run."
+              "This may not start a new sync if one is already in progress. Check the logs of the workflow run."
             );
             if (immediatelyClose === 'true') {
               console.info(

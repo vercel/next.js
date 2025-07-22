@@ -1,8 +1,5 @@
 import path from 'path'
-import {
-  DiagnosticCategory,
-  getFormattedDiagnostic,
-} from './diagnosticFormatter'
+import { getFormattedDiagnostic } from './diagnosticFormatter'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 import { getRequiredConfiguration } from './writeConfigurationDefaults'
 
@@ -91,14 +88,14 @@ export async function runTypeCheck(
 
   const firstError =
     allDiagnostics.find(
-      (d) => d.category === DiagnosticCategory.Error && Boolean(d.file)
-    ) ?? allDiagnostics.find((d) => d.category === DiagnosticCategory.Error)
+      (d) => d.category === ts.DiagnosticCategory.Error && Boolean(d.file)
+    ) ?? allDiagnostics.find((d) => d.category === ts.DiagnosticCategory.Error)
 
   // In test mode, we want to check all diagnostics, not just the first one.
   if (process.env.__NEXT_TEST_MODE) {
     if (firstError) {
       const allErrors = allDiagnostics
-        .filter((d) => d.category === DiagnosticCategory.Error)
+        .filter((d) => d.category === ts.DiagnosticCategory.Error)
         .map(
           (d) =>
             '[Test Mode] ' +
@@ -123,7 +120,7 @@ export async function runTypeCheck(
   }
 
   const warnings = allDiagnostics
-    .filter((d) => d.category === DiagnosticCategory.Warning)
+    .filter((d) => d.category === ts.DiagnosticCategory.Warning)
     .map((d) =>
       getFormattedDiagnostic(ts, baseDir, distDir, d, isAppDirEnabled)
     )
