@@ -1,13 +1,17 @@
 import type { RouteTypesManifest } from './route-types-shared'
-
-// TODO: add support for processing redirects and rewrites
-// see old next-types-plugin source code for reference
-// TODO: make sure we're using isDynamicRoute where appropriate
+import { isDynamicRoute } from '../../../shared/lib/router/utils/is-dynamic'
 
 function generateRouteTypes(routesManifest: RouteTypesManifest): string {
   const appRoutes = Object.keys(routesManifest.appRoutes).sort()
   const pageRoutes = Object.keys(routesManifest.pageRoutes).sort()
   const layoutRoutes = Object.keys(routesManifest.layoutRoutes).sort()
+  // Redirects / rewrites are optional as the manifest might come from an older build pipeline
+  const redirectRoutes = Object.keys(
+    (routesManifest as any).redirectRoutes ?? {}
+  ).sort()
+  const rewriteRoutes = Object.keys(
+    (routesManifest as any).rewriteRoutes ?? {}
+  ).sort()
 
   let result = ''
 
@@ -32,16 +36,38 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
     result += 'type LayoutRoutes = never\n'
   }
 
-  result += 'type Routes = AppRoutes | PageRoutes | LayoutRoutes\n'
+  // Generate RedirectRoutes union type
+  if (redirectRoutes.length > 0) {
+    result += `type RedirectRoutes = ${redirectRoutes
+      .map((route) => `"${route}"`)
+      .join(' | ')}\n`
+  } else {
+    result += 'type RedirectRoutes = never\n'
+  }
+
+  // Generate RewriteRoutes union type
+  if (rewriteRoutes.length > 0) {
+    result += `type RewriteRoutes = ${rewriteRoutes
+      .map((route) => `"${route}"`)
+      .join(' | ')}\n`
+  } else {
+    result += 'type RewriteRoutes = never\n'
+  }
+
+  result +=
+    'type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes\n'
 
   return result
 }
 
 function generateParamTypes(routesManifest: RouteTypesManifest): string {
-  const allRoutes = {
+  const allRoutes: Record<string, any> = {
     ...routesManifest.appRoutes,
     ...routesManifest.pageRoutes,
     ...routesManifest.layoutRoutes,
+    // Redirect / rewrite routes are optional
+    ...((routesManifest as any).redirectRoutes ?? {}),
+    ...((routesManifest as any).rewriteRoutes ?? {}),
   }
 
   let paramTypes = 'type ParamMap = {\n'
@@ -52,21 +78,28 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
   )
 
   for (const [route, routeInfo] of sortedRoutes) {
-    const { groups } = routeInfo
+    const { groups } = routeInfo as any
+
+    // For static routes (no dynamic segments), we can produce an empty parameter map.
+    if (!isDynamicRoute(route) || Object.keys(groups ?? {}).length === 0) {
+      paramTypes += `  '${route}': {}\n`
+      continue
+    }
+
     let paramType = '{'
 
     // Process each group based on its properties
-    for (const [key, group] of Object.entries(groups)) {
-      if (group.repeat) {
+    for (const [key, group] of Object.entries(groups as Record<string, any>)) {
+      if ((group as any).repeat) {
         // Catch-all parameters
-        if (group.optional) {
+        if ((group as any).optional) {
           paramType += ` ${key}?: string[];`
         } else {
           paramType += ` ${key}: string[];`
         }
       } else {
         // Regular parameters
-        if (group.optional) {
+        if ((group as any).optional) {
           paramType += ` ${key}?: string;`
         } else {
           paramType += ` ${key}: string;`
@@ -130,7 +163,7 @@ type LayoutChildren<P extends LayoutRoutes> = { children: React.ReactNode } & {
   [K in LayoutSlotMap[P]]: React.ReactNode
 }
 
-export type { AppRoutes, PageRoutes, LayoutRoutes }
+export type { AppRoutes, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes }
 
 declare global {
   /**

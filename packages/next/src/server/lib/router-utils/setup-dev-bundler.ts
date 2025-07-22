@@ -168,12 +168,20 @@ function createRouteTypesManifest({
   appPageFilePaths,
   appLayoutFilePaths,
   layoutSlots,
+  redirects,
+  rewrites,
 }: {
   dir: string
   pagesPageFilePaths: Map<string, string>
   appPageFilePaths: Map<string, string>
   appLayoutFilePaths: Map<string, string>
   layoutSlots: Map<string, Set<string>>
+  redirects: Array<{ source: string }>
+  rewrites: {
+    beforeFiles: Array<{ source: string }>
+    afterFiles: Array<{ source: string }>
+    fallback: Array<{ source: string }>
+  }
 }): RouteTypesManifest {
   // Convert maps to arrays for the unified function
   const pageRoutes = Array.from(pagesPageFilePaths.entries()).map(
@@ -199,6 +207,8 @@ function createRouteTypesManifest({
     pageRoutes,
     appRoutes,
     layoutRoutes,
+    redirects,
+    rewrites,
   })
 }
 
@@ -293,6 +303,8 @@ async function startWatcher(
       appPageFilePaths: new Map(),
       appLayoutFilePaths: new Map(),
       layoutSlots: new Map(),
+      redirects: opts.fsChecker.redirects,
+      rewrites: opts.fsChecker.rewrites,
     })
 
     await fs.promises.writeFile(
@@ -1064,6 +1076,8 @@ async function startWatcher(
             appPageFilePaths,
             appLayoutFilePaths,
             layoutSlots,
+            redirects: opts.fsChecker.redirects,
+            rewrites: opts.fsChecker.rewrites,
           })
 
           await fs.promises.writeFile(

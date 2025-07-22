@@ -905,7 +905,42 @@ async function createRouteTypesManifestFromBuild({
     slots?: string[]
   }> = []
 
+  const redirects: Array<{ source: string }> = []
+  const rewrites: {
+    beforeFiles: Array<{ source: string }>
+    afterFiles: Array<{ source: string }>
+    fallback: Array<{ source: string }>
+  } = {
+    beforeFiles: [],
+    afterFiles: [],
+    fallback: [],
+  }
+
   const discoveredLayouts = new Set<string>()
+
+  // Load custom routes from next.config.js
+  try {
+    if (typeof config.redirects === 'function') {
+      const r = await config.redirects()
+      redirects.push(...r.map((x) => ({ source: x.source })))
+    }
+    if (typeof config.rewrites === 'function') {
+      const rw = await config.rewrites()
+      if (Array.isArray(rw)) {
+        rewrites.afterFiles.push(...rw.map((x) => ({ source: x.source })))
+      } else {
+        rewrites.beforeFiles.push(
+          ...(rw.beforeFiles || []).map((x) => ({ source: x.source }))
+        )
+        rewrites.afterFiles.push(
+          ...(rw.afterFiles || []).map((x) => ({ source: x.source }))
+        )
+        rewrites.fallback.push(
+          ...(rw.fallback || []).map((x) => ({ source: x.source }))
+        )
+      }
+    }
+  } catch {}
 
   // Build pages routes - filter out reserved pages but NOT API routes
   for (const [route, filePath] of Object.entries(mappedPages)) {
@@ -1021,6 +1056,8 @@ async function createRouteTypesManifestFromBuild({
     pageRoutes,
     appRoutes,
     layoutRoutes,
+    redirects,
+    rewrites,
   })
 }
 

@@ -13,6 +13,38 @@ export interface RouteTypesManifest {
   appRoutes: Record<string, RouteInfo>
   pageRoutes: Record<string, RouteInfo>
   layoutRoutes: Record<string, RouteInfo | (RouteInfo & { slots: string[] })>
+  /** Map of redirect source => RouteInfo */
+  redirectRoutes: Record<string, RouteInfo>
+  /** Map of rewrite source => RouteInfo */
+  rewriteRoutes: Record<string, RouteInfo>
+}
+
+// Convert a custom-route source string (`/blog/:slug`, `/docs/:path*`, ...)
+// into the bracket-syntax used by other Next.js route helpers so that we can
+// reuse `getRouteRegex()` to extract groups.
+export function convertCustomRouteSource(source: string): string {
+  // Handle catch-all (one or more / zero or more)  :param* / :param+
+  let out = source.replace(
+    /:([A-Za-z0-9_]+)\*/g,
+    (_m: string, name: string) => `[...${name}]`
+  )
+  out = out.replace(
+    /:([A-Za-z0-9_]+)\+/g,
+    (_m: string, name: string) => `[...${name}]`
+  )
+  // Optional catch-all  :param?
+  out = out.replace(
+    /:([A-Za-z0-9_]+)\?/g,
+    (_m: string, name: string) => `[[...${name}]]`
+  )
+  // Standard dynamic segment :param (ensure we don't convert already replaced ones)
+  out = out.replace(
+    /:([A-Za-z0-9_]+)/g,
+    (_m: string, name: string) => `[${name}]`
+  )
+  // Ensure leading slash
+  if (!out.startsWith('/')) out = '/' + out
+  return out
 }
 
 /**
@@ -84,6 +116,8 @@ export function createUnifiedRouteTypesManifest({
   pageRoutes,
   appRoutes,
   layoutRoutes,
+  redirects,
+  rewrites,
 }: {
   dir: string
   pageRoutes: Array<{ route: string; filePath: string }>
@@ -93,11 +127,19 @@ export function createUnifiedRouteTypesManifest({
     filePath: string
     slots?: string[]
   }>
+  redirects?: Array<{ source: string }>
+  rewrites?: {
+    beforeFiles: Array<{ source: string }>
+    afterFiles: Array<{ source: string }>
+    fallback: Array<{ source: string }>
+  }
 }): RouteTypesManifest {
   const manifest: RouteTypesManifest = {
     appRoutes: {},
     pageRoutes: {},
     layoutRoutes: {},
+    redirectRoutes: {},
+    rewriteRoutes: {},
   }
 
   // Process page routes
@@ -124,6 +166,29 @@ export function createUnifiedRouteTypesManifest({
       }
     } else {
       manifest.layoutRoutes[route] = routeInfo
+    }
+  }
+
+  // Process redirect routes
+  for (const r of redirects || []) {
+    const route = convertCustomRouteSource(r.source)
+    manifest.redirectRoutes[route] = {
+      path: 'redirect',
+      groups: extractRouteParams(route),
+    }
+  }
+
+  // Process rewrite routes (we only care about source)
+  const rewriteArrays = [
+    ...(rewrites?.beforeFiles || []),
+    ...(rewrites?.afterFiles || []),
+    ...(rewrites?.fallback || []),
+  ]
+  for (const w of rewriteArrays) {
+    const route = convertCustomRouteSource(w.source)
+    manifest.rewriteRoutes[route] = {
+      path: 'rewrite',
+      groups: extractRouteParams(route),
     }
   }
 

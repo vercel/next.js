@@ -25,12 +25,20 @@ describe('typed-routes', () => {
       'type LayoutRoutes = "/" | "/dashboard"'
     )
 
-    // Check for combined Routes type
+    // Check RedirectRoutes and RewriteRoutes unions include our custom routes
     expect(routeTypesContent).toContain(
-      'type Routes = AppRoutes | PageRoutes | LayoutRoutes'
+      'type RedirectRoutes = "/old-blog/[slug]"'
+    )
+    expect(routeTypesContent).toContain(
+      'type RewriteRoutes = "/docs-old/[...path]"'
     )
 
-    // Check for ParamMap type with all route parameters (including route group routes)
+    // Check for combined Routes type
+    expect(routeTypesContent).toContain(
+      'type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes'
+    )
+
+    // Check for ParamMap type with all route parameters (including redirects/rewrites)
     expect(routeTypesContent).toContain('type ParamMap = {')
     expect(routeTypesContent).toContain("'/': { }")
     expect(routeTypesContent).toContain("'/about': { }")
@@ -52,6 +60,10 @@ describe('typed-routes', () => {
     expect(routeTypesContent).toContain(
       "'/shop/[[...category]]': { category?: string[]; }"
     )
+    expect(routeTypesContent).toContain("'/old-blog/[slug]': { slug: string; }")
+    expect(routeTypesContent).toContain(
+      "'/docs-old/[...path]': { path: string[]; }"
+    )
     expect(routeTypesContent).toContain("'/users/[id]': { id: string; }")
 
     // Check for LayoutSlotMap type with parallel routes
@@ -72,7 +84,7 @@ describe('typed-routes', () => {
 
     // Check for exported types
     expect(routeTypesContent).toContain(
-      'export type { AppRoutes, PageRoutes, LayoutRoutes }'
+      'export type { AppRoutes, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes }'
     )
 
     // Check for auto-generated header comment
@@ -88,7 +100,7 @@ describe('typed-routes', () => {
     await next.patchFile(
       'lib/type-test.ts',
       `
-      import type { AppRoutes, PageRoutes, LayoutRoutes } from 'next'
+      import type { AppRoutes, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes } from 'next'
       
       // Test that the types are available and can be used
       type TestAppRoute = AppRoutes
@@ -110,6 +122,8 @@ describe('typed-routes', () => {
         appRoutes: [] as TestAppRoute[],
         pageRoutes: [] as TestPageRoute[],
         layoutRoutes: [] as TestLayoutRoute[],
+        redirectRoutes: [] as RedirectRoutes[],
+        rewriteRoutes: [] as RewriteRoutes[],
       }
     `
     )
