@@ -31,6 +31,8 @@ pub enum ClientReferenceMapType {
     ServerComponent(ResolvedVc<NextServerComponentModule>),
 }
 
+/// Tracks information about all the css and js client references in the graph as well as how server
+/// components depend on them.
 #[turbo_tasks::value]
 pub struct ClientReferencesSet {
     pub client_references: FxHashMap<ResolvedVc<Box<dyn Module>>, ClientReferenceMapType>,

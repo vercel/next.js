@@ -315,7 +315,7 @@ impl ClientReferencesGraph {
             // components for each module.
             graph.traverse_edges_from_entries_dfs(
                 entries,
-                // state_map is `module -> ParentType` to tracke whether the module is reachable
+                // state_map is `module -> ParentType` to track whether the module is reachable
                 // directly from an entry point.
                 &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
