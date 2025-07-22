@@ -1,4 +1,4 @@
-use std::{cell::RefCell, cmp::Reverse, collections::hash_map::Entry, mem::take, u32};
+use std::{cell::RefCell, cmp::Reverse, collections::hash_map::Entry, mem::take};
 
 use anyhow::Result;
 use either::Either;
@@ -66,7 +66,7 @@ pub async fn get_module_graph_snapshot(
         module: ResolvedVc<Box<dyn Module>>,
     ) -> usize {
         match module_to_index.entry(module) {
-            Entry::Occupied(entry) => return *entry.get(),
+            Entry::Occupied(entry) => *entry.get(),
             Entry::Vacant(entry) => {
                 let index = modules.len();
                 modules.push(RawModuleInfo {
@@ -77,7 +77,7 @@ pub async fn get_module_graph_snapshot(
                     retained_modules: Default::default(),
                 });
                 entry.insert(index);
-                return index;
+                index
             }
         }
     }

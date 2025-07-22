@@ -63,12 +63,12 @@ impl From<&ModuleInfo> for NapiModuleInfo {
             references: info
                 .references
                 .iter()
-                .map(|r| NapiModuleReference::from(r))
+                .map(NapiModuleReference::from)
                 .collect(),
             incoming_references: info
                 .incoming_references
                 .iter()
-                .map(|r| NapiModuleReference::from(r))
+                .map(NapiModuleReference::from)
                 .collect(),
         }
     }
@@ -84,11 +84,7 @@ pub struct NapiModuleGraphSnapshot {
 impl From<&ModuleGraphSnapshot> for NapiModuleGraphSnapshot {
     fn from(snapshot: &ModuleGraphSnapshot) -> Self {
         Self {
-            modules: snapshot
-                .modules
-                .iter()
-                .map(|info| NapiModuleInfo::from(info))
-                .collect(),
+            modules: snapshot.modules.iter().map(NapiModuleInfo::from).collect(),
             entries: snapshot
                 .entries
                 .iter()
