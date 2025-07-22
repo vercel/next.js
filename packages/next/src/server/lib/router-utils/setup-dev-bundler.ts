@@ -613,7 +613,7 @@ async function startWatcher(
 
           // *record layouts* (later filtered out by isAppRouterPage)
           if (layoutFileRegex.test(fileName)) {
-            const layoutRoute = normalizeAppPath(pageName).replace(/%5F/g, '_')
+            const layoutRoute = normalizeAppPath(pageName)
 
             // Ignore files/directories starting with `_` in the app directory
             if (!normalizePathSep(layoutRoute).includes('/_')) {
