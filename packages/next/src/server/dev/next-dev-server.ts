@@ -75,6 +75,7 @@ import {
   getInstrumentationModule,
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -116,7 +117,6 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
@@ -819,7 +819,9 @@ export default class DevServer extends Server {
             configFileName,
             publicRuntimeConfig,
             serverRuntimeConfig,
-            dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
+            cacheComponents: Boolean(
+              this.nextConfig.experimental.cacheComponents
+            ),
           },
           httpAgentOptions,
           locales,
@@ -887,8 +889,22 @@ export default class DevServer extends Server {
             existingManifest.routes[staticPath] = {} as any
           }
           existingManifest.dynamicRoutes[pathname] = {
+            dataRoute: null,
+            dataRouteRegex: null,
             fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
-          } as any
+            fallbackRevalidate: false,
+            fallbackExpire: undefined,
+            fallbackHeaders: undefined,
+            fallbackStatus: undefined,
+            fallbackRootParams: undefined,
+            fallbackSourceRoute: pathname,
+            prefetchDataRoute: undefined,
+            prefetchDataRouteRegex: undefined,
+            routeRegex: getRouteRegex(pathname).re.source,
+            experimentalPPR: undefined,
+            renderingMode: undefined,
+            allowHeader: [],
+          }
 
           const updatedManifest = JSON.stringify(existingManifest)
 

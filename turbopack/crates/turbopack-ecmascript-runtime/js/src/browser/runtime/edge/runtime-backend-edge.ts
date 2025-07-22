@@ -117,7 +117,7 @@ async function loadWebAssemblyModule(
       }
     },
 
-    loadChunk(_chunkUrl, _source) {
+    loadChunkCached(_chunkUrl, _source) {
       throw new Error('chunk loading is not supported')
     },
   }

@@ -137,9 +137,11 @@ describe('app dir - prefetching (custom staleTime)', () => {
     let requests: string[] = []
 
     browser.on('request', (req) => {
-      // only consider requests that have RSC header but not the prefetch header
-      if (req.headers()['rsc'] && !req.headers()['next-router-prefetch']) {
-        requests.push(new URL(req.url()).pathname)
+      const path = new URL(req.url()).pathname
+      const headers = req.headers()
+
+      if (headers['rsc']) {
+        requests.push(path)
       }
     })
 
@@ -162,6 +164,75 @@ describe('app dir - prefetching (custom staleTime)', () => {
       expect(
         requests.filter((request) => request === '/static-page-no-prefetch')
       ).toHaveLength(1)
+    })
+  })
+
+  it('should renew the stale time after refetching expired RSC data', async () => {
+    const browser = await next.browser('/404')
+    let requests: string[] = []
+
+    browser.on('request', (req) => {
+      requests.push(new URL(req.url()).pathname)
+    })
+
+    // Navigate to home and wait for static page to be prefetched
+    await browser.eval('location.href = "/"')
+
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(1)
+    })
+
+    // Navigate to static page (should use cached data)
+    await browser
+      .elementByCss('#to-static-page')
+      .click()
+      .waitForElementByCss('#static-page')
+
+    // Go back to home
+    await browser
+      .elementByCss('#to-home')
+      .click()
+      .waitForElementByCss('#to-static-page')
+
+    // Wait for stale time to expire (10 seconds)
+    await waitFor(10000)
+
+    // Navigate to static page again (should refetch due to expired cache)
+    await browser
+      .elementByCss('#to-static-page')
+      .click()
+      .waitForElementByCss('#static-page')
+
+    // Verify that refetch happened
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(2)
+    })
+
+    // Go back to home
+    await browser
+      .elementByCss('#to-home')
+      .click()
+      .waitForElementByCss('#to-static-page')
+
+    // Wait less than the stale time (5 seconds - should still be fresh)
+    await waitFor(5000)
+
+    // Navigate to static page again (should NOT refetch - stale time should be renewed)
+    await browser
+      .elementByCss('#to-static-page')
+      .click()
+      .waitForElementByCss('#static-page')
+
+    // This should still be 2 - no new request should have been made
+    // If this fails, it means the stale time was not renewed after the refetch
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(2)
     })
   })
 })

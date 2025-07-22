@@ -447,7 +447,7 @@ pub enum TurboTasksExecutionError {
 }
 
 impl TurboTasksExecutionError {
-    pub fn task_context(&self, task: impl Display) -> Self {
+    pub fn with_task_context(&self, task: impl Display) -> Self {
         TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
             task: RcStr::from(task.to_string()),
             source: Some(self.clone()),

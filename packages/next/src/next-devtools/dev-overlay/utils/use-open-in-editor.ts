@@ -2,20 +2,20 @@ import { useCallback } from 'react'
 
 export function useOpenInEditor({
   file,
-  lineNumber,
-  column,
+  line1,
+  column1,
 }: {
   file?: string | null
-  lineNumber?: number | null
-  column?: number | null
+  line1?: number | null
+  column1?: number | null
 } = {}) {
   const openInEditor = useCallback(() => {
-    if (file == null || lineNumber == null || column == null) return
+    if (file == null || line1 == null || column1 == null) return
 
     const params = new URLSearchParams()
     params.append('file', file)
-    params.append('lineNumber', String(lineNumber))
-    params.append('column', String(column))
+    params.append('line1', String(line1))
+    params.append('column1', String(column1))
 
     self
       .fetch(
@@ -27,12 +27,12 @@ export function useOpenInEditor({
         () => {},
         (cause) => {
           console.error(
-            `Failed to open file "${file} (${lineNumber}:${column})" in your editor. Cause:`,
+            `Failed to open file "${file} (${line1}:${column1})" in your editor. Cause:`,
             cause
           )
         }
       )
-  }, [file, lineNumber, column])
+  }, [file, line1, column1])
 
   return openInEditor
 }

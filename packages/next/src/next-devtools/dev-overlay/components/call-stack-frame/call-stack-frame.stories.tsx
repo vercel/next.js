@@ -29,20 +29,21 @@ export default meta
 type Story = StoryObj<typeof CallStackFrame>
 
 const frame = {
+  originalCodeFrame: null,
   originalStackFrame: {
     file: './app/page.tsx',
     methodName: 'MyComponent',
     arguments: [],
-    lineNumber: 10,
-    column: 5,
+    line1: 10,
+    column1: 5,
     ignored: false,
   },
   sourceStackFrame: {
     file: './app/page.tsx',
     methodName: 'MyComponent',
     arguments: [],
-    lineNumber: 10,
-    column: 5,
+    line1: 10,
+    column1: 5,
   },
   error: false as const,
   reason: null,

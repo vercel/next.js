@@ -2430,7 +2430,10 @@ impl CodeGenResultComments {
         } else if old_high_bits == 0 {
             false
         } else {
-            panic!("The high bits of the position {pos} are not all 0s or 1s: {old_high_bits:b}",);
+            panic!(
+                "The high bits of the position {pos} are not all 0s or 1s. \
+                 modules_header_width={modules_header_width}, module={module}",
+            );
         };
 
         let pos = pos & !((2u32.pow(header_width) - 1) << pos_width);

@@ -51,7 +51,6 @@ function resolveServerReference(bundlerConfig, id) {
   }
   return [resolvedModuleData.id, resolvedModuleData.chunks, name];
 }
-var chunkCache = new Map();
 function requireAsyncModule(id) {
   var promise = globalThis.__next_require__(id);
   if ("function" !== typeof promise.then || "fulfilled" === promise.status)
@@ -68,18 +67,18 @@ function requireAsyncModule(id) {
   );
   return promise;
 }
+var instrumentedChunks = new WeakSet(),
+  loadedChunks = new WeakSet();
 function ignoreReject() {}
 function preloadModule(metadata) {
   for (var chunks = metadata[1], promises = [], i = 0; i < chunks.length; i++) {
-    var chunkFilename = chunks[i],
-      entry = chunkCache.get(chunkFilename);
-    if (void 0 === entry) {
-      entry = globalThis.__next_chunk_load__(chunkFilename);
-      promises.push(entry);
-      var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
-      entry.then(resolve, ignoreReject);
-      chunkCache.set(chunkFilename, entry);
-    } else null !== entry && promises.push(entry);
+    var thenable = globalThis.__next_chunk_load__(chunks[i]);
+    loadedChunks.has(thenable) || promises.push(thenable);
+    if (!instrumentedChunks.has(thenable)) {
+      var resolve = loadedChunks.add.bind(loadedChunks, thenable);
+      thenable.then(resolve, ignoreReject);
+      instrumentedChunks.add(thenable);
+    }
   }
   return 4 === metadata.length
     ? 0 === promises.length
@@ -877,7 +876,7 @@ function initializeModelChunk(chunk) {
       (chunk.reason = null),
       wakeChunk(resolveListeners, value));
     if (null !== initializingHandler) {
-      if (initializingHandler.errored) throw initializingHandler.value;
+      if (initializingHandler.errored) throw initializingHandler.reason;
       if (0 < initializingHandler.deps) {
         initializingHandler.value = value;
         initializingHandler.chunk = chunk;
@@ -994,6 +993,7 @@ function fulfillReference(reference, value) {
       ((parentObject = key.value),
       (key.status = "fulfilled"),
       (key.value = handler.value),
+      (key.reason = handler.reason),
       null !== parentObject && wakeChunk(parentObject, handler.value)));
 }
 function rejectReference(reference, error) {
@@ -1001,7 +1001,8 @@ function rejectReference(reference, error) {
   reference = reference.response;
   handler.errored ||
     ((handler.errored = !0),
-    (handler.value = error),
+    (handler.value = null),
+    (handler.reason = error),
     (handler = handler.chunk),
     null !== handler &&
       "blocked" === handler.status &&
@@ -1023,6 +1024,7 @@ function waitForReference(
       parent: null,
       chunk: null,
       value: null,
+      reason: null,
       deps: 1,
       errored: !1
     };
@@ -1076,6 +1078,7 @@ function loadServerReference(response, metaData, parentObject, key) {
       parent: null,
       chunk: null,
       value: null,
+      reason: null,
       deps: 1,
       errored: !1
     };
@@ -1118,7 +1121,8 @@ function loadServerReference(response, metaData, parentObject, key) {
     function (error) {
       if (!handler.errored) {
         handler.errored = !0;
-        handler.value = error;
+        handler.value = null;
+        handler.reason = error;
         var chunk = handler.chunk;
         null !== chunk &&
           "blocked" === chunk.status &&
@@ -1174,6 +1178,7 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
                       parent: null,
                       chunk: null,
                       value: null,
+                      reason: null,
                       deps: 1,
                       errored: !1
                     }),
@@ -1183,11 +1188,13 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
               return (
                 initializingHandler
                   ? ((initializingHandler.errored = !0),
-                    (initializingHandler.value = value.reason))
+                    (initializingHandler.value = null),
+                    (initializingHandler.reason = value.reason))
                   : (initializingHandler = {
                       parent: null,
                       chunk: null,
-                      value: value.reason,
+                      value: null,
+                      reason: value.reason,
                       deps: 0,
                       errored: !0
                     }),
@@ -1209,6 +1216,7 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
               parent: null,
               chunk: null,
               value: null,
+              reason: null,
               deps: 1,
               errored: !1
             }),
@@ -1218,11 +1226,13 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
       return (
         initializingHandler
           ? ((initializingHandler.errored = !0),
-            (initializingHandler.value = id.reason))
+            (initializingHandler.value = null),
+            (initializingHandler.reason = id.reason))
           : (initializingHandler = {
               parent: null,
               chunk: null,
-              value: id.reason,
+              value: null,
+              reason: id.reason,
               deps: 0,
               errored: !0
             }),
@@ -1261,6 +1271,7 @@ function parseModelString(response, parentObject, key, value) {
             parent: initializingHandler,
             chunk: null,
             value: null,
+            reason: null,
             deps: 0,
             errored: !1
           }),
@@ -1753,14 +1764,14 @@ function processFullStringRow(response, id, tag, row) {
       }
       break;
     case 69:
-      tag = JSON.parse(row);
-      row = resolveErrorProd();
-      row.digest = tag.digest;
       tag = response._chunks;
       var chunk = tag.get(id);
+      row = JSON.parse(row);
+      var error = resolveErrorProd();
+      error.digest = row.digest;
       chunk
-        ? triggerErrorOnChunk(response, chunk, row)
-        : tag.set(id, new ReactPromise("rejected", null, row));
+        ? triggerErrorOnChunk(response, chunk, error)
+        : tag.set(id, new ReactPromise("rejected", null, error));
       break;
     case 84:
       response = response._chunks;
@@ -1898,7 +1909,7 @@ function createFromJSONCallback(response) {
             (initializingHandler = value.parent),
             value.errored)
           )
-            (key = new ReactPromise("rejected", null, value.value)),
+            (key = new ReactPromise("rejected", null, value.reason)),
               (key = createLazyChunkWrapper(key));
           else if (0 < value.deps) {
             var blockedChunk = new ReactPromise("blocked", null, null);

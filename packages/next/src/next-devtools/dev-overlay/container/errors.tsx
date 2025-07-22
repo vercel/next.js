@@ -1,4 +1,4 @@
-import { useMemo, useRef, Suspense } from 'react'
+import { useMemo, useRef, Suspense, useCallback } from 'react'
 import type { DebugInfo } from '../../shared/types'
 import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
@@ -15,9 +15,12 @@ import {
   NEXTJS_HYDRATION_ERROR_LINK,
 } from '../../shared/react-19-hydration-error'
 import type { ReadyRuntimeError } from '../utils/get-error-by-type'
+import { useFrames } from '../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
+import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 export interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
@@ -132,6 +135,83 @@ export function Errors({
     setActiveIndex,
   } = useActiveRuntimeError({ runtimeErrors, getSquashedHydrationErrorDetails })
 
+  // Get parsed frames data
+  const frames = useFrames(activeError)
+
+  const firstFrame = useMemo(() => {
+    const firstFirstPartyFrameIndex = frames.findIndex(
+      (entry) =>
+        !entry.ignored &&
+        Boolean(entry.originalCodeFrame) &&
+        Boolean(entry.originalStackFrame)
+    )
+
+    return frames[firstFirstPartyFrameIndex] ?? null
+  }, [frames])
+
+  const generateErrorInfo = useCallback(() => {
+    if (!activeError) return ''
+
+    const parts: string[] = []
+
+    // 1. Error Type
+    if (errorType) {
+      parts.push(`## Error Type\n${errorType}`)
+    }
+
+    // 2. Error Message
+    const error = activeError.error
+    let message = error.message
+    if ('environmentName' in error && error.environmentName) {
+      const envPrefix = `[ ${error.environmentName} ] `
+      if (message.startsWith(envPrefix)) {
+        message = message.slice(envPrefix.length)
+      }
+    }
+    if (message) {
+      parts.push(`## Error Message\n${message}`)
+    }
+    // Append call stack
+    if (frames.length > 0) {
+      const visibleFrames = frames.filter((frame) => !frame.ignored)
+      if (visibleFrames.length > 0) {
+        const stackLines = visibleFrames
+          .map((frame) => {
+            if (frame.originalStackFrame) {
+              const { methodName, file, line1, column1 } =
+                frame.originalStackFrame
+              return `    at ${methodName} (${file}:${line1}:${column1})`
+            } else if (frame.sourceStackFrame) {
+              const { methodName, file, line1, column1 } =
+                frame.sourceStackFrame
+              return `    at ${methodName} (${file}:${line1}:${column1})`
+            }
+            return ''
+          })
+          .filter(Boolean)
+
+        if (stackLines.length > 0) {
+          parts.push(`\n${stackLines.join('\n')}`)
+        }
+      }
+    }
+
+    // 3. Code Frame (decoded)
+    if (firstFrame?.originalCodeFrame) {
+      const decodedCodeFrame = stripAnsi(
+        formatCodeFrame(firstFrame.originalCodeFrame)
+      )
+      parts.push(`## Code Frame\n${decodedCodeFrame}`)
+    }
+
+    // Format as markdown error info
+    const errorInfo = `${parts.join('\n\n')}
+
+Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
+
+    return errorInfo
+  }, [activeError, errorType, firstFrame, frames, props.versionInfo])
+
   if (isLoading) {
     // TODO: better loading state
     return (
@@ -168,6 +248,7 @@ export function Errors({
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       dialogResizerRef={dialogResizerRef}
+      generateErrorInfo={generateErrorInfo}
       {...props}
     >
       <div className="error-overlay-notes-container">

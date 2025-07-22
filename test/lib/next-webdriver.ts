@@ -62,7 +62,7 @@ export interface WebdriverOptions {
    * @param page
    * @returns
    */
-  beforePageLoad?: (page: Page) => void
+  beforePageLoad?: (page: Page) => void | Promise<void>
   /**
    * browser locale
    */

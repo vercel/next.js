@@ -105,7 +105,6 @@ async function createComponentTreeInternal({
     workStore,
     componentMod: {
       SegmentViewNode,
-      SegmentViewStateNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -294,15 +293,25 @@ async function createComponentTreeInternal({
     const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore) {
-      if (
-        workUnitStore.type === 'prerender' ||
-        workUnitStore.type === 'prerender-legacy' ||
-        workUnitStore.type === 'prerender-ppr' ||
-        workUnitStore.type === 'cache'
-      ) {
-        if (workUnitStore.revalidate > defaultRevalidate) {
-          workUnitStore.revalidate = defaultRevalidate
-        }
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-legacy':
+        case 'prerender-ppr':
+          if (workUnitStore.revalidate > defaultRevalidate) {
+            workUnitStore.revalidate = defaultRevalidate
+          }
+          break
+        case 'request':
+          // A request store doesn't have a revalidate property.
+          break
+        // createComponentTree is not called for these stores:
+        case 'cache':
+        case 'private-cache':
+        case 'prerender-client':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
       }
     }
 
@@ -761,13 +770,6 @@ async function createComponentTreeInternal({
         const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
           PageComponent
 
-        if (!experimental.dynamicIO) {
-          // The "use cache" wrapper takes care of converting this into an
-          // erroring search params promise when passing it to the original
-          // function.
-          searchParams = Promise.resolve({})
-        }
-
         pageElement = (
           <UseCachePageComponent
             params={params}
@@ -800,7 +802,6 @@ async function createComponentTreeInternal({
         pageElement
       )
 
-    const pagePrefix = ctx.renderOpts.page.replace(/\/page$/, '')
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
@@ -810,7 +811,6 @@ async function createComponentTreeInternal({
           <MetadataOutlet ready={getViewportReady} />
           {metadataOutlet}
         </OutletBoundary>
-        <SegmentViewStateNode page={pagePrefix} />
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,

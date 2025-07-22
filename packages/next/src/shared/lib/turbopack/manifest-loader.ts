@@ -12,7 +12,6 @@ import type {
 import type { BuildManifest } from '../../../server/get-page-files'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
 import type { REACT_LOADABLE_MANIFEST } from '../constants'
@@ -26,6 +25,7 @@ import {
   NEXT_FONT_MANIFEST,
   PAGES_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  TURBOPACK_CLIENT_BUILD_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
   WEBPACK_STATS,
 } from '../constants'
@@ -53,6 +53,7 @@ import {
   removeRouteSuffix,
 } from '../../../server/dev/turbopack-utils'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
+import { safePathToRegexp } from '../router/utils/route-match-utils'
 import type { Entrypoints } from '../../../build/swc/types'
 
 interface InstrumentationDefinition {
@@ -74,6 +75,7 @@ type ManifestName =
   | `${typeof SERVER_REFERENCE_MANIFEST}.json`
   | `${typeof NEXT_FONT_MANIFEST}.json`
   | typeof REACT_LOADABLE_MANIFEST
+  | typeof TURBOPACK_CLIENT_BUILD_MANIFEST
 
 const getManifestPath = (
   page: string,
@@ -135,6 +137,7 @@ export class TurbopackManifestLoader {
   private appBuildManifests: Map<EntryKey, AppBuildManifest> = new Map()
   private appPathsManifests: Map<EntryKey, PagesManifest> = new Map()
   private buildManifests: Map<EntryKey, BuildManifest> = new Map()
+  private clientBuildManifests: Map<EntryKey, ClientBuildManifest> = new Map()
   private fontManifests: Map<EntryKey, NextFontManifest> = new Map()
   private middlewareManifests: Map<EntryKey, TurbopackMiddlewareManifest> =
     new Map()
@@ -164,6 +167,7 @@ export class TurbopackManifestLoader {
     this.appBuildManifests.delete(key)
     this.appPathsManifests.delete(key)
     this.buildManifests.delete(key)
+    this.clientBuildManifests.delete(key)
     this.fontManifests.delete(key)
     this.middlewareManifests.delete(key)
     this.pagesManifests.delete(key)
@@ -326,6 +330,21 @@ export class TurbopackManifestLoader {
     )
   }
 
+  async loadClientBuildManifest(
+    pageName: string,
+    type: 'app' | 'pages' = 'pages'
+  ): Promise<void> {
+    this.clientBuildManifests.set(
+      getEntryKey(type, 'server', pageName),
+      await readPartialManifest(
+        this.distDir,
+        TURBOPACK_CLIENT_BUILD_MANIFEST,
+        pageName,
+        type
+      )
+    )
+  }
+
   async loadWebpackStats(
     pageName: string,
     type: 'app' | 'pages' = 'pages'
@@ -422,6 +441,21 @@ export class TurbopackManifestLoader {
     return manifest
   }
 
+  private mergeClientBuildManifests(
+    rewrites: CustomRoutes['rewrites'],
+    manifests: Iterable<ClientBuildManifest>,
+    sortedPageKeys: string[]
+  ): ClientBuildManifest {
+    const manifest = {
+      __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
+      sortedPages: sortedPageKeys,
+    }
+    for (const m of manifests) {
+      Object.assign(manifest, m)
+    }
+    return sortObjectByKey(manifest)
+  }
+
   private async writeBuildManifest(
     entrypoints: Entrypoints,
     devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined,
@@ -479,25 +513,15 @@ export class TurbopackManifestLoader {
     }
 
     const sortedPageKeys = getSortedRoutes(pagesKeys)
-    const clientBuildManifest: ClientBuildManifest = {
-      __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
-      ...Object.fromEntries(
-        sortedPageKeys.map((pathname) => {
-          let filePath
-          if (pathname === '/') {
-            filePath = '/index.js'
-          } else if (pathname.endsWith('/index')) {
-            filePath = `${pathname}/index.js`
-          } else {
-            filePath = `${pathname}.js`
-          }
-          return [pathname, [`static/chunks/pages${filePath}`]]
-        })
-      ),
-      sortedPages: sortedPageKeys,
-    }
+    const clientBuildManifest = this.mergeClientBuildManifests(
+      rewrites,
+      this.clientBuildManifests.values(),
+      sortedPageKeys
+    )
     const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
-      clientBuildManifest
+      clientBuildManifest,
+      null,
+      2
     )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
     await writeFileAtomic(
       join(this.distDir, 'static', this.buildId, '_buildManifest.js'),
@@ -691,7 +715,7 @@ export class TurbopackManifestLoader {
     )) {
       for (const matcher of fun.matchers) {
         if (!matcher.regexp) {
-          matcher.regexp = pathToRegexp(matcher.originalSource, [], {
+          matcher.regexp = safePathToRegexp(matcher.originalSource, [], {
             delimiter: '/',
             sensitive: false,
             strict: true,

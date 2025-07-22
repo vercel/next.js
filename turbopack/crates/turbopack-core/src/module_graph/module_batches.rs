@@ -123,7 +123,7 @@ impl ModuleBatchesGraph {
 
     // Clippy complains but there's a type error without the bound
     #[allow(clippy::implied_bounds_in_impls)]
-    /// Traverses all reachable edges in topological order. The preorder visitor can be used to
+    /// Traverses all reachable edges in dfs order. The preorder visitor can be used to
     /// forward state down the graph, and to skip subgraphs
     ///
     /// Use this to collect batches/modules in evaluation order.
@@ -131,7 +131,7 @@ impl ModuleBatchesGraph {
     /// Target nodes can be revisited (once per incoming edge).
     /// Edges are traversed in normal order, so should correspond to reference order.
     ///
-    /// * `entry` - The entry module to start the traversal from
+    /// * `entries` - The entry modules to start the traversal from
     /// * `state` - The state to be passed to the visitors
     /// * `visit_preorder` - Called before visiting the children of a node.
     ///    - Receives: (originating &ModuleBatchesGraphNode, edge &ChunkingType), target
@@ -140,7 +140,7 @@ impl ModuleBatchesGraph {
     /// * `visit_postorder` - Called after visiting the children of a node. Return
     ///    - Receives: (originating &ModuleBatchesGraphNode, edge &ChunkingType), target
     ///      &ModuleBatchesGraphNode, state &S
-    pub fn traverse_edges_from_entries_topological<'a, S>(
+    pub fn traverse_edges_from_entries_dfs<'a, S>(
         &'a self,
         entries: impl IntoIterator<
             Item = NodeIndex,
@@ -160,20 +160,16 @@ impl ModuleBatchesGraph {
     ) -> Result<()> {
         let graph = &self.graph;
 
-        enum ReverseTopologicalPass {
+        enum ReverseDFSPass {
             Visit,
             ExpandAndVisit,
         }
 
         let entries = entries.into_iter();
         #[allow(clippy::type_complexity)] // This is a temporary internal structure
-        let mut stack: Vec<(
-            ReverseTopologicalPass,
-            Option<(NodeIndex, EdgeIndex)>,
-            NodeIndex,
-        )> = entries
+        let mut stack: Vec<(ReverseDFSPass, Option<(NodeIndex, EdgeIndex)>, NodeIndex)> = entries
             .rev()
-            .map(|e| (ReverseTopologicalPass::ExpandAndVisit, None, e))
+            .map(|e| (ReverseDFSPass::ExpandAndVisit, None, e))
             .collect();
         let mut expanded = FxHashSet::default();
         while let Some((pass, parent, current)) = stack.pop() {
@@ -184,24 +180,20 @@ impl ModuleBatchesGraph {
                 )
             });
             match pass {
-                ReverseTopologicalPass::Visit => {
+                ReverseDFSPass::Visit => {
                     let current_node = graph.node_weight(current).unwrap();
                     visit_postorder(parent_arg, current_node, state);
                 }
-                ReverseTopologicalPass::ExpandAndVisit => {
+                ReverseDFSPass::ExpandAndVisit => {
                     let current_node = graph.node_weight(current).unwrap();
                     let action = visit_preorder(parent_arg, current_node, state)?;
                     if action == GraphTraversalAction::Exclude {
                         continue;
                     }
-                    stack.push((ReverseTopologicalPass::Visit, parent, current));
+                    stack.push((ReverseDFSPass::Visit, parent, current));
                     if action == GraphTraversalAction::Continue && expanded.insert(current) {
                         stack.extend(iter_neighbors_rev(graph, current).map(|(edge, child)| {
-                            (
-                                ReverseTopologicalPass::ExpandAndVisit,
-                                Some((current, edge)),
-                                child,
-                            )
+                            (ReverseDFSPass::ExpandAndVisit, Some((current, edge)), child)
                         }));
                     }
                 }
@@ -293,7 +285,7 @@ impl PreBatches {
         };
         let mut visited = FxHashSet::default();
         module_graph
-            .traverse_edges_from_entries_topological(
+            .traverse_edges_from_entries_dfs(
                 std::iter::once(ResolvedVc::upcast(entry)),
                 &mut state,
                 |parent_info, node, state| {
