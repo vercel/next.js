@@ -391,7 +391,7 @@ async function isPartialRSCData(
     signal: abortController.signal,
     onError() {},
     onPostpone() {
-      // If something postponed, i.e. when Dynamic IO is not enabled, we can
+      // If something postponed, i.e. when Cache Components is not enabled, we can
       // infer that the RSC data is partial.
       isPartial = true
     },

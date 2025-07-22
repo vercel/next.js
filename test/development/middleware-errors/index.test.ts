@@ -35,16 +35,16 @@ describe('middleware - development errors', () => {
         isTurbopack
           ? '\n ⨯ Error: boom' +
               // TODO(veil): Sourcemap to original name i.e. "default"
-              '\n    at __TURBOPACK__default__export__ (middleware.js:3:14)' +
+              '\n    at __TURBOPACK__default__export__ (middleware.js:3:15)' +
               '\n  1 |'
           : '\n ⨯ Error: boom' +
-              '\n    at default (middleware.js:3:14)' +
+              '\n    at default (middleware.js:3:15)' +
               '\n  1 |'
       )
       expect(stripAnsi(next.cliOutput)).toContain(
         '' +
           "\n> 3 |         throw new Error('boom')" +
-          '\n    |              ^'
+          '\n    |               ^'
       )
     })
 
@@ -117,19 +117,19 @@ describe('middleware - development errors', () => {
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
           ? ' ⨯ unhandledRejection:  Error: async boom!' +
-              '\n    at throwError (middleware.js:4:14)' +
+              '\n    at throwError (middleware.js:4:15)' +
               // TODO(veil): Sourcemap to original name i.e. "default"
-              '\n    at __TURBOPACK__default__export__ (middleware.js:7:8)' +
+              '\n    at __TURBOPACK__default__export__ (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
           : '\n ⨯ unhandledRejection:  Error: async boom!' +
-              '\n    at throwError (middleware.js:4:14)' +
-              '\n    at default (middleware.js:7:8)' +
+              '\n    at throwError (middleware.js:4:15)' +
+              '\n    at default (middleware.js:7:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
       )
       expect(stripAnsi(next.cliOutput)).toContain(
         '' +
           "\n> 4 |         throw new Error('async boom!')" +
-          '\n    |              ^'
+          '\n    |               ^'
       )
     })
 
@@ -172,15 +172,15 @@ describe('middleware - development errors', () => {
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
           ? '\n ⨯ Error [ReferenceError]: test is not defined' +
-              '\n    at eval (middleware.js:4:8)' +
-              '\n    at <unknown> (middleware.js:4:8)' +
+              '\n    at eval (middleware.js:4:9)' +
+              '\n    at <unknown> (middleware.js:4:9)' +
               // TODO(veil): Should be sourcemapped
               '\n    at __TURBOPACK__default__export__ ('
           : '\n ⨯ Error [ReferenceError]: test is not defined' +
               // TODO(veil): Redundant and not clickable
               '\n    at eval (file://webpack-internal:///(middleware)/./middleware.js)' +
-              '\n    at eval (middleware.js:4:8)' +
-              '\n    at default (middleware.js:4:8)' +
+              '\n    at eval (middleware.js:4:9)' +
+              '\n    at default (middleware.js:4:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
       )
       expect(stripAnsi(next.cliOutput)).toContain(
@@ -191,7 +191,7 @@ describe('middleware - development errors', () => {
               '\n    at __TURBOPACK__default__export__ ('
           : "\n ⚠ DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
               '\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation' +
-              '\n    at default (middleware.js:4:8)' +
+              '\n    at default (middleware.js:4:9)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
       )
     })
@@ -273,7 +273,7 @@ describe('middleware - development errors', () => {
               // TODO: Should be anonymous method without a method name
               '\n    at <unknown> (middleware.js:3)' +
               // TODO: Should be ignore-listed
-              '\n    at eval (middleware.js:3:12)' +
+              '\n    at eval (middleware.js:3:13)' +
               '\n    at (middleware)/./middleware.js (.next/server/middleware.js:18:1)' +
               '\n    at __webpack_require__ '
       )
@@ -306,7 +306,7 @@ describe('middleware - development errors', () => {
          > 3 |       throw new Error('booooom!')
              |             ^",
            "stack": [
-             "<unknown> middleware.js (3:0)",
+             "<unknown> middleware.js (3)",
              "eval middleware.js (3:13)",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",

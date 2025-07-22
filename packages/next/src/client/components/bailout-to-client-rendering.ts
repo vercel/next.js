@@ -16,7 +16,13 @@ export function bailoutToClientRendering(reason: string): void | never {
       case 'prerender-ppr':
       case 'prerender-legacy':
         throw new BailoutToCSRError(reason)
+      case 'request':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
       default:
+        workUnitStore satisfies never
     }
   }
 }

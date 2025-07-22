@@ -11,6 +11,7 @@ import localByDefault from 'next/dist/compiled/postcss-modules-local-by-default'
 import extractImports from 'next/dist/compiled/postcss-modules-extract-imports'
 import modulesScope from 'next/dist/compiled/postcss-modules-scope'
 import camelCase from './camelcase'
+import { normalizePath } from '../../../../../lib/normalize-path'
 
 const whitespace = '[\\x20\\t\\r\\n\\f]'
 const unescapeRegExp = new RegExp(
@@ -37,10 +38,6 @@ function unescape(str: string) {
           String.fromCharCode((high >> 10) | 0xd800, (high & 0x3ff) | 0xdc00)
     /* eslint-enable line-comment-position */
   })
-}
-
-function normalizePath(file: string) {
-  return path.sep === '\\' ? file.replace(/\\/g, '/') : file
 }
 
 function fixedEncodeURIComponent(str: string) {

@@ -1,21 +1,30 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
+// TODO: NEXT-4642
+const StoryBookNextLogo = (
+  _: {
+    issueCount: number
+    isDevBuilding: boolean
+    isDevRendering: boolean
+  } & Record<string, unknown>
+) => {
+  return <NextLogo onTriggerClick={() => {}} />
+}
 
-const meta: Meta<typeof NextLogo> = {
-  component: NextLogo,
+const meta: Meta<typeof StoryBookNextLogo> = {
+  component: StoryBookNextLogo,
   parameters: {
     layout: 'centered',
   },
   args: {
     'aria-label': 'Open Next.js DevTools',
-    onClick: () => console.log('Clicked!'),
   },
   decorators: [withShadowPortal],
 }
 
 export default meta
-type Story = StoryObj<typeof NextLogo>
+type Story = StoryObj<typeof StoryBookNextLogo>
 
 export const NoIssues: Story = {
   args: {

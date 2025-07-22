@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { Playwright } from 'next-webdriver'
@@ -134,37 +134,6 @@ describe('use-cache', () => {
     )
   })
 
-  it('should error when cookies/headers/draftMode is used inside "use cache"', async () => {
-    const browser = await next.browser('/errors')
-
-    await retry(async () => {
-      expect(await browser.elementById('cookies').text()).toContain(
-        isNextDev
-          ? 'Route /errors used "cookies" inside "use cache".'
-          : GENERIC_RSC_ERROR
-      )
-      expect(await browser.elementById('headers').text()).toContain(
-        isNextDev
-          ? 'Route /errors used "headers" inside "use cache".'
-          : GENERIC_RSC_ERROR
-      )
-    })
-
-    expect(await browser.elementById('draft-mode').text()).toContain(
-      'Editing: false'
-    )
-
-    // CLI assertions are skipped in deploy mode because `next.cliOutput` will only contain build-time logs.
-    if (!isNextDeploy) {
-      expect(next.cliOutput).toContain(
-        'Route /errors used "cookies" inside "use cache". '
-      )
-      expect(next.cliOutput).toContain(
-        'Route /errors used "headers" inside "use cache". '
-      )
-    }
-  })
-
   it('should cache results in route handlers', async () => {
     const response = await next.fetch('/api')
     const { rand1, rand2 } = await response.json()
@@ -172,7 +141,7 @@ describe('use-cache', () => {
     expect(rand1).toEqual(rand2)
   })
 
-  it('should revalidate before redirecting in a route handlers', async () => {
+  it('should revalidate before redirecting in a route handler', async () => {
     const initialValues = await next.fetch('/api').then((res) => res.json())
 
     const values = await next
@@ -473,14 +442,24 @@ describe('use-cache', () => {
     it('should prerender fully cacheable pages as static HTML', async () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
-      )
+      ) as PrerenderManifest
 
-      let prerenderedRoutes = Object.keys(prerenderManifest.routes).sort()
+      const withPPR = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
-      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+      const withCacheComponents =
+        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+
+      let prerenderedRoutes = Object.entries(prerenderManifest.routes)
+
+      if (withPPR || withCacheComponents) {
         // For the purpose of this test we don't consider an incomplete shell.
-        prerenderedRoutes = prerenderedRoutes.filter((route) => {
-          const filename = route.replace(/^\//, '').replace(/^$/, 'index')
+        prerenderedRoutes = prerenderedRoutes.filter(([pathname, route]) => {
+          const filename = pathname.replace(/^\//, '').replace(/^$/, 'index')
+
+          // A prerendered route handler does not have a dataRoute (i.e. RSC).
+          if (!route.dataRoute) {
+            return true
+          }
 
           return next
             .readFileSync(`.next/server/app/${filename}.html`)
@@ -488,34 +467,43 @@ describe('use-cache', () => {
         })
       }
 
-      expect(prerenderedRoutes).toEqual([
-        // [id] route, first entry in generateStaticParams
-        expect.stringMatching(/\/a\d/),
-        // [id] route, second entry in generateStaticParams
-        expect.stringMatching(/\/b\d/),
-        '/cache-fetch',
-        '/cache-fetch-no-store',
-        '/cache-life',
-        '/cache-tag',
-        '/directive-in-node-modules/with-handler',
-        '/directive-in-node-modules/without-handler',
-        '/draft-mode',
-        '/form',
-        '/imported-from-client',
-        '/logs',
-        '/method-props',
-        '/nested-in-unstable-cache',
-        '/not-found',
-        '/on-demand-revalidate',
-        '/passed-to-client',
-        '/react-cache',
-        '/referential-equality',
-        '/revalidate-and-redirect/redirect',
-        '/rsc-payload',
-        '/static-class-method',
-        '/use-action-state',
-        '/with-server-action',
-      ])
+      const prerenderedRouteKeys = prerenderedRoutes
+        .map(([routeKey]) => routeKey)
+        .sort()
+
+      expect(prerenderedRouteKeys).toEqual(
+        [
+          // [id] route, first entry in generateStaticParams
+          expect.stringMatching(/\/a\d/),
+          withCacheComponents && '/api',
+          // [id] route, second entry in generateStaticParams
+          expect.stringMatching(/\/b\d/),
+          '/cache-fetch',
+          '/cache-fetch-no-store',
+          '/cache-life',
+          '/cache-tag',
+          '/directive-in-node-modules/with-handler',
+          '/directive-in-node-modules/without-handler',
+          '/draft-mode/with-cookies',
+          '/draft-mode/without-cookies',
+          '/form',
+          '/imported-from-client',
+          '/logs',
+          '/method-props',
+          '/nested-in-unstable-cache',
+          '/not-found',
+          '/on-demand-revalidate',
+          '/passed-to-client',
+          '/react-cache',
+          '/referential-equality',
+          '/revalidate-and-redirect/redirect',
+          '/rsc-payload',
+          '/static-class-method',
+          withCacheComponents && '/unhandled-promise-regression',
+          '/use-action-state',
+          '/with-server-action',
+        ].filter(Boolean)
+      )
     })
 
     it('should match the expected revalidate and expire configs on the prerender manifest', async () => {
@@ -527,7 +515,7 @@ describe('use-cache', () => {
 
       // custom cache life profile "frequent"
       expect(routes['/cache-life'].initialRevalidateSeconds).toBe(100)
-      expect(routes['/cache-life'].initialExpireSeconds).toBe(250)
+      expect(routes['/cache-life'].initialExpireSeconds).toBe(300)
 
       // default expireTime
       expect(routes['/cache-fetch'].initialExpireSeconds).toBe(31536000)
@@ -554,8 +542,8 @@ describe('use-cache', () => {
       let response = await next.fetch('/cache-life')
 
       expect(response.headers.get('cache-control')).toBe(
-        // revalidate is set to 100, expire is set to 250 => SWR 150
-        's-maxage=100, stale-while-revalidate=150'
+        // revalidate is set to 100, expire is set to 300 => SWR 200
+        's-maxage=100, stale-while-revalidate=200'
       )
 
       response = await next.fetch('/cache-fetch')
@@ -597,11 +585,10 @@ describe('use-cache', () => {
 
     await browser.elementByCss('#refresh').click()
 
-    await waitFor(500)
-
-    const time3 = await browser.waitForElementByCss('#t').text()
-
-    expect(time3).not.toBe(time2)
+    await retry(async () => {
+      const time3 = await browser.waitForElementByCss('#t').text()
+      expect(time3).not.toBe(time2)
+    })
 
     // Reloading again should ideally be the same value but because the Action seeds
     // the cache with real params as the argument it has a different cache key.
@@ -754,46 +741,60 @@ describe('use-cache', () => {
   })
 
   describe('should not read nor write cached data when draft mode is enabled', () => {
-    if (isNextDeploy) {
-      // Wait for the background revalidation after the deployment to settle.
-      beforeAll(async () => {
-        const browser = await next.browser('/draft-mode')
-        try {
-          const initialTopLevelValue = await browser
-            .elementById('top-level')
-            .text()
-          await retry(async () => {
-            await browser.refresh()
-
-            expect(await browser.elementById('top-level').text()).not.toBe(
-              initialTopLevelValue
-            )
-          })
-        } finally {
-          // we're not in a test, so the browser won't get cleaned up automatically.
-          await browser.close()
-        }
-      })
-    }
-
     it.each([
-      { description: 'js enabled', disableJavaScript: false },
-      { description: 'js disabled', disableJavaScript: true },
-    ])('$description', async ({ disableJavaScript }) => {
-      const browser = await next.browser('/draft-mode', {
+      {
+        description: 'js enabled, with cookies',
+        disableJavaScript: false,
+        mode: 'with-cookies',
+      },
+      {
+        description: 'js disabled, with cookies',
+        disableJavaScript: true,
+        mode: 'with-cookies',
+      },
+      {
+        description: 'js enabled, without cookies',
+        disableJavaScript: false,
+        mode: 'without-cookies',
+      },
+      {
+        description: 'js disabled, without cookies',
+        disableJavaScript: true,
+        mode: 'without-cookies',
+      },
+    ])('$description', async ({ disableJavaScript, mode }) => {
+      const pathname = `/draft-mode/${mode}`
+
+      const browser = await next.browser(pathname, {
         // This test relies on a server action to set draft mode.
         // To ensure that it works for both fetch actions and MPA actions,
         // we test it with javascript disabled too.
         // (this is because of a bug where draft mode status was not correctly propagated to the workStore for MPA actions)
         disableJavaScript,
+        pushErrorAsConsoleLog: true,
       })
+
+      if (isNextDeploy) {
+        // Wait for the background revalidation after the deployment to settle.
+        const initialTopLevelValue = await browser
+          .elementById('top-level')
+          .text()
+
+        await retry(async () => {
+          await browser.refresh()
+
+          expect(await browser.elementById('top-level').text()).not.toBe(
+            initialTopLevelValue
+          )
+        })
+      }
 
       const refreshAfterServerAction = async () => {
         if (disableJavaScript) {
           // browser.refresh() seems to automatically resubmit POST requests,
           // so if we submitted an MPA action, it'll trigger the action again,
           // which in this case will toggle draftMode again.
-          await browser.get(new URL('/draft-mode', next.url).href)
+          await browser.get(new URL(pathname, next.url).href)
         } else {
           await browser.refresh()
         }
@@ -818,7 +819,29 @@ describe('use-cache', () => {
         initialClosureValue
       )
 
+      // Enable draft mode.
       await browser.elementByCss('button#toggle').click()
+
+      // When reading cookies, we expect an error.
+      // TODO: Ideally this would be a compile-time error.
+      if (mode === 'with-cookies') {
+        return retry(async () => {
+          const logs = await browser.log()
+
+          const expectedErrorMessage = disableJavaScript
+            ? 'Failed to load resource: the server responded with a status of 500 (Internal Server Error)'
+            : isNextDev
+              ? 'Route /draft-mode/[mode] used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache'
+              : GENERIC_RSC_ERROR
+
+          expect(logs).toMatchObject(
+            expect.arrayContaining([
+              { source: 'error', message: expectedErrorMessage },
+            ])
+          )
+        })
+      }
+
       await browser.waitForElementByCss('button#toggle:enabled')
 
       expect(await browser.elementByCss('button#toggle').text()).toBe(
@@ -844,13 +867,6 @@ describe('use-cache', () => {
       expect(await browser.elementById('closure').text()).not.toBe(
         newClosureValue
       )
-
-      // Accessing request-scoped data should still not be allowed.
-      expect(
-        await browser
-          .elementById('is-accessing-request-scoped-data-allowed-in-use-cache')
-          .text()
-      ).toBe('false')
 
       await browser.elementByCss('button#toggle').click()
       await browser.waitForElementByCss('button#toggle:enabled')
@@ -878,25 +894,32 @@ describe('use-cache', () => {
   })
 
   if (isNextDev) {
-    it('should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO', async () => {
-      await next.render('/unhandled-promise-regression')
-      // We assert both to better defend against changes in error messaging invalidating this test silently.
-      // They are today asserting the same thing
-      expect(next.cliOutput).not.toContain(
-        'During prerendering, `cookies()` rejects when the prerender is complete.'
-      )
-      expect(next.cliOutput).not.toContain(
-        'During prerendering, `headers()` rejects when the prerender is complete.'
-      )
-      expect(next.cliOutput).not.toContain(
-        'During prerendering, `connection()` rejects when the prerender is complete.'
-      )
-      expect(next.cliOutput).not.toContain('HANGING_PROMISE_REJECTION')
-    })
+    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS !== 'true') {
+      it('should not have unhandled rejection of Request data promises when use cache is enabled without cacheComponents', async () => {
+        await next.render('/unhandled-promise-regression')
+        // We assert both to better defend against changes in error messaging invalidating this test silently.
+        // They are today asserting the same thing
+        expect(next.cliOutput).not.toContain(
+          'During prerendering, `cookies()` rejects when the prerender is complete.'
+        )
+        expect(next.cliOutput).not.toContain(
+          'During prerendering, `headers()` rejects when the prerender is complete.'
+        )
+        expect(next.cliOutput).not.toContain(
+          'During prerendering, `connection()` rejects when the prerender is complete.'
+        )
+        expect(next.cliOutput).not.toContain('HANGING_PROMISE_REJECTION')
+      })
+    }
 
     it('replays logs from "use cache" functions', async () => {
       const browser = await next.browser('/logs')
       const initialLogs = await getSanitizedLogs(browser)
+
+      const expectedOutsideBadge =
+        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+          ? 'Prerender'
+          : 'Server'
 
       // We ignore the logged time string at the end of this message:
       const logMessageWithDateRegexp = /^ Cache {2}deep inside /
@@ -906,7 +929,7 @@ describe('use-cache', () => {
       await retry(async () => {
         expect(initialLogs).toMatchObject(
           expect.arrayContaining([
-            ' Server  outside',
+            ` ${expectedOutsideBadge}  outside`,
             ' Cache  inside',
             expect.stringMatching(logMessageWithDateRegexp),
           ])
@@ -929,7 +952,7 @@ describe('use-cache', () => {
 
         expect(newLogs).toMatchObject(
           expect.arrayContaining([
-            ' Server  outside',
+            ` ${expectedOutsideBadge}  outside`,
             ' Cache  inside',
             logMessageWithCachedDate,
           ])

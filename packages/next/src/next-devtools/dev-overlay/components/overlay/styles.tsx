@@ -1,4 +1,6 @@
-const styles = `
+import { css } from '../../utils/css'
+
+const styles = css`
   [data-nextjs-dialog-overlay] {
     position: fixed;
     top: 0;

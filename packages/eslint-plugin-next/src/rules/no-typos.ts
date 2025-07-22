@@ -98,9 +98,11 @@ export = defineRule({
             })
             break
           }
-          default: {
+          case 'ClassDeclaration':
+            // We don't need to check typos in class declarations.
             break
-          }
+          default:
+            decl satisfies never
         }
         return
       },

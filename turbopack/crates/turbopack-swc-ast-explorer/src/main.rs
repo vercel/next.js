@@ -1,4 +1,7 @@
-use std::{io::stdin, sync::Arc};
+use std::{
+    io::{Read, stdin},
+    sync::Arc,
+};
 
 use anyhow::Result;
 use clap::Parser;
@@ -25,7 +28,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     let mut contents = String::new();
-    stdin().read_line(&mut contents)?;
+    stdin().read_to_string(&mut contents)?;
 
     let sm = Arc::new(SourceMap::default());
     let file = sm.new_source_file(FileName::Anon.into(), contents);

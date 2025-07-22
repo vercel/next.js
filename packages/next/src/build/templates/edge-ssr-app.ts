@@ -1,19 +1,29 @@
 import '../../server/web/globals'
-import { adapter } from '../../server/web/adapter'
-import { getRender } from '../webpack/loaders/next-edge-ssr-loader/render'
+import { adapter, type NextRequestHint } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 
-import { renderToHTMLOrFlight as renderToHTML } from '../../server/app-render/app-render'
 import * as pageMod from 'VAR_USERLAND'
 
-import type { DocumentType } from '../../shared/lib/utils'
-import type { BuildManifest } from '../../server/get-page-files'
 import type { RequestData } from '../../server/web/types'
 import type { NextConfigComplete } from '../../server/config-shared'
-import { PAGE_TYPES } from '../../lib/page-types'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import { createServerModuleMap } from '../../server/app-render/action-utils'
 import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import { BaseServerSpan } from '../../server/lib/trace/constants'
+import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
+import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
+import type {
+  AppPageRouteHandlerContext,
+  AppPageRouteModule,
+} from '../../server/route-modules/app-page/module.compiled'
+import type { AppPageRenderResultMetadata } from '../../server/render-result'
+import type RenderResult from '../../server/render-result'
+import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
+import { getBotType } from '../../shared/lib/router/utils/is-bot'
+import { interopDefault } from '../../lib/interop-default'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -21,36 +31,14 @@ declare const incrementalCacheHandler: any
 // Initialize the cache handlers interface.
 initializeCacheHandlers()
 
-const Document: DocumentType = null!
-const appMod = null
-const errorMod = null
-const error500Mod = null
-
 // injected by the loader afterwards.
-declare const sriEnabled: boolean
-declare const isServerComponent: boolean
-declare const dev: boolean
-declare const serverActions: any
 declare const nextConfig: NextConfigComplete
-// INJECT:sriEnabled
-// INJECT:isServerComponent
-// INJECT:dev
-// INJECT:serverActions
 // INJECT:nextConfig
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
-const buildManifest: BuildManifest = self.__BUILD_MANIFEST as any
-const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
 const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
 const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
-const subresourceIntegrityManifest = sriEnabled
-  ? maybeJSONParse(self.__SUBRESOURCE_INTEGRITY_MANIFEST)
-  : undefined
-const nextFontManifest = maybeJSONParse(self.__NEXT_FONT_MANIFEST)
-
-const interceptionRouteRewrites =
-  maybeJSONParse(self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST) ?? []
 
 if (rscManifest && rscServerManifest) {
   setReferenceManifestsSingleton({
@@ -63,35 +51,309 @@ if (rscManifest && rscServerManifest) {
   })
 }
 
-const render = getRender({
-  pagesType: PAGE_TYPES.APP,
-  dev,
-  page: 'VAR_PAGE',
-  appMod,
-  pageMod,
-  errorMod,
-  error500Mod,
-  Document,
-  buildManifest,
-  renderToHTML,
-  reactLoadableManifest,
-  clientReferenceManifest: isServerComponent ? rscManifest : null,
-  serverActionsManifest: isServerComponent ? rscServerManifest : null,
-  serverActions: isServerComponent ? serverActions : undefined,
-  subresourceIntegrityManifest,
-  config: nextConfig,
-  buildId: process.env.__NEXT_BUILD_ID!,
-  nextFontManifest,
-  incrementalCacheHandler,
-  interceptionRouteRewrites,
-})
-
 export const ComponentMod = pageMod
+
+async function requestHandler(
+  req: NextRequestHint,
+  event: NextFetchEvent
+): Promise<Response> {
+  let srcPage = 'VAR_PAGE'
+
+  const normalizedSrcPage = normalizeAppPath(srcPage)
+  const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
+  const baseReq = new WebNextRequest(req)
+  const baseRes = new WebNextResponse(undefined)
+
+  const pageRouteModule = pageMod.routeModule as AppPageRouteModule
+  const prepareResult = await pageRouteModule.prepare(baseReq, null, {
+    srcPage,
+    multiZoneDraftMode: false,
+  })
+
+  if (!prepareResult) {
+    return new Response('Bad Request', {
+      status: 400,
+    })
+  }
+  const {
+    query,
+    params,
+    buildId,
+    buildManifest,
+    prerenderManifest,
+    reactLoadableManifest,
+    clientReferenceManifest,
+    subresourceIntegrityManifest,
+    dynamicCssManifest,
+    nextFontManifest,
+    resolvedPathname,
+    serverActionsManifest,
+    interceptionRoutePatterns,
+    routerServerContext,
+  } = prepareResult
+
+  const isPossibleServerAction = getIsPossibleServerAction(req)
+  const botType = getBotType(req.headers.get('User-Agent') || '')
+  const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
+    req,
+    prerenderManifest.preview
+  )
+
+  const renderContext: AppPageRouteHandlerContext = {
+    page: normalizedSrcPage,
+    query,
+    params,
+
+    sharedContext: {
+      buildId,
+    },
+    fallbackRouteParams: null,
+
+    renderOpts: {
+      App: () => null,
+      Document: () => null,
+      pageConfig: {},
+      ComponentMod,
+      Component: interopDefault(ComponentMod),
+      routeModule: pageRouteModule,
+
+      params,
+      page: srcPage,
+      postponed: undefined,
+      shouldWaitOnAllReady: false,
+      serveStreamingMetadata: true,
+      supportsDynamicResponse: true,
+      buildManifest,
+      nextFontManifest,
+      reactLoadableManifest,
+      subresourceIntegrityManifest,
+      dynamicCssManifest,
+      serverActionsManifest,
+      clientReferenceManifest,
+      setIsrStatus: routerServerContext?.setIsrStatus,
+
+      dir: pageRouteModule.projectDir,
+      botType,
+      isDraftMode: false,
+      isRevalidate: false,
+      isOnDemandRevalidate,
+      isPossibleServerAction,
+      assetPrefix: nextConfig.assetPrefix,
+      nextConfigOutput: nextConfig.output,
+      crossOrigin: nextConfig.crossOrigin,
+      trailingSlash: nextConfig.trailingSlash,
+      previewProps: prerenderManifest.preview,
+      deploymentId: nextConfig.deploymentId,
+      enableTainting: nextConfig.experimental.taint,
+      htmlLimitedBots: nextConfig.htmlLimitedBots,
+      devtoolSegmentExplorer: nextConfig.experimental.devtoolSegmentExplorer,
+      reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
+
+      multiZoneDraftMode: false,
+      cacheLifeProfiles: nextConfig.experimental.cacheLife,
+      basePath: nextConfig.basePath,
+      serverActions: nextConfig.experimental.serverActions,
+
+      experimental: {
+        isRoutePPREnabled: false,
+        expireTime: nextConfig.expireTime,
+        staleTimes: nextConfig.experimental.staleTimes,
+        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
+        clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
+        dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
+        inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        clientTraceMetadata:
+          nextConfig.experimental.clientTraceMetadata || ([] as any),
+      },
+
+      incrementalCache: await pageRouteModule.getIncrementalCache(
+        baseReq,
+        nextConfig,
+        prerenderManifest
+      ),
+
+      waitUntil: event.waitUntil.bind(event),
+      onClose: (cb) => {
+        onCloseCallback = cb
+      },
+      onAfterTaskError: () => {},
+
+      onInstrumentationRequestError: (error, _request, errorContext) =>
+        pageRouteModule.onRequestError(
+          baseReq,
+          error,
+          errorContext,
+          routerServerContext
+        ),
+      dev: pageRouteModule.isDev,
+    },
+  }
+  let finalStatus = 200
+  let onCloseCallback: (() => void) | undefined
+
+  const renderResultToResponse = (
+    result: RenderResult<AppPageRenderResultMetadata>
+  ): Response => {
+    const varyHeader = pageRouteModule.getVaryHeader(
+      resolvedPathname,
+      interceptionRoutePatterns
+    )
+    // Handle null responses
+    if (result.isNull) {
+      finalStatus = 500
+      onCloseCallback?.()
+      return new Response(null, { status: 500 })
+    }
+
+    // Extract metadata
+    const { metadata } = result
+    const headers = new Headers()
+    finalStatus = metadata.statusCode || baseRes.statusCode || 200
+    // Pull any fetch metrics from the render onto the request.
+    ;(req as any).fetchMetrics = metadata.fetchMetrics
+
+    // Set content type
+    const contentType = result.contentType || 'text/html; charset=utf-8'
+    headers.set('Content-Type', contentType)
+    headers.set('x-edge-runtime', '1')
+
+    if (varyHeader) {
+      headers.set('Vary', varyHeader)
+    }
+
+    // Add existing headers
+    for (const [key, value] of Object.entries({
+      ...baseRes.getHeaders(),
+      ...metadata.headers,
+    })) {
+      if (value !== undefined) {
+        if (Array.isArray(value)) {
+          // Handle multiple header values
+          for (const v of value) {
+            headers.append(key, String(v))
+          }
+        } else {
+          headers.set(key, String(value))
+        }
+      }
+    }
+
+    // Handle static response
+    if (!result.isDynamic) {
+      const body = result.toUnchunkedString()
+      headers.set(
+        'Content-Length',
+        String(new TextEncoder().encode(body).length)
+      )
+      onCloseCallback?.()
+      return new Response(body, {
+        status: finalStatus,
+        headers,
+      })
+    }
+
+    // Handle dynamic/streaming response
+    // For edge runtime, we need to create a readable stream that pipes from the result
+    const { readable, writable } = new TransformStream()
+
+    // Start piping the result to the writable stream
+    // This is done asynchronously to avoid blocking the response creation
+    result
+      .pipeTo(writable)
+      .catch((err: unknown) => {
+        console.error('Error piping RenderResult to response:', err)
+      })
+      .finally(() => onCloseCallback?.())
+
+    return new Response(readable, {
+      status: finalStatus,
+      headers,
+    })
+  }
+
+  const invokeRender = async (span?: Span): Promise<Response> => {
+    try {
+      const result = await pageRouteModule
+        .render(baseReq, baseRes, renderContext)
+        .finally(() => {
+          if (!span) return
+
+          span.setAttributes({
+            'http.status_code': finalStatus,
+            'next.rsc': false,
+          })
+
+          const rootSpanAttributes = tracer.getRootSpanAttributes()
+          // We were unable to get attributes, probably OTEL is not enabled
+          if (!rootSpanAttributes) {
+            return
+          }
+
+          if (
+            rootSpanAttributes.get('next.span_type') !==
+            BaseServerSpan.handleRequest
+          ) {
+            console.warn(
+              `Unexpected root span type '${rootSpanAttributes.get(
+                'next.span_type'
+              )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+            )
+            return
+          }
+
+          const route = normalizedSrcPage
+          if (route) {
+            const name = `${req.method} ${route}`
+
+            span.setAttributes({
+              'next.route': route,
+              'http.route': route,
+              'next.span_name': name,
+            })
+            span.updateName(name)
+          } else {
+            span.updateName(`${req.method} ${relativeUrl}`)
+          }
+        })
+
+      return renderResultToResponse(result)
+    } catch (err) {
+      await pageRouteModule.onRequestError(baseReq, err, {
+        routerKind: 'App Router',
+        routePath: normalizedSrcPage,
+        routeType: 'render',
+        revalidateReason: undefined,
+      })
+      // rethrow so that we can handle serving error page
+      throw err
+    }
+  }
+
+  const tracer = getTracer()
+
+  return tracer.withPropagatedContext(req.headers, () =>
+    tracer.trace(
+      BaseServerSpan.handleRequest,
+      {
+        spanName: `${req.method} ${relativeUrl}`,
+        kind: SpanKind.SERVER,
+        attributes: {
+          'http.method': req.method,
+          'http.target': relativeUrl,
+          'http.route': normalizedSrcPage,
+        },
+      },
+      invokeRender
+    )
+  )
+}
 
 export default function nHandler(opts: { page: string; request: RequestData }) {
   return adapter({
     ...opts,
     IncrementalCache,
-    handler: render,
+    handler: requestHandler,
+    incrementalCacheHandler,
   })
 }

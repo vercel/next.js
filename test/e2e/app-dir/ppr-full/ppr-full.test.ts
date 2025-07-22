@@ -1,5 +1,5 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
-import { measurePPRTimings } from 'e2e-utils/ppr'
+import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { links } from './components/links'
 import cheerio from 'cheerio'
 import { retry } from 'next-test-utils'
@@ -179,40 +179,29 @@ describe('ppr-full', () => {
 
         if (dynamic === true && !isNextDev && !isNextDeploy) {
           it('should cache the static part', async () => {
-            const delay = 500
-
             const dynamicValue = `${Date.now()}:${Math.random()}`
 
-            const {
-              timings: { streamFirstChunk, streamEnd, start },
-              chunks,
-            } = await measurePPRTimings(async () => {
-              const res = await next.fetch(pathname, {
-                headers: {
-                  'X-Delay': delay.toString(),
-                  'X-Test-Input': dynamicValue,
-                },
-              })
-              expect(res.status).toBe(200)
+            const [staticPart, dynamicPart] =
+              await splitResponseWithPPRSentinel(async () => {
+                const res = await next.fetch(pathname, {
+                  headers: {
+                    'X-Test-Input': dynamicValue,
+                  },
+                })
+                expect(res.status).toBe(200)
 
-              return res.body
-            }, delay)
-            if (emptyStaticPart) {
-              expect(streamFirstChunk - start).toBeGreaterThanOrEqual(delay)
-            } else {
-              expect(streamFirstChunk - start).toBeLessThan(delay)
-            }
-            expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
+                return res.body
+              })
+
+            // The dynamic part should contain the dynamic input.
+            expect(dynamicPart).toContain(dynamicValue)
 
             // The static part should not contain the dynamic input.
-            expect(chunks.dynamic).toContain(dynamicValue)
-
-            // Ensure static part contains what we expect.
             if (emptyStaticPart) {
-              expect(chunks.static).toBe('')
+              expect(staticPart).toBe('')
             } else {
-              expect(chunks.static).toContain('Dynamic Loading...')
-              expect(chunks.static).not.toContain(dynamicValue)
+              expect(staticPart).toContain('Dynamic Loading...')
+              expect(staticPart).not.toContain(dynamicValue)
             }
           })
         }
@@ -315,25 +304,21 @@ describe('ppr-full', () => {
         'for $pathname',
         ({ pathname, slug, client }) => {
           it('should render the fallback HTML immediately', async () => {
-            const delay = 1000
+            const [staticPart, dynamicPart] =
+              await splitResponseWithPPRSentinel(async () => {
+                const res = await next.fetch(pathname)
+                expect(res.status).toBe(200)
 
-            const {
-              timings: { streamFirstChunk, start, streamEnd },
-              chunks,
-            } = await measurePPRTimings(async () => {
-              const res = await next.fetch(pathname)
-              expect(res.status).toBe(200)
+                return res.body
+              })
 
-              return res.body
-            }, delay)
+            // Expect that there is a static part of the response, implying that
+            // the fallback shell was sent immediately.
+            expect(staticPart.length).toBeGreaterThan(0)
 
-            // Expect that the first chunk should be emitted before the delay is
-            // complete, implying that the fallback shell was sent immediately.
-            expect(streamFirstChunk - start).toBeLessThan(delay)
-
-            // Expect that the last chunk should be emitted after the delay is
-            // complete.
-            expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
+            // Expect that there is a dynamic part of the response, implying that
+            // the dynamic part was sent after the static part.
+            expect(dynamicPart.length).toBeGreaterThan(0)
 
             if (client) {
               const browser = await next.browser(pathname)
@@ -347,19 +332,19 @@ describe('ppr-full', () => {
               }
             } else {
               // The static part should not contain the dynamic parameter.
-              let $ = cheerio.load(chunks.static)
+              let $ = cheerio.load(staticPart)
               let data = $('[data-slug]').text()
               expect(data).not.toContain(slug)
               expect($('[data-slug]').closest('[hidden]').length).toBe(0)
 
               // The dynamic part should contain the dynamic parameter.
-              $ = cheerio.load(chunks.dynamic)
+              $ = cheerio.load(dynamicPart)
               data = $('[data-slug]').text()
               expect(data).toContain(slug)
               expect($('[data-slug]').closest('[hidden]').length).toBe(1)
 
               // The static part should contain the fallback shell.
-              expect(chunks.static).toContain('data-fallback')
+              expect(staticPart).toContain('data-fallback')
             }
           })
         }
@@ -477,18 +462,18 @@ describe('ppr-full', () => {
   }
 
   describe('Navigation Signals', () => {
-    const delay = 500
-
     describe.each([
       {
         signal: 'notFound()' as const,
+        statusCode: 404,
         pathnames: ['/navigation/not-found', '/navigation/not-found/dynamic'],
       },
       {
         signal: 'redirect()' as const,
+        statusCode: 307,
         pathnames: ['/navigation/redirect', '/navigation/redirect/dynamic'],
       },
-    ])('$signal', ({ signal, pathnames }) => {
+    ])('$signal', ({ signal, statusCode, pathnames }) => {
       describe.each(pathnames)('for %s', (pathname) => {
         it('should have correct headers', async () => {
           const res = await next.fetch(pathname, {
@@ -525,27 +510,19 @@ describe('ppr-full', () => {
 
         if (pathname.endsWith('/dynamic') && !isNextDeploy) {
           it('should cache the static part', async () => {
-            const {
-              timings: { streamFirstChunk, streamEnd, start },
-            } = await measurePPRTimings(async () => {
-              const res = await next.fetch(pathname, {
-                redirect: 'manual',
-                headers: {
-                  'X-Delay': delay.toString(),
-                },
+            const [staticPart, dynamicPart] =
+              await splitResponseWithPPRSentinel(async () => {
+                const res = await next.fetch(pathname, {
+                  redirect: 'manual',
+                })
+
+                expect(res.status).toBe(statusCode)
+
+                return res.body
               })
 
-              return res.body
-            }, delay)
-            expect(streamFirstChunk - start).toBeLessThan(delay)
-
-            if (isNextDev) {
-              // This is because the signal should throw and interrupt the
-              // delay timer.
-              expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
-            } else {
-              expect(streamEnd - start).toBeLessThan(delay)
-            }
+            expect(staticPart.length).toBeGreaterThan(0)
+            expect(dynamicPart.length).toEqual(0)
           })
         }
       })

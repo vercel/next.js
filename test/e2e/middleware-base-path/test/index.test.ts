@@ -35,12 +35,24 @@ describe('Middleware base tests', () => {
     const $ = cheerio.load(html)
     expect($('.title').text()).toBe('About Page')
   })
+
   it('router.query must exist when Link clicked page routing', async () => {
     const browser = await webdriver(next.url, '/root')
     try {
       await browser.elementById('go-to-hello-world-anchor').click()
       const routeName = await browser.elementById('route-name').text()
       expect(routeName).toMatch('hello-world')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should allow client-side navigation to the root', async () => {
+    const browser = await webdriver(next.url, '/root/other')
+    try {
+      await browser.elementById('go-to-home').click()
+      const title = await browser.waitForElementByCss('.title').text()
+      expect(title).toMatch('Hello World')
     } finally {
       await browser.close()
     }

@@ -33,9 +33,11 @@ export async function rawEntrypointsToEntrypoints(
         app.set(route.originalName, route)
         break
       }
-      default:
+      case 'conflict':
         Log.info(`skipping ${pathname} (${route.type})`)
         break
+      default:
+        route satisfies never
     }
   }
 
@@ -67,6 +69,7 @@ export async function handleRouteType({
     case 'page': {
       const serverKey = getEntryKey('pages', 'server', page)
 
+      await manifestLoader.loadClientBuildManifest(page)
       await manifestLoader.loadBuildManifest(page)
       await manifestLoader.loadPagesManifest(page)
 
