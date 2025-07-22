@@ -2809,8 +2809,7 @@ dependencies = [
 [[package]]
 name = "hyper"
 version = "1.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc2b571658e38e0c01b1fdca3bbbe93c00d3d71693ff2770043f8c29bc7d6f80"
+source = "git+https://github.com/bgw/hyper-rs.git?branch=v1.6.0-with-macos-intel-miscompilation-workaround#ab3544930722e6c270c16d3239dbb1d58f713393"
 dependencies = [
  "bytes",
  "futures-channel",

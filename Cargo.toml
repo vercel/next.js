@@ -438,6 +438,7 @@ vergen-gitcl = { version = "1.0.8", features = [
 webbrowser = "0.8.7"
 
 [patch.crates-io]
-mdxjs = { git = "https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-30" }
+hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-macos-intel-miscompilation-workaround" }
 lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
+mdxjs = { git = "https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-30" }
 parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
