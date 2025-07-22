@@ -674,10 +674,14 @@ function createErrorWithComponentOrOwnerStack(
   message: string,
   componentStack: string
 ) {
-  const ownerStack =
-    process.env.NODE_ENV !== 'production' && React.captureOwnerStack
-      ? React.captureOwnerStack()
-      : null
+  let ownerStack: string | null = null
+  if (process.env.NODE_ENV !== 'production') {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    const captureOwnerStack =
+      // @ts-expect-error -- TODO refine
+      workUnitStore?.captureOwnerStack ?? React.captureOwnerStack
+    ownerStack = captureOwnerStack ? captureOwnerStack() : null
+  }
 
   const error = new Error(message)
   error.stack = error.name + ': ' + message + (ownerStack ?? componentStack)
