@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { z } from 'zod'
+import { z } from 'next/dist/compiled/zod'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import type {
   Endpoint,
@@ -352,14 +352,11 @@ function runQuery(
         })
       },
     },
-    global: undefined,
-    self: undefined,
-    globalThis: undefined,
   }
   const contextObject = Object.create(proto)
-  proto.global = contextObject
-  proto.self = contextObject
-  proto.globalThis = contextObject
+  contextObject.global = contextObject
+  contextObject.self = contextObject
+  contextObject.globalThis = contextObject
   runInNewContext(query, contextObject, {
     displayErrors: true,
     filename: 'query.js',

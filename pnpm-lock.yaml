@@ -923,9 +923,6 @@ importers:
 
   packages/next:
     dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: 1.15.1
-        version: 1.15.1
       '@next/env':
         specifier: 15.4.2-canary.14
         version: link:../next-env
@@ -950,9 +947,6 @@ importers:
       styled-jsx:
         specifier: 5.1.6
         version: 5.1.6(@babel/core@7.26.10)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-7513996f-20250722)
-      zod:
-        specifier: 3.25.76
-        version: 3.25.76
     optionalDependencies:
       sharp:
         specifier: ^0.34.3
@@ -1045,6 +1039,9 @@ importers:
       '@jest/types':
         specifier: 29.5.0
         version: 29.5.0
+      '@modelcontextprotocol/sdk':
+        specifier: 1.15.1
+        version: 1.15.1
       '@mswjs/interceptors':
         specifier: 0.23.0
         version: 0.23.0
@@ -1609,6 +1606,9 @@ importers:
       ws:
         specifier: 8.2.3
         version: 8.2.3
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
       zod-validation-error:
         specifier: 3.4.0
         version: 3.4.0(zod@3.25.76)

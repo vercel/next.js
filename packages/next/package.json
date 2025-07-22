@@ -100,15 +100,14 @@
     ]
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.15.1",
     "@next/env": "15.4.2-canary.14",
     "@swc/helpers": "0.5.15",
     "caniuse-lite": "^1.0.30001579",
     "postcss": "8.4.31",
-    "styled-jsx": "5.1.6",
-    "zod": "3.25.76"
+    "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.1",
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.51.1",
     "babel-plugin-react-compiler": "*",
@@ -121,6 +120,9 @@
       "optional": true
     },
     "sass": {
+      "optional": true
+    },
+    "@modelcontextprotocol/sdk": {
       "optional": true
     },
     "@opentelemetry/api": {
@@ -163,6 +165,7 @@
     "@hapi/accept": "5.0.2",
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
+    "@modelcontextprotocol/sdk": "1.15.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
     "@next/font": "15.4.2-canary.14",
@@ -351,7 +354,8 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "ws": "8.2.3",
-    "zod-validation-error": "3.4.0"
+    "zod-validation-error": "3.4.0",
+    "zod": "3.25.76"
   },
   "keywords": [
     "react",
