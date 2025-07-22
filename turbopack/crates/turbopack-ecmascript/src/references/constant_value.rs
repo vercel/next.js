@@ -9,7 +9,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, TaskInput, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue};
 
 use super::AstPath;
@@ -29,7 +29,6 @@ use crate::{
     TraceRawVcs,
     ValueDebugFormat,
     NonLocalValue,
-    TaskInput,
 )]
 pub struct ConstantValueCodeGen {
     value: CompileTimeDefineValue,
