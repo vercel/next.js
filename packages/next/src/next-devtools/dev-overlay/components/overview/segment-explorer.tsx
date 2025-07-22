@@ -392,8 +392,6 @@ function PageSegmentTreeLayerPresentation({
                           direction={isBuiltin ? 'right' : 'top'}
                           title={tooltipMessage}
                           offset={12}
-                          bgcolor="var(--color-gray-1000)"
-                          color="var(--color-gray-100)"
                         >
                           <FilePill
                             type={childNode.value.type}
