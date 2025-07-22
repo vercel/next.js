@@ -5,7 +5,7 @@ const isCacheComponentsEnabled =
   process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
 describe('source-mapping', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -172,37 +172,18 @@ describe('source-mapping', () => {
   it('should show an error when client functions are called from server components', async () => {
     const browser = await next.browser('/server-client')
 
-    // TODO(veil): Top stack should be ignore-listed
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "Attempted to call useClient() from the server but useClient is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
-         "environmentLabel": "${isCacheComponentsEnabled ? 'Prerender' : 'Server'}",
-         "label": "Runtime Error",
-         "source": "app/server-client/client.js/proxy.mjs (3:24) @ <anonymous>
-       > 3 |     function() { throw new Error("Attempted to call useClient() from the server but useClient is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); },
-           |                        ^",
-         "stack": [
-           "<anonymous> app/server-client/client.js/proxy.mjs (3:24)",
-           "Component app/server-client/page.js (5:12)",
-         ],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "Attempted to call useClient() from the server but useClient is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
-         "environmentLabel": "${isCacheComponentsEnabled ? 'Prerender' : 'Server'}",
-         "label": "Runtime Error",
-         "source": "app/server-client/page.js (5:12) @ Component
-       > 5 |   useClient()
-           |            ^",
-         "stack": [
-           "<FIXME-file-protocol>",
-           "Component app/server-client/page.js (5:12)",
-         ],
-       }
-      `)
-    }
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "Attempted to call useClient() from the server but useClient is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
+       "environmentLabel": "${isCacheComponentsEnabled ? 'Prerender' : 'Server'}",
+       "label": "Runtime Error",
+       "source": "app/server-client/page.js (5:12) @ Component
+     > 5 |   useClient()
+         |            ^",
+       "stack": [
+         "Component app/server-client/page.js (5:12)",
+       ],
+     }
+    `)
   })
 })

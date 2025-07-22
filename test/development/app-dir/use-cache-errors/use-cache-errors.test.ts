@@ -43,7 +43,6 @@ describe('use-cache-errors', () => {
        > 16 |   return useStuff()
             |                  ^",
          "stack": [
-           "<FIXME-file-protocol>",
            "useCachedStuff app/module-with-use-cache.ts (16:18)",
            "Page app/page.tsx (22:10)",
          ],
