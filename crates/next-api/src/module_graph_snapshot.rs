@@ -29,6 +29,7 @@ pub struct ModuleInfo {
     pub path: RcStr,
     pub depth: u32,
     pub size: u32,
+    // TODO this should be per layer
     pub retained_size: u32,
     pub references: Vec<ModuleReference>,
     pub incoming_references: Vec<ModuleReference>,
