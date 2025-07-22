@@ -107,9 +107,6 @@ export async function setupFsCheck(opts: {
   dev: boolean
   minimalMode?: boolean
   config: NextConfigComplete
-  addDevWatcherCallback?: (
-    arg: (files: Map<string, { timestamp: number }>) => void
-  ) => void
 }) {
   const getItemsLru = !opts.dev
     ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
