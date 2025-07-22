@@ -435,7 +435,7 @@ export async function setupFsCheck(opts: {
     prerenderManifest,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
-    ensureCallback(fn: typeof ensureFn) {
+    ensureCallback(fn: typeof ensureFn): void {
       ensureFn = fn
     },
 
@@ -503,9 +503,8 @@ export async function setupFsCheck(opts: {
         let curItemPath = itemPath
         let curDecodedItemPath = decodedItemPath
 
-        const isDynamicOutput = type === 'pageFile' || type === 'appFile'
-
         if (i18n) {
+          const isDynamicOutput = type === 'pageFile' || type === 'appFile'
           const localeResult = handleLocale(
             itemPath,
             // legacy behavior allows visiting static assets under
