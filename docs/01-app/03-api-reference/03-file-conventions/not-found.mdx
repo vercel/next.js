@@ -5,8 +5,8 @@ description: API reference for the not-found.js file.
 
 Next.js provides two conventions to handle not found cases:
 
-- **`global-not-found.js`**: For your entire application.
-- **`not-found.js`**: For nested route segments.
+- **`not-found.js`**: Used when you call the [`notFound`](/docs/app/api-reference/functions/not-found) function in a route segment.
+- **`global-not-found.js`**: Used to define a global 404 page for unmatched routes across your entire app. This is handled at the routing level and doesn't depend on rendering a layout or page.
 
 ## `not-found.js`
 
@@ -42,12 +42,12 @@ export default function NotFound() {
 
 ## `global-not-found.js` (experimental)
 
-The `global-not-found.js` file lets you define a custom 404 page for your entire app, including its layout.
+The `global-not-found.js` file lets you define a 404 page for your entire application. Unlike `not-found.js`, which works at the route level, this is used when a requested URL doesn't match any route at all. Next.js **skips rendering** and directly returns this global page.
 
-This is useful for:
+This is useful when you can't build a 404 page using a combination of `layout.js` and `not-found.js`. This can happen in two cases:
 
-- Apps with multiple root layouts.
-- Projects where composing a 404 page from `layout.js` and `not-found.js` is not possible.
+- Your app has multiple root layouts (e.g. `app/(admin)/layout.tsx` and `app/(shop)/layout.tsx`), so there's no single layout to compose a global 404 from.
+- Your root layout is defined using top-level dynamic segments (e.g. `app/[country]/layout.tsx`), which makes composing a consistent 404 page harder.
 
 To enable it, add the `globalNotFound` flag in `next.config.ts`:
 
@@ -138,7 +138,7 @@ If you need to use Client Component hooks like `usePathname` to display content 
 
 ### Metadata
 
-You can export a `metadata` object or a [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to customize the `<title>`, `<meta>`, and other head tags for your 404 page:
+For `global-not-found.js`, you can export a `metadata` object or a [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to customize the `<title>`, `<meta>`, and other head tags for your 404 page:
 
 ```tsx filename="app/not-found.tsx" switcher
 export const metadata = {
@@ -160,6 +160,6 @@ export default function NotFound() {
 
 | Version   | Changes                                             |
 | --------- | --------------------------------------------------- |
-| `v15.4.0`   | `global-not-found.js` introduced (experimental).    |
+| `v15.4.0` | `global-not-found.js` introduced (experimental).    |
 | `v13.3.0` | Root `app/not-found` handles global unmatched URLs. |
 | `v13.0.0` | `not-found` introduced.                             |
