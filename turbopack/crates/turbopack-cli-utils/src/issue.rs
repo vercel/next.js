@@ -247,20 +247,19 @@ pub fn format_issue(
             let mut trace_indent = "    ";
             if every_trace_has_a_distinct_root_layer {
                 writeln!(styled_issue, "  {}:", layer.unwrap()).unwrap();
-            } else {
-                if traces.len() > 1 {
-                    write!(styled_issue, "  #{}", index + 1).unwrap();
-                    if let Some(layer) = layer {
-                        write!(styled_issue, " [{layer}]").unwrap();
-                    }
-                    writeln!(styled_issue, ":").unwrap();
-                } else if let Some(layer) = layer {
+            } else if traces.len() > 1 {
+                write!(styled_issue, "  #{}", index + 1).unwrap();
+                if let Some(layer) = layer {
                     write!(styled_issue, " [{layer}]").unwrap();
-                } else {
-                    // There is one trace and no layer (!?) just indent once
-                    trace_indent = "  ";
                 }
+                writeln!(styled_issue, ":").unwrap();
+            } else if let Some(layer) = layer {
+                write!(styled_issue, " [{layer}]").unwrap();
+            } else {
+                // There is one trace and no layer (!?) just indent once
+                trace_indent = "  ";
             }
+
             format_trace_items(
                 &mut styled_issue,
                 trace_indent,
