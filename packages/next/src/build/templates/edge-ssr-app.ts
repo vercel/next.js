@@ -24,6 +24,7 @@ import { getBotType } from '../../shared/lib/router/utils/is-bot'
 import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
+import { CloseController } from '../../server/web/web-on-close'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -98,6 +99,8 @@ async function requestHandler(
     req,
     prerenderManifest.preview
   )
+
+  const closeController = new CloseController()
 
   const renderContext: AppPageRouteHandlerContext = {
     page: normalizedSrcPage,
@@ -175,7 +178,7 @@ async function requestHandler(
 
       waitUntil: event.waitUntil.bind(event),
       onClose: (cb) => {
-        onCloseCallback = cb
+        closeController.onClose(cb)
       },
       onAfterTaskError: () => {},
 
@@ -190,7 +193,6 @@ async function requestHandler(
     },
   }
   let finalStatus = 200
-  let onCloseCallback: (() => void) | undefined
 
   const renderResultToResponse = (
     result: RenderResult<AppPageRenderResultMetadata>
@@ -202,7 +204,7 @@ async function requestHandler(
     // Handle null responses
     if (result.isNull) {
       finalStatus = 500
-      onCloseCallback?.()
+      closeController.dispatchClose()
       return new Response(null, { status: 500 })
     }
 
@@ -246,7 +248,7 @@ async function requestHandler(
         'Content-Length',
         String(new TextEncoder().encode(body).length)
       )
-      onCloseCallback?.()
+      closeController.dispatchClose()
       return new Response(body, {
         status: finalStatus,
         headers,
@@ -264,7 +266,7 @@ async function requestHandler(
       .catch((err: unknown) => {
         console.error('Error piping RenderResult to response:', err)
       })
-      .finally(() => onCloseCallback?.())
+      .finally(() => closeController.dispatchClose())
 
     return new Response(readable, {
       status: finalStatus,
