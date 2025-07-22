@@ -257,7 +257,7 @@ pub fn format_issue(
                 } else if let Some(layer) = layer {
                     write!(styled_issue, " [{layer}]").unwrap();
                 } else {
-                    // There is one trace and no layer (!?)
+                    // There is one trace and no layer (!?) just indent once
                     trace_indent = "  ";
                 }
             }
