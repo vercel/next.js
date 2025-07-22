@@ -161,6 +161,7 @@ export function unstable_cache<T extends Callback>(
         if (workUnitStore) {
           switch (workUnitStore.type) {
             case 'cache':
+            case 'private-cache':
             case 'prerender':
             case 'prerender-ppr':
             case 'prerender-legacy':
@@ -386,6 +387,7 @@ function getFetchUrlPrefix(
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
+    case 'private-cache':
     case 'unstable-cache':
       return workStore.route
     default:

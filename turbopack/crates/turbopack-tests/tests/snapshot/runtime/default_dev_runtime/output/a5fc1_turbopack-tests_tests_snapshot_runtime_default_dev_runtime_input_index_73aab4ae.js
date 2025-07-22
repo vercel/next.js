@@ -482,13 +482,15 @@ async function loadChunk(source, chunkData) {
     }
     return promise;
 }
+const loadedChunk = Promise.resolve(undefined);
 const instrumentedBackendLoadChunks = new WeakMap();
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(source, chunkUrl) {
-    const thenable = BACKEND.loadChunk(chunkUrl, source);
+    const thenable = BACKEND.loadChunkCached(chunkUrl, source);
     let entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
-        entry = thenable.catch((error)=>{
+        const resolve = instrumentedBackendLoadChunks.set.bind(instrumentedBackendLoadChunks, thenable, loadedChunk);
+        entry = thenable.then(resolve).catch((error)=>{
             let loadReason;
             switch(source.type){
                 case 0:
@@ -507,7 +509,6 @@ function loadChunkByUrl(source, chunkUrl) {
                 cause: error
             } : undefined);
         });
-        // TODO: Free the Promise once it resolves.
         instrumentedBackendLoadChunks.set(thenable, entry);
     }
     return entry;
@@ -1089,7 +1090,7 @@ function applyChunkListUpdate(update) {
             const chunkUrl = getChunkRelativeUrl(chunkPath);
             switch(chunkUpdate.type){
                 case 'added':
-                    BACKEND.loadChunk(chunkUrl, {
+                    BACKEND.loadChunkCached(chunkUrl, {
                         type: SourceType.Update
                     });
                     break;
@@ -1530,7 +1531,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
         /**
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
-     */ loadChunk (chunkUrl, source) {
+     */ loadChunkCached (chunkUrl, source) {
             return doLoadChunk(chunkUrl, source);
         }
     };

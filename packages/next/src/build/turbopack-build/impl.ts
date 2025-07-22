@@ -22,6 +22,7 @@ import { setGlobal } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../utils'
+import { normalizePath } from '../../lib/normalize-path'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -52,10 +53,11 @@ export async function turbopackBuild(): Promise<{
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
   const persistentCaching = isPersistentCachingEnabled(config)
+  const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const project = await bindings.turbo.createProject(
     {
-      projectPath: dir,
       rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
+      projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
       nextConfig: config,
       jsConfig: await getTurbopackJsConfig(dir, config),

@@ -1,6 +1,6 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
-import { join, extname } from 'path'
+import { join, extname, relative } from 'path'
 import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -99,6 +99,11 @@ import { getRestartDevServerMiddleware } from '../../next-devtools/server/restar
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../../build/utils'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
+import { normalizePath } from '../../lib/normalize-path'
+import {
+  devToolsConfigMiddleware,
+  getDevToolsConfig,
+} from '../../next-devtools/server/devtools-config-middleware'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -209,13 +214,14 @@ export async function createHotReloaderTurbopack(
   const supportedBrowsers = getSupportedBrowsers(projectPath, dev)
   const currentNodeJsVersion = process.versions.node
 
+  const rootPath =
+    opts.nextConfig.turbopack?.root ||
+    opts.nextConfig.outputFileTracingRoot ||
+    projectPath
   const project = await bindings.turbo.createProject(
     {
-      projectPath: projectPath,
-      rootPath:
-        opts.nextConfig.turbopack?.root ||
-        opts.nextConfig.outputFileTracingRoot ||
-        projectPath,
+      rootPath,
+      projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
       distDir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(projectPath, nextConfig),
@@ -656,6 +662,15 @@ export async function createHotReloaderTurbopack(
       telemetry: opts.telemetry,
       turbopackProject: project,
     }),
+    devToolsConfigMiddleware({
+      distDir,
+      sendUpdateSignal: (data) => {
+        hotReloader.send({
+          action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
+          data,
+        })
+      },
+    }),
   ]
 
   const versionInfoPromise = getVersionInfo()
@@ -865,6 +880,7 @@ export async function createHotReloaderTurbopack(
 
         ;(async function () {
           const versionInfo = await versionInfoPromise
+          const devToolsConfig = await getDevToolsConfig(distDir)
 
           const sync: SyncAction = {
             action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
@@ -876,6 +892,7 @@ export async function createHotReloaderTurbopack(
               devtoolsFrontendUrl,
             },
             devIndicator: devIndicatorServerState,
+            devToolsConfig,
           }
 
           sendToClient(client, sync)

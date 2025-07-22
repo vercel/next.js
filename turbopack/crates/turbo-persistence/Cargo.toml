@@ -21,7 +21,7 @@ lzzzz = "1.1.0"
 memmap2 = "0.9.5"
 parking_lot = { workspace = true }
 qfilter = { version = "0.2.4", features = ["serde"] }
-quick_cache = { version = "0.6.9" }
+quick_cache = { workspace = true }
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true}

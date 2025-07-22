@@ -230,14 +230,15 @@ describe('app-dir - server source maps', () => {
       }
     } else {
       if (isTurbopack) {
-        // TODO(veil): Sourcemapping line off
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/ssr-error-log-ignore-listed/page.js:23:5)'
+          '(bundler:///app/ssr-error-log-ignore-listed/page.js:9:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '\n> 23 |     })\n     |     ^'
+          '\n' +
+            ">  9 |   const error = new Error('ssr-error-log-ignore-listed')\n" +
+            '     |                 ^\n'
         )
       } else {
         // TODO(veil): line/column numbers are flaky in Webpack

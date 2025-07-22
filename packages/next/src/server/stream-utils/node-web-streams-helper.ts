@@ -29,10 +29,14 @@ const encoder = new TextEncoder()
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
 ): ReadableStream<T> {
-  // We could encode this invariant in the arguments but current uses of this function pass
-  // use spread so it would be missed by
+  // If we have no streams, return an empty stream. This behavior is
+  // intentional as we're now providing the `RenderResult.EMPTY` value.
   if (streams.length === 0) {
-    throw new Error('Invariant: chainStreams requires at least one stream')
+    return new ReadableStream<T>({
+      start(controller) {
+        controller.close()
+      },
+    })
   }
 
   // If we only have 1 stream we fast path it by returning just this stream

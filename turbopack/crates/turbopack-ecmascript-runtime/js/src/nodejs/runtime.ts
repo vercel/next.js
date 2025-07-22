@@ -86,16 +86,16 @@ function createResolvePathFromModule(
 
 function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
   if (typeof chunkData === 'string') {
-    return loadChunkPath(chunkData, source)
+    loadChunkPath(chunkData, source)
   } else {
-    return loadChunkPath(chunkData.path, source)
+    loadChunkPath(chunkData.path, source)
   }
 }
 
 const loadedChunks = new Set<ChunkPath>()
 const unsupportedLoadChunk = Promise.resolve(undefined)
-const loadedChunk = Promise.resolve(undefined)
-const chunkCache = new Map<ChunkPath, Promise<any> | null>()
+const loadedChunk: Promise<void> = Promise.resolve(undefined)
+const chunkCache = new Map<ChunkPath, Promise<void>>()
 
 function clearChunkCache() {
   chunkCache.clear()
@@ -119,7 +119,7 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
         if (Array.isArray(moduleFactory)) {
-          let [moduleFactoryFn, otherIds] = moduleFactory
+          const [moduleFactoryFn, otherIds] = moduleFactory
           moduleFactories[moduleId] = moduleFactoryFn
           for (const otherModuleId of otherIds) {
             moduleFactories[otherModuleId] = moduleFactoryFn
@@ -143,63 +143,32 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   }
 }
 
-async function loadChunkAsyncUncached(
-  source: SourceInfo,
-  chunkPath: ChunkPath
-): Promise<void> {
+function loadChunkUncached(chunkPath: ChunkPath) {
+  // resolve to an absolute path to simplify `require` handling
   const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
 
-  try {
-    const contents = await fs.readFile(resolved, 'utf-8')
-
-    const localRequire = (id: string) => {
-      let resolvedId = require.resolve(id, { paths: [path.dirname(resolved)] })
-      return require(resolvedId)
-    }
-    const module = {
-      exports: {},
-    }
-    // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
-    // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
-    ;(0, eval)(
-      '(function(module, exports, require, __dirname, __filename) {' +
-        contents +
-        '\n})' +
-        '\n//# sourceURL=' +
-        url.pathToFileURL(resolved)
-    )(module, module.exports, localRequire, path.dirname(resolved), resolved)
-
-    const chunkModules: CompressedModuleFactories = module.exports
-    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
-      if (!moduleFactories[moduleId]) {
-        if (Array.isArray(moduleFactory)) {
-          let [moduleFactoryFn, otherIds] = moduleFactory
-          moduleFactories[moduleId] = moduleFactoryFn
-          for (const otherModuleId of otherIds) {
-            moduleFactories[otherModuleId] = moduleFactoryFn
-          }
-        } else {
-          moduleFactories[moduleId] = moduleFactory
+  // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+  // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
+  const chunkModules: CompressedModuleFactories = require(resolved)
+  for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
+    if (!moduleFactories[moduleId]) {
+      if (Array.isArray(moduleFactory)) {
+        const [moduleFactoryFn, otherIds] = moduleFactory
+        moduleFactories[moduleId] = moduleFactoryFn
+        for (const otherModuleId of otherIds) {
+          moduleFactories[otherModuleId] = moduleFactoryFn
         }
+      } else {
+        moduleFactories[moduleId] = moduleFactory
       }
     }
-  } catch (e) {
-    let errorMessage = `Failed to load chunk ${chunkPath}`
-
-    if (source) {
-      errorMessage += ` from ${stringifySourceInfo(source)}`
-    }
-
-    throw new Error(errorMessage, {
-      cause: e,
-    })
   }
 }
 
 function loadChunkAsync(
   source: SourceInfo,
   chunkData: ChunkData
-): Promise<any> {
+): Promise<void> {
   const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
@@ -209,14 +178,27 @@ function loadChunkAsync(
 
   let entry = chunkCache.get(chunkPath)
   if (entry === undefined) {
-    const resolve = chunkCache.set.bind(chunkCache, chunkPath, null)
-    // A new Promise ensures callers that don't handle rejection will still trigger one unhandled rejection.
-    // Handling the rejection will not trigger unhandled rejections.
-    entry = loadChunkAsyncUncached(source, chunkPath).then(resolve)
+    try {
+      // Load the chunk synchronously
+      loadChunkUncached(chunkPath)
+      entry = loadedChunk
+    } catch (e) {
+      let errorMessage = `Failed to load chunk ${chunkPath}`
+      if (source) {
+        errorMessage += ` from ${stringifySourceInfo(source)}`
+      }
+
+      // Cache the failure promise, future requests will also get this same rejection
+      entry = Promise.reject(
+        new Error(errorMessage, {
+          cause: e,
+        })
+      )
+    }
     chunkCache.set(chunkPath, entry)
   }
   // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
-  return entry === null ? loadedChunk : entry
+  return entry
 }
 
 function loadChunkAsyncByUrl(source: SourceInfo, chunkUrl: string) {

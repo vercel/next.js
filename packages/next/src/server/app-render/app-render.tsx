@@ -173,7 +173,7 @@ import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-import { INFINITE_CACHE } from '../../lib/constants'
+import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from './parse-loader-tree'
 import {
@@ -1242,6 +1242,7 @@ async function renderToHTMLOrFlightImpl(
         case 'prerender':
         case 'prerender-client':
         case 'cache':
+        case 'private-cache':
           return true
         case 'prerender-ppr':
         case 'prerender-legacy':
@@ -1476,6 +1477,7 @@ async function renderToHTMLOrFlightImpl(
 
     const options: RenderResultOptions = {
       metadata,
+      contentType: HTML_CONTENT_TYPE_HEADER,
     }
     // If we have pending revalidates, wait until they are all resolved.
     if (
@@ -1624,7 +1626,10 @@ async function renderToHTMLOrFlightImpl(
             metadata
           )
 
-          return new RenderResult(stream, { metadata })
+          return new RenderResult(stream, {
+            metadata,
+            contentType: HTML_CONTENT_TYPE_HEADER,
+          })
         } else if (actionRequestResult.type === 'done') {
           if (actionRequestResult.result) {
             actionRequestResult.result.assignMetadata(metadata)
@@ -1638,6 +1643,7 @@ async function renderToHTMLOrFlightImpl(
 
     const options: RenderResultOptions = {
       metadata,
+      contentType: HTML_CONTENT_TYPE_HEADER,
     }
 
     const stream = await renderToStreamWithTracing(
@@ -1651,7 +1657,10 @@ async function renderToHTMLOrFlightImpl(
       metadata
     )
 
-    if (workStore.invalidDynamicUsageError) {
+    // Invalid dynamic usages should only error the request in development.
+    // In production, it's better to produce a result.
+    // (the dynamic error will still be thrown inside the component tree, but it's catchable by error boundaries)
+    if (workStore.invalidDynamicUsageError && workStore.dev) {
       throw workStore.invalidDynamicUsageError
     }
 
@@ -2443,11 +2452,12 @@ async function spawnDynamicValidationInDev(
 
   // We don't need to continue the prerender process if we already
   // detected invalid dynamic usage in the initial prerender phase.
-  if (workStore.invalidDynamicUsageError) {
+  const { invalidDynamicUsageError } = workStore
+  if (invalidDynamicUsageError) {
     resolveValidation(
       <LogSafely
         fn={() => {
-          console.error(workStore.invalidDynamicUsageError)
+          console.error(invalidDynamicUsageError)
         }}
       />
     )
@@ -3491,7 +3501,14 @@ async function prerenderToStream(
         fallbackRouteParams
       )
 
-      if (serverIsDynamic) {
+      // If there are fallback route params, the RSC data is inherently dynamic
+      // today because it's encoded into the flight router state. Until we can
+      // move the fallback route params out of the flight router state, we need
+      // to always perform a dynamic resume after the static prerender.
+      const hasFallbackRouteParams =
+        workStore.fallbackRouteParams && workStore.fallbackRouteParams.size > 0
+
+      if (serverIsDynamic || hasFallbackRouteParams) {
         // Dynamic case
         // We will always need to perform a "resume" render of some kind when this route is accessed
         // because the RSC data itself is dynamic. We determine if there are any HTML holes or not

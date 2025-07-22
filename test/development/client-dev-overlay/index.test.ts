@@ -142,7 +142,6 @@ describe('client-dev-overlay', () => {
        Static
        Turbopack
        Enabled
-       Route Info
        Preferences"
       `)
     } else {
@@ -152,7 +151,6 @@ describe('client-dev-overlay', () => {
        Route
        Static
        Try Turbopack
-       Route Info
        Preferences"
       `)
     }

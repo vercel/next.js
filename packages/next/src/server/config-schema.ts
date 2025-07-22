@@ -319,7 +319,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .strictObject({
         adapterPath: z.string().optional(),
         useSkewCookie: z.boolean().optional(),
-        nodeMiddleware: z.boolean().optional(),
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
         appNavFailHandling: z.boolean().optional(),
@@ -414,7 +413,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             algorithm: z.enum(['sha256', 'sha384', 'sha512']).optional(),
           })
           .optional(),
-        strictNextHead: z.boolean().optional(),
         swcPlugins: z
           // The specific swc plugin's option is unknown, use z.any() here
           .array(z.tuple([z.string(), z.record(z.string(), z.any())]))

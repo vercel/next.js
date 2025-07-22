@@ -126,15 +126,18 @@ pub struct NapiWatchOptions {
 
 #[napi(object)]
 pub struct NapiProjectOptions {
-    /// A root path from which all files must be nested under. Trying to access
-    /// a file outside this root will fail. Think of this as a chroot.
+    /// An absolute root path (Unix or Windows path) from which all files must be nested under.
+    /// Trying to access a file outside this root will fail, so think of this as a chroot.
+    /// E.g. `/home/user/projects/my-repo`.
     pub root_path: RcStr,
 
-    /// A path inside the root_path which contains the app/pages directories.
+    /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
+    /// Unix path. E.g. `apps/my-app`
     pub project_path: RcStr,
 
-    /// next.config's distDir. Project initialization occurs earlier than
-    /// deserializing next.config, so passing it as separate option.
+    /// A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
+    /// path. Corresponds to next.config.js's `distDir`.
+    /// E.g. `.next`
     pub dist_dir: RcStr,
 
     /// Filesystem watcher options.
@@ -180,15 +183,19 @@ pub struct NapiProjectOptions {
 /// [NapiProjectOptions] with all fields optional.
 #[napi(object)]
 pub struct NapiPartialProjectOptions {
-    /// A root path from which all files must be nested under. Trying to access
-    /// a file outside this root will fail. Think of this as a chroot.
+    /// An absolute root path  (Unix or Windows path) from which all files must be nested under.
+    /// Trying to access a file outside this root will fail, so think of this as a chroot.
+    /// E.g. `/home/user/projects/my-repo`.
     pub root_path: Option<RcStr>,
 
-    /// A path inside the root_path which contains the app/pages directories.
+    /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
+    /// a Unix path.
+    /// E.g. `apps/my-app`
     pub project_path: Option<RcStr>,
 
-    /// next.config's distDir. Project initialization occurs earlier than
-    /// deserializing next.config, so passing it as separate option.
+    /// A path where to emit the build outputs, relative to [`Project::project_path`], always a
+    /// Unix path. Corresponds to next.config.js's `distDir`.
+    /// E.g. `.next`
     pub dist_dir: Option<Option<RcStr>>,
 
     /// Filesystem watcher options.
@@ -392,7 +399,9 @@ pub fn project_new(
 
             let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
-            let internal_dir = PathBuf::from(&options.project_path).join(&options.dist_dir);
+            let internal_dir = PathBuf::from(&options.root_path)
+                .join(&options.project_path)
+                .join(&options.dist_dir);
             std::fs::create_dir_all(&internal_dir)
                 .context("Unable to create .next directory")
                 .unwrap();
@@ -1424,13 +1433,9 @@ pub async fn get_source_map_rope(
         Err(_) => (file_path.to_string(), None),
     };
 
-    let Some(chunk_base) = file.strip_prefix(
-        &(format!(
-            "{}/{}/",
-            container.project().await?.project_path,
-            container.project().dist_dir().await?
-        )),
-    ) else {
+    let Some(chunk_base) =
+        file.strip_prefix(container.project().dist_dir_absolute().await?.as_str())
+    else {
         // File doesn't exist within the dist dir
         return Ok(OptionStringifiedSourceMap::none());
     };

@@ -759,7 +759,8 @@
       "app dir - prefetching (custom staleTime) should fetch again when a static page was prefetched when navigating to it after the stale time has passed",
       "app dir - prefetching (custom staleTime) should fetch again when the initially visited static page is visited after the stale time has passed",
       "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
-      "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group"
+      "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group",
+      "app dir - prefetching (custom staleTime) should renew the stale time after refetching expired RSC data"
     ],
     "failed": [],
     "pending": [],
@@ -1633,6 +1634,348 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/cache-components-dynamic-imports/cache-components-dynamic-imports.test.ts": {
+    "passed": [
+      "async imports in cacheComponents - external packages does not instrument import() in external packages",
+      "async imports in cacheComponents are not instrumented in edge edge route handler",
+      "async imports in cacheComponents are not instrumented in edge middleware",
+      "async imports in cacheComponents does not cause any routes to become (partially) dynamic",
+      "async imports in cacheComponents inside a GET route handler import of a sync module",
+      "async imports in cacheComponents inside a GET route handler import of module with top-level-await",
+      "async imports in cacheComponents inside a client component import of a sync module",
+      "async imports in cacheComponents inside a client component import of module with top-level-await",
+      "async imports in cacheComponents inside a server component dynamic import in node_modules in a CJS package import of a sync module",
+      "async imports in cacheComponents inside a server component dynamic import in node_modules in an ESM package import of a sync module",
+      "async imports in cacheComponents inside a server component dynamic import in node_modules in an ESM package import of module with top-level-await",
+      "async imports in cacheComponents inside a server component import of a sync module",
+      "async imports in cacheComponents inside a server component import of module with top-level-await",
+      "async imports in cacheComponents outside of render client import of a sync module",
+      "async imports in cacheComponents outside of render client import of module with top-level-await",
+      "async imports in cacheComponents outside of render server import of a sync module",
+      "async imports in cacheComponents outside of render server import of module with top-level-await"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-errors/cache-components-errors.module-scope.test.ts": {
+    "passed": [
+      "Lazy Module Init should build statically even if module scope uses sync APIs like current time and random"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-errors/cache-components-errors.prospective-errors.test.ts": {
+    "passed": [
+      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with a string in a Page",
+      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with a string in a route",
+      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with an Error in a Page",
+      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with an Error in a route",
+      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with an object in a Page",
+      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with an object in a route",
+      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with null in a Page",
+      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with undefined in a route",
+      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with a string in a Page",
+      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with a string in a route",
+      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an Error in a Page",
+      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an Error in a route",
+      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an object in a Page",
+      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an object in a route",
+      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with null in a Page",
+      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with undefined in a route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-errors/cache-components-errors.test.ts": {
+    "passed": [
+      "Cache Components Errors Build With --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Cache Components Errors Build With --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Cache Components Errors Build With --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a cache components violation alongside dynamic metadata",
+      "Cache Components Errors Build With --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Cache Components Errors Build With --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Cache Components Errors Build With --prerender-debug Dynamic Root should error the build if cache components happens in the root (outside a Suspense)",
+      "Cache Components Errors Build With --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
+      "Cache Components Errors Build With --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
+      "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` cookies should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` draftMode should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` headers should error the build",
+      "Cache Components Errors Build With --prerender-debug Static Route should not error the build when all routes are static",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a cache components violation alongside dynamic metadata",
+      "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
+      "Cache Components Errors Build Without --prerender-debug Dynamic Root should error the build if cache components happens in the root (outside a Suspense)",
+      "Cache Components Errors Build Without --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
+      "Cache Components Errors Build Without --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
+      "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` cookies should error the build",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` draftMode should error the build",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` headers should error the build",
+      "Cache Components Errors Build Without --prerender-debug Static Route should not error the build when all routes are static",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-request-apis/cache-components-request-apis.test.ts": {
+    "passed": [
+      "Request Promises On Prerender Completion should reject request APIs after the prerender is complete when it finishes naturally",
+      "Request Promises On Prerender Interruption should reject request APIs after the prerender is interrupted with synchronously dynamic APIs"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts": {
+    "passed": [
+      "cache-components-segment-configs it should error when using segment configs that aren't supported by cacheComponents",
+      "cache-components-segment-configs should propagate configurations from layouts to pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.connection.test.ts": {
+    "passed": [
+      "cache-components should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
+      "cache-components should partially prerender pages that use connection"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.console.test.ts": {
+    "passed": [
+      "cache-components dims console calls during prospective rendering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.cookies.test.ts": {
+    "passed": [
+      "cache-components should be able to access cookie properties",
+      "cache-components should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
+      "cache-components should partially prerender pages that use cookies"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.date.test.ts": {
+    "passed": [
+      "cache-components should not have route specific errors",
+      "cache-components should not prerender pages with uncached `Date()` calls",
+      "cache-components should not prerender pages with uncached `Date.now()` calls",
+      "cache-components should not prerender pages with uncached `new Date()` calls",
+      "cache-components should not prerender pages with uncached static Date instances like `new Date(0)`",
+      "cache-components should prerender pages with cached `Date()` calls",
+      "cache-components should prerender pages with cached `Date.now()` calls",
+      "cache-components should prerender pages with cached `new Date()` calls",
+      "cache-components should prerender pages with cached static Date instances like `new Date(0)`"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.draft-mode.test.ts": {
+    "passed": [
+      "cache-components should fully prerender pages that use draftMode"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.headers.test.ts": {
+    "passed": [
+      "cache-components should be able to access headers properties asynchronously",
+      "cache-components should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
+      "cache-components should partially prerender pages that use headers"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.node-crypto.test.ts": {
+    "passed": [
+      "cache-components should not have route specific errors",
+      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeyPairSync(type, options)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeySync(type, options)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').generatePrimeSync(size, options)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').getRandomValues(...)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomBytes(size)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomFillSync(buffer)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(max)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(min, max)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomUUID()` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').generateKeyPairSync(type, options)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').generateKeySync(type, options)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').generatePrimeSync(size, options)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').getRandomValues(...)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomBytes(size)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomFillSync(buffer)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomInt(max)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomInt(min, max)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomUUID()` calls"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.params.test.ts": {
+    "passed": [
+      "cache-components Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
+      "cache-components Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
+      "cache-components Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
+      "cache-components Params should fully prerender pages that check individual param keys after awaiting params in a server component",
+      "cache-components Params should partially prerender pages that await params in a server components",
+      "cache-components Params should partially prerender pages that spread `use`ed params in a client component",
+      "cache-components Params should partially prerender pages that spread awaited params in a server component",
+      "cache-components Params should partially prerender pages that use params in a client components"
+    ],
+    "failed": [],
+    "pending": [
+      "cache-components generateStaticParams should have cacheComponents semantics inside generateStaticParams"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.random.test.ts": {
+    "passed": [
+      "cache-components should not have route specific errors",
+      "cache-components should not prerender pages with uncached Math.random() calls",
+      "cache-components should prerender pages with cached Math.random() calls"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.routes.test.ts": {
+    "passed": [
+      "cache-components should not prerender GET route handlers that complete in a new Task",
+      "cache-components should not prerender GET route handlers that have some uncached io (fetches)",
+      "cache-components should not prerender GET route handlers that have some uncached io (unstable_cache)",
+      "cache-components should not prerender GET route handlers that use dynamic APIs",
+      "cache-components should prerender GET route handlers that complete synchronously or in a microtask",
+      "cache-components should prerender GET route handlers that have entirely cached io (\"use cache\")",
+      "cache-components should prerender GET route handlers that have entirely cached io (fetches)",
+      "cache-components should prerender GET route handlers that have entirely cached io (unstable_cache)",
+      "cache-components should prerender GET route handlers when accessing params"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.search.test.ts": {
+    "passed": [
+      "cache-components should partially prerender pages that `use` searchParams in a client component",
+      "cache-components should partially prerender pages that `use` searchParams in a server component",
+      "cache-components should partially prerender pages that await searchParams in a server component"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.server-action.test.ts": {
+    "passed": [
+      "cache-components should not fail decoding server action arguments",
+      "cache-components should not have cache components errors when encoding bound args for inline server actions",
+      "cache-components should prerender pages with inline server actions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.test.ts": {
+    "passed": [
+      "cache-components can prerender pages with parallel routes that are static",
+      "cache-components can prerender pages with parallel routes that resolve in a microtask",
+      "cache-components does not prerender pages with parallel routes that resolve in a task",
+      "cache-components does not prerender pages with parallel routes that uses a dynamic API",
+      "cache-components should fully prerender pages that use `unstable_noStore()`",
+      "cache-components should not have route specific errors",
+      "cache-components should not resume when client components are dynamic but the RSC render was static",
+      "cache-components should not warn about potential memory leak for even listeners on AbortSignal",
+      "cache-components should partially prerender pages that do any uncached IO",
+      "cache-components should partially prerender pages that do any uncached IO (use cache)",
+      "cache-components should partially prerender pages that take longer than a task to render",
+      "cache-components should partially prerender pages that use `cookies()`",
+      "cache-components should partially prerender pages that use `headers()`",
+      "cache-components should partially prerender pages that use `searchParams` in Client Components",
+      "cache-components should partially prerender pages that use `searchParams` in Server Components",
+      "cache-components should partially prerender pages that use at least one fetch without cache",
+      "cache-components should prerender fully static pages",
+      "cache-components should prerender pages that cached the whole page",
+      "cache-components should prerender pages that only use cached (\"use cache\") IO",
+      "cache-components should prerender pages that only use cached (unstable_cache) IO",
+      "cache-components should prerender pages that only use cached fetches",
+      "cache-components should prerender pages that render in a microtask",
+      "cache-components should prerender static not-found pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.web-crypto.test.ts": {
+    "passed": [
+      "cache-components should not have route specific errors",
+      "cache-components should not prerender pages with uncached `crypto.getRandomValues(...)` calls",
+      "cache-components should not prerender pages with uncached `crypto.randomUUID()` calls",
+      "cache-components should prerender pages with cached `crypto.getRandomValues(...)` calls",
+      "cache-components should prerender pages with cached `crypto.randomUUID()` calls"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/catchall-parallel-routes-group/catchall-parallel-routes-group.test.ts": {
     "passed": [
       "catchall-parallel-routes-group should work without throwing any errors about invalid pages"
@@ -2103,348 +2446,6 @@
   "test/e2e/app-dir/dynamic-interception-route-revalidate/dynamic-interception-route-revalidate.test.ts": {
     "passed": [
       "dynamic-interception-route-revalidate should refresh the dynamic intercepted route when the interception route is revalidated"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components-dynamic-imports/cache-components-dynamic-imports.test.ts": {
-    "passed": [
-      "async imports in cacheComponents - external packages does not instrument import() in external packages",
-      "async imports in cacheComponents are not instrumented in edge edge route handler",
-      "async imports in cacheComponents are not instrumented in edge middleware",
-      "async imports in cacheComponents does not cause any routes to become (partially) dynamic",
-      "async imports in cacheComponents inside a GET route handler import of a sync module",
-      "async imports in cacheComponents inside a GET route handler import of module with top-level-await",
-      "async imports in cacheComponents inside a client component import of a sync module",
-      "async imports in cacheComponents inside a client component import of module with top-level-await",
-      "async imports in cacheComponents inside a server component dynamic import in node_modules in a CJS package import of a sync module",
-      "async imports in cacheComponents inside a server component dynamic import in node_modules in an ESM package import of a sync module",
-      "async imports in cacheComponents inside a server component dynamic import in node_modules in an ESM package import of module with top-level-await",
-      "async imports in cacheComponents inside a server component import of a sync module",
-      "async imports in cacheComponents inside a server component import of module with top-level-await",
-      "async imports in cacheComponents outside of render client import of a sync module",
-      "async imports in cacheComponents outside of render client import of module with top-level-await",
-      "async imports in cacheComponents outside of render server import of a sync module",
-      "async imports in cacheComponents outside of render server import of module with top-level-await"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components-errors/cache-components-errors.module-scope.test.ts": {
-    "passed": [
-      "Lazy Module Init should build statically even if module scope uses sync APIs like current time and random"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components-errors/cache-components-errors.prospective-errors.test.ts": {
-    "passed": [
-      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with a string in a Page",
-      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with a string in a route",
-      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with an Error in a Page",
-      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with an Error in a route",
-      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with an object in a Page",
-      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with an object in a route",
-      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with null in a Page",
-      "Cache Components Prospective Render Errors - Debug Build should log an error when the prospective render errors with undefined in a route",
-      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with a string in a Page",
-      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with a string in a route",
-      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an Error in a Page",
-      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an Error in a route",
-      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an object in a Page",
-      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an object in a route",
-      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with null in a Page",
-      "Cache Components Prospective Render Errors - Standard Build should not log an error when the prospective render errors with undefined in a route"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components-errors/cache-components-errors.test.ts": {
-    "passed": [
-      "Cache Components Errors Build With --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Cache Components Errors Build With --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Cache Components Errors Build With --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a cache components violation alongside dynamic metadata",
-      "Cache Components Errors Build With --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Cache Components Errors Build With --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Cache Components Errors Build With --prerender-debug Dynamic Root should error the build if cache components happens in the root (outside a Suspense)",
-      "Cache Components Errors Build With --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
-      "Cache Components Errors Build With --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
-      "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
-      "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
-      "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Cache Components Errors Build With --prerender-debug Inside `use cache` cookies should error the build",
-      "Cache Components Errors Build With --prerender-debug Inside `use cache` draftMode should error the build",
-      "Cache Components Errors Build With --prerender-debug Inside `use cache` headers should error the build",
-      "Cache Components Errors Build With --prerender-debug Static Route should not error the build when all routes are static",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
-      "Cache Components Errors Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a cache components violation alongside dynamic metadata",
-      "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
-      "Cache Components Errors Build Without --prerender-debug Dynamic Root should error the build if cache components happens in the root (outside a Suspense)",
-      "Cache Components Errors Build Without --prerender-debug Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
-      "Cache Components Errors Build Without --prerender-debug Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
-      "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
-      "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
-      "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
-      "Cache Components Errors Build Without --prerender-debug Inside `use cache` cookies should error the build",
-      "Cache Components Errors Build Without --prerender-debug Inside `use cache` draftMode should error the build",
-      "Cache Components Errors Build Without --prerender-debug Inside `use cache` headers should error the build",
-      "Cache Components Errors Build Without --prerender-debug Static Route should not error the build when all routes are static",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components-request-apis/cache-components-request-apis.test.ts": {
-    "passed": [
-      "Request Promises On Prerender Completion should reject request APIs after the prerender is complete when it finishes naturally",
-      "Request Promises On Prerender Interruption should reject request APIs after the prerender is interrupted with synchronously dynamic APIs"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts": {
-    "passed": [
-      "cache-components-segment-configs it should error when using segment configs that aren't supported by cacheComponents",
-      "cache-components-segment-configs should propagate configurations from layouts to pages"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.connection.test.ts": {
-    "passed": [
-      "cache-components should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
-      "cache-components should partially prerender pages that use connection"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.console.test.ts": {
-    "passed": [
-      "cache-components dims console calls during prospective rendering"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.cookies.test.ts": {
-    "passed": [
-      "cache-components should be able to access cookie properties",
-      "cache-components should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
-      "cache-components should partially prerender pages that use cookies"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.date.test.ts": {
-    "passed": [
-      "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `Date()` calls",
-      "cache-components should not prerender pages with uncached `Date.now()` calls",
-      "cache-components should not prerender pages with uncached `new Date()` calls",
-      "cache-components should not prerender pages with uncached static Date instances like `new Date(0)`",
-      "cache-components should prerender pages with cached `Date()` calls",
-      "cache-components should prerender pages with cached `Date.now()` calls",
-      "cache-components should prerender pages with cached `new Date()` calls",
-      "cache-components should prerender pages with cached static Date instances like `new Date(0)`"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.draft-mode.test.ts": {
-    "passed": [
-      "cache-components should fully prerender pages that use draftMode"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.headers.test.ts": {
-    "passed": [
-      "cache-components should be able to access headers properties asynchronously",
-      "cache-components should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
-      "cache-components should partially prerender pages that use headers"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.node-crypto.test.ts": {
-    "passed": [
-      "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeyPairSync(type, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeySync(type, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generatePrimeSync(size, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').getRandomValues(...)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomBytes(size)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomFillSync(buffer)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(max)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(min, max)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomUUID()` calls",
-      "cache-components should prerender pages with cached `require('node:crypto').generateKeyPairSync(type, options)` calls",
-      "cache-components should prerender pages with cached `require('node:crypto').generateKeySync(type, options)` calls",
-      "cache-components should prerender pages with cached `require('node:crypto').generatePrimeSync(size, options)` calls",
-      "cache-components should prerender pages with cached `require('node:crypto').getRandomValues(...)` calls",
-      "cache-components should prerender pages with cached `require('node:crypto').randomBytes(size)` calls",
-      "cache-components should prerender pages with cached `require('node:crypto').randomFillSync(buffer)` calls",
-      "cache-components should prerender pages with cached `require('node:crypto').randomInt(max)` calls",
-      "cache-components should prerender pages with cached `require('node:crypto').randomInt(min, max)` calls",
-      "cache-components should prerender pages with cached `require('node:crypto').randomUUID()` calls"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.params.test.ts": {
-    "passed": [
-      "cache-components Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
-      "cache-components Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
-      "cache-components Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
-      "cache-components Params should fully prerender pages that check individual param keys after awaiting params in a server component",
-      "cache-components Params should partially prerender pages that await params in a server components",
-      "cache-components Params should partially prerender pages that spread `use`ed params in a client component",
-      "cache-components Params should partially prerender pages that spread awaited params in a server component",
-      "cache-components Params should partially prerender pages that use params in a client components"
-    ],
-    "failed": [],
-    "pending": [
-      "cache-components generateStaticParams should have cacheComponents semantics inside generateStaticParams"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.random.test.ts": {
-    "passed": [
-      "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached Math.random() calls",
-      "cache-components should prerender pages with cached Math.random() calls"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.routes.test.ts": {
-    "passed": [
-      "cache-components should not prerender GET route handlers that complete in a new Task",
-      "cache-components should not prerender GET route handlers that have some uncached io (fetches)",
-      "cache-components should not prerender GET route handlers that have some uncached io (unstable_cache)",
-      "cache-components should not prerender GET route handlers that use dynamic APIs",
-      "cache-components should prerender GET route handlers that complete synchronously or in a microtask",
-      "cache-components should prerender GET route handlers that have entirely cached io (\"use cache\")",
-      "cache-components should prerender GET route handlers that have entirely cached io (fetches)",
-      "cache-components should prerender GET route handlers that have entirely cached io (unstable_cache)",
-      "cache-components should prerender GET route handlers when accessing params"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.search.test.ts": {
-    "passed": [
-      "cache-components should partially prerender pages that `use` searchParams in a client component",
-      "cache-components should partially prerender pages that `use` searchParams in a server component",
-      "cache-components should partially prerender pages that await searchParams in a server component"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.server-action.test.ts": {
-    "passed": [
-      "cache-components should not fail decoding server action arguments",
-      "cache-components should not have cache components errors when encoding bound args for inline server actions",
-      "cache-components should prerender pages with inline server actions"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.test.ts": {
-    "passed": [
-      "cache-components can prerender pages with parallel routes that are static",
-      "cache-components can prerender pages with parallel routes that resolve in a microtask",
-      "cache-components does not prerender pages with parallel routes that resolve in a task",
-      "cache-components does not prerender pages with parallel routes that uses a dynamic API",
-      "cache-components should fully prerender pages that use `unstable_noStore()`",
-      "cache-components should not have route specific errors",
-      "cache-components should not resume when client components are dynamic but the RSC render was static",
-      "cache-components should not warn about potential memory leak for even listeners on AbortSignal",
-      "cache-components should partially prerender pages that do any uncached IO",
-      "cache-components should partially prerender pages that do any uncached IO (use cache)",
-      "cache-components should partially prerender pages that take longer than a task to render",
-      "cache-components should partially prerender pages that use `cookies()`",
-      "cache-components should partially prerender pages that use `headers()`",
-      "cache-components should partially prerender pages that use `searchParams` in Client Components",
-      "cache-components should partially prerender pages that use `searchParams` in Server Components",
-      "cache-components should partially prerender pages that use at least one fetch without cache",
-      "cache-components should prerender fully static pages",
-      "cache-components should prerender pages that cached the whole page",
-      "cache-components should prerender pages that only use cached (\"use cache\") IO",
-      "cache-components should prerender pages that only use cached (unstable_cache) IO",
-      "cache-components should prerender pages that only use cached fetches",
-      "cache-components should prerender pages that render in a microtask",
-      "cache-components should prerender static not-found pages"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.web-crypto.test.ts": {
-    "passed": [
-      "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `crypto.getRandomValues(...)` calls",
-      "cache-components should not prerender pages with uncached `crypto.randomUUID()` calls",
-      "cache-components should prerender pages with cached `crypto.getRandomValues(...)` calls",
-      "cache-components should prerender pages with cached `crypto.randomUUID()` calls"
     ],
     "failed": [],
     "pending": [],
@@ -3424,6 +3425,18 @@
   "test/e2e/app-dir/middleware-matching/index.test.ts": {
     "passed": [
       "app dir - middleware with custom matcher should match /:id (without asterisk)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/middleware-rewrite-catchall-priority-with-parallel-route/middleware-rewrite-catchall-priority-with-parallel-route.test.js": {
+    "passed": [
+      "app-dir - middleware rewrite with catch-all and parallel routes anotherRoute should redirect to the specific page instead of the catch-all without parallel route",
+      "app-dir - middleware rewrite with catch-all and parallel routes anotherRoute should rewrite to the specific page instead of the catch-all without parallel route",
+      "app-dir - middleware rewrite with catch-all and parallel routes payment route should redirect to the specific page instead of the catch-all with parallel route",
+      "app-dir - middleware rewrite with catch-all and parallel routes payment route should rewrite to the specific page instead of the catch-all with parallel route"
     ],
     "failed": [],
     "pending": [],

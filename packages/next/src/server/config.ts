@@ -293,8 +293,6 @@ function assignDefaults(
       throw new CanaryOnlyError({
         feature: 'experimental.turbopackPersistentCaching',
       })
-    } else if (result.experimental?.nodeMiddleware) {
-      throw new CanaryOnlyError({ feature: 'experimental.nodeMiddleware' })
     }
   }
 
@@ -975,7 +973,13 @@ function assignDefaults(
     const invalidHandlerItems: Array<{ key: string; reason: string }> = []
 
     for (const key of handlerKeys) {
-      if (!allowedHandlerNameRegex.test(key)) {
+      if (key === 'private') {
+        invalidHandlerItems.push({
+          key,
+          reason:
+            'The cache handler for "use cache: private" cannot be customized.',
+        })
+      } else if (!allowedHandlerNameRegex.test(key)) {
         invalidHandlerItems.push({
           key,
           reason: 'key must only use characters a-z and -',

@@ -2799,7 +2799,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -5460,9 +5460,9 @@ checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "quick_cache"
-version = "0.6.11"
+version = "0.6.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0af25b4e960ffdf0dead61cf0cec0c2e44c76927bf933ab4f02e2858fb449397"
+checksum = "6b450dad8382b1b95061d5ca1eb792081fb082adf48c678791fe917509596d5f"
 dependencies = [
  "ahash 0.8.12",
  "equivalent",
@@ -9338,7 +9338,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "mockito",
+ "quick_cache",
  "reqwest 0.12.20",
+ "serde",
  "tokio",
  "turbo-rcstr",
  "turbo-tasks",

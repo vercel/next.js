@@ -5,6 +5,8 @@ import {
   type OverlayDispatch,
 } from '../../../shared'
 import type { SupportedErrorEvent } from '../../../container/runtime-error/render-error'
+import { useRestartServer } from './use-restart-server'
+import { css } from '../../../utils/css'
 
 /**
  * When the Turbopack persistent cache is enabled, and the user reloads on a
@@ -14,28 +16,29 @@ import type { SupportedErrorEvent } from '../../../container/runtime-error/rende
  * telemetry on how often this is used.
  */
 export function RestartServerButton({ showButton }: { showButton: boolean }) {
+  const { restartServer, isPending } = useRestartServer()
+
   if (!showButton) {
     return null
-  }
-
-  function handleClick() {
-    // TODO: Use Client Action for transition indicator when DevTools is isolated.
-    fetch('/__nextjs_restart_dev?invalidatePersistentCache', {
-      method: 'POST',
-    }).then(() => {
-      // TODO: poll server status and reload when the server is back up.
-      // https://github.com/vercel/next.js/pull/80005
-    })
   }
 
   return (
     <button
       className="restart-dev-server-button"
-      onClick={handleClick}
+      onClick={() => restartServer({ invalidatePersistentCache: true })}
+      disabled={isPending}
       title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
     >
-      <RefreshClockWise width={14} height={14} />
-      Clear Bundler Cache &amp; Restart
+      <RefreshClockWise
+        width={14}
+        height={14}
+        style={{
+          animation: isPending
+            ? 'refresh-clock-wise-spin 1s linear infinite'
+            : undefined,
+        }}
+      />
+      Reset Bundler Cache
     </button>
   )
 }
@@ -84,7 +87,7 @@ export function usePersistentCacheErrorDetection({
   }, [errors, dispatch])
 }
 
-export const RESTART_SERVER_BUTTON_STYLES = `
+export const RESTART_SERVER_BUTTON_STYLES = css`
   .restart-dev-server-button {
     display: flex;
     justify-content: center;
@@ -104,5 +107,19 @@ export const RESTART_SERVER_BUTTON_STYLES = `
     font-size: var(--size-12);
     font-weight: 500;
     line-height: var(--size-16);
+  }
+
+  .restart-dev-server-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @keyframes refresh-clock-wise-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 `

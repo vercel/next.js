@@ -46,26 +46,6 @@ const constrainDimensions = (params: {
   }
 }
 
-const parseResizeLocalStorage = (key: string) => {
-  const savedDimensions = localStorage.getItem(key)
-  if (!savedDimensions) return null
-  try {
-    const parsed = JSON.parse(savedDimensions)
-    if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      typeof parsed.width === 'number' &&
-      typeof parsed.height === 'number'
-    ) {
-      return { width: parsed.width, height: parsed.height }
-    }
-    return null
-  } catch (e) {
-    localStorage.removeItem(key)
-    return null
-  }
-}
-
 interface ResizeProviderProps {
   value: {
     resizeRef: RefObject<HTMLElement | null>
@@ -74,6 +54,7 @@ interface ResizeProviderProps {
     maxWidth?: number
     maxHeight?: number
     devToolsPosition: Corners
+    devToolsPanelSize: Record<string, { width: number; height: number }>
     storageKey?: string
     initialSize?: { height: number; width: number }
   }
@@ -105,7 +86,7 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
       return
     }
 
-    const dim = parseResizeLocalStorage(storageKey)
+    const dim = value.devToolsPanelSize[storageKey]
     if (!dim) {
       return
     }
@@ -118,7 +99,14 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
     value.resizeRef.current.style.width = `${width}px`
     value.resizeRef.current.style.height = `${height}px`
     return true
-  }, [value.resizeRef, draggingDirection, storageKey, minWidth, minHeight])
+  }, [
+    value.resizeRef,
+    draggingDirection,
+    storageKey,
+    minWidth,
+    minHeight,
+    value.devToolsPanelSize,
+  ])
 
   useLayoutEffect(() => {
     const applied = applyConstrainedDimensions()

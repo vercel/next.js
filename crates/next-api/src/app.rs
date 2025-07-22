@@ -1162,30 +1162,33 @@ impl AppEndpoint {
             None,
             /// Emit the manifest for basic Next.js functionality (e.g. app-build-manifest.json)
             Minimal,
-            /// All manifests: `Minimal` plus client-references, next-dynamic, ...
+            /// All manifests: `Minimal` plus next-font, next-dynamic, ...
             Full,
         }
-        let (process_client_assets, process_ssr, emit_manifests) = match &this.ty {
-            AppEndpointType::Page { ty, .. } => (
-                true,
-                matches!(ty, AppPageEndpointType::Html),
-                if matches!(ty, AppPageEndpointType::Html) {
-                    EmitManifests::Full
-                } else {
-                    EmitManifests::None
-                },
-            ),
-            AppEndpointType::Route { .. } => (false, false, EmitManifests::Full),
-            AppEndpointType::Metadata { metadata } => (
-                false,
-                false,
-                if matches!(metadata, MetadataItem::Dynamic { .. }) {
-                    EmitManifests::Full
-                } else {
-                    EmitManifests::Minimal
-                },
-            ),
-        };
+        let (process_client_assets, process_ssr, emit_manifests, emit_rsc_manifests) =
+            match &this.ty {
+                AppEndpointType::Page { ty, .. } => (
+                    true,
+                    matches!(ty, AppPageEndpointType::Html),
+                    if matches!(ty, AppPageEndpointType::Html) {
+                        EmitManifests::Full
+                    } else {
+                        EmitManifests::None
+                    },
+                    matches!(ty, AppPageEndpointType::Html),
+                ),
+                AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal, true),
+                AppEndpointType::Metadata { metadata } => (
+                    false,
+                    false,
+                    if matches!(metadata, MetadataItem::Dynamic { .. }) {
+                        EmitManifests::Full
+                    } else {
+                        EmitManifests::Minimal
+                    },
+                    matches!(metadata, MetadataItem::Dynamic { .. }),
+                ),
+            };
 
         let node_root = project.node_root().owned().await?;
         let client_relative_path = project.client_relative_path().owned().await?;
@@ -1434,7 +1437,7 @@ impl AppEndpoint {
                 .runtime_chunking_context(process_client_assets, runtime),
         )
         .await?;
-        if emit_manifests == EmitManifests::Full {
+        if emit_rsc_manifests {
             server_assets.insert(server_action_manifest.manifest);
         }
 
@@ -1460,7 +1463,7 @@ impl AppEndpoint {
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
 
-        if emit_manifests == EmitManifests::Full {
+        if emit_rsc_manifests {
             let entry_manifest =
                 ClientReferenceManifest::build_output(ClientReferenceManifestOptions {
                     node_root: node_root.clone(),
@@ -1482,7 +1485,8 @@ impl AppEndpoint {
                 middleware_assets.insert(entry_manifest);
             }
             client_reference_manifest = Some(entry_manifest);
-
+        }
+        if emit_manifests == EmitManifests::Full {
             let next_font_manifest_output = create_font_manifest(
                 project.client_root().owned().await?,
                 node_root.clone(),
@@ -1504,11 +1508,16 @@ impl AppEndpoint {
                 //
                 // they are created in `setup-dev-bundler.ts`
                 let mut file_paths_from_root = fxindexset![
-                    rcstr!("server/server-reference-manifest.js"),
                     rcstr!("server/middleware-build-manifest.js"),
-                    rcstr!("server/next-font-manifest.js"),
                     rcstr!("server/interception-route-rewrite-manifest.js"),
                 ];
+                if emit_manifests == EmitManifests::Full {
+                    file_paths_from_root.insert(rcstr!("server/next-font-manifest.js"));
+                };
+                if emit_rsc_manifests {
+                    file_paths_from_root.insert(rcstr!("server/server-reference-manifest.js"));
+                }
+
                 let mut wasm_paths_from_root = fxindexset![];
 
                 let node_root_value = node_root.clone();
@@ -1556,7 +1565,8 @@ impl AppEndpoint {
                     file_paths_from_root.extend(
                         get_js_paths_from_root(&node_root_value, &loadable_manifest_output).await?,
                     );
-
+                }
+                if emit_manifests != EmitManifests::None {
                     // create middleware manifest
                     let named_regex = get_named_middleware_regex(&app_entry.pathname);
                     let matchers = MiddlewareMatcher {
