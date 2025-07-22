@@ -23,7 +23,7 @@ describe('formatIssue', () => {
     filePath: '[project]/src/app/page.ts',
     title: styledText('Module not found'),
     source: undefined,
-    documentationLink: 'http:://nextjs.org/docs',
+    documentationLink: 'https://nextjs.org/docs',
     stage: 'resolve',
   }
 
