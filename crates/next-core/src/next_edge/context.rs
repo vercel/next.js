@@ -11,7 +11,7 @@ use turbopack_core::{
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
-    environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
+    environment::{EdgeWorkerEnvironment, Environment, NodeJsVersion},
     free_var_references,
     module_graph::export_usage::OptionExportUsageInfo,
 };
@@ -62,11 +62,9 @@ pub async fn get_edge_compile_time_info(
     node_version: ResolvedVc<NodeJsVersion>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::EdgeWorker(
-            EdgeWorkerEnvironment { node_version }.resolved_cell(),
-        ))
-        .to_resolved()
-        .await?,
+        Environment::new(Vc::upcast(EdgeWorkerEnvironment { node_version }.cell()))
+            .to_resolved()
+            .await?,
     )
     .defines(next_edge_defines(define_env).to_resolved().await?)
     .free_var_references(

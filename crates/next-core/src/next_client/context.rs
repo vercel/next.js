@@ -23,7 +23,7 @@ use turbopack_core::{
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
+    environment::{BrowserEnvironment, Environment},
     free_var_references,
     module_graph::export_usage::OptionExportUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
@@ -99,14 +99,14 @@ pub async fn get_client_compile_time_info(
     define_env: Vc<OptionEnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::Browser(
+        Environment::new(Vc::upcast(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
                 service_worker: false,
                 browserslist_query: browserslist_query.to_owned(),
             }
-            .resolved_cell(),
+            .cell(),
         ))
         .to_resolved()
         .await?,

@@ -673,7 +673,7 @@ async fn process_default_internal(
 }
 
 #[turbo_tasks::function]
-pub async fn externals_tracing_module_context(
+async fn externals_tracing_module_context(
     ty: ExternalType,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleAssetContext>> {

@@ -37,7 +37,7 @@ use turbopack_core::{
     compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment},
     condition::ContextCondition,
     context::AssetContext,
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, NodeJsEnvironment},
     file_source::FileSource,
     free_var_references,
     ident::Layer,
@@ -258,7 +258,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let env = Environment::new(match options.environment {
         SnapshotEnvironment::Browser => {
-            ExecutionEnvironment::Browser(
+            Vc::upcast(
                 // TODO: load more from options.json
                 BrowserEnvironment {
                     dom: true,
@@ -266,13 +266,13 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     service_worker: false,
                     browserslist_query: options.browserslist.into(),
                 }
-                .resolved_cell(),
+                .cell(),
             )
         }
         SnapshotEnvironment::NodeJs => {
-            ExecutionEnvironment::NodeJsBuildTime(
+            Vc::upcast(
                 // TODO: load more from options.json
-                NodeJsEnvironment::default().resolved_cell(),
+                NodeJsEnvironment::default().cell(),
             )
         }
     })
