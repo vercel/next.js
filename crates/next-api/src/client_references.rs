@@ -6,7 +6,6 @@ use next_core::{
 use roaring::RoaringBitmap;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use tracing::Instrument;
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -66,141 +65,136 @@ impl ClientReferencesSet {
 pub async fn map_client_references(
     graph: Vc<SingleModuleGraph>,
 ) -> Result<Vc<ClientReferencesSet>> {
-    let span = tracing::info_span!("mapping client references");
-    async move {
-        let graph = graph.await?;
-        let client_references = graph
-            .iter_nodes()
-            .map(|node| async move {
-                let module = node.module;
+    let graph = graph.await?;
+    let client_references = graph
+        .iter_nodes()
+        .map(|node| async move {
+            let module = node.module;
 
-                if let Some(client_reference_module) =
-                    ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
-                {
-                    Ok(Some((
-                        module,
-                        ClientReferenceMapType::EcmascriptClientReference {
-                            module: client_reference_module,
-                            ssr_module: ResolvedVc::upcast(
-                                client_reference_module.await?.ssr_module,
-                            ),
-                        },
-                    )))
-                } else if let Some(client_reference_module) =
-                    ResolvedVc::try_downcast_type::<CssClientReferenceModule>(module)
-                {
-                    Ok(Some((
-                        module,
-                        ClientReferenceMapType::CssClientReference(
-                            client_reference_module.await?.client_module,
-                        ),
-                    )))
-                } else if let Some(server_component) =
-                    ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
-                {
-                    Ok(Some((
-                        module,
-                        ClientReferenceMapType::ServerComponent(server_component),
-                    )))
-                } else {
-                    Ok(None)
-                }
-            })
-            .try_flat_join()
-            .await?
-            .into_iter()
-            .collect::<FxHashMap<_, _>>();
+            if let Some(client_reference_module) =
+                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
+            {
+                Ok(Some((
+                    module,
+                    ClientReferenceMapType::EcmascriptClientReference {
+                        module: client_reference_module,
+                        ssr_module: ResolvedVc::upcast(client_reference_module.await?.ssr_module),
+                    },
+                )))
+            } else if let Some(client_reference_module) =
+                ResolvedVc::try_downcast_type::<CssClientReferenceModule>(module)
+            {
+                Ok(Some((
+                    module,
+                    ClientReferenceMapType::CssClientReference(
+                        client_reference_module.await?.client_module,
+                    ),
+                )))
+            } else if let Some(server_component) =
+                ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
+            {
+                Ok(Some((
+                    module,
+                    ClientReferenceMapType::ServerComponent(server_component),
+                )))
+            } else {
+                Ok(None)
+            }
+        })
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .collect::<FxHashMap<_, _>>();
 
-        let mut server_components = FxIndexSet::default();
-        let mut module_to_server_component_bits = FxHashMap::default();
-        if !client_references.is_empty() {
-            graph.traverse_edges_from_entries_fixed_point(
-                graph.entry_modules(),
-                |parent_info, node| {
-                    let module = node.module();
-                    let module_type = client_references.get(&module);
-                    let mut should_visit_children = match module_to_server_component_bits.entry(module) {
-                        std::collections::hash_map::Entry::Occupied(_) => false,
-                        std::collections::hash_map::Entry::Vacant(vacant_entry) => {
-                            // only do this the first time we visit the node.
-                            let bits = vacant_entry.insert(RoaringBitmap::new());
-                            if let Some(ClientReferenceMapType::ServerComponent(
-                                server_component_module,
-                            )) = module_type
-                            {
-                                let index =
-                                    server_components.insert_full(*server_component_module).0;
+    let mut server_components = FxIndexSet::default();
+    let mut module_to_server_component_bits = FxHashMap::default();
+    if !client_references.is_empty() {
+        graph.traverse_edges_from_entries_fixed_point(
+            graph.entry_modules(),
+            |parent_info, node| {
+                let module = node.module();
+                let module_type = client_references.get(&module);
+                let mut should_visit_children = match module_to_server_component_bits.entry(module)
+                {
+                    std::collections::hash_map::Entry::Occupied(_) => false,
+                    std::collections::hash_map::Entry::Vacant(vacant_entry) => {
+                        // only do this the first time we visit the node.
+                        let bits = vacant_entry.insert(RoaringBitmap::new());
+                        if let Some(ClientReferenceMapType::ServerComponent(
+                            server_component_module,
+                        )) = module_type
+                        {
+                            let index = server_components.insert_full(*server_component_module).0;
 
-                                bits.insert(index.try_into().unwrap());
-                            }
-                            true
+                            bits.insert(index.try_into().unwrap());
                         }
-                    };
-                    if let Some((SingleModuleGraphModuleNode{module: parent_module}, _)) = parent_info
+                        true
+                    }
+                };
+                if let Some((SingleModuleGraphModuleNode{module: parent_module}, _)) = parent_info
                     // Skip self cycles such as in
                     // test/e2e/app-dir/dynamic-import/app/page.tsx where a very-dynamic import induces a
                     // self cycle. They don't introduce new bits anyway.
                     && module != *parent_module
-                    {
-                        // Copy parent bits down.  `traverse_edges_from_entries_fixed_point` always visits parents before
-                        // children so we can simply assert that the parent it set.
-                        let [Some(current), Some(parent)] =
-                            module_to_server_component_bits.get_disjoint_mut([&module, parent_module])
-                        else {
-                            unreachable!()
-                        };
-                        // Check if we are adding new bits and thus need to revisit children unless we are already planning to because this is a new node.
-                        if !should_visit_children {
-                            let len = current.len();
-                            *current |= &*parent;
-                             // did we find new bits? If so visit the children again
-                            should_visit_children = len != current.len();
-                        } else {
-                            *current |= &*parent;
-                        }
+                {
+                    // Copy parent bits down.  `traverse_edges_from_entries_fixed_point` always
+                    // visits parents before children so we can simply assert
+                    // that the parent it set.
+                    let [Some(current), Some(parent)] =
+                        module_to_server_component_bits.get_disjoint_mut([&module, parent_module])
+                    else {
+                        unreachable!()
+                    };
+                    // Check if we are adding new bits and thus need to revisit children unless we
+                    // are already planning to because this is a new node.
+                    if !should_visit_children {
+                        let len = current.len();
+                        *current |= &*parent;
+                        // did we find new bits? If so visit the children again
+                        should_visit_children = len != current.len();
+                    } else {
+                        *current |= &*parent;
                     }
+                }
 
-                    Ok(match module_type {
-                        Some(
-                            ClientReferenceMapType::EcmascriptClientReference { .. }
-                            | ClientReferenceMapType::CssClientReference { .. },
-                        ) => {
-                            // No need to explore these subgraphs ever, these are the leaves in the
-                            // server component graph
+                Ok(match module_type {
+                    Some(
+                        ClientReferenceMapType::EcmascriptClientReference { .. }
+                        | ClientReferenceMapType::CssClientReference { .. },
+                    ) => {
+                        // No need to explore these subgraphs ever, these are the leaves in the
+                        // server component graph
+                        GraphTraversalAction::Skip
+                    }
+                    // Continue on server components and through graphs of non-ClientReference
+                    // modules, but only if our set of parent components has changed.
+                    _ => {
+                        if should_visit_children {
+                            GraphTraversalAction::Continue
+                        } else {
                             GraphTraversalAction::Skip
                         }
-                        // Continue on server components and through graphs of non-ClientReference
-                        // modules, but only if our set of parent components has changed.
-                        _ => {
-                            if should_visit_children {
-                                GraphTraversalAction::Continue
-                            } else {
-                                GraphTraversalAction::Skip
-                            }
-                        }
-                    })
-                },
-            )?;
-        }
-
-        // Filter down to just the client reference modules to reduce datastructure size
-        let server_components_for_client_references = module_to_server_component_bits
-            .into_iter()
-            .filter_map(|(k, v)| match client_references.get(&k) {
-                Some(
-                    ClientReferenceMapType::CssClientReference(_)
-                    | ClientReferenceMapType::EcmascriptClientReference { .. },
-                ) => Some((k, RoaringBitmapWrapper(v))),
-                _ => None,
-            })
-            .collect();
-
-        Ok(ClientReferencesSet::cell(ClientReferencesSet {
-            client_references,
-            server_components,
-            server_components_for_client_references,
-        }))
+                    }
+                })
+            },
+        )?;
     }
-    .instrument(span)
-    .await
+
+    // Filter down to just the client reference modules to reduce datastructure size
+    let server_components_for_client_references = module_to_server_component_bits
+        .into_iter()
+        .filter_map(|(k, v)| match client_references.get(&k) {
+            Some(
+                ClientReferenceMapType::CssClientReference(_)
+                | ClientReferenceMapType::EcmascriptClientReference { .. },
+            ) => Some((k, RoaringBitmapWrapper(v))),
+            _ => None,
+        })
+        .collect();
+
+    Ok(ClientReferencesSet::cell(ClientReferencesSet {
+        client_references,
+        server_components,
+        server_components_for_client_references,
+    }))
 }

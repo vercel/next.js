@@ -315,7 +315,8 @@ impl ClientReferencesGraph {
             // components for each module.
             graph.traverse_edges_from_entries_dfs(
                 entries,
-                // state_map is `module -> ParentType` for whether the parent is in a
+                // state_map is `module -> ParentType` to tracke whether the module is reachable
+                // directly from an entry point.
                 &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
                     let module = node.module();
@@ -333,9 +334,10 @@ impl ClientReferencesGraph {
 
                     match state_map.entry(module) {
                         Entry::Occupied(mut occupied_entry) => {
-                            let merged = ParentType::merge(*occupied_entry.get(), parent_type);
+                            let current = occupied_entry.get_mut();
+                            let merged = ParentType::merge(*current, parent_type);
                             if merged != parent_type {
-                                occupied_entry.insert(merged);
+                                *current = merged;
                             }
                         }
                         Entry::Vacant(vacant_entry) => {
@@ -374,7 +376,8 @@ impl ClientReferencesGraph {
                     if *state_map.get(&module).unwrap() == ParentType::ServerComponent {
                         // This is only reachable through server components, we need to wait to
                         // compute the client references until we have seen all server components
-                        // reachable by this entrypoint so we can add it to all of them
+                        // reachable by this entrypoint, then we can intersect that with the set of
+                        // server components that depend on this client reference
                         client_reference_modules.push((module, ty));
                     } else {
                         // Otherwise there is some path from the root directly to the reference,
@@ -737,8 +740,10 @@ impl GlobalBuildInformation {
 
             // TODO(luke.sandberg): at least in the whole_app_module_graph case we should be able to
             // collect server components and server utilities during the above traversals in the
-            // correct order.  `find_server_entries returns them in reverse topological order but
-            // the above traversals find them in DFS post order which is similar but different.
+            // correct order.  `find_server_entries returns them in reverse topological order (root
+            // layout first, page last) but the above traversals find them in DFS post
+            // order which means we would need to reverse it.
+            // For server_utils the order is irrelevant.
             if has_layout_segments {
                 // Do this separately for now, because the graph traversal order messes up the order
                 // of the server_component_entries.
