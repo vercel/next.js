@@ -246,16 +246,16 @@ async function startWatcher(
     )
   }
 
-  // opts.fsChecker.ensureCallback(async function ensure(item) {
-  //   if (item.type === 'appFile' || item.type === 'pageFile') {
-  //     await hotReloader.ensurePage({
-  //       clientOnly: false,
-  //       page: item.itemPath,
-  //       isApp: item.type === 'appFile',
-  //       definition: undefined,
-  //     })
-  //   }
-  // })
+  opts.fsChecker.ensureCallback(async function ensure(item) {
+    if (item.type === 'appFile' || item.type === 'pageFile') {
+      await hotReloader.ensurePage({
+        clientOnly: false,
+        page: item.itemPath,
+        isApp: item.type === 'appFile',
+        definition: undefined,
+      })
+    }
+  })
 
   let resolved = false
   let prevSortedRoutes: string[] = []

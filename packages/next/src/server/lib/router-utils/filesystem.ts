@@ -38,7 +38,7 @@ import {
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-// import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
@@ -107,6 +107,9 @@ export async function setupFsCheck(opts: {
   dev: boolean
   minimalMode?: boolean
   config: NextConfigComplete
+  addDevWatcherCallback?: (
+    arg: (files: Map<string, { timestamp: number }>) => void
+  ) => void
 }) {
   const getItemsLru = !opts.dev
     ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
@@ -402,7 +405,7 @@ export async function setupFsCheck(opts: {
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 
-  // let ensureFn: (item: FsOutput) => Promise<void> | undefined
+  let ensureFn: (item: FsOutput) => Promise<void> | undefined
 
   const normalizers = {
     // Because we can't know if the app directory is enabled or not at this
@@ -435,9 +438,9 @@ export async function setupFsCheck(opts: {
     prerenderManifest,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
-    // ensureCallback(fn: typeof ensureFn): void {
-    //   ensureFn = fn
-    // },
+    ensureCallback(fn: typeof ensureFn) {
+      ensureFn = fn
+    },
 
     async getItem(itemPath: string): Promise<FsOutput | null> {
       const originalItemPath = itemPath
@@ -503,8 +506,9 @@ export async function setupFsCheck(opts: {
         let curItemPath = itemPath
         let curDecodedItemPath = decodedItemPath
 
+        const isDynamicOutput = type === 'pageFile' || type === 'appFile'
+
         if (i18n) {
-          const isDynamicOutput = type === 'pageFile' || type === 'appFile'
           const localeResult = handleLocale(
             itemPath,
             // legacy behavior allows visiting static assets under
@@ -657,18 +661,20 @@ export async function setupFsCheck(opts: {
                 }
               }
             } else if (type === 'pageFile' || type === 'appFile') {
-              // const isAppFile = type === 'appFile'
-              // if (
-              //   ensureFn &&
-              //   (await ensureFn({
-              //     type,
-              //     itemPath: isAppFile
-              //       ? normalizeMetadataRoute(curItemPath)
-              //       : curItemPath,
-              //   })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
-              // ) {
-              //   continue
-              // }
+              const isAppFile = type === 'appFile'
+              if (
+                // Test
+                !isAppFile &&
+                ensureFn &&
+                (await ensureFn({
+                  type,
+                  itemPath: isAppFile
+                    ? normalizeMetadataRoute(curItemPath)
+                    : curItemPath,
+                })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
+              ) {
+                continue
+              }
             } else {
               continue
             }
