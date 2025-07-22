@@ -1719,6 +1719,9 @@
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build With --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
+      "Cache Components Errors Build With --prerender-debug With `use cache: private` with `headers()` should not fail the build and show no runtime error (caught in userland)",
+      "Cache Components Errors Build With --prerender-debug With `use cache: private` without Suspense should error the build",
       "Cache Components Errors Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
       "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
       "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Error Route should error the build for the correct reason when there is a cache components violation alongside dynamic metadata",
@@ -1743,9 +1746,17 @@
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`"
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
+      "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `use cache` should error the build",
+      "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
+      "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `headers()` should not fail the build and show no runtime error (caught in userland)",
+      "Cache Components Errors Build Without --prerender-debug With `use cache: private` without Suspense should error the build"
     ],
-    "failed": [],
+    "failed": [
+      "Cache Components Errors Build With --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
+      "Cache Components Errors Build With --prerender-debug With `use cache: private` in `use cache` should error the build"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6208,6 +6219,17 @@
   },
   "test/e2e/app-dir/use-cache-output-export/use-cache-output-export.test.ts": {
     "passed": ["use-cache-output-export should work"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-private/use-cache-private.test.ts": {
+    "passed": [
+      "use-cache-private allows reading cookies in private caches",
+      "use-cache-private allows reading search params in private caches",
+      "use-cache-private excludes private caches from prerenders"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -19750,11 +19772,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
