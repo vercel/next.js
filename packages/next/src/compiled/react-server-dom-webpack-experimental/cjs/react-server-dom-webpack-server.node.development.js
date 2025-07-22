@@ -1630,6 +1630,9 @@
         Component,
         props
       );
+      task.debugOwner = componentDebugInfo;
+      task.debugStack = null;
+      task.debugTask = null;
       Component = task.keyPath;
       componentDebugInfo = task.implicitSlot;
       null !== key
@@ -1945,7 +1948,14 @@
                 endTime = node.end;
               if (endTime <= request.timeOrigin) return null;
               startTime < cutOff
-                ? (previousIONode = _ioNode)
+                ? ((previousIONode = _ioNode),
+                  null !== node.stack &&
+                    isAwaitInUserspace(request, node.stack) &&
+                    void 0 !==
+                      (null === awaited.promise
+                        ? void 0
+                        : awaited.promise.deref()) &&
+                    serializeIONode(request, _ioNode, awaited.promise))
                 : null !== node.stack && isAwaitInUserspace(request, node.stack)
                   ? (request.status === ABORTING &&
                       startTime > request.abortTime) ||
@@ -1998,12 +2008,20 @@
           awaited: node,
           env: alreadyForwardedDebugInfo
         }),
-        null != owner && (alreadyForwardedDebugInfo.owner = owner),
-        null != stack &&
-          (alreadyForwardedDebugInfo.stack = filterStackTrace(
-            request,
-            parseStackTrace(stack, 1)
-          )),
+        null === owner && null === stack
+          ? (null !== task.debugOwner &&
+              (alreadyForwardedDebugInfo.owner = task.debugOwner),
+            null !== task.debugStack &&
+              (alreadyForwardedDebugInfo.stack = filterStackTrace(
+                request,
+                parseStackTrace(task.debugStack, 1)
+              )))
+          : (null != owner && (alreadyForwardedDebugInfo.owner = owner),
+            null != stack &&
+              (alreadyForwardedDebugInfo.stack = filterStackTrace(
+                request,
+                parseStackTrace(stack, 1)
+              ))),
         advanceTaskTime(request, task, task.time),
         emitDebugChunk(request, task.id, alreadyForwardedDebugInfo),
         markOperationEndTime(request, task, node.end));
