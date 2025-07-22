@@ -5,3 +5,6 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack
   
   Import trace:
     test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/invalid-exports.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/index.js

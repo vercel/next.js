@@ -5,3 +5,6 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/webpack/s
   
   Import trace:
     test:
+      ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/a.js
+      ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/c.js
+      ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/index.js

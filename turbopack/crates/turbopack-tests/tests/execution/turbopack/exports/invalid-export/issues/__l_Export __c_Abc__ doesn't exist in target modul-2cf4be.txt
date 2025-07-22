@@ -20,3 +20,5 @@ error - [bindings] /turbopack/crates/turbopack-tests/tests/execution/turbopack/e
   | 
   Import trace:
     test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/index.js

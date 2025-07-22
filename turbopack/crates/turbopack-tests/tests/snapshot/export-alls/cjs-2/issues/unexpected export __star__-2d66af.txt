@@ -5,3 +5,7 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/export-all
   
   Import trace:
     test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js

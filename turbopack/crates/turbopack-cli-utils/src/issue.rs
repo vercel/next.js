@@ -257,15 +257,16 @@ pub fn format_issue(
                 } else if let Some(layer) = layer {
                     write!(styled_issue, " [{layer}]").unwrap();
                 } else {
+                    // There is one trace and no layer (!?)
                     trace_indent = "  ";
                 }
-                format_trace_items(
-                    &mut styled_issue,
-                    trace_indent,
-                    !are_layers_identical(trace),
-                    trace,
-                );
             }
+            format_trace_items(
+                &mut styled_issue,
+                trace_indent,
+                !are_layers_identical(trace),
+                trace,
+            );
         }
     }
 

@@ -5,3 +5,5 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/t
   
   Import trace:
     test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/index.js
