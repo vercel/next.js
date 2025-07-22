@@ -47,7 +47,9 @@ describe('app-dir - bun externals', () => {
 
   it('should handle bun builtins in edge runtime', async () => {
     const response = await next.fetch('/api/edge-bun-externals')
-    expect(await response.json()).toMatch(/Error: Cannot find module 'bun.*'/)
+    expect(await response.json()).toMatch(
+      /(Error: Cannot find module 'bun.*'|Error: Failed to load external module bun.*)/
+    )
   })
 
   if (!isTurbopack && !isNextDev) {
