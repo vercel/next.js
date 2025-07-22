@@ -148,19 +148,21 @@ ${JSON.stringify(ref)},
       }
 
       const compilation = this._compilation!
-      const originalSourceURL = ModuleFilenameHelpers.createFilename(
-        module,
-        {
-          moduleFilenameTemplate:
-            'webpack://[namespace]/[resource-path]/__nextjs-internal-proxy.mjs',
-          namespace: '_N_E',
-        },
-        {
-          requestShortener: compilation.requestShortener,
-          chunkGraph: compilation.chunkGraph,
-          hashFunction: compilation.outputOptions.hashFunction,
-        }
-      )
+      const originalSourceURL = process.env.NEXT_RSPACK
+        ? `webpack://_N_E/${this.resourcePath}/__nextjs-internal-proxy.mjs`
+        : ModuleFilenameHelpers.createFilename(
+            module,
+            {
+              moduleFilenameTemplate:
+                'webpack://[namespace]/[resource-path]/__nextjs-internal-proxy.mjs',
+              namespace: '_N_E',
+            },
+            {
+              requestShortener: compilation.requestShortener,
+              chunkGraph: compilation.chunkGraph,
+              hashFunction: compilation.outputOptions.hashFunction,
+            }
+          )
 
       return this.callback(null, esmSource, {
         version: 3,
@@ -179,19 +181,21 @@ module.exports = createProxy(${stringifiedResourceKey})
 `
 
       const compilation = this._compilation!
-      const originalSourceURL = ModuleFilenameHelpers.createFilename(
-        module,
-        {
-          moduleFilenameTemplate:
-            'webpack://[namespace]/[resource-path]/__nextjs-internal-proxy.cjs',
-          namespace: '_N_E',
-        },
-        {
-          requestShortener: compilation.requestShortener,
-          chunkGraph: compilation.chunkGraph,
-          hashFunction: compilation.outputOptions.hashFunction,
-        }
-      )
+      const originalSourceURL = process.env.NEXT_RSPACK
+        ? `webpack://_N_E/${this.resourcePath}/__nextjs-internal-proxy.cjs`
+        : ModuleFilenameHelpers.createFilename(
+            module,
+            {
+              moduleFilenameTemplate:
+                'webpack://[namespace]/[resource-path]/__nextjs-internal-proxy.cjs',
+              namespace: '_N_E',
+            },
+            {
+              requestShortener: compilation.requestShortener,
+              chunkGraph: compilation.chunkGraph,
+              hashFunction: compilation.outputOptions.hashFunction,
+            }
+          )
 
       return this.callback(null, cjsSource, {
         version: 3,

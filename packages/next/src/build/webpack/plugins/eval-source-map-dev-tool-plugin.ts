@@ -165,27 +165,40 @@ export default class EvalSourceMapDevToolPlugin {
               const module = compilation.findModule(sourceMapSource)
               return module || sourceMapSource
             })
-            let moduleFilenames = modules.map((module) =>
-              ModuleFilenameHelpers.createFilename(
-                module,
-                {
-                  moduleFilenameTemplate: this.moduleFilenameTemplate,
-                  namespace,
-                },
-                {
-                  requestShortener: runtimeTemplate.requestShortener,
-                  chunkGraph,
-                  hashFunction: compilation.outputOptions.hashFunction!,
+            let moduleFilenames: string[]
+            if (process.env.NEXT_RSPACK) {
+              // rspack doesn't have ModuleFilenameHelpers.createFilename
+              // Use a simplified fallback
+              moduleFilenames = modules.map((module) => {
+                if (typeof module === 'string') {
+                  return module
+                }
+                // For non-string modules, use a basic fallback
+                return 'webpack://[namespace]/[resource]'
+              })
+            } else {
+              moduleFilenames = modules.map((module) =>
+                ModuleFilenameHelpers.createFilename(
+                  module,
+                  {
+                    moduleFilenameTemplate: this.moduleFilenameTemplate,
+                    namespace,
+                  },
+                  {
+                    requestShortener: runtimeTemplate.requestShortener,
+                    chunkGraph,
+                    hashFunction: compilation.outputOptions.hashFunction!,
+                  }
+                )
+              )
+              moduleFilenames = ModuleFilenameHelpers.replaceDuplicates(
+                moduleFilenames,
+                (filename, _i, n) => {
+                  for (let j = 0; j < n; j++) filename += '*'
+                  return filename
                 }
               )
-            )
-            moduleFilenames = ModuleFilenameHelpers.replaceDuplicates(
-              moduleFilenames,
-              (filename, _i, n) => {
-                for (let j = 0; j < n; j++) filename += '*'
-                return filename
-              }
-            )
+            }
             sourceMap.sources = moduleFilenames
             sourceMap.ignoreList = []
             for (let index = 0; index < moduleFilenames.length; index++) {
