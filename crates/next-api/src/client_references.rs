@@ -68,7 +68,7 @@ pub async fn map_client_references(
     graph: Vc<SingleModuleGraph>,
 ) -> Result<Vc<ClientReferenceManifest>> {
     let graph = graph.await?;
-    let client_references = graph
+    let manifest = graph
         .iter_nodes()
         .map(|node| async move {
             let module = node.module;
@@ -110,12 +110,12 @@ pub async fn map_client_references(
 
     let mut server_components = FxIndexSet::default();
     let mut module_to_server_component_bits = FxHashMap::default();
-    if !client_references.is_empty() {
+    if !manifest.is_empty() {
         graph.traverse_edges_from_entries_fixed_point(
             graph.entry_modules(),
             |parent_info, node| {
                 let module = node.module();
-                let module_type = client_references.get(&module);
+                let module_type = manifest.get(&module);
                 let mut should_visit_children = match module_to_server_component_bits.entry(module)
                 {
                     std::collections::hash_map::Entry::Occupied(_) => false,
@@ -185,7 +185,7 @@ pub async fn map_client_references(
     // Filter down to just the client reference modules to reduce datastructure size
     let server_components_for_client_references = module_to_server_component_bits
         .into_iter()
-        .filter_map(|(k, v)| match client_references.get(&k) {
+        .filter_map(|(k, v)| match manifest.get(&k) {
             Some(
                 ClientManifestEntryType::CssClientReference(_)
                 | ClientManifestEntryType::EcmascriptClientReference { .. },
