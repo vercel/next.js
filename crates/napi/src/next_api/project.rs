@@ -568,14 +568,6 @@ async fn benchmark_file_io(
 
     let duration = Instant::now().duration_since(start);
     if duration > SLOW_FILESYSTEM_THRESHOLD {
-        println!(
-            "Slow filesystem detected. The benchmark took {}ms. If {} is a network drive, \
-             consider moving it to a local folder. If you have an antivirus enabled, consider \
-             excluding your project directory.",
-            duration.as_millis(),
-            directory.to_string_lossy(),
-        );
-
         turbo_tasks.send_compilation_event(Arc::new(SlowFilesystemEvent {
             directory: directory.to_string_lossy().into(),
             duration_ms: duration.as_millis(),
