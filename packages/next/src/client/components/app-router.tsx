@@ -8,7 +8,6 @@ import React, {
   useDeferredValue,
 } from 'react'
 import {
-  AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
@@ -543,16 +542,9 @@ function Router({
             <GlobalLayoutRouterContext.Provider
               value={globalLayoutRouterContext}
             >
-              {/* TODO: We should be able to remove this context. useRouter
-                  should import from app-router-instance instead. It's only
-                  necessary because useRouter is shared between Pages and
-                  App Router. We should fork that module, then remove this
-                  context provider. */}
-              <AppRouterContext.Provider value={publicAppRouterInstance}>
-                <LayoutRouterContext.Provider value={layoutRouterContext}>
-                  {content}
-                </LayoutRouterContext.Provider>
-              </AppRouterContext.Provider>
+              <LayoutRouterContext.Provider value={layoutRouterContext}>
+                {content}
+              </LayoutRouterContext.Provider>
             </GlobalLayoutRouterContext.Provider>
           </SearchParamsContext.Provider>
         </PathnameContext.Provider>
