@@ -1729,6 +1729,9 @@ impl NextConfig {
         &self,
         env: Vc<Box<dyn ProcessEnv>>,
     ) -> Result<Vc<ReqwestClientConfig>> {
+        // Support both an env var and the experimental flag to provide more flexibility to
+        // developers on locked down systems, depending on if they want to configure this on a
+        // per-system or per-project basis.
         let use_system_tls_certs = env
             .read(rcstr!("NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS"))
             .await?
