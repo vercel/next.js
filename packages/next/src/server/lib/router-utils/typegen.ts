@@ -5,13 +5,8 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
   const appRoutes = Object.keys(routesManifest.appRoutes).sort()
   const pageRoutes = Object.keys(routesManifest.pageRoutes).sort()
   const layoutRoutes = Object.keys(routesManifest.layoutRoutes).sort()
-  // Redirects / rewrites are optional as the manifest might come from an older build pipeline
-  const redirectRoutes = Object.keys(
-    (routesManifest as any).redirectRoutes ?? {}
-  ).sort()
-  const rewriteRoutes = Object.keys(
-    (routesManifest as any).rewriteRoutes ?? {}
-  ).sort()
+  const redirectRoutes = Object.keys(routesManifest.redirectRoutes).sort()
+  const rewriteRoutes = Object.keys(routesManifest.rewriteRoutes).sort()
 
   let result = ''
 
