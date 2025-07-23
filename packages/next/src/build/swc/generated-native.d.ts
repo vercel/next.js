@@ -100,19 +100,19 @@ export interface NapiWatchOptions {
 }
 export interface NapiProjectOptions {
   /**
-   * An absolute root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail, so think of this as a chroot.
+   * An absolute root path (Unix or Windows path) from which all files must be nested under.
+   * Trying to access a file outside this root will fail, so think of this as a chroot.
    * E.g. `/home/user/projects/my-repo`.
    */
   rootPath: RcStr
   /**
-   * A path which contains the app/pages directories, relative to [`Project::root_path`].
-   * E.g. `apps/my-app`
+   * A path which contains the app/pages directories, relative to [`Project::root_path`], always
+   * Unix path. E.g. `apps/my-app`
    */
   projectPath: RcStr
   /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`].
-   * Corresponds to next.config.js's `distDir`.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
+   * path. Corresponds to next.config.js's `distDir`.
    * E.g. `.next`
    */
   distDir: RcStr
@@ -151,19 +151,20 @@ export interface NapiProjectOptions {
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
   /**
-   * An absolute root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail, so think of this as a chroot.
+   * An absolute root path  (Unix or Windows path) from which all files must be nested under.
+   * Trying to access a file outside this root will fail, so think of this as a chroot.
    * E.g. `/home/user/projects/my-repo`.
    */
   rootPath?: RcStr
   /**
-   * A path which contains the app/pages directories, relative to [`Project::root_path`].
+   * A path which contains the app/pages directories, relative to [`Project::root_path`], always
+   * a Unix path.
    * E.g. `apps/my-app`
    */
   projectPath?: RcStr
   /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`].
-   * Corresponds to next.config.js's `distDir`.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always a
+   * Unix path. Corresponds to next.config.js's `distDir`.
    * E.g. `.next`
    */
   distDir?: RcStr | undefined | null

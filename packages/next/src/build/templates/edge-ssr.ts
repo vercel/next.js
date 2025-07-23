@@ -13,9 +13,6 @@ declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:* as userland500Page
 // OPTIONAL_IMPORT:incrementalCacheHandler
 
-// TODO: re-enable this once we've refactored to use implicit matches
-// const renderToHTML = undefined
-
 import RouteModule, {
   type PagesRouteHandlerContext,
 } from '../../server/route-modules/pages/module'
@@ -342,8 +339,6 @@ async function requestHandler(
 
   const tracer = getTracer()
 
-  // TODO: activeSpan code path is for when wrapped by
-  // next-server can be removed when this is no longer used
   return tracer.withPropagatedContext(req.headers, () =>
     tracer.trace(
       BaseServerSpan.handleRequest,

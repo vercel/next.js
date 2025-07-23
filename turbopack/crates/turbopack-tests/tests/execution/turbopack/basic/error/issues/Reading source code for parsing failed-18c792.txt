@@ -6,5 +6,6 @@ error - [load] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic
   - invalid utf-8 sequence of 1 bytes from index 1
   
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/index.js

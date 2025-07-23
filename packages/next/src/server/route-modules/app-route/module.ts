@@ -217,11 +217,11 @@ export class AppRouteRouteModule extends RouteModule<
     userland,
     definition,
     distDir,
-    projectDir,
+    relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition, distDir, projectDir })
+    super({ userland, definition, distDir, relativeProjectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput

@@ -933,17 +933,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
             let pageRuntime = staticInfo?.runtime
 
-            if (
-              isMiddlewareFile(page) &&
-              !this.config.experimental.nodeMiddleware &&
-              pageRuntime === 'nodejs'
-            ) {
-              Log.warn(
-                'nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config'
-              )
-              pageRuntime = 'edge'
-            }
-
             runDependingOnPageType({
               page,
               pageRuntime,

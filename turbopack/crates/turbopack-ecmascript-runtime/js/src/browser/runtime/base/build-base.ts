@@ -11,8 +11,8 @@ const moduleCache: ModuleCache<Module> = {}
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
+  chunkPath: ChunkPath,
+  moduleId: ModuleId
 ): Module {
   const module = moduleCache[moduleId]
   if (module) {
@@ -22,7 +22,7 @@ function getOrInstantiateRuntimeModule(
     return module
   }
 
-  return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath })
+  return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
 }
 
 /**
@@ -40,38 +40,42 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
     return module
   }
 
-  return instantiateModule(id, {
-    type: SourceType.Parent,
-    parentId: sourceModule.id,
-  })
+  return instantiateModule(id, SourceType.Parent, sourceModule.id)
 }
 
-function instantiateModule(id: ModuleId, source: SourceInfo): Module {
+function instantiateModule(
+  id: ModuleId,
+  sourceType: SourceType,
+  sourceData: SourceData
+): Module {
   const moduleFactory = moduleFactories[id]
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
     // and contains e.g. a `require("something")` call.
     let instantiationReason
-    switch (source.type) {
+    switch (sourceType) {
       case SourceType.Runtime:
-        instantiationReason = `as a runtime entry of chunk ${source.chunkPath}`
+        instantiationReason = `as a runtime entry of chunk ${sourceData}`
         break
       case SourceType.Parent:
-        instantiationReason = `because it was required from module ${source.parentId}`
+        instantiationReason = `because it was required from module ${sourceData}`
         break
       case SourceType.Update:
         instantiationReason = 'because of an HMR update'
         break
       default:
-        invariant(source, (source) => `Unknown source type: ${source?.type}`)
+        invariant(
+          sourceType,
+          (sourceType) => `Unknown source type: ${sourceType}`
+        )
     }
     throw new Error(
       `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`
     )
   }
 
-  switch (source.type) {
+  switch (sourceType) {
     case SourceType.Runtime:
       runtimeModules.add(id)
       break
@@ -82,7 +86,10 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     case SourceType.Update:
       throw new Error('Unexpected')
     default:
-      invariant(source, (source) => `Unknown source type: ${source?.type}`)
+      invariant(
+        sourceType,
+        (sourceType) => `Unknown source type: ${sourceType}`
+      )
   }
 
   const module: Module = {
@@ -97,8 +104,6 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
-    const sourceInfo: SourceInfo = { type: SourceType.Parent, parentId: id }
-
     const r = commonJsRequire.bind(null, module)
     moduleFactory(
       augmentContext({
@@ -115,10 +120,10 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
         m: module,
         c: moduleCache,
         M: moduleFactories,
-        l: loadChunk.bind(null, sourceInfo),
-        L: loadChunkByUrl.bind(null, sourceInfo),
-        w: loadWebAssembly.bind(null, sourceInfo),
-        u: loadWebAssemblyModule.bind(null, sourceInfo),
+        l: loadChunk.bind(null, SourceType.Parent, id),
+        L: loadChunkByUrl.bind(null, SourceType.Parent, id),
+        w: loadWebAssembly.bind(null, SourceType.Parent, id),
+        u: loadWebAssemblyModule.bind(null, SourceType.Parent, id),
         P: resolveAbsolutePath,
         U: relativeURL,
         R: createResolvePathFromModule(r),

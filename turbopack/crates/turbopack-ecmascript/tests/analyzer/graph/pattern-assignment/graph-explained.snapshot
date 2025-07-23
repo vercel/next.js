@@ -1,0 +1,7 @@
+arrPatternBool = (true | false)
+
+nestedPatternBool = ({"inner": [true]}["inner"][0] | {"inner": [false]}["inner"][0])
+
+objPatternBool = ({"objPatternBool": true}["objPatternBool"] | {"objPatternBool": false}["objPatternBool"])
+
+singleAssignBool = {"singleAssignBool": true}["singleAssignBool"]

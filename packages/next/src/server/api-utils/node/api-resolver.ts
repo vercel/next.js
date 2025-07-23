@@ -30,10 +30,7 @@ import {
 } from '../../../lib/constants'
 import { tryGetPreviewData } from './try-get-preview-data'
 import { parseBody } from './parse-body'
-import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from '../../lib/router-utils/router-server-context'
+import type { RevalidateFn } from '../../lib/router-utils/router-server-context'
 import type { InstrumentationOnRequestError } from '../../instrumentation/types'
 
 type ApiContext = __ApiPreviewProps & {
@@ -42,7 +39,7 @@ type ApiContext = __ApiPreviewProps & {
   hostname?: string
   multiZoneDraftMode?: boolean
   dev: boolean
-  projectDir: string
+  internalRevalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -287,9 +284,7 @@ async function revalidate(
     }
   }
 
-  const internalRevalidate =
-    routerServerGlobal[RouterServerContextSymbol]?.[context.projectDir]
-      ?.revalidate
+  const internalRevalidate = context.internalRevalidate
 
   try {
     // We use the revalidate in router-server if available.

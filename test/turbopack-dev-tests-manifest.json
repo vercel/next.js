@@ -12043,10 +12043,11 @@
       "react-compiler default should render",
       "react-compiler default should show an experimental warning",
       "react-compiler default should work with a library that uses the react-server condition",
-      "react-compiler default should work with a library using use client",
       "react-compiler default throws if the React Compiler is used in a React Server environment"
     ],
-    "failed": [],
+    "failed": [
+      "react-compiler default should work with a library using use client"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false

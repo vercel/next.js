@@ -2,11 +2,19 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
+mod reqwest_client_cache;
+
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, duration_span, mark_session_dependent};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
+
+use crate::reqwest_client_cache::try_get_cached_reqwest_client;
+pub use crate::reqwest_client_cache::{
+    __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len, ProxyConfig,
+    ReqwestClientConfig,
+};
 
 pub fn register() {
     turbo_tasks::register();
@@ -38,60 +46,47 @@ impl HttpResponseBody {
     }
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug)]
-pub enum ProxyConfig {
-    Http(String),
-    Https(String),
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionProxyConfig(Option<ProxyConfig>);
-
 #[turbo_tasks::function(network)]
 pub async fn fetch(
     url: RcStr,
     user_agent: Option<RcStr>,
-    proxy_option: Vc<OptionProxyConfig>,
+    client_config: Vc<ReqwestClientConfig>,
 ) -> Result<Vc<FetchResult>> {
-    let proxy_option = &*proxy_option.await?;
+    let url_ref = &*url;
+    let client_config = client_config.await?;
+    let response_result: reqwest::Result<HttpResponse> = async move {
+        let client = try_get_cached_reqwest_client(client_config)?;
 
-    let client_builder = reqwest::Client::builder();
-    let client_builder = match proxy_option {
-        Some(ProxyConfig::Http(proxy)) => client_builder.proxy(reqwest::Proxy::http(proxy)?),
-        Some(ProxyConfig::Https(proxy)) => client_builder.proxy(reqwest::Proxy::https(proxy)?),
-        _ => client_builder,
-    };
-
-    let client = client_builder.build()?;
-
-    let mut builder = client.get(url.as_str());
-    if let Some(user_agent) = user_agent {
-        builder = builder.header("User-Agent", user_agent.as_str());
-    }
-
-    let response = {
-        let _span = duration_span!("fetch request", url = url.as_str());
-        builder.send().await
-    }
-    .and_then(|r| r.error_for_status());
-    match response {
-        Ok(response) => {
-            let status = response.status().as_u16();
-
-            let body = {
-                let _span = duration_span!("fetch response", url = url.as_str());
-                response.bytes().await?
-            }
-            .to_vec();
-
-            Ok(Vc::cell(Ok(HttpResponse {
-                status,
-                body: HttpResponseBody(body).resolved_cell(),
-            }
-            .resolved_cell())))
+        let mut builder = client.get(url_ref);
+        if let Some(user_agent) = user_agent {
+            builder = builder.header("User-Agent", user_agent.as_str());
         }
+
+        let response = {
+            let _span = duration_span!("fetch request", url = url_ref);
+            builder.send().await
+        }
+        .and_then(|r| r.error_for_status())?;
+
+        let status = response.status().as_u16();
+
+        let body = {
+            let _span = duration_span!("fetch response", url = url_ref);
+            response.bytes().await?
+        }
+        .to_vec();
+
+        Ok(HttpResponse {
+            status,
+            body: HttpResponseBody(body).resolved_cell(),
+        })
+    }
+    .await;
+
+    match response_result {
+        Ok(resp) => Ok(Vc::cell(Ok(resp.resolved_cell()))),
         Err(err) => {
+            // the client failed to construct or the HTTP request failed
             mark_session_dependent();
             Ok(Vc::cell(Err(
                 FetchError::from_reqwest_error(&err, &url).resolved_cell()

@@ -155,22 +155,6 @@ async fn wrap_edge_page(
 
     let next_config_val = &*next_config.await?;
 
-    // TODO(WEB-1824): add build support
-    let dev = true;
-
-    // TODO(timneutkens): remove this
-    let is_server_component = true;
-
-    let server_actions = next_config.experimental_server_actions().await?;
-
-    let sri_enabled = !dev
-        && next_config
-            .experimental_sri()
-            .await?
-            .as_ref()
-            .map(|sri| sri.algorithm.as_ref())
-            .is_some();
-
     let source = load_next_js_template(
         "edge-ssr-app.js",
         project_root.clone(),
@@ -179,13 +163,9 @@ async fn wrap_edge_page(
             "VAR_PAGE" => page.to_string().into(),
         },
         fxindexmap! {
-            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
             // TODO do we really need to pass the entire next config here?
             // This is bad for invalidation as any config change will invalidate this
             "nextConfig" => serde_json::to_string(next_config_val)?.into(),
-            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string().into(),
-            "dev" => serde_json::Value::Bool(dev).to_string().into(),
-            "serverActions" => serde_json::to_string(&server_actions)?.into(),
         },
         fxindexmap! {
             "incrementalCacheHandler" => None,

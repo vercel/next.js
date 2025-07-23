@@ -32,7 +32,7 @@ const routeModule = new PagesAPIRouteModule({
   },
   userland,
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
-  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
 export async function handler(
@@ -60,7 +60,8 @@ export async function handler(
     return
   }
 
-  const { query, params, prerenderManifest } = prepareResult
+  const { query, params, prerenderManifest, routerServerContext } =
+    prepareResult
 
   try {
     const method = req.method || 'GET'
@@ -89,7 +90,8 @@ export async function handler(
           propagateError: false,
           dev: routeModule.isDev,
           page: 'VAR_DEFINITION_PAGE',
-          projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+
+          internalRevalidate: routerServerContext?.revalidate,
 
           onError: (...args: Parameters<InstrumentationOnRequestError>) =>
             onRequestError(req, ...args),
