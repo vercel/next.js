@@ -982,7 +982,7 @@ async function createRouteTypesManifestFromBuild({
         pagesType: PAGE_TYPES.APP,
       })
 
-      const layoutRoute = normalizeAppPath(layoutPagePath).replace(/%5F/g, '_')
+      const layoutRoute = normalizeAppPath(layoutPagePath)
 
       // Ignore files/directories starting with `_` in the app directory
       if (normalizePathSep(layoutRoute).includes('/_')) {
@@ -1001,11 +1001,10 @@ async function createRouteTypesManifestFromBuild({
       )
 
       // This is a page file
-      const pageRoute = normalizedRoute.replace(/%5F/g, '_')
       // Ignore files/directories starting with `_` in the app directory
-      if (!normalizePathSep(pageRoute).includes('/_')) {
+      if (!normalizePathSep(normalizedRoute).includes('/_')) {
         appRoutes.push({
-          route: pageRoute,
+          route: normalizedRoute,
           filePath: absoluteFilePath,
         })
 
