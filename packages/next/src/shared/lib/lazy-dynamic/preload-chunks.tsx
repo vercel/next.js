@@ -1,15 +1,20 @@
 'use client'
 
 import { preload } from 'react-dom'
+import { useContext } from 'react'
 
 import { workAsyncStorage } from '../../../server/app-render/work-async-storage.external'
 import { encodeURIPath } from '../encode-uri-path'
+import { HeadManagerContext } from '../head-manager-context.shared-runtime'
 
 export function PreloadChunks({
   moduleIds,
 }: {
   moduleIds: string[] | undefined
 }) {
+  // Get nonce from HeadManagerContext for CSP compliance
+  const { nonce } = useContext(HeadManagerContext)
+
   // Early return in client compilation and only load requestStore on server side
   if (typeof window !== 'undefined') {
     return null
@@ -65,6 +70,7 @@ export function PreloadChunks({
           preload(href, {
             as: 'script',
             fetchPriority: 'low',
+            nonce,
           })
           return null
         }
