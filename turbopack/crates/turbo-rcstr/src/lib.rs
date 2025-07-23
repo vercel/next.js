@@ -74,30 +74,50 @@ pub struct RcStr {
 unsafe impl Send for RcStr {}
 unsafe impl Sync for RcStr {}
 
+// Marks a payload that is stored in an Arc
 const DYNAMIC_TAG: u8 = 0b_00;
+const DYNAMIC_LOCATION: u8 = 0b_0;
+// Marks a payload that has been leaked since it has a static lifetime
+const STATIC_TAG: u8 = 0b_10;
+// The payload is stored inline
 const INLINE_TAG: u8 = 0b_01; // len in upper nybble
+const INLINE_LOCATION: u8 = 0b_1;
 const INLINE_TAG_INIT: NonZeroU8 = NonZeroU8::new(INLINE_TAG).unwrap();
 const TAG_MASK: u8 = 0b_11;
+const LOCATION_MASK: u8 = 0b_1;
+// For inline tags the length is stored in the upper 4 bits of the tag byte
 const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
 
 impl RcStr {
     #[inline(always)]
     fn tag(&self) -> u8 {
-        self.unsafe_data.tag() & TAG_MASK
+        self.unsafe_data.tag_byte() & TAG_MASK
+    }
+    #[inline(always)]
+    fn location(&self) -> u8 {
+        self.unsafe_data.tag_byte() & LOCATION_MASK
     }
 
     #[inline(never)]
     pub fn as_str(&self) -> &str {
-        match self.tag() {
-            DYNAMIC_TAG => unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() },
-            INLINE_TAG => {
-                let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
-                let src = self.unsafe_data.data();
-                unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
-            }
+        match self.location() {
+            DYNAMIC_LOCATION => self.dynamic_as_str(),
+            INLINE_LOCATION => self.inline_as_str(),
             _ => unsafe { debug_unreachable!() },
         }
+    }
+
+    fn inline_as_str(&self) -> &str {
+        let len = (self.unsafe_data.tag_byte() & LEN_MASK) >> LEN_OFFSET;
+        let src = self.unsafe_data.data();
+        unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
+    }
+
+    // Extract the str reference from a string stored in a dynamic location
+    fn dynamic_as_str(&self) -> &str {
+        debug_assert!(self.location() == DYNAMIC_LOCATION);
+        unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() }
     }
 
     /// Returns an owned mutable [`String`].
@@ -114,29 +134,17 @@ impl RcStr {
                 let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
                 match Arc::try_unwrap(arc) {
                     Ok(v) => v.value,
-                    Err(arc) => arc.value.to_string(),
+                    Err(arc) => arc.value.clone(),
                 }
             }
-            INLINE_TAG => self.as_str().to_string(),
+            INLINE_TAG => self.inline_as_str().to_string(),
+            STATIC_TAG => self.dynamic_as_str().to_string(),
             _ => unsafe { debug_unreachable!() },
         }
     }
 
     pub fn map(self, f: impl FnOnce(String) -> String) -> Self {
         RcStr::from(Cow::Owned(f(self.into_owned())))
-    }
-
-    #[inline]
-    pub(crate) fn from_alias(alias: TaggedValue) -> Self {
-        if alias.tag() & TAG_MASK == DYNAMIC_TAG {
-            unsafe {
-                let arc = dynamic::restore_arc(alias);
-                forget(arc.clone());
-                forget(arc);
-            }
-        }
-
-        Self { unsafe_data: alias }
     }
 }
 
@@ -264,7 +272,16 @@ impl From<RcStr> for PathBuf {
 impl Clone for RcStr {
     #[inline(always)]
     fn clone(&self) -> Self {
-        Self::from_alias(self.unsafe_data)
+        let alias = self.unsafe_data;
+        if alias.tag_byte() & TAG_MASK == DYNAMIC_TAG {
+            unsafe {
+                let arc = dynamic::restore_arc(alias);
+                forget(arc.clone());
+                forget(arc);
+            }
+        }
+
+        RcStr { unsafe_data: alias }
     }
 }
 
@@ -276,13 +293,13 @@ impl Default for RcStr {
 
 impl PartialEq for RcStr {
     fn eq(&self, other: &Self) -> bool {
-        match (self.tag(), other.tag()) {
-            (DYNAMIC_TAG, DYNAMIC_TAG) => {
+        match (self.location(), other.location()) {
+            (DYNAMIC_LOCATION, DYNAMIC_LOCATION) => {
                 let l = unsafe { deref_from(self.unsafe_data) };
                 let r = unsafe { deref_from(other.unsafe_data) };
                 l.hash == r.hash && l.value == r.value
             }
-            (INLINE_TAG, INLINE_TAG) => self.unsafe_data == other.unsafe_data,
+            (INLINE_LOCATION, INLINE_LOCATION) => self.unsafe_data == other.unsafe_data,
             _ => false,
         }
     }
@@ -304,13 +321,13 @@ impl Ord for RcStr {
 
 impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.tag() {
-            DYNAMIC_TAG => {
+        match self.location() {
+            DYNAMIC_LOCATION => {
                 let l = unsafe { deref_from(self.unsafe_data) };
                 state.write_u64(l.hash);
                 state.write_u8(0xff);
             }
-            INLINE_TAG => {
+            INLINE_LOCATION => {
                 self.as_str().hash(state);
             }
             _ => unsafe { debug_unreachable!() },
@@ -344,6 +361,11 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
     dynamic::inline_atom(s)
 }
 
+#[doc(hidden)]
+pub fn from_static(s: &'static str) -> RcStr {
+    dynamic::new_static_atom(s)
+}
+
 /// Create an rcstr from a string literal.
 /// allocates the RcStr inline when possible otherwise uses a `LazyLock` to manage the allocation.
 #[macro_export]
@@ -357,7 +379,7 @@ macro_rules! rcstr {
             #[inline(never)]
             fn get_rcstr() -> $crate::RcStr {
                 static CACHE: std::sync::LazyLock<$crate::RcStr> =
-                    std::sync::LazyLock::new(|| $crate::RcStr::from($s));
+                    std::sync::LazyLock::new(|| $crate::from_static($s));
 
                 (*CACHE).clone()
             }

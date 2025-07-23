@@ -3,7 +3,7 @@ use std::{num::NonZeroU8, ptr::NonNull};
 use triomphe::Arc;
 
 use crate::{
-    INLINE_TAG, INLINE_TAG_INIT, LEN_OFFSET, RcStr, TAG_MASK,
+    INLINE_TAG, INLINE_TAG_INIT, LEN_OFFSET, RcStr, STATIC_TAG, TAG_MASK,
     tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
@@ -56,6 +56,36 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
         NonNull::new_unchecked(entry as *mut _)
     };
     debug_assert!(0 == ptr.as_ptr() as u8 & TAG_MASK);
+    RcStr {
+        unsafe_data: TaggedValue::new_ptr(ptr),
+    }
+}
+
+pub(crate) fn new_static_atom(text: &'static str) -> RcStr {
+    debug_assert!(
+        text.len() >= MAX_INLINE_LEN,
+        "should have use the rcstr! macro? this string is too short"
+    );
+    let hash = hash_bytes(text.as_bytes());
+
+    let entry: Box<PrehashedString> = Box::new(PrehashedString {
+        value: text.into(),
+        hash,
+    });
+    // Hello memory leak!
+    // We are leaking here because the caller is asserting that this RcStr will have a static
+    // lifetime Ideally we wouldn't be copying the static str into the PrehashedString as a
+    // String but instead keeping the `&'static str` reference somehow, perhaps using a Cow?? or
+    // perhaps switching to a ThinArc
+    let mut entry = Box::into_raw(entry);
+    debug_assert!(0 == entry as u8 & TAG_MASK);
+    // Tag it as a static pointer
+    entry = ((entry as usize) | STATIC_TAG as usize) as *mut PrehashedString;
+    let ptr: NonNull<PrehashedString> = unsafe {
+        // Safety: Box::into_raw returns a non-null pointer
+        NonNull::new_unchecked(entry as *mut _)
+    };
+
     RcStr {
         unsafe_data: TaggedValue::new_ptr(ptr),
     }
