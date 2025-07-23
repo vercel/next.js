@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbo",
+    "build": "next build",
+    "start": "next start",
+    "docs:generate": "npx next-openapi-gen generate"
+  },
+  "dependencies": {
+    "@scalar/api-reference-react": "0.7.34",
+    "ajv": "8.17.1",
+    "next": "latest",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "next-openapi-gen": "^0.7.1",
+    "typescript": "^5.8.3"
+  }
+}
