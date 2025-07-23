@@ -975,8 +975,8 @@ async function startWatcher(
   const mcpPath = `/_next/mcp`
   opts.fsChecker.devVirtualFsItems.add(mcpPath)
 
-  let mcpSecret = process.env.NEXT_MCP_SECRET
-    ? Buffer.from(process.env.NEXT_MCP_SECRET)
+  let mcpSecret = process.env.NEXT_EXPERIMENTAL_MCP_SECRET
+    ? Buffer.from(process.env.NEXT_EXPERIMENTAL_MCP_SECRET)
     : undefined
 
   if (mcpSecret) {
@@ -993,7 +993,9 @@ async function startWatcher(
   let createMcpServer: typeof import('./mcp').createMcpServer | undefined
   if (mcpSecret) {
     ;({ createMcpServer } = require('./mcp') as typeof import('./mcp'))
-    Log.info(`MCP server is available at: /_next/mcp?${mcpSecret.toString()}`)
+    Log.info(
+      `Experimental MCP server is available at: /_next/mcp?${mcpSecret.toString()}`
+    )
   }
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
@@ -1019,10 +1021,10 @@ async function startWatcher(
       if (!mcpSecret) {
         Log.error('Next.js MCP server is not enabled')
         Log.info(
-          'To enable it, set the NEXT_MCP_SECRET environment variable to a secret value. This will make the MCP server available at /_next/mcp?{NEXT_MCP_SECRET}'
+          'To enable it, set the NEXT_EXPERIMENTAL_MCP_SECRET environment variable to a secret value. This will make the MCP server available at /_next/mcp?{NEXT_EXPERIMENTAL_MCP_SECRET}'
         )
         return sendMcpInternalError(
-          'Missing NEXT_MCP_SECRET environment variable'
+          'Missing NEXT_EXPERIMENTAL_MCP_SECRET environment variable'
         )
       }
       if (!createMcpServer) {
@@ -1033,7 +1035,7 @@ async function startWatcher(
       if (!parsedUrl.query) {
         Log.error('No MCP secret provided in request query')
         Log.info(
-          `MCP server is available at: /_next/mcp?${mcpSecret.toString()}`
+          `Experimental MCP server is available at: /_next/mcp?${mcpSecret.toString()}`
         )
         return sendMcpInternalError('No MCP secret provided in request query')
       }
@@ -1044,7 +1046,7 @@ async function startWatcher(
       ) {
         Log.error('Invalid MCP secret provided in request query')
         Log.info(
-          `MCP server is available at: /_next/mcp?${mcpSecret.toString()}`
+          `Experimental MCP server is available at: /_next/mcp?${mcpSecret.toString()}`
         )
         return sendMcpInternalError(
           'Invalid MCP secret provided in request query'
