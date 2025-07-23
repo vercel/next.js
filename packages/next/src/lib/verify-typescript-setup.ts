@@ -14,6 +14,7 @@ import { writeConfigurationDefaults } from './typescript/writeConfigurationDefau
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../server/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
+import type { NextConfigComplete } from '../server/config-shared'
 
 const requiredPackages = [
   {
@@ -54,7 +55,7 @@ export async function verifyTypeScriptSetup({
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
-  nextConfig?: { experimental?: { typedRoutes?: boolean } }
+  nextConfig: NextConfigComplete
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const resolvedTsConfigPath = path.join(dir, tsconfigPath)
 
