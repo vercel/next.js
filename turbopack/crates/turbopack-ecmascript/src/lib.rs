@@ -2062,6 +2062,8 @@ fn hygiene_rename_only(
     }
     // Copied from `hygiene_with_config`'s HygieneRenamer, but added an `preserved_exports`
     impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer<'_> {
+        type Target = Atom;
+
         const MANGLE: bool = false;
         const RESET_N: bool = true;
 
