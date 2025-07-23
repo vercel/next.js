@@ -71,6 +71,11 @@ pub struct RcStr {
     unsafe_data: TaggedValue,
 }
 
+const _: () = {
+    // Enforce that RcStr triggers the non-zero size optimization.
+    assert!(std::mem::size_of::<RcStr>() == std::mem::size_of::<Option<RcStr>>());
+};
+
 unsafe impl Send for RcStr {}
 unsafe impl Sync for RcStr {}
 
@@ -293,13 +298,18 @@ impl Default for RcStr {
 
 impl PartialEq for RcStr {
     fn eq(&self, other: &Self) -> bool {
+        // For inline RcStrs this is sufficient and for out of line values it handles a simple
+        // identity cases
+        if self.unsafe_data == self.unsafe_data {
+            return true;
+        }
+        // They can still be equal if they are both stored on the heap
         match (self.location(), other.location()) {
             (DYNAMIC_LOCATION, DYNAMIC_LOCATION) => {
                 let l = unsafe { deref_from(self.unsafe_data) };
                 let r = unsafe { deref_from(other.unsafe_data) };
                 l.hash == r.hash && l.value == r.value
             }
-            (INLINE_LOCATION, INLINE_LOCATION) => self.unsafe_data == other.unsafe_data,
             _ => false,
         }
     }
@@ -350,8 +360,9 @@ impl<'de> Deserialize<'de> for RcStr {
 
 impl Drop for RcStr {
     fn drop(&mut self) {
-        if self.tag() == DYNAMIC_TAG {
-            unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
+        let alias = self.unsafe_data;
+        if alias.tag_byte() & TAG_MASK == DYNAMIC_TAG {
+            unsafe { drop(dynamic::restore_arc(alias)) }
         }
     }
 }
@@ -480,6 +491,15 @@ mod tests {
         assert_eq!(rcstr!("abcdefg"), RcStr::from("abcdefg"));
         assert_eq!(rcstr!("abcdefgh"), RcStr::from("abcdefgh"));
         assert_eq!(rcstr!("abcdefghi"), RcStr::from("abcdefghi"));
+    }
+
+    #[test]
+    fn test_static_atom() {
+        const LONG: &str = "a very long string that lives forever";
+        let leaked = rcstr!(LONG);
+        let not_leaked = RcStr::from(LONG);
+        assert_ne!(leaked.tag(), not_leaked.tag());
+        assert_eq!(leaked, not_leaked);
     }
 
     #[test]
