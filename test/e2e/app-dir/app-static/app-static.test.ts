@@ -40,6 +40,18 @@ describe('app-dir static/dynamic handling', () => {
     }
   })
 
+  if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+    it('should respond correctly for dynamic route with dynamicParams false in layout', async () => {
+      const res = await next.fetch('/partial-params-false/en/another')
+      expect(res.status).toBe(200)
+    })
+
+    it('should respond correctly for partially dynamic route with dynamicParams false in layout', async () => {
+      const res = await next.fetch('/partial-params-false/en/static')
+      expect(res.status).toBe(200)
+    })
+  }
+
   it('should use auto no cache when no fetch config', async () => {
     const res = await next.fetch('/no-config-fetch')
     expect(res.status).toBe(200)
@@ -877,6 +889,10 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-slug/fr/first.rsc",
          "partial-gen-params-no-additional-slug/fr/second.html",
          "partial-gen-params-no-additional-slug/fr/second.rsc",
+         "partial-params-false/en/static.html",
+         "partial-params-false/en/static.rsc",
+         "partial-params-false/fr/static.html",
+         "partial-params-false/fr/static.rsc",
          "prerendered-not-found/first.html",
          "prerendered-not-found/first.rsc",
          "prerendered-not-found/second.html",
@@ -1822,6 +1838,54 @@ describe('app-dir static/dynamic handling', () => {
            "initialRevalidateSeconds": false,
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
          },
+         "/partial-params-false/en/static": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/partial-params-false/en/static.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "Next-Action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/partial-params-false/[locale]/static",
+         },
+         "/partial-params-false/fr/static": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/partial-params-false/fr/static.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "Next-Action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/partial-params-false/[locale]/static",
+         },
          "/prerendered-not-found/first": {
            "allowHeader": [
              "host",
@@ -2579,6 +2643,31 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "fallback": false,
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+         },
+         "/partial-params-false/[locale]/static": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/partial-params-false/[locale]/static.rsc",
+           "dataRouteRegex": "^\\/partial\\-params\\-false\\/([^\\/]+?)\\/static\\.rsc$",
+           "experimentalBypassFor": [
+             {
+               "key": "Next-Action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "fallback": false,
+           "routeRegex": "^\\/partial\\-params\\-false\\/([^\\/]+?)\\/static(?:\\/)?$",
          },
          "/prerendered-not-found/[slug]": {
            "allowHeader": [
