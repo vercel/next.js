@@ -2062,7 +2062,7 @@ fn hygiene_rename_only(
     }
     // Copied from `hygiene_with_config`'s HygieneRenamer, but added an `preserved_exports`
     impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer<'_> {
-        type Target = Atom;
+        type Target = Id;
 
         const MANGLE: bool = false;
         const RESET_N: bool = true;
@@ -2081,7 +2081,7 @@ fn hygiene_rename_only(
             self.preserved_exports.contains(orig) || orig.1.has_mark(self.is_import_mark)
         }
     }
-    swc_core::ecma::transforms::base::rename::renamer(
+    swc_core::ecma::transforms::base::rename::renamer_keep_contexts(
         swc_core::ecma::transforms::base::hygiene::Config {
             top_level_mark: top_level_mark.unwrap_or_default(),
             ..Default::default()
