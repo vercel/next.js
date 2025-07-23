@@ -784,11 +784,13 @@ export default class DevServer extends Server {
 
   protected async getStaticPaths({
     pathname,
+    urlPathname,
     requestHeaders,
     page,
     isAppPath,
   }: {
     pathname: string
+    urlPathname: string
     requestHeaders: IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
@@ -855,6 +857,22 @@ export default class DevServer extends Server {
       .then(async (res) => {
         const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
           res.value
+
+        if (isAppPath) {
+          if (this.nextConfig.output === 'export') {
+            if (!staticPaths) {
+              throw new Error(
+                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+              )
+            }
+
+            if (!staticPaths.some((item) => item.pathname === urlPathname)) {
+              throw new Error(
+                `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
+              )
+            }
+          }
+        }
 
         if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {

@@ -13,6 +13,7 @@ import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
 import { getRequestMeta } from '../../server/request-meta'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
+import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
@@ -106,7 +107,7 @@ export const routeModule = new AppPageRouteModule({
     loaderTree: tree,
   },
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
-  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
 export async function handler(
@@ -164,6 +165,7 @@ export async function handler(
     revalidateOnlyGenerated,
     routerServerContext,
     nextConfig,
+    interceptionRoutePatterns,
   } = prepareResult
 
   const pathname = parsedUrl.pathname || '/'
@@ -314,6 +316,19 @@ export async function handler(
     staticPathKey = resolvedPathname
   }
 
+  // If this is a request for an app path that should be statically generated
+  // and we aren't in the edge runtime, strip the flight headers so it will
+  // generate the static response.
+  if (
+    !routeModule.isDev &&
+    !isDraftMode &&
+    isSSG &&
+    isRSCRequest &&
+    !isDynamicRSCRequest
+  ) {
+    stripFlightHeaders(req.headers)
+  }
+
   const ComponentMod = {
     ...entryBase,
     tree,
@@ -343,6 +358,11 @@ export async function handler(
   const activeSpan = tracer.getActiveScopeSpan()
 
   try {
+    const varyHeader = routeModule.getVaryHeader(
+      resolvedPathname,
+      interceptionRoutePatterns
+    )
+    res.setHeader('Vary', varyHeader)
     const invokeRouteModule = async (
       span: Span | undefined,
       context: AppPageRouteHandlerContext
@@ -464,7 +484,14 @@ export async function handler(
           clientReferenceManifest,
           setIsrStatus: routerServerContext?.setIsrStatus,
 
-          dir: routeModule.projectDir,
+          dir:
+            process.env.NEXT_RUNTIME === 'nodejs'
+              ? (require('path') as typeof import('path')).join(
+                  /* turbopackIgnore: true */
+                  process.cwd(),
+                  routeModule.relativeProjectDir
+                )
+              : `${process.cwd()}/${routeModule.relativeProjectDir}`,
           isDraftMode,
           isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
           botType,
