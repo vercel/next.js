@@ -116,7 +116,7 @@ export function getDefineEnv({
   const nextConfigEnv = getNextConfigEnv(config)
 
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
-  const isDynamicIOEnabled = !!config.experimental.dynamicIO
+  const isCacheComponentsEnabled = !!config.experimental.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
 
   const defineEnv: DefineEnv = {
@@ -162,7 +162,7 @@ export function getDefineEnv({
       config.experimental.appNavFailHandling
     ),
     'process.env.__NEXT_PPR': isPPREnabled,
-    'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
+    'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
 
     'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
@@ -254,8 +254,6 @@ export function getDefineEnv({
       config.experimental.scrollRestoration ?? false,
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
-    'process.env.__NEXT_STRICT_NEXT_HEAD':
-      config.experimental.strictNextHead ?? true,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,

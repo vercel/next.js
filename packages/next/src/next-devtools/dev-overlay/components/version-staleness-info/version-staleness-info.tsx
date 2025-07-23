@@ -52,7 +52,6 @@ export function VersionStalenessInfo({
 
 export const styles = `
   .nextjs-container-build-error-version-status {
-    -webkit-font-smoothing: antialiased;
     display: flex;
     justify-content: center;
     align-items: center;

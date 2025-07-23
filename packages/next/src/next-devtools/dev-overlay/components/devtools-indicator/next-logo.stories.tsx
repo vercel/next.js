@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
-// TODO(rob): this storybook's configurability is broken intentionally
-// it will be restored when we wrap it in the storybook context addon https://storybook.js.org/addons/storybook-react-context
+// TODO: NEXT-4642
 const StoryBookNextLogo = (
   _: {
     issueCount: number

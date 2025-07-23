@@ -72,9 +72,13 @@ export function createSearchParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
-      case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+        throw new InvariantError(
+          'createSearchParamsFromClient should not be called in cache contexts.'
+        )
+      case 'request':
         break
       default:
         workUnitStore satisfies never
@@ -99,9 +103,13 @@ export function createServerSearchParamsForServerPage(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
-      case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+        throw new InvariantError(
+          'createServerSearchParamsForServerPage should not be called in cache contexts.'
+        )
+      case 'request':
         break
       default:
         workUnitStore satisfies never
@@ -124,14 +132,18 @@ export function createPrerenderSearchParamsForClientPage(
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-        // We're prerendering in a mode that aborts (dynamicIO) and should stall
+        // We're prerendering in a mode that aborts (cacheComponents) and should stall
         // the promise to ensure the RSC side is considered dynamic
         return makeHangingPromise(workUnitStore.renderSignal, '`searchParams`')
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called in cache contexts.'
+        )
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
-      case 'cache':
-      case 'unstable-cache':
         break
       default:
         workUnitStore satisfies never
@@ -156,7 +168,7 @@ function createPrerenderSearchParams(
   switch (prerenderStore.type) {
     case 'prerender':
     case 'prerender-client':
-      // We are in a dynamicIO (PPR or otherwise) prerender
+      // We are in a cacheComponents (PPR or otherwise) prerender
       return makeHangingSearchParams(prerenderStore)
     case 'prerender-ppr':
     case 'prerender-legacy':
@@ -181,7 +193,7 @@ function createRenderSearchParams(
       process.env.NODE_ENV === 'development' &&
       !workStore.isPrefetchRequest
     ) {
-      if (process.env.__NEXT_DYNAMIC_IO) {
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
         return makeUntrackedSearchParamsWithDevWarnings(
           underlyingSearchParams,
           workStore
@@ -193,7 +205,7 @@ function createRenderSearchParams(
         workStore
       )
     } else {
-      if (process.env.__NEXT_DYNAMIC_IO) {
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
         return makeUntrackedSearchParams(underlyingSearchParams)
       }
 
@@ -291,7 +303,7 @@ function makeErroringExoticSearchParams(
               expression
             )
           } else if (prerenderStore.type === 'prerender-ppr') {
-            // PPR Prerender (no dynamicIO)
+            // PPR Prerender (no cacheComponents)
             postponeWithTracking(
               workStore.route,
               expression,
@@ -316,7 +328,7 @@ function makeErroringExoticSearchParams(
               expression
             )
           } else if (prerenderStore.type === 'prerender-ppr') {
-            // PPR Prerender (no dynamicIO)
+            // PPR Prerender (no cacheComponents)
             postponeWithTracking(
               workStore.route,
               expression,
@@ -344,7 +356,7 @@ function makeErroringExoticSearchParams(
                 expression
               )
             } else if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no dynamicIO)
+              // PPR Prerender (no cacheComponents)
               postponeWithTracking(
                 workStore.route,
                 expression,
@@ -379,7 +391,7 @@ function makeErroringExoticSearchParams(
             expression
           )
         } else if (prerenderStore.type === 'prerender-ppr') {
-          // PPR Prerender (no dynamicIO)
+          // PPR Prerender (no cacheComponents)
           postponeWithTracking(
             workStore.route,
             expression,
@@ -406,7 +418,7 @@ function makeErroringExoticSearchParams(
           expression
         )
       } else if (prerenderStore.type === 'prerender-ppr') {
-        // PPR Prerender (no dynamicIO)
+        // PPR Prerender (no cacheComponents)
         postponeWithTracking(
           workStore.route,
           expression,
@@ -794,6 +806,7 @@ function syncIODev(
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
         break
       default:

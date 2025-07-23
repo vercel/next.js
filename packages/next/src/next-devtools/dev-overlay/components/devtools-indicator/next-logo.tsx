@@ -92,7 +92,6 @@ export function NextLogo({
           }
 
           [data-next-badge] {
-            -webkit-font-smoothing: antialiased;
             width: var(--size);
             height: var(--size);
             display: flex;

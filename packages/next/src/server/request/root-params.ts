@@ -39,8 +39,9 @@ export async function unstable_rootParams(): Promise<Params> {
   }
 
   switch (workUnitStore.type) {
-    case 'unstable-cache':
-    case 'cache': {
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache': {
       throw new Error(
         `Route ${workStore.route} used \`unstable_rootParams()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
       )
@@ -93,7 +94,7 @@ function createPrerenderRootParams(
       // params need to be treated as dynamic because we have at least one fallback param
       switch (prerenderStore.type) {
         case 'prerender':
-          // We are in a dynamicIO prerender
+          // We are in a cacheComponents prerender
           const cachedParams = CachedParams.get(underlyingParams)
           if (cachedParams) {
             return cachedParams
@@ -108,7 +109,7 @@ function createPrerenderRootParams(
           return promise
         case 'prerender-ppr':
         case 'prerender-legacy':
-          // We aren't in a dynamicIO prerender but we do have fallback params at this
+          // We aren't in a cacheComponents prerender but we do have fallback params at this
           // level so we need to make an erroring params object which will postpone
           // if you access the fallback params
           return makeErroringRootParams(
@@ -162,10 +163,10 @@ function makeErroringRootParams(
             // for params is only dynamic when we're generating a fallback shell
             // and even when `dynamic = "error"` we still support generating dynamic
             // fallback shells
-            // TODO remove this comment when dynamicIO is the default since there
+            // TODO remove this comment when cacheComponents is the default since there
             // will be no `dynamic = "error"`
             if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no dynamicIO)
+              // PPR Prerender (no cacheComponents)
               postponeWithTracking(
                 workStore.route,
                 expression,

@@ -21,8 +21,7 @@ import {
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
 } from '../lib/source-maps'
-import { getSourceMapFromFile } from './get-source-map-from-file'
-import { findSourceMap } from 'node:module'
+import { findSourceMap, type SourceMap } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 
@@ -419,19 +418,22 @@ export function getSourceMapMiddleware(project: Project) {
       return middlewareResponse.badRequest(res)
     }
 
-    // TODO(veil): Always try the native version first.
-    // Externals could also be files that aren't bundled via Webpack.
-    if (
-      filename.startsWith('webpack://') ||
-      filename.startsWith('webpack-internal:///')
-    ) {
-      const sourceMap = findSourceMap(filename)
+    let nativeSourceMap: SourceMap | undefined
+    try {
+      nativeSourceMap = findSourceMap(filename)
+    } catch (cause) {
+      return middlewareResponse.internalServerError(
+        res,
+        new Error(
+          `${filename}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+          { cause }
+        )
+      )
+    }
 
-      if (sourceMap) {
-        return middlewareResponse.json(res, sourceMap.payload)
-      }
-
-      return middlewareResponse.noContent(res)
+    if (nativeSourceMap !== undefined) {
+      const sourceMapPayload = nativeSourceMap.payload
+      return middlewareResponse.json(res, sourceMapPayload)
     }
 
     try {
@@ -450,14 +452,6 @@ export function getSourceMapMiddleware(project: Project) {
 
       if (sourceMapString) {
         return middlewareResponse.jsonString(res, sourceMapString)
-      }
-
-      if (filename.startsWith('file:')) {
-        const sourceMap = await getSourceMapFromFile(filename)
-
-        if (sourceMap) {
-          return middlewareResponse.json(res, sourceMap)
-        }
       }
     } catch (cause) {
       return middlewareResponse.internalServerError(

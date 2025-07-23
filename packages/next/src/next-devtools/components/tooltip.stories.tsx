@@ -31,14 +31,6 @@ const meta: Meta<typeof Tooltip> = {
       control: { type: 'range', min: 0, max: 20, step: 1 },
       description: 'Distance between tooltip and trigger element',
     },
-    bgcolor: {
-      control: { type: 'color' },
-      description: 'Background color of the tooltip',
-    },
-    color: {
-      control: { type: 'color' },
-      description: 'Text color of the tooltip',
-    },
   },
 }
 
@@ -52,8 +44,6 @@ export const Default: Story = {
     direction: 'top',
     arrowSize: 6,
     offset: 8,
-    bgcolor: 'var(--color-gray-1000)',
-    color: 'var(--color-gray-100)',
   },
   render: (args) => (
     <div>

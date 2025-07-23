@@ -11,8 +11,6 @@ interface TooltipProps {
   direction?: TooltipDirection
   arrowSize?: number
   offset?: number
-  bgcolor?: string
-  color?: string
   className?: string
 }
 
@@ -25,8 +23,6 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
       direction = 'top',
       arrowSize = 6,
       offset = 8,
-      bgcolor = '#000',
-      color = '#fff',
     },
     ref
   ) {
@@ -67,9 +63,6 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
                 className={cx('tooltip', className)}
                 style={
                   {
-                    backgroundColor: bgcolor,
-                    color: color,
-                    '--tooltip-bg-color': bgcolor,
                     '--arrow-size': `${arrowSize}px`,
                   } as React.CSSProperties
                 }
@@ -80,7 +73,6 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
                   style={
                     {
                       '--arrow-size': `${arrowSize}px`,
-                      '--tooltip-bg-color': bgcolor,
                     } as React.CSSProperties
                   }
                 />

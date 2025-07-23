@@ -272,6 +272,7 @@ export async function decryptActionBoundArgs(
           case 'prerender-legacy':
           case 'request':
           case 'cache':
+          case 'private-cache':
           case 'unstable-cache':
           case undefined:
             return controller.close()

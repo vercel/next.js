@@ -5,7 +5,6 @@
 }
 
 .dev-tools-indicator-menu {
-  -webkit-font-smoothing: antialiased;
   display: flex;
   flex-direction: column;
   align-items: flex-start;

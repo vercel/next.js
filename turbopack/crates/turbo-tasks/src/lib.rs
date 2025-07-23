@@ -98,8 +98,7 @@ pub use id::{
     ExecutionId, LocalTaskId, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
 };
 pub use invalidation::{
-    DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
-    get_invalidator,
+    InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator, get_invalidator,
 };
 pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use key_value_pair::KeyValuePair;

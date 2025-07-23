@@ -117,7 +117,6 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
@@ -820,7 +819,9 @@ export default class DevServer extends Server {
             configFileName,
             publicRuntimeConfig,
             serverRuntimeConfig,
-            dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
+            cacheComponents: Boolean(
+              this.nextConfig.experimental.cacheComponents
+            ),
           },
           httpAgentOptions,
           locales,
