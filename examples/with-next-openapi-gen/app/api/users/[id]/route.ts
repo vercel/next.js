@@ -52,6 +52,7 @@ export async function PUT(
  * @description Deletes a user
  * @pathParams UserParams
  * @response 200:User:Deleted user data
+ * @deprecated
  * @openapi
  */
 export async function DELETE(

@@ -507,6 +507,7 @@
             "example": "123"
           }
         ],
+        "deprecated": true,
         "responses": {
           "200": {
             "description": "Deleted user data",
