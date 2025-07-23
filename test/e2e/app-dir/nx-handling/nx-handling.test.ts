@@ -32,10 +32,6 @@ describe('nx-handling', () => {
         tslib: '^2.3.0',
         typescript: '~5.7.2',
       },
-      overrides: {
-        // Workaround for `stylus` marked as a security vulnerability on npm
-        stylus: '0.0.1-security',
-      },
       workspaces: ['apps/*'],
     },
   })
