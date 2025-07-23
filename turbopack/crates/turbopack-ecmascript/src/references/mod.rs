@@ -495,7 +495,7 @@ pub(crate) async fn analyse_ecmascript_module(
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
         let module = module.ident().to_string().await?.to_string();
-        tracing::info_span!("analyse ecmascript module", module = module)
+        tracing::info_span!("analyse ecmascript module", name = module)
     };
     let result = analyse_ecmascript_module_internal(module, part)
         .instrument(span)

@@ -64,7 +64,13 @@ export interface NapiWrittenEndpoint {
   serverPaths: Array<NapiServerPath>
   config: NapiEndpointConfig
 }
+export interface NapiModuleGraphSnapshots {
+  moduleGraphs: Array<NapiModuleGraphSnapshot>
+}
 export declare function endpointWriteToDisk(endpoint: {
+  __napiType: 'Endpoint'
+}): Promise<TurbopackResult>
+export declare function endpointModuleGraphs(endpoint: {
   __napiType: 'Endpoint'
 }): Promise<TurbopackResult>
 export declare function endpointServerChangedSubscribe(
@@ -76,6 +82,27 @@ export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
+export interface NapiModuleReference {
+  /** The index of the referenced/referencing module in the modules list. */
+  index: number
+  /** The export used in the module reference. */
+  export: string
+  /** The type of chunking for the module reference. */
+  chunkingType: string
+}
+export interface NapiModuleInfo {
+  ident: RcStr
+  path: RcStr
+  depth: number
+  size: number
+  retainedSize: number
+  references: Array<NapiModuleReference>
+  incomingReferences: Array<NapiModuleReference>
+}
+export interface NapiModuleGraphSnapshot {
+  modules: Array<NapiModuleInfo>
+  entries: Array<number>
+}
 export interface NapiEnvVar {
   name: RcStr
   value: RcStr
@@ -286,6 +313,9 @@ export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectEntrypoints(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
@@ -362,6 +392,9 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+export declare function projectModuleGraph(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

@@ -77,7 +77,7 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, EndpointOutput, EndpointOutputPaths, Route, Routes},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
     webpack_stats::generate_webpack_stats,
 };
 
@@ -1726,6 +1726,13 @@ impl Endpoint for PageEndpoint {
             .collect::<Vec<_>>();
 
         Ok(Vc::cell(modules))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
+        let client_module_graph = self.client_module_graph().to_resolved().await?;
+        let ssr_module_graph = self.ssr_module_graph().to_resolved().await?;
+        Ok(Vc::cell(vec![client_module_graph, ssr_module_graph]))
     }
 }
 

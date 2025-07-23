@@ -107,6 +107,7 @@
     "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.1",
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.51.1",
     "babel-plugin-react-compiler": "*",
@@ -119,6 +120,9 @@
       "optional": true
     },
     "sass": {
+      "optional": true
+    },
+    "@modelcontextprotocol/sdk": {
       "optional": true
     },
     "@opentelemetry/api": {
@@ -161,6 +165,7 @@
     "@hapi/accept": "5.0.2",
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
+    "@modelcontextprotocol/sdk": "1.15.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
     "@next/font": "15.4.2-canary.15",
