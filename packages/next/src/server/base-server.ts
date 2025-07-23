@@ -2132,9 +2132,7 @@ export default abstract class Server<
 
         const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
         if (!staticPaths.includes(resolvedWithoutSlash)) {
-          throw new Error(
-            `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
-          )
+          await this.render404(req, res);
         }
       }
 
