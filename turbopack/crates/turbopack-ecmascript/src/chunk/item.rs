@@ -97,10 +97,6 @@ impl EcmascriptChunkItemContent {
         if self.options.exports {
             args.push("e: exports");
         }
-        if self.options.wasm {
-            args.push("w: __turbopack_wasm__");
-            args.push("u: __turbopack_wasm_module__");
-        }
 
         let mut code = CodeBuilder::default();
         let additional_ids = self.additional_ids.iter().try_join().await?;
@@ -177,9 +173,6 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module is async (either has a top level await
     /// or is importing async modules).
     pub async_module: Option<AsyncModuleOptions>,
-    /// Whether this chunk item's module factory should include
-    /// `__turbopack_wasm__` to load WebAssembly.
-    pub wasm: bool,
     pub placeholder_for_future_extensions: (),
 }
 
