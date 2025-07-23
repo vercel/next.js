@@ -18,7 +18,7 @@
     "@types/node": "^24.1.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "next-openapi-gen": "^0.7.1",
+    "next-openapi-gen": "^0.7.2",
     "typescript": "^5.8.3"
   }
 }

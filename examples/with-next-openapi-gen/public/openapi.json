@@ -24,7 +24,7 @@
         "type": "object",
         "properties": {
           "limit": {
-            "type": "object",
+            "type": "number",
             "nullable": true,
             "description": "Number of users to return"
           }
@@ -234,7 +234,7 @@
     "/users": {
       "get": {
         "operationId": "get-users",
-        "summary": "Get all users",
+        "summary": "Get all users\r",
         "description": "Returns a list of users",
         "tags": [
           "Users"
@@ -244,7 +244,7 @@
             "in": "query",
             "name": "limit",
             "schema": {
-              "type": "object",
+              "type": "number",
               "description": "Number of users to return"
             },
             "required": false,
@@ -276,7 +276,7 @@
       },
       "post": {
         "operationId": "post-users",
-        "summary": "Create a user",
+        "summary": "Create a user\r",
         "description": "Creates a new user",
         "tags": [
           "Users"
@@ -349,7 +349,7 @@
     "/users/{id}": {
       "get": {
         "operationId": "get-users-{id}",
-        "summary": "Get user by ID",
+        "summary": "Get user by ID\r",
         "description": "Returns a specific user",
         "tags": [
           "Users"
@@ -408,7 +408,7 @@
       },
       "put": {
         "operationId": "put-users-{id}",
-        "summary": "Update user",
+        "summary": "Update user\r",
         "description": "Updates a user",
         "tags": [
           "Users"
@@ -489,7 +489,7 @@
       },
       "delete": {
         "operationId": "delete-users-{id}",
-        "summary": "Delete user",
+        "summary": "Delete user\r",
         "description": "Deletes a user",
         "tags": [
           "Users"
@@ -508,8 +508,8 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "Deleted user",
+          "200": {
+            "description": "Deleted user data",
             "content": {
               "application/json": {
                 "schema": {
