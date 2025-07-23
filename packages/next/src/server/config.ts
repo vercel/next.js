@@ -39,6 +39,7 @@ import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot
 import { findDir } from '../lib/find-pages-dir'
 import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
 import { interopDefault } from '../lib/interop-default'
+import { djb2Hash } from '../shared/lib/hash'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -1164,12 +1165,37 @@ async function applyModifyConfig(
   return config
 }
 
-// Single config cache to keep one copy containing rawConfig, complete config, and experimental features
-let configCache: {
-  rawConfig: any
-  config: NextConfigComplete
-  configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
-} | null = null
+// Config cache with keys to handle multiple configurations (e.g., multi-zone)
+const configCache = new Map<
+  string,
+  {
+    rawConfig: any
+    config: NextConfigComplete
+    configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
+  }
+>()
+
+// Generate cache key based on parameters that affect config output
+// We need a unique key for cache because there can be multiple values for
+function getCacheKey(
+  phase: string,
+  dir: string,
+  customConfig?: object | null,
+  reactProductionProfiling?: boolean,
+  debugPrerender?: boolean
+): string {
+  // The next.config.js is unique per project, so we can use the dir as the major key
+  // to generate the unique config key.
+  const keyData = JSON.stringify({
+    dir,
+    phase,
+    hasCustomConfig: Boolean(customConfig),
+    reactProductionProfiling: Boolean(reactProductionProfiling),
+    debugPrerender: Boolean(debugPrerender),
+  })
+
+  return djb2Hash(keyData).toString(36)
+}
 
 export default async function loadConfig(
   phase: string,
@@ -1192,19 +1218,29 @@ export default async function loadConfig(
     debugPrerender?: boolean
   } = {}
 ): Promise<NextConfigComplete> {
+  // Generate cache key based on parameters that affect config output
+  const cacheKey = getCacheKey(
+    phase,
+    dir,
+    customConfig,
+    reactProductionProfiling,
+    debugPrerender
+  )
+
   // Check if we have a cached result
-  if (configCache) {
+  const cachedResult = configCache.get(cacheKey)
+  if (cachedResult) {
     // Call the experimental features callback if provided
     if (reportExperimentalFeatures) {
-      reportExperimentalFeatures(configCache.configuredExperimentalFeatures)
+      reportExperimentalFeatures(cachedResult.configuredExperimentalFeatures)
     }
 
     // Return raw config if requested and available
-    if (rawConfig && configCache.rawConfig) {
-      return configCache.rawConfig
+    if (rawConfig && cachedResult.rawConfig) {
+      return cachedResult.rawConfig
     }
 
-    return configCache.config
+    return cachedResult.config
   }
 
   // Original implementation continues below...
@@ -1228,11 +1264,11 @@ export default async function loadConfig(
     )
 
     // Cache the standalone config
-    configCache = {
+    configCache.set(cacheKey, {
       config: standaloneConfig,
       rawConfig: standaloneConfig,
       configuredExperimentalFeatures: [],
-    }
+    })
 
     return standaloneConfig
   }
@@ -1266,15 +1302,13 @@ export default async function loadConfig(
     )
 
     // Cache the custom config result
-    configCache = {
+    configCache.set(cacheKey, {
       config,
       rawConfig: customConfig,
       configuredExperimentalFeatures,
-    }
+    })
 
-    if (reportExperimentalFeatures) {
-      reportExperimentalFeatures(configuredExperimentalFeatures)
-    }
+    reportExperimentalFeatures?.(configuredExperimentalFeatures)
 
     return config
   }
@@ -1317,15 +1351,13 @@ export default async function loadConfig(
 
       if (rawConfig) {
         // Cache the raw config
-        configCache = {
+        configCache.set(cacheKey, {
           config: userConfigModule as NextConfigComplete,
           rawConfig: userConfigModule,
           configuredExperimentalFeatures,
-        }
+        })
 
-        if (reportExperimentalFeatures) {
-          reportExperimentalFeatures(configuredExperimentalFeatures)
-        }
+        reportExperimentalFeatures?.(configuredExperimentalFeatures)
 
         return userConfigModule
       }
@@ -1506,11 +1538,11 @@ export default async function loadConfig(
     const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
 
     // Cache the final result
-    configCache = {
+    configCache.set(cacheKey, {
       config: finalConfig,
       rawConfig: userConfigModule, // Store the original user config module
       configuredExperimentalFeatures,
-    }
+    })
 
     if (reportExperimentalFeatures) {
       reportExperimentalFeatures(configuredExperimentalFeatures)
@@ -1561,11 +1593,11 @@ export default async function loadConfig(
   const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
 
   // Cache the default config result
-  configCache = {
+  configCache.set(cacheKey, {
     config: finalConfig,
     rawConfig: clonedDefaultConfig,
     configuredExperimentalFeatures,
-  }
+  })
 
   if (reportExperimentalFeatures) {
     reportExperimentalFeatures(configuredExperimentalFeatures)
