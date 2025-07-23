@@ -70,7 +70,7 @@ The example includes several documented API routes demonstrating different featu
 - `GET /api/users/[id]` - Get user by ID with path parameters
 - `POST /api/users` - Create user with request body validation
 - `PUT /api/users/[id]` - Update user with authentication
-- `DELETE /api/users/[id]` - Delete user (deprecated endpoint example)
+- `DELETE /api/users/[id]` - Delete user
 
 Each route demonstrates different JSDoc annotations like `@pathParams`, `@body`, `@response`, `@auth`, and `@deprecated`.
 
