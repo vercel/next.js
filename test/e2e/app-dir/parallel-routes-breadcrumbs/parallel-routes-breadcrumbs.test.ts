@@ -75,6 +75,25 @@ describe('parallel-routes-breadcrumbs', () => {
     expect(await slot.text()).toContain('Track: b')
   })
 
+  it('should render the breadcrumbs correctly with catchall route segments for non-ascii path', async () => {
+    const browser = await next.browser(`/fizz/${encodeURIComponent('あ')}/b`)
+    const slot = await browser.waitForElementByCss('#slot')
+
+    expect(await browser.elementByCss('h1').text()).toBe('Parallel Route!')
+    expect(await browser.elementByCss('h2').text()).toBe(
+      '/fizz/[...buzz] Page!'
+    )
+    expect(await browser.elementByCss('h3').text()).toBe(
+      `buzz[0]: ${encodeURIComponent('あ')}`
+    )
+    expect(await browser.elementByCss('h4').text()).toBe('buzz[1]: b')
+
+    // verify slot is rendering the params
+    expect(await slot.text()).toContain('Artist: fizz')
+    expect(await slot.text()).toContain(`Album: ${encodeURIComponent('あ')}`)
+    expect(await slot.text()).toContain('Track: b')
+  })
+
   it('should render the breadcrumbs correctly with optional catchall route segments', async () => {
     const browser = await next.browser('/buzz/a/b')
     const slot = await browser.waitForElementByCss('#slot')
