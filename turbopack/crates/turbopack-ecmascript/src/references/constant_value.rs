@@ -107,7 +107,7 @@ fn define_env_to_expr(value: CompileTimeDefineValue) -> Expr {
     }
 }
 
-fn parse_single_expr_lit(expr_lit: RcStr) -> Expr {
+pub(crate) fn parse_single_expr_lit(expr_lit: RcStr) -> Expr {
     let cm = Lrc::new(SourceMap::default());
     let fm = cm.new_source_file(FileName::Anon.into(), expr_lit.clone());
     parse_file_as_expr(

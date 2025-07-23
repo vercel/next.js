@@ -598,7 +598,7 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
             CompileTimeDefineValue::Array(a) => {
                 let mut js_value = JsValue::Array {
                     total_nodes: a.len() as u32,
-                    items: a.iter().map(|i| i.try_into()).try_collect()?,
+                    items: a.iter().map(|i| i.try_into()).collect::<Result<Vec<_>>>()?,
                     mutable: false,
                 };
                 js_value.update_total_nodes();
@@ -615,7 +615,7 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
                                 v.try_into()?,
                             ))
                         })
-                        .try_collect()?,
+                        .collect::<Result<Vec<_>>>()?,
                     mutable: false,
                 };
                 js_value.update_total_nodes();
@@ -4107,7 +4107,7 @@ mod tests {
                 m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
                 let eval_context = EvalContext::new(
-                    &m,
+                    Some(&m),
                     unresolved_mark,
                     top_level_mark,
                     Default::default(),

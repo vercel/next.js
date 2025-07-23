@@ -4,19 +4,18 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Ok, Result, bail};
+use anyhow::{Ok, Result};
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
     base::try_with_handler,
     common::{
-        FileName, GLOBALS, Mark, SourceMap, Span, Spanned, SyntaxContext, comments::Comments,
+        GLOBALS, Mark, SourceMap, Span, Spanned, SyntaxContext, comments::Comments,
         pass::AstNodePath, sync::Lrc,
     },
     ecma::{
         ast::*,
         atoms::atom,
-        parser::{Syntax, parse_file_as_program},
         utils::contains_ident_ref,
         visit::{fields::*, *},
     },
@@ -32,6 +31,7 @@ use super::{
 use crate::{
     SpecifiedModuleType,
     analyzer::{WellKnownObjectKind, is_unresolved},
+    references::constant_value::parse_single_expr_lit,
     utils::{AstPathRange, unparen},
 };
 
@@ -317,7 +317,7 @@ impl EvalContext {
     /// webpackIgnore or turbopackIgnore comments, you must pass those in,
     /// since the AST does not include comments by default.
     pub fn new(
-        module: &Program,
+        module: Option<&Program>,
         unresolved_mark: Mark,
         top_level_mark: Mark,
         force_free_values: Arc<FxHashSet<Id>>,
@@ -327,7 +327,9 @@ impl EvalContext {
         Self {
             unresolved_mark,
             top_level_mark,
-            imports: ImportMap::analyze(module, source, comments),
+            imports: module.map_or(ImportMap::default(), |m| {
+                ImportMap::analyze(m, source, comments)
+            }),
             force_free_values,
         }
     }
@@ -729,44 +731,20 @@ impl EvalContext {
 
     pub fn eval_single_expr_lit(expr_lit: RcStr) -> Result<JsValue> {
         let cm = Lrc::new(SourceMap::default());
-        let fm = cm.new_source_file(FileName::Anon.into(), expr_lit.clone());
 
-        let js_value = try_with_handler(cm, Default::default(), |handler| {
+        let js_value = try_with_handler(cm, Default::default(), |_| {
             GLOBALS.set(&Default::default(), || {
-                let program = parse_file_as_program(
-                    &fm,
-                    Syntax::Es(Default::default()),
-                    EsVersion::latest(),
+                let expr = parse_single_expr_lit(expr_lit);
+                let eval_context = EvalContext::new(
                     None,
-                    &mut vec![],
-                )
-                .map_or_else(
-                    |e| {
-                        e.into_diagnostic(handler).emit();
-                        bail!(r#"Failed to evaluate compile-time defined value expression: "{expr_lit}""#)
-                    },
-                    Ok,
-                )?;
-
-                    let eval_context = EvalContext::new(
-                    &program,
-    Mark::new(),Mark::new(),
+                    Mark::new(),
+                    Mark::new(),
                     Default::default(),
                     None,
                     None,
                 );
 
-                if let Program::Script(script) = program {
-                    if script.body.len() == 1
-                        && let Some(Stmt::Expr(expr_stmt)) = script.body.first()
-                    {
-                        Ok(eval_context.eval(&expr_stmt.expr))
-                    } else {
-                        bail!(r#"Failed to parse compile-time defined value expression: "{expr_lit}""#)
-                    }
-                } else {
-                     bail!(r#"Failed to parse compile-time defined value: "{expr_lit}" in non-script context"#)
-                }
+                Ok(eval_context.eval(&expr))
             })
         })
         .map_err(|e| e.to_pretty_error())?;
