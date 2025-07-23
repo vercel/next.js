@@ -72,9 +72,13 @@ export function createSearchParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
-      case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+        throw new InvariantError(
+          'createSearchParamsFromClient should not be called in cache contexts.'
+        )
+      case 'request':
         break
       default:
         workUnitStore satisfies never
@@ -99,9 +103,13 @@ export function createServerSearchParamsForServerPage(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
-      case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+        throw new InvariantError(
+          'createServerSearchParamsForServerPage should not be called in cache contexts.'
+        )
+      case 'request':
         break
       default:
         workUnitStore satisfies never
@@ -127,11 +135,15 @@ export function createPrerenderSearchParamsForClientPage(
         // We're prerendering in a mode that aborts (cacheComponents) and should stall
         // the promise to ensure the RSC side is considered dynamic
         return makeHangingPromise(workUnitStore.renderSignal, '`searchParams`')
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called in cache contexts.'
+        )
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
-      case 'cache':
-      case 'unstable-cache':
         break
       default:
         workUnitStore satisfies never
@@ -794,6 +806,7 @@ function syncIODev(
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
         break
       default:

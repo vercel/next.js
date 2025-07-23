@@ -829,10 +829,6 @@ export function onDemandEntryHandler({
 
       let pageRuntime = staticInfo.runtime
 
-      if (isMiddlewareFile(page) && !nextConfig.experimental.nodeMiddleware) {
-        pageRuntime = 'edge'
-      }
-
       runDependingOnPageType({
         page: route.page,
         pageRuntime,

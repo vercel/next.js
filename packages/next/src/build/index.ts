@@ -1404,9 +1404,15 @@ export default async function build(
             ),
             headers: headers.map((r) => buildCustomRoute('header', r)),
             rewrites: {
-              beforeFiles: [],
-              afterFiles: [],
-              fallback: [],
+              beforeFiles: rewrites.beforeFiles.map((r) =>
+                buildCustomRoute('rewrite', r)
+              ),
+              afterFiles: rewrites.afterFiles.map((r) =>
+                buildCustomRoute('rewrite', r)
+              ),
+              fallback: rewrites.fallback.map((r) =>
+                buildCustomRoute('rewrite', r)
+              ),
             },
             dynamicRoutes,
             staticRoutes,
@@ -1442,16 +1448,6 @@ export default async function build(
               : undefined,
           } satisfies RoutesManifest
         })
-
-      routesManifest.rewrites = {
-        beforeFiles: rewrites.beforeFiles.map((r) =>
-          buildCustomRoute('rewrite', r)
-        ),
-        afterFiles: rewrites.afterFiles.map((r) =>
-          buildCustomRoute('rewrite', r)
-        ),
-        fallback: rewrites.fallback.map((r) => buildCustomRoute('rewrite', r)),
-      }
 
       let clientRouterFilters:
         | undefined

@@ -17,7 +17,10 @@ import { unstable_prerender as prerender } from 'react-server-dom-webpack/static
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import type {
+  PrerenderStoreModernClient,
+  PrivateUseCacheStore,
   RequestStore,
+  RevalidateStore,
   UseCacheStore,
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
@@ -43,10 +46,14 @@ import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
-import { DYNAMIC_EXPIRE } from './constants'
+import { DYNAMIC_EXPIRE, DYNAMIC_PREFETCH_DYNAMIC_STALE } from './constants'
 import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
-import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
+import {
+  createHangingInputAbortSignal,
+  postponeWithTracking,
+  throwToInterruptStaticGeneration,
+} from '../app-render/dynamic-rendering'
 import {
   makeErroringExoticSearchParamsForUseCache,
   type SearchParams,
@@ -56,6 +63,23 @@ import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import { isReactLargeShellError } from '../app-render/react-large-shell-error'
+import type { CacheLife } from './cache-life'
+
+interface PrivateCacheContext {
+  readonly kind: 'private'
+  // TODO: Add dynamic prefetching store when this exists.
+  readonly outerWorkUnitStore: RequestStore | PrivateUseCacheStore
+}
+
+interface PublicCacheContext {
+  readonly kind: 'public'
+  // TODO: We should probably forbid nesting "use cache" inside unstable_cache.
+  readonly outerWorkUnitStore:
+    | Exclude<WorkUnitStore, PrerenderStoreModernClient>
+    | undefined
+}
+
+type CacheContext = PrivateCacheContext | PublicCacheContext
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -90,11 +114,11 @@ const filterStackFrame =
 
 function generateCacheEntry(
   workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
+  cacheContext: CacheContext,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  sharedErrorStack: string | undefined
 ) {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
   // generation cannot read anything from the context we're currently executing which
@@ -104,21 +128,21 @@ function generateCacheEntry(
   return workStore.runInCleanSnapshot(
     generateCacheEntryWithRestoredWorkStore,
     workStore,
-    outerWorkUnitStore,
+    cacheContext,
     clientReferenceManifest,
     encodedArguments,
     fn,
-    timeoutError
+    sharedErrorStack
   )
 }
 
 function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
+  cacheContext: CacheContext,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  sharedErrorStack: string | undefined
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
   // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
@@ -131,130 +155,201 @@ function generateCacheEntryWithRestoredWorkStore(
     workStore,
     generateCacheEntryWithCacheContext,
     workStore,
-    outerWorkUnitStore,
+    cacheContext,
     clientReferenceManifest,
     encodedArguments,
     fn,
-    timeoutError
+    sharedErrorStack
   )
 }
 
-function generateCacheEntryWithCacheContext(
+function createUseCacheStore(
   workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
-  fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
-) {
-  if (!workStore.cacheLifeProfiles) {
-    throw new Error(
-      'cacheLifeProfiles should always be provided. This is a bug in Next.js.'
-    )
+  cacheContext: CacheContext,
+  defaultCacheLife: Required<CacheLife>
+): UseCacheStore {
+  if (cacheContext.kind === 'private') {
+    const outerWorkUnitStore = cacheContext.outerWorkUnitStore
+
+    return {
+      type: 'private-cache',
+      phase: 'render',
+      implicitTags: outerWorkUnitStore?.implicitTags,
+      revalidate: defaultCacheLife.revalidate,
+      expire: defaultCacheLife.expire,
+      stale: defaultCacheLife.stale,
+      explicitRevalidate: undefined,
+      explicitExpire: undefined,
+      explicitStale: undefined,
+      tags: null,
+      hmrRefreshHash:
+        outerWorkUnitStore && getHmrRefreshHash(workStore, outerWorkUnitStore),
+      isHmrRefresh: outerWorkUnitStore?.isHmrRefresh ?? false,
+      serverComponentsHmrCache: outerWorkUnitStore?.serverComponentsHmrCache,
+      forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
+      draftMode:
+        outerWorkUnitStore &&
+        getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
+      cookies: outerWorkUnitStore.cookies,
+    }
+  } else {
+    let useCacheOrRequestStore: RequestStore | UseCacheStore | undefined
+    const outerWorkUnitStore = cacheContext.outerWorkUnitStore
+
+    if (outerWorkUnitStore) {
+      switch (outerWorkUnitStore?.type) {
+        case 'cache':
+        case 'private-cache':
+        case 'request':
+          useCacheOrRequestStore = outerWorkUnitStore
+          break
+        case 'prerender':
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'unstable-cache':
+          break
+        default:
+          outerWorkUnitStore satisfies never
+      }
+    }
+
+    return {
+      type: 'cache',
+      phase: 'render',
+      implicitTags: outerWorkUnitStore?.implicitTags,
+      revalidate: defaultCacheLife.revalidate,
+      expire: defaultCacheLife.expire,
+      stale: defaultCacheLife.stale,
+      explicitRevalidate: undefined,
+      explicitExpire: undefined,
+      explicitStale: undefined,
+      tags: null,
+      hmrRefreshHash:
+        outerWorkUnitStore && getHmrRefreshHash(workStore, outerWorkUnitStore),
+      isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
+      serverComponentsHmrCache:
+        useCacheOrRequestStore?.serverComponentsHmrCache,
+      forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
+      draftMode:
+        outerWorkUnitStore &&
+        getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
+    }
   }
-  const defaultCacheLife = workStore.cacheLifeProfiles['default']
+}
+
+function assertDefaultCacheLife(
+  defaultCacheLife: CacheLife | undefined
+): asserts defaultCacheLife is Required<CacheLife> {
   if (
     !defaultCacheLife ||
     defaultCacheLife.revalidate == null ||
     defaultCacheLife.expire == null ||
     defaultCacheLife.stale == null
   ) {
-    throw new Error(
-      'A default cacheLife profile must always be provided. This is a bug in Next.js.'
+    throw new InvariantError(
+      'A default cacheLife profile must always be provided.'
     )
   }
+}
 
-  let useCacheOrRequestStore: RequestStore | UseCacheStore | undefined
-
-  if (outerWorkUnitStore) {
-    switch (outerWorkUnitStore?.type) {
-      case 'cache':
-      case 'request':
-        useCacheOrRequestStore = outerWorkUnitStore
-        break
-      case 'prerender':
-      case 'prerender-client':
-      case 'prerender-ppr':
-      case 'prerender-legacy':
-      case 'unstable-cache':
-        break
-      default:
-        outerWorkUnitStore satisfies never
-    }
+function generateCacheEntryWithCacheContext(
+  workStore: WorkStore,
+  cacheContext: CacheContext,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  encodedArguments: FormData | string,
+  fn: (...args: unknown[]) => Promise<unknown>,
+  sharedErrorStack: string | undefined
+) {
+  if (!workStore.cacheLifeProfiles) {
+    throw new InvariantError('cacheLifeProfiles should always be provided.')
   }
+  const defaultCacheLife = workStore.cacheLifeProfiles['default']
+  assertDefaultCacheLife(defaultCacheLife)
 
   // Initialize the Store for this Cache entry.
-  const cacheStore: UseCacheStore = {
-    type: 'cache',
-    phase: 'render',
-    implicitTags: outerWorkUnitStore?.implicitTags,
-    revalidate: defaultCacheLife.revalidate,
-    expire: defaultCacheLife.expire,
-    stale: defaultCacheLife.stale,
-    explicitRevalidate: undefined,
-    explicitExpire: undefined,
-    explicitStale: undefined,
-    tags: null,
-    hmrRefreshHash:
-      outerWorkUnitStore && getHmrRefreshHash(workStore, outerWorkUnitStore),
-    isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
-    serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
-    forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
-    draftMode:
-      outerWorkUnitStore &&
-      getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
-  }
+  const cacheStore = createUseCacheStore(
+    workStore,
+    cacheContext,
+    defaultCacheLife
+  )
 
   return workUnitAsyncStorage.run(cacheStore, () =>
     dynamicAccessAsyncStorage.run(
       { abortController: new AbortController() },
       generateCacheEntryImpl,
       workStore,
-      outerWorkUnitStore,
+      cacheContext,
       cacheStore,
       clientReferenceManifest,
       encodedArguments,
       fn,
-      timeoutError
+      sharedErrorStack
     )
   )
 }
 
-function propagateCacheLifeAndTags(
-  workUnitStore: WorkUnitStore | undefined,
+function propagateCacheLifeAndTagsToRevalidateStore(
+  revalidateStore: RevalidateStore,
   entry: CacheEntry
 ): void {
-  if (workUnitStore) {
-    switch (workUnitStore.type) {
+  const outerTags = (revalidateStore.tags ??= [])
+
+  for (const tag of entry.tags) {
+    if (!outerTags.includes(tag)) {
+      outerTags.push(tag)
+    }
+  }
+
+  if (revalidateStore.stale > entry.stale) {
+    revalidateStore.stale = entry.stale
+  }
+
+  if (revalidateStore.revalidate > entry.revalidate) {
+    revalidateStore.revalidate = entry.revalidate
+  }
+
+  if (revalidateStore.expire > entry.expire) {
+    revalidateStore.expire = entry.expire
+  }
+}
+
+function propagateCacheLifeAndTags(
+  cacheContext: CacheContext,
+  entry: CacheEntry
+): void {
+  if (cacheContext.kind === 'private') {
+    switch (cacheContext.outerWorkUnitStore?.type) {
+      // TODO: Also propagate cache life and tags to dynamic prefetching stores.
+      case 'private-cache':
+        propagateCacheLifeAndTagsToRevalidateStore(
+          cacheContext.outerWorkUnitStore,
+          entry
+        )
+        break
+      case 'request':
+      case undefined:
+        break
+      default:
+        cacheContext.outerWorkUnitStore satisfies never
+    }
+  } else {
+    switch (cacheContext.outerWorkUnitStore?.type) {
       case 'cache':
+      case 'private-cache':
       case 'prerender':
       case 'prerender-ppr':
       case 'prerender-legacy':
-        // Propagate tags and revalidate upwards
-        const outerTags = workUnitStore.tags ?? (workUnitStore.tags = [])
-        const entryTags = entry.tags
-        for (let i = 0; i < entryTags.length; i++) {
-          const tag = entryTags[i]
-          if (!outerTags.includes(tag)) {
-            outerTags.push(tag)
-          }
-        }
-        if (workUnitStore.stale > entry.stale) {
-          workUnitStore.stale = entry.stale
-        }
-        if (workUnitStore.revalidate > entry.revalidate) {
-          workUnitStore.revalidate = entry.revalidate
-        }
-        if (workUnitStore.expire > entry.expire) {
-          workUnitStore.expire = entry.expire
-        }
+        propagateCacheLifeAndTagsToRevalidateStore(
+          cacheContext.outerWorkUnitStore,
+          entry
+        )
         break
-      case 'prerender-client':
       case 'request':
       case 'unstable-cache':
+      case undefined:
         break
       default:
-        workUnitStore satisfies never
+        cacheContext.outerWorkUnitStore satisfies never
     }
   }
 }
@@ -262,7 +357,7 @@ function propagateCacheLifeAndTags(
 async function collectResult(
   savedStream: ReadableStream,
   workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
+  cacheContext: CacheContext,
   innerCacheStore: UseCacheStore,
   startTime: number,
   errors: Array<unknown> // This is a live array that gets pushed into.
@@ -334,10 +429,12 @@ async function collectResult(
   }
 
   // Propagate tags/revalidate to the parent context.
-  propagateCacheLifeAndTags(outerWorkUnitStore, entry)
+  if (cacheContext) {
+    propagateCacheLifeAndTags(cacheContext, entry)
+  }
 
-  const cacheSignal = outerWorkUnitStore
-    ? getCacheSignal(outerWorkUnitStore)
+  const cacheSignal = cacheContext.outerWorkUnitStore
+    ? getCacheSignal(cacheContext.outerWorkUnitStore)
     : null
 
   if (cacheSignal) {
@@ -360,14 +457,15 @@ type GenerateCacheEntryResult =
 
 async function generateCacheEntryImpl(
   workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
+  cacheContext: CacheContext,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  sharedErrorStack: string | undefined
 ): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
+  const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
   const [, , args] =
     typeof encodedArguments === 'string'
@@ -403,11 +501,11 @@ async function generateCacheEntryImpl(
                       }
                     })
                     break
-                  case 'prerender-client':
                   case 'prerender-ppr':
                   case 'prerender-legacy':
                   case 'request':
                   case 'cache':
+                  case 'private-cache':
                   case 'unstable-cache':
                     break
                   default:
@@ -461,6 +559,7 @@ async function generateCacheEntryImpl(
   let stream: ReadableStream<Uint8Array>
 
   switch (outerWorkUnitStore?.type) {
+    // TODO: Dynamic prefetches should also use the prerender variant.
     case 'prerender':
       const timeoutAbortController = new AbortController()
 
@@ -468,8 +567,12 @@ async function generateCacheEntryImpl(
       // Otherwise we assume you stalled on hanging input and de-opt. This needs
       // to be lower than just the general timeout of 60 seconds.
       const timer = setTimeout(() => {
-        workStore.invalidDynamicUsageError = timeoutError
-        timeoutAbortController.abort(timeoutError)
+        const error = new UseCacheTimeoutError()
+        if (sharedErrorStack) {
+          error.stack = error.name + ': ' + error.message + sharedErrorStack
+        }
+        workStore.invalidDynamicUsageError = error
+        timeoutAbortController.abort(error)
       }, 50000)
 
       const dynamicAccessAbortSignal =
@@ -512,7 +615,7 @@ async function generateCacheEntryImpl(
         // revalidation times.
         stream = new ReadableStream({
           start(controller) {
-            controller.error(timeoutError)
+            controller.error(timeoutAbortController.signal.reason)
           },
         })
       } else if (dynamicAccessAbortSignal?.aborted) {
@@ -533,11 +636,11 @@ async function generateCacheEntryImpl(
         stream = prelude
       }
       break
-    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':
+    case 'private-cache':
     case 'unstable-cache':
     case undefined:
       stream = renderToReadableStream(
@@ -560,7 +663,7 @@ async function generateCacheEntryImpl(
   const pendingCacheEntry = collectResult(
     savedStream,
     workStore,
-    outerWorkUnitStore,
+    cacheContext,
     innerCacheStore,
     startTime,
     errors
@@ -656,20 +759,42 @@ function createTrackedReadableStream(
   })
 }
 
+function wrapAsInvalidDynamicUsageError(
+  error: Error,
+  sharedErrorStack: string | undefined,
+  workStore: WorkStore
+) {
+  if (sharedErrorStack) {
+    error.stack = error.name + ': ' + error.message + sharedErrorStack
+  }
+
+  workStore.invalidDynamicUsageError ??= error
+
+  return error
+}
+
 export function cache(
   kind: string,
   id: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>
 ) {
-  const cacheHandler = getCacheHandler(kind)
-  if (cacheHandler === undefined) {
+  const isPrivate = kind === 'private'
+
+  // Private caches are currently only stored in the Resume Data Cache (RDC),
+  // and not in cache handlers.
+  const cacheHandler = isPrivate ? undefined : getCacheHandler(kind)
+
+  if (!isPrivate && !cacheHandler) {
     throw new Error('Unknown cache handler: ' + kind)
   }
 
-  // Capture the timeout error here to ensure a useful stack.
-  const timeoutError = new UseCacheTimeoutError()
-  Error.captureStackTrace(timeoutError, cache)
+  // Capture a better error stack in this scope.
+  const sharedError = new Error()
+  Error.captureStackTrace(sharedError, cache)
+  const sharedErrorStack = sharedError.stack?.slice(
+    sharedError.stack.indexOf('\n')
+  )
 
   const name = originalFn.name
   const cachedFn = {
@@ -684,6 +809,103 @@ export function cache(
       let fn = originalFn
 
       const workUnitStore = workUnitAsyncStorage.getStore()
+
+      let cacheContext: CacheContext
+
+      if (isPrivate) {
+        const expression = '"use cache: private"'
+
+        switch (workUnitStore?.type) {
+          // "use cache: private" is dynamic in prerendering contexts.
+          case 'prerender':
+            return makeHangingPromise(workUnitStore.renderSignal, expression)
+          case 'prerender-ppr':
+            return postponeWithTracking(
+              workStore.route,
+              expression,
+              workUnitStore.dynamicTracking
+            )
+          case 'prerender-legacy':
+            return throwToInterruptStaticGeneration(
+              expression,
+              workStore,
+              workUnitStore
+            )
+          case 'prerender-client':
+            throw new InvariantError(
+              `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being allowed in client components statically, but did not in this case.`
+            )
+          case 'unstable-cache': {
+            throw wrapAsInvalidDynamicUsageError(
+              new Error(
+                // TODO: Add a link to an error documentation page when we have one.
+                `${expression} must not be used within \`unstable_cache()\`.`
+              ),
+              sharedErrorStack,
+              workStore
+            )
+          }
+          case 'cache': {
+            throw wrapAsInvalidDynamicUsageError(
+              new Error(
+                // TODO: Add a link to an error documentation page when we have one.
+                `${expression} must not be used within "use cache". It can only be nested inside of another ${expression}.`
+              ),
+              sharedErrorStack,
+              workStore
+            )
+          }
+          case 'request':
+          case 'private-cache':
+            cacheContext = {
+              kind: 'private',
+              outerWorkUnitStore: workUnitStore,
+            }
+            break
+          case undefined:
+            throw wrapAsInvalidDynamicUsageError(
+              new Error(
+                // TODO: Add a link to an error documentation page when we have one.
+                `${expression} cannot be used outside of a request context.`
+              ),
+              sharedErrorStack,
+              workStore
+            )
+          default:
+            workUnitStore satisfies never
+            // This is dead code, but without throwing an error here, TypeScript
+            // will assume that cacheContext is used before being assigned.
+            throw new InvariantError(`Unexpected work unit store.`)
+        }
+      } else {
+        switch (workUnitStore?.type) {
+          case 'prerender-client':
+            const expression = '"use cache"'
+            throw new InvariantError(
+              `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being allowed in client components statically, but did not in this case.`
+            )
+          case 'prerender':
+          case 'prerender-ppr':
+          case 'prerender-legacy':
+          case 'request':
+          case 'cache':
+          case 'private-cache':
+          // TODO: We should probably forbid nesting "use cache" inside
+          // unstable_cache. (fallthrough)
+          case 'unstable-cache':
+          case undefined:
+            cacheContext = {
+              kind: 'public',
+              outerWorkUnitStore: workUnitStore,
+            }
+            break
+          default:
+            workUnitStore satisfies never
+            // This is dead code, but without throwing an error here, TypeScript
+            // will assume that cacheContext is used before being assigned.
+            throw new InvariantError(`Unexpected work unit store.`)
+        }
+      }
 
       // Get the clientReferenceManifest while we're still in the outer Context.
       // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
@@ -722,8 +944,17 @@ export function cache(
         isPageOrLayout = true
 
         const [{ params: outerParams, searchParams: outerSearchParams }] = args
-        // Overwrite the props to omit $$isPageComponent.
-        args = [{ params: outerParams, searchParams: outerSearchParams }]
+        const keepSearchParams = workStore.cacheComponentsEnabled || isPrivate
+
+        args = [
+          {
+            params: outerParams,
+            searchParams: keepSearchParams
+              ? outerSearchParams
+              : Promise.resolve({}),
+            // omit $$isPageComponent.
+          },
+        ]
 
         fn = {
           [name]: async ({
@@ -733,16 +964,16 @@ export function cache(
             originalFn.apply(null, [
               {
                 params: outerParams,
-                searchParams: workStore.cacheComponentsEnabled
+                searchParams: keepSearchParams
                   ? innerSearchParams
                   : // When cacheComponents is not enabled, we can not encode
                     // searchParams as a hanging promise. To still avoid unused
                     // search params from making a page dynamic, we define them
-                    // in `createComponentTree` as a promise that resolves to an
-                    // empty object. And here, we're creating an erroring
-                    // searchParams prop, when invoking the original function.
-                    // This ensures that used searchParams inside of cached
-                    // functions would still yield an error.
+                    // as a promise that resolves to an empty object above. And
+                    // here, we're creating an erroring searchParams prop, when
+                    // invoking the original function. This ensures that used
+                    // searchParams inside of cached functions would still yield
+                    // an error.
                     makeErroringExoticSearchParamsForUseCache(workStore),
               },
             ]),
@@ -791,6 +1022,14 @@ export function cache(
 
       const temporaryReferences = createClientTemporaryReferenceSet()
 
+      // For private caches, which are allowed to read cookies, we still don't
+      // need to include the cookies in the cache key. This is because we don't
+      // store the cache entries in a cache handler, but only in the Resume Data
+      // Cache (RDC). Private caches are only used during dynamic requests and
+      // dynamic prefetches. For dynamic requests, the RDC is immutable, so it
+      // does not include any private caches. For dynamic prefetches, the RDC is
+      // mutable, but only lives as long as the request, so the key does not
+      // need to include cookies.
       const cacheKeyParts: CacheKeyParts = hmrRefreshHash
         ? [buildId, id, args, hmrRefreshHash]
         : [buildId, id, args]
@@ -829,11 +1068,11 @@ export function cache(
             break
           }
         // fallthrough
-        case 'prerender-client':
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'cache':
+        case 'private-cache':
         case 'unstable-cache':
         case undefined:
           encodedCacheKeyParts = await encodeCacheKeyParts()
@@ -868,39 +1107,45 @@ export function cache(
         const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
         if (cachedEntry !== undefined) {
           const existingEntry = await cachedEntry
-          propagateCacheLifeAndTags(workUnitStore, existingEntry)
-          if (
-            workUnitStore !== undefined &&
-            existingEntry !== undefined &&
-            (existingEntry.revalidate === 0 ||
-              existingEntry.expire < DYNAMIC_EXPIRE)
-          ) {
-            switch (workUnitStore.type) {
-              case 'prerender':
-                // In a Dynamic I/O prerender, if the cache entry has
-                // revalidate: 0 or if the expire time is under 5 minutes, then
-                // we consider this cache entry dynamic as it's not worth
-                // generating static pages for such data. It's better to leave a
-                // PPR hole that can be filled in dynamically with a potentially
-                // cached entry.
-                if (cacheSignal) {
-                  cacheSignal.endRead()
-                }
-                return makeHangingPromise(
-                  workUnitStore.renderSignal,
-                  'dynamic "use cache"'
-                )
-              case 'prerender-client':
-              case 'prerender-ppr':
-              case 'prerender-legacy':
-              case 'request':
-              case 'cache':
-              case 'unstable-cache':
-                break
-              default:
-                workUnitStore satisfies never
+          propagateCacheLifeAndTags(cacheContext, existingEntry)
+
+          if (workUnitStore !== undefined && existingEntry !== undefined) {
+            if (
+              existingEntry.revalidate === 0 ||
+              existingEntry.expire < DYNAMIC_EXPIRE
+            ) {
+              switch (workUnitStore.type) {
+                case 'prerender':
+                  // In a Dynamic I/O prerender, if the cache entry has
+                  // revalidate: 0 or if the expire time is under 5 minutes, then
+                  // we consider this cache entry dynamic as it's not worth
+                  // generating static pages for such data. It's better to leave a
+                  // PPR hole that can be filled in dynamically with a potentially
+                  // cached entry.
+                  if (cacheSignal) {
+                    cacheSignal.endRead()
+                  }
+                  return makeHangingPromise(
+                    workUnitStore.renderSignal,
+                    'dynamic "use cache"'
+                  )
+                case 'prerender-ppr':
+                case 'prerender-legacy':
+                case 'request':
+                case 'cache':
+                case 'private-cache':
+                case 'unstable-cache':
+                  break
+                default:
+                  workUnitStore satisfies never
+              }
+            }
+
+            if (existingEntry.stale < DYNAMIC_PREFETCH_DYNAMIC_STALE) {
+              // TODO: Return hanging promise for dynamic prefetches.
             }
           }
+
           const [streamA, streamB] = existingEntry.value.tee()
           existingEntry.value = streamB
 
@@ -941,11 +1186,11 @@ export function cache(
                   )
                 }
                 break
-              case 'prerender-client':
               case 'prerender-ppr':
               case 'prerender-legacy':
               case 'request':
               case 'cache':
+              case 'private-cache':
               case 'unstable-cache':
                 break
               default:
@@ -969,12 +1214,15 @@ export function cache(
           await lazyRefreshTags
         }
 
-        let entry = shouldForceRevalidate(workStore, workUnitStore)
-          ? undefined
-          : await cacheHandler.get(
-              serializedCacheKey,
-              workUnitStore?.implicitTags?.tags ?? []
-            )
+        let entry: CacheEntry | undefined
+
+        // We ignore existing cache entries when force revalidating.
+        if (cacheHandler && !shouldForceRevalidate(workStore, workUnitStore)) {
+          entry = await cacheHandler.get(
+            serializedCacheKey,
+            workUnitStore?.implicitTags?.tags ?? []
+          )
+        }
 
         if (entry) {
           const implicitTags = workUnitStore?.implicitTags?.tags ?? []
@@ -1034,11 +1282,11 @@ export function cache(
                 workUnitStore.renderSignal,
                 'dynamic "use cache"'
               )
-            case 'prerender-client':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':
             case 'cache':
+            case 'private-cache':
             case 'unstable-cache':
               break
             default:
@@ -1079,11 +1327,11 @@ export function cache(
 
           const result = await generateCacheEntry(
             workStore,
-            workUnitStore,
+            cacheContext,
             clientReferenceManifest,
             encodedCacheKeyParts,
             fn,
-            timeoutError
+            sharedErrorStack
           )
 
           if (result.type === 'prerender-dynamic') {
@@ -1108,18 +1356,28 @@ export function cache(
               savedCacheEntry = pendingCacheEntry
             }
 
-            const promise = cacheHandler.set(
-              serializedCacheKey,
-              savedCacheEntry
-            )
+            if (cacheHandler) {
+              const promise = cacheHandler.set(
+                serializedCacheKey,
+                savedCacheEntry
+              )
 
-            workStore.pendingRevalidateWrites ??= []
-            workStore.pendingRevalidateWrites.push(promise)
+              workStore.pendingRevalidateWrites ??= []
+              workStore.pendingRevalidateWrites.push(promise)
+            }
           }
 
           stream = newStream
         } else {
-          propagateCacheLifeAndTags(workUnitStore, entry)
+          // If we have an entry at this point, this can't be a private cache
+          // entry.
+          if (cacheContext.kind === 'private') {
+            throw new InvariantError(
+              `A private cache entry must not be retrieved from the cache handler.`
+            )
+          }
+
+          propagateCacheLifeAndTags(cacheContext, entry)
 
           // We want to return this stream, even if it's stale.
           stream = entry.value
@@ -1152,11 +1410,11 @@ export function cache(
             const result = await generateCacheEntry(
               workStore,
               // This is not running within the context of this unit.
-              undefined,
+              { kind: cacheContext.kind, outerWorkUnitStore: undefined },
               clientReferenceManifest,
               encodedCacheKeyParts,
               fn,
-              timeoutError
+              sharedErrorStack
             )
 
             if (result.type === 'cached') {
@@ -1174,13 +1432,15 @@ export function cache(
                 savedCacheEntry = pendingCacheEntry
               }
 
-              const promise = cacheHandler.set(
-                serializedCacheKey,
-                savedCacheEntry
-              )
+              if (cacheHandler) {
+                const promise = cacheHandler.set(
+                  serializedCacheKey,
+                  savedCacheEntry
+                )
 
-              workStore.pendingRevalidateWrites ??= []
-              workStore.pendingRevalidateWrites.push(promise)
+                workStore.pendingRevalidateWrites ??= []
+                workStore.pendingRevalidateWrites.push(promise)
+              }
 
               await ignoredStream.cancel()
             }
@@ -1267,6 +1527,7 @@ function shouldForceRevalidate(
       case 'request':
         return workUnitStore.headers.get('cache-control') === 'no-cache'
       case 'cache':
+      case 'private-cache':
         return workUnitStore.forceRevalidate
       case 'prerender':
       case 'prerender-client':
@@ -1316,6 +1577,7 @@ function shouldDiscardCacheEntry(
       case 'prerender-legacy':
       case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
         break
       default:

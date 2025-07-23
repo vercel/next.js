@@ -56,7 +56,12 @@ impl CacheKinds {
 
 impl Default for CacheKinds {
     fn default() -> Self {
-        CacheKinds(["default", "remote"].iter().map(|&s| s.into()).collect())
+        CacheKinds(
+            ["default", "remote", "private"]
+                .iter()
+                .map(|&s| s.into())
+                .collect(),
+        )
     }
 }
 

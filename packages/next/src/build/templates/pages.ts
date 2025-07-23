@@ -31,7 +31,11 @@ import {
 } from '../../server/lib/cache-control'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 import { getRedirectStatus } from '../../lib/redirect-status'
-import { CACHE_ONE_YEAR } from '../../lib/constants'
+import {
+  CACHE_ONE_YEAR,
+  HTML_CONTENT_TYPE_HEADER,
+  JSON_CONTENT_TYPE_HEADER,
+} from '../../lib/constants'
 import { sendRenderResult } from '../../server/send-payload'
 import RenderResult from '../../server/render-result'
 import { toResponseCacheEntry } from '../../server/response-cache/utils'
@@ -289,8 +293,6 @@ export async function handler(
                   reactLoadableManifest,
 
                   assetPrefix: nextConfig.assetPrefix,
-                  strictNextHead:
-                    nextConfig.experimental.strictNextHead ?? true,
                   previewProps: prerenderManifest.preview,
                   images: nextConfig.images as any,
                   nextConfigOutput: nextConfig.output,
@@ -526,7 +528,7 @@ export async function handler(
               html: new RenderResult(
                 Buffer.from(previousCacheEntry.value.html),
                 {
-                  contentType: 'text/html;utf-8',
+                  contentType: HTML_CONTENT_TYPE_HEADER,
                   metadata: {
                     statusCode: previousCacheEntry.value.status,
                     headers: previousCacheEntry.value.headers,
@@ -653,7 +655,7 @@ export async function handler(
 
       if (result.value.kind === CachedRouteKind.REDIRECT) {
         if (isNextDataRequest) {
-          res.setHeader('content-type', 'application/json')
+          res.setHeader('content-type', JSON_CONTENT_TYPE_HEADER)
           res.end(JSON.stringify(result.value.props))
           return
         } else {
@@ -732,7 +734,7 @@ export async function handler(
             ? new RenderResult(
                 Buffer.from(JSON.stringify(result.value.pageData)),
                 {
-                  contentType: 'application/json',
+                  contentType: JSON_CONTENT_TYPE_HEADER,
                   metadata: result.value.html.metadata,
                 }
               )
@@ -740,7 +742,6 @@ export async function handler(
         generateEtags: nextConfig.generateEtags,
         poweredByHeader: nextConfig.poweredByHeader,
         cacheControl: routeModule.isDev ? undefined : cacheControl,
-        type: isNextDataRequest ? 'json' : 'html',
       })
     }
 

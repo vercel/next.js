@@ -20,5 +20,6 @@ error - [code gen] /turbopack/crates/turbopack-tests/tests/snapshot/imports/json
          5 | }
   
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json
-    ./turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json
+      ./turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/index.js

@@ -324,7 +324,7 @@ export function getResolveRoutes(
     }
 
     async function handleRoute(
-      route: (typeof routes)[0]
+      route: Route
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
       let curPathname = parsedUrl.pathname || '/'
 

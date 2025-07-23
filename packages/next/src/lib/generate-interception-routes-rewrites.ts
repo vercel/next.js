@@ -5,6 +5,7 @@ import {
 } from '../shared/lib/router/utils/interception-routes'
 import type { Rewrite } from './load-custom-routes'
 import { safePathToRegexp } from '../shared/lib/router/utils/route-match-utils'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
 function toPathToRegexpPath(path: string): string {
@@ -62,7 +63,7 @@ export function generateInterceptionRoutesRewrites(
   return rewrites
 }
 
-export function isInterceptionRouteRewrite(route: Rewrite) {
+export function isInterceptionRouteRewrite(route: DeepReadonly<Rewrite>) {
   // When we generate interception rewrites in the above implementation, we always do so with only a single `has` condition.
   return route.has?.[0]?.key === NEXT_URL
 }

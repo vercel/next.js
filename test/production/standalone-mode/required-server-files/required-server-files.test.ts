@@ -56,9 +56,6 @@ describe('required server files', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          nodeMiddleware: Boolean(process.env.TEST_NODE_MIDDLEWARE),
-        },
         output: 'standalone',
         async rewrites() {
           return {
