@@ -11,7 +11,8 @@
     "ajv": "8.17.1",
     "next": "latest",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "^4.0.6"
   },
   "devDependencies": {
     "@types/node": "^24.1.0",
