@@ -89,10 +89,14 @@ export function SignupForm() {
 ```
 
 ```tsx filename="app/actions/auth.ts" switcher
+'use server'
+
 export async function signup(formData: FormData) {}
 ```
 
 ```jsx filename="app/actions/auth.js" switcher
+'use server'
+
 export async function signup(formData) {}
 ```
 
@@ -103,6 +107,8 @@ Use the Server Action to validate the form fields on the server. If your authent
 Using Zod as an example, you can define a form schema with appropriate error messages:
 
 ```ts filename="app/lib/definitions.ts" switcher
+'use server'
+
 import { z } from 'zod'
 
 export const SignupFormSchema = z.object({
@@ -135,6 +141,8 @@ export type FormState =
 ```
 
 ```js filename="app/lib/definitions.js" switcher
+'use server'
+
 import { z } from 'zod'
 
 export const SignupFormSchema = z.object({
@@ -158,6 +166,8 @@ export const SignupFormSchema = z.object({
 To prevent unnecessary calls to your authentication provider's API or database, you can `return` early in the Server Action if any form fields do not match the defined schema.
 
 ```ts filename="app/actions/auth.ts" switcher
+'use server'
+
 import { SignupFormSchema, FormState } from '@/app/lib/definitions'
 
 export async function signup(state: FormState, formData: FormData) {
@@ -180,6 +190,8 @@ export async function signup(state: FormState, formData: FormData) {
 ```
 
 ```js filename="app/actions/auth.js" switcher
+'use server'
+
 import { SignupFormSchema } from '@/app/lib/definitions'
 
 export async function signup(state, formData) {
@@ -305,6 +317,8 @@ After validating form fields, you can create a new user account or check if the 
 Continuing from the previous example:
 
 ```tsx filename="app/actions/auth.tsx" switcher
+'use server'
+
 export async function signup(state: FormState, formData: FormData) {
   // 1. Validate form fields
   // ...
@@ -339,6 +353,8 @@ export async function signup(state: FormState, formData: FormData) {
 ```
 
 ```jsx filename="app/actions/auth.js" switcher
+'use server'
+
 export async function signup(state, formData) {
   // 1. Validate form fields
   // ...
@@ -675,6 +691,8 @@ export async function createSession(userId) {
 Back in your Server Action, you can invoke the `createSession()` function, and use the [`redirect()`](/docs/app/guides/redirecting) API to redirect the user to the appropriate page:
 
 ```ts filename="app/actions/auth.ts" switcher
+'use server'
+
 import { createSession } from '@/app/lib/session'
 
 export async function signup(state: FormState, formData: FormData) {
@@ -692,6 +710,8 @@ export async function signup(state: FormState, formData: FormData) {
 ```
 
 ```js filename="app/actions/auth.js" switcher
+'use server'
+
 import { createSession } from '@/app/lib/session'
 
 export async function signup(state, formData) {
@@ -797,6 +817,8 @@ export async function deleteSession() {
 Then you can reuse the `deleteSession()` function in your application, for example, on logout:
 
 ```ts filename="app/actions/auth.ts" switcher
+'use server'
+
 import { cookies } from 'next/headers'
 import { deleteSession } from '@/app/lib/session'
 
@@ -807,6 +829,8 @@ export async function logout() {
 ```
 
 ```js filename="app/actions/auth.js" switcher
+'use server'
+
 import { cookies } from 'next/headers'
 import { deleteSession } from '@/app/lib/session'
 
