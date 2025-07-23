@@ -992,7 +992,7 @@ async function startWatcher(
   }
   let createMcpServer: typeof import('./mcp').createMcpServer | undefined
   if (mcpSecret) {
-    ;({ createMcpServer } = await import('./mcp'))
+    ;({ createMcpServer } = require('./mcp') as typeof import('./mcp'))
     Log.info(`MCP server is available at: /_next/mcp?${mcpSecret.toString()}`)
   }
 
