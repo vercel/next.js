@@ -8,7 +8,7 @@ describe('typed-routes', () => {
   // Test for route types file generation
   it('should generate route types file correctly', async () => {
     // Read the generated route types file
-    const routeTypesContent = await next.readFile('.next/types/routes.ts')
+    const routeTypesContent = await next.readFile('.next/types/routes.d.ts')
 
     // Check that the file contains expected app route types (including route groups)
     expect(routeTypesContent).toContain(
@@ -192,7 +192,7 @@ describe('typed-routes', () => {
 
   // Test that intercepting routes structure is correctly detected
   it('should detect intercepting routes in types', async () => {
-    const routeTypesContent = await next.readFile('.next/types/routes.ts')
+    const routeTypesContent = await next.readFile('.next/types/routes.d.ts')
 
     // The intercepting routes are detected as regular routes in the type system
     // They share the same route parameters as the routes they intercept
@@ -249,7 +249,7 @@ describe('typed-routes', () => {
     await next.fetch('/new-route')
 
     // Read the updated route types file
-    const routeTypesContent = await next.readFile('.next/types/routes.ts')
+    const routeTypesContent = await next.readFile('.next/types/routes.d.ts')
 
     // Check that the new route is included
     expect(routeTypesContent).toContain('"/new-route"')

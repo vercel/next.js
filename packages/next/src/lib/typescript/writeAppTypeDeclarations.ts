@@ -58,7 +58,7 @@ export async function writeAppTypeDeclarations({
   }
 
   if (hasTypedRoutes) {
-    directives.push('/// <reference path="./.next/types/routes.ts" />')
+    directives.push('/// <reference path="./.next/types/routes.d.ts" />')
   }
 
   // Push the notice in.
