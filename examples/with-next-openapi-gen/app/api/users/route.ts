@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   const userData = CreateUserBody.parse(body);
 
   const newUser = {
-    id: (users.length + 1).toString(),
+    id: Date.now().toString(),
     ...userData,
   };
 
