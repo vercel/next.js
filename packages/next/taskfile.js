@@ -216,9 +216,15 @@ export async function copy_vercel_og(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // Refers to copied satori types
-      file.data = source
-        .replace(/['"]satori['"]/g, '"next/dist/compiled/@vercel/og/satori"')
-        .replace("typeof import('@resvg/resvg-wasm')", 'any')
+      file.data = source.replace(
+        /['"]satori['"]/g,
+        '"next/dist/compiled/@vercel/og/satori"'
+      )
+
+      // if filename is types-[hash].d.ts, remove `-[hash]`
+      if (file.base.endsWith('.d.ts')) {
+        file.base = file.base.replace(/-[0-9a-f]{8}\.d\.ts$/, '.d.ts')
+      }
     })
     .target('src/compiled/@vercel/og')
 
