@@ -85,7 +85,6 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
 import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { parseBody } from '../../api-utils/node/parse-body'
 import { timingSafeEqual } from 'crypto'
 
@@ -991,8 +990,12 @@ async function startWatcher(
     }
   }
   let createMcpServer: typeof import('./mcp').createMcpServer | undefined
+  let StreamableHTTPServerTransport:
+    | typeof import('./mcp').StreamableHTTPServerTransport
+    | undefined
   if (mcpSecret) {
-    ;({ createMcpServer } = require('./mcp') as typeof import('./mcp'))
+    ;({ createMcpServer, StreamableHTTPServerTransport } =
+      require('./mcp') as typeof import('./mcp'))
     Log.info(
       `Experimental MCP server is available at: /_next/mcp?${mcpSecret.toString()}`
     )
@@ -1027,7 +1030,7 @@ async function startWatcher(
           'Missing NEXT_EXPERIMENTAL_MCP_SECRET environment variable'
         )
       }
-      if (!createMcpServer) {
+      if (!createMcpServer || !StreamableHTTPServerTransport) {
         return sendMcpInternalError(
           'Model Context Protocol (MCP) server is not available'
         )
@@ -1056,10 +1059,9 @@ async function startWatcher(
       const server = createMcpServer(hotReloader)
       if (server) {
         try {
-          const transport: StreamableHTTPServerTransport =
-            new StreamableHTTPServerTransport({
-              sessionIdGenerator: undefined,
-            })
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined,
+          })
           res.on('close', () => {
             transport.close()
             server.close()

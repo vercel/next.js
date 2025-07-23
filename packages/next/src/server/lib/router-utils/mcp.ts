@@ -18,6 +18,8 @@ import * as Log from '../../../build/output/log'
 import { formatImportTraces } from '../../../shared/lib/turbopack/utils'
 import { inspect } from 'node:util'
 
+export { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+
 const QUERY_DESCRIPTION = `A piece of JavaScript code that will be executed.
 It can access the module graph and extract information it finds useful.
 The \`console.log\` function can be used to log messages, which will also be returned in the response.
