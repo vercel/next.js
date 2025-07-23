@@ -810,7 +810,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let description = format!(
             "[local] (parent: {}) {}",
             self.backend.get_task_description(parent_task_id),
-            ty,
+            ty.task_type,
         );
         #[cfg(not(feature = "tokio_tracing"))]
         let _ = parent_task_id; // suppress unused variable warning
