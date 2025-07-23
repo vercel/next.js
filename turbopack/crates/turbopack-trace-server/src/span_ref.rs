@@ -19,6 +19,9 @@ use crate::{
     timestamp::Timestamp,
 };
 
+pub type GroupNameToDirectAndRecusiveSpans<'l> =
+    FxIndexMap<(&'l str, &'l str), (Vec<SpanIndex>, Vec<SpanIndex>)>;
+
 #[derive(Copy, Clone)]
 pub struct SpanRef<'a> {
     pub(crate) span: &'a Span,
@@ -356,8 +359,7 @@ impl<'a> SpanRef<'a> {
                         Entry { span, recursive }
                     })
                     .collect_vec_list();
-                let mut map: FxIndexMap<(&str, &str), (Vec<SpanIndex>, Vec<SpanIndex>)> =
-                    FxIndexMap::default();
+                let mut map: GroupNameToDirectAndRecusiveSpans = FxIndexMap::default();
                 for Entry {
                     span,
                     mut recursive,
