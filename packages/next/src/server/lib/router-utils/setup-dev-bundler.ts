@@ -984,7 +984,7 @@ async function startWatcher(
       require('@modelcontextprotocol/sdk/package.json')
     } catch (error) {
       Log.error(
-        'The use the MCP server, please install the `@modelcontextprotocol/sdk` package.'
+        'To use the MCP server, please install the `@modelcontextprotocol/sdk` package.'
       )
       mcpSecret = undefined
     }
