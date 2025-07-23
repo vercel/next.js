@@ -2,9 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Node Extensions', () => {
   describe('Random', () => {
-    describe('Dynamic IO', () => {
+    describe('Cache Components', () => {
       const { next, skipped } = nextTestSetup({
-        files: __dirname + '/fixtures/random/dynamic-io',
+        files: __dirname + '/fixtures/random/cache-components',
         skipDeployment: true,
       })
 

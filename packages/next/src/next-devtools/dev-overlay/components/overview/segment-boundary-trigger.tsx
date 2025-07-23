@@ -1,7 +1,10 @@
 import './segment-boundary-trigger.css'
 import { useCallback, useState, useRef, useMemo } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
-import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
+import type {
+  SegmentBoundaryType,
+  SegmentNodeState,
+} from '../../../userspace/app/segment-explorer-node'
 import { normalizeBoundaryFilename } from '../../../../server/app-render/segment-explorer-path'
 import { useClickOutsideAndEscape } from '../errors/dev-tools-indicator/utils'
 
@@ -22,7 +25,7 @@ export function SegmentBoundaryTrigger({
   boundaries,
 }: {
   nodeState: SegmentNodeState
-  boundaries: Record<'not-found' | 'loading' | 'error', string | null>
+  boundaries: Record<SegmentBoundaryType, string | null>
 }) {
   const currNode = nodeState
   const { pagePath, boundaryType, setBoundaryType: onSelectBoundary } = currNode
@@ -50,9 +53,8 @@ export function SegmentBoundaryTrigger({
   )
 
   const firstDefinedBoundary = Object.values(boundaries).find((v) => v !== null)
-  const possibleExtension = firstDefinedBoundary
-    ? firstDefinedBoundary.split('.')?.pop()
-    : 'js'
+  const possibleExtension =
+    (firstDefinedBoundary || '').split('.').pop() || 'js'
 
   const fileNames = useMemo(() => {
     return Object.fromEntries(

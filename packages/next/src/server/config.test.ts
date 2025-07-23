@@ -108,17 +108,17 @@ describe('loadConfig', () => {
       )
     })
 
-    it('errors when using dynamicIO if not in canary', async () => {
+    it('errors when using cacheComponents if not in canary', async () => {
       await expect(
         loadConfig('', __dirname, {
           customConfig: {
             experimental: {
-              dynamicIO: true,
+              cacheComponents: true,
             },
           },
         })
       ).rejects.toThrow(
-        /The experimental feature "experimental.dynamicIO" can only be enabled when using the latest canary version of Next.js./
+        /The experimental feature "experimental.cacheComponents" can only be enabled when using the latest canary version of Next.js./
       )
     })
 
@@ -146,34 +146,95 @@ describe('loadConfig', () => {
       delete process.env.__NEXT_VERSION
     })
 
-    it('errors when dynamicIO is enabled but PPR is disabled', async () => {
+    it('errors when cacheComponents is enabled but PPR is disabled', async () => {
       await expect(
         loadConfig('', __dirname, {
           customConfig: {
             experimental: {
-              dynamicIO: true,
+              cacheComponents: true,
               ppr: false,
             },
           },
         })
       ).rejects.toThrow(
-        '`experimental.ppr` can not be `false` when `experimental.dynamicIO` is `true`. PPR is implicitly enabled when Dynamic IO is enabled.'
+        '`experimental.ppr` can not be `false` when `experimental.cacheComponents` is `true`. PPR is implicitly enabled when Cache Components is enabled.'
       )
     })
 
-    it('errors when dynamicIO is enabled but PPR set to "incremental"', async () => {
+    it('errors when cacheComponents is enabled but PPR set to "incremental"', async () => {
       await expect(
         loadConfig('', __dirname, {
           customConfig: {
             experimental: {
-              dynamicIO: true,
+              cacheComponents: true,
               ppr: 'incremental',
             },
           },
         })
       ).rejects.toThrow(
-        '`experimental.ppr` can not be `"incremental"` when `experimental.dynamicIO` is `true`. PPR is implicitly enabled when Dynamic IO is enabled.'
+        '`experimental.ppr` can not be `"incremental"` when `experimental.cacheComponents` is `true`. PPR is implicitly enabled when Cache Components is enabled.'
       )
+    })
+
+    it('migrates experimental.dynamicIO to experimental.cacheComponents', async () => {
+      process.env.__NEXT_VERSION = 'canary'
+
+      const result = await loadConfig('', __dirname, {
+        customConfig: {
+          experimental: {
+            dynamicIO: true,
+          },
+        },
+        silent: true,
+      })
+
+      expect(result.experimental.cacheComponents).toBe(true)
+      expect(result.experimental.dynamicIO).toBeUndefined()
+
+      delete process.env.__NEXT_VERSION
+    })
+
+    it('preserves cacheComponents when both dynamicIO and cacheComponents are set', async () => {
+      process.env.__NEXT_VERSION = 'canary'
+
+      const result = await loadConfig('', __dirname, {
+        customConfig: {
+          experimental: {
+            dynamicIO: true,
+            cacheComponents: false,
+          },
+        },
+        silent: true,
+      })
+
+      expect(result.experimental.cacheComponents).toBe(false)
+      expect(result.experimental.dynamicIO).toBeUndefined()
+
+      delete process.env.__NEXT_VERSION
+    })
+
+    it('warns when using deprecated experimental.dynamicIO', async () => {
+      process.env.__NEXT_VERSION = 'canary'
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+
+      await loadConfig('', __dirname, {
+        customConfig: {
+          experimental: {
+            dynamicIO: true,
+          },
+        },
+        silent: false,
+      })
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '`experimental.dynamicIO` has been renamed to `experimental.cacheComponents`'
+        )
+      )
+
+      consoleSpy.mockRestore()
+      delete process.env.__NEXT_VERSION
     })
   })
 })

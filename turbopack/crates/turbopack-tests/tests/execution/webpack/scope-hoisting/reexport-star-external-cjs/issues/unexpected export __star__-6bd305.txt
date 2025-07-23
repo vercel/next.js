@@ -4,6 +4,7 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/webpack/s
   List all export names manually (`export { a, b, c } from "...") or rewrite the module to ESM, to avoid the additional runtime code.`
   
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/a.js
-    ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/c.js
-    ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/a.js
+      ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/c.js
+      ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/index.js

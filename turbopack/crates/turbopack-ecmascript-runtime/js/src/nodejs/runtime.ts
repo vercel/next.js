@@ -9,34 +9,34 @@ enum SourceType {
   /**
    * The module was instantiated because it was included in an evaluated chunk's
    * runtime.
+   * SourceData is a ChunkPath.
    */
   Runtime = 0,
   /**
    * The module was instantiated because a parent module imported it.
+   * SourceData is a ModuleId.
    */
   Parent = 1,
 }
 
-type SourceInfo =
-  | {
-      type: SourceType.Runtime
-      chunkPath: ChunkPath
-    }
-  | {
-      type: SourceType.Parent
-      parentId: ModuleId
-    }
+type SourceData = ChunkPath | ModuleId
 
 process.env.TURBOPACK = '1'
 
-function stringifySourceInfo(source: SourceInfo): string {
-  switch (source.type) {
+function stringifySourceInfo(
+  sourceType: SourceType,
+  sourceData: SourceData
+): string {
+  switch (sourceType) {
     case SourceType.Runtime:
-      return `runtime for chunk ${source.chunkPath}`
+      return `runtime for chunk ${sourceData}`
     case SourceType.Parent:
-      return `parent module ${source.parentId}`
+      return `parent module ${sourceData}`
     default:
-      invariant(source, (source) => `Unknown source type: ${source?.type}`)
+      invariant(
+        sourceType,
+        (sourceType) => `Unknown source type: ${sourceType}`
+      )
   }
 }
 
@@ -84,17 +84,32 @@ function createResolvePathFromModule(
   }
 }
 
-function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
+function loadChunk(
+  sourceType: SourceType,
+  sourceData: SourceData,
+  chunkData: ChunkData
+): void {
   if (typeof chunkData === 'string') {
-    return loadChunkPath(chunkData, source)
+    loadChunkPath(sourceType, sourceData, chunkData)
   } else {
-    return loadChunkPath(chunkData.path, source)
+    loadChunkPath(sourceType, sourceData, chunkData.path)
   }
 }
 
 const loadedChunks = new Set<ChunkPath>()
+const unsupportedLoadChunk = Promise.resolve(undefined)
+const loadedChunk: Promise<void> = Promise.resolve(undefined)
+const chunkCache = new Map<ChunkPath, Promise<void>>()
 
-function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
+function clearChunkCache() {
+  chunkCache.clear()
+}
+
+function loadChunkPath(
+  sourceType: SourceType,
+  sourceData: SourceData,
+  chunkPath: ChunkPath
+): void {
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
@@ -112,7 +127,7 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
         if (Array.isArray(moduleFactory)) {
-          let [moduleFactoryFn, otherIds] = moduleFactory
+          const [moduleFactoryFn, otherIds] = moduleFactory
           moduleFactories[moduleId] = moduleFactoryFn
           for (const otherModuleId of otherIds) {
             moduleFactories[otherModuleId] = moduleFactoryFn
@@ -126,8 +141,8 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   } catch (e) {
     let errorMessage = `Failed to load chunk ${chunkPath}`
 
-    if (source) {
-      errorMessage += ` from ${stringifySourceInfo(source)}`
+    if (sourceType !== undefined) {
+      errorMessage += ` from ${stringifySourceInfo(sourceType, sourceData)}`
     }
 
     throw new Error(errorMessage, {
@@ -136,74 +151,72 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   }
 }
 
-async function loadChunkAsync(
-  source: SourceInfo,
+function loadChunkUncached(chunkPath: ChunkPath) {
+  // resolve to an absolute path to simplify `require` handling
+  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+
+  // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+  // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
+  const chunkModules: CompressedModuleFactories = require(resolved)
+  for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
+    if (!moduleFactories[moduleId]) {
+      if (Array.isArray(moduleFactory)) {
+        const [moduleFactoryFn, otherIds] = moduleFactory
+        moduleFactories[moduleId] = moduleFactoryFn
+        for (const otherModuleId of otherIds) {
+          moduleFactories[otherModuleId] = moduleFactoryFn
+        }
+      } else {
+        moduleFactories[moduleId] = moduleFactory
+      }
+    }
+  }
+}
+
+function loadChunkAsync(
+  sourceType: SourceType,
+  sourceData: SourceData,
   chunkData: ChunkData
-): Promise<any> {
+): Promise<void> {
   const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
-    return
+    return unsupportedLoadChunk
   }
 
-  if (loadedChunks.has(chunkPath)) {
-    return
-  }
-
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  try {
-    const contents = await fs.readFile(resolved, 'utf-8')
-
-    const localRequire = (id: string) => {
-      let resolvedId = require.resolve(id, { paths: [path.dirname(resolved)] })
-      return require(resolvedId)
-    }
-    const module = {
-      exports: {},
-    }
-    // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
-    // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
-    ;(0, eval)(
-      '(function(module, exports, require, __dirname, __filename) {' +
-        contents +
-        '\n})' +
-        '\n//# sourceURL=' +
-        url.pathToFileURL(resolved)
-    )(module, module.exports, localRequire, path.dirname(resolved), resolved)
-
-    const chunkModules: CompressedModuleFactories = module.exports
-    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
-      if (!moduleFactories[moduleId]) {
-        if (Array.isArray(moduleFactory)) {
-          let [moduleFactoryFn, otherIds] = moduleFactory
-          moduleFactories[moduleId] = moduleFactoryFn
-          for (const otherModuleId of otherIds) {
-            moduleFactories[otherModuleId] = moduleFactoryFn
-          }
-        } else {
-          moduleFactories[moduleId] = moduleFactory
-        }
+  let entry = chunkCache.get(chunkPath)
+  if (entry === undefined) {
+    try {
+      // Load the chunk synchronously
+      loadChunkUncached(chunkPath)
+      entry = loadedChunk
+    } catch (e) {
+      let errorMessage = `Failed to load chunk ${chunkPath}`
+      if (sourceType !== undefined) {
+        errorMessage += ` from ${stringifySourceInfo(sourceType, sourceData)}`
       }
-    }
-    loadedChunks.add(chunkPath)
-  } catch (e) {
-    let errorMessage = `Failed to load chunk ${chunkPath}`
 
-    if (source) {
-      errorMessage += ` from ${stringifySourceInfo(source)}`
+      // Cache the failure promise, future requests will also get this same rejection
+      entry = Promise.reject(
+        new Error(errorMessage, {
+          cause: e,
+        })
+      )
     }
-
-    throw new Error(errorMessage, {
-      cause: e,
-    })
+    chunkCache.set(chunkPath, entry)
   }
+  // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
+  return entry
 }
 
-async function loadChunkAsyncByUrl(source: SourceInfo, chunkUrl: string) {
+function loadChunkAsyncByUrl(
+  sourceType: SourceType,
+  sourceData: SourceData,
+  chunkUrl: string
+) {
   const path = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT)) as ChunkPath
-  return loadChunkAsync(source, path)
+  return loadChunkAsync(sourceType, sourceData, path)
 }
 
 function loadWebAssembly(
@@ -229,25 +242,32 @@ function getWorkerBlobURL(_chunks: ChunkPath[]): string {
   throw new Error('Worker blobs are not implemented yet for Node.js')
 }
 
-function instantiateModule(id: ModuleId, source: SourceInfo): Module {
+function instantiateModule(
+  id: ModuleId,
+  sourceType: SourceType,
+  sourceData: SourceData
+): Module {
   const moduleFactory = moduleFactories[id]
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
     // and contains e.g. a `require("something")` call.
     let instantiationReason
-    switch (source.type) {
+    switch (sourceType) {
       case SourceType.Runtime:
-        instantiationReason = `as a runtime entry of chunk ${source.chunkPath}`
+        instantiationReason = `as a runtime entry of chunk ${sourceData}`
         break
       case SourceType.Parent:
-        instantiationReason = `because it was required from module ${source.parentId}`
+        instantiationReason = `because it was required from module ${sourceData}`
         break
       default:
-        invariant(source, (source) => `Unknown source type: ${source?.type}`)
+        invariant(
+          sourceType,
+          (sourceType) => `Unknown source type: ${sourceType}`
+        )
     }
     throw new Error(
-      `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`
+      `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`
     )
   }
 
@@ -279,11 +299,9 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       m: module,
       c: moduleCache,
       M: moduleFactories,
-      l: loadChunkAsync.bind(null, { type: SourceType.Parent, parentId: id }),
-      L: loadChunkAsyncByUrl.bind(null, {
-        type: SourceType.Parent,
-        parentId: id,
-      }),
+      l: loadChunkAsync.bind(null, SourceType.Parent, id),
+      L: loadChunkAsyncByUrl.bind(null, SourceType.Parent, id),
+      C: clearChunkCache,
       w: loadWebAssembly,
       u: loadWebAssemblyModule,
       P: resolveAbsolutePath,
@@ -320,20 +338,17 @@ function getOrInstantiateModuleFromParent(
     return module
   }
 
-  return instantiateModule(id, {
-    type: SourceType.Parent,
-    parentId: sourceModule.id,
-  })
+  return instantiateModule(id, SourceType.Parent, sourceModule.id)
 }
 
 /**
  * Instantiates a runtime module.
  */
 function instantiateRuntimeModule(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
+  chunkPath: ChunkPath,
+  moduleId: ModuleId
 ): Module {
-  return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath })
+  return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
 }
 
 /**
@@ -341,8 +356,8 @@ function instantiateRuntimeModule(
  */
 // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
+  chunkPath: ChunkPath,
+  moduleId: ModuleId
 ): Module {
   const module = moduleCache[moduleId]
   if (module) {
@@ -352,7 +367,7 @@ function getOrInstantiateRuntimeModule(
     return module
   }
 
-  return instantiateRuntimeModule(moduleId, chunkPath)
+  return instantiateRuntimeModule(chunkPath, moduleId)
 }
 
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
@@ -363,7 +378,8 @@ function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
   return regexJsUrl.test(chunkUrlOrPath)
 }
 
-module.exports = {
-  getOrInstantiateRuntimeModule,
-  loadChunk,
-}
+module.exports = (sourcePath: ChunkPath) => ({
+  m: (id: ModuleId) => getOrInstantiateRuntimeModule(sourcePath, id),
+  c: (chunkData: ChunkData) =>
+    loadChunk(SourceType.Runtime, sourcePath, chunkData),
+})

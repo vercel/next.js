@@ -997,6 +997,7 @@ impl ValueToString for DiskFileSystem {
     }
 }
 
+/// Note: this only works for Unix-style paths (with `/` as a separator).
 pub fn get_relative_path_to(path: &str, other_path: &str) -> String {
     fn split(s: &str) -> impl Iterator<Item = &str> {
         let empty = s.is_empty();

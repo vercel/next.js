@@ -1310,11 +1310,12 @@
           task.debugStack,
           task.debugTask
         );
+      (task = iterable._debugInfo) &&
+        forwardDebugInfo(request, streamTask, task);
       request.pendingChunks++;
-      task = streamTask.id.toString(16) + ":" + (isIterator ? "x" : "X") + "\n";
-      request.completedRegularChunks.push(stringToChunk(task));
-      (iterable = iterable._debugInfo) &&
-        forwardDebugInfo(request, streamTask, iterable);
+      isIterator =
+        streamTask.id.toString(16) + ":" + (isIterator ? "x" : "X") + "\n";
+      request.completedRegularChunks.push(stringToChunk(isIterator));
       request.cacheController.signal.addEventListener("abort", abortIterable);
       callIteratorInDEV(iterator, progress, error);
       return serializeByValueID(streamTask.id);
@@ -1552,6 +1553,9 @@
         Component,
         props
       );
+      task.debugOwner = componentDebugInfo;
+      task.debugStack = null;
+      task.debugTask = null;
       Component = task.keyPath;
       componentDebugInfo = task.implicitSlot;
       null !== key
@@ -3766,15 +3770,13 @@
         i < chunks.length;
         i++
       ) {
-        var chunkFilename = chunks[i],
-          entry = chunkCache.get(chunkFilename);
-        if (void 0 === entry) {
-          entry = globalThis.__next_chunk_load__(chunkFilename);
-          promises.push(entry);
-          var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
-          entry.then(resolve, ignoreReject);
-          chunkCache.set(chunkFilename, entry);
-        } else null !== entry && promises.push(entry);
+        var thenable = globalThis.__next_chunk_load__(chunks[i]);
+        loadedChunks.has(thenable) || promises.push(thenable);
+        if (!instrumentedChunks.has(thenable)) {
+          var resolve = loadedChunks.add.bind(loadedChunks, thenable);
+          thenable.then(resolve, ignoreReject);
+          instrumentedChunks.add(thenable);
+        }
       }
       return 4 === metadata.length
         ? 0 === promises.length
@@ -5020,7 +5022,8 @@
       debugNoOutline = null,
       emptyRoot = {},
       decoderOptions = { stream: !0 },
-      chunkCache = new Map();
+      instrumentedChunks = new WeakSet(),
+      loadedChunks = new WeakSet();
     Chunk.prototype = Object.create(Promise.prototype);
     Chunk.prototype.then = function (resolve, reject) {
       switch (this.status) {

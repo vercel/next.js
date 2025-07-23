@@ -2,14 +2,15 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import {
   getOriginalCodeFrame,
   ignoreListAnonymousStackFramesIfSandwiched,
+  type IgnorableStackFrame,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
+  type StackFrame,
 } from '../../next-devtools/server/shared'
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
 import path from 'path'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   SourceMapConsumer,
   type NullableMappedPosition,
@@ -20,8 +21,7 @@ import {
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
 } from '../lib/source-maps'
-import { getSourceMapFromFile } from './get-source-map-from-file'
-import { findSourceMap } from 'node:module'
+import { findSourceMap, type SourceMap } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 
@@ -34,9 +34,10 @@ function shouldIgnorePath(modulePath: string): boolean {
   )
 }
 
-type IgnorableStackFrame = StackFrame & { ignored: boolean }
-
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
+/**
+ * @returns 1-based lines and 1-based columns
+ */
 async function batchedTraceSource(
   project: Project,
   frame: TurbopackStackFrame
@@ -54,8 +55,8 @@ async function batchedTraceSource(
     return {
       frame: {
         file,
-        lineNumber: frame.line ?? 0,
-        column: frame.column ?? 0,
+        line1: frame.line ?? null,
+        column1: frame.column ?? null,
         methodName: frame.methodName ?? '<unknown>',
         ignored: true,
         arguments: [],
@@ -71,8 +72,8 @@ async function batchedTraceSource(
     return {
       frame: {
         file,
-        lineNumber: frame.line ?? 0,
-        column: frame.column ?? 0,
+        line1: frame.line ?? null,
+        column1: frame.column ?? null,
         methodName: frame.methodName ?? '<unknown>',
         ignored: shouldIgnorePath(file),
         arguments: [],
@@ -104,10 +105,10 @@ async function batchedTraceSource(
   }
 
   // TODO: get ignoredList from turbopack source map
-  const ignorableFrame = {
+  const ignorableFrame: IgnorableStackFrame = {
     file: sourceFrame.file,
-    lineNumber: sourceFrame.line ?? 0,
-    column: sourceFrame.column ?? 0,
+    line1: sourceFrame.line ?? null,
+    column1: sourceFrame.column ?? null,
     methodName:
       // We ignore the sourcemapped name since it won't be the correct name.
       // The callsite will point to the column of the variable name instead of the
@@ -148,10 +149,10 @@ function createStackFrames(
       return {
         file,
         methodName: frame.methodName ?? '<unknown>',
-        line: frame.lineNumber ?? 0,
-        column: frame.column ?? 0,
+        line: frame.line1 ?? undefined,
+        column: frame.column1 ?? undefined,
         isServer,
-      } satisfies TurbopackStackFrame
+      }
     })
     .filter((f): f is TurbopackStackFrame => f !== undefined)
 }
@@ -168,14 +169,14 @@ function createStackFrame(
   return {
     file,
     methodName: searchParams.get('methodName') ?? '<unknown>',
-    line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+    line: parseInt(searchParams.get('line1') ?? '0', 10) || undefined,
+    column: parseInt(searchParams.get('column1') ?? '0', 10) || undefined,
     isServer: searchParams.get('isServer') === 'true',
-  } satisfies TurbopackStackFrame
+  }
 }
 
 /**
- * @returns 1-based lines and 0-based columns
+ * @returns 1-based lines and 1-based columns
  */
 async function nativeTraceSource(
   frame: TurbopackStackFrame
@@ -230,8 +231,8 @@ async function nativeTraceSource(
     if (traced !== null) {
       const { originalPosition, sourceContent } = traced
       const applicableSourceMap = findApplicableSourceMapPayload(
-        frame.line ?? 0,
-        frame.column ?? 0,
+        (frame.line ?? 1) - 1,
+        (frame.column ?? 1) - 1,
         sourceMapPayload
       )
 
@@ -263,9 +264,10 @@ async function nativeTraceSource(
           frame.methodName
             ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
             ?.replace('__webpack_exports__.', '') || '<unknown>',
-        column: (originalPosition.column ?? 0) + 1,
         file: originalPosition.source,
-        lineNumber: originalPosition.line ?? 0,
+        line1: originalPosition.line,
+        column1:
+          originalPosition.column === null ? null : originalPosition.column + 1,
         // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
         arguments: [],
         ignored,
@@ -309,10 +311,10 @@ async function createOriginalStackFrame(
   return {
     originalStackFrame: {
       arguments: traced.frame.arguments,
-      column: traced.frame.column,
       file: normalizedStackFrameLocation,
+      line1: traced.frame.line1,
+      column1: traced.frame.column1,
       ignored: traced.frame.ignored,
-      lineNumber: traced.frame.lineNumber,
       methodName: traced.frame.methodName,
     },
     originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),
@@ -416,19 +418,22 @@ export function getSourceMapMiddleware(project: Project) {
       return middlewareResponse.badRequest(res)
     }
 
-    // TODO(veil): Always try the native version first.
-    // Externals could also be files that aren't bundled via Webpack.
-    if (
-      filename.startsWith('webpack://') ||
-      filename.startsWith('webpack-internal:///')
-    ) {
-      const sourceMap = findSourceMap(filename)
+    let nativeSourceMap: SourceMap | undefined
+    try {
+      nativeSourceMap = findSourceMap(filename)
+    } catch (cause) {
+      return middlewareResponse.internalServerError(
+        res,
+        new Error(
+          `${filename}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+          { cause }
+        )
+      )
+    }
 
-      if (sourceMap) {
-        return middlewareResponse.json(res, sourceMap.payload)
-      }
-
-      return middlewareResponse.noContent(res)
+    if (nativeSourceMap !== undefined) {
+      const sourceMapPayload = nativeSourceMap.payload
+      return middlewareResponse.json(res, sourceMapPayload)
     }
 
     try {
@@ -447,14 +452,6 @@ export function getSourceMapMiddleware(project: Project) {
 
       if (sourceMapString) {
         return middlewareResponse.jsonString(res, sourceMapString)
-      }
-
-      if (filename.startsWith('file:')) {
-        const sourceMap = await getSourceMapFromFile(filename)
-
-        if (sourceMap) {
-          return middlewareResponse.json(res, sourceMap)
-        }
       }
     } catch (cause) {
       return middlewareResponse.internalServerError(

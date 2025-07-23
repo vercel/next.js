@@ -3,7 +3,7 @@ import {
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
+import { throwForMissingRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
@@ -55,6 +55,7 @@ export type UnsafeUnwrappedHeaders = ReadonlyHeaders
  * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
  */
 export function headers(): Promise<ReadonlyHeaders> {
+  const callingExpression = 'headers'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
@@ -78,10 +79,22 @@ export function headers(): Promise<ReadonlyHeaders> {
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
-        case 'cache':
-          throw new Error(
+        case 'cache': {
+          const error = new Error(
             `Route ${workStore.route} used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
+          Error.captureStackTrace(error, headers)
+          workStore.invalidDynamicUsageError ??= error
+          throw error
+        }
+        case 'private-cache': {
+          const error = new Error(
+            `Route ${workStore.route} used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+          )
+          Error.captureStackTrace(error, headers)
+          workStore.invalidDynamicUsageError ??= error
+          throw error
+        }
         case 'unstable-cache':
           throw new Error(
             `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
@@ -113,13 +126,13 @@ export function headers(): Promise<ReadonlyHeaders> {
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
         case 'prerender-ppr':
-          // PPR Prerender (no dynamicIO)
+          // PPR Prerender (no cacheComponents)
           // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how headers has worked in PPR without dynamicIO.
+          // to keep continuity with how headers has worked in PPR without cacheComponents.
           // TODO consider switching the semantic to throw on property access instead
           return postponeWithTracking(
             workStore.route,
-            'headers',
+            callingExpression,
             workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
@@ -128,12 +141,31 @@ export function headers(): Promise<ReadonlyHeaders> {
           // We track dynamic access here so we don't need to wrap the headers in
           // individual property access tracking.
           return throwToInterruptStaticGeneration(
-            'headers',
+            callingExpression,
             workStore,
             workUnitStore
           )
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
+
+          if (
+            process.env.NODE_ENV === 'development' &&
+            !workStore?.isPrefetchRequest
+          ) {
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedHeadersWithDevWarnings(
+                workUnitStore.headers,
+                workStore?.route
+              )
+            }
+
+            return makeUntrackedExoticHeadersWithDevWarnings(
+              workUnitStore.headers,
+              workStore?.route
+            )
+          } else {
+            return makeUntrackedExoticHeaders(workUnitStore.headers)
+          }
           break
         default:
           workUnitStore satisfies never
@@ -141,22 +173,8 @@ export function headers(): Promise<ReadonlyHeaders> {
     }
   }
 
-  const requestStore = getExpectedRequestStore('headers')
-  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
-    if (process.env.__NEXT_DYNAMIC_IO) {
-      return makeUntrackedHeadersWithDevWarnings(
-        requestStore.headers,
-        workStore?.route
-      )
-    }
-
-    return makeUntrackedExoticHeadersWithDevWarnings(
-      requestStore.headers,
-      workStore?.route
-    )
-  } else {
-    return makeUntrackedExoticHeaders(requestStore.headers)
-  }
+  // If we end up here, there was no work store or work unit store present.
+  throwForMissingRequestStore(callingExpression)
 }
 
 interface CacheLifetime {}
@@ -418,6 +436,7 @@ function syncIODev(route: string | undefined, expression: string) {
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
         break
       default:

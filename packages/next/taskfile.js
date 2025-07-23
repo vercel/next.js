@@ -1799,24 +1799,10 @@ export async function copy_vendor_react(task_) {
         // package will be bundled alongside user code and we don't need to introduce the extra
         // indirection
 
-        if (file.base.startsWith('react-server-dom-turbopack-client.browser')) {
-          const source = file.data.toString()
-          const filepath = file.dir + '/' + file.base
-          const ast = parseFile(source, { sourceFileName: filepath })
-          replaceIdentifiersInAst(
-            ast,
-            new Map([
-              [
-                '__turbopack_load__',
-                parseExpression('__turbopack_load_by_url__'),
-              ],
-            ])
-          )
-          file.data = recast.print(ast).code
-        } else if (
-          file.base.startsWith('react-server-dom-turbopack-client') ||
-          (file.base.startsWith('react-server-dom-turbopack-server') &&
-            !file.base.startsWith('react-server-dom-turbopack-server.browser'))
+        if (
+          (file.base.startsWith('react-server-dom-turbopack-client') ||
+            file.base.startsWith('react-server-dom-turbopack-server')) &&
+          !file.base.includes('.browser.')
         ) {
           const source = file.data.toString()
           const filepath = file.dir + '/' + file.base
@@ -1826,7 +1812,7 @@ export async function copy_vendor_react(task_) {
             ast,
             new Map([
               [
-                '__turbopack_load__',
+                '__turbopack_load_by_url__',
                 parseExpression('globalThis.__next_chunk_load__'),
               ],
               [

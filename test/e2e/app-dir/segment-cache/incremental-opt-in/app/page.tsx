@@ -43,6 +43,14 @@ export default function Page() {
             </li>
           </ul>
         </li>
+        <li>
+          <LinkAccordion
+            prefetch={true}
+            href="/ppr-disabled-dynamic-head?foo=yay"
+          >
+            Page with PPR disabled and a dynamic head, prefetch=true
+          </LinkAccordion>
+        </li>
       </ul>
     </>
   )

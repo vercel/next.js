@@ -21,18 +21,22 @@ import {
   ACTION_DEV_INDICATOR_SET,
   ACTION_DEVTOOLS_POSITION,
   ACTION_DEVTOOLS_SCALE,
+  ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../shared'
 import GearIcon from '../icons/gear-icon'
 import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
-import { useHideShortcutStorage } from '../components/errors/dev-tools-indicator/dev-tools-info/preferences'
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
+import { saveDevToolsConfig } from '../utils/save-devtools-config'
+import './panel-router.css'
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const { state, dispatch } = useDevOverlayContext()
   const { totalErrorCount } = useRenderErrorContext()
+  const isAppRouter = state.routerType === 'app'
+
   return (
     <DevtoolMenu
       items={[
@@ -41,6 +45,13 @@ const MenuPanel = () => {
           label: 'Issues',
           value: <IssueCount>{totalErrorCount}</IssueCount>,
           onClick: () => {
+            if (state.isErrorOverlayOpen) {
+              dispatch({
+                type: ACTION_ERROR_OVERLAY_CLOSE,
+              })
+              setPanel(null)
+              return
+            }
             setPanel(null)
             setSelectedIndex(-1)
             if (totalErrorCount > 0) {
@@ -74,14 +85,15 @@ const MenuPanel = () => {
               value: <ChevronRight />,
               onClick: () => setPanel('turbo-info'),
             },
-        !!process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && {
-          label: 'Route Info',
-          value: <ChevronRight />,
-          onClick: () => setPanel('segment-explorer'),
-          attributes: {
-            'data-segment-explorer': true,
+        !!process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER &&
+          isAppRouter && {
+            label: 'Route Info',
+            value: <ChevronRight />,
+            onClick: () => setPanel('segment-explorer'),
+            attributes: {
+              'data-segment-explorer': true,
+            },
           },
-        },
         {
           label: 'Preferences',
           value: <GearIcon />,
@@ -129,18 +141,20 @@ export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
   const { triggerRef } = usePanelRouterContext()
   const toggleDevtools = useToggleDevtoolsVisibility()
+  const isAppRouter = state.routerType === 'app'
 
-  const [hideShortcut] = useHideShortcutStorage()
   useShortcuts(
-    hideShortcut ? { [hideShortcut]: toggleDevtools } : {},
+    state.hideShortcut ? { [state.hideShortcut]: toggleDevtools } : {},
     triggerRef
   )
+
   return (
     <>
       <PanelRoute name="panel-selector">
         <MenuPanel />
       </PanelRoute>
 
+      {/* TODO: NEXT-4644 */}
       <PanelRoute name="preferences">
         <DynamicPanel
           sharePanelSizeGlobally={false}
@@ -174,12 +188,7 @@ export const PanelRouter = () => {
             />
           }
         >
-          <div
-            style={{
-              padding: '16px',
-              paddingTop: '8px',
-            }}
-          >
+          <div className="panel-content">
             <RouteInfoBody
               routerType={state.routerType}
               isStaticRoute={state.staticIndicator}
@@ -195,7 +204,7 @@ export const PanelRouter = () => {
         </DynamicPanel>
       </PanelRoute>
 
-      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && (
+      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && isAppRouter && (
         <PanelRoute name="segment-explorer">
           <DynamicPanel
             sharePanelSizeGlobally={false}
@@ -214,10 +223,7 @@ export const PanelRouter = () => {
             }}
             header={<DevToolsHeader title="Route Info" />}
           >
-            <PageSegmentTree
-              isAppRouter={state.routerType === 'app'}
-              page={state.page}
-            />
+            <PageSegmentTree page={state.page} />
           </DynamicPanel>
         </PanelRoute>
       )}
@@ -225,7 +231,6 @@ export const PanelRouter = () => {
       <PanelRoute name="turbo-info">
         <DynamicPanel
           sharePanelSizeGlobally={false}
-          // this size config is really silly, should calculate initial size dynamically
           sizeConfig={{
             kind: 'fixed',
             height: 470 / state.scale,
@@ -234,12 +239,7 @@ export const PanelRouter = () => {
           closeOnClickOutside
           header={<DevToolsHeader title="Try Turbopack" />}
         >
-          <div
-            style={{
-              padding: '16px',
-              paddingTop: '8px',
-            }}
-          >
+          <div className="panel-content">
             <TurbopackInfoBody />
             <InfoFooter href="https://nextjs.org/docs/app/api-reference/turbopack" />
           </div>
@@ -269,16 +269,10 @@ const UserPreferencesWrapper = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const updateAllPanelPositions = useUpdateAllPanelPositions()
 
-  const [hideShortcut, setHideShortcut] = useHideShortcutStorage()
-
   return (
-    <div
-      style={{
-        padding: '20px',
-        paddingTop: '8px',
-      }}
-    >
+    <div className="user-preferences-wrapper">
       <UserPreferencesBody
+        theme={state.theme}
         position={state.devToolsPosition}
         scale={state.scale}
         setScale={(scale) => {
@@ -294,8 +288,10 @@ const UserPreferencesWrapper = () => {
           })
           updateAllPanelPositions(devToolsPosition)
         }}
-        hideShortcut={hideShortcut}
-        setHideShortcut={setHideShortcut}
+        hideShortcut={state.hideShortcut}
+        setHideShortcut={(value) => {
+          saveDevToolsConfig({ hideShortcut: value })
+        }}
         hide={() => {
           dispatch({
             type: ACTION_DEV_INDICATOR_SET,
@@ -342,10 +338,13 @@ function PanelRoute({
     >
       <div
         id="panel-route"
-        style={{
-          opacity: rendered ? 1 : 0,
-          transition: `opacity ${MENU_DURATION_MS}ms ${MENU_CURVE}`,
-        }}
+        className="panel-route"
+        style={
+          {
+            '--panel-opacity': rendered ? 1 : 0,
+            '--panel-transition': `opacity ${MENU_DURATION_MS}ms ${MENU_CURVE}`,
+          } as React.CSSProperties
+        }
       >
         {children}
       </div>

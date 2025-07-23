@@ -1002,7 +1002,7 @@ describe('app-dir action handling', () => {
         { encoding: 'utf8' }
       )
       if (isTurbopack) {
-        const chunkPaths = pageBundle.matchAll(/loadChunk\("([^"]*)"\)/g)
+        const chunkPaths = pageBundle.matchAll(/R\.c\("([^"]*)"\)/g)
         const reads = [...chunkPaths].map(async (match) => {
           const bundle = await fs.readFile(
             join(next.testDir, '.next', ...match[1].split(/[\\/]/g)),

@@ -4,7 +4,8 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/export-all
   List all export names manually (`export { a, b, c } from "...") or rewrite the module to ESM, to avoid the additional runtime code.`
   
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js
-    ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js
-    ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js
-    ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js

@@ -71,19 +71,19 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 
     // Iterate over the development matches to see if one of them match the
     // request path.
-    for await (const development of super.matchAll(pathname, options)) {
+    for await (const developmentMatch of super.matchAll(pathname, options)) {
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
-      await this.ensurer.ensure(development, pathname)
+      await this.ensurer.ensure(developmentMatch, pathname)
       await this.production.reload()
 
       // Iterate over the production matches again, this time we should be able
       // to match it against the production matcher unless there's an error.
-      for await (const production of this.production.matchAll(
+      for await (const productionMatch of this.production.matchAll(
         pathname,
         options
       )) {
-        yield production
+        yield productionMatch
       }
     }
 

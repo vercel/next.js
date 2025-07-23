@@ -7,13 +7,16 @@ import { Warning } from '../../icons/warning'
 import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
-import { ACTION_ERROR_OVERLAY_OPEN } from '../../shared'
+import {
+  ACTION_ERROR_OVERLAY_CLOSE,
+  ACTION_ERROR_OVERLAY_OPEN,
+} from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 
 const SHORT_DURATION_MS = 150
 
-export function NextLogoNew({
+export function NextLogo({
   onTriggerClick,
   ...buttonProps
 }: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
@@ -89,7 +92,6 @@ export function NextLogoNew({
           }
 
           [data-next-badge] {
-            -webkit-font-smoothing: antialiased;
             width: var(--size);
             height: var(--size);
             display: flex;
@@ -418,7 +420,12 @@ export function NextLogoNew({
                 data-issues-open
                 aria-label="Open issues overlay"
                 onClick={() => {
-                  // wait this is wrong
+                  if (state.isErrorOverlayOpen) {
+                    dispatch({
+                      type: ACTION_ERROR_OVERLAY_CLOSE,
+                    })
+                    return
+                  }
                   dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
                   setPanel(null)
                 }}
