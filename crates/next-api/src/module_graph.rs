@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::hash_map::Entry};
 
 use anyhow::{Ok, Result};
 use either::Either;
+use futures::join;
 use next_core::{
     next_client_reference::{
         ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
@@ -739,21 +740,32 @@ impl GlobalBuildInformation {
                     .client_references
                     .iter()
                     .map(|graph| graph.get_client_references_for_endpoint(entry))
-                    .try_join()
-                    .await?;
-
-                let mut iter = results.into_iter();
-                let mut result = ReadRef::into_owned(iter.next().unwrap());
-                for r in iter {
-                    result.extend(&r);
-                }
+                    .try_join();
                 // Do this separately for now, because the aggregation of multiple graph traversals
                 // messes up the order of the server_component_entries.
-                if has_layout_segments {
-                    let ServerEntries {
-                        server_utils,
-                        server_component_entries,
-                    } = &*find_server_entries(entry, include_traced).await?;
+                let server_entries = async {
+                    if has_layout_segments {
+                        let server_entries = find_server_entries(entry, include_traced).await?;
+                        Ok(Some(server_entries))
+                    } else {
+                        Ok(None)
+                    }
+                };
+                let (results, server_entries) = join!(results, server_entries);
+
+                let mut iter = results?.into_iter();
+                let mut result = ReadRef::into_owned(iter.next().unwrap());
+                for r in iter {
+                    // We only aggregate the client_references, everything else is recomputed below
+                    result
+                        .client_references
+                        .extend(r.client_references.iter().copied());
+                }
+                if let Some(ServerEntries {
+                    server_utils,
+                    server_component_entries,
+                }) = server_entries?.as_deref()
+                {
                     result.server_utils = server_utils.clone();
                     result.server_component_entries = server_component_entries.clone();
                 }

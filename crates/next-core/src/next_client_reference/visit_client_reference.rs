@@ -106,17 +106,6 @@ impl ClientReferenceGraphResult {
     }
 }
 
-impl ClientReferenceGraphResult {
-    /// Merges multiple return values of client_reference_graph together.
-    pub fn extend(&mut self, other: &Self) {
-        self.client_references
-            .extend(other.client_references.iter().copied());
-        self.server_component_entries
-            .extend(other.server_component_entries.iter().copied());
-        self.server_utils.extend(other.server_utils.iter().copied());
-    }
-}
-
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ServerEntries {
