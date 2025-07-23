@@ -745,20 +745,22 @@ export const getHandler = ({
         )
       }
     } catch (err) {
-      await routeModule.onRequestError(
-        req,
-        err,
-        {
-          routerKind: 'Pages Router',
-          routePath: srcPage,
-          routeType: 'render',
-          revalidateReason: getRevalidateReason({
-            isRevalidate: hasStaticProps,
-            isOnDemandRevalidate,
-          }),
-        },
-        routerServerContext
-      )
+      if (!(err instanceof NoFallbackError)) {
+        await routeModule.onRequestError(
+          req,
+          err,
+          {
+            routerKind: 'Pages Router',
+            routePath: srcPage,
+            routeType: 'render',
+            revalidateReason: getRevalidateReason({
+              isRevalidate: hasStaticProps,
+              isOnDemandRevalidate,
+            }),
+          },
+          routerServerContext
+        )
+      }
 
       // rethrow so that we can handle serving error page
       throw err

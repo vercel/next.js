@@ -894,7 +894,12 @@ export default class DevServer extends Server {
           fallbackMode: fallback,
         }
 
-        if (res.value?.fallbackMode !== undefined) {
+        if (
+          res.value?.fallbackMode !== undefined &&
+          // This matches the hasGenerateStaticParams logic
+          // we do during build
+          (!isAppPath || (staticPaths && staticPaths.length > 0))
+        ) {
           // we write the static paths to partial manifest for
           // fallback handling inside of entry handler's
           const rawExistingManifest = await fs.promises.readFile(
