@@ -3262,7 +3262,7 @@
                 : newArgs.splice(
                     offset,
                     0,
-                    "%c%s%c ",
+                    "%c%s%c",
                     "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
                     " " + env + " ",
                     ""
@@ -3312,10 +3312,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-7513996f-20250722",
+      version: "19.2.0-canary-edac0dde-20250723",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-7513996f-20250722",
+      reconcilerVersion: "19.2.0-canary-edac0dde-20250723",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
