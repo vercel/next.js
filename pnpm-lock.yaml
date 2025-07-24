@@ -1246,9 +1246,18 @@ importers:
       axe-playwright:
         specifier: 2.0.3
         version: 2.0.3(playwright@1.51.1)
+      babel-loader:
+        specifier: 10.0.0
+        version: 10.0.0(@babel/core@7.26.10)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2))
       babel-plugin-react-compiler:
         specifier: 19.1.0-rc.2
         version: 19.1.0-rc.2
+      babel-plugin-syntax-jsx:
+        specifier: 6.18.0
+        version: 6.18.0
+      babel-plugin-syntax-typescript:
+        specifier: 7.0.0-alpha.19
+        version: 7.0.0-alpha.19
       babel-plugin-transform-define:
         specifier: 2.0.0
         version: 2.0.0
@@ -6659,6 +6668,13 @@ packages:
     peerDependencies:
       '@babel/core': 7.26.10
 
+  babel-loader@10.0.0:
+    resolution: {integrity: sha512-z8jt+EdS61AMw22nSfoNJAZ0vrtmhPRVi6ghL3rCeRZI8cdNYFiV5xeV3HbE7rlZZNmGH8BVccwWt8/ED0QOHA==}
+    engines: {node: ^18.20.0 || ^20.10.0 || >=22.0.0}
+    peerDependencies:
+      '@babel/core': 7.26.10
+      webpack: 5.98.0
+
   babel-plugin-istanbul@6.1.1:
     resolution: {integrity: sha512-Y1IQok9821cC9onCx5otgFfRm7Lm+I+wwxOx738M/WLPZ9Q42m4IG5W0FNX8WLL2gYMZo3JkuXIH2DOpWM+qwA==}
     engines: {node: '>=8'}
@@ -6696,6 +6712,12 @@ packages:
 
   babel-plugin-react-compiler@19.1.0-rc.2:
     resolution: {integrity: sha512-kSNA//p5fMO6ypG8EkEVPIqAjwIXm5tMjfD1XRPL/sRjYSbJ6UsvORfaeolNWnZ9n310aM0xJP7peW26BuCVzA==}
+
+  babel-plugin-syntax-jsx@6.18.0:
+    resolution: {integrity: sha512-qrPaCSo9c8RHNRHIotaufGbuOBN8rtdC4QrrFFc43vyWCCz7Kl7GL1PGaXtMGQZUXrkCjNEgxDfmAuAabr/rlw==}
+
+  babel-plugin-syntax-typescript@7.0.0-alpha.19:
+    resolution: {integrity: sha512-jLuaWfoQsVr8/hmZtWB+86tZ5jYmOYV6kq70EkSUT7RR+gfeYOExS0FjObbbp+WExZNpBaRZvlyikNk3hCQGeQ==}
 
   babel-plugin-transform-async-to-promises@0.8.15:
     resolution: {integrity: sha512-fDXP68ZqcinZO2WCiimCL9zhGjGXOnn3D33zvbh+yheZ/qOrNVVDDIBtAaM3Faz8TRvQzHiRKsu3hfrBAhEncQ==}
@@ -14103,6 +14125,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -23005,6 +23028,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  babel-loader@10.0.0(@babel/core@7.26.10)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)):
+    dependencies:
+      '@babel/core': 7.26.10
+      find-up: 5.0.0
+      webpack: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)
+
   babel-plugin-istanbul@6.1.1:
     dependencies:
       '@babel/helper-plugin-utils': 7.26.5
@@ -23071,6 +23100,10 @@ snapshots:
   babel-plugin-react-compiler@19.1.0-rc.2:
     dependencies:
       '@babel/types': 7.27.0
+
+  babel-plugin-syntax-jsx@6.18.0: {}
+
+  babel-plugin-syntax-typescript@7.0.0-alpha.19: {}
 
   babel-plugin-transform-async-to-promises@0.8.15: {}
 
