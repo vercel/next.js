@@ -140,3 +140,17 @@ export const enum PrefetchPriority {
    */
   Background = 0,
 }
+
+export const enum FetchStrategy {
+  PPR,
+  Full,
+  LoadingBoundary,
+}
+
+/**
+ * A subset of fetch strategies used for prefetch tasks.
+ * A prefetch task can't know if it should use `PPR` or `LoadingBoundary`
+ * until we complete the initial tree prefetch request, so we use `PPR` to signal both cases
+ * and adjust it based on the route when actually fetching.
+ * */
+export type PrefetchTaskFetchStrategy = FetchStrategy.PPR | FetchStrategy.Full

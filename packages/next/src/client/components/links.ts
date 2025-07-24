@@ -2,8 +2,11 @@ import type { FlightRouterState } from '../../server/app-render/types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { getCurrentAppRouterState } from './app-router-instance'
 import { createPrefetchURL } from './app-router'
-import { PrefetchKind } from './router-reducer/router-reducer-types'
-import { isPrefetchTaskDirty } from './segment-cache'
+import {
+  FetchStrategy,
+  isPrefetchTaskDirty,
+  type PrefetchTaskFetchStrategy,
+} from './segment-cache'
 import { createCacheKey } from './segment-cache'
 import {
   type PrefetchTask,
@@ -13,6 +16,7 @@ import {
   reschedulePrefetchTask,
 } from './segment-cache'
 import { startTransition } from 'react'
+import { PrefetchKind } from './router-reducer/router-reducer-types'
 
 type LinkElement = HTMLAnchorElement | SVGAElement
 
@@ -22,7 +26,7 @@ type Element = LinkElement | HTMLFormElement
 // shape for both to prevent a polymorphic de-opt in the VM.
 type LinkOrFormInstanceShared = {
   router: AppRouterInstance
-  kind: PrefetchKind.AUTO | PrefetchKind.FULL
+  fetchStrategy: PrefetchTaskFetchStrategy
 
   isVisible: boolean
 
@@ -140,7 +144,7 @@ export function mountLinkInstance(
   element: LinkElement,
   href: string,
   router: AppRouterInstance,
-  kind: PrefetchKind.AUTO | PrefetchKind.FULL,
+  fetchStrategy: PrefetchTaskFetchStrategy,
   prefetchEnabled: boolean,
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 ): LinkInstance {
@@ -149,7 +153,7 @@ export function mountLinkInstance(
     if (prefetchURL !== null) {
       const instance: PrefetchableLinkInstance = {
         router,
-        kind,
+        fetchStrategy,
         isVisible: false,
         prefetchTask: null,
         prefetchHref: prefetchURL.href,
@@ -165,7 +169,7 @@ export function mountLinkInstance(
   // track its optimistic state (i.e. useLinkStatus).
   const instance: NonPrefetchableLinkInstance = {
     router,
-    kind,
+    fetchStrategy,
     isVisible: false,
     prefetchTask: null,
     prefetchHref: null,
@@ -178,7 +182,7 @@ export function mountFormInstance(
   element: HTMLFormElement,
   href: string,
   router: AppRouterInstance,
-  kind: PrefetchKind.AUTO | PrefetchKind.FULL
+  fetchStrategy: PrefetchTaskFetchStrategy
 ): void {
   const prefetchURL = coercePrefetchableUrl(href)
   if (prefetchURL === null) {
@@ -190,7 +194,7 @@ export function mountFormInstance(
   }
   const instance: FormInstance = {
     router,
-    kind,
+    fetchStrategy,
     isVisible: false,
     prefetchTask: null,
     prefetchHref: prefetchURL.href,
@@ -261,7 +265,7 @@ export function onNavigationIntent(
       unstable_upgradeToDynamicPrefetch
     ) {
       // Switch to a full, dynamic prefetch
-      instance.kind = PrefetchKind.FULL
+      instance.fetchStrategy = FetchStrategy.Full
     }
     rescheduleLinkPrefetch(instance, PrefetchPriority.Intent)
   }
@@ -303,7 +307,7 @@ function rescheduleLinkPrefetch(
       instance.prefetchTask = scheduleSegmentPrefetchTask(
         cacheKey,
         treeAtTimeOfPrefetch,
-        instance.kind === PrefetchKind.FULL,
+        instance.fetchStrategy,
         priority,
         null
       )
@@ -313,7 +317,7 @@ function rescheduleLinkPrefetch(
       reschedulePrefetchTask(
         existingPrefetchTask,
         treeAtTimeOfPrefetch,
-        instance.kind === PrefetchKind.FULL,
+        instance.fetchStrategy,
         priority
       )
     }
@@ -347,7 +351,7 @@ export function pingVisibleLinks(
     instance.prefetchTask = scheduleSegmentPrefetchTask(
       cacheKey,
       tree,
-      instance.kind === PrefetchKind.FULL,
+      instance.fetchStrategy,
       PrefetchPriority.Default,
       null
     )
@@ -363,8 +367,26 @@ function prefetchWithOldCacheImplementation(instance: PrefetchableInstance) {
   const doPrefetch = async () => {
     // note that `appRouter.prefetch()` is currently sync,
     // so we have to wrap this call in an async function to be able to catch() errors below.
+
+    let prefetchKind: PrefetchKind
+    switch (instance.fetchStrategy) {
+      case FetchStrategy.PPR: {
+        prefetchKind = PrefetchKind.AUTO
+        break
+      }
+      case FetchStrategy.Full: {
+        prefetchKind = PrefetchKind.FULL
+        break
+      }
+      default: {
+        instance.fetchStrategy satisfies never
+        // Unreachable, but otherwise typescript will consider the variable unassigned
+        prefetchKind = undefined!
+      }
+    }
+
     return instance.router.prefetch(instance.prefetchHref, {
-      kind: instance.kind,
+      kind: prefetchKind,
     })
   }
 
