@@ -35,6 +35,7 @@ const unsupportedTurbopackNextConfigOptions = [
 
   'experimental.sri.algorithm',
   'experimental.swcTraceProfiling',
+  'experimental.typedRoutes',
 
   // Left to be implemented (Might not be needed for Turbopack)
   'experimental.craCompat',
