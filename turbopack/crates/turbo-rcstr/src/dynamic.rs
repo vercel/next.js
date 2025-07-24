@@ -7,7 +7,7 @@ use crate::{
     tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
-pub(crate) struct PrehashedString {
+pub struct PrehashedString {
     pub value: String,
     /// This is not the actual `fxhash`, but rather it's a value that passed to
     /// `write_u64` of [rustc_hash::FxHasher].
@@ -61,23 +61,9 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
     }
 }
 
-pub(crate) fn new_static_atom(text: &'static str) -> RcStr {
-    debug_assert!(
-        text.len() >= MAX_INLINE_LEN,
-        "should have use the rcstr! macro? this string is too short"
-    );
-    let hash = hash_bytes(text.as_bytes());
-
-    let entry: Box<PrehashedString> = Box::new(PrehashedString {
-        value: text.into(),
-        hash,
-    });
-    // Hello memory leak!
-    // We are leaking here because the caller is asserting that this RcStr will have a static
-    // lifetime Ideally we wouldn't be copying the static str into the PrehashedString as a
-    // String but instead keeping the `&'static str` reference somehow, perhaps using a Cow?? or
-    // perhaps switching to a ThinArc
-    let mut entry = Box::into_raw(entry);
+#[inline(always)]
+pub(crate) fn new_static_atom(string: &'static PrehashedString) -> RcStr {
+    let mut entry = string as *const PrehashedString;
     debug_assert!(0 == entry as u8 & TAG_MASK);
     // Tag it as a static pointer
     entry = ((entry as usize) | STATIC_TAG as usize) as *mut PrehashedString;
@@ -120,7 +106,7 @@ const SEED2: u64 = 0x13198a2e03707344;
 const PREVENT_TRIVIAL_ZERO_COLLAPSE: u64 = 0xa4093822299f31d0;
 
 #[inline]
-fn multiply_mix(x: u64, y: u64) -> u64 {
+const fn multiply_mix(x: u64, y: u64) -> u64 {
     #[cfg(target_pointer_width = "64")]
     {
         // We compute the full u64 x u64 -> u128 product, this is a single mul
@@ -161,6 +147,26 @@ fn multiply_mix(x: u64, y: u64) -> u64 {
     }
 }
 
+// Const compatible helper function to read a u64 from a byte array at a given offset
+const fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
+    (bytes[offset] as u64)
+        | ((bytes[offset + 1] as u64) << 8)
+        | ((bytes[offset + 2] as u64) << 16)
+        | ((bytes[offset + 3] as u64) << 24)
+        | ((bytes[offset + 4] as u64) << 32)
+        | ((bytes[offset + 5] as u64) << 40)
+        | ((bytes[offset + 6] as u64) << 48)
+        | ((bytes[offset + 7] as u64) << 56)
+}
+
+// Const compatible helper function to read a u32 from a byte array at a given offset
+const fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
+    (bytes[offset] as u32)
+        | ((bytes[offset + 1] as u32) << 8)
+        | ((bytes[offset + 2] as u32) << 16)
+        | ((bytes[offset + 3] as u32) << 24)
+}
+
 /// Copied from `hash_bytes` of `rustc-hash`.
 ///
 /// See: https://github.com/rust-lang/rustc-hash/blob/dc5c33f1283de2da64d8d7a06401d91aded03ad4/src/lib.rs#L252-L297
@@ -179,7 +185,8 @@ fn multiply_mix(x: u64, y: u64) -> u64 {
 /// We don't bother avalanching here as we'll feed this hash into a
 /// multiplication after which we take the high bits, which avalanches for us.
 #[inline]
-fn hash_bytes(bytes: &[u8]) -> u64 {
+#[doc(hidden)]
+pub const fn hash_bytes(bytes: &[u8]) -> u64 {
     let len = bytes.len();
     let mut s0 = SEED1;
     let mut s1 = SEED2;
@@ -187,11 +194,11 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
     if len <= 16 {
         // XOR the input into s0, s1.
         if len >= 8 {
-            s0 ^= u64::from_le_bytes(bytes[0..8].try_into().unwrap());
-            s1 ^= u64::from_le_bytes(bytes[len - 8..].try_into().unwrap());
+            s0 ^= read_u64_le(bytes, 0);
+            s1 ^= read_u64_le(bytes, len - 8);
         } else if len >= 4 {
-            s0 ^= u32::from_le_bytes(bytes[0..4].try_into().unwrap()) as u64;
-            s1 ^= u32::from_le_bytes(bytes[len - 4..].try_into().unwrap()) as u64;
+            s0 ^= read_u32_le(bytes, 0) as u64;
+            s1 ^= read_u32_le(bytes, len - 4) as u64;
         } else if len > 0 {
             let lo = bytes[0];
             let mid = bytes[len / 2];
@@ -203,8 +210,8 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
         // Handle bulk (can partially overlap with suffix).
         let mut off = 0;
         while off < len - 16 {
-            let x = u64::from_le_bytes(bytes[off..off + 8].try_into().unwrap());
-            let y = u64::from_le_bytes(bytes[off + 8..off + 16].try_into().unwrap());
+            let x = read_u64_le(bytes, off);
+            let y = read_u64_le(bytes, off + 8);
 
             // Replace s1 with a mix of s0, x, and y, and s0 with s1.
             // This ensures the compiler can unroll this loop into two
@@ -218,9 +225,8 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
             off += 16;
         }
 
-        let suffix = &bytes[len - 16..];
-        s0 ^= u64::from_le_bytes(suffix[0..8].try_into().unwrap());
-        s1 ^= u64::from_le_bytes(suffix[8..16].try_into().unwrap());
+        s0 ^= read_u64_le(bytes, len - 16);
+        s1 ^= read_u64_le(bytes, len - 8);
     }
 
     multiply_mix(s0, s1) ^ (len as u64)

@@ -300,7 +300,7 @@ impl PartialEq for RcStr {
     fn eq(&self, other: &Self) -> bool {
         // For inline RcStrs this is sufficient and for out of line values it handles a simple
         // identity cases
-        if self.unsafe_data == self.unsafe_data {
+        if self.unsafe_data == other.unsafe_data {
             return true;
         }
         // They can still be equal if they are both stored on the heap
@@ -367,14 +367,29 @@ impl Drop for RcStr {
     }
 }
 
+// Exports for our macro
 #[doc(hidden)]
 pub const fn inline_atom(s: &str) -> Option<RcStr> {
     dynamic::inline_atom(s)
 }
 
 #[doc(hidden)]
-pub fn from_static(s: &'static str) -> RcStr {
+pub fn from_static(s: &'static PrehashedString) -> RcStr {
     dynamic::new_static_atom(s)
+}
+#[doc(hidden)]
+pub use dynamic::{PrehashedString, hash_bytes};
+
+#[doc(hidden)]
+impl RcStr {
+    // Allow the rcstr! macro to skip a tag branch
+    #[doc(hidden)]
+    pub fn unsafe_copy_for_macro(&self) -> RcStr {
+        debug_assert!(self.tag() == STATIC_TAG);
+        Self {
+            unsafe_data: self.unsafe_data,
+        }
+    }
 }
 
 /// Create an rcstr from a string literal.
@@ -383,16 +398,23 @@ pub fn from_static(s: &'static str) -> RcStr {
 macro_rules! rcstr {
     ($s:expr) => {{
         const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
-        // this condition should be able to be compile time evaluated and inlined.
+        // This condition can be compile time evaluated and inlined.
         if INLINE.is_some() {
             INLINE.unwrap()
         } else {
             #[inline(never)]
             fn get_rcstr() -> $crate::RcStr {
-                static CACHE: std::sync::LazyLock<$crate::RcStr> =
-                    std::sync::LazyLock::new(|| $crate::from_static($s));
+                // Allocate static storage for the PrehashedString
+                static INNER: ::std::sync::LazyLock<$crate::PrehashedString> =
+                    ::std::sync::LazyLock::new(|| $crate::PrehashedString {
+                        value: $s.into(),
+                        // compute the hash at compile time
+                        hash: const { $crate::hash_bytes($s.as_bytes()) },
+                    });
+                static CACHE: ::std::sync::LazyLock<$crate::RcStr> =
+                    ::std::sync::LazyLock::new(|| $crate::from_static(&*INNER));
 
-                (*CACHE).clone()
+                (*CACHE).unsafe_copy_for_macro()
             }
             get_rcstr()
         }
