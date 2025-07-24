@@ -385,7 +385,7 @@ impl Issue for FatalStreamIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Other("websocket".into()).cell()
+        IssueStage::Other(rcstr!("websocket")).cell()
     }
 
     #[turbo_tasks::function]

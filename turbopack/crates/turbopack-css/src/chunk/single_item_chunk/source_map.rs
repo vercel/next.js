@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -37,7 +38,7 @@ impl OutputAsset for SingleItemCssChunkSourceMapAsset {
                 Some(Vc::upcast(self)),
                 this.chunk.ident_for_path(),
                 None,
-                ".single.css".into(),
+                rcstr!(".single.css"),
             )
             .await?
             .append(".map")?

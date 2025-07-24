@@ -2,25 +2,27 @@ use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::{next_font_loaders, Config as FontLoaderConfig},
+    dynamic::{NextDynamicMode, next_dynamic},
+    fonts::{Config as FontLoaderConfig, next_font_loaders},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
-    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    server_actions::{self, ServerActionsMode, server_actions},
+    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
+    atoms::atom,
     common::{FileName, Mark},
     ecma::{
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
-            testing::{test_fixture, FixtureTestConfig},
+            testing::{FixtureTestConfig, test_fixture},
         },
     },
 };
 use testing::fixture;
+use turbo_rcstr::rcstr;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsSyntax {
@@ -125,8 +127,8 @@ fn next_font_loaders_errors(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_font_loaders(FontLoaderConfig {
-                relative_file_path_from_root: "pages/test.tsx".into(),
-                font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
+                relative_file_path_from_root: atom!("pages/test.tsx"),
+                font_loaders: vec![atom!("@next/font/google"), atom!("cool-fonts")],
             })
         },
         &input,
@@ -231,7 +233,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         is_development: true,
                         use_cache_enabled: false,
                         hash_salt: "".into(),
-                        cache_kinds: FxHashSet::from_iter(["x".into()]),
+                        cache_kinds: FxHashSet::from_iter([rcstr!("x")]),
                     },
                     tr.comments.as_ref().clone(),
                     tr.cm.clone(),

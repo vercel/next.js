@@ -12,7 +12,7 @@ use next_core::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
     ValueToString, Vc,
@@ -440,15 +440,16 @@ impl Issue for CssGlobalImportIssue {
     #[turbo_tasks::function]
     async fn title(&self) -> Vc<StyledString> {
         StyledString::Stack(vec![
-            StyledString::Text("Failed to compile".into()),
-            StyledString::Text(
+            StyledString::Text(rcstr!("Failed to compile")),
+            StyledString::Text(rcstr!(
                 "Global CSS cannot be imported from files other than your Custom <App>. Due to \
                  the Global nature of stylesheets, and to avoid conflicts, Please move all \
                  first-party global CSS imports to pages/_app.js. Or convert the import to \
                  Component-Level CSS (CSS Modules)."
-                    .into(),
-            ),
-            StyledString::Text("Read more: https://nextjs.org/docs/messages/css-global".into()),
+            )),
+            StyledString::Text(rcstr!(
+                "Read more: https://nextjs.org/docs/messages/css-global"
+            )),
         ])
         .cell()
     }

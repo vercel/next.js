@@ -1,15 +1,16 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
-    common::{util::take::Take, SyntaxContext, DUMMY_SP},
+    atoms::atom,
+    common::{DUMMY_SP, SyntaxContext, util::take::Take},
     ecma::{
         ast::{
             CallExpr, Callee, Decl, Expr, Id, Ident, IdentName, Lit, MemberExpr, MemberProp,
             Module, ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::Atom,
-        utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
-        visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith, VisitWith},
+        utils::{ExprFactory, IdentRenamer, prepend_stmts, private_ident},
+        visit::{Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type},
     },
 };
 
@@ -113,15 +114,15 @@ impl VisitMut for CjsOptimizer {
                                             obj: Box::new(Expr::Call(CallExpr {
                                                 span: DUMMY_SP,
                                                 callee: Ident::new(
-                                                    "require".into(),
+                                                    atom!("require"),
                                                     DUMMY_SP,
                                                     self.unresolved_ctxt,
                                                 )
                                                 .as_callee(),
-                                                args: vec![Expr::Lit(Lit::Str(
-                                                    renamed.clone().into(),
-                                                ))
-                                                .as_arg()],
+                                                args: vec![
+                                                    Expr::Lit(Lit::Str(renamed.clone().into()))
+                                                        .as_arg(),
+                                                ],
                                                 ..Default::default()
                                             })),
                                             prop: MemberProp::Ident(IdentName::new(

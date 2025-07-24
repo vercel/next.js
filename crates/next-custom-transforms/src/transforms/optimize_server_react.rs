@@ -4,10 +4,11 @@
 
 use serde::Deserialize;
 use swc_core::{
+    atoms::atom,
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold, FoldWith},
+        visit::{Fold, FoldWith, fold_pass},
     },
 };
 
@@ -71,18 +72,18 @@ fn wrap_expr_with_env_prod_condition(call: CallExpr) -> Expr {
         left: Box::new(Expr::Member(MemberExpr {
             obj: (Box::new(Expr::Member(MemberExpr {
                 obj: (Box::new(Expr::Ident(Ident {
-                    sym: "process".into(),
+                    sym: atom!("process"),
                     span: DUMMY_SP,
                     ..Default::default()
                 }))),
                 prop: MemberProp::Ident(IdentName {
-                    sym: "env".into(),
+                    sym: atom!("env"),
                     span: DUMMY_SP,
                 }),
                 span: DUMMY_SP,
             }))),
             prop: (MemberProp::Ident(IdentName {
-                sym: "__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE".into(),
+                sym: atom!("__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE"),
                 span: DUMMY_SP,
             })),
             span: DUMMY_SP,
