@@ -3,7 +3,6 @@ import { Dialog } from '../../dialog/dialog'
 type ErrorOverlayDialogProps = {
   children?: React.ReactNode
   onClose?: () => void
-  dialogResizerRef?: React.RefObject<HTMLDivElement | null>
   footer?: React.ReactNode
 } & React.HTMLAttributes<HTMLDivElement>
 

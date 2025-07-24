@@ -1,23 +1,19 @@
-import { useEffect, useRef, useState, forwardRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-export const Resizer = forwardRef(function Resizer(
-  {
-    children,
-    measure,
-    ...props
-  }: {
-    children: React.ReactNode
-    measure: boolean
-  } & React.HTMLProps<HTMLDivElement>,
-  resizerRef: React.Ref<HTMLDivElement | null>
-) {
+export function Resizer({
+  children,
+  measure,
+  ...props
+}: {
+  children: React.ReactNode
+  measure: boolean
+} & React.HTMLProps<HTMLDivElement>) {
   const ref = useRef<HTMLDivElement | null>(null)
   const [height, measuring] = useMeasureHeight(ref, measure)
 
   return (
     <div
       {...props}
-      ref={resizerRef}
       // [x] Don't animate on initial load
       // [x] No duplicate elements
       // [x] Responds to content growth
@@ -29,7 +25,7 @@ export const Resizer = forwardRef(function Resizer(
       <div ref={ref}>{children}</div>
     </div>
   )
-})
+}
 
 function useMeasureHeight(
   ref: React.RefObject<HTMLDivElement | null>,
