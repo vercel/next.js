@@ -755,5 +755,6 @@
   "754": "%s cannot be used outside of a request context.",
   "755": "Route must be a string",
   "756": "Route %s not found",
-  "757": "Unknown styled string type: %s"
+  "757": "Unknown styled string type: %s",
+  "758": "Missing workStore in useDynamicRouteParams"
 }

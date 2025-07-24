@@ -74,54 +74,50 @@ function createPrerenderRootParams(
         `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
       )
     }
-    case 'prerender':
-    case 'prerender-legacy':
-    case 'prerender-ppr':
-    default:
-  }
+    case 'prerender': {
+      const fallbackParams = prerenderStore.fallbackRouteParams
+      if (fallbackParams) {
+        for (const key in underlyingParams) {
+          if (fallbackParams.has(key)) {
+            const cachedParams = CachedParams.get(underlyingParams)
+            if (cachedParams) {
+              return cachedParams
+            }
 
-  const fallbackParams = workStore.fallbackRouteParams
-  if (fallbackParams) {
-    let hasSomeFallbackParams = false
-    for (const key in underlyingParams) {
-      if (fallbackParams.has(key)) {
-        hasSomeFallbackParams = true
-        break
-      }
-    }
+            const promise = makeHangingPromise<Params>(
+              prerenderStore.renderSignal,
+              '`unstable_rootParams`'
+            )
+            CachedParams.set(underlyingParams, promise)
 
-    if (hasSomeFallbackParams) {
-      // params need to be treated as dynamic because we have at least one fallback param
-      switch (prerenderStore.type) {
-        case 'prerender':
-          // We are in a cacheComponents prerender
-          const cachedParams = CachedParams.get(underlyingParams)
-          if (cachedParams) {
-            return cachedParams
+            return promise
           }
-
-          const promise = makeHangingPromise<Params>(
-            prerenderStore.renderSignal,
-            '`unstable_rootParams`'
-          )
-          CachedParams.set(underlyingParams, promise)
-
-          return promise
-        case 'prerender-ppr':
-        case 'prerender-legacy':
-          // We aren't in a cacheComponents prerender but we do have fallback params at this
-          // level so we need to make an erroring params object which will postpone
-          // if you access the fallback params
-          return makeErroringRootParams(
-            underlyingParams,
-            fallbackParams,
-            workStore,
-            prerenderStore
-          )
-        default:
-          prerenderStore satisfies never
+        }
       }
+      break
     }
+    case 'prerender-ppr': {
+      const fallbackParams = prerenderStore.fallbackRouteParams
+      if (fallbackParams) {
+        for (const key in underlyingParams) {
+          if (fallbackParams.has(key)) {
+            // We have fallback params at this level so we need to make an erroring
+            // params object which will postpone if you access the fallback params
+            return makeErroringRootParams(
+              underlyingParams,
+              fallbackParams,
+              workStore,
+              prerenderStore
+            )
+          }
+        }
+      }
+      break
+    }
+    case 'prerender-legacy':
+      break
+    default:
+      prerenderStore satisfies never
   }
 
   // We don't have any fallback params so we have an entirely static safe params object

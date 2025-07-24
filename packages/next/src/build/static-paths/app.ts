@@ -687,9 +687,6 @@ export async function buildAppStaticPaths({
 
   const store = createWorkStore({
     page,
-    // We're discovering the parameters here, so we don't have any unknown
-    // ones.
-    fallbackRouteParams: null,
     renderOpts: {
       incrementalCache,
       cacheLifeProfiles,
