@@ -416,9 +416,7 @@ export function getSegmentKeypathForTask(
   // the cache key, because the search params are treated as dynamic data. The
   // cache entry is valid for all possible search param values.
   const isDynamicTask = task.includeDynamicData || !route.isPPREnabled
-  return isDynamicTask &&
-    path.endsWith('/' + PAGE_SEGMENT_KEY) &&
-    route.renderedSearch !== null
+  return isDynamicTask && path.endsWith('/' + PAGE_SEGMENT_KEY)
     ? [path, route.renderedSearch]
     : [path]
 }
