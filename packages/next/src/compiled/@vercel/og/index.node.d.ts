@@ -27,4 +27,4 @@ declare class ImageResponse extends Response {
 declare function unstable_createNodejsStream(element: ReactElement, options?: Omit<ImageResponseNodeOptions, 'status' | 'statusText' | 'headers'>): Promise<Readable>;
 type NodeImageResponse = typeof ImageResponse;
 
-export { ImageResponse, NodeImageResponse, unstable_createNodejsStream };
+export { ImageResponse, ImageResponseOptions, NodeImageResponse, unstable_createNodejsStream };

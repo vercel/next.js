@@ -146,7 +146,7 @@
     "@typescript-eslint/parser": "^8.36.0",
     "@vercel/devlow-bench": "workspace:*",
     "@vercel/fetch": "6.1.1",
-    "@vercel/og": "0.8.4",
+    "@vercel/og": "0.8.5",
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
     "async-sema": "3.0.1",

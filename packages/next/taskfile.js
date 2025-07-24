@@ -220,11 +220,6 @@ export async function copy_vercel_og(task, opts) {
         /['"]satori['"]/g,
         '"next/dist/compiled/@vercel/og/satori"'
       )
-
-      // if filename is types-[hash].d.ts, remove `-[hash]`
-      if (file.base.endsWith('.d.ts')) {
-        file.base = file.base.replace(/-[0-9a-f]{8}\.d\.ts$/, '.d.ts')
-      }
     })
     .target('src/compiled/@vercel/og')
 

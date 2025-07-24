@@ -12,7 +12,7 @@ export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-ag
 export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'
 export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
 export { ImageResponse } from 'next/dist/server/web/spec-extension/image-response'
-export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
+export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og'
 export { after } from 'next/dist/server/after'
 export { unstable_rootParams } from 'next/dist/server/request/root-params'
 export { connection } from 'next/dist/server/request/connection'

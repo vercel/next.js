@@ -8,4 +8,4 @@ declare class ImageResponse extends Response {
 }
 type EdgeImageResponse = typeof ImageResponse;
 
-export { EdgeImageResponse, ImageResponse };
+export { EdgeImageResponse, ImageResponse, ImageResponseOptions };

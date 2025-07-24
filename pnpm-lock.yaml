@@ -230,8 +230,8 @@ importers:
         specifier: 6.1.1
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7(encoding@0.1.13))
       '@vercel/og':
-        specifier: 0.8.4
-        version: 0.8.4
+        specifier: 0.8.5
+        version: 0.8.5
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -6060,8 +6060,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  '@vercel/og@0.8.4':
-    resolution: {integrity: sha512-661yVXg8uMtTkYS8OC8xn4bIPXEZkHvvIFFIZ5pbrdyeIMo2n1y6w6km1CpFGaoG+vUli9611k3SC/nWlFv6cw==}
+  '@vercel/og@0.8.5':
+    resolution: {integrity: sha512-fHqnxfBYcwkamlEgcIzaZqL8IHT09hR7FZL7UdMTdGJyoaBzM/dY6ulO5Swi4ig30FrBJI9I2C+GLV9sb9vexA==}
     engines: {node: '>=16'}
 
   '@vitest/expect@2.0.5':
@@ -22324,7 +22324,7 @@ snapshots:
       - encoding
       - supports-color
 
-  '@vercel/og@0.8.4':
+  '@vercel/og@0.8.5':
     dependencies:
       '@resvg/resvg-wasm': 2.4.0
       satori: 0.16.0
