@@ -461,7 +461,6 @@ pub async fn get_next_edge_import_map(
             rcstr!("next/headers") => rcstr!("next/dist/api/headers"),
             rcstr!("next/image") => rcstr!("next/dist/api/image"),
             rcstr!("next/link") => rcstr!("next/dist/api/link"),
-            rcstr!("next/form") => rcstr!("next/dist/api/form"),
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation"),
             rcstr!("next/router") => rcstr!("next/dist/api/router"),
             rcstr!("next/script") => rcstr!("next/dist/api/script"),
