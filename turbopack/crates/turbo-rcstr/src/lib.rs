@@ -1,4 +1,5 @@
 use std::{
+    alloc::GlobalAlloc,
     borrow::{Borrow, Cow},
     ffi::OsStr,
     fmt::{Debug, Display},
@@ -11,6 +12,7 @@ use std::{
 
 use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
+use napi::threadsafe_function::ErrorStrategy::T;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
@@ -382,7 +384,7 @@ pub use dynamic::{PrehashedString, hash_bytes};
 
 #[doc(hidden)]
 impl RcStr {
-    // Allow the rcstr! macro to skip a tag branch
+    // Allow the rcstr! macro to skip a tag branch and just copy the struct
     #[doc(hidden)]
     pub fn unsafe_copy_for_macro(&self) -> RcStr {
         debug_assert!(self.tag() == STATIC_TAG);
@@ -407,6 +409,14 @@ macro_rules! rcstr {
                 // Allocate static storage for the PrehashedString
                 static INNER: ::std::sync::LazyLock<$crate::PrehashedString> =
                     ::std::sync::LazyLock::new(|| $crate::PrehashedString {
+                        // `String::from_raw_parts`` would be a pretty legit option here since
+                        // we could const allocate this.  However, we would need to:
+                        // * cast the static str to a *mut u8
+                        // * convince ourselves that the admonitions to supply allocator allocated
+                        //   pointers are only about drop.
+                        // Alternatively we could transmute a Vec allocated from from_raw_parts_in
+                        // using an allocator that never frees.
+                        // For how we just copy and allocate
                         value: $s.into(),
                         // compute the hash at compile time
                         hash: const { $crate::hash_bytes($s.as_bytes()) },
