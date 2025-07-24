@@ -5,8 +5,8 @@ use tokio::sync::Mutex as TokioMutex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_fetch::{
-    __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len, FetchErrorKind,
-    ReqwestClientConfig, fetch,
+    __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len, FetchClient,
+    FetchErrorKind,
 };
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_testing::{Registration, register, run};
@@ -29,15 +29,15 @@ async fn basic_get() {
             .create_async()
             .await;
 
-        let config_vc = ReqwestClientConfig::default().cell();
-        let response = &*fetch(
-            RcStr::from(format!("{}/foo.woff", server.url())),
-            /* user_agent */ None,
-            config_vc,
-        )
-        .await?
-        .unwrap()
-        .await?;
+        let client_vc = FetchClient::default().cell();
+        let response = &*client_vc
+            .fetch(
+                RcStr::from(format!("{}/foo.woff", server.url())),
+                /* user_agent */ None,
+            )
+            .await?
+            .unwrap()
+            .await?;
 
         resource_mock.assert_async().await;
 
@@ -63,15 +63,15 @@ async fn sends_user_agent() {
 
         eprintln!("{}", server.url());
 
-        let config_vc = ReqwestClientConfig::default().cell();
-        let response = &*fetch(
-            RcStr::from(format!("{}/foo.woff", server.url())),
-            Some(rcstr!("mock-user-agent")),
-            config_vc,
-        )
-        .await?
-        .unwrap()
-        .await?;
+        let client_vc = FetchClient::default().cell();
+        let response = &*client_vc
+            .fetch(
+                RcStr::from(format!("{}/foo.woff", server.url())),
+                Some(rcstr!("mock-user-agent")),
+            )
+            .await?
+            .unwrap()
+            .await?;
 
         resource_mock.assert_async().await;
 
@@ -98,8 +98,9 @@ async fn invalidation_does_not_invalidate() {
             .await;
 
         let url = RcStr::from(format!("{}/foo.woff", server.url()));
-        let config_vc = ReqwestClientConfig::default().cell();
-        let response = &*fetch(url.clone(), /* user_agent */ None, config_vc)
+        let client_vc = FetchClient::default().cell();
+        let response = &*client_vc
+            .fetch(url.clone(), /* user_agent */ None)
             .await?
             .unwrap()
             .await?;
@@ -109,7 +110,8 @@ async fn invalidation_does_not_invalidate() {
         assert_eq!(response.status, 200);
         assert_eq!(*response.body.to_string().await?, "responsebody");
 
-        let second_response = &*fetch(url.clone(), /* user_agent */ None, config_vc)
+        let second_response = &*client_vc
+            .fetch(url.clone(), /* user_agent */ None)
             .await?
             .unwrap()
             .await?;
@@ -136,8 +138,8 @@ async fn errors_on_failed_connection() {
         // `ECONNREFUSED`.
         // Other values (e.g. domain name, reserved IP address block) may result in long timeouts.
         let url = rcstr!("http://127.0.0.1:0/foo.woff");
-        let config_vc = ReqwestClientConfig::default().cell();
-        let response_vc = fetch(url.clone(), None, config_vc);
+        let client_vc = FetchClient::default().cell();
+        let response_vc = client_vc.fetch(url.clone(), None);
         let err_vc = &*response_vc.await?.unwrap_err();
         let err = err_vc.await?;
 
@@ -171,8 +173,8 @@ async fn errors_on_404() {
             .await;
 
         let url = RcStr::from(server.url());
-        let config_vc = ReqwestClientConfig::default().cell();
-        let response_vc = fetch(url.clone(), None, config_vc);
+        let client_vc = FetchClient::default().cell();
+        let response_vc = client_vc.fetch(url.clone(), None);
         let err_vc = &*response_vc.await?.unwrap_err();
         let err = err_vc.await?;
 
@@ -197,7 +199,7 @@ async fn errors_on_404() {
 #[tokio::test]
 async fn client_cache() {
     // a simple fetch that should always succeed
-    async fn simple_fetch(path: &str, config: ReqwestClientConfig) -> anyhow::Result<()> {
+    async fn simple_fetch(path: &str, client: FetchClient) -> anyhow::Result<()> {
         let mut server = mockito::Server::new_async().await;
         let _resource_mock = server
             .mock("GET", &*format!("/{path}"))
@@ -206,7 +208,11 @@ async fn client_cache() {
             .await;
 
         let url = RcStr::from(format!("{}/{}", server.url(), path));
-        let response = match &*fetch(url.clone(), /* user_agent */ None, config.cell()).await? {
+        let response = match &*client
+            .cell()
+            .fetch(url.clone(), /* user_agent */ None)
+            .await?
+        {
             Ok(resp) => resp.await?,
             Err(_err) => {
                 anyhow::bail!("fetch error")
@@ -227,7 +233,7 @@ async fn client_cache() {
 
         simple_fetch(
             "/foo",
-            ReqwestClientConfig {
+            FetchClient {
                 tls_built_in_native_certs: false,
                 ..Default::default()
             },
@@ -239,7 +245,7 @@ async fn client_cache() {
         // the client is reused if the config is the same (by equality)
         simple_fetch(
             "/bar",
-            ReqwestClientConfig {
+            FetchClient {
                 tls_built_in_native_certs: false,
                 ..Default::default()
             },
@@ -251,7 +257,7 @@ async fn client_cache() {
         // the client is recreated if the config is different
         simple_fetch(
             "/bar",
-            ReqwestClientConfig {
+            FetchClient {
                 tls_built_in_native_certs: true,
                 ..Default::default()
             },
