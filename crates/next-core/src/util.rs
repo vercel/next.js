@@ -1,4 +1,4 @@
-use std::{future::Future, str::FromStr};
+use std::str::FromStr;
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
