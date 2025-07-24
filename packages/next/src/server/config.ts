@@ -1165,7 +1165,7 @@ async function applyModifyConfig(
   return config
 }
 
-// Config cache with keys to handle multiple configurations (e.g., multi-zone)
+// Cache config with keys to handle multiple configurations (e.g., multi-zone)
 const configCache = new Map<
   string,
   {
@@ -1176,7 +1176,7 @@ const configCache = new Map<
 >()
 
 // Generate cache key based on parameters that affect config output
-// We need a unique key for cache because there can be multiple values for
+// We need a unique key for cache because there can be multiple values
 function getCacheKey(
   phase: string,
   dir: string,
