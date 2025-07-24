@@ -2152,11 +2152,12 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/editor-links.test.ts": {
-    "passed": [],
+    "passed": [
+      "Error overlay - editor links should be possible to open source file on build error"
+    ],
     "failed": [
       "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
-      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error",
-      "Error overlay - editor links should be possible to open source file on build error"
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
     ],
     "pending": [],
     "flakey": [],
@@ -2257,6 +2258,7 @@
       "Error overlay - RSC build errors should error when useSyncExternalStore from react is used in server component",
       "Error overlay - RSC build errors should error when useTransition from react is used in server component",
       "Error overlay - RSC build errors should throw an error when \"Component\" is imported in server components",
+      "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions",
       "Error overlay - RSC build errors should throw an error when error file is a server component",
       "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file",
       "Error overlay - RSC build errors should throw an error when getServerSideProps is used",
@@ -2267,7 +2269,6 @@
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_noStore is allowed",
       "Error overlay - RSC build errors should error for invalid undefined module retuning from next dynamic",
       "Error overlay - RSC build errors should freeze parent resolved metadata to avoid mutating in generateMetadata",
-      "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions",
       "Error overlay - RSC build errors should throw an error when metadata export is used in client components"
     ],
     "pending": [
@@ -5302,11 +5303,8 @@
   "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
     "passed": [
       "app-dir static/dynamic handling should have logs from cache-handler",
-      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
-      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache"
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge"
     ],
     "failed": [
       "app-dir static/dynamic handling Incremental cache limits should cache request if response data size is greater than 2MB in development mode",
@@ -5341,6 +5339,7 @@
       "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
+      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
@@ -5350,6 +5349,8 @@
       "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
       "app-dir static/dynamic handling should not throw Dynamic Server Usage error when using generateStaticParams with draftMode",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
+      "app-dir static/dynamic handling should respond correctly for dynamic route with dynamicParams false in layout",
+      "app-dir static/dynamic handling should respond correctly for partially dynamic route with dynamicParams false in layout",
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should skip fetch cache when accessing request properties",
       "app-dir static/dynamic handling should skip fetch cache when an authorization header is present after dynamic usage",
@@ -5372,6 +5373,8 @@
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
+      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
@@ -5385,15 +5388,12 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-static/app-static.test.ts": {
     "passed": [
-      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
-      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache"
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge"
     ],
     "failed": [
       "app-dir static/dynamic handling Incremental cache limits should not cache request if response data size is greater than 2MB and FetchCache is possible in development mode",
@@ -5433,6 +5433,7 @@
       "app-dir static/dynamic handling should honor fetch cache correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
       "app-dir static/dynamic handling should honor fetch cache in generateStaticParams",
+      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
@@ -5443,6 +5444,8 @@
       "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
       "app-dir static/dynamic handling should not throw Dynamic Server Usage error when using generateStaticParams with draftMode",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
+      "app-dir static/dynamic handling should respond correctly for dynamic route with dynamicParams false in layout",
+      "app-dir static/dynamic handling should respond correctly for partially dynamic route with dynamicParams false in layout",
       "app-dir static/dynamic handling should revalidate correctly with config and fetch revalidate",
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should skip fetch cache when accessing request properties",
@@ -5466,6 +5469,8 @@
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
+      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
@@ -5479,7 +5484,7 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [],
@@ -6073,10 +6078,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7120,7 +7125,6 @@
       "app-dir - fetch logging placeholder to satisfy at least one test when isNextDev is false",
       "app-dir - logging with default logging should not log fetch requests at all",
       "app-dir - logging with fetches default logging should log each page request only once",
-      "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should log each page request only once",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should log each page request only once",
@@ -7137,6 +7141,7 @@
       "app-dir - logging with fetches default logging should log requests for client-side navigations",
       "app-dir - logging with fetches default logging should log requests with correct indentation",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches default logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches default logging should not log _rsc query for client navigation RSC request",
       "app-dir - logging with fetches default logging should only log requests in development mode",
@@ -8179,10 +8184,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/nx-handling/nx-handling.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "nx-handling should work for pages API",
-      "nx-handling should work for pages page",
+      "nx-handling should work for pages page"
+    ],
+    "failed": [
       "nx-handling should work with app page",
       "nx-handling should work with app route"
     ],
@@ -8401,7 +8407,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-root-slot/parallel-routes-root-slot.test.ts": {
     "passed": [],
@@ -8833,6 +8839,9 @@
       "rewrite-headers next.config.js rewrites static HTML (/hello/other) should have the expected headers",
       "rewrite-headers next.config.js rewrites static Prefetch RSC (/hello/other) should have the expected headers",
       "rewrite-headers next.config.js rewrites static RSC (/hello/other) should have the expected headers",
+      "rewrite-headers next.config.js rewrites with path-matched query HTML (/rewrites-to-query/andrew) should have the expected headers",
+      "rewrite-headers next.config.js rewrites with path-matched query Prefetch RSC (/rewrites-to-query/andrew) should have the expected headers",
+      "rewrite-headers next.config.js rewrites with path-matched query RSC (/rewrites-to-query/andrew) should have the expected headers",
       "rewrite-headers next.config.js rewrites with query HTML (/hello/fred) should have the expected headers",
       "rewrite-headers next.config.js rewrites with query Prefetch RSC (/hello/fred) should have the expected headers",
       "rewrite-headers next.config.js rewrites with query RSC (/hello/fred) should have the expected headers",
@@ -12282,7 +12291,12 @@
     "runtimeError": false
   },
   "test/e2e/opentelemetry/instrumentation/opentelemetry.test.ts": {
-    "passed": [],
+    "passed": [
+      "opentelemetry incoming context propagation pages should handle api routes in pages on edge",
+      "opentelemetry incoming context propagation pages should handle getServerSideProps on edge",
+      "opentelemetry root context pages should handle api routes in pages on edge",
+      "opentelemetry root context pages should handle getServerSideProps on edge"
+    ],
     "failed": [
       "opentelemetry incoming context propagation app router should handle RSC with fetch",
       "opentelemetry incoming context propagation app router should handle RSC with fetch in RSC mode",
@@ -12292,9 +12306,7 @@
       "opentelemetry incoming context propagation app router should propagate custom context without span",
       "opentelemetry incoming context propagation app router should trace middleware",
       "opentelemetry incoming context propagation pages should handle api routes in pages",
-      "opentelemetry incoming context propagation pages should handle api routes in pages on edge",
       "opentelemetry incoming context propagation pages should handle getServerSideProps",
-      "opentelemetry incoming context propagation pages should handle getServerSideProps on edge",
       "opentelemetry incoming context propagation pages should handle getStaticProps when fallback: 'blocking'",
       "opentelemetry root context app router should handle RSC with fetch",
       "opentelemetry root context app router should handle RSC with fetch in RSC mode",
@@ -12304,15 +12316,13 @@
       "opentelemetry root context app router should propagate custom context without span",
       "opentelemetry root context app router should trace middleware",
       "opentelemetry root context pages should handle api routes in pages",
-      "opentelemetry root context pages should handle api routes in pages on edge",
       "opentelemetry root context pages should handle getServerSideProps",
-      "opentelemetry root context pages should handle getServerSideProps on edge",
       "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'",
       "opentelemetry with disabled fetch tracing root context app router with disabled fetch should handle RSC with disabled fetch"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/optimized-loading/test/index.test.ts": {
     "passed": [
