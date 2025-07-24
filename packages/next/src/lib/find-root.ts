@@ -35,11 +35,19 @@ export function findRootDir(cwd: string) {
 
   // Only warn if not in a build worker to avoid duplicate warnings
   if (typeof process.send !== 'function' && lockFiles.length > 1) {
+    const additionalLockFiles = lockFiles
+      .slice(0, -1)
+      .map((str) => '\n   * ' + str)
+      .join('')
+
     Log.warnOnce(
-      `Warning: Found multiple lockfiles. Selecting ${lockFiles[lockFiles.length - 1]}.\n   Consider removing the lockfiles at:${lockFiles
-        .slice(0, -1)
-        .map((str) => '\n   * ' + str)
-        .join('')}\n`
+      `Warning: Next.js inferred your workspace root, but it may not be correct.\n` +
+        `We detected multiple lockfiles and selected ${lockFiles[lockFiles.length - 1]} as the root directory.\n` +
+        `To silence this warning, set turbopack.root in your Next.js config, or consider ` +
+        `removing one of the lockfiles if it's not needed.\n` +
+        `  See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.\n` +
+        `Detected lockfiles:\n` +
+        `${additionalLockFiles}`
     )
   }
 
