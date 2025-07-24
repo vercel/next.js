@@ -787,7 +787,8 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
-    /// Generate Route types and enable type checking for Link and Router.push, etc.
+    /// Generate Route types and enable type checking for Link and Router.push,
+    /// etc. This option requires `appDir` to be enabled first.
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
     typed_routes: Option<bool>,
     url_imports: Option<serde_json::Value>,
