@@ -719,8 +719,8 @@
       );
     }
     function devirtualizeURL(url) {
-      if (url.startsWith("rsc://React/")) {
-        var envIdx = url.indexOf("/", 12),
+      if (url.startsWith("about://React/")) {
+        var envIdx = url.indexOf("/", 14),
           suffixIdx = url.lastIndexOf("?");
         if (-1 < envIdx && -1 < suffixIdx)
           return decodeURI(url.slice(envIdx + 1, suffixIdx));

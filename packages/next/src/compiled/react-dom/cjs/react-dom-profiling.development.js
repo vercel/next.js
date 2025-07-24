@@ -25559,11 +25559,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-edac0dde-20250723" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-3d14fcf0-20250724" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-edac0dde-20250723\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-3d14fcf0-20250724\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -25600,10 +25600,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.2.0-canary-edac0dde-20250723",
+          version: "19.2.0-canary-3d14fcf0-20250724",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.2.0-canary-edac0dde-20250723"
+          reconcilerVersion: "19.2.0-canary-3d14fcf0-20250724"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -26071,7 +26071,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.2.0-canary-edac0dde-20250723";
+    exports.version = "19.2.0-canary-3d14fcf0-20250724";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
