@@ -150,7 +150,7 @@
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
     "async-sema": "3.0.1",
-    "babel-plugin-react-compiler": "19.0.0-beta-e552027-20250112",
+    "babel-plugin-react-compiler": "19.1.0-rc.2",
     "browserslist": "4.25.1",
     "buffer": "5.6.0",
     "cheerio": "0.22.0",

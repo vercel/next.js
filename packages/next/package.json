@@ -234,7 +234,7 @@
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
     "axe-playwright": "2.0.3",
-    "babel-plugin-react-compiler": "19.0.0-beta-e552027-20250112",
+    "babel-plugin-react-compiler": "19.1.0-rc.2",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserify-zlib": "0.2.0",
