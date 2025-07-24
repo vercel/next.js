@@ -329,8 +329,8 @@ importers:
         specifier: 0.14.2
         version: 0.14.2
       express:
-        specifier: 4.17.0
-        version: 4.17.0
+        specifier: 5.1.0
+        version: 5.1.0
       faker:
         specifier: 5.5.3
         version: 5.5.3
