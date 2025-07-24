@@ -293,6 +293,8 @@ function processMessage(
       if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
       if ('debug' in obj && obj.debug) dispatcher.onDebugInfo(obj.debug)
       if ('devIndicator' in obj) dispatcher.onDevIndicator(obj.devIndicator)
+      if ('devToolsConfig' in obj)
+        dispatcher.onDevToolsConfig(obj.devToolsConfig)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -440,7 +442,12 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
       return
     }
+    case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG: {
+      dispatcher.onDevToolsConfig(obj.data)
+      return
+    }
     default: {
+      obj satisfies never
     }
   }
 }

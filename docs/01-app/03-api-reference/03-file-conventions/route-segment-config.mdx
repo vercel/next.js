@@ -3,7 +3,7 @@ title: Route Segment Config
 description: Learn about how to configure options for Next.js route segments.
 ---
 
-> The options outlined on this page are disabled if the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag is on, and will eventually be deprecated in the future.
+> The options outlined on this page are disabled if the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag is on, and will eventually be deprecated in the future.
 
 The Route Segment options allows you to configure the behavior of a [Page](/docs/app/api-reference/file-conventions/layout), [Layout](/docs/app/api-reference/file-conventions/layout), or [Route Handler](/docs/app/api-reference/file-conventions/route) by directly exporting the following variables:
 
@@ -71,11 +71,11 @@ export const dynamic = 'auto'
 Control what happens when a dynamic segment is visited that was not generated with [generateStaticParams](/docs/app/api-reference/functions/generate-static-params).
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-export const dynamicParams = true // true | false,
+export const dynamicParams = true // true | false
 ```
 
 ```js filename="layout.js | page.js | route.js" switcher
-export const dynamicParams = true // true | false,
+export const dynamicParams = true // true | false
 ```
 
 - **`true`** (default): Dynamic segments not included in `generateStaticParams` are generated on demand.

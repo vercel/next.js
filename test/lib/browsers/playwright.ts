@@ -228,7 +228,7 @@ export class Playwright<TCurrent = undefined> {
       disableCache?: boolean
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
-      beforePageLoad?: (page: Page) => void
+      beforePageLoad?: (page: Page) => void | Promise<void>
     }
   ) {
     await this.close()
@@ -310,7 +310,7 @@ export class Playwright<TCurrent = undefined> {
       })
     })
 
-    opts?.beforePageLoad?.(page)
+    await opts?.beforePageLoad?.(page)
 
     await page.goto(url, { waitUntil: 'load' })
   }
@@ -373,6 +373,10 @@ export class Playwright<TCurrent = undefined> {
 
   elementByCss(selector: string) {
     return this.waitForElementByCss(selector, 5_000)
+  }
+
+  hasElementByCss(selector: string) {
+    return this.startChain(() => page.locator(selector).isVisible())
   }
 
   elementById(id: string) {

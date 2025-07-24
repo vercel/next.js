@@ -285,6 +285,8 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       // Is undefined when it's a 'built' event
       if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
       if ('devIndicator' in obj) dispatcher.onDevIndicator(obj.devIndicator)
+      if ('devToolsConfig' in obj)
+        dispatcher.onDevToolsConfig(obj.devToolsConfig)
 
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
@@ -361,13 +363,19 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       dispatcher.onRefresh()
       break
     }
-    default: {
+    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
+    case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE:
+    case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE:
+    case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE:
       if (customHmrEventHandler) {
         customHmrEventHandler(obj)
-        break
       }
       break
-    }
+    case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
+      dispatcher.onDevToolsConfig(obj.data)
+      break
+    default:
+      obj satisfies never
   }
 }
 

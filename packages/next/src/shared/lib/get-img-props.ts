@@ -532,6 +532,12 @@ export function getImgProps(
         )
       }
     }
+    if (qualityInt && qualityInt !== 75 && !config.qualities) {
+      warnOnce(
+        `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities. This config will be required starting in Next.js 16.` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
+      )
+    }
     if (placeholder === 'blur' && !blurDataURL) {
       const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 

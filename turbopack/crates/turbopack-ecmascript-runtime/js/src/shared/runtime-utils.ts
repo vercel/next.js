@@ -44,8 +44,8 @@ type GetOrInstantiateModuleFromParent<M extends Module> = (
 ) => M
 
 declare function getOrInstantiateRuntimeModule(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
+  chunkPath: ChunkPath,
+  moduleId: ModuleId
 ): Module
 
 const hasOwnProperty = Object.prototype.hasOwnProperty

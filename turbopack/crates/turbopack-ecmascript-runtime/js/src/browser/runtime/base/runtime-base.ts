@@ -22,7 +22,11 @@ declare var CHUNK_BASE_PATH: string
 declare var CHUNK_SUFFIX_PATH: string
 
 // Provided by build or dev base
-declare function instantiateModule(id: ModuleId, source: SourceInfo): Module
+declare function instantiateModule(
+  id: ModuleId,
+  sourceType: SourceType,
+  sourceData: SourceData
+): Module
 
 type RuntimeParams = {
   otherChunks: ChunkData[]
@@ -45,36 +49,33 @@ enum SourceType {
   /**
    * The module was instantiated because it was included in an evaluated chunk's
    * runtime.
+   * SourceData is a ChunkPath.
    */
   Runtime = 0,
   /**
    * The module was instantiated because a parent module imported it.
+   * SourceData is a ModuleId.
    */
   Parent = 1,
   /**
    * The module was instantiated because it was included in a chunk's hot module
    * update.
+   * SourceData is an array of ModuleIds or undefined.
    */
   Update = 2,
 }
 
-type SourceInfo =
-  | {
-      type: SourceType.Runtime
-      chunkPath: ChunkPath
-    }
-  | {
-      type: SourceType.Parent
-      parentId: ModuleId
-    }
-  | {
-      type: SourceType.Update
-      parents?: ModuleId[]
-    }
-
+type SourceData = ChunkPath | ModuleId | ModuleId[] | undefined
 interface RuntimeBackend {
   registerChunk: (chunkPath: ChunkPath, params?: RuntimeParams) => void
-  loadChunk: (chunkUrl: ChunkUrl, source: SourceInfo) => Promise<void>
+  /**
+   * Returns the same Promise for the same chunk URL.
+   */
+  loadChunkCached: (
+    sourceType: SourceType,
+    sourceData: SourceData,
+    chunkUrl: ChunkUrl
+  ) => Promise<void>
 }
 
 interface DevRuntimeBackend {
@@ -120,11 +121,12 @@ const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
 async function loadChunk(
-  source: SourceInfo,
+  sourceType: SourceType,
+  sourceData: SourceData,
   chunkData: ChunkData
 ): Promise<any> {
   if (typeof chunkData === 'string') {
-    return loadChunkPath(source, chunkData)
+    return loadChunkPath(sourceType, sourceData, chunkData)
   }
 
   const includedList = chunkData.included || []
@@ -163,7 +165,7 @@ async function loadChunk(
     }
 
     for (const moduleChunkToLoad of moduleChunksToLoad) {
-      const promise = loadChunkPath(source, moduleChunkToLoad)
+      const promise = loadChunkPath(sourceType, sourceData, moduleChunkToLoad)
 
       availableModuleChunks.set(moduleChunkToLoad, promise)
 
@@ -172,7 +174,7 @@ async function loadChunk(
 
     promise = Promise.all(moduleChunksPromises)
   } else {
-    promise = loadChunkPath(source, chunkData.path)
+    promise = loadChunkPath(sourceType, sourceData, chunkData.path)
 
     // Mark all included module chunks as loading if they are not already loaded or loading.
     for (const includedModuleChunk of includedModuleChunksList) {
@@ -193,43 +195,67 @@ async function loadChunk(
   return promise
 }
 
-async function loadChunkByUrl(source: SourceInfo, chunkUrl: ChunkUrl) {
-  try {
-    await BACKEND.loadChunk(chunkUrl, source)
-  } catch (error) {
-    let loadReason
-    switch (source.type) {
-      case SourceType.Runtime:
-        loadReason = `as a runtime dependency of chunk ${source.chunkPath}`
-        break
-      case SourceType.Parent:
-        loadReason = `from module ${source.parentId}`
-        break
-      case SourceType.Update:
-        loadReason = 'from an HMR update'
-        break
-      default:
-        invariant(source, (source) => `Unknown source type: ${source?.type}`)
-    }
-    throw new Error(
-      `Failed to load chunk ${chunkUrl} ${loadReason}${
-        error ? `: ${error}` : ''
-      }`,
-      error
-        ? {
-            cause: error,
-          }
-        : undefined
+const loadedChunk = Promise.resolve(undefined)
+const instrumentedBackendLoadChunks = new WeakMap<
+  Promise<any>,
+  Promise<any> | typeof loadedChunk
+>()
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkByUrl(
+  sourceType: SourceType,
+  sourceData: SourceData,
+  chunkUrl: ChunkUrl
+): Promise<any> {
+  const thenable = BACKEND.loadChunkCached(sourceType, sourceData, chunkUrl)
+  let entry = instrumentedBackendLoadChunks.get(thenable)
+  if (entry === undefined) {
+    const resolve = instrumentedBackendLoadChunks.set.bind(
+      instrumentedBackendLoadChunks,
+      thenable,
+      loadedChunk
     )
+    entry = thenable.then(resolve).catch((error) => {
+      let loadReason
+      switch (sourceType) {
+        case SourceType.Runtime:
+          loadReason = `as a runtime dependency of chunk ${sourceData}`
+          break
+        case SourceType.Parent:
+          loadReason = `from module ${sourceData}`
+          break
+        case SourceType.Update:
+          loadReason = 'from an HMR update'
+          break
+        default:
+          invariant(
+            sourceType,
+            (sourceType) => `Unknown source type: ${sourceType}`
+          )
+      }
+      throw new Error(
+        `Failed to load chunk ${chunkUrl} ${loadReason}${
+          error ? `: ${error}` : ''
+        }`,
+        error
+          ? {
+              cause: error,
+            }
+          : undefined
+      )
+    })
+    instrumentedBackendLoadChunks.set(thenable, entry)
   }
+
+  return entry
 }
 
 async function loadChunkPath(
-  source: SourceInfo,
+  sourceType: SourceType,
+  sourceData: SourceData,
   chunkPath: ChunkPath
 ): Promise<any> {
   const url = getChunkRelativeUrl(chunkPath)
-  return loadChunkByUrl(source, url)
+  return loadChunkByUrl(sourceType, sourceData, url)
 }
 
 /**
@@ -308,7 +334,7 @@ function instantiateRuntimeModule(
   moduleId: ModuleId,
   chunkPath: ChunkPath
 ): Module {
-  return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath })
+  return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
 }
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.

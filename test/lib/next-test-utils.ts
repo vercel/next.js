@@ -962,6 +962,42 @@ export async function openDevToolsIndicatorPopover(
   }
 }
 
+export async function getSegmentExplorerRoute(browser: Playwright) {
+  return await browser
+    .elementByCss('.segment-explorer-page-route-bar-path')
+    .text()
+}
+
+export async function getSegmentExplorerContent(browser: Playwright) {
+  // open the devtool button
+  await openDevToolsIndicatorPopover(browser)
+
+  // open the segment explorer
+  await browser.elementByCss('[data-segment-explorer]').click()
+
+  //  wait for the segment explorer to be visible
+  await browser.waitForElementByCss('[data-nextjs-devtool-segment-explorer]')
+
+  const rows = await browser.elementsByCss('.segment-explorer-item')
+  let result: string[] = []
+  for (const row of rows) {
+    // query filename of row: segment-explorer-filename
+    const segment = (
+      (await (await row.$('.segment-explorer-filename--path'))?.innerText()) ||
+      ''
+    ).trim()
+    const files = (
+      (await (await row.$('.segment-explorer-files'))?.innerText()) || ''
+    )
+      .split(/\n+/)
+      .map((file) => file.trim())
+
+    // line format: segment [files]
+    result.push(`${segment} [${files.join(', ')}]`)
+  }
+  return result.join('\n')
+}
+
 export async function hasDevToolsPanel(browser: Playwright) {
   const result = await browser.eval(() => {
     const portal = document.querySelector('nextjs-portal')
@@ -1247,6 +1283,35 @@ export function readNextBuildServerPageFile(appDir: string, page: string) {
   return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
 }
 
+export function getClientBuildManifest(dir: string) {
+  let buildId = readFileSync(path.join(dir, '.next/BUILD_ID'), 'utf8')
+  let code = readFileSync(
+    path.join(dir, '.next/static', buildId, '_buildManifest.js'),
+    'utf8'
+  )
+  // eslint-disable-next-line no-eval
+  let manifest = (0, eval)(`var self = global;${code};self.__BUILD_MANIFEST`)
+  return manifest
+}
+
+export function getClientBuildManifestLoaderChunkUrlPath(
+  dir: string,
+  page: string
+) {
+  let manifest = getClientBuildManifest(dir)
+  let chunk: string[] | undefined = manifest[page]
+  if (chunk == null) {
+    throw new Error(`Couldn't find page "${page}" in _buildManifest.js`)
+  }
+  if (chunk.length !== 1) {
+    throw new Error(
+      `Expected a single chunk, but found ${chunk.length} for "${page}" in _buildManifest.js`
+    )
+  }
+  // Remove leading './' so that this can be used in a `url.contains(chunk)` check.
+  return encodeURI(chunk[0].replace(/^\.\//, ''))
+}
+
 function runSuite(
   suiteName: string,
   context: { env: 'prod' | 'dev'; appDir: string } & Partial<{
@@ -1449,10 +1514,6 @@ export async function getRedboxCallStack(
           stack.push('<FIXME-file-protocol>')
         } else if (frame.includes('.next/')) {
           stack.push('<FIXME-next-dist-dir>')
-        } else if (frame === 'JSON.parse <anonymous>') {
-          // TODO(veil): These frames will be ignore-listed soon. Until then, we
-          // remove them here, because their occurrence seems to be
-          // non-deterministic. They come from React's RSC parsing.
         } else {
           stack.push(frame)
         }

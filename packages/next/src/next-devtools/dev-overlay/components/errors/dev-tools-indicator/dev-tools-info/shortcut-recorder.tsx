@@ -1,3 +1,4 @@
+import type { JSX } from 'react'
 import { useState, useRef, useEffect } from 'react'
 import { css } from '../../../../utils/css'
 
@@ -13,6 +14,7 @@ export function ShortcutRecorder({
   value: string[] | null
   onChange: (value: string | null) => void
 }) {
+  const [pristine, setPristine] = useState(true)
   const [show, setShow] = useState(false)
   const [keys, setKeys] = useState<string[]>(value ?? [])
   const [success, setSuccess] = useState<boolean>(false)
@@ -30,6 +32,13 @@ export function ShortcutRecorder({
       setShow(true)
     }
 
+    // Reset current shortcut on first key press
+    // if this is a fresh recording session
+    if (pristine) {
+      setKeys([])
+      setPristine(false)
+    }
+
     function handleValidation(next: string[]) {
       timeoutRef.current = window.setTimeout(() => {
         setSuccess(true)
@@ -40,15 +49,24 @@ export function ShortcutRecorder({
       }, SUCCESS_SHOW_DELAY_MS)
     }
 
-    if (keys.length === 3) return
-
     e.preventDefault()
     e.stopPropagation()
 
     setKeys((prev) => {
       // Don't add duplicate keys
-      if (prev.includes(e.key)) return prev
+      if (prev.includes(e.code) || prev.includes(e.key)) return prev
 
+      /**
+       * Why are we using `e.code` for non-modifier keys?
+       *
+       * Consider this keybind: Alt + L
+       *
+       * If we capture `e.key` here then it will correspond to an awkward symbol (¬)
+       * because pressing Alt + L creates this symbol.
+       *
+       * While `e.code` will give us `KeyL` as the value which we also later use in
+       * `useShortcuts()` to match the keybind correctly without relying on modifier symbols.
+       */
       // Handle non-modifier keys (action keys)
       if (!modifierKeys.includes(e.key)) {
         // Replace existing non-modifier key if present
@@ -57,12 +75,12 @@ export function ShortcutRecorder({
         )
         if (existingNonModifierIndex !== -1) {
           const next = [...prev]
-          next[existingNonModifierIndex] = e.key
+          next[existingNonModifierIndex] = e.code
           handleValidation(next)
           return next
         }
         // Add new non-modifier key at the end
-        const next = [...prev, e.key]
+        const next = [...prev, e.code]
         handleValidation(next)
         return next
       }
@@ -108,6 +126,7 @@ export function ShortcutRecorder({
   function onBlur() {
     setSuccess(false)
     setShow(false)
+    setPristine(true)
   }
 
   function onStart() {
@@ -240,7 +259,52 @@ function Kbd({ children }: { children: string }) {
   }
   const key = renderKey(children)
   const isSymbol = typeof key === 'string' ? key.length === 1 : false
-  return <kbd data-symbol={isSymbol}>{key}</kbd>
+  return <kbd data-symbol={isSymbol}>{parseKeyCode(key)}</kbd>
+}
+
+function parseKeyCode(code: string | JSX.Element) {
+  if (typeof code !== 'string') return code
+
+  // Map common KeyboardEvent.code values to their corresponding key values
+  const codeToKeyMap: Record<string, string> = {
+    Minus: '-',
+    Equal: '=',
+    BracketLeft: '[',
+    BracketRight: ']',
+    Backslash: '\\',
+    Semicolon: ';',
+    Quote: "'",
+    Comma: ',',
+    Period: '.',
+    Backquote: '`',
+    Space: ' ',
+    Slash: '/',
+    IntlBackslash: '\\',
+    // Add more as needed
+  }
+
+  if (codeToKeyMap[code]) {
+    return codeToKeyMap[code]
+  }
+
+  // Handle KeyA-Z, Digit0-9, Numpad0-9, NumpadAdd, etc.
+  if (/^Key([A-Z])$/.test(code)) {
+    return code.replace(/^Key/, '')
+  }
+  if (/^Digit([0-9])$/.test(code)) {
+    return code.replace(/^Digit/, '')
+  }
+  if (/^Numpad([0-9])$/.test(code)) {
+    return code.replace(/^Numpad/, '')
+  }
+  if (code === 'NumpadAdd') return '+'
+  if (code === 'NumpadSubtract') return '-'
+  if (code === 'NumpadMultiply') return '*'
+  if (code === 'NumpadDivide') return '/'
+  if (code === 'NumpadDecimal') return '.'
+  if (code === 'NumpadEnter') return 'Enter'
+
+  return code
 }
 
 function MetaKey() {

@@ -142,10 +142,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/server/page.js (2:27)
+         "source": "./app/server/page.js (2:26)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                          ^",
          "stack": [],
        }
       `)
@@ -160,7 +160,7 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
+          :                          ^
           \`----
        Caused by:
            Syntax Error
@@ -206,10 +206,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/client/page.js (2:27)
+         "source": "./app/client/page.js (2:26)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                          ^",
          "stack": [],
        }
       `)
@@ -224,7 +224,7 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
+          :                          ^
           \`----
        Caused by:
            Syntax Error
@@ -475,7 +475,6 @@ describe('Error recovery app', () => {
     )
 
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -487,7 +486,6 @@ describe('Error recovery app', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
-           "Set.forEach <anonymous>",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Index index.js (6:7)",
@@ -621,10 +619,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:41)
+         "source": "./index.js (10:39)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                         ^",
+            |                                       ^",
          "stack": [],
        }
       `)
@@ -638,7 +636,7 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
+           :                                       ^
            \`----
        Caused by:
            Syntax Error
@@ -658,10 +656,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:41)
+         "source": "./index.js (10:39)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                         ^",
+            |                                       ^",
          "stack": [],
        }
       `)
@@ -675,7 +673,7 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
+           :                                       ^
            \`----
        Caused by:
            Syntax Error
@@ -733,7 +731,6 @@ describe('Error recovery app', () => {
 
     // We get an error because Foo didn't import React. Fair.
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -745,7 +742,6 @@ describe('Error recovery app', () => {
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
-           "Set.forEach <anonymous>",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "FunctionDefault index.js (4:10)",
@@ -968,7 +964,6 @@ describe('Error recovery app', () => {
     )
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -980,7 +975,6 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "Set.forEach <anonymous>",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Page index.js (10:16)",
@@ -1018,10 +1012,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/page.js (1:3)
+         "source": "./app/page.js (1:2)
        Parsing ecmascript source code failed
        > 1 | {{{
-           |   ^",
+           |  ^",
          "stack": [],
        }
       `)
@@ -1035,7 +1029,7 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
           ,----
         1 | {{{
-          :   ^
+          :  ^
           \`----
        Caused by:
            Syntax Error",

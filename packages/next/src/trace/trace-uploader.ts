@@ -28,6 +28,7 @@ const DEV_ALLOWED_EVENTS = new Set([
 const BUILD_ALLOWED_EVENTS = new Set([
   ...COMMON_ALLOWED_EVENTS,
   'next-build',
+  'run-turbopack-compiler',
   'webpack-compilation',
   'run-webpack-compiler',
   'create-entrypoints',

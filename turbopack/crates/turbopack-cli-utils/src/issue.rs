@@ -226,49 +226,46 @@ pub fn format_issue(
                 out.push('\n');
             }
         }
-        if traces.len() == 1 {
-            let trace = &traces[0];
-            // We don't put the layer in the header for the single case. Either they are all the
-            // same in which case it should be clear from the filename or they are different and we
-            // need to print them on the items anyway.
-            writeln!(styled_issue, "Import trace:").unwrap();
-            format_trace_items(&mut styled_issue, "  ", !are_layers_identical(trace), trace);
-        } else {
-            // When there are multiple traces we:
-            // * display the layer in the header if the trace has a consistent layer
-            // * label the traces with their index, unless the layer is sufficiently unique.
-            styled_issue.push_str("Import traces:\n");
-            let every_trace_has_a_distinct_root_layer = traces
-                .iter()
-                .filter_map(|t| leaf_layer_name(t))
-                .collect::<FxHashSet<RcStr>>()
-                .len()
-                == traces.len();
+
+        // For each trace we:
+        // * display the layer in the header if the trace has a consistent layer
+        // * label the traces with their index, unless the layer is sufficiently unique.
+        writeln!(
+            styled_issue,
+            "Import trace{}:",
+            if traces.len() > 1 { "s" } else { "" }
+        )
+        .unwrap();
+        let every_trace_has_a_distinct_root_layer = traces
+            .iter()
+            .filter_map(|t| leaf_layer_name(t))
+            .collect::<FxHashSet<RcStr>>()
+            .len()
+            == traces.len();
+        for (index, trace) in traces.iter().enumerate() {
+            let layer = leaf_layer_name(trace);
+            let mut trace_indent = "    ";
             if every_trace_has_a_distinct_root_layer {
-                for trace in traces {
-                    writeln!(styled_issue, "  {}:", leaf_layer_name(trace).unwrap()).unwrap();
-                    format_trace_items(&mut styled_issue, "    ", false, trace);
+                writeln!(styled_issue, "  {}:", layer.unwrap()).unwrap();
+            } else if traces.len() > 1 {
+                write!(styled_issue, "  #{}", index + 1).unwrap();
+                if let Some(layer) = layer {
+                    write!(styled_issue, " [{layer}]").unwrap();
                 }
+                writeln!(styled_issue, ":").unwrap();
+            } else if let Some(layer) = layer {
+                write!(styled_issue, " [{layer}]").unwrap();
             } else {
-                for (index, trace) in traces.iter().enumerate() {
-                    let printed_layer = match leaf_layer_name(trace) {
-                        Some(layer) => {
-                            writeln!(styled_issue, "  #{} [{layer}]:", index + 1).unwrap();
-                            false
-                        }
-                        None => {
-                            writeln!(styled_issue, "  #{}:", index + 1).unwrap();
-                            true
-                        }
-                    };
-                    format_trace_items(
-                        &mut styled_issue,
-                        "    ",
-                        !printed_layer || !are_layers_identical(trace),
-                        trace,
-                    );
-                }
+                // There is one trace and no layer (!?) just indent once
+                trace_indent = "  ";
             }
+
+            format_trace_items(
+                &mut styled_issue,
+                trace_indent,
+                !are_layers_identical(trace),
+                trace,
+            );
         }
     }
 

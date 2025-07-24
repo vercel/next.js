@@ -41,7 +41,7 @@ describe('Custom _error', () => {
         await retry(async () => {
           // retry because the page might not be built yet
           const html = await renderViaHTTP(appPort, '/404')
-          expect(html).toContain('Unexpected token')
+          expect(html).toContain('Unexpected eof')
           expect(stderr).not.toMatch(customErrNo404Match)
         })
       } finally {

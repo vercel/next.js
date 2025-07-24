@@ -12,13 +12,15 @@
 
 declare var BACKEND: RuntimeBackend
 declare var loadWebAssembly: (
-  source: SourceInfo,
+  sourceType: SourceType,
+  sourceData: SourceData,
   wasmChunkPath: ChunkPath,
   edgeModule: () => WebAssembly.Module,
   imports: WebAssembly.Imports
 ) => Exports
 declare var loadWebAssemblyModule: (
-  source: SourceInfo,
+  sourceType: SourceType,
+  sourceData: SourceData,
   wasmChunkPath: ChunkPath,
   edgeModule: () => WebAssembly.Module
 ) => WebAssembly.Module

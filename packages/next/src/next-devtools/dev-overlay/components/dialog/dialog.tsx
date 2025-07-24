@@ -87,6 +87,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       ref={dialogRef}
       tabIndex={-1}
       data-nextjs-dialog
+      data-nextjs-scrollable-content
       role={role}
       aria-labelledby={ariaLabelledBy}
       aria-describedby={ariaDescribedBy}

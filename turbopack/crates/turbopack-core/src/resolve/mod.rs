@@ -1573,7 +1573,7 @@ pub async fn resolve_inline(
         tracing::info_span!(
             "resolving",
             lookup_path = lookup_path,
-            request = request,
+            name = request,
             reference_type = display(&reference_type),
         )
     };
@@ -1778,7 +1778,7 @@ async fn resolve_internal_inline(
         tracing::info_span!(
             "internal resolving",
             lookup_path = lookup_path,
-            request = request
+            name = request
         )
     };
     async move {

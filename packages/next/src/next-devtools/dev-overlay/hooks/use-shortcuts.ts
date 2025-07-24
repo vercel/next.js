@@ -22,7 +22,7 @@ export function useShortcuts(
         e.key !== 'Alt' &&
         e.key !== 'Shift'
       ) {
-        keys.push(e.key)
+        keys.push(e.code)
       }
 
       const shortcut = keys.join('+')
@@ -39,7 +39,9 @@ export function useShortcuts(
   }, [shortcuts])
 }
 
-function isFocusedOnElement(rootRef: React.RefObject<HTMLElement | null>) {
+export function isFocusedOnElement(
+  rootRef: React.RefObject<HTMLElement | null>
+) {
   const el = getActiveElement(rootRef.current)
 
   if (!el) return false

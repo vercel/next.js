@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "15.4.0-canary.126",
+  "version": "15.4.2-canary.15",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -100,13 +100,14 @@
     ]
   },
   "dependencies": {
-    "@next/env": "15.4.0-canary.126",
+    "@next/env": "15.4.2-canary.15",
     "@swc/helpers": "0.5.15",
     "caniuse-lite": "^1.0.30001579",
     "postcss": "8.4.31",
     "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.1",
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.51.1",
     "babel-plugin-react-compiler": "*",
@@ -121,6 +122,9 @@
     "sass": {
       "optional": true
     },
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
     "@opentelemetry/api": {
       "optional": true
     },
@@ -129,7 +133,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.34.1"
+    "sharp": "^0.34.3"
   },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
@@ -161,13 +165,14 @@
     "@hapi/accept": "5.0.2",
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
+    "@modelcontextprotocol/sdk": "1.15.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "15.4.0-canary.126",
-    "@next/polyfill-module": "15.4.0-canary.126",
-    "@next/polyfill-nomodule": "15.4.0-canary.126",
-    "@next/react-refresh-utils": "15.4.0-canary.126",
-    "@next/swc": "15.4.0-canary.126",
+    "@next/font": "15.4.2-canary.15",
+    "@next/polyfill-module": "15.4.2-canary.15",
+    "@next/polyfill-nomodule": "15.4.2-canary.15",
+    "@next/react-refresh-utils": "15.4.2-canary.15",
+    "@next/swc": "15.4.2-canary.15",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.51.1",
     "@rspack/core": "1.4.5",
@@ -291,7 +296,7 @@
     "p-limit": "3.1.0",
     "p-queue": "6.6.2",
     "path-browserify": "1.0.1",
-    "path-to-regexp": "6.1.0",
+    "path-to-regexp": "6.3.0",
     "picomatch": "4.0.1",
     "postcss-flexbugs-fixes": "5.0.2",
     "postcss-modules-extract-imports": "3.0.0",
@@ -349,7 +354,7 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "ws": "8.2.3",
-    "zod": "3.22.3",
+    "zod": "3.25.76",
     "zod-validation-error": "3.4.0"
   },
   "keywords": [

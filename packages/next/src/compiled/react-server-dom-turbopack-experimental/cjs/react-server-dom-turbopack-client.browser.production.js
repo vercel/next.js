@@ -50,7 +50,6 @@ function resolveServerReference(bundlerConfig, id) {
   }
   return [resolvedModuleData.id, resolvedModuleData.chunks, name];
 }
-var chunkCache = new Map();
 function requireAsyncModule(id) {
   var promise = __turbopack_require__(id);
   if ("function" !== typeof promise.then || "fulfilled" === promise.status)
@@ -67,18 +66,18 @@ function requireAsyncModule(id) {
   );
   return promise;
 }
+var instrumentedChunks = new WeakSet(),
+  loadedChunks = new WeakSet();
 function ignoreReject() {}
 function preloadModule(metadata) {
   for (var chunks = metadata[1], promises = [], i = 0; i < chunks.length; i++) {
-    var chunkFilename = chunks[i],
-      entry = chunkCache.get(chunkFilename);
-    if (void 0 === entry) {
-      entry = __turbopack_load_by_url__(chunkFilename);
-      promises.push(entry);
-      var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
-      entry.then(resolve, ignoreReject);
-      chunkCache.set(chunkFilename, entry);
-    } else null !== entry && promises.push(entry);
+    var thenable = __turbopack_load_by_url__(chunks[i]);
+    loadedChunks.has(thenable) || promises.push(thenable);
+    if (!instrumentedChunks.has(thenable)) {
+      var resolve = loadedChunks.add.bind(loadedChunks, thenable);
+      thenable.then(resolve, ignoreReject);
+      instrumentedChunks.add(thenable);
+    }
   }
   return 4 === metadata.length
     ? 0 === promises.length
@@ -710,7 +709,7 @@ function initializeModelChunk(chunk) {
       (chunk.reason = null),
       wakeChunk(resolveListeners, value));
     if (null !== initializingHandler) {
-      if (initializingHandler.errored) throw initializingHandler.value;
+      if (initializingHandler.errored) throw initializingHandler.reason;
       if (0 < initializingHandler.deps) {
         initializingHandler.value = value;
         initializingHandler.chunk = chunk;
@@ -827,6 +826,7 @@ function fulfillReference(reference, value) {
       ((parentObject = key.value),
       (key.status = "fulfilled"),
       (key.value = handler.value),
+      (key.reason = handler.reason),
       null !== parentObject && wakeChunk(parentObject, handler.value)));
 }
 function rejectReference(reference, error) {
@@ -834,7 +834,8 @@ function rejectReference(reference, error) {
   reference = reference.response;
   handler.errored ||
     ((handler.errored = !0),
-    (handler.value = error),
+    (handler.value = null),
+    (handler.reason = error),
     (handler = handler.chunk),
     null !== handler &&
       "blocked" === handler.status &&
@@ -856,6 +857,7 @@ function waitForReference(
       parent: null,
       chunk: null,
       value: null,
+      reason: null,
       deps: 1,
       errored: !1
     };
@@ -900,6 +902,7 @@ function loadServerReference(response, metaData, parentObject, key) {
       parent: null,
       chunk: null,
       value: null,
+      reason: null,
       deps: 1,
       errored: !1
     };
@@ -937,7 +940,8 @@ function loadServerReference(response, metaData, parentObject, key) {
     function (error) {
       if (!handler.errored) {
         handler.errored = !0;
-        handler.value = error;
+        handler.value = null;
+        handler.reason = error;
         var chunk = handler.chunk;
         null !== chunk &&
           "blocked" === chunk.status &&
@@ -993,6 +997,7 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
                       parent: null,
                       chunk: null,
                       value: null,
+                      reason: null,
                       deps: 1,
                       errored: !1
                     }),
@@ -1002,11 +1007,13 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
               return (
                 initializingHandler
                   ? ((initializingHandler.errored = !0),
-                    (initializingHandler.value = value.reason))
+                    (initializingHandler.value = null),
+                    (initializingHandler.reason = value.reason))
                   : (initializingHandler = {
                       parent: null,
                       chunk: null,
-                      value: value.reason,
+                      value: null,
+                      reason: value.reason,
                       deps: 0,
                       errored: !0
                     }),
@@ -1028,6 +1035,7 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
               parent: null,
               chunk: null,
               value: null,
+              reason: null,
               deps: 1,
               errored: !1
             }),
@@ -1037,11 +1045,13 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
       return (
         initializingHandler
           ? ((initializingHandler.errored = !0),
-            (initializingHandler.value = id.reason))
+            (initializingHandler.value = null),
+            (initializingHandler.reason = id.reason))
           : (initializingHandler = {
               parent: null,
               chunk: null,
-              value: id.reason,
+              value: null,
+              reason: id.reason,
               deps: 0,
               errored: !0
             }),
@@ -1080,6 +1090,7 @@ function parseModelString(response, parentObject, key, value) {
             parent: initializingHandler,
             chunk: null,
             value: null,
+            reason: null,
             deps: 0,
             errored: !1
           }),
@@ -1192,8 +1203,6 @@ function ResponseInstance(
   this._chunks = chunks;
   this._stringDecoder = new TextDecoder();
   this._fromJSON = null;
-  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
-  this._buffer = [];
   this._closed = !1;
   this._closedReason = null;
   this._tempRefs = temporaryReferences;
@@ -1565,13 +1574,14 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
       }
       break;
     case 69:
-      tag = JSON.parse(buffer);
-      buffer = resolveErrorProd();
-      buffer.digest = tag.digest;
       tag = response._chunks;
-      (chunk = tag.get(id))
-        ? triggerErrorOnChunk(response, chunk, buffer)
-        : tag.set(id, createErrorChunk(response, buffer));
+      chunk = tag.get(id);
+      buffer = JSON.parse(buffer);
+      stringDecoder = resolveErrorProd();
+      stringDecoder.digest = buffer.digest;
+      chunk
+        ? triggerErrorOnChunk(response, chunk, stringDecoder)
+        : tag.set(id, createErrorChunk(response, stringDecoder));
       break;
     case 84:
       response = response._chunks;
@@ -1642,7 +1652,7 @@ function createFromJSONCallback(response) {
             (initializingHandler = value.parent),
             value.errored)
           )
-            (key = createErrorChunk(response, value.value)),
+            (key = createErrorChunk(response, value.reason)),
               (key = createLazyChunkWrapper(key));
           else if (0 < value.deps) {
             var blockedChunk = new ReactPromise("blocked", null, null);
@@ -1669,18 +1679,20 @@ function createResponseFromOptions(options) {
       : void 0
   );
 }
-function startReadingFromStream(response, stream) {
-  function progress(_ref) {
-    var value = _ref.value;
-    if (_ref.done) reportGlobalError(response, Error("Connection closed."));
+function startReadingFromStream(response, stream, isSecondaryStream) {
+  function progress(_ref2) {
+    var value = _ref2.value;
+    if (_ref2.done)
+      isSecondaryStream ||
+        reportGlobalError(response, Error("Connection closed."));
     else {
       var i = 0,
-        rowState = response._rowState;
-      _ref = response._rowID;
+        rowState = streamState._rowState;
+      _ref2 = streamState._rowID;
       for (
-        var rowTag = response._rowTag,
-          rowLength = response._rowLength,
-          buffer = response._buffer,
+        var rowTag = streamState._rowTag,
+          rowLength = streamState._rowLength,
+          buffer = streamState._buffer,
           chunkLength = value.length;
         i < chunkLength;
 
@@ -1691,8 +1703,8 @@ function startReadingFromStream(response, stream) {
             lastIdx = value[i++];
             58 === lastIdx
               ? (rowState = 1)
-              : (_ref =
-                  (_ref << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+              : (_ref2 =
+                  (_ref2 << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
             continue;
           case 1:
             rowState = value[i];
@@ -1735,10 +1747,10 @@ function startReadingFromStream(response, stream) {
         var offset = value.byteOffset + i;
         if (-1 < lastIdx)
           (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-            processFullBinaryRow(response, _ref, rowTag, buffer, rowLength),
+            processFullBinaryRow(response, _ref2, rowTag, buffer, rowLength),
             (i = lastIdx),
             3 === rowState && i++,
-            (rowLength = _ref = rowTag = rowState = 0),
+            (rowLength = _ref2 = rowTag = rowState = 0),
             (buffer.length = 0);
         else {
           value = new Uint8Array(value.buffer, offset, value.byteLength - i);
@@ -1747,24 +1759,31 @@ function startReadingFromStream(response, stream) {
           break;
         }
       }
-      response._rowState = rowState;
-      response._rowID = _ref;
-      response._rowTag = rowTag;
-      response._rowLength = rowLength;
+      streamState._rowState = rowState;
+      streamState._rowID = _ref2;
+      streamState._rowTag = rowTag;
+      streamState._rowLength = rowLength;
       return reader.read().then(progress).catch(error);
     }
   }
   function error(e) {
     reportGlobalError(response, e);
   }
-  var reader = stream.getReader();
+  var streamState = {
+      _rowState: 0,
+      _rowID: 0,
+      _rowTag: 0,
+      _rowLength: 0,
+      _buffer: []
+    },
+    reader = stream.getReader();
   reader.read().then(progress).catch(error);
 }
 exports.createFromFetch = function (promiseForResponse, options) {
   var response = createResponseFromOptions(options);
   promiseForResponse.then(
     function (r) {
-      startReadingFromStream(response, r.body);
+      startReadingFromStream(response, r.body, !1);
     },
     function (e) {
       reportGlobalError(response, e);
@@ -1774,7 +1793,7 @@ exports.createFromFetch = function (promiseForResponse, options) {
 };
 exports.createFromReadableStream = function (stream, options) {
   options = createResponseFromOptions(options);
-  startReadingFromStream(options, stream);
+  startReadingFromStream(options, stream, !1);
   return getChunk(options, 0);
 };
 exports.createServerReference = function (id, callServer) {

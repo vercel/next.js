@@ -106,7 +106,7 @@ export interface WorkStore {
   >
   readonly assetPrefix?: string
 
-  dynamicIOEnabled: boolean
+  cacheComponentsEnabled: boolean
   dev: boolean
 
   /**

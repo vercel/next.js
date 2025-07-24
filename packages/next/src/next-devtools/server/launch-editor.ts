@@ -144,8 +144,8 @@ const WINDOWS_FILE_NAME_ACCESS_LIST =
 function getArgumentsForLineNumber(
   editor: string,
   fileName: string,
-  lineNumber: number,
-  colNumber: number
+  line1: number,
+  column1: number
 ): string[] {
   const editorBasename = path.basename(editor).replace(/\.(exe|cmd|bat)$/i, '')
   switch (editorBasename) {
@@ -155,30 +155,30 @@ function getArgumentsForLineNumber(
     case 'subl':
     case 'sublime':
     case 'sublime_text': {
-      return [fileName + ':' + lineNumber + ':' + colNumber]
+      return [fileName + ':' + line1 + ':' + column1]
     }
     case 'wstorm':
     case 'charm': {
-      return [fileName + ':' + lineNumber]
+      return [fileName + ':' + line1]
     }
     case 'notepad++': {
-      return ['-n' + lineNumber, '-c' + colNumber, fileName]
+      return ['-n' + line1, '-c' + column1, fileName]
     }
     case 'vim':
     case 'nvim':
     case 'mvim':
     case 'joe':
     case 'gvim': {
-      return ['+' + lineNumber, fileName]
+      return ['+' + line1, fileName]
     }
     case 'emacs':
     case 'emacsclient': {
-      return ['+' + lineNumber + ':' + colNumber, fileName]
+      return ['+' + line1 + ':' + column1, fileName]
     }
     case 'rmate':
     case 'mate':
     case 'mine': {
-      return ['--line', lineNumber.toString(), fileName]
+      return ['--line', line1.toString(), fileName]
     }
     case 'code':
     case 'Code':
@@ -187,7 +187,7 @@ function getArgumentsForLineNumber(
     case 'Code - Insiders':
     case 'vscodium':
     case 'VSCodium': {
-      return ['-g', fileName + ':' + lineNumber + ':' + colNumber]
+      return ['-g', fileName + ':' + line1 + ':' + column1]
     }
     case 'appcode':
     case 'clion':
@@ -206,7 +206,7 @@ function getArgumentsForLineNumber(
     case 'goland64':
     case 'rider':
     case 'rider64': {
-      return ['--line', lineNumber.toString(), fileName]
+      return ['--line', line1.toString(), fileName]
     }
     default: {
       // For all others, drop the lineNumber until we have
@@ -315,11 +315,7 @@ export function escapeApplescriptStringFragment(input: string): string {
   return input.replaceAll(/[\\"]/g, (original) => `\\${original}`)
 }
 
-export function launchEditor(
-  fileName: string,
-  lineNumber: number,
-  colNumber: number
-) {
+export function launchEditor(fileName: string, line1: number, column1: number) {
   if (!fs.existsSync(fileName)) {
     return
   }
@@ -327,14 +323,14 @@ export function launchEditor(
   // Sanitize lineNumber to prevent malicious use on win32
   // via: https://github.com/nodejs/node/blob/c3bb4b1aa5e907d489619fb43d233c3336bfc03d/lib/child_process.js#L333
   // and it should be a positive integer
-  if (!(Number.isInteger(lineNumber) && lineNumber > 0)) {
+  if (!(Number.isInteger(line1) && line1 > 0)) {
     return
   }
 
   // colNumber is optional, but should be a positive integer too
   // default is 1
-  if (!(Number.isInteger(colNumber) && colNumber > 0)) {
-    colNumber = 1
+  if (!(Number.isInteger(column1) && column1 > 0)) {
+    column1 = 1
   }
 
   let [editor, ...args] = guessEditor()
@@ -385,9 +381,9 @@ export function launchEditor(
     return
   }
 
-  if (lineNumber) {
+  if (line1) {
     args = args.concat(
-      getArgumentsForLineNumber(editor, fileName, lineNumber, colNumber)
+      getArgumentsForLineNumber(editor, fileName, line1, column1)
     )
   } else {
     args.push(fileName)
@@ -433,8 +429,8 @@ export function launchEditor(
 // Open the file in editor if exists, otherwise return an error
 export async function openFileInEditor(
   filePath: string,
-  line: number,
-  col: number
+  line1: number,
+  column1: number
 ) {
   const result = {
     found: false,
@@ -446,7 +442,7 @@ export async function openFileInEditor(
   )
   if (existed) {
     try {
-      launchEditor(filePath, line, col)
+      launchEditor(filePath, line1, column1)
       result.found = true
     } catch (err) {
       result.error = err as Error

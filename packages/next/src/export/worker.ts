@@ -112,7 +112,7 @@ async function exportPageImpl(
     _isRoutePPREnabled: isRoutePPREnabled,
 
     // Configure the rendering of the page to allow that an empty static shell
-    // is generated while rendering using PPR and Dynamic IO.
+    // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
 
     // Pull the original query out.
