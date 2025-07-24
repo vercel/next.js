@@ -409,20 +409,24 @@ impl<'a> StaticSortedFileBuilder<'a> {
         file.write_all(&self.value_compression_dictionary)?;
 
         // Write the blocks
+        let block_count = self.blocks.len().try_into().unwrap();
+        let mut block_offsets = Vec::with_capacity(self.blocks.len());
         let mut offset = 0;
-        for (_, block) in &self.blocks {
+        for (uncompressed_size, block) in self.blocks {
             // Block length (including the uncompressed length field)
             let len = block.len() + 4;
             offset += len;
-            file.write_u32::<BE>(offset.try_into().unwrap())?;
-        }
-        let block_count = self.blocks.len().try_into().unwrap();
-        for (uncompressed_size, block) in self.blocks {
+            block_offsets.push(offset.try_into().unwrap());
             // Uncompressed size
             file.write_u32::<BE>(uncompressed_size)?;
             // Compressed block
             file.write_all(&block)?;
         }
+        // Write the block offsets
+        for offset in block_offsets {
+            file.write_u32::<BE>(offset)?;
+        }
+
         let meta = StaticSortedFileBuilderMeta {
             min_hash: self.min_hash,
             max_hash: self.max_hash,
