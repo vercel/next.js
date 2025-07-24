@@ -356,7 +356,7 @@ export async function apiResolver(
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
     // Ensure req.query is a writable, enumerable property by using Object.defineProperty.
-    // This addresses Express 5.x, which defines query as a getter only (read-only),
+    // This addresses Express 5.x, which defines query as a getter only (read-only).
     Object.defineProperty(apiReq, 'query', {
       value: { ...query },
       writable: true,
