@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use dashmap::DashSet;
 use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
@@ -165,42 +165,46 @@ impl NonRecursiveDiskWatcherState {
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        if let Some(watcher_internal_guard) = watcher_internal_guard.as_mut() {
-            let mut path = dir_path;
-            let err_with_context = |err| {
-                return Err(err).context(format!(
-                    "Unable to watch {} (tried up to {})",
-                    dir_path.display(),
-                    path.display()
-                ));
-            };
-            while let Err(err) = watcher_internal_guard.watch(path, RecursiveMode::NonRecursive) {
-                match err {
-                    notify::Error {
-                        kind: notify::ErrorKind::PathNotFound,
-                        ..
-                    } => {
-                        // The path was probably deleted before we could process the event. That's
-                        // okay, just make sure we're watching the parent directory, so we can know
-                        // if it gets recreated.
-                        let Some(parent_path) = path.parent() else {
-                            // this should never happen as we break before we reach the root path
-                            return err_with_context(err);
-                        };
-                        if parent_path == root_path {
-                            // assume there's already a root watcher
-                            break;
-                        }
-                        if !self.watching.insert(parent_path.to_owned()) {
-                            // we're already watching the parent path!
-                            break;
-                        }
-                        path = parent_path;
+        let Some(watcher_internal_guard) = watcher_internal_guard.as_mut() else {
+            return Ok(());
+        };
+
+        let mut path = dir_path;
+        let err_with_context = |err: anyhow::Error| {
+            return Err(err).context(format!(
+                "Unable to watch {} (tried up to {})",
+                dir_path.display(),
+                path.display()
+            ));
+        };
+
+        // watch every parent: https://docs.rs/notify/latest/notify/#parent-folder-deletion
+        while path != root_path {
+            match watcher_internal_guard.watch(path, RecursiveMode::NonRecursive) {
+                res @ Ok(())
+                | res @ Err(notify::Error {
+                    // The path was probably deleted before we could process the event. That's
+                    // okay, just make sure we're watching the parent directory, so we can know
+                    // if it gets recreated.
+                    kind: notify::ErrorKind::PathNotFound,
+                    ..
+                }) => {
+                    let Some(parent_path) = path.parent() else {
+                        // this should never happen as we break before we reach the root path
+                        return err_with_context(res.err().map_or_else(
+                            || anyhow!("failed to compute parent path"),
+                            |err| err.into(),
+                        ));
+                    };
+                    if !self.watching.insert(parent_path.to_path_buf()) {
+                        break;
                     }
-                    _ => return err_with_context(err),
+                    path = parent_path;
                 }
+                Err(err) => return err_with_context(err.into()),
             }
         }
+
         Ok(())
     }
 }
@@ -256,6 +260,7 @@ impl DiskWatcher {
         };
 
         if let Some(non_recursive) = &self.non_recursive_state {
+            internal.watch(fs_inner.root_path(), RecursiveMode::NonRecursive)?;
             for dir_path in non_recursive.watching.iter() {
                 internal.watch(&dir_path, RecursiveMode::NonRecursive)?;
             }
