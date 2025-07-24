@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, hash_map},
+    collections::{hash_map, BTreeMap},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     path::{Path, PathBuf},
@@ -16,23 +16,23 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{Atom, atom},
+    atoms::{atom, Atom},
     common::{
-        BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::{PURE_SP, SourceMapGenConfig},
+        source_map::{SourceMapGenConfig, PURE_SP},
         util::take::Take,
+        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        codegen::{self, Emitter, text_writer::JsWriter},
-        utils::{ExprFactory, private_ident, quote_ident},
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
+        codegen::{self, text_writer::JsWriter, Emitter},
+        utils::{private_ident, quote_ident, ExprFactory},
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
     quote,
 };
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::{rcstr, RcStr};
 
 use crate::FxIndexMap;
 

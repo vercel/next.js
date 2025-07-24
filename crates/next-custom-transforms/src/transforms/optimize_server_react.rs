@@ -8,7 +8,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{Fold, FoldWith, fold_pass},
+        visit::{fold_pass, Fold, FoldWith},
     },
 };
 
