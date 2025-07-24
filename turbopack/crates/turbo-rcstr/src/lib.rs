@@ -1,5 +1,4 @@
 use std::{
-    alloc::GlobalAlloc,
     borrow::{Borrow, Cow},
     ffi::OsStr,
     fmt::{Debug, Display},
@@ -12,7 +11,6 @@ use std::{
 
 use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
-use napi::threadsafe_function::ErrorStrategy::T;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
