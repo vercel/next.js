@@ -42,7 +42,7 @@ import type {
   NormalizedSearch,
   RouteCacheKey,
 } from './cache-key'
-import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
+import { TupleMap, type Prefix } from './tuple-map'
 import { createLRU } from './lru'
 import {
   convertSegmentPathToStaticExportFilename,
@@ -232,8 +232,7 @@ const isOutputExportMode =
 // first level is keyed by href, the second level is keyed by Next-Url, and so
 // on (if were to add more levels).
 type RouteCacheKeypath = [NormalizedHref, NormalizedNextUrl]
-let routeCacheMap: TupleMap<RouteCacheKeypath, RouteCacheEntry> =
-  createTupleMap()
+let routeCacheMap = new TupleMap<RouteCacheKeypath, RouteCacheEntry>()
 
 // We use an LRU for memory management. We must update this whenever we add or
 // remove a new cache entry, or when an entry changes size.
@@ -247,8 +246,7 @@ let routeCacheLru = createLRU<RouteCacheEntry>(
 )
 
 type SegmentCacheKeypath = [string, NormalizedSearch]
-let segmentCacheMap: TupleMap<SegmentCacheKeypath, SegmentCacheEntry> =
-  createTupleMap()
+let segmentCacheMap = new TupleMap<SegmentCacheKeypath, SegmentCacheEntry>()
 // NOTE: Segments and Route entries are managed by separate LRUs. We could
 // combine them into a single LRU, but because they are separate types, we'd
 // need to wrap each one in an extra LRU node (to maintain monomorphism, at the
@@ -291,9 +289,9 @@ export function revalidateEntireCache(
   // no longer reachable.
   // TODO: There's an exception to this case that we don't currently handle
   // correctly: background revalidations. See note in `upsertSegmentEntry`.
-  routeCacheMap = createTupleMap()
+  routeCacheMap = new TupleMap()
   routeCacheLru = createLRU(maxRouteLruSize, onRouteLRUEviction)
-  segmentCacheMap = createTupleMap()
+  segmentCacheMap = new TupleMap()
   segmentCacheLru = createLRU(maxSegmentLruSize, onSegmentLRUEviction)
 
   // Prefetch all the currently visible links again, to re-fill the cache.

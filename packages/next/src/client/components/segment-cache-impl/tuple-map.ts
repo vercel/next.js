@@ -3,14 +3,26 @@ export type Prefix<T extends any[]> = T extends [infer First, ...infer Rest]
   ? [] | [First] | [First, ...Prefix<Rest>]
   : []
 
-export type TupleMap<Keypath extends Array<any>, V> = {
-  set(keys: Prefix<Keypath>, value: V): void
-  get(keys: Prefix<Keypath>): V | null
-  delete(keys: Prefix<Keypath>): void
+type MapEntryShared<V> = {
+  parent: MapEntry<V> | null
+  key: any
+  map: Map<any, MapEntry<V>> | null
 }
 
+type EmptyMapEntry<V> = MapEntryShared<V> & {
+  value: null
+  hasValue: false
+}
+
+type FullMapEntry<V> = MapEntryShared<V> & {
+  value: V
+  hasValue: true
+}
+
+type MapEntry<V> = EmptyMapEntry<V> | FullMapEntry<V>
+
 /**
- * Creates a map whose keys are tuples. Tuples are compared per-element. This
+ * A map whose keys are tuples. Tuples are compared per-element. This
  * is useful when a key has multiple parts, but you don't want to concatenate
  * them into a single string value.
  *
@@ -21,29 +33,8 @@ export type TupleMap<Keypath extends Array<any>, V> = {
  *   map.set(['https://localhost', 'foo/bar/baz'], 'yay');
  *   map.get(['https://localhost', 'foo/bar/baz']); // returns 'yay'
  */
-export function createTupleMap<Keypath extends Array<any>, V>(): TupleMap<
-  Keypath,
-  V
-> {
-  type MapEntryShared = {
-    parent: MapEntry | null
-    key: any
-    map: Map<any, MapEntry> | null
-  }
-
-  type EmptyMapEntry = MapEntryShared & {
-    value: null
-    hasValue: false
-  }
-
-  type FullMapEntry = MapEntryShared & {
-    value: V
-    hasValue: true
-  }
-
-  type MapEntry = EmptyMapEntry | FullMapEntry
-
-  let rootEntry: MapEntry = {
+export class TupleMap<Keypath extends Array<any>, V> {
+  private rootEntry: MapEntry<V> = {
     parent: null,
     key: null,
     hasValue: false,
@@ -56,17 +47,17 @@ export function createTupleMap<Keypath extends Array<any>, V>(): TupleMap<
   // both non-null. It uses object equality, so to take advantage of this
   // optimization, you must pass the same array instance to each successive
   // method call, and you must also not mutate the array between calls.
-  let lastAccessedEntry: MapEntry | null = null
-  let lastAccessedKeys: Prefix<Keypath> | null = null
+  private lastAccessedEntry: MapEntry<V> | null = null
+  private lastAccessedKeys: Prefix<Keypath> | null = null
 
-  function getOrCreateEntry(keys: Prefix<Keypath>): MapEntry {
-    if (lastAccessedKeys === keys) {
-      return lastAccessedEntry!
+  private getOrCreateEntry(keys: Prefix<Keypath>): MapEntry<V> {
+    if (this.lastAccessedKeys === keys) {
+      return this.lastAccessedEntry!
     }
 
     // Go through each level of keys until we find the entry that matches,
     // or create a new one if it doesn't already exist.
-    let entry = rootEntry
+    let entry = this.rootEntry
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i]
       let map = entry.map
@@ -82,7 +73,7 @@ export function createTupleMap<Keypath extends Array<any>, V>(): TupleMap<
         entry.map = map
       }
       // No entry exists yet at this level. Create a new one.
-      const newEntry: MapEntry = {
+      const newEntry: MapEntry<V> = {
         parent: entry,
         key,
         value: null,
@@ -93,20 +84,20 @@ export function createTupleMap<Keypath extends Array<any>, V>(): TupleMap<
       entry = newEntry
     }
 
-    lastAccessedKeys = keys
-    lastAccessedEntry = entry
+    this.lastAccessedKeys = keys
+    this.lastAccessedEntry = entry
 
     return entry
   }
 
-  function getEntryIfExists(keys: Prefix<Keypath>): MapEntry | null {
-    if (lastAccessedKeys === keys) {
-      return lastAccessedEntry
+  private getEntryIfExists(keys: Prefix<Keypath>): MapEntry<V> | null {
+    if (this.lastAccessedKeys === keys) {
+      return this.lastAccessedEntry
     }
 
     // Go through each level of keys until we find the entry that matches, or
     // return null if no match exists.
-    let entry = rootEntry
+    let entry = this.rootEntry
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i]
       let map = entry.map
@@ -122,34 +113,34 @@ export function createTupleMap<Keypath extends Array<any>, V>(): TupleMap<
       return null
     }
 
-    lastAccessedKeys = keys
-    lastAccessedEntry = entry
+    this.lastAccessedKeys = keys
+    this.lastAccessedEntry = entry
 
     return entry
   }
 
-  function set(keys: Prefix<Keypath>, value: V): void {
-    const entry = getOrCreateEntry(keys)
+  set(keys: Prefix<Keypath>, value: V): void {
+    const entry = this.getOrCreateEntry(keys)
     entry.hasValue = true
     entry.value = value
   }
 
-  function get(keys: Prefix<Keypath>): V | null {
-    const entry = getEntryIfExists(keys)
+  get(keys: Prefix<Keypath>): V | null {
+    const entry = this.getEntryIfExists(keys)
     if (entry === null || !entry.hasValue) {
       return null
     }
     return entry.value
   }
 
-  function deleteEntry(keys: Prefix<Keypath>): void {
-    const entry = getEntryIfExists(keys)
+  delete(keys: Prefix<Keypath>): void {
+    const entry = this.getEntryIfExists(keys)
     if (entry === null || !entry.hasValue) {
       return
     }
 
     // Found a match. Delete it from the cache.
-    const deletedEntry: EmptyMapEntry = entry as any
+    const deletedEntry: EmptyMapEntry<V> = entry as any
     deletedEntry.hasValue = false
     deletedEntry.value = null
 
@@ -161,8 +152,8 @@ export function createTupleMap<Keypath extends Array<any>, V>(): TupleMap<
 
       // Unlike a `set` operation, these are no longer valid because the entry
       // itself is being modified, not just the value it contains.
-      lastAccessedEntry = null
-      lastAccessedKeys = null
+      this.lastAccessedEntry = null
+      this.lastAccessedKeys = null
 
       let parent = deletedEntry.parent
       let key = deletedEntry.key
@@ -186,11 +177,5 @@ export function createTupleMap<Keypath extends Array<any>, V>(): TupleMap<
         break
       }
     }
-  }
-
-  return {
-    set,
-    get,
-    delete: deleteEntry,
   }
 }
