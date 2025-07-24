@@ -1459,32 +1459,25 @@ export default async function build(
         app: appPaths.length > 0 ? appPaths : undefined,
       }
 
-      // Generate route types if experimental.typedRoutes is enabled
-      if (config.experimental.typedRoutes) {
-        await nextBuildSpan
-          .traceChild('generate-route-types')
-          .traceAsyncFn(async () => {
-            const routeTypesFilePath = path.join(
-              distDir,
-              'types',
-              'routes.d.ts'
-            )
-            await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+      await nextBuildSpan
+        .traceChild('generate-route-types')
+        .traceAsyncFn(async () => {
+          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+          await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
-            const routeTypesManifest = await createRouteTypesManifestFromBuild({
-              dir,
-              mappedPages,
-              mappedAppPages,
-              appDir,
-              config,
-            })
-
-            await fs.writeFile(
-              routeTypesFilePath,
-              generateRouteTypesFile(routeTypesManifest)
-            )
+          const routeTypesManifest = await createRouteTypesManifestFromBuild({
+            dir,
+            mappedPages,
+            mappedAppPages,
+            appDir,
+            config,
           })
-      }
+
+          await fs.writeFile(
+            routeTypesFilePath,
+            generateRouteTypesFile(routeTypesManifest)
+          )
+        })
 
       // Turbopack already handles conflicting app and page routes.
       if (!isTurbopack) {

@@ -151,7 +151,6 @@ async function verifyTypeScript(opts: SetupOpts) {
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
-    nextConfig: opts.nextConfig,
   })
 
   if (verifyResult.version) {
@@ -293,25 +292,23 @@ async function startWatcher(
     JSON.stringify(routesManifest)
   )
 
-  if (opts.nextConfig.experimental.typedRoutes) {
-    const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
-    await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+  const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+  await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
-    const routeTypesManifest = createRouteTypesManifest({
-      dir,
-      pagesPageFilePaths: new Map(),
-      appPageFilePaths: new Map(),
-      appLayoutFilePaths: new Map(),
-      layoutSlots: new Map(),
-      redirects: opts.fsChecker.redirects,
-      rewrites: opts.fsChecker.rewrites,
-    })
+  const routeTypesManifest = createRouteTypesManifest({
+    dir,
+    pagesPageFilePaths: new Map(),
+    appPageFilePaths: new Map(),
+    appLayoutFilePaths: new Map(),
+    layoutSlots: new Map(),
+    redirects: opts.fsChecker.redirects,
+    rewrites: opts.fsChecker.rewrites,
+  })
 
-    await fs.promises.writeFile(
-      routeTypesFilePath,
-      generateRouteTypesFile(routeTypesManifest)
-    )
-  }
+  await fs.promises.writeFile(
+    routeTypesFilePath,
+    generateRouteTypesFile(routeTypesManifest)
+  )
 
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
   await fs.promises.writeFile(
@@ -594,11 +591,19 @@ async function startWatcher(
           continue
         }
 
-        if (opts.nextConfig.experimental.typedRoutes && isAppPath) {
-          // *record parallel route slots for layout typing*
+        if (isAppPath) {
+          const isRootNotFound = validFileMatcher.isRootNotFound(fileName)
+          hasRootAppNotFound = true
+
+          // Record parallel route slots for layout typing
           const normalizedPageName = normalizePathSep(pageName)
 
-          // this will likely run multiple times (e.g. if a parallel route
+          // Ignore files/directories starting with `_` in the app directory
+          if (normalizedPageName.includes('/_')) {
+            continue
+          }
+
+          // May run multiple times (e.g. if a parallel route
           // has both a layout and a page, and children) but that's fine
           const slotInfo = extractSlotFromPageName(normalizedPageName)
 
@@ -611,29 +616,15 @@ async function startWatcher(
             layoutSlots.get(parentPath)!.add(slotName)
           }
 
-          // *record layouts* (later filtered out by isAppRouterPage)
+          // Record layouts (later filtered out by isAppRouterPage)
           if (layoutFileRegex.test(fileName)) {
-            const layoutRoute = normalizeAppPath(pageName)
-
-            // Ignore files/directories starting with `_` in the app directory
-            if (!normalizePathSep(layoutRoute).includes('/_')) {
-              appLayoutFilePaths.set(layoutRoute, fileName)
-            }
+            appLayoutFilePaths.set(normalizeAppPath(pageName), fileName)
           }
-        }
-
-        if (isAppPath) {
-          const isRootNotFound = validFileMatcher.isRootNotFound(fileName)
-          hasRootAppNotFound = true
 
           if (isRootNotFound) {
             continue
           }
-          if (!isRootNotFound && !validFileMatcher.isAppRouterPage(fileName)) {
-            continue
-          }
-          // Ignore files/directories starting with `_` in the app directory
-          if (normalizePathSep(pageName).includes('/_')) {
+          if (!validFileMatcher.isAppRouterPage(fileName)) {
             continue
           }
 
@@ -664,7 +655,8 @@ async function startWatcher(
             opts.fsChecker.nextDataRoutes.add(pageName)
           }
         }
-        // *record pages*
+
+        // Record pages
         if (isAppPath) {
           appPageFilePaths.set(pageName, fileName)
         } else {
@@ -1066,25 +1058,20 @@ async function startWatcher(
         }
         prevSortedRoutes = sortedRoutes
 
-        if (opts.nextConfig.experimental.typedRoutes) {
-          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
-          await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+        const newRouteTypesManifest = createRouteTypesManifest({
+          dir,
+          pagesPageFilePaths,
+          appPageFilePaths,
+          appLayoutFilePaths,
+          layoutSlots,
+          redirects: opts.fsChecker.redirects,
+          rewrites: opts.fsChecker.rewrites,
+        })
 
-          const routeTypesManifest = createRouteTypesManifest({
-            dir,
-            pagesPageFilePaths,
-            appPageFilePaths,
-            appLayoutFilePaths,
-            layoutSlots,
-            redirects: opts.fsChecker.redirects,
-            rewrites: opts.fsChecker.rewrites,
-          })
-
-          await fs.promises.writeFile(
-            routeTypesFilePath,
-            generateRouteTypesFile(routeTypesManifest)
-          )
-        }
+        await fs.promises.writeFile(
+          routeTypesFilePath,
+          generateRouteTypesFile(newRouteTypesManifest)
+        )
 
         if (!resolved) {
           resolve()
