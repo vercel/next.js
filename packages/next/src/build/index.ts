@@ -465,8 +465,8 @@ export type RoutesManifest = {
     suffix: typeof RSC_SUFFIX
     prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
     prefetchSegmentHeader: typeof NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
-    prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
     prefetchSegmentDirSuffix: typeof RSC_SEGMENTS_DIR_SUFFIX
+    prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -1542,8 +1542,8 @@ export default async function build(
               suffix: RSC_SUFFIX,
               prefetchSuffix: RSC_PREFETCH_SUFFIX,
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-              prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
               prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
+              prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
