@@ -5776,6 +5776,9 @@
   "test/e2e/app-dir/segment-cache/search-params/segment-cache-search-params.test.ts": {
     "passed": [],
     "failed": [
+      "segment cache (search params) handles rewrites to the same page but with different search params",
+      "segment cache (search params) handles rewrites to the same page but with no search params",
+      "segment cache (search params) stores prefetched data by its rewritten search params, not the original ones",
       "segment cache (search params) when fetching with PPR, does not include search params in the cache key",
       "segment cache (search params) when fetching without PPR (e.g. prefetch={true}), includes the search params in the cache key"
     ],
