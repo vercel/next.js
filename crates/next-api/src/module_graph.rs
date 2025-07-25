@@ -418,8 +418,7 @@ impl ClientReferencesGraph {
                 client_references: client_references.into_iter().collect(),
                 // The order of server_utils does not matter
                 server_utils: server_utils.into_iter().collect(),
-                // We need to reverse the order of server components so root layouts come first
-                server_component_entries: server_components.into_iter().rev().collect(),
+                server_component_entries: server_components.into_iter().collect(),
             }
             .cell())
         }
