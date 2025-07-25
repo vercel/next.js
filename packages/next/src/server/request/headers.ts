@@ -119,6 +119,16 @@ export function headers(): Promise<ReadonlyHeaders> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'prerender':
+          const dynamicTracking = workUnitStore.dynamicTracking
+          if (
+            dynamicTracking !== null &&
+            dynamicTracking.isDebugDynamicAccesses
+          ) {
+            const headerCall = new Error('nextjs-request-api')
+            Error.captureStackTrace(headerCall, headers)
+            dynamicTracking.requestAccesses!.push(headerCall)
+          }
+
           return makeHangingHeaders(workUnitStore)
         case 'prerender-client':
           const exportName = '`headers`'

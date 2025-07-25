@@ -2595,7 +2595,8 @@ async function spawnDynamicValidationInDev(
   const finalServerRenderController = new AbortController()
 
   const serverDynamicTracking = createDynamicTrackingState(
-    false // isDebugDynamicAccesses
+    // TODO: Why was this false for a dev-specific call?
+    true // isDebugDynamicAccesses
   )
 
   const finalServerPrerenderStore: PrerenderStore = {
@@ -2739,7 +2740,8 @@ async function spawnDynamicValidationInDev(
                       workStore,
                       componentStack,
                       dynamicValidation,
-                      clientDynamicTracking
+                      clientDynamicTracking,
+                      serverDynamicTracking
                     )
                   }
                   return
@@ -3432,7 +3434,8 @@ async function prerenderToStream(
                         workStore,
                         componentStack,
                         dynamicValidation,
-                        clientDynamicTracking
+                        clientDynamicTracking,
+                        serverDynamicTracking
                       )
                     }
                     return

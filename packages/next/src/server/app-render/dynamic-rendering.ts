@@ -73,6 +73,9 @@ export type DynamicTrackingState = {
    */
   readonly dynamicAccesses: Array<DynamicAccess>
 
+  // dev-only
+  readonly requestAccesses: Array<Error> | null
+
   syncDynamicErrorWithStack: null | Error
 }
 
@@ -89,6 +92,7 @@ export function createDynamicTrackingState(
   isDebugDynamicAccesses: boolean | undefined
 ): DynamicTrackingState {
   return {
+    requestAccesses: isDebugDynamicAccesses ? [] : null,
     isDebugDynamicAccesses,
     dynamicAccesses: [],
     syncDynamicErrorWithStack: null,
@@ -630,7 +634,8 @@ export function trackAllowedDynamicAccess(
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
-  clientDynamic: DynamicTrackingState
+  clientDynamic: DynamicTrackingState,
+  serverDynamic: DynamicTrackingState
 ) {
   if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
@@ -659,8 +664,11 @@ export function trackAllowedDynamicAccess(
     )
     return
   } else {
-    const message = `Route "${workStore.route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = createDynamicAccessError(
+      workStore,
+      componentStack,
+      serverDynamic
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   }
@@ -670,18 +678,66 @@ export function trackAllowedDynamicAccess(
  * In dev mode, we prefer using the owner stack, otherwise the provided
  * component stack is used.
  */
-function createErrorWithComponentOrOwnerStack(
-  message: string,
-  componentStack: string
+function createDynamicAccessError(
+  workStore: WorkStore,
+  componentStack: string,
+  serverDynamic: DynamicTrackingState
 ) {
-  const ownerStack =
-    process.env.NODE_ENV !== 'production' && React.captureOwnerStack
-      ? React.captureOwnerStack()
-      : null
+  let message = `Route "${workStore.route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+
+  let ownerStack: string | null = null
+  if (process.env.NODE_ENV !== 'production' && React.captureOwnerStack) {
+    ownerStack = React.captureOwnerStack()
+
+    if (ownerStack !== null) {
+      if (isDynamicRequestCallDEV(serverDynamic, ownerStack)) {
+        // TODO: This should look different from the generic one at a glance.
+        message = `Route "${workStore.route}": A component accessed headers without a Suspense boundary. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+      }
+    }
+  }
 
   const error = new Error(message)
   error.stack = error.name + ': ' + message + (ownerStack ?? componentStack)
   return error
+}
+
+/**
+ * @param serverDynamic
+ * @param callStack The part of error.stack after the message i.e. must start with "\n" e.g. "\n   at [...]\n"
+ * @returns
+ */
+function isDynamicRequestCallDEV(
+  serverDynamic: DynamicTrackingState,
+  callStack: string
+): boolean {
+  // refined
+  const calls = serverDynamic.requestAccesses!
+
+  const callSite = getV8CallSite(callStack, '')
+  for (const requestCall of calls) {
+    const requestCallStack = requestCall.stack!
+    const requestCallSite = getV8CallSite(
+      requestCallStack,
+      'Error: nextjs-request-api'
+    )
+    if (requestCallSite === callSite) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function getV8CallSite(v8CallStack: string, message: string): string {
+  const nextNewlineIndex = v8CallStack.indexOf('\n', message.length + 1)
+  // message "\n" callSite "\n" ...rest
+  return v8CallStack.slice(
+    message.length +
+      // \n
+      1,
+    nextNewlineIndex === -1 ? undefined : nextNewlineIndex
+  )
 }
 
 export enum PreludeState {
