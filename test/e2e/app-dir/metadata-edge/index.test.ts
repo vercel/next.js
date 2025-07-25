@@ -22,7 +22,7 @@ describe('app dir - Metadata API on the Edge runtime', () => {
           (file) => {
             return next
               .readFileSync(path.join('.next', file))
-              .includes('satori')
+              .includes('experimental_FigmaImageResponse')
           }
         )
         expect(pageFilesThatHaveImageResponse).not.toBeEmpty()
@@ -40,7 +40,7 @@ describe('app dir - Metadata API on the Edge runtime', () => {
               next
                 .readFileSync(path.join('.next', file))
                 // This export is not used but it checks if the `@vercel/og` package is shared between the two routes.
-                .includes('satori')
+                .includes('experimental_FigmaImageResponse')
             )
           }
         )
