@@ -5,6 +5,9 @@ import {
 } from '../../../shared/lib/router/utils/route-regex'
 import type { NextConfigComplete } from '../../config-shared'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
+import { mkdir } from 'fs/promises'
+import fs from 'fs'
+import { generateRouteTypesFile } from './typegen'
 
 interface RouteInfo {
   path: string
@@ -173,4 +176,17 @@ export async function createRouteTypesManifest({
   }
 
   return manifest
+}
+
+export async function writeRouteTypesManifest(
+  manifest: RouteTypesManifest,
+  filePath: string
+) {
+  const dirname = path.dirname(filePath)
+
+  if (!fs.existsSync(dirname)) {
+    await mkdir(dirname, { recursive: true })
+  }
+
+  await fs.promises.writeFile(filePath, generateRouteTypesFile(manifest))
 }

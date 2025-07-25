@@ -85,8 +85,10 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
 import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
-import { generateRouteTypesFile } from './typegen'
-import { createRouteTypesManifest } from './route-types-utils'
+import {
+  createRouteTypesManifest,
+  writeRouteTypesManifest,
+} from './route-types-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 
 export type SetupOpts = {
@@ -1010,10 +1012,7 @@ async function startWatcher(
             rewrites: opts.nextConfig.rewrites,
           })
 
-          await fs.promises.writeFile(
-            routeTypesFilePath,
-            generateRouteTypesFile(routeTypesManifest)
-          )
+          await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath)
         }
 
         if (!resolved) {

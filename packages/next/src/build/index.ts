@@ -210,9 +210,11 @@ import {
   sortPages,
   sortSortableRouteObjects,
 } from '../shared/lib/router/utils/sortable-routes'
-import { generateRouteTypesFile } from '../server/lib/router-utils/typegen'
 import { mkdir } from 'fs/promises'
-import { createRouteTypesManifest } from '../server/lib/router-utils/route-types-utils'
+import {
+  createRouteTypesManifest,
+  writeRouteTypesManifest,
+} from '../server/lib/router-utils/route-types-utils'
 import { isParallelRouteSegment } from '../shared/lib/segment'
 
 type Fallback = null | boolean | string
@@ -1384,10 +1386,7 @@ export default async function build(
             rewrites: config.rewrites,
           })
 
-          await fs.writeFile(
-            routeTypesFilePath,
-            generateRouteTypesFile(routeTypesManifest)
-          )
+          await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath)
         })
 
       // Turbopack already handles conflicting app and page routes.
