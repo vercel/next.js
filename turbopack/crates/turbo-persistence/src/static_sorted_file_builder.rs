@@ -212,7 +212,7 @@ fn compute_key_compression_dictionary<E: Entry>(
     }
     assert!(buffer.len() == sample_sizes.iter().sum::<usize>());
     let result = if buffer.len() > MIN_KEY_COMPRESSION_SAMPLES_SIZE && sample_sizes.len() > 5 {
-        zstd::dict::from_continuous(&buffer, &sample_sizes, KEY_COMPRESSION_DICTIONARY_SIZE)
+        zstd::dict::from_continuous(buffer, &sample_sizes, KEY_COMPRESSION_DICTIONARY_SIZE)
             .context("Key dictionary creation failed")?
     } else {
         Vec::new()
@@ -260,7 +260,7 @@ fn compute_value_compression_dictionary<E: Entry>(
     }
     assert!(buffer.len() == sample_sizes.iter().sum::<usize>());
     let result = if buffer.len() > MIN_VALUE_COMPRESSION_SAMPLES_SIZE && sample_sizes.len() > 5 {
-        zstd::dict::from_continuous(&buffer, &sample_sizes, VALUE_COMPRESSION_DICTIONARY_SIZE)
+        zstd::dict::from_continuous(buffer, &sample_sizes, VALUE_COMPRESSION_DICTIONARY_SIZE)
             .context("Value dictionary creation failed")?
     } else {
         Vec::new()
@@ -333,7 +333,7 @@ impl<'l> BlockWriter<'l> {
             .write_u32::<BE>(uncompressed_size)
             .context("Failed to write uncompressed size")?;
         self.writer
-            .write_all(&self.buffer)
+            .write_all(self.buffer)
             .context("Failed to write compressed block")?;
         self.buffer.clear();
         Ok(())
@@ -346,7 +346,7 @@ impl<'l> BlockWriter<'l> {
             lzzzz::lz4::Compressor::with_dict(dict).expect("LZ4 compressor creation failed");
         self.buffer.reserve(max_compressed_size(block.len()));
         compressor
-            .next_to_vec(block, &mut self.buffer, ACC_LEVEL_DEFAULT)
+            .next_to_vec(block, self.buffer, ACC_LEVEL_DEFAULT)
             .expect("Compression failed");
     }
 }
@@ -378,7 +378,7 @@ fn write_value_blocks(
                             value_locations[j].0 = block_index;
                         }
                     }
-                    writer.write_value_block(&buffer, value_compression_dictionary)?;
+                    writer.write_value_block(buffer, value_compression_dictionary)?;
                     buffer.clear();
                     current_block_start = i;
                     current_block_size = 0;
@@ -509,7 +509,7 @@ fn write_key_blocks_and_compute_amqf(
             writer.next_block_index(),
         ));
         block.finish();
-        writer.write_key_block(&buffer, key_compression_dictionary)?;
+        writer.write_key_block(buffer, key_compression_dictionary)?;
         buffer.clear();
     }
 
@@ -577,7 +577,7 @@ impl<'l> KeyBlockBuilder<'l> {
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
 
         self.buffer.write_u64::<BE>(entry.key_hash()).unwrap();
-        entry.write_key_to(&mut self.buffer);
+        entry.write_key_to(self.buffer);
         self.buffer.write_u16::<BE>(value_block).unwrap();
         self.buffer.write_u16::<BE>(value_size).unwrap();
         self.buffer.write_u32::<BE>(value_offset).unwrap();
@@ -607,7 +607,7 @@ impl<'l> KeyBlockBuilder<'l> {
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
 
         self.buffer.write_u64::<BE>(entry.key_hash()).unwrap();
-        entry.write_key_to(&mut self.buffer);
+        entry.write_key_to(self.buffer);
 
         self.current_entry += 1;
     }
@@ -620,7 +620,7 @@ impl<'l> KeyBlockBuilder<'l> {
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
 
         self.buffer.write_u64::<BE>(entry.key_hash()).unwrap();
-        entry.write_key_to(&mut self.buffer);
+        entry.write_key_to(self.buffer);
         self.buffer.write_u32::<BE>(blob).unwrap();
 
         self.current_entry += 1;
