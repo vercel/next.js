@@ -5303,8 +5303,11 @@
   "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
     "passed": [
       "app-dir static/dynamic handling should have logs from cache-handler",
+      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge"
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
+      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache"
     ],
     "failed": [
       "app-dir static/dynamic handling Incremental cache limits should cache request if response data size is greater than 2MB in development mode",
@@ -5339,7 +5342,6 @@
       "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
-      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
@@ -5373,8 +5375,6 @@
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
-      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
-      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
@@ -5388,12 +5388,15 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/app-static/app-static.test.ts": {
     "passed": [
+      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge"
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
+      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache"
     ],
     "failed": [
       "app-dir static/dynamic handling Incremental cache limits should not cache request if response data size is greater than 2MB and FetchCache is possible in development mode",
@@ -5433,7 +5436,6 @@
       "app-dir static/dynamic handling should honor fetch cache correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
       "app-dir static/dynamic handling should honor fetch cache in generateStaticParams",
-      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
@@ -5469,8 +5471,6 @@
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
-      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
-      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
@@ -5484,7 +5484,7 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [],
@@ -6078,10 +6078,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7125,6 +7125,7 @@
       "app-dir - fetch logging placeholder to satisfy at least one test when isNextDev is false",
       "app-dir - logging with default logging should not log fetch requests at all",
       "app-dir - logging with fetches default logging should log each page request only once",
+      "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should log each page request only once",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should log each page request only once",
@@ -7141,7 +7142,6 @@
       "app-dir - logging with fetches default logging should log requests for client-side navigations",
       "app-dir - logging with fetches default logging should log requests with correct indentation",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches default logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches default logging should not log _rsc query for client navigation RSC request",
       "app-dir - logging with fetches default logging should only log requests in development mode",
