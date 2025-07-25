@@ -48,7 +48,6 @@ describe('typed-routes', () => {
 type InvalidPage = PageProps<'/dasboard'>`
       )
 
-      await next.build()
       const { cliOutput } = await next.build()
 
       expect(cliOutput).toContain(

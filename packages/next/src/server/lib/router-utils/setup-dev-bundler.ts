@@ -999,20 +999,22 @@ async function startWatcher(
         }
         prevSortedRoutes = sortedRoutes
 
-        const routeTypesManifest = await createRouteTypesManifest({
-          dir,
-          pageRoutes,
-          appRoutes,
-          layoutRoutes,
-          slots,
-          redirects: opts.nextConfig.redirects,
-          rewrites: opts.nextConfig.rewrites,
-        })
+        if (usingTypeScript) {
+          const routeTypesManifest = await createRouteTypesManifest({
+            dir,
+            pageRoutes,
+            appRoutes,
+            layoutRoutes,
+            slots,
+            redirects: opts.nextConfig.redirects,
+            rewrites: opts.nextConfig.rewrites,
+          })
 
-        await fs.promises.writeFile(
-          routeTypesFilePath,
-          generateRouteTypesFile(routeTypesManifest)
-        )
+          await fs.promises.writeFile(
+            routeTypesFilePath,
+            generateRouteTypesFile(routeTypesManifest)
+          )
+        }
 
         if (!resolved) {
           resolve()
