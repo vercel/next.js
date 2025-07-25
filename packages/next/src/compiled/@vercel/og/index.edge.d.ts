@@ -1,7 +1,11 @@
-import type { ReactElement } from 'react';
-import type { ImageResponseOptions, FigmaImageResponseProps } from './types';
-export declare class ImageResponse extends Response {
+import { ReactElement } from 'react';
+import { I as ImageResponseOptions } from './types-d38469ff.js';
+import "next/dist/compiled/@vercel/og/satori";
+import 'http';
+
+declare class ImageResponse extends Response {
     constructor(element: ReactElement, options?: ImageResponseOptions);
 }
-export declare const experimental_FigmaImageResponse: (props: FigmaImageResponseProps) => Promise<ImageResponse>;
-export type EdgeImageResponse = typeof ImageResponse;
+type EdgeImageResponse = typeof ImageResponse;
+
+export { EdgeImageResponse, ImageResponse, ImageResponseOptions };

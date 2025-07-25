@@ -71,7 +71,7 @@ pub struct SpanExtra {
 pub struct SpanNames {
     // These values are computed when accessed (and maybe deleted during writing):
     pub nice_name: OnceLock<(String, String)>,
-    pub group_name: OnceLock<String>,
+    pub group_name: OnceLock<(String, String)>,
 }
 
 impl Span {

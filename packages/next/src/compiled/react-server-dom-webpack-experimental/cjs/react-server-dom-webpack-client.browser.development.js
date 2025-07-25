@@ -763,7 +763,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((col +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
@@ -1200,25 +1200,37 @@
     function getIOShortName(ioInfo, description, env, rootEnv) {
       ioInfo = ioInfo.name;
       env = env === rootEnv || void 0 === env ? "" : " [" + env + "]";
-      rootEnv = "";
-      var descMaxLength = 30 - ioInfo.length - env.length;
-      if (1 < descMaxLength) {
+      var desc = "";
+      rootEnv = 30 - ioInfo.length - env.length;
+      if (1 < rootEnv) {
         var l = description.length;
-        if (0 < l && l <= descMaxLength) rootEnv = " (" + description + ")";
+        if (0 < l && l <= rootEnv) desc = " (" + description + ")";
         else if (
           description.startsWith("http://") ||
           description.startsWith("https://") ||
           description.startsWith("/")
         ) {
-          l = description.indexOf("?");
-          -1 === l && (l = description.length);
-          47 === description.charCodeAt(l - 1) && l--;
-          var slashIdx = description.lastIndexOf("/", l - 1);
-          l - slashIdx < descMaxLength &&
-            (rootEnv = " (" + description.slice(slashIdx + 1, l) + ")");
+          var queryIdx = description.indexOf("?");
+          -1 === queryIdx && (queryIdx = description.length);
+          47 === description.charCodeAt(queryIdx - 1) && queryIdx--;
+          desc = description.lastIndexOf("/", queryIdx - 1);
+          queryIdx - desc < rootEnv
+            ? (desc = " (\u2026" + description.slice(desc, queryIdx) + ")")
+            : ((l = description.slice(desc, desc + rootEnv / 2)),
+              (description = description.slice(
+                queryIdx - rootEnv / 2,
+                queryIdx
+              )),
+              (desc =
+                " (" +
+                (0 < desc ? "\u2026" : "") +
+                l +
+                "\u2026" +
+                description +
+                ")"));
         }
       }
-      return ioInfo + rootEnv + env;
+      return ioInfo + desc + env;
     }
     function logComponentAwait(
       asyncInfo,
@@ -2816,7 +2828,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((encodedName +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
@@ -4371,7 +4383,7 @@
                 : newArgs.splice(
                     offset,
                     0,
-                    "%c%s%c ",
+                    "%c%s%c",
                     "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
                     " " + env + " ",
                     ""
@@ -4421,10 +4433,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-e9638c33-20250721",
+      version: "19.2.0-experimental-3d14fcf0-20250724",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-e9638c33-20250721",
+      reconcilerVersion: "19.2.0-experimental-3d14fcf0-20250724",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

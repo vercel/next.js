@@ -82,6 +82,7 @@ swc_core = { workspace = true, features = [
     "ecma_ast",
     "ecma_ast_serde",
     "ecma_codegen",
+    "ecma_helpers_inline",
     "ecma_loader_lru",
     "ecma_loader_node",
     "ecma_minifier",

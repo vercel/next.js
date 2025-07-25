@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
@@ -75,10 +75,6 @@ pub enum ClientReferenceType {
 #[derive(Clone, Debug, Default)]
 pub struct ClientReferenceGraphResult {
     pub client_references: Vec<ClientReference>,
-    /// Only the [`ClientReferenceType::EcmascriptClientReference`]s are listed in this map.
-    #[allow(clippy::type_complexity)]
-    pub client_references_by_server_component:
-        FxIndexMap<Option<ResolvedVc<NextServerComponentModule>>, Vec<ResolvedVc<Box<dyn Module>>>>,
     pub server_component_entries: Vec<ResolvedVc<NextServerComponentModule>>,
     pub server_utils: Vec<ResolvedVc<NextServerUtilityModule>>,
 }
@@ -115,12 +111,6 @@ impl ClientReferenceGraphResult {
     pub fn extend(&mut self, other: &Self) {
         self.client_references
             .extend(other.client_references.iter().copied());
-        for (k, v) in other.client_references_by_server_component.iter() {
-            self.client_references_by_server_component
-                .entry(*k)
-                .or_insert_with(Vec::new)
-                .extend(v);
-        }
         self.server_component_entries
             .extend(other.server_component_entries.iter().copied());
         self.server_utils.extend(other.server_utils.iter().copied());

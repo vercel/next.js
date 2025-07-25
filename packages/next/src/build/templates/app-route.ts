@@ -50,7 +50,7 @@ const routeModule = new AppRouteRouteModule({
     bundlePath: 'VAR_DEFINITION_BUNDLE_PATH',
   },
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
-  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
   userland,
@@ -449,7 +449,7 @@ export async function handler(
     }
   } catch (err) {
     // if we aren't wrapped by base-server handle here
-    if (!activeSpan) {
+    if (!activeSpan && !(err instanceof NoFallbackError)) {
       await routeModule.onRequestError(req, err, {
         routerKind: 'App Router',
         routePath: normalizedSrcPage,

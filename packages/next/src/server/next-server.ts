@@ -661,7 +661,11 @@ export default class NextNodeServer extends BaseServer<
         }
       ) => Promise<void>
     }
-    addRequestMeta(req.originalRequest, 'projectDir', this.dir)
+    addRequestMeta(
+      req.originalRequest,
+      'relativeProjectDir',
+      relative(process.cwd(), this.dir)
+    )
     addRequestMeta(req.originalRequest, 'distDir', this.distDir)
     await module.handler(req.originalRequest, res.originalResponse, {
       waitUntil: this.getWaitUntil(),
@@ -1095,8 +1099,8 @@ export default class NextNodeServer extends BaseServer<
     // such.
     addRequestMeta(req, 'bubbleNoFallback', true)
 
-    // TODO: this is only needed until route-module can handle
-    // rendering/serving the 404 directly with next-server
+    // This is needed to expose render404 and nextConfig
+    // for environments without router-server
     if (!routerServerGlobal[RouterServerContextSymbol]) {
       routerServerGlobal[RouterServerContextSymbol] = {}
     }

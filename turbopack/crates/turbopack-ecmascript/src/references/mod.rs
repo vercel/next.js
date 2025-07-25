@@ -157,8 +157,8 @@ use crate::{
         util::InlineSourceMap,
     },
     runtime_functions::{
-        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE_REAL,
-        TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
+        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS,
+        TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
     utils::{AstPathRange, module_value_to_well_known_object},
@@ -495,7 +495,7 @@ pub(crate) async fn analyse_ecmascript_module(
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
         let module = module.ident().to_string().await?.to_string();
-        tracing::info_span!("analyse ecmascript module", module = module)
+        tracing::info_span!("analyse ecmascript module", name = module)
     };
     let result = analyse_ecmascript_module_internal(module, part)
         .instrument(span)
@@ -1548,9 +1548,9 @@ async fn compile_time_info_for_module_type(
         .or_insert(if is_esm {
             FreeVarReference::Value(CompileTimeDefineValue::Undefined)
         } else {
-            // Insert `__turbopack_context__.e` which is equivalent to `module.exports` but should
+            // Insert shortcut which is equivalent to `module.exports` but should
             // not be shadowed by user symbols.
-            FreeVarReference::Member(rcstr!("__turbopack_context__"), rcstr!("e"))
+            TURBOPACK_EXPORTS.into()
         });
     free_var_references
         .entry(vec![

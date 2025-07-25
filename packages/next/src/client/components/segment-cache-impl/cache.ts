@@ -42,6 +42,7 @@ import type {
   NormalizedSearch,
   RouteCacheKey,
 } from './cache-key'
+import { getRenderedSearch } from './cache-key'
 import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
 import { createLRU } from './lru'
 import {
@@ -130,6 +131,7 @@ type PendingRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Empty | EntryStatus.Pending
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
+  renderedSearch: null
   tree: null
   head: HeadData | null
   isHeadPartial: true
@@ -140,6 +142,7 @@ type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Rejected
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
+  renderedSearch: null
   tree: null
   head: null
   isHeadPartial: true
@@ -150,6 +153,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Fulfilled
   blockedTasks: null
   canonicalUrl: string
+  renderedSearch: NormalizedSearch
   tree: RouteTree
   head: HeadData
   isHeadPartial: boolean
@@ -413,13 +417,13 @@ export function getSegmentKeypathForTask(
   // cache entry is valid for all possible search param values.
   const isDynamicTask = task.includeDynamicData || !route.isPPREnabled
   return isDynamicTask && path.endsWith('/' + PAGE_SEGMENT_KEY)
-    ? [path, task.key.search]
+    ? [path, route.renderedSearch]
     : [path]
 }
 
 export function readSegmentCacheEntry(
   now: number,
-  routeCacheKey: RouteCacheKey,
+  route: FulfilledRouteCacheEntry,
   path: string
 ): SegmentCacheEntry | null {
   if (!path.endsWith('/' + PAGE_SEGMENT_KEY)) {
@@ -427,15 +431,18 @@ export function readSegmentCacheEntry(
     return readExactSegmentCacheEntry(now, [path])
   }
 
-  // Page segments may or may not contain search params. If they were prefetched
-  // using a dynamic request, then we will have an entry with search params.
-  // Check for that case first.
-  const entryWithSearchParams = readExactSegmentCacheEntry(now, [
-    path,
-    routeCacheKey.search,
-  ])
-  if (entryWithSearchParams !== null) {
-    return entryWithSearchParams
+  const renderedSearch = route.renderedSearch
+  if (renderedSearch !== null) {
+    // Page segments may or may not contain search params. If they were prefetched
+    // using a dynamic request, then we will have an entry with search params.
+    // Check for that case first.
+    const entryWithSearchParams = readExactSegmentCacheEntry(now, [
+      path,
+      renderedSearch,
+    ])
+    if (entryWithSearchParams !== null) {
+      return entryWithSearchParams
+    }
   }
 
   // If we did not find an entry with the given search params, check for a
@@ -550,6 +557,7 @@ export function readOrCreateRouteCacheEntry(
     couldBeIntercepted: true,
     // Similarly, we don't yet know if the route supports PPR.
     isPPREnabled: false,
+    renderedSearch: null,
 
     // LRU-related fields
     keypath: null,
@@ -783,6 +791,7 @@ function fulfillRouteCacheEntry(
   staleAt: number,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
+  renderedSearch: NormalizedSearch,
   isPPREnabled: boolean
 ): FulfilledRouteCacheEntry {
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
@@ -793,6 +802,7 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
+  fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.isPPREnabled = isPPREnabled
   pingBlockedTasks(entry)
   return fulfilledEntry
@@ -1133,6 +1143,11 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      // Get the search params that were used to render the target page. This may
+      // be different from the search params in the request URL, if the page
+      // was rewritten.
+      const renderedSearch = getRenderedSearch(response)
+
       const staleTimeMs = serverData.staleTime * 1000
       fulfillRouteCacheEntry(
         entry,
@@ -1142,6 +1157,7 @@ export async function fetchRouteOnCacheMiss(
         Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
+        renderedSearch,
         routeIsPPREnabled
       )
     } else {
@@ -1366,6 +1382,19 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       return null
     }
 
+    const renderedSearch = getRenderedSearch(response)
+    if (renderedSearch !== route.renderedSearch) {
+      // The search params that were used to render the target page are
+      // different from the search params in the request URL. This only happens
+      // when there's a dynamic rewrite in between the tree prefetch and the
+      // data prefetch.
+      // TODO: For now, since this is an edge case, we reject the prefetch, but
+      // the proper way to handle this is to evict the stale route tree entry
+      // then fill the cache with the new response.
+      rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+      return null
+    }
+
     // Track when the network connection closes.
     const closed = createPromiseWithResolvers<void>()
 
@@ -1462,6 +1491,11 @@ function writeDynamicTreeResponseIntoCache(
   const isResponsePartial =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
 
+  // Get the search params that were used to render the target page. This may
+  // be different from the search params in the request URL, if the page
+  // was rewritten.
+  const renderedSearch = getRenderedSearch(response)
+
   const fulfilledEntry = fulfillRouteCacheEntry(
     entry,
     convertRootFlightRouterStateToRouteTree(flightRouterState),
@@ -1470,6 +1504,7 @@ function writeDynamicTreeResponseIntoCache(
     now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
+    renderedSearch,
     routeIsPPREnabled
   )
 

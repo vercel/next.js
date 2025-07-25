@@ -4,7 +4,7 @@ import { recursiveReadDir } from '../../../../../lib/recursive-readdir'
 
 export type DefaultFileReaderOptions = Pick<
   RecursiveReadDirOptions,
-  'pathnameFilter' | 'ignoreFilter' | 'ignorePartFilter'
+  'pathnameFilter' | 'ignorePartFilter'
 >
 
 /**
@@ -39,7 +39,6 @@ export class DefaultFileReader implements FileReader {
   public async read(dir: string): Promise<ReadonlyArray<string>> {
     return recursiveReadDir(dir, {
       pathnameFilter: this.options.pathnameFilter,
-      ignoreFilter: this.options.ignoreFilter,
       ignorePartFilter: this.options.ignorePartFilter,
 
       // We don't need to sort the results because we're not depending on the

@@ -19,6 +19,9 @@ use crate::{
     timestamp::Timestamp,
 };
 
+pub type GroupNameToDirectAndRecusiveSpans<'l> =
+    FxIndexMap<(&'l str, &'l str), (Vec<SpanIndex>, Vec<SpanIndex>)>;
+
 #[derive(Copy, Clone)]
 pub struct SpanRef<'a> {
     pub(crate) span: &'a Span,
@@ -89,18 +92,17 @@ impl<'a> SpanRef<'a> {
                 .find(|&(k, _)| k == "name")
                 .map(|(_, v)| v.as_str())
             {
-                if matches!(
+                if matches!(self.span.name.as_str(), "turbo_tasks::function") {
+                    (self.span.name.clone(), name.to_string())
+                } else if matches!(
                     self.span.name.as_str(),
                     "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
                 ) {
-                    (
-                        format!("{} {}", self.span.name, self.span.category),
-                        format!("*{name}"),
-                    )
+                    (self.span.name.clone(), format!("*{name}"))
                 } else {
                     (
-                        format!("{} {}", self.span.name, self.span.category),
-                        name.to_string(),
+                        self.span.category.clone(),
+                        format!("{} {name}", self.span.name),
                     )
                 }
             } else {
@@ -110,29 +112,37 @@ impl<'a> SpanRef<'a> {
         (category, title)
     }
 
-    pub fn group_name(&self) -> &'a str {
-        self.names().group_name.get_or_init(|| {
+    pub fn group_name(&self) -> (&'a str, &'a str) {
+        let (category, title) = self.names().group_name.get_or_init(|| {
             if matches!(self.span.name.as_str(), "turbo_tasks::function") {
-                self.span
+                let name = self
+                    .span
                     .args
                     .iter()
                     .find(|&(k, _)| k == "name")
                     .map(|(_, v)| v.to_string())
-                    .unwrap_or_else(|| self.span.name.to_string())
+                    .unwrap_or_else(|| self.span.name.to_string());
+                (self.span.name.clone(), name)
             } else if matches!(
                 self.span.name.as_str(),
                 "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
             ) {
-                self.span
+                let name = self
+                    .span
                     .args
                     .iter()
                     .find(|&(k, _)| k == "name")
                     .map(|(_, v)| format!("*{v}"))
-                    .unwrap_or_else(|| self.span.name.to_string())
+                    .unwrap_or_else(|| self.span.name.to_string());
+                (
+                    self.span.category.clone(),
+                    format!("{} {name}", self.span.name),
+                )
             } else {
-                self.span.name.to_string()
+                (self.span.category.clone(), self.span.name.clone())
             }
-        })
+        });
+        (category.as_str(), title.as_str())
     }
 
     pub fn args(&self) -> impl Iterator<Item = (&str, &str)> {
@@ -349,8 +359,7 @@ impl<'a> SpanRef<'a> {
                         Entry { span, recursive }
                     })
                     .collect_vec_list();
-                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
-                    FxIndexMap::default();
+                let mut map: GroupNameToDirectAndRecusiveSpans = FxIndexMap::default();
                 for Entry {
                     span,
                     mut recursive,

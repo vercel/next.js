@@ -127,7 +127,7 @@ export function parseConsoleArgs(args: unknown[]): {
   //
   // Logs replayed from the server look like this:
   // [
-  //   "%c%s%c %o\n\n%s\n\n%s\n",
+  //   "%c%s%c%o\n\n%s\n\n%s\n",
   //   "background: #e6e6e6; ...",
   //   " Server ", // can also be e.g. " Prerender "
   //   "",
@@ -138,7 +138,7 @@ export function parseConsoleArgs(args: unknown[]): {
   if (
     args.length > 3 &&
     typeof args[0] === 'string' &&
-    args[0].startsWith('%c%s%c ') &&
+    args[0].startsWith('%c%s%c') &&
     typeof args[1] === 'string' &&
     typeof args[2] === 'string' &&
     typeof args[3] === 'string'
