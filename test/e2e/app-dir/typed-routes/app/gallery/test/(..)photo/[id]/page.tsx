@@ -1,12 +1,4 @@
-export default async function InterceptedPhotoPage(
-  props: PageProps<'/gallery/photo/[id]'>
-) {
-  const params = await props.params
-
-  return (
-    <div>
-      <h2>Intercepted Photo {params.id}</h2>
-      <p>This is an intercepted view of photo: {params.id}</p>
-    </div>
-  )
+export default async function Page(props: PageProps<'/gallery/photo/[id]'>) {
+  const { id } = await props.params
+  return <p>intercepted photo {id}</p>
 }

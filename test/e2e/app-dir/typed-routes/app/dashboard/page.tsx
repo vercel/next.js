@@ -1,3 +1,3 @@
-export default function DashboardPage(props: PageProps<'/dashboard'>) {
-  return <div>Dashboard Home</div>
+export default function Page(props: PageProps<'/dashboard'>) {
+  return <p>analytics</p>
 }

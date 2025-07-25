@@ -1,8 +1,3 @@
-export default function AnalyticsPage(props: PageProps<'/dashboard'>) {
-  return (
-    <div>
-      <h4>Analytics Dashboard</h4>
-      <p>Your analytics data goes here.</p>
-    </div>
-  )
+export default function Page(props: PageProps<'/dashboard'>) {
+  return <p>analytics</p>
 }

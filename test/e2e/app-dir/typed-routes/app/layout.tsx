@@ -1,7 +1,8 @@
-export default function Root(props: LayoutProps<'/'>) {
+import { ReactNode } from 'react'
+export default function Root({ children }: { children: ReactNode }) {
   return (
     <html>
-      <body>{props.children}</body>
+      <body>{children}</body>
     </html>
   )
 }

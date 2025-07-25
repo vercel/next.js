@@ -1,4 +1,5 @@
-export default async function DocsPage(props: PageProps<'/docs/[...slug]'>) {
+export default async function Page(props: PageProps<'/docs/[...slug]'>) {
   const { slug } = await props.params
-  return <div>Docs: {slug.join('/')}</div>
+
+  return <p>docs {slug.join('/')}</p>
 }

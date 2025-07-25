@@ -1,8 +1,3 @@
-export default function TeamPage(props: PageProps<'/dashboard'>) {
-  return (
-    <div>
-      <h4>Team Dashboard</h4>
-      <p>Your team information goes here.</p>
-    </div>
-  )
+export default function Page(props: PageProps<'/dashboard'>) {
+  return <p>team</p>
 }

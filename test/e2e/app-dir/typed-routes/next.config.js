@@ -2,14 +2,11 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    typedRoutes: true,
-  },
   async redirects() {
     return [
       {
-        source: '/old-blog/:slug',
-        destination: '/blog/:slug',
+        source: '/project/:slug',
+        destination: '/project/:slug',
         permanent: true,
       },
     ]
@@ -19,8 +16,8 @@ const nextConfig = {
       beforeFiles: [],
       afterFiles: [
         {
-          source: '/docs-old/:path*',
-          destination: '/docs/:path*',
+          source: '/docs-old/:path+',
+          destination: '/docs/:path+',
         },
       ],
       fallback: [],

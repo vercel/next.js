@@ -86,12 +86,8 @@ import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-e
 import { normalizePath } from '../../../lib/normalize-path'
 import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
 import { generateRouteTypesFile } from './typegen'
-import {
-  type RouteTypesManifest,
-  extractSlotFromPageName,
-  createLayoutFileRegex,
-  createUnifiedRouteTypesManifest,
-} from './route-types-shared'
+import { createRouteTypesManifest } from './route-types-utils'
+import { isParallelRouteSegment } from '../../../shared/lib/segment'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -157,58 +153,6 @@ async function verifyTypeScript(opts: SetupOpts) {
     usingTypeScript = true
   }
   return usingTypeScript
-}
-
-// RouteInfo and RouteTypesManifest are now imported from route-types-shared
-
-function createRouteTypesManifest({
-  dir,
-  pagesPageFilePaths,
-  appPageFilePaths,
-  appLayoutFilePaths,
-  layoutSlots,
-  redirects,
-  rewrites,
-}: {
-  dir: string
-  pagesPageFilePaths: Map<string, string>
-  appPageFilePaths: Map<string, string>
-  appLayoutFilePaths: Map<string, string>
-  layoutSlots: Map<string, Set<string>>
-  redirects: Array<{ source: string }>
-  rewrites: {
-    beforeFiles: Array<{ source: string }>
-    afterFiles: Array<{ source: string }>
-    fallback: Array<{ source: string }>
-  }
-}): RouteTypesManifest {
-  // Convert maps to arrays for the unified function
-  const pageRoutes = Array.from(pagesPageFilePaths.entries()).map(
-    ([route, filePath]) => ({ route, filePath })
-  )
-
-  const appRoutes = Array.from(appPageFilePaths.entries()).map(
-    ([route, filePath]) => ({ route, filePath })
-  )
-
-  const layoutRoutes = Array.from(appLayoutFilePaths.entries()).map(
-    ([route, filePath]) => ({
-      route,
-      filePath,
-      slots: layoutSlots.has(route)
-        ? Array.from(layoutSlots.get(route)!)
-        : undefined,
-    })
-  )
-
-  return createUnifiedRouteTypesManifest({
-    dir,
-    pageRoutes,
-    appRoutes,
-    layoutRoutes,
-    redirects,
-    rewrites,
-  })
 }
 
 export async function propagateServerField(
@@ -290,24 +234,6 @@ async function startWatcher(
   await fs.promises.writeFile(
     routesManifestPath,
     JSON.stringify(routesManifest)
-  )
-
-  const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
-  await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
-
-  const routeTypesManifest = createRouteTypesManifest({
-    dir,
-    pagesPageFilePaths: new Map(),
-    appPageFilePaths: new Map(),
-    appLayoutFilePaths: new Map(),
-    layoutSlots: new Map(),
-    redirects: opts.fsChecker.redirects,
-    rewrites: opts.fsChecker.rewrites,
-  })
-
-  await fs.promises.writeFile(
-    routeTypesFilePath,
-    generateRouteTypesFile(routeTypesManifest)
   )
 
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
@@ -400,6 +326,8 @@ async function startWatcher(
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
+    const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+
     wp.on('aggregated', async () => {
       let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
@@ -409,8 +337,11 @@ async function startWatcher(
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
-      const appLayoutFilePaths = new Map<string, string>()
-      const layoutSlots = new Map<string, Set<string>>()
+
+      const pageRoutes: Array<{ route: string; filePath: string }> = []
+      const appRoutes: Array<{ route: string; filePath: string }> = []
+      const layoutRoutes: Array<{ route: string; filePath: string }> = []
+      const slots: Array<{ name: string; parent: string }> = []
 
       let envChange = false
       let tsconfigChange = false
@@ -423,24 +354,9 @@ async function startWatcher(
       pageFiles.clear()
       devPageFiles.clear()
 
-      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort((a, b) => {
-        // First, prioritize regular routes over parallel routes
-        const aHasParallel = a.includes('/@')
-        const bHasParallel = b.includes('/@')
-
-        if (aHasParallel && !bHasParallel) {
-          return 1 // a comes after b (b is regular route, prioritized)
-        }
-        if (!aHasParallel && bHasParallel) {
-          return -1 // a comes before b (a is regular route, prioritized)
-        }
-
-        // If both are regular or both are parallel, fall back to extension sorting
-        return sortByPageExts(nextConfig.pageExtensions)(a, b)
-      })
-
-      // Create layout file regex
-      const layoutFileRegex = createLayoutFileRegex(nextConfig.pageExtensions)
+      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
+        sortByPageExts(nextConfig.pageExtensions)
+      )
 
       for (const fileName of sortedKnownFiles) {
         if (
@@ -605,20 +521,37 @@ async function startWatcher(
 
           // May run multiple times (e.g. if a parallel route
           // has both a layout and a page, and children) but that's fine
-          const slotInfo = extractSlotFromPageName(normalizedPageName)
+          const segments = normalizedPageName.split('/')
+          for (let i = segments.length - 1; i >= 0; i--) {
+            const segment = segments[i]
+            if (isParallelRouteSegment(segment)) {
+              const parentPath = normalizeAppPath(
+                segments.slice(0, i).join('/')
+              )
 
-          if (slotInfo) {
-            const { parentPath, slotName } = slotInfo
+              const slotName = segment.slice(1)
+              // check if the slot already exists
+              if (
+                slots.some(
+                  (s) => s.name === slotName && s.parent === parentPath
+                )
+              )
+                continue
 
-            if (!layoutSlots.has(parentPath)) {
-              layoutSlots.set(parentPath, new Set())
+              slots.push({
+                name: slotName,
+                parent: parentPath,
+              })
+              break
             }
-            layoutSlots.get(parentPath)!.add(slotName)
           }
 
           // Record layouts (later filtered out by isAppRouterPage)
-          if (layoutFileRegex.test(fileName)) {
-            appLayoutFilePaths.set(normalizeAppPath(pageName), fileName)
+          if (validFileMatcher.isAppLayoutPage(fileName)) {
+            layoutRoutes.push({
+              route: normalizeAppPath(pageName),
+              filePath: fileName,
+            })
           }
 
           if (isRootNotFound) {
@@ -659,8 +592,16 @@ async function startWatcher(
         // Record pages
         if (isAppPath) {
           appPageFilePaths.set(pageName, fileName)
+          appRoutes.push({
+            route: pageName,
+            filePath: fileName,
+          })
         } else {
           pagesPageFilePaths.set(pageName, fileName)
+          pageRoutes.push({
+            route: pageName,
+            filePath: fileName,
+          })
         }
 
         if (appDir && pageNameSet.has(pageName)) {
@@ -1058,19 +999,19 @@ async function startWatcher(
         }
         prevSortedRoutes = sortedRoutes
 
-        const newRouteTypesManifest = createRouteTypesManifest({
+        const routeTypesManifest = await createRouteTypesManifest({
           dir,
-          pagesPageFilePaths,
-          appPageFilePaths,
-          appLayoutFilePaths,
-          layoutSlots,
-          redirects: opts.fsChecker.redirects,
-          rewrites: opts.fsChecker.rewrites,
+          pageRoutes,
+          appRoutes,
+          layoutRoutes,
+          slots,
+          redirects: opts.nextConfig.redirects,
+          rewrites: opts.nextConfig.rewrites,
         })
 
         await fs.promises.writeFile(
           routeTypesFilePath,
-          generateRouteTypesFile(newRouteTypesManifest)
+          generateRouteTypesFile(routeTypesManifest)
         )
 
         if (!resolved) {

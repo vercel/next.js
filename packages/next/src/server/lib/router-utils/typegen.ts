@@ -1,4 +1,4 @@
-import type { RouteTypesManifest } from './route-types-shared'
+import type { RouteTypesManifest } from './route-types-utils'
 import { isDynamicRoute } from '../../../shared/lib/router/utils/is-dynamic'
 
 function generateRouteTypes(routesManifest: RouteTypesManifest): string {
