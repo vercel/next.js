@@ -90,6 +90,7 @@ import {
   writeRouteTypesManifest,
 } from './route-types-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
+import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -553,7 +554,12 @@ async function startWatcher(
           // Record layouts
           if (validFileMatcher.isAppLayoutPage(fileName)) {
             layoutRoutes.push({
-              route: normalizeAppPath(normalizePathSep(pageName)),
+              route: ensureLeadingSlash(
+                normalizeAppPath(normalizePathSep(pageName)).replace(
+                  /\/layout$/,
+                  ''
+                )
+              ),
               filePath: fileName,
             })
           }
