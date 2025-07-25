@@ -315,7 +315,7 @@ const nextDev = async (
 
       child.on('exit', async (code, signal) => {
         config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-          silent: false,
+          silent: true,
         })
         if (sessionStopHandled || signal) {
           return

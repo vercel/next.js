@@ -185,7 +185,9 @@ export async function startServer(
   } = serverOptions
   let { port } = serverOptions
 
-  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+    silent: false,
+  })
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
   setGlobal('distDir', distDir)
