@@ -310,6 +310,8 @@ impl PartialEq for RcStr {
                 let r = unsafe { deref_from(other.unsafe_data) };
                 l.hash == r.hash && l.value == r.value
             }
+            // NOTE: it is never possible for an inline storage string to compare equal to a dynamic
+            // allocated string, the construction routines separate the strings based on length.
             _ => false,
         }
     }
