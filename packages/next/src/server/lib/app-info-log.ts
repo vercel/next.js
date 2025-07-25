@@ -5,7 +5,11 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
-import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
+import {
+  loadConfiguredExperimentalFeaturesFromCache,
+  type ConfiguredExperimentalFeature,
+} from '../config'
+import { defaultConfig, type ExperimentalConfig } from '../config-shared'
 
 export function logStartInfo({
   networkUrl,
@@ -76,27 +80,33 @@ export async function getStartServerInfo({
   dir,
   dev,
   debugPrerender,
+  reactProductionProfiling,
 }: {
   dir: string
   dev: boolean
   debugPrerender?: boolean
+  reactProductionProfiling?: boolean
 }): Promise<{
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
 }> {
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
-  await loadConfig(
+
+  const sortedExpFeatures = loadConfiguredExperimentalFeaturesFromCache(
     dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
     dir,
-    {
-      reportExperimentalFeatures(features) {
-        experimentalFeatures = features.sort(
-          ({ key: a }, { key: b }) => a.length - b.length
-        )
-      },
-      debugPrerender,
+    null,
+    reactProductionProfiling,
+    debugPrerender
+  ).sort((a, b) => a.key.length - b.key.length)
+
+  for (const exp of sortedExpFeatures) {
+    const value = exp.value
+    if (value === (defaultConfig.experimental as ExperimentalConfig)[exp.key]) {
+      continue
     }
-  )
+    experimentalFeatures.push(exp)
+  }
 
   // we need to reset env if we are going to create
   // the worker process with the esm loader so that the

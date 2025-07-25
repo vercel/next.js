@@ -39,7 +39,6 @@ import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot
 import { findDir } from '../lib/find-pages-dir'
 import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
 import { interopDefault } from '../lib/interop-default'
-import { djb2Hash } from '../shared/lib/hash'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -1206,7 +1205,28 @@ function getCacheKey(
     debugPrerender: Boolean(debugPrerender),
   })
 
-  return djb2Hash(keyData).toString(36)
+  return keyData
+}
+
+export function loadConfiguredExperimentalFeaturesFromCache(
+  phase: string,
+  dir: string,
+  customConfig?: object | null,
+  reactProductionProfiling?: boolean,
+  debugPrerender?: boolean
+): ConfiguredExperimentalFeature[] {
+  const cacheKey = getCacheKey(
+    phase,
+    dir,
+    customConfig,
+    reactProductionProfiling,
+    debugPrerender
+  )
+  const cachedResult = configCache.get(cacheKey)
+  if (cachedResult) {
+    return cachedResult.configuredExperimentalFeatures
+  }
+  return []
 }
 
 export default async function loadConfig(
@@ -1793,7 +1813,7 @@ function enforceExperimentalFeatures(
   }
 }
 
-function addConfiguredExperimentalFeature<
+export function addConfiguredExperimentalFeature<
   KeyType extends keyof ExperimentalConfig,
 >(
   configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
