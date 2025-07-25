@@ -50,6 +50,8 @@ struct FsWatcher {
     file_modifications: u32,
     #[arg(long, default_value_t = 2)]
     directory_modifications: u32,
+    #[arg(long)]
+    print_missing_invalidations: bool,
 }
 
 #[tokio::main]
@@ -135,6 +137,19 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
                     modified_file_paths.len(),
                     invalidations.len()
                 );
+                if args.print_missing_invalidations {
+                    let absolute_path_invalidations = invalidations
+                        .iter()
+                        .map(|relative_path| fs_root.join(relative_path))
+                        .collect::<FxHashSet<PathBuf>>();
+                    let mut missing = modified_file_paths
+                        .difference(&absolute_path_invalidations)
+                        .collect::<Vec<_>>();
+                    missing.sort_unstable();
+                    for path in &missing {
+                        println!("  missing {path:?}");
+                    }
+                }
                 invalidations.clear();
             }
         }
