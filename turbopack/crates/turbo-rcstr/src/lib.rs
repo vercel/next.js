@@ -81,7 +81,7 @@ unsafe impl Sync for RcStr {}
 
 // Marks a payload that is stored in an Arc
 const DYNAMIC_TAG: u8 = 0b_00;
-const DYNAMIC_LOCATION: u8 = 0b_0;
+const PREHASHED_STRING_LOCATION: u8 = 0b_0;
 // Marks a payload that has been leaked since it has a static lifetime
 const STATIC_TAG: u8 = 0b_10;
 // The payload is stored inline
@@ -107,21 +107,22 @@ impl RcStr {
     #[inline(never)]
     pub fn as_str(&self) -> &str {
         match self.location() {
-            DYNAMIC_LOCATION => self.dynamic_as_str(),
+            PREHASHED_STRING_LOCATION => self.prehashed_string_as_str(),
             INLINE_LOCATION => self.inline_as_str(),
             _ => unsafe { debug_unreachable!() },
         }
     }
 
     fn inline_as_str(&self) -> &str {
+        debug_assert!(self.location() == INLINE_LOCATION);
         let len = (self.unsafe_data.tag_byte() & LEN_MASK) >> LEN_OFFSET;
         let src = self.unsafe_data.data();
         unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
     }
 
-    // Extract the str reference from a string stored in a dynamic location
-    fn dynamic_as_str(&self) -> &str {
-        debug_assert!(self.location() == DYNAMIC_LOCATION);
+    // Extract the str reference from a string stored in a PrehashedString
+    fn prehashed_string_as_str(&self) -> &str {
+        debug_assert!(self.location() == PREHASHED_STRING_LOCATION);
         unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() }
     }
 
@@ -143,7 +144,7 @@ impl RcStr {
                 }
             }
             INLINE_TAG => self.inline_as_str().to_string(),
-            STATIC_TAG => self.dynamic_as_str().to_string(),
+            STATIC_TAG => self.prehashed_string_as_str().to_string(),
             _ => unsafe { debug_unreachable!() },
         }
     }
@@ -278,6 +279,8 @@ impl Clone for RcStr {
     #[inline(always)]
     fn clone(&self) -> Self {
         let alias = self.unsafe_data;
+        // We only need to increment the ref count for DYNAMIC_TAG values
+        // For STATIC_TAG and INLINE_TAG we can just copy the value.
         if alias.tag_byte() & TAG_MASK == DYNAMIC_TAG {
             unsafe {
                 let arc = dynamic::restore_arc(alias);
@@ -305,7 +308,7 @@ impl PartialEq for RcStr {
         }
         // They can still be equal if they are both stored on the heap
         match (self.location(), other.location()) {
-            (DYNAMIC_LOCATION, DYNAMIC_LOCATION) => {
+            (PREHASHED_STRING_LOCATION, PREHASHED_STRING_LOCATION) => {
                 let l = unsafe { deref_from(self.unsafe_data) };
                 let r = unsafe { deref_from(other.unsafe_data) };
                 l.hash == r.hash && l.value == r.value
@@ -334,7 +337,7 @@ impl Ord for RcStr {
 impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self.location() {
-            DYNAMIC_LOCATION => {
+            PREHASHED_STRING_LOCATION => {
                 let l = unsafe { deref_from(self.unsafe_data) };
                 state.write_u64(l.hash);
                 state.write_u8(0xff);
@@ -362,8 +365,15 @@ impl<'de> Deserialize<'de> for RcStr {
 
 impl Drop for RcStr {
     fn drop(&mut self) {
-        if self.tag() == DYNAMIC_TAG {
-            unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
+        match self.tag() {
+            DYNAMIC_TAG => unsafe { drop(dynamic::restore_arc(self.unsafe_data)) },
+            STATIC_TAG => {
+                // do nothing, these are never deallocated
+            }
+            INLINE_TAG => {
+                // do nothing, these payloads need no drop logic
+            }
+            _ => unsafe { debug_unreachable!() },
         }
     }
 }
