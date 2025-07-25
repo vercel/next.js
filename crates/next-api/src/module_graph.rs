@@ -731,24 +731,24 @@ impl GlobalBuildInformation {
             let result = if let [graph] = &self.client_references[..] {
                 // Just a single graph, no need to merge results  This also naturally aggregates
                 // server components and server utilities in the correct order
-                let result = graph
-                    .get_client_references_for_endpoint(entry)
-                    .owned()
-                    .await?;
+                let result = graph.get_client_references_for_endpoint(entry);
                 #[cfg(debug_assertions)]
                 {
+                    let result = result.await?;
                     if has_layout_segments {
+                        use rustc_hash::FxHashSet;
+
                         let ServerEntries {
                             server_utils,
                             server_component_entries,
                         } = &*find_server_entries(entry, include_traced).await?;
                         // order of server utils doesn't matter, so just ensure that they match
                         assert_eq!(
-                            HashSet::from_iter(result.server_utils),
-                            HashSet::from_iter(server_utils)
+                            FxHashSet::from_iter(result.server_utils.iter()),
+                            FxHashSet::from_iter(server_utils.iter())
                         );
                         // The order of server_components does matter, enforce it is identical
-                        assert_eq!(result.server_component_entries, server_component_entries);
+                        assert_eq!(&result.server_component_entries, server_component_entries);
                     }
                 }
                 result
@@ -786,10 +786,9 @@ impl GlobalBuildInformation {
                     result.server_utils = server_utils.clone();
                     result.server_component_entries = server_component_entries.clone();
                 }
-                result
+                result.cell()
             };
-
-            Ok(result.cell())
+            Ok(result)
         }
         .instrument(span)
         .await
