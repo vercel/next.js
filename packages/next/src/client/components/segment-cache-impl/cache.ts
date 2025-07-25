@@ -805,7 +805,7 @@ function fulfillRouteCacheEntry(
 }
 
 function fulfillSegmentCacheEntry(
-  segmentCacheEntry: EmptySegmentCacheEntry | PendingSegmentCacheEntry,
+  segmentCacheEntry: PendingSegmentCacheEntry,
   rsc: React.ReactNode,
   loading: LoadingModuleData | Promise<LoadingModuleData>,
   staleAt: number,
@@ -1186,6 +1186,9 @@ export async function fetchRouteOnCacheMiss(
       writeDynamicTreeResponseIntoCache(
         Date.now(),
         task,
+        // The non-PPR response format is what we'd get if we prefetched these segments
+        // using the LoadingBoundary fetch strategy, so mark their cache entries accordingly.
+        FetchStrategy.LoadingBoundary,
         response,
         serverData,
         entry,
@@ -1347,7 +1350,7 @@ export async function fetchSegmentOnCacheMiss(
 export async function fetchSegmentPrefetchesUsingDynamicRequest(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  fetchStrategy: FetchStrategy,
+  fetchStrategy: FetchStrategy.LoadingBoundary | FetchStrategy.Full,
   dynamicRequestTree: FlightRouterState,
   spawnedEntries: Map<string, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
@@ -1427,6 +1430,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       Date.now(),
       task,
+      fetchStrategy,
       response,
       serverData,
       isResponsePartial,
@@ -1446,6 +1450,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 function writeDynamicTreeResponseIntoCache(
   now: number,
   task: PrefetchTask,
+  fetchStrategy: FetchStrategy.LoadingBoundary | FetchStrategy.Full,
   response: RSCResponse,
   serverData: NavigationFlightResponse,
   entry: PendingRouteCacheEntry,
@@ -1516,6 +1521,7 @@ function writeDynamicTreeResponseIntoCache(
   writeDynamicRenderResponseIntoCache(
     now,
     task,
+    fetchStrategy,
     response,
     serverData,
     isResponsePartial,
@@ -1542,6 +1548,7 @@ function rejectSegmentEntriesIfStillPending(
 function writeDynamicRenderResponseIntoCache(
   now: number,
   task: PrefetchTask,
+  fetchStrategy: FetchStrategy.LoadingBoundary | FetchStrategy.Full,
   response: RSCResponse,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
@@ -1600,6 +1607,7 @@ function writeDynamicRenderResponseIntoCache(
       writeSeedDataIntoCache(
         now,
         task,
+        fetchStrategy,
         route,
         staleAt,
         seedData,
@@ -1648,6 +1656,7 @@ function writeDynamicRenderResponseIntoCache(
 function writeSeedDataIntoCache(
   now: number,
   task: PrefetchTask,
+  fetchStrategy: FetchStrategy.LoadingBoundary | FetchStrategy.Full,
   route: FulfilledRouteCacheEntry,
   staleAt: number,
   seedData: CacheNodeSeedData,
@@ -1684,12 +1693,21 @@ function writeSeedDataIntoCache(
     if (possiblyNewEntry.status === EntryStatus.Empty) {
       // Confirmed this is a new entry. We can fulfill it.
       const newEntry = possiblyNewEntry
-      fulfillSegmentCacheEntry(newEntry, rsc, loading, staleAt, isPartial)
+      fulfillSegmentCacheEntry(
+        upgradeToPendingSegment(newEntry, fetchStrategy),
+        rsc,
+        loading,
+        staleAt,
+        isPartial
+      )
     } else {
       // There was already an entry in the cache. But we may be able to
       // replace it with the new one from the server.
       const newEntry = fulfillSegmentCacheEntry(
-        createDetachedSegmentCacheEntry(staleAt),
+        upgradeToPendingSegment(
+          createDetachedSegmentCacheEntry(staleAt),
+          fetchStrategy
+        ),
         rsc,
         loading,
         staleAt,
@@ -1712,6 +1730,7 @@ function writeSeedDataIntoCache(
         writeSeedDataIntoCache(
           now,
           task,
+          fetchStrategy,
           route,
           staleAt,
           childSeedData,
