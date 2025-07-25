@@ -17,7 +17,7 @@ use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
-    dynamic::{deref_from, new_atom},
+    dynamic::{deref_from, hash_bytes, new_atom},
     tagged_value::TaggedValue,
 };
 
@@ -138,8 +138,8 @@ impl RcStr {
                 // convert `self` into `arc`
                 let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
                 match Arc::try_unwrap(arc) {
-                    Ok(v) => v.value,
-                    Err(arc) => arc.value.clone(),
+                    Ok(v) => v.value.into_string(),
+                    Err(arc) => arc.value.as_str().to_string(),
                 }
             }
             INLINE_TAG => self.inline_as_str().to_string(),
@@ -373,21 +373,18 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
 }
 
 #[doc(hidden)]
+#[inline(always)]
 pub fn from_static(s: &'static PrehashedString) -> RcStr {
     dynamic::new_static_atom(s)
 }
 #[doc(hidden)]
-pub use dynamic::{PrehashedString, hash_bytes};
+pub use dynamic::PrehashedString;
 
 #[doc(hidden)]
-impl RcStr {
-    // Allow the rcstr! macro to skip a tag branch and just copy the struct
-    #[doc(hidden)]
-    pub fn unsafe_copy_for_macro(&self) -> RcStr {
-        debug_assert!(self.tag() == STATIC_TAG);
-        Self {
-            unsafe_data: self.unsafe_data,
-        }
+pub const fn make_const_prehashed_string(text: &'static str) -> PrehashedString {
+    PrehashedString {
+        value: dynamic::Payload::Ref(text),
+        hash: hash_bytes(text.as_bytes()),
     }
 }
 
@@ -401,27 +398,13 @@ macro_rules! rcstr {
         if INLINE.is_some() {
             INLINE.unwrap()
         } else {
-            #[inline(never)]
             fn get_rcstr() -> $crate::RcStr {
                 // Allocate static storage for the PrehashedString
-                static INNER: ::std::sync::LazyLock<$crate::PrehashedString> =
-                    ::std::sync::LazyLock::new(|| $crate::PrehashedString {
-                        // `String::from_raw_parts`` would be a pretty legit option here since
-                        // we could const allocate this.  However, we would need to:
-                        // * cast the static str to a *mut u8
-                        // * convince ourselves that the admonitions to supply allocator allocated
-                        //   pointers are only about drop.
-                        // Alternatively we could transmute a Vec allocated from from_raw_parts_in
-                        // using an allocator that never frees.
-                        // For how we just copy and allocate
-                        value: $s.into(),
-                        // compute the hash at compile time
-                        hash: const { $crate::hash_bytes($s.as_bytes()) },
-                    });
-                static CACHE: ::std::sync::LazyLock<$crate::RcStr> =
-                    ::std::sync::LazyLock::new(|| $crate::from_static(&*INNER));
-
-                (*CACHE).unsafe_copy_for_macro()
+                static RCSTR_STORAGE: $crate::PrehashedString =
+                    $crate::make_const_prehashed_string($s);
+                // This basically just tags a bit onto the raw pointer and wraps it in an RcStr
+                // should be fast enough to do every time.
+                $crate::from_static(&RCSTR_STORAGE)
             }
             get_rcstr()
         }

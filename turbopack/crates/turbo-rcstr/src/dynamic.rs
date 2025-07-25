@@ -7,8 +7,33 @@ use crate::{
     tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
+pub enum Payload {
+    String(String),
+    Ref(&'static str),
+}
+
+impl Payload {
+    pub(crate) fn as_str(&self) -> &str {
+        match self {
+            Payload::String(s) => s,
+            Payload::Ref(s) => s,
+        }
+    }
+    pub(crate) fn into_string(self) -> String {
+        match self {
+            Payload::String(s) => s,
+            Payload::Ref(r) => r.to_string(),
+        }
+    }
+}
+impl PartialEq for Payload {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
 pub struct PrehashedString {
-    pub value: String,
+    pub value: Payload,
     /// This is not the actual `fxhash`, but rather it's a value that passed to
     /// `write_u64` of [rustc_hash::FxHasher].
     pub hash: u64,
@@ -46,7 +71,7 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
     let hash = hash_bytes(text.as_ref().as_bytes());
 
     let entry: Arc<PrehashedString> = Arc::new(PrehashedString {
-        value: text.into(),
+        value: Payload::String(text.into()),
         hash,
     });
     let entry = Arc::into_raw(entry);
