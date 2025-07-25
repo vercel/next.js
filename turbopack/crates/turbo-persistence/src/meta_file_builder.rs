@@ -63,12 +63,12 @@ impl<'a> MetaFileBuilder<'a> {
             file.write_u64::<BE>(sst.min_hash)?;
             file.write_u64::<BE>(sst.max_hash)?;
             file.write_u64::<BE>(sst.size)?;
-            aqmf_offset += sst.aqmf.len();
+            aqmf_offset += sst.amqf.len();
             file.write_u32::<BE>(aqmf_offset as u32)?;
         }
 
         for (_, sst) in &self.entries {
-            file.write_all(&sst.aqmf)?;
+            file.write_all(&sst.amqf)?;
         }
         Ok(file.into_inner()?)
     }

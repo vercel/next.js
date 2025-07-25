@@ -26,7 +26,7 @@ use crate::{
     constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     key::StoreKey,
     meta_file_builder::MetaFileBuilder,
-    static_sorted_file_builder::{StaticSortedFileBuilder, StaticSortedFileBuilderMeta},
+    static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
 };
 
 /// The thread local state of a `WriteBatch`. `FAMILIES` should fit within a `u32`.
@@ -408,12 +408,10 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let (entries, total_key_size, total_value_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
-        let builder = StaticSortedFileBuilder::new(entries, total_key_size, total_value_size)?;
-
         let path = self.db_path.join(format!("{seq:08}.sst"));
-        let (meta, file) = builder
-            .write(&path)
-            .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
+        let (meta, file) =
+            write_static_stored_file(entries, total_key_size, total_value_size, &path)
+                .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
 
         #[cfg(feature = "verify_sst_content")]
         {

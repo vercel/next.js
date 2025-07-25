@@ -38,7 +38,7 @@ use crate::{
     meta_file_builder::MetaFileBuilder,
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult},
-    static_sorted_file_builder::{StaticSortedFileBuilder, StaticSortedFileBuilderMeta},
+    static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
     write_batch::{FinishResult, WriteBatch},
 };
 
@@ -880,7 +880,7 @@ impl TurboPersistence {
                             let meta = StaticSortedFileBuilderMeta {
                                 min_hash: entry.min_hash(),
                                 max_hash: entry.max_hash(),
-                                aqmf,
+                                amqf: aqmf,
                                 key_compression_dictionary_length: entry
                                     .key_compression_dictionary_length(),
                                 value_compression_dictionary_length: entry
@@ -904,13 +904,12 @@ impl TurboPersistence {
                         ) -> Result<(u32, File, StaticSortedFileBuilderMeta<'static>)>
                         {
                             let _span = tracing::trace_span!("write merged sst file").entered();
-                            let builder = StaticSortedFileBuilder::new(
+                            let (meta, file) = write_static_stored_file(
                                 entries,
                                 total_key_size,
                                 total_value_size,
+                                &path.join(format!("{seq:08}.sst")),
                             )?;
-                            let (meta, file) =
-                                builder.write(&path.join(format!("{seq:08}.sst")))?;
                             Ok((seq, file, meta))
                         }
 
