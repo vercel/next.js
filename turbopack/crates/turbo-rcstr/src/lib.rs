@@ -360,9 +360,8 @@ impl<'de> Deserialize<'de> for RcStr {
 
 impl Drop for RcStr {
     fn drop(&mut self) {
-        let alias = self.unsafe_data;
-        if alias.tag_byte() & TAG_MASK == DYNAMIC_TAG {
-            unsafe { drop(dynamic::restore_arc(alias)) }
+        if self.tag() == DYNAMIC_TAG {
+            unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
         }
     }
 }
