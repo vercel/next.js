@@ -2565,6 +2565,31 @@
         }
       }
     }
+    function initializeIOInfo(response, ioInfo) {
+      void 0 !== ioInfo.stack &&
+        (initializeFakeTask(response, ioInfo),
+        initializeFakeStack(response, ioInfo));
+      ioInfo.start += response._timeOrigin;
+      ioInfo.end += response._timeOrigin;
+    }
+    function resolveIOInfo(response, id, model) {
+      var chunks = response._chunks,
+        chunk = chunks.get(id);
+      chunk
+        ? (resolveModelChunk(response, chunk, model),
+          "resolved_model" === chunk.status && initializeModelChunk(chunk))
+        : ((chunk = createResolvedModelChunk(response, model)),
+          chunks.set(id, chunk),
+          initializeModelChunk(chunk));
+      "fulfilled" === chunk.status
+        ? initializeIOInfo(response, chunk.value)
+        : chunk.then(
+            function (v) {
+              initializeIOInfo(response, v);
+            },
+            function () {}
+          );
+    }
     function mergeBuffer(buffer, lastChunk) {
       for (
         var l = buffer.length, byteLength = lastChunk.length, i = 0;
@@ -2725,6 +2750,8 @@
               tag.set(id, new ReactPromise("fulfilled", row, null)));
           break;
         case 78:
+          response._timeOrigin = +row - performance.timeOrigin;
+          break;
         case 68:
           id = getChunk(response, id);
           "fulfilled" !== id.status &&
@@ -2747,6 +2774,8 @@
                 (id._debugChunk = null)));
           break;
         case 74:
+          resolveIOInfo(response, id, row);
+          break;
         case 87:
           resolveConsoleEntry(response, row);
           break;
@@ -3173,6 +3202,7 @@
         ReactSharedInteralsServer;
     ReactPromise.prototype = Object.create(Promise.prototype);
     ReactPromise.prototype.then = function (resolve, reject) {
+      var _this = this;
       switch (this.status) {
         case "resolved_model":
           initializeModelChunk(this);
@@ -3180,6 +3210,19 @@
         case "resolved_module":
           initializeModuleChunk(this);
       }
+      var resolveCallback = resolve,
+        rejectCallback = reject,
+        wrapperPromise = new Promise(function (res, rej) {
+          resolve = function (value) {
+            wrapperPromise._debugInfo = _this._debugInfo;
+            res(value);
+          };
+          reject = function (reason) {
+            wrapperPromise._debugInfo = _this._debugInfo;
+            rej(reason);
+          };
+        });
+      wrapperPromise.then(resolveCallback, rejectCallback);
       switch (this.status) {
         case "fulfilled":
           "function" === typeof resolve && resolve(this.value);
@@ -3312,10 +3355,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-3d14fcf0-20250724",
+      version: "19.2.0-canary-19baee81-20250725",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-3d14fcf0-20250724",
+      reconcilerVersion: "19.2.0-canary-19baee81-20250725",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

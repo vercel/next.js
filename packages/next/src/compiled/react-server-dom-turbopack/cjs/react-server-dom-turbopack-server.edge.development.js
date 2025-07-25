@@ -379,7 +379,8 @@
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
-        ? thenableState.push(thenable)
+        ? (thenableState.push(thenable),
+          (thenableState._stacks || (thenableState._stacks = [])).push(Error()))
         : index !== thenable && (thenable.then(noop, noop), (thenable = index));
       switch (thenable.status) {
         case "fulfilled":
@@ -914,8 +915,21 @@
       this.deferredDebugObjects = keepDebugAlive
         ? { retained: new Map(), existing: new Map() }
         : null;
-      type = createTask(this, model, null, !1, abortSet, 0, null, null, null);
-      pingedTasks.push(type);
+      type = this.timeOrigin = performance.now();
+      emitTimeOriginChunk(this, type + performance.timeOrigin);
+      this.abortTime = -0;
+      model = createTask(
+        this,
+        model,
+        null,
+        !1,
+        abortSet,
+        type,
+        null,
+        null,
+        null
+      );
+      pingedTasks.push(model);
     }
     function createRequest(
       model,
@@ -1056,7 +1070,7 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
-        0,
+        task.time,
         task.debugOwner,
         task.debugStack,
         task.debugTask
@@ -1064,14 +1078,26 @@
       switch (thenable.status) {
         case "fulfilled":
           return (
-            forwardDebugInfoFromThenable(request, newTask, thenable),
+            forwardDebugInfoFromThenable(
+              request,
+              newTask,
+              thenable,
+              null,
+              null
+            ),
             (newTask.model = thenable.value),
             pingTask(request, newTask),
             newTask.id
           );
         case "rejected":
           return (
-            forwardDebugInfoFromThenable(request, newTask, thenable),
+            forwardDebugInfoFromThenable(
+              request,
+              newTask,
+              thenable,
+              null,
+              null
+            ),
             erroredTask(request, newTask, thenable.reason),
             newTask.id
           );
@@ -1106,7 +1132,9 @@
         },
         function (reason) {
           0 === newTask.status &&
-            (erroredTask(request, newTask, reason), enqueueFlush(request));
+            ((newTask.timed = !0),
+            erroredTask(request, newTask, reason),
+            enqueueFlush(request));
         }
       );
       return newTask.id;
@@ -1170,7 +1198,7 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
-          0,
+          task.time,
           task.debugOwner,
           task.debugStack,
           task.debugTask
@@ -1250,7 +1278,7 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
-          0,
+          task.time,
           task.debugOwner,
           task.debugStack,
           task.debugTask
@@ -1280,11 +1308,11 @@
       switch (wakeable.status) {
         case "fulfilled":
           return (
-            forwardDebugInfoFromThenable(request, task, wakeable),
+            forwardDebugInfoFromThenable(request, task, wakeable, null, null),
             wakeable.value
           );
         case "rejected":
-          forwardDebugInfoFromThenable(request, task, wakeable);
+          forwardDebugInfoFromThenable(request, task, wakeable, null, null);
           break;
         default:
           "string" !== typeof wakeable.status &&
@@ -1424,6 +1452,9 @@
           componentDebugInfo.debugStack = task.debugStack;
           componentDebugInfo.debugTask = task.debugTask;
           outlineComponentInfo(request, componentDebugInfo);
+          var timestamp = performance.now();
+          timestamp > task.time && (task.time = timestamp);
+          task.timed = !0;
           emitDebugChunk(request, componentDebugID, componentDebugInfo);
           task.environmentName = componentEnv;
           2 === validated &&
@@ -1474,14 +1505,17 @@
       validated = thenableState;
       if (null !== validated)
         for (
-          prevThenableState = 0;
-          prevThenableState < validated.length;
-          prevThenableState++
+          prevThenableState = validated._stacks || (validated._stacks = []),
+            componentDebugID = 0;
+          componentDebugID < validated.length;
+          componentDebugID++
         )
           forwardDebugInfoFromThenable(
             request,
             task,
-            validated[prevThenableState]
+            validated[componentDebugID],
+            componentDebugInfo,
+            prevThenableState[componentDebugID]
           );
       props = processServerComponentReturnValue(
         request,
@@ -1601,7 +1635,7 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
-        0,
+        task.time,
         task.debugOwner,
         task.debugStack,
         task.debugTask
@@ -1616,7 +1650,7 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
-        0,
+        task.time,
         task.debugOwner,
         task.debugStack,
         task.debugTask
@@ -1751,6 +1785,7 @@
       return task;
     }
     function pingTask(request, task) {
+      task.timed = !0;
       var pingedTasks = request.pingedTasks;
       pingedTasks.push(task);
       1 === pingedTasks.length &&
@@ -1775,14 +1810,14 @@
       debugTask
     ) {
       request.pendingChunks++;
-      lastTimestamp = request.nextChunkId++;
+      var id = request.nextChunkId++;
       "object" !== typeof model ||
         null === model ||
         null !== keyPath ||
         implicitSlot ||
-        request.writtenObjects.set(model, serializeByValueID(lastTimestamp));
+        request.writtenObjects.set(model, serializeByValueID(id));
       var task = {
-        id: lastTimestamp,
+        id: id,
         status: 0,
         model: model,
         keyPath: keyPath,
@@ -1816,8 +1851,10 @@
             });
           return renderModel(request, task, parent, parentPropertyName, value);
         },
-        thenableState: null
+        thenableState: null,
+        timed: !1
       };
+      task.time = lastTimestamp;
       task.environmentName = request.environmentName();
       task.debugOwner = debugOwner;
       task.debugStack = debugStack;
@@ -1937,7 +1974,7 @@
         null,
         !1,
         request.abortableTasks,
-        0,
+        performance.now(),
         null,
         null,
         null
@@ -2074,7 +2111,7 @@
           null,
           !1,
           request.abortableTasks,
-          0,
+          performance.now(),
           null,
           null,
           null
@@ -2119,7 +2156,7 @@
               task.keyPath,
               task.implicitSlot,
               request.abortableTasks,
-              0,
+              task.time,
               task.debugOwner,
               task.debugStack,
               task.debugTask
@@ -3008,78 +3045,83 @@
       emitOutlinedDebugModelChunk(request, id, counter, model);
       return id;
     }
+    function emitTimeOriginChunk(request, timeOrigin) {
+      request.pendingDebugChunks++;
+      timeOrigin = stringToChunk(":N" + timeOrigin + "\n");
+      request.completedDebugChunks.push(timeOrigin);
+    }
     function forwardDebugInfo(request$jscomp$1, task, debugInfo) {
-      task = task.id;
-      for (var i = 0; i < debugInfo.length; i++) {
+      for (var id = task.id, i = 0; i < debugInfo.length; i++) {
         var info = debugInfo[i];
-        if ("number" !== typeof info.time)
-          if ("string" === typeof info.name)
-            outlineComponentInfo(request$jscomp$1, info),
-              request$jscomp$1.pendingChunks++,
-              emitDebugChunk(request$jscomp$1, task, info);
-          else if (info.awaited) {
-            var ioInfo = info.awaited;
-            if (!(ioInfo.end <= request$jscomp$1.timeOrigin)) {
-              var request = request$jscomp$1,
-                ioInfo$jscomp$0 = ioInfo;
-              if (!request.writtenObjects.has(ioInfo$jscomp$0)) {
-                request.pendingDebugChunks++;
-                var id = request.nextChunkId++,
-                  owner = ioInfo$jscomp$0.owner;
-                null != owner && outlineComponentInfo(request, owner);
-                var debugStack =
-                  null == ioInfo$jscomp$0.stack &&
-                  null != ioInfo$jscomp$0.debugStack
-                    ? filterStackTrace(
-                        request,
-                        parseStackTrace(ioInfo$jscomp$0.debugStack, 1)
-                      )
-                    : ioInfo$jscomp$0.stack;
-                var request$jscomp$0 = request,
-                  id$jscomp$0 = id,
-                  value = ioInfo$jscomp$0.value,
-                  env = ioInfo$jscomp$0.env,
-                  objectLimit = 10;
-                debugStack && (objectLimit += debugStack.length);
-                var debugIOInfo = {
-                  name: ioInfo$jscomp$0.name,
-                  start: ioInfo$jscomp$0.start - request$jscomp$0.timeOrigin,
-                  end: ioInfo$jscomp$0.end - request$jscomp$0.timeOrigin
-                };
-                null != env && (debugIOInfo.env = env);
-                null != debugStack && (debugIOInfo.stack = debugStack);
-                null != owner && (debugIOInfo.owner = owner);
-                void 0 !== value && (debugIOInfo.value = value);
-                value = serializeDebugModel(
-                  request$jscomp$0,
-                  objectLimit,
-                  debugIOInfo
-                );
-                id$jscomp$0 = id$jscomp$0.toString(16) + ":J" + value + "\n";
-                id$jscomp$0 = stringToChunk(id$jscomp$0);
-                request$jscomp$0.completedDebugChunks.push(id$jscomp$0);
-                request.writtenDebugObjects.set(
-                  ioInfo$jscomp$0,
-                  serializeByValueID(id)
-                );
-              }
-              request =
-                null == info.stack && null != info.debugStack
-                  ? filterStackTrace(
-                      request$jscomp$1,
-                      parseStackTrace(info.debugStack, 1)
-                    )
-                  : info.stack;
-              ioInfo = { awaited: ioInfo };
-              null != info.env && (ioInfo.env = info.env);
-              null != info.owner && (ioInfo.owner = info.owner);
-              null != request && (ioInfo.stack = request);
-              request$jscomp$1.pendingChunks++;
-              emitDebugChunk(request$jscomp$1, task, ioInfo);
-            }
-          } else
+        if ("number" === typeof info.time)
+          markOperationEndTime(request$jscomp$1, task, info.time);
+        else if ("string" === typeof info.name)
+          outlineComponentInfo(request$jscomp$1, info),
             request$jscomp$1.pendingChunks++,
-              emitDebugChunk(request$jscomp$1, task, info);
+            emitDebugChunk(request$jscomp$1, id, info);
+        else if (info.awaited) {
+          var ioInfo = info.awaited;
+          if (!(ioInfo.end <= request$jscomp$1.timeOrigin)) {
+            var request = request$jscomp$1,
+              ioInfo$jscomp$0 = ioInfo;
+            if (!request.writtenObjects.has(ioInfo$jscomp$0)) {
+              request.pendingDebugChunks++;
+              var id$jscomp$0 = request.nextChunkId++,
+                owner = ioInfo$jscomp$0.owner;
+              null != owner && outlineComponentInfo(request, owner);
+              var debugStack =
+                null == ioInfo$jscomp$0.stack &&
+                null != ioInfo$jscomp$0.debugStack
+                  ? filterStackTrace(
+                      request,
+                      parseStackTrace(ioInfo$jscomp$0.debugStack, 1)
+                    )
+                  : ioInfo$jscomp$0.stack;
+              var request$jscomp$0 = request,
+                id$jscomp$1 = id$jscomp$0,
+                value = ioInfo$jscomp$0.value,
+                env = ioInfo$jscomp$0.env,
+                objectLimit = 10;
+              debugStack && (objectLimit += debugStack.length);
+              var debugIOInfo = {
+                name: ioInfo$jscomp$0.name,
+                start: ioInfo$jscomp$0.start - request$jscomp$0.timeOrigin,
+                end: ioInfo$jscomp$0.end - request$jscomp$0.timeOrigin
+              };
+              null != env && (debugIOInfo.env = env);
+              null != debugStack && (debugIOInfo.stack = debugStack);
+              null != owner && (debugIOInfo.owner = owner);
+              void 0 !== value && (debugIOInfo.value = value);
+              value = serializeDebugModel(
+                request$jscomp$0,
+                objectLimit,
+                debugIOInfo
+              );
+              id$jscomp$1 = id$jscomp$1.toString(16) + ":J" + value + "\n";
+              id$jscomp$1 = stringToChunk(id$jscomp$1);
+              request$jscomp$0.completedDebugChunks.push(id$jscomp$1);
+              request.writtenDebugObjects.set(
+                ioInfo$jscomp$0,
+                serializeByValueID(id$jscomp$0)
+              );
+            }
+            request =
+              null == info.stack && null != info.debugStack
+                ? filterStackTrace(
+                    request$jscomp$1,
+                    parseStackTrace(info.debugStack, 1)
+                  )
+                : info.stack;
+            ioInfo = { awaited: ioInfo };
+            null != info.env && (ioInfo.env = info.env);
+            null != info.owner && (ioInfo.owner = info.owner);
+            null != request && (ioInfo.stack = request);
+            request$jscomp$1.pendingChunks++;
+            emitDebugChunk(request$jscomp$1, id, ioInfo);
+          }
+        } else
+          request$jscomp$1.pendingChunks++,
+            emitDebugChunk(request$jscomp$1, id, info);
       }
     }
     function forwardDebugInfoFromThenable(request, task, thenable) {
@@ -3089,6 +3131,11 @@
     function forwardDebugInfoFromCurrentContext(request, task, thenable) {
       (thenable = thenable._debugInfo) &&
         forwardDebugInfo(request, task, thenable);
+    }
+    function markOperationEndTime(request, task, timestamp) {
+      !(request.status === ABORTING && timestamp > request.abortTime) &&
+        timestamp > task.time &&
+        (task.time = timestamp);
     }
     function emitChunk(request, task, value) {
       var id = task.id;
@@ -3136,6 +3183,7 @@
                                     emitModelChunk(request, task.id, value));
     }
     function erroredTask(request, task, error) {
+      task.timed && markOperationEndTime(request, task, performance.now());
       task.status = 4;
       var digest = logRecoverableError(request, error, task);
       emitErrorChunk(request, task.id, digest, error, !1);
@@ -3165,6 +3213,7 @@
           currentEnv !== task.environmentName &&
             (request.pendingChunks++,
             emitDebugChunk(request, task.id, { env: currentEnv }));
+          task.timed && markOperationEndTime(request, task, performance.now());
           if ("object" === typeof resolvedModel && null !== resolvedModel)
             request.writtenObjects.set(
               resolvedModel,
@@ -3247,6 +3296,7 @@
           null !== model &&
           (model = model._debugInfo) &&
           forwardDebugInfo(request, task, model);
+        task.timed && markOperationEndTime(request, task, request.abortTime);
         errorId = serializeByValueID(errorId);
         task = encodeReferenceChunk(request, task.id, errorId);
         request.completedErrorChunks.push(task);
@@ -3367,15 +3417,18 @@
                   "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
                 )
               ),
-            (request.status = CLOSED),
             null !== request.destination &&
-              (request.destination.close(), (request.destination = null)),
+              ((request.status = CLOSED),
+              request.destination.close(),
+              (request.destination = null)),
             null !== request.debugDestination &&
               (request.debugDestination.close(),
               (request.debugDestination = null)))
           : null !== importsChunks &&
             null !== request.destination &&
-            (request.destination.close(), (request.destination = null)));
+            ((request.status = CLOSED),
+            request.destination.close(),
+            (request.destination = null)));
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
@@ -3433,6 +3486,7 @@
       if (!(11 < request.status))
         try {
           request.status = ABORTING;
+          request.abortTime = performance.now();
           request.cacheController.abort(reason);
           var abortableTasks = request.abortableTasks;
           if (0 < abortableTasks.size) {
