@@ -146,7 +146,6 @@ impl ModuleOptions {
             ..
         } = *module_options_context.await?;
 
-        let mut refresh = false;
         let mut transforms = vec![];
 
         // Order of transforms is important. e.g. if the React transform occurs before
@@ -155,7 +154,6 @@ impl ModuleOptions {
         // should use `before_transform_plugins`.
         if let Some(enable_jsx) = enable_jsx {
             let jsx = enable_jsx.await?;
-            refresh = jsx.react_refresh;
 
             transforms.push(EcmascriptInputTransform::React {
                 development: jsx.development,
@@ -170,7 +168,6 @@ impl ModuleOptions {
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
-            refresh,
             extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             keep_last_successful_parse,
             ..Default::default()

@@ -34,11 +34,13 @@ type ChunkData =
     }
 
 type CommonJsRequire = (moduleId: ModuleId) => Exports
+type RuntimeRequire = (request: string) => Exports
 type ModuleContextFactory = (map: ModuleContextMap) => ModuleContext
 type EsmImport = (
   moduleId: ModuleId,
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
+type InvokeAsyncLoader = (moduleId: ModuleId) => Promise<Exports>
 type EsmExport = (
   exportGetters: Record<string, () => any>,
   id: ModuleId | undefined
@@ -87,6 +89,15 @@ type AsyncModule = (
 type ResolveAbsolutePath = (modulePath?: string) => string
 type GetWorkerBlobURL = (chunks: ChunkPath[]) => string
 
+type ExternalRequire = (
+  id: DependencySpecifier,
+  thunk: () => any,
+  esm?: boolean
+) => Exports | EsmNamespaceObject
+type ExternalImport = (
+  id: DependencySpecifier
+) => Promise<Exports | EsmNamespaceObject>
+
 interface Module {
   exports: Function | Exports | Promise<Exports> | AsyncModulePromise
   error: Error | undefined
@@ -108,9 +119,10 @@ interface TurbopackBaseContext<M> {
   a: AsyncModule
   e: Module['exports']
   r: CommonJsRequire
-  t: CommonJsRequire
+  t: RuntimeRequire
   f: ModuleContextFactory
   i: EsmImport
+  A: InvokeAsyncLoader
   s: EsmExport
   j: DynamicExport
   v: ExportValue
@@ -125,5 +137,7 @@ interface TurbopackBaseContext<M> {
   P: ResolveAbsolutePath
   U: RelativeURL
   b: GetWorkerBlobURL
+  x: ExternalRequire
+  y: ExternalImport
   z: CommonJsRequire
 }

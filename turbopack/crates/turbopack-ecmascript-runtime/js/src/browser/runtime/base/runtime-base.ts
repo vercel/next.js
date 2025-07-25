@@ -21,6 +21,13 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 declare var CHUNK_BASE_PATH: string
 declare var CHUNK_SUFFIX_PATH: string
 
+interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
+  R: ResolvePathFromModule
+}
+
+const browserContextPrototype =
+  Context.prototype as TurbopackBrowserBaseContext<unknown>
+
 // Provided by build or dev base
 declare function instantiateModule(
   id: ModuleId,
@@ -76,6 +83,19 @@ interface RuntimeBackend {
     sourceData: SourceData,
     chunkUrl: ChunkUrl
   ) => Promise<void>
+  loadWebAssembly: (
+    sourceType: SourceType,
+    sourceData: SourceData,
+    wasmChunkPath: ChunkPath,
+    edgeModule: () => WebAssembly.Module,
+    importsObj: WebAssembly.Imports
+  ) => Promise<Exports>
+  loadWebAssemblyModule: (
+    sourceType: SourceType,
+    sourceData: SourceData,
+    wasmChunkPath: ChunkPath,
+    edgeModule: () => WebAssembly.Module
+  ) => Promise<WebAssembly.Module>
 }
 
 interface DevRuntimeBackend {
@@ -85,46 +105,56 @@ interface DevRuntimeBackend {
 }
 
 const moduleFactories: ModuleFactories = Object.create(null)
-/**
- * Module IDs that are instantiated as part of the runtime of a chunk.
- */
-const runtimeModules: Set<ModuleId> = new Set()
-/**
- * Map from module ID to the chunks that contain this module.
- *
- * In HMR, we need to keep track of which modules are contained in which so
- * chunks. This is so we don't eagerly dispose of a module when it is removed
- * from chunk A, but still exists in chunk B.
- */
-const moduleChunksMap: Map<ModuleId, Set<ChunkPath>> = new Map()
-/**
- * Map from a chunk path to all modules it contains.
- */
-const chunkModulesMap: Map<ChunkPath, Set<ModuleId>> = new Map()
-/**
- * Chunk lists that contain a runtime. When these chunk lists receive an update
- * that can't be reconciled with the current state of the page, we need to
- * reload the runtime entirely.
- */
-const runtimeChunkLists: Set<ChunkListPath> = new Set()
-/**
- * Map from a chunk list to the chunk paths it contains.
- */
-const chunkListChunksMap: Map<ChunkListPath, Set<ChunkPath>> = new Map()
-/**
- * Map from a chunk path to the chunk lists it belongs to.
- */
-const chunkChunkListsMap: Map<ChunkPath, Set<ChunkListPath>> = new Map()
+contextPrototype.M = moduleFactories
 
 const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 
-async function loadChunk(
+function factoryNotAvailable(
+  moduleId: ModuleId,
+  sourceType: SourceType,
+  sourceData: SourceData
+) {
+  let instantiationReason
+  switch (sourceType) {
+    case SourceType.Runtime:
+      instantiationReason = `as a runtime entry of chunk ${sourceData}`
+      break
+    case SourceType.Parent:
+      instantiationReason = `because it was required from module ${sourceData}`
+      break
+    case SourceType.Update:
+      instantiationReason = 'because of an HMR update'
+      break
+    default:
+      invariant(
+        sourceType,
+        (sourceType) => `Unknown source type: ${sourceType}`
+      )
+  }
+  throw new Error(
+    `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`
+  )
+}
+
+function loadChunk(
+  this: TurbopackBrowserBaseContext<Module>,
+  chunkData: ChunkData
+): Promise<void> {
+  return loadChunkInternal(SourceType.Parent, this.m.id, chunkData)
+}
+browserContextPrototype.l = loadChunk
+
+function loadInitialChunk(chunkPath: ChunkPath, chunkData: ChunkData) {
+  return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData)
+}
+
+async function loadChunkInternal(
   sourceType: SourceType,
   sourceData: SourceData,
   chunkData: ChunkData
-): Promise<any> {
+): Promise<void> {
   if (typeof chunkData === 'string') {
     return loadChunkPath(sourceType, sourceData, chunkData)
   }
@@ -136,7 +166,8 @@ async function loadChunk(
   })
   if (modulesPromises.length > 0 && modulesPromises.every((p) => p)) {
     // When all included items are already loaded or loading, we can skip loading ourselves
-    return Promise.all(modulesPromises)
+    await Promise.all(modulesPromises)
+    return
   }
 
   const includedModuleChunksList = chunkData.moduleChunks || []
@@ -154,7 +185,8 @@ async function loadChunk(
 
     if (moduleChunksPromises.length === includedModuleChunksList.length) {
       // When all included module chunks are already loaded or loading, we can skip loading ourselves
-      return Promise.all(moduleChunksPromises)
+      await Promise.all(moduleChunksPromises)
+      return
     }
 
     const moduleChunksToLoad: Set<ChunkPath> = new Set()
@@ -192,7 +224,7 @@ async function loadChunk(
     }
   }
 
-  return promise
+  await promise
 }
 
 const loadedChunk = Promise.resolve(undefined)
@@ -202,6 +234,15 @@ const instrumentedBackendLoadChunks = new WeakMap<
 >()
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(
+  this: TurbopackBrowserBaseContext<Module>,
+  chunkUrl: ChunkUrl
+) {
+  return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkUrl)
+}
+browserContextPrototype.L = loadChunkByUrl
+
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkByUrlInternal(
   sourceType: SourceType,
   sourceData: SourceData,
   chunkUrl: ChunkUrl
@@ -249,26 +290,27 @@ function loadChunkByUrl(
   return entry
 }
 
-async function loadChunkPath(
+// Do not make this async. React relies on referential equality of the returned Promise.
+function loadChunkPath(
   sourceType: SourceType,
   sourceData: SourceData,
   chunkPath: ChunkPath
-): Promise<any> {
+): Promise<void> {
   const url = getChunkRelativeUrl(chunkPath)
-  return loadChunkByUrl(sourceType, sourceData, url)
+  return loadChunkByUrlInternal(sourceType, sourceData, url)
 }
 
 /**
  * Returns an absolute url to an asset.
  */
-function createResolvePathFromModule(
-  resolver: (moduleId: string) => Exports
-): (moduleId: string) => string {
-  return function resolvePathFromModule(moduleId: string): string {
-    const exported = resolver(moduleId)
-    return exported?.default ?? exported
-  }
+function resolvePathFromModule(
+  this: TurbopackBaseContext<Module>,
+  moduleId: string
+): string {
+  const exported = this.r(moduleId)
+  return exported?.default ?? exported
 }
+browserContextPrototype.R = resolvePathFromModule
 
 /**
  * no-op for browser
@@ -277,6 +319,7 @@ function createResolvePathFromModule(
 function resolveAbsolutePath(modulePath?: string): string {
   return `/ROOT/${modulePath ?? ''}`
 }
+browserContextPrototype.P = resolveAbsolutePath
 
 /**
  * Returns a blob URL for the worker.
@@ -291,41 +334,7 @@ importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_L
   let blob = new Blob([bootstrap], { type: 'text/javascript' })
   return URL.createObjectURL(blob)
 }
-
-/**
- * Adds a module to a chunk.
- */
-function addModuleToChunk(moduleId: ModuleId, chunkPath: ChunkPath) {
-  let moduleChunks = moduleChunksMap.get(moduleId)
-  if (!moduleChunks) {
-    moduleChunks = new Set([chunkPath])
-    moduleChunksMap.set(moduleId, moduleChunks)
-  } else {
-    moduleChunks.add(chunkPath)
-  }
-
-  let chunkModules = chunkModulesMap.get(chunkPath)
-  if (!chunkModules) {
-    chunkModules = new Set([moduleId])
-    chunkModulesMap.set(chunkPath, chunkModules)
-  } else {
-    chunkModules.add(moduleId)
-  }
-}
-
-/**
- * Returns the first chunk that included a module.
- * This is used by the Node.js backend, hence why it's marked as unused in this
- * file.
- */
-function getFirstModuleChunk(moduleId: ModuleId) {
-  const moduleChunkPaths = moduleChunksMap.get(moduleId)
-  if (moduleChunkPaths == null) {
-    return null
-  }
-
-  return moduleChunkPaths.values().next().value
-}
+browserContextPrototype.b = getWorkerBlobURL
 
 /**
  * Instantiates a runtime module.
@@ -370,37 +379,21 @@ function getPathFromScript(
   return path as ChunkPath | ChunkListPath
 }
 
-/**
- * Marks a chunk list as a runtime chunk list. There can be more than one
- * runtime chunk list. For instance, integration tests can have multiple chunk
- * groups loaded at runtime, each with its own chunk list.
- */
-function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
-  runtimeChunkLists.add(chunkListPath)
-}
-
-function registerChunk([
-  chunkScript,
-  chunkModules,
-  runtimeParams,
-]: ChunkRegistration) {
-  const chunkPath = getPathFromScript(chunkScript)
-  for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
-    if (!moduleFactories[moduleId]) {
-      if (Array.isArray(moduleFactory)) {
-        let [moduleFactoryFn, otherIds] = moduleFactory
-        moduleFactories[moduleId] = moduleFactoryFn
-        for (const otherModuleId of otherIds) {
-          moduleFactories[otherModuleId] = moduleFactoryFn
-        }
-      } else {
-        moduleFactories[moduleId] = moduleFactory
+function registerCompressedModuleFactory(
+  moduleId: ModuleId,
+  moduleFactory: Function | [Function, ModuleId[]]
+) {
+  if (!moduleFactories[moduleId]) {
+    if (Array.isArray(moduleFactory)) {
+      let [moduleFactoryFn, otherIds] = moduleFactory
+      moduleFactories[moduleId] = moduleFactoryFn
+      for (const otherModuleId of otherIds) {
+        moduleFactories[otherModuleId] = moduleFactoryFn
       }
+    } else {
+      moduleFactories[moduleId] = moduleFactory
     }
-    addModuleToChunk(moduleId, chunkPath)
   }
-
-  return BACKEND.registerChunk(chunkPath, runtimeParams)
 }
 
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
@@ -418,3 +411,33 @@ const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/
 function isCss(chunkUrl: ChunkUrl): boolean {
   return regexCssUrl.test(chunkUrl)
 }
+
+function loadWebAssembly(
+  this: TurbopackBaseContext<Module>,
+  chunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module,
+  importsObj: WebAssembly.Imports
+): Promise<Exports> {
+  return BACKEND.loadWebAssembly(
+    SourceType.Parent,
+    this.m.id,
+    chunkPath,
+    edgeModule,
+    importsObj
+  )
+}
+contextPrototype.w = loadWebAssembly
+
+function loadWebAssemblyModule(
+  this: TurbopackBaseContext<Module>,
+  chunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module
+): Promise<WebAssembly.Module> {
+  return BACKEND.loadWebAssemblyModule(
+    SourceType.Parent,
+    this.m.id,
+    chunkPath,
+    edgeModule
+  )
+}
+contextPrototype.u = loadWebAssemblyModule

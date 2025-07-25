@@ -19,6 +19,15 @@ declare function getOrInstantiateModuleFromParent<M>(
 
 const REEXPORTED_OBJECTS = Symbol('reexported objects')
 
+/**
+ * Constructs the `__turbopack_context__` object for a module.
+ */
+function Context(this: TurbopackBaseContext<Module>, module: Module) {
+  this.m = module
+  this.e = module.exports
+}
+const contextPrototype = Context.prototype as TurbopackBaseContext<Module>
+
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 
 interface ModuleContextEntry {
@@ -67,16 +76,24 @@ function getOverwrittenModule(
   if (!module) {
     // This is invoked when a module is merged into another module, thus it wasn't invoked via
     // instantiateModule and the cache entry wasn't created yet.
-    module = {
-      exports: {},
-      error: undefined,
-      loaded: false,
-      id,
-      namespaceObject: undefined,
-    }
+    module = createModuleObject(id)
     moduleCache[id] = module
   }
   return module
+}
+
+/**
+ * Creates the module object. Only done here to ensure all module objects have the same shape.
+ */
+function createModuleObject(id: ModuleId): Module {
+  return {
+    exports: {},
+    error: undefined,
+    loaded: false,
+    id,
+    namespaceObject: undefined,
+    [REEXPORTED_OBJECTS]: undefined,
+  }
 }
 
 /**
@@ -107,19 +124,20 @@ function esm(
  * Makes the module an ESM with exports
  */
 function esmExport(
-  module: Module,
-  exports: Exports,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   getters: Record<string, () => any>,
   id: ModuleId | undefined
 ) {
+  let module = this.m
+  let exports = this.e
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
     exports = module.exports
   }
   module.namespaceObject = module.exports
   esm(exports, getters)
 }
+contextPrototype.s = esmExport
 
 function ensureDynamicExports(module: Module, exports: Exports) {
   let reexportedObjects = module[REEXPORTED_OBJECTS]
@@ -158,14 +176,14 @@ function ensureDynamicExports(module: Module, exports: Exports) {
  * Dynamically exports properties from an object
  */
 function dynamicExport(
-  module: Module,
-  exports: Exports,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   object: Record<string, any>,
   id: ModuleId | undefined
 ) {
+  let module = this.m
+  let exports = this.e
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
     exports = module.exports
   }
   ensureDynamicExports(module, exports)
@@ -174,30 +192,33 @@ function dynamicExport(
     module[REEXPORTED_OBJECTS]!.push(object)
   }
 }
+contextPrototype.j = dynamicExport
 
 function exportValue(
-  module: Module,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   value: any,
   id: ModuleId | undefined
 ) {
+  let module = this.m
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
   }
   module.exports = value
 }
+contextPrototype.v = exportValue
 
 function exportNamespace(
-  module: Module,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   namespace: any,
   id: ModuleId | undefined
 ) {
+  let module = this.m
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
   }
   module.exports = module.namespaceObject = namespace
 }
+contextPrototype.n = exportNamespace
 
 function createGetter(obj: Record<string | symbol, any>, key: string | symbol) {
   return () => obj[key]
@@ -258,10 +279,10 @@ function createNS(raw: Module['exports']): EsmNamespaceObject {
 }
 
 function esmImport(
-  sourceModule: Module,
+  this: TurbopackBaseContext<Module>,
   id: ModuleId
 ): Exclude<Module['namespaceObject'], undefined> {
-  const module = getOrInstantiateModuleFromParent(id, sourceModule)
+  const module = getOrInstantiateModuleFromParent(id, this.m)
   if (module.error) throw module.error
 
   // any ES module has to have `module.namespaceObject` defined.
@@ -275,6 +296,18 @@ function esmImport(
     raw && (raw as any).__esModule
   ))
 }
+contextPrototype.i = esmImport
+
+function asyncLoader(
+  this: TurbopackBaseContext<Module>,
+  moduleId: ModuleId
+): Promise<Exports> {
+  const loader = this.r(moduleId) as (
+    importFunction: EsmImport
+  ) => Promise<Exports>
+  return loader(this.i.bind(this))
+}
+contextPrototype.A = asyncLoader
 
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
@@ -286,12 +319,17 @@ const runtimeRequire =
     : function require() {
         throw new Error('Unexpected use of runtime require')
       }
+contextPrototype.t = runtimeRequire
 
-function commonJsRequire(sourceModule: Module, id: ModuleId): Exports {
-  const module = getOrInstantiateModuleFromParent(id, sourceModule)
+function commonJsRequire(
+  this: TurbopackBaseContext<Module>,
+  id: ModuleId
+): Exports {
+  const module = getOrInstantiateModuleFromParent(id, this.m)
   if (module.error) throw module.error
   return module.exports
 }
+contextPrototype.r = commonJsRequire
 
 /**
  * `require.context` and require/import expression runtime.
@@ -327,6 +365,7 @@ function moduleContext(map: ModuleContextMap): ModuleContext {
 
   return moduleContext
 }
+contextPrototype.f = moduleContext
 
 /**
  * Returns the path of a chunk defined by its data.
@@ -437,7 +476,7 @@ function wrapDeps(deps: Dep[]): AsyncModuleExt[] {
 }
 
 function asyncModule(
-  module: Module,
+  this: TurbopackBaseContext<Module>,
   body: (
     handleAsyncDependencies: (
       deps: Dep[]
@@ -446,6 +485,7 @@ function asyncModule(
   ) => void,
   hasAwait: boolean
 ) {
+  const module = this.m
   const queue: AsyncQueue | undefined = hasAwait
     ? Object.assign([], { status: QueueStatus.Unknown })
     : undefined
@@ -524,6 +564,7 @@ function asyncModule(
     queue.status = QueueStatus.Unresolved
   }
 }
+contextPrototype.a = asyncModule
 
 /**
  * A pseudo "fake" URL object to resolve to its relative path.
@@ -550,8 +591,8 @@ const relativeURL = function relativeURL(this: any, inputUrl: string) {
       value: values[key],
     })
 }
-
 relativeURL.prototype = URL.prototype
+contextPrototype.U = relativeURL
 
 /**
  * Utility function to ensure all variants of an enum are handled.
@@ -565,4 +606,9 @@ function invariant(never: never, computeMessage: (arg: any) => string): never {
  */
 function requireStub(_moduleId: ModuleId): never {
   throw new Error('dynamic usage of require is not supported')
+}
+contextPrototype.z = requireStub
+
+type ContextConstructor<M> = {
+  new (module: Module): TurbopackBaseContext<M>
 }

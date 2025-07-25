@@ -1,6 +1,6 @@
 {
   "name": "@vercel/og",
-  "version": "0.7.2",
+  "version": "0.8.5",
   "license": "MPL-2.0",
   "type": "module",
   "main": "./index.node.js",

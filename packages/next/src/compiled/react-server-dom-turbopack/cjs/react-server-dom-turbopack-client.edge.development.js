@@ -872,7 +872,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((col +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
@@ -2547,7 +2547,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((encodedName +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +

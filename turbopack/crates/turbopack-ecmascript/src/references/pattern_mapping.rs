@@ -31,8 +31,8 @@ use super::util::{request_to_string, throw_module_not_found_expr};
 use crate::{
     references::util::throw_module_not_found_error_expr,
     runtime_functions::{
-        TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT,
-        TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
+        TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
+        TURBOPACK_IMPORT, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
     },
     utils::module_id_to_lit,
 };
@@ -208,9 +208,8 @@ impl SinglePatternMapping {
                 &format!("Unsupported external type {ty:?} for dynamic import reference"),
             ),
             Self::ModuleLoader(module_id) => {
-                quote!("($turbopack_require($id))($turbopack_import)" as Expr,
-                    turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                quote!("$turbopack_async_loader($id)" as Expr,
+                    turbopack_async_loader: Expr = TURBOPACK_ASYNC_LOADER.into(),
                     id: Expr = module_id_to_lit(module_id)
                 )
             }

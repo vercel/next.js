@@ -1328,7 +1328,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.2.0-experimental-edac0dde-20250723";
+    exports.version = "19.2.0-experimental-3d14fcf0-20250724";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

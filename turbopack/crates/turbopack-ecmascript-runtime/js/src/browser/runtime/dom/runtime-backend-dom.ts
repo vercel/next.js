@@ -20,39 +20,6 @@ type ChunkResolver = {
 
 let BACKEND: RuntimeBackend
 
-function augmentContext(context: unknown): unknown {
-  return context
-}
-
-function fetchWebAssembly(wasmChunkPath: ChunkPath) {
-  return fetch(getChunkRelativeUrl(wasmChunkPath))
-}
-
-async function loadWebAssembly(
-  _sourceType: SourceType,
-  _sourceData: SourceData,
-  wasmChunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module,
-  importsObj: WebAssembly.Imports
-): Promise<Exports> {
-  const req = fetchWebAssembly(wasmChunkPath)
-
-  const { instance } = await WebAssembly.instantiateStreaming(req, importsObj)
-
-  return instance.exports
-}
-
-async function loadWebAssemblyModule(
-  _sourceType: SourceType,
-  _sourceData: SourceData,
-  wasmChunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module
-): Promise<WebAssembly.Module> {
-  const req = fetchWebAssembly(wasmChunkPath)
-
-  return await WebAssembly.compileStreaming(req)
-}
-
 /**
  * Maps chunk paths to the corresponding resolver.
  */
@@ -81,7 +48,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       // This waits for chunks to be loaded, but also marks included items as available.
       await Promise.all(
         params.otherChunks.map((otherChunkData) =>
-          loadChunk(SourceType.Runtime, chunkPath, otherChunkData)
+          loadInitialChunk(chunkPath, otherChunkData)
         )
       )
 
@@ -102,6 +69,34 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       chunkUrl: ChunkUrl
     ) {
       return doLoadChunk(sourceType, sourceData, chunkUrl)
+    },
+
+    async loadWebAssembly(
+      _sourceType: SourceType,
+      _sourceData: SourceData,
+      wasmChunkPath: ChunkPath,
+      _edgeModule: () => WebAssembly.Module,
+      importsObj: WebAssembly.Imports
+    ): Promise<Exports> {
+      const req = fetchWebAssembly(wasmChunkPath)
+
+      const { instance } = await WebAssembly.instantiateStreaming(
+        req,
+        importsObj
+      )
+
+      return instance.exports
+    },
+
+    async loadWebAssemblyModule(
+      _sourceType: SourceType,
+      _sourceData: SourceData,
+      wasmChunkPath: ChunkPath,
+      _edgeModule: () => WebAssembly.Module
+    ): Promise<WebAssembly.Module> {
+      const req = fetchWebAssembly(wasmChunkPath)
+
+      return await WebAssembly.compileStreaming(req)
     },
   }
 
@@ -231,5 +226,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
     resolver.loadingStarted = true
     return resolver.promise
+  }
+
+  function fetchWebAssembly(wasmChunkPath: ChunkPath) {
+    return fetch(getChunkRelativeUrl(wasmChunkPath))
   }
 })()

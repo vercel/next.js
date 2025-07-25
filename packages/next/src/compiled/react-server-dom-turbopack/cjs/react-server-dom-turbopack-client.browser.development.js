@@ -752,7 +752,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((col +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
@@ -2333,7 +2333,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((encodedName +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
@@ -3312,10 +3312,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-edac0dde-20250723",
+      version: "19.2.0-canary-3d14fcf0-20250724",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-edac0dde-20250723",
+      reconcilerVersion: "19.2.0-canary-3d14fcf0-20250724",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

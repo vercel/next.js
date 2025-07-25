@@ -200,15 +200,6 @@ export async function copy_vercel_og(task, opts) {
     .source(
       join(dirname(require.resolve('satori/package.json')), 'dist/index.d.ts')
     )
-    // eslint-disable-next-line require-yield
-    .run({ every: true }, function* (file) {
-      const source = file.data.toString()
-      // Ignore yoga-wasm-web types
-      file.data = source.replace(
-        /import { Yoga } from ['"]yoga-wasm-web['"]/g,
-        'type Yoga = any'
-      )
-    })
     .target('src/compiled/@vercel/og/satori')
   await task
     .source(join(dirname(require.resolve('satori/package.json')), 'LICENSE'))
@@ -225,9 +216,10 @@ export async function copy_vercel_og(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // Refers to copied satori types
-      file.data = source
-        .replace(/['"]satori['"]/g, '"next/dist/compiled/@vercel/og/satori"')
-        .replace("typeof import('@resvg/resvg-wasm')", 'any')
+      file.data = source.replace(
+        /['"]satori['"]/g,
+        '"next/dist/compiled/@vercel/og/satori"'
+      )
     })
     .target('src/compiled/@vercel/og')
 
