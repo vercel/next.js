@@ -731,10 +731,27 @@ impl GlobalBuildInformation {
             let result = if let [graph] = &self.client_references[..] {
                 // Just a single graph, no need to merge results  This also naturally aggregates
                 // server components and server utilities in the correct order
-                graph
+                let result = graph
                     .get_client_references_for_endpoint(entry)
                     .owned()
-                    .await?
+                    .await?;
+                #[cfg(debug_assertions)]
+                {
+                    if has_layout_segments {
+                        let ServerEntries {
+                            server_utils,
+                            server_component_entries,
+                        } = &*find_server_entries(entry, include_traced).await?;
+                        // order of server utils doesn't matter, so just ensure that they match
+                        assert_eq!(
+                            HashSet::from_iter(result.server_utils),
+                            HashSet::from_iter(server_utils)
+                        );
+                        // The order of server_components does matter, enforce it is identical
+                        assert_eq!(result.server_component_entries, server_component_entries);
+                    }
+                }
+                result
             } else {
                 let results = self
                     .client_references
