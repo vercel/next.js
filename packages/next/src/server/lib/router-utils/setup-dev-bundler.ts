@@ -517,17 +517,15 @@ async function startWatcher(
             continue
           }
 
-          const normalizedPageName = normalizePathSep(pageName)
-
           // Ignore files/directories starting with `_` in the app directory
-          if (normalizedPageName.includes('/_')) {
+          if (normalizePathSep(pageName).includes('/_')) {
             continue
           }
 
           // Record parallel route slots for layout typing
           // May run multiple times (e.g. if a parallel route
           // has both a layout and a page, and children) but that's fine
-          const segments = normalizedPageName.split('/')
+          const segments = normalizePathSep(pageName).split('/')
           for (let i = segments.length - 1; i >= 0; i--) {
             const segment = segments[i]
             if (isParallelRouteSegment(segment)) {
@@ -552,10 +550,10 @@ async function startWatcher(
             }
           }
 
-          // Record layouts (later filtered out by isAppRouterPage)
+          // Record layouts
           if (validFileMatcher.isAppLayoutPage(fileName)) {
             layoutRoutes.push({
-              route: normalizeAppPath(pageName),
+              route: normalizeAppPath(normalizePathSep(pageName)),
               filePath: fileName,
             })
           }
@@ -596,13 +594,13 @@ async function startWatcher(
         if (isAppPath) {
           appPageFilePaths.set(pageName, fileName)
           appRoutes.push({
-            route: pageName,
+            route: normalizePathSep(pageName),
             filePath: fileName,
           })
         } else {
           pagesPageFilePaths.set(pageName, fileName)
           pageRoutes.push({
-            route: pageName,
+            route: normalizePathSep(pageName),
             filePath: fileName,
           })
         }
