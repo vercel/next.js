@@ -513,7 +513,10 @@ async function startWatcher(
           const isRootNotFound = validFileMatcher.isRootNotFound(fileName)
           hasRootAppNotFound = true
 
-          // Record parallel route slots for layout typing
+          if (isRootNotFound) {
+            continue
+          }
+
           const normalizedPageName = normalizePathSep(pageName)
 
           // Ignore files/directories starting with `_` in the app directory
@@ -521,6 +524,7 @@ async function startWatcher(
             continue
           }
 
+          // Record parallel route slots for layout typing
           // May run multiple times (e.g. if a parallel route
           // has both a layout and a page, and children) but that's fine
           const segments = normalizedPageName.split('/')
@@ -556,9 +560,6 @@ async function startWatcher(
             })
           }
 
-          if (isRootNotFound) {
-            continue
-          }
           if (!validFileMatcher.isAppRouterPage(fileName)) {
             continue
           }
