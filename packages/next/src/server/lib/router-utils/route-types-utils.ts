@@ -128,7 +128,9 @@ export async function createRouteTypesManifest({
 
   // Process slots
   for (const slot of slots) {
-    manifest.layoutRoutes[slot.parent].slots.push(slot.name)
+    if (manifest.layoutRoutes[slot.parent]) {
+      manifest.layoutRoutes[slot.parent].slots.push(slot.name)
+    }
   }
 
   // Process app routes
@@ -147,8 +149,9 @@ export async function createRouteTypesManifest({
 
     for (const item of rd) {
       const source = convertCustomRouteSource(item.source)
+
       manifest.redirectRoutes[source] = {
-        path: path.relative(dir, source),
+        path: source,
         groups: extractRouteParams(source),
       }
     }
@@ -169,7 +172,7 @@ export async function createRouteTypesManifest({
     for (const item of allSources) {
       const source = convertCustomRouteSource(item.source)
       manifest.rewriteRoutes[source] = {
-        path: path.relative(dir, source),
+        path: source,
         groups: extractRouteParams(source),
       }
     }
