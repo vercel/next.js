@@ -554,6 +554,7 @@ function applyPhase(
 ) {
   // Update module factories.
   for (const [moduleId, factory] of newModuleFactories.entries()) {
+    applyModuleFactoryName(factory)
     moduleFactories[moduleId] = factory
   }
 
@@ -1120,6 +1121,13 @@ function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
   runtimeChunkLists.add(chunkListPath)
 }
 
+function applyModuleFactoryName(factory: Function) {
+  // Give the module factory a nice name to improve stack traces.
+  Object.defineProperty(factory, 'name', {
+    value: '__TURBOPACK__module__evaluation__',
+  })
+}
+
 function registerChunk([
   chunkScript,
   chunkModules,
@@ -1127,6 +1135,11 @@ function registerChunk([
 ]: ChunkRegistration) {
   const chunkPath = getPathFromScript(chunkScript)
   for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
+    // Give the module factory a nice name to improve stack traces.
+    applyModuleFactoryName(
+      Array.isArray(moduleFactory) ? moduleFactory[0] : moduleFactory
+    )
+
     registerCompressedModuleFactory(moduleId, moduleFactory)
     addModuleToChunk(moduleId, chunkPath)
   }

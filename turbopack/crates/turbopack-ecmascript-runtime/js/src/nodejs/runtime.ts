@@ -117,17 +117,7 @@ function loadRuntimeChunkPath(
     const chunkModules: CompressedModuleFactories = require(resolved)
 
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
-      if (!moduleFactories[moduleId]) {
-        if (Array.isArray(moduleFactory)) {
-          const [moduleFactoryFn, otherIds] = moduleFactory
-          moduleFactories[moduleId] = moduleFactoryFn
-          for (const otherModuleId of otherIds) {
-            moduleFactories[otherModuleId] = moduleFactoryFn
-          }
-        } else {
-          moduleFactories[moduleId] = moduleFactory
-        }
-      }
+      registerCompressedModuleFactory(moduleId, moduleFactory)
     }
     loadedChunks.add(chunkPath)
   } catch (e) {
@@ -151,18 +141,34 @@ function loadChunkUncached(chunkPath: ChunkPath) {
   // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
   const chunkModules: CompressedModuleFactories = require(resolved)
   for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
-    if (!moduleFactories[moduleId]) {
-      if (Array.isArray(moduleFactory)) {
-        const [moduleFactoryFn, otherIds] = moduleFactory
-        moduleFactories[moduleId] = moduleFactoryFn
-        for (const otherModuleId of otherIds) {
-          moduleFactories[otherModuleId] = moduleFactoryFn
-        }
-      } else {
-        moduleFactories[moduleId] = moduleFactory
+    registerCompressedModuleFactory(moduleId, moduleFactory)
+  }
+}
+
+function registerCompressedModuleFactory(
+  moduleId: ModuleId,
+  moduleFactory: Function | [Function, ModuleId[]]
+) {
+  if (!moduleFactories[moduleId]) {
+    if (Array.isArray(moduleFactory)) {
+      let [moduleFactoryFn, otherIds] = moduleFactory
+      applyModuleFactoryName(moduleFactoryFn)
+      moduleFactories[moduleId] = moduleFactoryFn
+      for (const otherModuleId of otherIds) {
+        moduleFactories[otherModuleId] = moduleFactoryFn
       }
+    } else {
+      applyModuleFactoryName(moduleFactory)
+      moduleFactories[moduleId] = moduleFactory
     }
   }
+}
+
+function applyModuleFactoryName(factory: Function) {
+  // Give the module factory a nice name to improve stack traces.
+  Object.defineProperty(factory, 'name', {
+    value: '__TURBOPACK__module__evaluation__',
+  })
 }
 
 function loadChunkAsync(
