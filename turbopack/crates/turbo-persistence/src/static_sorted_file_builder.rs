@@ -26,8 +26,8 @@ const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 8;
 const MAX_SMALL_VALUE_BLOCK_ENTRIES: usize = 100 * 1024;
 /// The maximum bytes that should go into a single small value block
 const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 16 * 1024;
-/// The aimed false positive rate for the AQMF
-const AQMF_FALSE_POSITIVE_RATE: f64 = 0.01;
+/// The aimed false positive rate for the AMQF
+const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
 
 /// The maximum compression dictionary size for value blocks
 const VALUE_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
@@ -80,7 +80,7 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub min_hash: u64,
     /// The maximum hash of the keys in the SST file
     pub max_hash: u64,
-    /// The AQMF data
+    /// The AMQF data
     pub amqf: Cow<'a, [u8]>,
     /// The key compression dictionary
     pub key_compression_dictionary_length: u16,
@@ -424,7 +424,7 @@ fn write_key_blocks_and_compute_amqf(
     writer: &mut BlockWriter<'_>,
     buffer: &mut Vec<u8>,
 ) -> Result<Vec<u8>> {
-    let mut filter = qfilter::Filter::new(entries.len() as u64, AQMF_FALSE_POSITIVE_RATE)
+    let mut filter = qfilter::Filter::new(entries.len() as u64, AMQF_FALSE_POSITIVE_RATE)
         // This won't fail as we limit the number of entries per SST file
         .expect("Filter can't be constructed");
 
@@ -466,7 +466,7 @@ fn write_key_blocks_and_compute_amqf(
         filter
             .insert_fingerprint(false, key_hash)
             // This can't fail as we allocated enough capacity
-            .expect("AQMF insert failed");
+            .expect("AMQF insert failed");
 
         // Accumulate until the block is full
         if current_block_size > 0
@@ -530,7 +530,7 @@ fn write_key_blocks_and_compute_amqf(
     writer.write_index_block(buffer, key_compression_dictionary)?;
     buffer.clear();
 
-    Ok(pot::to_vec(&filter).expect("AQMF serialization failed"))
+    Ok(pot::to_vec(&filter).expect("AMQF serialization failed"))
 }
 
 /// Builder for a single key block

@@ -21,7 +21,7 @@ There are four different file types:
 - Static Sorted Table (SST, `*.sst`): These files contain key value pairs.
 - Blob files (`*.blob`): These files contain large values.
 - Delete files (`*.del`): These files contain a list of sequence numbers of files that should be considered as deleted.
-- Meta files (`*.meta`): These files contain metadata about the SST files. They contains the hash range and a AQMF for quick filtering.
+- Meta files (`*.meta`): These files contain metadata about the SST files. They contains the hash range and a AMQF for quick filtering.
 
 Therefore there are there value types:
 
@@ -50,9 +50,9 @@ A meta file can contain metadata about multiple SST files. The metadata is store
     - 8 bytes min hash
     - 8 bytes max hash
     - 8 bytes SST file size
-    - 4 bytes end of AQMF offset relative to start of all AQMF data
+    - 4 bytes end of AMQF offset relative to start of all AMQF data
 - foreach described SST file
-  - serialized AQMF
+  - serialized AMQF
 
 ### SST file
 
@@ -139,7 +139,7 @@ Reading start from the current sequence number and goes downwards.
 
 - We have all SST files memory mapped
 - for i = CURRENT sequence number .. 0
-  - Check AQMF from SST file for key existance -> if not continue
+  - Check AMQF from SST file for key existance -> if not continue
   - let block = 0
   - loop
     - Index Block: find key range that contains the key by binary search
