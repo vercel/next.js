@@ -1,6 +1,6 @@
 import { forwardRef, useRef, useState } from 'react'
 import { Tooltip as BaseTooltip } from '@base-ui-components/react/tooltip'
-import { cx } from '../dev-overlay/utils/cx'
+import { cx } from '../../utils/cx'
 import './tooltip.css'
 
 type TooltipDirection = 'top' | 'bottom' | 'left' | 'right'

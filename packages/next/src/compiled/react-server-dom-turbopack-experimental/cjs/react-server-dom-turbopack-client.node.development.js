@@ -4470,7 +4470,7 @@
                 : newArgs.splice(
                     offset,
                     0,
-                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
+                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c",
                     "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
                     " " + env + " ",
                     ""

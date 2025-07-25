@@ -1,6 +1,7 @@
 import type {
   FlightRouterState,
   Segment as FlightRouterStateSegment,
+  Segment,
 } from '../../../server/app-render/types'
 import { HasLoadingBoundary } from '../../../server/app-render/types'
 import { matchSegment } from '../match-segments'
@@ -28,6 +29,10 @@ import {
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 import { getCurrentCacheVersion, PrefetchPriority } from '../segment-cache'
+import {
+  addSearchParamsIfPageSegment,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -657,7 +662,11 @@ function diffRouteTreeAgainstCurrent(
         oldTreeChild?.[0]
       if (
         oldTreeChildSegment !== undefined &&
-        matchSegment(newTreeChildSegment, oldTreeChildSegment)
+        doesCurrentSegmentMatchCachedSegment(
+          route,
+          newTreeChildSegment,
+          oldTreeChildSegment
+        )
       ) {
         // This segment is already part of the current route. Keep traversing.
         const requestTreeChild = diffRouteTreeAgainstCurrent(
@@ -1175,6 +1184,34 @@ function upsertSegmentOnCompletion(
       upsertSegmentEntry(Date.now(), keypath, fulfilled)
     }
   }, noop)
+}
+
+function doesCurrentSegmentMatchCachedSegment(
+  route: FulfilledRouteCacheEntry,
+  currentSegment: Segment,
+  cachedSegment: Segment
+): boolean {
+  if (cachedSegment === PAGE_SEGMENT_KEY) {
+    // In the FlightRouterState stored by the router, the page segment has the
+    // rendered search params appended to the name of the segment. In the
+    // prefetch cache, however, this is stored separately. So, when comparing
+    // the router's current FlightRouterState to the cached FlightRouterState,
+    // we need to make sure we compare both parts of the segment.
+    // TODO: This is not modeled clearly. We use the same type,
+    // FlightRouterState, for both the CacheNode tree _and_ the prefetch cache
+    // _and_ the server response format, when conceptually those are three
+    // different things and treated in different ways. We should encode more of
+    // this information into the type design so mistakes are less likely.
+    return (
+      currentSegment ===
+      addSearchParamsIfPageSegment(
+        PAGE_SEGMENT_KEY,
+        Object.fromEntries(new URLSearchParams(route.renderedSearch))
+      )
+    )
+  }
+  // Non-page segments are compared using the same function as the server
+  return matchSegment(cachedSegment, currentSegment)
 }
 
 // -----------------------------------------------------------------------------

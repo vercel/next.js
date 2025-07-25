@@ -1022,6 +1022,7 @@ async fn insert_next_shared_aliases(
         next_font_google_replacer_mapping,
     );
 
+    let fetch_client = next_config.fetch_client(execution_context.env());
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/google/cssmodule.module.css"),
         ImportMapping::Dynamic(ResolvedVc::upcast(
@@ -1029,6 +1030,7 @@ async fn insert_next_shared_aliases(
                 project_path.clone(),
                 execution_context,
                 next_mode,
+                fetch_client,
             )
             .to_resolved()
             .await?,
@@ -1039,7 +1041,7 @@ async fn insert_next_shared_aliases(
     import_map.insert_alias(
         AliasPattern::exact(GOOGLE_FONTS_INTERNAL_PREFIX),
         ImportMapping::Dynamic(ResolvedVc::upcast(
-            NextFontGoogleFontFileReplacer::new(project_path.clone())
+            NextFontGoogleFontFileReplacer::new(project_path.clone(), fetch_client)
                 .to_resolved()
                 .await?,
         ))
