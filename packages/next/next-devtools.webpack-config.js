@@ -104,8 +104,7 @@ module.exports = ({ dev, ...rest }) => {
                  */
                 ({}),
               ],
-              'babel-plugin-syntax-jsx',
-              'babel-plugin-syntax-typescript',
+              ['@babel/plugin-syntax-typescript', { isTSX: true }],
             ],
             sourceMaps: true,
           },

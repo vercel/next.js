@@ -979,6 +979,9 @@ importers:
       '@babel/plugin-syntax-jsx':
         specifier: 7.25.9
         version: 7.25.9(@babel/core@7.26.10)
+      '@babel/plugin-syntax-typescript':
+        specifier: 7.25.4
+        version: 7.25.4(@babel/core@7.26.10)
       '@babel/plugin-transform-class-properties':
         specifier: 7.25.9
         version: 7.25.9(@babel/core@7.26.10)
@@ -1252,12 +1255,6 @@ importers:
       babel-plugin-react-compiler:
         specifier: 19.1.0-rc.2
         version: 19.1.0-rc.2
-      babel-plugin-syntax-jsx:
-        specifier: 6.18.0
-        version: 6.18.0
-      babel-plugin-syntax-typescript:
-        specifier: 7.0.0-alpha.19
-        version: 7.0.0-alpha.19
       babel-plugin-transform-define:
         specifier: 2.0.0
         version: 2.0.0
@@ -6712,12 +6709,6 @@ packages:
 
   babel-plugin-react-compiler@19.1.0-rc.2:
     resolution: {integrity: sha512-kSNA//p5fMO6ypG8EkEVPIqAjwIXm5tMjfD1XRPL/sRjYSbJ6UsvORfaeolNWnZ9n310aM0xJP7peW26BuCVzA==}
-
-  babel-plugin-syntax-jsx@6.18.0:
-    resolution: {integrity: sha512-qrPaCSo9c8RHNRHIotaufGbuOBN8rtdC4QrrFFc43vyWCCz7Kl7GL1PGaXtMGQZUXrkCjNEgxDfmAuAabr/rlw==}
-
-  babel-plugin-syntax-typescript@7.0.0-alpha.19:
-    resolution: {integrity: sha512-jLuaWfoQsVr8/hmZtWB+86tZ5jYmOYV6kq70EkSUT7RR+gfeYOExS0FjObbbp+WExZNpBaRZvlyikNk3hCQGeQ==}
 
   babel-plugin-transform-async-to-promises@0.8.15:
     resolution: {integrity: sha512-fDXP68ZqcinZO2WCiimCL9zhGjGXOnn3D33zvbh+yheZ/qOrNVVDDIBtAaM3Faz8TRvQzHiRKsu3hfrBAhEncQ==}
@@ -23112,10 +23103,6 @@ snapshots:
   babel-plugin-react-compiler@19.1.0-rc.2:
     dependencies:
       '@babel/types': 7.27.0
-
-  babel-plugin-syntax-jsx@6.18.0: {}
-
-  babel-plugin-syntax-typescript@7.0.0-alpha.19: {}
 
   babel-plugin-transform-async-to-promises@0.8.15: {}
 
