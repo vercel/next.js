@@ -634,7 +634,6 @@ export async function fetchInternalImage(
     const mocked = createRequestResponseMocks({
       url: href,
       method: _req.method || 'GET',
-      headers: _req.headers,
       socket: _req.socket,
     })
 
