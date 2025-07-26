@@ -93,7 +93,7 @@ pub(crate) fn new_static_atom(string: &'static PrehashedString) -> RcStr {
     // Tag it as a static pointer
     entry = ((entry as usize) | STATIC_TAG as usize) as *mut PrehashedString;
     let ptr: NonNull<PrehashedString> = unsafe {
-        // Safety: Box::into_raw returns a non-null pointer
+        // Safety: references always return a non-null pointers
         NonNull::new_unchecked(entry as *mut _)
     };
 
