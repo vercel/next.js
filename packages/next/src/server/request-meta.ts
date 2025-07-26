@@ -231,6 +231,11 @@ export interface RequestMeta {
    * specific flags in future)
    */
   minimalMode?: boolean
+
+  /**
+   * DEV only: The fallback params that should be used when validating prerenders during dev
+   */
+  devValidatingFallbackParams?: Map<string, string>
 }
 
 /**
