@@ -879,7 +879,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((col +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
@@ -1402,25 +1402,37 @@
     function getIOShortName(ioInfo, description, env, rootEnv) {
       ioInfo = ioInfo.name;
       env = env === rootEnv || void 0 === env ? "" : " [" + env + "]";
-      rootEnv = "";
-      var descMaxLength = 30 - ioInfo.length - env.length;
-      if (1 < descMaxLength) {
+      var desc = "";
+      rootEnv = 30 - ioInfo.length - env.length;
+      if (1 < rootEnv) {
         var l = description.length;
-        if (0 < l && l <= descMaxLength) rootEnv = " (" + description + ")";
+        if (0 < l && l <= rootEnv) desc = " (" + description + ")";
         else if (
           description.startsWith("http://") ||
           description.startsWith("https://") ||
           description.startsWith("/")
         ) {
-          l = description.indexOf("?");
-          -1 === l && (l = description.length);
-          47 === description.charCodeAt(l - 1) && l--;
-          var slashIdx = description.lastIndexOf("/", l - 1);
-          l - slashIdx < descMaxLength &&
-            (rootEnv = " (" + description.slice(slashIdx + 1, l) + ")");
+          var queryIdx = description.indexOf("?");
+          -1 === queryIdx && (queryIdx = description.length);
+          47 === description.charCodeAt(queryIdx - 1) && queryIdx--;
+          desc = description.lastIndexOf("/", queryIdx - 1);
+          queryIdx - desc < rootEnv
+            ? (desc = " (\u2026" + description.slice(desc, queryIdx) + ")")
+            : ((l = description.slice(desc, desc + rootEnv / 2)),
+              (description = description.slice(
+                queryIdx - rootEnv / 2,
+                queryIdx
+              )),
+              (desc =
+                " (" +
+                (0 < desc ? "\u2026" : "") +
+                l +
+                "\u2026" +
+                description +
+                ")"));
         }
       }
-      return ioInfo + rootEnv + env;
+      return ioInfo + desc + env;
     }
     function logComponentAwait(
       asyncInfo,
@@ -1501,7 +1513,7 @@
               getIOLongName(ioInfo, description, ioInfo.env, rootEnv) +
               " Rejected"),
             debugTask.run(
-              performance.measure.bind(performance, entryName, {
+              performance.measure.bind(performance, "\u200b" + entryName, {
                 start: 0 > startTime ? 0 : startTime,
                 end: endTime,
                 detail: {
@@ -1540,7 +1552,7 @@
               addValueToProperties("Resolved", value, properties, 0, "");
           ioInfo = getIOLongName(ioInfo, description, ioInfo.env, rootEnv);
           debugTask.run(
-            performance.measure.bind(performance, entryName, {
+            performance.measure.bind(performance, "\u200b" + entryName, {
               start: 0 > startTime ? 0 : startTime,
               end: endTime,
               detail: {
@@ -3026,7 +3038,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((encodedName +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
@@ -3508,7 +3520,7 @@
                           0,
                           ""
                         );
-                      performance.measure(entryName$jscomp$0, {
+                      performance.measure("\u200b" + entryName$jscomp$0, {
                         start: 0 > startTime$jscomp$2 ? 0 : startTime$jscomp$2,
                         end: childrenEndTime$jscomp$1,
                         detail: {
@@ -3577,7 +3589,7 @@
                         debugTask$jscomp$0.run(
                           performance.measure.bind(
                             performance,
-                            entryName$jscomp$1,
+                            "\u200b" + entryName$jscomp$1,
                             {
                               start:
                                 0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
@@ -3595,7 +3607,7 @@
                         );
                       } else
                         console.timeStamp(
-                          entryName$jscomp$1,
+                          "\u200b" + entryName$jscomp$1,
                           0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
                           childrenEndTime$jscomp$2,
                           trackNames[trackIdx$jscomp$2],
@@ -3758,7 +3770,7 @@
                         0,
                         ""
                       );
-                    performance.measure(entryName$jscomp$3, {
+                    performance.measure("\u200b" + entryName$jscomp$3, {
                       start: 0 > startTime$jscomp$5 ? 0 : startTime$jscomp$5,
                       end: childrenEndTime$jscomp$3,
                       detail: {
@@ -4449,7 +4461,7 @@
                 : newArgs.splice(
                     offset,
                     0,
-                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
+                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c",
                     "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
                     " " + env + " ",
                     ""

@@ -128,7 +128,6 @@ export function ErrorOverlayLayout({
         />
         <ErrorOverlayDialog
           onClose={onClose}
-          dialogResizerRef={dialogResizerRef}
           data-has-footer={hasFooter}
           onScroll={onScroll}
           footer={hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}

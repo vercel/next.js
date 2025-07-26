@@ -27,6 +27,7 @@ import fs from 'fs'
 import fsp from 'fs/promises'
 import os from 'os'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import shellQuote from 'next/dist/compiled/shell-quote'
 
 function isTerminalEditor(editor: string) {
@@ -426,15 +427,33 @@ export function launchEditor(fileName: string, line1: number, column1: number) {
   }
 }
 
-// Open the file in editor if exists, otherwise return an error
+/**
+ * Open the file in editor if exists, otherwise return an error
+ * @param file `file:` URL, or absolute path or relative path. Relative paths must
+ *             relative to `nextRootDirectory`.
+ */
 export async function openFileInEditor(
-  filePath: string,
+  file: string,
   line1: number,
-  column1: number
-) {
+  column1: number,
+  nextRootDirectory: string
+): Promise<{ found: boolean; error: unknown | null }> {
+  let filePath: string
+  if (file.startsWith('file://')) {
+    try {
+      filePath = fileURLToPath(file)
+    } catch (error) {
+      return { found: false, error }
+    }
+  } else if (path.isAbsolute(file)) {
+    filePath = file
+  } else {
+    filePath = path.join(nextRootDirectory, file)
+  }
+
   const result = {
     found: false,
-    error: null as Error | null,
+    error: null as unknown | null,
   }
   const existed = await fsp.access(filePath, fs.constants.F_OK).then(
     () => true,
@@ -445,7 +464,7 @@ export async function openFileInEditor(
       launchEditor(filePath, line1, column1)
       result.found = true
     } catch (err) {
-      result.error = err as Error
+      result.error = err
     }
   }
   return result

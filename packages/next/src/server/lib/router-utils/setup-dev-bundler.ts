@@ -85,6 +85,8 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
 import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
+import { parseBody } from '../../api-utils/node/parse-body'
+import { timingSafeEqual } from 'crypto'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -969,8 +971,113 @@ async function startWatcher(
   const devTurbopackMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
 
+  const mcpPath = `/_next/mcp`
+  opts.fsChecker.devVirtualFsItems.add(mcpPath)
+
+  let mcpSecret = process.env.NEXT_EXPERIMENTAL_MCP_SECRET
+    ? Buffer.from(process.env.NEXT_EXPERIMENTAL_MCP_SECRET)
+    : undefined
+
+  if (mcpSecret) {
+    try {
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      require('@modelcontextprotocol/sdk/package.json')
+    } catch (error) {
+      Log.error(
+        'To use the MCP server, please install the `@modelcontextprotocol/sdk` package.'
+      )
+      mcpSecret = undefined
+    }
+  }
+  let createMcpServer: typeof import('./mcp').createMcpServer | undefined
+  let StreamableHTTPServerTransport:
+    | typeof import('./mcp').StreamableHTTPServerTransport
+    | undefined
+  if (mcpSecret) {
+    ;({ createMcpServer, StreamableHTTPServerTransport } =
+      require('./mcp') as typeof import('./mcp'))
+    Log.info(
+      `Experimental MCP server is available at: /_next/mcp?${mcpSecret.toString()}`
+    )
+  }
+
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     const parsedUrl = url.parse(req.url || '/')
+
+    if (parsedUrl.pathname?.includes(mcpPath)) {
+      function sendMcpInternalError(message: string) {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: {
+              // "Internal error" see https://www.jsonrpc.org/specification
+              code: -32603,
+              message,
+            },
+            id: null,
+          })
+        )
+        return { finished: true }
+      }
+      if (!mcpSecret) {
+        Log.error('Next.js MCP server is not enabled')
+        Log.info(
+          'To enable it, set the NEXT_EXPERIMENTAL_MCP_SECRET environment variable to a secret value. This will make the MCP server available at /_next/mcp?{NEXT_EXPERIMENTAL_MCP_SECRET}'
+        )
+        return sendMcpInternalError(
+          'Missing NEXT_EXPERIMENTAL_MCP_SECRET environment variable'
+        )
+      }
+      if (!createMcpServer || !StreamableHTTPServerTransport) {
+        return sendMcpInternalError(
+          'Model Context Protocol (MCP) server is not available'
+        )
+      }
+      if (!parsedUrl.query) {
+        Log.error('No MCP secret provided in request query')
+        Log.info(
+          `Experimental MCP server is available at: /_next/mcp?${mcpSecret.toString()}`
+        )
+        return sendMcpInternalError('No MCP secret provided in request query')
+      }
+      let mcpSecretQuery = Buffer.from(parsedUrl.query)
+      if (
+        mcpSecretQuery.length !== mcpSecret.length ||
+        !timingSafeEqual(mcpSecretQuery, mcpSecret)
+      ) {
+        Log.error('Invalid MCP secret provided in request query')
+        Log.info(
+          `Experimental MCP server is available at: /_next/mcp?${mcpSecret.toString()}`
+        )
+        return sendMcpInternalError(
+          'Invalid MCP secret provided in request query'
+        )
+      }
+
+      const server = createMcpServer(hotReloader)
+      if (server) {
+        try {
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined,
+          })
+          res.on('close', () => {
+            transport.close()
+            server.close()
+          })
+          await server.connect(transport)
+          const parsedBody = await parseBody(req, 1024 * 1024 * 1024)
+          await transport.handleRequest(req, res, parsedBody)
+        } catch (error) {
+          Log.error('Error handling MCP request:', error)
+          if (!res.headersSent) {
+            return sendMcpInternalError('Internal server error')
+          }
+        }
+        return { finished: true }
+      }
+    }
 
     if (parsedUrl.pathname?.includes(clientPagesManifestPath)) {
       res.statusCode = 200

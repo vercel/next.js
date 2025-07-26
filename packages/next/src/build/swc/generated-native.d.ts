@@ -64,7 +64,13 @@ export interface NapiWrittenEndpoint {
   serverPaths: Array<NapiServerPath>
   config: NapiEndpointConfig
 }
+export interface NapiModuleGraphSnapshots {
+  moduleGraphs: Array<NapiModuleGraphSnapshot>
+}
 export declare function endpointWriteToDisk(endpoint: {
+  __napiType: 'Endpoint'
+}): Promise<TurbopackResult>
+export declare function endpointModuleGraphs(endpoint: {
   __napiType: 'Endpoint'
 }): Promise<TurbopackResult>
 export declare function endpointServerChangedSubscribe(
@@ -76,6 +82,27 @@ export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
+export interface NapiModuleReference {
+  /** The index of the referenced/referencing module in the modules list. */
+  index: number
+  /** The export used in the module reference. */
+  export: string
+  /** The type of chunking for the module reference. */
+  chunkingType: string
+}
+export interface NapiModuleInfo {
+  ident: RcStr
+  path: RcStr
+  depth: number
+  size: number
+  retainedSize: number
+  references: Array<NapiModuleReference>
+  incomingReferences: Array<NapiModuleReference>
+}
+export interface NapiModuleGraphSnapshot {
+  modules: Array<NapiModuleInfo>
+  entries: Array<number>
+}
 export interface NapiEnvVar {
   name: RcStr
   value: RcStr
@@ -100,19 +127,19 @@ export interface NapiWatchOptions {
 }
 export interface NapiProjectOptions {
   /**
-   * An absolute root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail, so think of this as a chroot.
+   * An absolute root path (Unix or Windows path) from which all files must be nested under.
+   * Trying to access a file outside this root will fail, so think of this as a chroot.
    * E.g. `/home/user/projects/my-repo`.
    */
   rootPath: RcStr
   /**
-   * A path which contains the app/pages directories, relative to [`Project::root_path`].
-   * E.g. `apps/my-app`
+   * A path which contains the app/pages directories, relative to [`Project::root_path`], always
+   * Unix path. E.g. `apps/my-app`
    */
   projectPath: RcStr
   /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`].
-   * Corresponds to next.config.js's `distDir`.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
+   * path. Corresponds to next.config.js's `distDir`.
    * E.g. `.next`
    */
   distDir: RcStr
@@ -151,19 +178,20 @@ export interface NapiProjectOptions {
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
   /**
-   * An absolute root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail, so think of this as a chroot.
+   * An absolute root path  (Unix or Windows path) from which all files must be nested under.
+   * Trying to access a file outside this root will fail, so think of this as a chroot.
    * E.g. `/home/user/projects/my-repo`.
    */
   rootPath?: RcStr
   /**
-   * A path which contains the app/pages directories, relative to [`Project::root_path`].
+   * A path which contains the app/pages directories, relative to [`Project::root_path`], always
+   * a Unix path.
    * E.g. `apps/my-app`
    */
   projectPath?: RcStr
   /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`].
-   * Corresponds to next.config.js's `distDir`.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always a
+   * Unix path. Corresponds to next.config.js's `distDir`.
    * E.g. `.next`
    */
   distDir?: RcStr | undefined | null
@@ -285,6 +313,9 @@ export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectEntrypoints(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
@@ -361,6 +392,9 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+export declare function projectModuleGraph(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

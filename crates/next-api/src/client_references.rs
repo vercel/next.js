@@ -22,7 +22,7 @@ use turbopack_core::{
 #[derive(
     Copy, Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue,
 )]
-pub enum ClientReferenceMapType {
+pub enum ClientManifestEntryType {
     EcmascriptClientReference {
         module: ResolvedVc<EcmascriptClientReferenceModule>,
         ssr_module: ResolvedVc<Box<dyn Module>>,
@@ -31,9 +31,11 @@ pub enum ClientReferenceMapType {
     ServerComponent(ResolvedVc<NextServerComponentModule>),
 }
 
+/// Tracks information about all the css and js client references in the graph as well as how server
+/// components depend on them.
 #[turbo_tasks::value]
-pub struct ClientReferencesSet {
-    pub client_references: FxHashMap<ResolvedVc<Box<dyn Module>>, ClientReferenceMapType>,
+pub struct ClientReferenceManifest {
+    pub manifest: FxHashMap<ResolvedVc<Box<dyn Module>>, ClientManifestEntryType>,
     // All the server components in the graph.
     server_components: FxIndexSet<ResolvedVc<NextServerComponentModule>>,
     // All the server components that depend on each module
@@ -43,7 +45,7 @@ pub struct ClientReferencesSet {
         FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
 }
 
-impl ClientReferencesSet {
+impl ClientReferenceManifest {
     /// Returns all the server components that depend on the given client reference
     pub fn server_components_for_client_reference(
         &self,
@@ -64,9 +66,9 @@ impl ClientReferencesSet {
 #[turbo_tasks::function]
 pub async fn map_client_references(
     graph: Vc<SingleModuleGraph>,
-) -> Result<Vc<ClientReferencesSet>> {
+) -> Result<Vc<ClientReferenceManifest>> {
     let graph = graph.await?;
-    let client_references = graph
+    let manifest = graph
         .iter_nodes()
         .map(|node| async move {
             let module = node.module;
@@ -76,7 +78,7 @@ pub async fn map_client_references(
             {
                 Ok(Some((
                     module,
-                    ClientReferenceMapType::EcmascriptClientReference {
+                    ClientManifestEntryType::EcmascriptClientReference {
                         module: client_reference_module,
                         ssr_module: ResolvedVc::upcast(client_reference_module.await?.ssr_module),
                     },
@@ -86,7 +88,7 @@ pub async fn map_client_references(
             {
                 Ok(Some((
                     module,
-                    ClientReferenceMapType::CssClientReference(
+                    ClientManifestEntryType::CssClientReference(
                         client_reference_module.await?.client_module,
                     ),
                 )))
@@ -95,7 +97,7 @@ pub async fn map_client_references(
             {
                 Ok(Some((
                     module,
-                    ClientReferenceMapType::ServerComponent(server_component),
+                    ClientManifestEntryType::ServerComponent(server_component),
                 )))
             } else {
                 Ok(None)
@@ -108,19 +110,19 @@ pub async fn map_client_references(
 
     let mut server_components = FxIndexSet::default();
     let mut module_to_server_component_bits = FxHashMap::default();
-    if !client_references.is_empty() {
+    if !manifest.is_empty() {
         graph.traverse_edges_from_entries_fixed_point(
             graph.entry_modules(),
             |parent_info, node| {
                 let module = node.module();
-                let module_type = client_references.get(&module);
+                let module_type = manifest.get(&module);
                 let mut should_visit_children = match module_to_server_component_bits.entry(module)
                 {
                     std::collections::hash_map::Entry::Occupied(_) => false,
                     std::collections::hash_map::Entry::Vacant(vacant_entry) => {
                         // only do this the first time we visit the node.
                         let bits = vacant_entry.insert(RoaringBitmap::new());
-                        if let Some(ClientReferenceMapType::ServerComponent(
+                        if let Some(ClientManifestEntryType::ServerComponent(
                             server_component_module,
                         )) = module_type
                         {
@@ -159,8 +161,8 @@ pub async fn map_client_references(
 
                 Ok(match module_type {
                     Some(
-                        ClientReferenceMapType::EcmascriptClientReference { .. }
-                        | ClientReferenceMapType::CssClientReference { .. },
+                        ClientManifestEntryType::EcmascriptClientReference { .. }
+                        | ClientManifestEntryType::CssClientReference { .. },
                     ) => {
                         // No need to explore these subgraphs ever, these are the leaves in the
                         // server component graph
@@ -183,17 +185,17 @@ pub async fn map_client_references(
     // Filter down to just the client reference modules to reduce datastructure size
     let server_components_for_client_references = module_to_server_component_bits
         .into_iter()
-        .filter_map(|(k, v)| match client_references.get(&k) {
+        .filter_map(|(k, v)| match manifest.get(&k) {
             Some(
-                ClientReferenceMapType::CssClientReference(_)
-                | ClientReferenceMapType::EcmascriptClientReference { .. },
+                ClientManifestEntryType::CssClientReference(_)
+                | ClientManifestEntryType::EcmascriptClientReference { .. },
             ) => Some((k, RoaringBitmapWrapper(v))),
             _ => None,
         })
         .collect();
 
-    Ok(ClientReferencesSet::cell(ClientReferencesSet {
-        client_references,
+    Ok(ClientReferenceManifest::cell(ClientReferenceManifest {
+        manifest,
         server_components,
         server_components_for_client_references,
     }))

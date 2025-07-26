@@ -732,6 +732,10 @@ async function warmupDevRender(
     renderResumeDataCache: null,
     hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
     captureOwnerStack: ComponentMod.captureOwnerStack,
+    // warmup is a dev only feature and no fallback params are used in the
+    // primary render which is static. We only use a prerender store here to
+    // allow the warmup to halt on Request data APIs and fetches.
+    fallbackRouteParams: null,
   }
 
   const rscPayload = await workUnitAsyncStorage.run(
@@ -1192,7 +1196,8 @@ async function renderToHTMLOrFlightImpl(
   requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
-  sharedContext: AppSharedContext
+  sharedContext: AppSharedContext,
+  fallbackRouteParams: FallbackRouteParams | null
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -1356,7 +1361,7 @@ async function renderToHTMLOrFlightImpl(
     nonce,
   } = parsedRequestHeaders
 
-  const { isStaticGeneration, fallbackRouteParams } = workStore
+  const { isStaticGeneration } = workStore
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -1440,7 +1445,8 @@ async function renderToHTMLOrFlightImpl(
       res,
       ctx,
       metadata,
-      loaderTree
+      loaderTree,
+      fallbackRouteParams
     )
 
     // If we're debugging partial prerendering, print all the dynamic API accesses
@@ -1756,7 +1762,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   const workStore = createWorkStore({
     page: renderOpts.routeModule.definition.page,
-    fallbackRouteParams,
     renderOpts,
     requestEndedState,
     // @TODO move to workUnitStore of type Request
@@ -1781,7 +1786,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     requestEndedState,
     postponedState,
     serverComponentsHmrCache,
-    sharedContext
+    sharedContext,
+    fallbackRouteParams
   )
 }
 
@@ -2363,6 +2369,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
+    fallbackRouteParams: null,
     implicitTags,
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
@@ -2494,6 +2501,7 @@ async function spawnDynamicValidationInDev(
       type: 'prerender-client',
       phase: 'render',
       rootParams,
+      fallbackRouteParams: null,
       implicitTags,
       renderSignal: initialClientRenderController.signal,
       controller: initialClientPrerenderController,
@@ -2602,6 +2610,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
+    fallbackRouteParams: null,
     implicitTags,
     renderSignal: finalServerRenderController.signal,
     controller: finalServerReactController,
@@ -2689,6 +2698,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender-client',
     phase: 'render',
     rootParams,
+    fallbackRouteParams: null,
     implicitTags,
     renderSignal: finalClientRenderController.signal,
     controller: finalClientReactController,
@@ -2851,7 +2861,8 @@ async function prerenderToStream(
   res: BaseNextResponse,
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
-  tree: LoaderTree
+  tree: LoaderTree,
+  fallbackRouteParams: FallbackRouteParams | null
 ): Promise<PrerenderToStreamResult> {
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
@@ -2889,7 +2900,6 @@ async function prerenderToStream(
   assertClientReferenceManifest(clientReferenceManifest)
 
   const rootParams = getRootParams(tree, getDynamicParamFromSegment)
-  const fallbackRouteParams = workStore.fallbackRouteParams
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -3057,6 +3067,7 @@ async function prerenderToStream(
         type: 'prerender',
         phase: 'render',
         rootParams,
+        fallbackRouteParams,
         implicitTags,
         renderSignal: initialServerRenderController.signal,
         controller: initialServerPrerenderController,
@@ -3181,6 +3192,7 @@ async function prerenderToStream(
           type: 'prerender-client',
           phase: 'render',
           rootParams,
+          fallbackRouteParams,
           implicitTags,
           renderSignal: initialClientRenderController.signal,
           controller: initialClientPrerenderController,
@@ -3289,6 +3301,7 @@ async function prerenderToStream(
         type: 'prerender',
         phase: 'render',
         rootParams,
+        fallbackRouteParams,
         implicitTags,
         renderSignal: finalServerRenderController.signal,
         controller: finalServerReactController,
@@ -3381,6 +3394,7 @@ async function prerenderToStream(
         type: 'prerender-client',
         phase: 'render',
         rootParams,
+        fallbackRouteParams,
         implicitTags,
         renderSignal: finalClientRenderController.signal,
         controller: finalClientReactController,
@@ -3506,7 +3520,7 @@ async function prerenderToStream(
       // move the fallback route params out of the flight router state, we need
       // to always perform a dynamic resume after the static prerender.
       const hasFallbackRouteParams =
-        workStore.fallbackRouteParams && workStore.fallbackRouteParams.size > 0
+        fallbackRouteParams && fallbackRouteParams.size > 0
 
       if (serverIsDynamic || hasFallbackRouteParams) {
         // Dynamic case
@@ -3624,6 +3638,7 @@ async function prerenderToStream(
         type: 'prerender-ppr',
         phase: 'render',
         rootParams,
+        fallbackRouteParams,
         implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
@@ -3658,6 +3673,7 @@ async function prerenderToStream(
         type: 'prerender-ppr',
         phase: 'render',
         rootParams,
+        fallbackRouteParams,
         implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,

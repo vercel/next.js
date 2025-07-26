@@ -719,8 +719,8 @@
       );
     }
     function devirtualizeURL(url) {
-      if (url.startsWith("rsc://React/")) {
-        var envIdx = url.indexOf("/", 12),
+      if (url.startsWith("about://React/")) {
+        var envIdx = url.indexOf("/", 14),
           suffixIdx = url.lastIndexOf("?");
         if (-1 < envIdx && -1 < suffixIdx)
           return decodeURI(url.slice(envIdx + 1, suffixIdx));
@@ -843,22 +843,24 @@
                 style = args[env + 1],
                 badge = args[env + 2];
               "string" === typeof format &&
-              format.startsWith("\u001b[0m\u001b[7m%c%s\u001b[0m%c ") &&
+              format.startsWith("\u001b[0m\u001b[7m%c%s\u001b[0m%c") &&
               "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px" ===
                 style &&
               "string" === typeof badge
-                ? (args.splice(env, 4, format.slice(19)),
+                ? ((format = format.slice(18)),
+                  " " === format[0] && (format = format.slice(1)),
+                  args.splice(env, 4, format),
                   (env = badge.slice(1, badge.length - 1)))
                 : (env = null);
             }
             null === env && (env = (0, request.environmentName)());
             null != owner && outlineComponentInfo(request, owner);
-            format = [methodName, stack, owner, env];
-            format.push.apply(format, args);
+            badge = [methodName, stack, owner, env];
+            badge.push.apply(badge, args);
             args = serializeDebugModel(
               request,
               (null === request.deferredDebugObjects ? 500 : 10) + stack.length,
-              format
+              badge
             );
             "[" !== args[0] &&
               (args = serializeDebugModel(request, 10 + stack.length, [
@@ -1630,6 +1632,9 @@
         Component,
         props
       );
+      task.debugOwner = componentDebugInfo;
+      task.debugStack = null;
+      task.debugTask = null;
       Component = task.keyPath;
       componentDebugInfo = task.implicitSlot;
       null !== key
@@ -1945,7 +1950,14 @@
                 endTime = node.end;
               if (endTime <= request.timeOrigin) return null;
               startTime < cutOff
-                ? (previousIONode = _ioNode)
+                ? ((previousIONode = _ioNode),
+                  null !== node.stack &&
+                    isAwaitInUserspace(request, node.stack) &&
+                    void 0 !==
+                      (null === awaited.promise
+                        ? void 0
+                        : awaited.promise.deref()) &&
+                    serializeIONode(request, _ioNode, awaited.promise))
                 : null !== node.stack && isAwaitInUserspace(request, node.stack)
                   ? (request.status === ABORTING &&
                       startTime > request.abortTime) ||
@@ -1998,12 +2010,20 @@
           awaited: node,
           env: alreadyForwardedDebugInfo
         }),
-        null != owner && (alreadyForwardedDebugInfo.owner = owner),
-        null != stack &&
-          (alreadyForwardedDebugInfo.stack = filterStackTrace(
-            request,
-            parseStackTrace(stack, 1)
-          )),
+        null === owner && null === stack
+          ? (null !== task.debugOwner &&
+              (alreadyForwardedDebugInfo.owner = task.debugOwner),
+            null !== task.debugStack &&
+              (alreadyForwardedDebugInfo.stack = filterStackTrace(
+                request,
+                parseStackTrace(task.debugStack, 1)
+              )))
+          : (null != owner && (alreadyForwardedDebugInfo.owner = owner),
+            null != stack &&
+              (alreadyForwardedDebugInfo.stack = filterStackTrace(
+                request,
+                parseStackTrace(stack, 1)
+              ))),
         advanceTaskTime(request, task, task.time),
         emitDebugChunk(request, task.id, alreadyForwardedDebugInfo),
         markOperationEndTime(request, task, node.end));
@@ -3887,15 +3907,18 @@
                   "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
                 )
               ),
-            (request.status = CLOSED),
             null !== request.destination &&
-              (request.destination.end(), (request.destination = null)),
+              ((request.status = CLOSED),
+              request.destination.end(),
+              (request.destination = null)),
             null !== request.debugDestination &&
               (request.debugDestination.end(),
               (request.debugDestination = null)))
           : null !== importsChunks &&
             null !== request.destination &&
-            (request.destination.end(), (request.destination = null)));
+            ((request.status = CLOSED),
+            request.destination.end(),
+            (request.destination = null)));
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
@@ -5769,12 +5792,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_243 = [];
+        var JSCompiler_object_inline_chunks_244 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_243.push(chunk);
+          JSCompiler_object_inline_chunks_244.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_243, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_244, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);

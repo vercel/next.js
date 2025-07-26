@@ -27,7 +27,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    client_references::{ClientReferenceMapType, ClientReferencesSet, map_client_references},
+    client_references::{ClientManifestEntryType, ClientReferenceManifest, map_client_references},
     dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
     server_actions::{AllActions, AllModuleActions, map_server_actions, to_rsc_context},
 };
@@ -243,7 +243,7 @@ pub struct ClientReferencesGraph {
     is_single_page: bool,
     graph: ResolvedVc<SingleModuleGraph>,
     /// List of client references (modules that entries into the client graph)
-    data: ResolvedVc<ClientReferencesSet>,
+    data: ResolvedVc<ClientReferenceManifest>,
 }
 
 #[turbo_tasks::value_impl]
@@ -315,15 +315,15 @@ impl ClientReferencesGraph {
             // components for each module.
             graph.traverse_edges_from_entries_dfs(
                 entries,
-                // state_map is `module -> ParentType` to tracke whether the module is reachable
+                // state_map is `module -> ParentType` to track whether the module is reachable
                 // directly from an entry point.
                 &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
                     let module = node.module();
-                    let module_type = data.client_references.get(&module);
+                    let module_type = data.manifest.get(&module);
 
                     let parent_type =
-                        if let Some(ClientReferenceMapType::ServerComponent(_)) = module_type {
+                        if let Some(ClientManifestEntryType::ServerComponent(_)) = module_type {
                             ParentType::ServerComponent
                         } else if let Some((parent_node, _)) = parent_info {
                             *state_map.get(&parent_node.module).unwrap()
@@ -347,27 +347,27 @@ impl ClientReferencesGraph {
 
                     Ok(match module_type {
                         Some(
-                            ClientReferenceMapType::EcmascriptClientReference { .. }
-                            | ClientReferenceMapType::CssClientReference { .. },
+                            ClientManifestEntryType::EcmascriptClientReference { .. }
+                            | ClientManifestEntryType::CssClientReference { .. },
                         ) => GraphTraversalAction::Skip,
                         _ => GraphTraversalAction::Continue,
                     })
                 },
                 |_, node, state_map| {
                     let module = node.module();
-                    let Some(module_type) = data.client_references.get(&module) else {
+                    let Some(module_type) = data.manifest.get(&module) else {
                         return Ok(());
                     };
 
                     let ty = match module_type {
-                        ClientReferenceMapType::EcmascriptClientReference {
+                        ClientManifestEntryType::EcmascriptClientReference {
                             module,
                             ssr_module: _,
                         } => ClientReferenceType::EcmascriptClientReference(*module),
-                        ClientReferenceMapType::CssClientReference(module) => {
+                        ClientManifestEntryType::CssClientReference(module) => {
                             ClientReferenceType::CssClientReference(*module)
                         }
-                        ClientReferenceMapType::ServerComponent(sc) => {
+                        ClientManifestEntryType::ServerComponent(sc) => {
                             server_components.insert(*sc);
                             return Ok(());
                         }

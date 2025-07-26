@@ -8,7 +8,7 @@ use turbopack_core::{
 
 use super::module::EcmascriptModuleFacadeModule;
 use crate::{
-    EcmascriptAnalyzable, EcmascriptOptions,
+    EcmascriptAnalyzable,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType,
@@ -48,7 +48,6 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         Ok(EcmascriptChunkItemContent::new(
             content,
             *chunking_context,
-            EcmascriptOptions::default().cell(),
             async_module_options,
         ))
     }

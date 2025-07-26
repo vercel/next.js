@@ -7,7 +7,6 @@ import {
   AppRouterContext,
   type AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import {
   checkFormActionUrl,
   createFormSubmitDestinationUrl,
@@ -20,6 +19,7 @@ import {
   mountFormInstance,
   unmountPrefetchableInstance,
 } from '../components/links'
+import { FetchStrategy } from '../components/segment-cache'
 
 export type { FormProps }
 
@@ -99,7 +99,13 @@ export default function Form({
   const observeFormVisibilityOnMount = useCallback(
     (element: HTMLFormElement) => {
       if (isPrefetchEnabled && router !== null) {
-        mountFormInstance(element, actionProp, router, PrefetchKind.AUTO)
+        mountFormInstance(
+          element,
+          actionProp,
+          router,
+          // We default to PPR. We'll discover whether or not the route supports it with the initial prefetch.
+          FetchStrategy.PPR
+        )
       }
       return () => {
         unmountPrefetchableInstance(element)

@@ -600,23 +600,21 @@ export function getOverlayMiddleware(options: {
       const isAppRelativePath = searchParams.get('isAppRelativePath') === '1'
       if (isAppRelativePath) {
         const relativeFilePath = searchParams.get('file') || ''
-        const absoluteFilePath = path.join(
-          rootDirectory,
+        const appPath = path.join(
           'app',
           isSrcDir ? 'src' : '',
           relativeFilePath
         )
-        openEditorResult = await openFileInEditor(absoluteFilePath, 1, 1)
+        openEditorResult = await openFileInEditor(appPath, 1, 1, rootDirectory)
       } else {
+        // TODO: How do we differentiate layers and actual file paths with round brackets?
         // frame files may start with their webpack layer, like (middleware)/middleware.js
-        const filePath = path.resolve(
-          rootDirectory,
-          frame.file.replace(/^\([^)]+\)\//, '')
-        )
+        const filePath = frame.file.replace(/^\([^)]+\)\//, '')
         openEditorResult = await openFileInEditor(
           filePath,
           frame.line1,
-          frame.column1 ?? 1
+          frame.column1 ?? 1,
+          rootDirectory
         )
       }
       if (openEditorResult.error) {
