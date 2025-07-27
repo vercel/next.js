@@ -1,6 +1,15 @@
-import loadConfig from './config'
-
 describe('loadConfig', () => {
+  let loadConfig: typeof import('./config').default
+
+  beforeEach(async () => {
+    // Reset the module cache to ensure each test gets a fresh config load
+    // This is important because config.ts now has a module-level configCache
+    jest.resetModules()
+
+    // Dynamically import the module after reset to get a fresh instance
+    const configModule = await import('./config')
+    loadConfig = configModule.default
+  })
   describe('nextConfig.images defaults', () => {
     it('should assign a `images.remotePatterns` when using assetPrefix', async () => {
       const result = await loadConfig('', __dirname, {

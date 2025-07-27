@@ -135,7 +135,7 @@ async function requestHandler(
       clientReferenceManifest,
       setIsrStatus: routerServerContext?.setIsrStatus,
 
-      dir: pageRouteModule.projectDir,
+      dir: pageRouteModule.relativeProjectDir,
       botType,
       isDraftMode: false,
       isRevalidate: false,

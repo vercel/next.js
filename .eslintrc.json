@@ -242,6 +242,15 @@
       "rules": {
         "react/jsx-no-undef": "off"
       }
+    },
+    {
+      "files": [
+        "packages/next/src/next-devtools/dev-overlay/**/*.tsx",
+        "packages/next/src/next-devtools/dev-overlay/**/*.ts"
+      ],
+      "rules": {
+        "react-hooks/react-compiler": "error"
+      }
     }
   ],
   "rules": {

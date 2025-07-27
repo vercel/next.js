@@ -281,7 +281,6 @@ export async function adapter(
 
             const workStore = createWorkStore({
               page,
-              fallbackRouteParams,
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,

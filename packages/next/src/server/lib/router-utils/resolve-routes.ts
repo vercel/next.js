@@ -33,7 +33,6 @@ import { addRequestMeta } from '../../request-meta'
 import {
   compileNonPath,
   matchHas,
-  parseDestination,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
@@ -761,16 +760,6 @@ export function getResolveRoutes(
             // so we'll just use the params from the route matcher
           }
 
-          // We extract the search params of the destination so we can set it on
-          // the response headers. We don't want to use the following
-          // `parsedDestination` as the query object is mutated.
-          const { search: destinationSearch, pathname: destinationPathname } =
-            parseDestination({
-              destination: route.destination,
-              params: rewriteParams,
-              query: parsedUrl.query,
-            })
-
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
             destination: route.destination,
@@ -790,14 +779,17 @@ export function getResolveRoutes(
           if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
             // We set the rewritten path and query headers on the response now
             // that we know that the it's not an external rewrite.
-            if (parsedUrl.pathname !== destinationPathname) {
-              res.setHeader(NEXT_REWRITTEN_PATH_HEADER, destinationPathname)
+            if (parsedUrl.pathname !== parsedDestination.pathname) {
+              res.setHeader(
+                NEXT_REWRITTEN_PATH_HEADER,
+                parsedDestination.pathname
+              )
             }
-            if (destinationSearch) {
+            if (parsedUrl.search !== parsedDestination.search) {
               res.setHeader(
                 NEXT_REWRITTEN_QUERY_HEADER,
                 // remove the leading ? from the search
-                destinationSearch.slice(1)
+                parsedDestination.search.slice(1)
               )
             }
           }

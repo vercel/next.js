@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "15.4.2-canary.14",
+  "version": "15.4.2-canary.18",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -100,13 +100,14 @@
     ]
   },
   "dependencies": {
-    "@next/env": "15.4.2-canary.14",
+    "@next/env": "15.4.2-canary.18",
     "@swc/helpers": "0.5.15",
     "caniuse-lite": "^1.0.30001579",
     "postcss": "8.4.31",
     "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.15.1",
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.51.1",
     "babel-plugin-react-compiler": "*",
@@ -119,6 +120,9 @@
       "optional": true
     },
     "sass": {
+      "optional": true
+    },
+    "@modelcontextprotocol/sdk": {
       "optional": true
     },
     "@opentelemetry/api": {
@@ -141,6 +145,7 @@
     "@babel/plugin-syntax-dynamic-import": "7.8.3",
     "@babel/plugin-syntax-import-attributes": "7.26.0",
     "@babel/plugin-syntax-jsx": "7.25.9",
+    "@babel/plugin-syntax-typescript": "7.25.4",
     "@babel/plugin-transform-class-properties": "7.25.9",
     "@babel/plugin-transform-export-namespace-from": "7.25.9",
     "@babel/plugin-transform-modules-commonjs": "7.26.3",
@@ -161,13 +166,14 @@
     "@hapi/accept": "5.0.2",
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
+    "@modelcontextprotocol/sdk": "1.15.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "15.4.2-canary.14",
-    "@next/polyfill-module": "15.4.2-canary.14",
-    "@next/polyfill-nomodule": "15.4.2-canary.14",
-    "@next/react-refresh-utils": "15.4.2-canary.14",
-    "@next/swc": "15.4.2-canary.14",
+    "@next/font": "15.4.2-canary.18",
+    "@next/polyfill-module": "15.4.2-canary.18",
+    "@next/polyfill-nomodule": "15.4.2-canary.18",
+    "@next/react-refresh-utils": "15.4.2-canary.18",
+    "@next/swc": "15.4.2-canary.18",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.51.1",
     "@rspack/core": "1.4.5",
@@ -229,7 +235,8 @@
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
     "axe-playwright": "2.0.3",
-    "babel-plugin-react-compiler": "19.0.0-beta-e552027-20250112",
+    "babel-loader": "10.0.0",
+    "babel-plugin-react-compiler": "19.1.0-rc.2",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserify-zlib": "0.2.0",

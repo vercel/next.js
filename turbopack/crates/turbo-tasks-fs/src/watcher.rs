@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
@@ -113,6 +113,8 @@ impl DiskWatcher {
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
+        use anyhow::Context; // inner import due to conditional compilation
+
         if let Some(watcher) = watcher.as_mut() {
             let mut path = dir_path;
             let err_with_context = |err| {
