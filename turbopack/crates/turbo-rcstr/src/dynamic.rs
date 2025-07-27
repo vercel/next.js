@@ -176,6 +176,7 @@ const fn multiply_mix(x: u64, y: u64) -> u64 {
 // offset
 #[inline(always)]
 const fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
+    debug_assert!(offset + 8 <= bytes.len());
     let array = unsafe { bytes.as_ptr().add(offset) } as *const [u8; 8];
     u64::from_le_bytes(unsafe { *array })
 }
@@ -184,6 +185,7 @@ const fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
 // offset
 #[inline(always)]
 const fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
+    debug_assert!(offset + 4 <= bytes.len());
     let array = unsafe { bytes.as_ptr().add(offset) } as *const [u8; 4];
     u32::from_le_bytes(unsafe { *array })
 }
