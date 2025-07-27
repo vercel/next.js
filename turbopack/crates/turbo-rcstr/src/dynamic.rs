@@ -172,24 +172,20 @@ const fn multiply_mix(x: u64, y: u64) -> u64 {
     }
 }
 
-// Const compatible helper function to read a u64 from a byte array at a given offset
+// Const compatible helper function to read a u64 from a byte array at a given
+// offset
+#[inline(always)]
 const fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
-    (bytes[offset] as u64)
-        | ((bytes[offset + 1] as u64) << 8)
-        | ((bytes[offset + 2] as u64) << 16)
-        | ((bytes[offset + 3] as u64) << 24)
-        | ((bytes[offset + 4] as u64) << 32)
-        | ((bytes[offset + 5] as u64) << 40)
-        | ((bytes[offset + 6] as u64) << 48)
-        | ((bytes[offset + 7] as u64) << 56)
+    let array = unsafe { bytes.as_ptr().add(offset) } as *const [u8; 8];
+    u64::from_le_bytes(unsafe { *array })
 }
 
-// Const compatible helper function to read a u32 from a byte array at a given offset
+// Const compatible helper function to read a u32 from a byte array at a given
+// offset
+#[inline(always)]
 const fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
-    (bytes[offset] as u32)
-        | ((bytes[offset + 1] as u32) << 8)
-        | ((bytes[offset + 2] as u32) << 16)
-        | ((bytes[offset + 3] as u32) << 24)
+    let array = unsafe { bytes.as_ptr().add(offset) } as *const [u8; 4];
+    u32::from_le_bytes(unsafe { *array })
 }
 
 /// Copied from `hash_bytes` of `rustc-hash`.
