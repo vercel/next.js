@@ -251,6 +251,22 @@ export function runTests(ctx: RunTestsCtx) {
     await expectWidth(res, 400)
   })
 
+  it('should maintain jp2', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.jp2' }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/jp2')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.jp2"`
+    )
+    await expectWidth(res, 1)
+  })
+
   it('should maintain animated gif', async () => {
     const query = { w: ctx.w, q: 90, url: '/animated.gif' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})

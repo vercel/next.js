@@ -60,6 +60,10 @@ describe('detectContentType', () => {
     const buffer = await getImage('./images/test.jxl')
     expect(await detectContentType(buffer)).toBe('image/jxl')
   })
+  it('should return jp2', async () => {
+    const buffer = await getImage('./images/test.jp2')
+    expect(await detectContentType(buffer)).toBe('image/jp2')
+  })
   it('should return heic', async () => {
     const buffer = await getImage('./images/test.heic')
     expect(await detectContentType(buffer)).toBe('image/heic')

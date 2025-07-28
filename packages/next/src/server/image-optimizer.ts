@@ -37,6 +37,7 @@ const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const JXL = 'image/jxl'
+const JP2 = 'image/jp2'
 const HEIC = 'image/heic'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
@@ -223,50 +224,55 @@ export async function detectContentType(
   if ([0x25, 0x50, 0x44, 0x46, 0x2d].every((b, i) => buffer[i] === b)) {
     return PDF
   }
+  if (
+    [
+      0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
+    ].every((b, i) => buffer[i] === b)
+  ) {
+    return JP2
+  }
 
   const sharp = getSharp(null)
   const meta = await sharp(buffer)
     .metadata()
     .catch((_) => null)
-
-  if (meta?.format) {
-    switch (meta.format) {
-      case 'avif':
-        return AVIF
-      case 'webp':
-        return WEBP
-      case 'png':
-        return PNG
-      case 'jpeg':
-      case 'jpg':
-        return JPEG
-      case 'gif':
-        return GIF
-      case 'svg':
-        return SVG
-      case 'jxl':
-        return JXL
-      case 'tiff':
-      case 'tif':
-        return TIFF
-      case 'pdf':
-        return PDF
-      case 'dcraw':
-      case 'dz':
-      case 'exr':
-      case 'fits':
-      case 'heif':
-      case 'input':
-      case 'jp2':
-      case 'magick':
-      case 'openslide':
-      case 'ppm':
-      case 'rad':
-      case 'raw':
-      case 'v':
-      default:
-        return null
-    }
+  switch (meta?.format) {
+    case 'avif':
+      return AVIF
+    case 'webp':
+      return WEBP
+    case 'png':
+      return PNG
+    case 'jpeg':
+    case 'jpg':
+      return JPEG
+    case 'gif':
+      return GIF
+    case 'svg':
+      return SVG
+    case 'jxl':
+      return JXL
+    case 'jp2':
+      return JP2
+    case 'tiff':
+    case 'tif':
+      return TIFF
+    case 'pdf':
+      return PDF
+    case 'dcraw':
+    case 'dz':
+    case 'exr':
+    case 'fits':
+    case 'heif':
+    case 'input':
+    case 'magick':
+    case 'openslide':
+    case 'ppm':
+    case 'rad':
+    case 'raw':
+    case 'v':
+    default:
+      return null
   }
   return null
 }
