@@ -31,6 +31,7 @@ export async function createApp({
   typescript,
   tailwind,
   eslint,
+  biome,
   app,
   srcDir,
   importAlias,
@@ -48,6 +49,7 @@ export async function createApp({
   typescript: boolean
   tailwind: boolean
   eslint: boolean
+  biome: boolean
   app: boolean
   srcDir: boolean
   importAlias: string
@@ -235,6 +237,7 @@ export async function createApp({
       isOnline,
       tailwind,
       eslint,
+      biome,
       srcDir,
       importAlias,
       skipInstall,
