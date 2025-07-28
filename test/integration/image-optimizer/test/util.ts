@@ -407,6 +407,16 @@ export function runTests(ctx: RunTestsCtx) {
     })
   }
 
+  it('should not allow pdf format', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.pdf' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toContain(
+      "The requested resource isn't a valid image"
+    )
+  })
+
   it('should maintain ico format', async () => {
     const query = { w: ctx.w, q: 90, url: `/test.ico` }
     const opts = { headers: { accept: 'image/webp' } }

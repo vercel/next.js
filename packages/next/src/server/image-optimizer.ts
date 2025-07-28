@@ -218,6 +218,9 @@ export async function detectContentType(buffer: Buffer) {
   ) {
     return HEIC
   }
+  if ([0x25, 0x50, 0x44, 0x46, 0x2d].every((b, i) => buffer[i] === b)) {
+    return PDF
+  }
 
   const sharp = getSharp(null)
   const meta = await sharp(buffer)

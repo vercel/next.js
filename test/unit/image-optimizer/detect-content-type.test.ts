@@ -65,6 +65,11 @@ describe('detectContentType', () => {
     console.log('buffer', buffer)
     expect(await detectContentType(buffer)).toBe('image/heic')
   })
+  it('should return pdf', async () => {
+    const buffer = await getImage('./images/test.pdf')
+    console.log('buffer', buffer)
+    expect(await detectContentType(buffer)).toBe('application/pdf')
+  })
   it('should return tiff', async () => {
     const buffer = await getImage('./images/test.tiff')
     expect(await detectContentType(buffer)).toBe('image/tiff')
