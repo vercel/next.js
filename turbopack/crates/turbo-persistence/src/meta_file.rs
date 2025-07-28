@@ -20,16 +20,16 @@ use crate::{
 };
 
 #[derive(Clone, Default)]
-pub struct AqmfWeighter;
+pub struct AmqfWeighter;
 
-impl quick_cache::Weighter<u32, Arc<qfilter::Filter>> for AqmfWeighter {
+impl quick_cache::Weighter<u32, Arc<qfilter::Filter>> for AmqfWeighter {
     fn weight(&self, _key: &u32, filter: &Arc<qfilter::Filter>) -> u64 {
         filter.capacity() + 1
     }
 }
 
-pub type AqmfCache =
-    quick_cache::sync::Cache<u32, Arc<qfilter::Filter>, AqmfWeighter, BuildHasherDefault<FxHasher>>;
+pub type AmqfCache =
+    quick_cache::sync::Cache<u32, Arc<qfilter::Filter>, AmqfWeighter, BuildHasherDefault<FxHasher>>;
 
 pub struct MetaEntry {
     /// The metadata for the static sorted file.
@@ -88,7 +88,7 @@ impl MetaEntry {
     pub fn amqf(
         &self,
         meta: &MetaFile,
-        amqf_cache: &AqmfCache,
+        amqf_cache: &AmqfCache,
     ) -> Result<impl Deref<Target = qfilter::Filter>> {
         let use_amqf_cache = self.max_hash - self.min_hash < 1 << 60;
         Ok(if use_amqf_cache {
@@ -307,7 +307,7 @@ impl MetaFile {
         key_family: u32,
         key_hash: u64,
         key: &K,
-        amqf_cache: &AqmfCache,
+        amqf_cache: &AmqfCache,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<MetaLookupResult> {
