@@ -1,3 +1,5 @@
+'use cache'
+
 export default async function Page(props: PageProps<'/docs/[...slug]'>) {
   const { slug } = await props.params
 
