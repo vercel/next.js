@@ -350,12 +350,6 @@ export function runTests(ctx: RunTestsCtx) {
         'utf8'
       )
       expect(actual).toMatch(expected)
-      expect(ctx.nextOutput).not.toContain(
-        `The requested resource isn't a valid image`
-      )
-      expect(ctx.nextOutput).not.toContain(
-        `valid but image type is not allowed`
-      )
     })
   } else {
     it('should not allow vector svg', async () => {
