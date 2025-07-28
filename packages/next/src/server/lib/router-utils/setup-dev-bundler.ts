@@ -12,7 +12,6 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv } from '../../../build/swc'
 import fs from 'fs'
-import { mkdir } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
@@ -173,17 +172,8 @@ async function startWatcher(
 ) {
   const { nextConfig, appDir, pagesDir, dir, resetFetch } = opts
   const { useFileSystemPublicRoutes } = nextConfig
-  const usingTypeScript = await verifyTypeScript(opts)
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
-
-  // we ensure the types directory exists here
-  if (usingTypeScript) {
-    const distTypesDir = path.join(distDir, 'types')
-    if (!fs.existsSync(distTypesDir)) {
-      await mkdir(distTypesDir, { recursive: true })
-    }
-  }
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -223,6 +213,20 @@ async function startWatcher(
 
   // have to write this after starting hot-reloader since that
   // cleans the dist dir
+  const distTypesDir = path.join(distDir, 'types')
+  await writeRouteTypesManifest(
+    {
+      appRoutes: {},
+      pageRoutes: {},
+      layoutRoutes: {},
+      redirectRoutes: {},
+      rewriteRoutes: {},
+    },
+    path.join(distTypesDir, 'routes.d.ts')
+  )
+
+  const usingTypeScript = await verifyTypeScript(opts)
+
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
     version: 3,

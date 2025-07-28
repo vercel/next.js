@@ -1107,11 +1107,9 @@ export default async function build(
         await recursiveDelete(distDir, /^cache/)
       }
 
-      // For app directory, we run type checking after build. That's because
+      // We run type checking after build. That's because
       // we dynamically generate types for each layout and page in the app
       // directory.
-      if (!appDir && !isCompileMode)
-        await startTypeChecking(typeCheckingOptions)
 
       if (appDir && 'exportPathMap' in config) {
         Log.error(
@@ -1793,8 +1791,8 @@ export default async function build(
         })
       }
 
-      // For app directory, we run type checking after build.
-      if (appDir && !isCompileMode && !isGenerateMode) {
+      // We run type checking after build.
+      if (!isCompileMode && !isGenerateMode) {
         await updateBuildDiagnostics({
           buildStage: 'type-checking',
         })
