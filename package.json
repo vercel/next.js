@@ -135,6 +135,7 @@
     "@types/html-validator": "5.0.3",
     "@types/http-proxy": "1.17.3",
     "@types/jest": "29.5.5",
+    "@types/minimatch": "6.0.0",
     "@types/node": "20.17.6",
     "@types/node-fetch": "2.6.1",
     "@types/react": "19.1.8",

@@ -196,6 +196,9 @@ importers:
       '@types/jest':
         specifier: 29.5.5
         version: 29.5.5
+      '@types/minimatch':
+        specifier: 6.0.0
+        version: 6.0.0
       '@types/node':
         specifier: 20.17.6
         version: 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
@@ -5706,6 +5709,10 @@ packages:
 
   '@types/minimatch@3.0.3':
     resolution: {integrity: sha512-tHq6qdbT9U1IRSGf14CL0pUlULksvY9OZ+5eEgl1N7t+OA3tGvNpxJCzuKQlsNgCVwbAs670L1vcVQi8j9HjnA==}
+
+  '@types/minimatch@6.0.0':
+    resolution: {integrity: sha512-zmPitbQ8+6zNutpwgcQuLcsEpn/Cj54Kbn7L5pX0Os5kdWplB7xPgEh/g+SWOB/qmows2gpuCaPyduq8ZZRnxA==}
+    deprecated: This is a stub types definition. minimatch provides its own type definitions, so you do not need this installed.
 
   '@types/minimist@1.2.5':
     resolution: {integrity: sha512-hov8bUuiLiyFPGyFPE1lwWhmzYbirOXQNNo40+y3zow8aFVTeyn3VWL0VFFfdNddA8S4Vf0Tc062rzyNr7Paag==}
@@ -21645,7 +21652,7 @@ snapshots:
   '@types/glob@7.1.1':
     dependencies:
       '@types/events': 3.0.0
-      '@types/minimatch': 3.0.3
+      '@types/minimatch': 6.0.0
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
 
   '@types/graceful-fs@4.1.9':
@@ -21763,6 +21770,10 @@ snapshots:
   '@types/mime@2.0.1': {}
 
   '@types/minimatch@3.0.3': {}
+
+  '@types/minimatch@6.0.0':
+    dependencies:
+      minimatch: 3.0.4
 
   '@types/minimist@1.2.5': {}
 
