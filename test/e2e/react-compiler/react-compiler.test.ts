@@ -42,7 +42,7 @@ describe.each(
           },
 
     dependencies: {
-      'babel-plugin-react-compiler': '19.0.0-beta-e552027-20250112',
+      'babel-plugin-react-compiler': '19.1.0-rc.2',
       ...dependencies,
     },
   })

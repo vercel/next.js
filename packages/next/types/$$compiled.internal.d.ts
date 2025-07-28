@@ -68,9 +68,9 @@ declare module 'react-server-dom-webpack/client' {
   export function createServerReference(
     id: string,
     callServer: CallServerCallback,
-    encodeFormAction?: EncodeFormActionCallback,
-    findSourceMapURL?: FindSourceMapURLCallback, // DEV-only
-    functionName?: string
+    encodeFormAction: EncodeFormActionCallback | undefined,
+    findSourceMapURL: FindSourceMapURLCallback | undefined, // DEV-only
+    functionName: string | undefined
   ): (...args: unknown[]) => Promise<unknown>
 
   export function createTemporaryReferenceSet(
@@ -100,7 +100,8 @@ declare module 'react-server-dom-webpack/client.browser' {
   export interface Options {
     callServer?: CallServerCallback
     environmentName?: string
-    findSourceMapURL?: FindSourceMapURLCallback
+    // It's optional but we want to avoid accidentally omitting it.
+    findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     temporaryReferences?: TemporaryReferenceSet
   }
@@ -300,7 +301,8 @@ declare module 'react-server-dom-webpack/client.edge' {
     nonce?: string
     encodeFormAction?: EncodeFormActionCallback
     temporaryReferences?: TemporaryReferenceSet
-    findSourceMapURL?: FindSourceMapURLCallback
+    // It's optional but we want to avoid accidentally omitting it.
+    findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     environmentName?: string
   }

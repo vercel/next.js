@@ -717,7 +717,10 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: FileSystemPath, content: Vc<FileContent>) -> Result<()> {
-        mark_session_dependent();
+        // You might be tempted to use `mark_session_dependent` here, but
+        // `write` purely declares a side effect and does not need to be reexecuted in the next
+        // session. All side effects are reexecuted in general.
+
         let full_path = self.to_sys_path(fs_path).await?;
         let content = content.await?;
         let inner = self.inner.clone();
@@ -848,7 +851,10 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
-        mark_session_dependent();
+        // You might be tempted to use `mark_session_dependent` here, but
+        // `write_link` purely declares a side effect and does not need to be reexecuted in the next
+        // session. All side effects are reexecuted in general.
+
         let full_path = self.to_sys_path(fs_path).await?;
         let content = target.await?;
         let inner = self.inner.clone();

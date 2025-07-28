@@ -9,7 +9,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
-use turbo_tasks_fetch::{HttpResponseBody, ReqwestClientConfig, fetch};
+use turbo_tasks_fetch::{FetchClient, HttpResponseBody};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
     json::parse_json_with_source_context,
@@ -182,7 +182,7 @@ pub struct NextFontGoogleCssModuleReplacer {
     project_path: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
     next_mode: ResolvedVc<NextMode>,
-    reqwest_client_config: ResolvedVc<ReqwestClientConfig>,
+    fetch_client: ResolvedVc<FetchClient>,
 }
 
 #[turbo_tasks::value_impl]
@@ -192,13 +192,13 @@ impl NextFontGoogleCssModuleReplacer {
         project_path: FileSystemPath,
         execution_context: ResolvedVc<ExecutionContext>,
         next_mode: ResolvedVc<NextMode>,
-        reqwest_client_config: ResolvedVc<ReqwestClientConfig>,
+        fetch_client: ResolvedVc<FetchClient>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
             execution_context,
             next_mode,
-            reqwest_client_config,
+            fetch_client,
         })
     }
 
@@ -233,9 +233,9 @@ impl NextFontGoogleCssModuleReplacer {
             .map_or_else(
                 || {
                     fetch_real_stylesheet(
+                        *self.fetch_client,
                         stylesheet_url.clone(),
                         css_virtual_path.clone(),
-                        *self.reqwest_client_config,
                     )
                     .boxed()
                 },
@@ -375,19 +375,16 @@ struct NextFontGoogleFontFileOptions {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: FileSystemPath,
-    reqwest_client_config: ResolvedVc<ReqwestClientConfig>,
+    fetch_client: ResolvedVc<FetchClient>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    pub fn new(
-        project_path: FileSystemPath,
-        reqwest_client_config: ResolvedVc<ReqwestClientConfig>,
-    ) -> Vc<Self> {
+    pub fn new(project_path: FileSystemPath, fetch_client: ResolvedVc<FetchClient>) -> Vc<Self> {
         Self::cell(NextFontGoogleFontFileReplacer {
             project_path,
-            reqwest_client_config,
+            fetch_client,
         })
     }
 }
@@ -443,12 +440,9 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
-        let Some(font) = fetch_from_google_fonts(
-            url.into(),
-            font_virtual_path.clone(),
-            *self.reqwest_client_config,
-        )
-        .await?
+        let Some(font) =
+            fetch_from_google_fonts(*self.fetch_client, url.into(), font_virtual_path.clone())
+                .await?
         else {
             return Ok(ImportMapResult::Result(ResolveResult::unresolvable()).cell());
         };
@@ -670,27 +664,23 @@ fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontGoogleFontF
 }
 
 async fn fetch_real_stylesheet(
+    fetch_client: Vc<FetchClient>,
     stylesheet_url: RcStr,
     css_virtual_path: FileSystemPath,
-    reqwest_client_config: Vc<ReqwestClientConfig>,
 ) -> Result<Option<Vc<RcStr>>> {
-    let body =
-        fetch_from_google_fonts(stylesheet_url, css_virtual_path, reqwest_client_config).await?;
+    let body = fetch_from_google_fonts(fetch_client, stylesheet_url, css_virtual_path).await?;
 
     Ok(body.map(|body| body.to_string()))
 }
 
 async fn fetch_from_google_fonts(
+    fetch_client: Vc<FetchClient>,
     url: RcStr,
     virtual_path: FileSystemPath,
-    reqwest_client_config: Vc<ReqwestClientConfig>,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
-    let result = fetch(
-        url,
-        Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)),
-        reqwest_client_config,
-    )
-    .await?;
+    let result = fetch_client
+        .fetch(url, Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)))
+        .await?;
 
     Ok(match *result {
         Ok(r) => Some(*r.await?.body),

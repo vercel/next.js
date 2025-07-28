@@ -178,7 +178,6 @@ pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
-    pub refresh: bool,
     /// variant of tree shaking to use
     pub tree_shaking_mode: Option<TreeShakingMode>,
     /// module is forced to a specific type (happens e. g. for .cjs and .mjs)
@@ -824,14 +823,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 .module
                 .module_content(*this.chunking_context, async_module_info);
 
-            EcmascriptChunkItemContent::new(
-                content,
-                *this.chunking_context,
-                this.module.options(),
-                async_module_options,
-            )
-            .resolve()
-            .await
+            EcmascriptChunkItemContent::new(content, *this.chunking_context, async_module_options)
+                .resolve()
+                .await
         }
         .instrument(span)
         .await

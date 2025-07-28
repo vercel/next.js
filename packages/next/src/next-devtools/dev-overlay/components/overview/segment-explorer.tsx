@@ -5,7 +5,7 @@ import {
 } from '../../segment-explorer-trie'
 import { cx } from '../../utils/cx'
 import { SegmentBoundaryTrigger } from './segment-boundary-trigger'
-import { Tooltip } from '../../../components/tooltip'
+import { Tooltip } from '../tooltip/tooltip'
 import { useCallback, useMemo } from 'react'
 import {
   BUILTIN_PREFIX,

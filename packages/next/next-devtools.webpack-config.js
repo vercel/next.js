@@ -92,6 +92,25 @@ module.exports = ({ dev, ...rest }) => {
           type: 'javascript/auto',
         },
         {
+          test: /\.(ts|tsx)$/,
+          exclude: [/node_modules/],
+          loader: 'babel-loader',
+          options: {
+            plugins: [
+              [
+                'babel-plugin-react-compiler',
+                /**
+                 * @type {import('babel-plugin-react-compiler').PluginOptions}
+                 */
+                ({}),
+              ],
+              ['@babel/plugin-syntax-typescript', { isTSX: true }],
+            ],
+            sourceMaps: true,
+          },
+          type: 'javascript/auto',
+        },
+        {
           test: /\.css$/,
           use: [
             {

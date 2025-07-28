@@ -125,6 +125,7 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
       value.resizeRef.current.style.width = `${width}px`
       value.resizeRef.current.style.height = `${height}px`
     }
+    // eslint-disable-next-line react-hooks/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

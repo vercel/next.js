@@ -1996,9 +1996,10 @@ function flushCompletedChunks(request) {
           "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
         )
       ),
-    (request.status = 14),
     null !== request.destination &&
-      (request.destination.close(), (request.destination = null)));
+      ((request.status = 14),
+      request.destination.close(),
+      (request.destination = null)));
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;

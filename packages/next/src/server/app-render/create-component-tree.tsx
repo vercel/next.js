@@ -752,10 +752,8 @@ async function createComponentTreeInternal(
     let pageElement: React.ReactNode
     if (isClientComponent) {
       if (isStaticGeneration) {
-        const promiseOfParams = createPrerenderParamsForClientSegment(
-          currentParams,
-          workStore
-        )
+        const promiseOfParams =
+          createPrerenderParamsForClientSegment(currentParams)
         const promiseOfSearchParams =
           createPrerenderSearchParamsForClientPage(workStore)
         pageElement = (
@@ -851,10 +849,8 @@ async function createComponentTreeInternal(
       let clientSegment: React.ReactNode
 
       if (isStaticGeneration) {
-        const promiseOfParams = createPrerenderParamsForClientSegment(
-          currentParams,
-          workStore
-        )
+        const promiseOfParams =
+          createPrerenderParamsForClientSegment(currentParams)
 
         clientSegment = (
           <ClientSegmentRoot

@@ -1,4 +1,4 @@
-import { Tooltip } from '../../../components/tooltip'
+import { Tooltip } from '../tooltip/tooltip'
 import { InfoIcon } from './segment-explorer'
 
 export function SegmentSuggestion({

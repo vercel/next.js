@@ -286,6 +286,10 @@ describe('Error recovery app', () => {
 
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
+      // TODO(sokra): The location is wrong because of an bug with HMR and source maps.
+      // When the code `index.js` changes, this also moves the locations of `app/page.js` in the bundled file.
+      // So the SourceMap is updated to reflect that. But the browser still has the old bundled file loaded.
+      // So we look up locations from the old bundle in the new source maps, which leads to mismatched locations.
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "oops",
@@ -298,7 +302,7 @@ describe('Error recovery app', () => {
            "Index.useCallback[increment] index.js (7:11)",
            "button <anonymous>",
            "Index index.js (12:7)",
-           "Page index.js (10:6)",
+           "Page index.js (8:16)",
          ],
        }
       `)
