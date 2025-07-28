@@ -56,6 +56,15 @@ describe('detectContentType', () => {
     const buffer = await getImage('./images/test.icns')
     expect(await detectContentType(buffer)).toBe('image/x-icns')
   })
+  it('should return jxl', async () => {
+    const buffer = await getImage('./images/test.jxl')
+    expect(await detectContentType(buffer)).toBe('image/jxl')
+  })
+  it('should return heic', async () => {
+    const buffer = await getImage('./images/test.heic')
+    console.log('buffer', buffer)
+    expect(await detectContentType(buffer)).toBe('image/heic')
+  })
   it('should return tiff', async () => {
     const buffer = await getImage('./images/test.tiff')
     expect(await detectContentType(buffer)).toBe('image/tiff')

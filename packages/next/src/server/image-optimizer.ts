@@ -36,6 +36,8 @@ const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
+const JXL = 'image/jxl'
+const HEIC = 'image/heic'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const ICO = 'image/x-icon'
@@ -45,7 +47,7 @@ const BMP = 'image/bmp'
 const PDF = 'application/pdf'
 const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const BYPASS_TYPES = [SVG, ICO, ICNS, BMP]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
@@ -198,6 +200,23 @@ export async function detectContentType(buffer: Buffer) {
   }
   if ([0x42, 0x4d].every((b, i) => buffer[i] === b)) {
     return BMP
+  }
+  if ([0xff, 0x0a].every((b, i) => buffer[i] === b)) {
+    return JXL
+  }
+  if (
+    [
+      0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
+    ].every((b, i) => buffer[i] === b)
+  ) {
+    return JXL
+  }
+  if (
+    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return HEIC
   }
 
   const sharp = getSharp(null)
