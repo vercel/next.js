@@ -16,6 +16,7 @@
     "fast-glob": "3.3.1"
   },
   "devDependencies": {
+    "@types/minimatch": "5.1.2",
     "eslint": "8.56.0"
   },
   "scripts": {

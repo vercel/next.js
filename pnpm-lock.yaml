@@ -196,9 +196,6 @@ importers:
       '@types/jest':
         specifier: 29.5.5
         version: 29.5.5
-      '@types/minimatch':
-        specifier: 6.0.0
-        version: 6.0.0
       '@types/node':
         specifier: 20.17.6
         version: 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
@@ -905,6 +902,9 @@ importers:
         specifier: 3.3.1
         version: 3.3.1
     devDependencies:
+      '@types/minimatch':
+        specifier: 5.1.2
+        version: 5.1.2
       eslint:
         specifier: 8.56.0
         version: 8.56.0
@@ -5715,6 +5715,9 @@ packages:
 
   '@types/minimatch@3.0.3':
     resolution: {integrity: sha512-tHq6qdbT9U1IRSGf14CL0pUlULksvY9OZ+5eEgl1N7t+OA3tGvNpxJCzuKQlsNgCVwbAs670L1vcVQi8j9HjnA==}
+
+  '@types/minimatch@5.1.2':
+    resolution: {integrity: sha512-K0VQKziLUWkVKiRVrx4a40iPaxTUefQmjtkQofBkYRcoaaL/8rhwDWww9qWbrgicNOgnpIsMxyNIUM4+n6dUIA==}
 
   '@types/minimatch@6.0.0':
     resolution: {integrity: sha512-zmPitbQ8+6zNutpwgcQuLcsEpn/Cj54Kbn7L5pX0Os5kdWplB7xPgEh/g+SWOB/qmows2gpuCaPyduq8ZZRnxA==}
@@ -21813,6 +21816,8 @@ snapshots:
   '@types/mime@2.0.1': {}
 
   '@types/minimatch@3.0.3': {}
+
+  '@types/minimatch@5.1.2': {}
 
   '@types/minimatch@6.0.0':
     dependencies:
