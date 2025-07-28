@@ -42,6 +42,7 @@ import type {
   NormalizedSearch,
   RouteCacheKey,
 } from './cache-key'
+import { getRenderedSearch } from './cache-key'
 import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
 import { createLRU } from './lru'
 import {
@@ -62,6 +63,7 @@ import {
   DOC_PREFETCH_RANGE_HEADER_VALUE,
   doesExportedHtmlMatchBuildId,
 } from '../../../shared/lib/segment-cache/output-export-prefetch-encoding'
+import { FetchStrategy } from '../segment-cache'
 
 // A note on async/await when working in the prefetch cache:
 //
@@ -130,6 +132,7 @@ type PendingRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Empty | EntryStatus.Pending
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
+  renderedSearch: null
   tree: null
   head: HeadData | null
   isHeadPartial: true
@@ -140,6 +143,7 @@ type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Rejected
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
+  renderedSearch: null
   tree: null
   head: null
   isHeadPartial: true
@@ -150,6 +154,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Fulfilled
   blockedTasks: null
   canonicalUrl: string
+  renderedSearch: NormalizedSearch
   tree: RouteTree
   head: HeadData
   isHeadPartial: boolean
@@ -160,12 +165,6 @@ export type RouteCacheEntry =
   | PendingRouteCacheEntry
   | FulfilledRouteCacheEntry
   | RejectedRouteCacheEntry
-
-export const enum FetchStrategy {
-  PPR,
-  Full,
-  LoadingBoundary,
-}
 
 type SegmentCacheEntryShared = {
   staleAt: number
@@ -411,15 +410,16 @@ export function getSegmentKeypathForTask(
   // If we're fetching using PPR, we do not need to include the search params in
   // the cache key, because the search params are treated as dynamic data. The
   // cache entry is valid for all possible search param values.
-  const isDynamicTask = task.includeDynamicData || !route.isPPREnabled
+  const isDynamicTask =
+    task.fetchStrategy === FetchStrategy.Full || !route.isPPREnabled
   return isDynamicTask && path.endsWith('/' + PAGE_SEGMENT_KEY)
-    ? [path, task.key.search]
+    ? [path, route.renderedSearch]
     : [path]
 }
 
 export function readSegmentCacheEntry(
   now: number,
-  routeCacheKey: RouteCacheKey,
+  route: FulfilledRouteCacheEntry,
   path: string
 ): SegmentCacheEntry | null {
   if (!path.endsWith('/' + PAGE_SEGMENT_KEY)) {
@@ -427,15 +427,18 @@ export function readSegmentCacheEntry(
     return readExactSegmentCacheEntry(now, [path])
   }
 
-  // Page segments may or may not contain search params. If they were prefetched
-  // using a dynamic request, then we will have an entry with search params.
-  // Check for that case first.
-  const entryWithSearchParams = readExactSegmentCacheEntry(now, [
-    path,
-    routeCacheKey.search,
-  ])
-  if (entryWithSearchParams !== null) {
-    return entryWithSearchParams
+  const renderedSearch = route.renderedSearch
+  if (renderedSearch !== null) {
+    // Page segments may or may not contain search params. If they were prefetched
+    // using a dynamic request, then we will have an entry with search params.
+    // Check for that case first.
+    const entryWithSearchParams = readExactSegmentCacheEntry(now, [
+      path,
+      renderedSearch,
+    ])
+    if (entryWithSearchParams !== null) {
+      return entryWithSearchParams
+    }
   }
 
   // If we did not find an entry with the given search params, check for a
@@ -550,6 +553,7 @@ export function readOrCreateRouteCacheEntry(
     couldBeIntercepted: true,
     // Similarly, we don't yet know if the route supports PPR.
     isPPREnabled: false,
+    renderedSearch: null,
 
     // LRU-related fields
     keypath: null,
@@ -783,6 +787,7 @@ function fulfillRouteCacheEntry(
   staleAt: number,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
+  renderedSearch: NormalizedSearch,
   isPPREnabled: boolean
 ): FulfilledRouteCacheEntry {
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
@@ -793,13 +798,14 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
+  fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.isPPREnabled = isPPREnabled
   pingBlockedTasks(entry)
   return fulfilledEntry
 }
 
 function fulfillSegmentCacheEntry(
-  segmentCacheEntry: EmptySegmentCacheEntry | PendingSegmentCacheEntry,
+  segmentCacheEntry: PendingSegmentCacheEntry,
   rsc: React.ReactNode,
   loading: LoadingModuleData | Promise<LoadingModuleData>,
   staleAt: number,
@@ -1133,6 +1139,11 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      // Get the search params that were used to render the target page. This may
+      // be different from the search params in the request URL, if the page
+      // was rewritten.
+      const renderedSearch = getRenderedSearch(response)
+
       const staleTimeMs = serverData.staleTime * 1000
       fulfillRouteCacheEntry(
         entry,
@@ -1142,6 +1153,7 @@ export async function fetchRouteOnCacheMiss(
         Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
+        renderedSearch,
         routeIsPPREnabled
       )
     } else {
@@ -1174,6 +1186,9 @@ export async function fetchRouteOnCacheMiss(
       writeDynamicTreeResponseIntoCache(
         Date.now(),
         task,
+        // The non-PPR response format is what we'd get if we prefetched these segments
+        // using the LoadingBoundary fetch strategy, so mark their cache entries accordingly.
+        FetchStrategy.LoadingBoundary,
         response,
         serverData,
         entry,
@@ -1335,7 +1350,7 @@ export async function fetchSegmentOnCacheMiss(
 export async function fetchSegmentPrefetchesUsingDynamicRequest(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  fetchStrategy: FetchStrategy,
+  fetchStrategy: FetchStrategy.LoadingBoundary | FetchStrategy.Full,
   dynamicRequestTree: FlightRouterState,
   spawnedEntries: Map<string, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
@@ -1362,6 +1377,19 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     if (!response || !response.ok || !response.body) {
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
+      rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+      return null
+    }
+
+    const renderedSearch = getRenderedSearch(response)
+    if (renderedSearch !== route.renderedSearch) {
+      // The search params that were used to render the target page are
+      // different from the search params in the request URL. This only happens
+      // when there's a dynamic rewrite in between the tree prefetch and the
+      // data prefetch.
+      // TODO: For now, since this is an edge case, we reject the prefetch, but
+      // the proper way to handle this is to evict the stale route tree entry
+      // then fill the cache with the new response.
       rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
       return null
     }
@@ -1402,6 +1430,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       Date.now(),
       task,
+      fetchStrategy,
       response,
       serverData,
       isResponsePartial,
@@ -1421,6 +1450,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 function writeDynamicTreeResponseIntoCache(
   now: number,
   task: PrefetchTask,
+  fetchStrategy: FetchStrategy.LoadingBoundary | FetchStrategy.Full,
   response: RSCResponse,
   serverData: NavigationFlightResponse,
   entry: PendingRouteCacheEntry,
@@ -1462,6 +1492,11 @@ function writeDynamicTreeResponseIntoCache(
   const isResponsePartial =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
 
+  // Get the search params that were used to render the target page. This may
+  // be different from the search params in the request URL, if the page
+  // was rewritten.
+  const renderedSearch = getRenderedSearch(response)
+
   const fulfilledEntry = fulfillRouteCacheEntry(
     entry,
     convertRootFlightRouterStateToRouteTree(flightRouterState),
@@ -1470,6 +1505,7 @@ function writeDynamicTreeResponseIntoCache(
     now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
+    renderedSearch,
     routeIsPPREnabled
   )
 
@@ -1485,6 +1521,7 @@ function writeDynamicTreeResponseIntoCache(
   writeDynamicRenderResponseIntoCache(
     now,
     task,
+    fetchStrategy,
     response,
     serverData,
     isResponsePartial,
@@ -1511,6 +1548,7 @@ function rejectSegmentEntriesIfStillPending(
 function writeDynamicRenderResponseIntoCache(
   now: number,
   task: PrefetchTask,
+  fetchStrategy: FetchStrategy.LoadingBoundary | FetchStrategy.Full,
   response: RSCResponse,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
@@ -1534,6 +1572,16 @@ function writeDynamicRenderResponseIntoCache(
     // TODO: We should cache this, too, so that the MPA navigation is immediate.
     return null
   }
+
+  const staleTimeHeaderSeconds = response.headers.get(
+    NEXT_ROUTER_STALE_TIME_HEADER
+  )
+  const staleTimeMs =
+    staleTimeHeaderSeconds !== null
+      ? parseInt(staleTimeHeaderSeconds, 10) * 1000
+      : STATIC_STALETIME_MS
+  const staleAt = now + staleTimeMs
+
   for (const flightData of flightDatas) {
     const seedData = flightData.seedData
     if (seedData !== null) {
@@ -1555,23 +1603,36 @@ function writeDynamicRenderResponseIntoCache(
           encodeSegment(segment)
         )
       }
-      const staleTimeHeaderSeconds = response.headers.get(
-        NEXT_ROUTER_STALE_TIME_HEADER
-      )
-      const staleTimeMs =
-        staleTimeHeaderSeconds !== null
-          ? parseInt(staleTimeHeaderSeconds, 10) * 1000
-          : STATIC_STALETIME_MS
+
       writeSeedDataIntoCache(
         now,
         task,
+        fetchStrategy,
         route,
-        now + staleTimeMs,
+        staleAt,
         seedData,
         isResponsePartial,
         segmentKey,
         spawnedEntries
       )
+    }
+
+    // During a dynamic request, the server sends back new head data for the
+    // page. Overwrite the existing head with the new one. Note that we're
+    // intentionally not taking into account whether the existing head is
+    // already complete, even though the incoming head might not have finished
+    // streaming in yet. This is to prioritize consistency of the head with
+    // the segment data (though it's still not a guarantee, since some of the
+    // segment data may be reused from a previous request).
+    route.head = flightData.head
+    route.isHeadPartial = flightData.isHeadPartial
+    // TODO: Currently the stale time of the route tree represents the
+    // stale time of both the route tree *and* all the segment data. So we
+    // can't just overwrite this field; we have to use whichever value is
+    // lower. In the future, though, the plan is to track segment lifetimes
+    // separately from the route tree lifetime.
+    if (staleAt < route.staleAt) {
+      route.staleAt = staleAt
     }
   }
   // Any entry that's still pending was intentionally not rendered by the
@@ -1595,6 +1656,7 @@ function writeDynamicRenderResponseIntoCache(
 function writeSeedDataIntoCache(
   now: number,
   task: PrefetchTask,
+  fetchStrategy: FetchStrategy.LoadingBoundary | FetchStrategy.Full,
   route: FulfilledRouteCacheEntry,
   staleAt: number,
   seedData: CacheNodeSeedData,
@@ -1631,12 +1693,21 @@ function writeSeedDataIntoCache(
     if (possiblyNewEntry.status === EntryStatus.Empty) {
       // Confirmed this is a new entry. We can fulfill it.
       const newEntry = possiblyNewEntry
-      fulfillSegmentCacheEntry(newEntry, rsc, loading, staleAt, isPartial)
+      fulfillSegmentCacheEntry(
+        upgradeToPendingSegment(newEntry, fetchStrategy),
+        rsc,
+        loading,
+        staleAt,
+        isPartial
+      )
     } else {
       // There was already an entry in the cache. But we may be able to
       // replace it with the new one from the server.
       const newEntry = fulfillSegmentCacheEntry(
-        createDetachedSegmentCacheEntry(staleAt),
+        upgradeToPendingSegment(
+          createDetachedSegmentCacheEntry(staleAt),
+          fetchStrategy
+        ),
         rsc,
         loading,
         staleAt,
@@ -1659,6 +1730,7 @@ function writeSeedDataIntoCache(
         writeSeedDataIntoCache(
           now,
           task,
+          fetchStrategy,
           route,
           staleAt,
           childSeedData,

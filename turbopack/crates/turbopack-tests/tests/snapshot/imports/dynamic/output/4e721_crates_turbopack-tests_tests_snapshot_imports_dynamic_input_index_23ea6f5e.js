@@ -4,7 +4,7 @@
 
 var { m: module, e: exports } = __turbopack_context__;
 {
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/dynamic/input/vercel.mjs [test] (ecmascript, async loader)")(__turbopack_context__.i).then(console.log);
+__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/dynamic/input/vercel.mjs [test] (ecmascript, async loader)").then(console.log);
 }}),
 }]);
 

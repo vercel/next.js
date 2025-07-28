@@ -16,7 +16,7 @@ import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 
 const SHORT_DURATION_MS = 150
 
-export function NextLogoNew({
+export function NextLogo({
   onTriggerClick,
   ...buttonProps
 }: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
@@ -92,7 +92,6 @@ export function NextLogoNew({
           }
 
           [data-next-badge] {
-            -webkit-font-smoothing: antialiased;
             width: var(--size);
             height: var(--size);
             display: flex;

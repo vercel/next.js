@@ -3,7 +3,7 @@ import { outdent } from 'outdent'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('Error overlay - RSC runtime errors', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-runtime-errors')),
   })
 
@@ -51,36 +51,19 @@ describe('Error overlay - RSC runtime errors', () => {
 
     const browser = await next.browser('/client')
 
-    // TODO(veil): Inconsistent cursor position
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "\`cookies\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "app/client/page.js (4:15) @ Page
-       > 4 |   callServerApi()
-           |               ^",
-         "stack": [
-           "Page app/client/page.js (4:15)",
-         ],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "\`cookies\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "app/client/page.js (4:16) @ Page
-       > 4 |   callServerApi()
-           |                ^",
-         "stack": [
-           "Page app/client/page.js (4:16)",
-         ],
-       }
-      `)
-    }
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "\`cookies\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "app/client/page.js (4:16) @ Page
+     > 4 |   callServerApi()
+         |                ^",
+       "stack": [
+         "Page app/client/page.js (4:16)",
+       ],
+     }
+    `)
   })
 
   it('should show source code for jsx errors from server component', async () => {

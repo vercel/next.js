@@ -1,6 +1,7 @@
 use std::{future::Future, ops::Deref, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
+use futures_util::TryFutureExt;
 use napi::{
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
     bindgen_prelude::{External, ToNapiValue},
@@ -14,14 +15,13 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
-    error::PrettyPrintError,
     issue::{
         IssueDescriptionExt, IssueSeverity, PlainIssue, PlainIssueSource, PlainSource, StyledString,
     },
     source_pos::SourcePos,
 };
 
-use crate::{next_api::turbopack_ctx::NextTurbopackContext, util::log_internal_error_and_inform};
+use crate::next_api::turbopack_ctx::NextTurbopackContext;
 
 /// An [`OperationVc`] that can be passed back and forth to JS across the [`napi`][mod@napi]
 /// boundary via [`External`].
@@ -324,35 +324,35 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
 }
 
 pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
-    turbopack_ctx: NextTurbopackContext,
+    ctx: NextTurbopackContext,
     func: JsFunction,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
 ) -> napi::Result<External<RootTask>> {
     let func: ThreadsafeFunction<T> = func.create_threadsafe_function(0, mapper)?;
-    let task_id = turbopack_ctx.turbo_tasks().spawn_root_task(move || {
-        let handler = handler.clone();
-        let func = func.clone();
-        Box::pin(async move {
-            let result = handler().await;
+    let task_id = ctx.turbo_tasks().spawn_root_task({
+        let ctx = ctx.clone();
+        move || {
+            let ctx = ctx.clone();
+            let handler = handler.clone();
+            let func = func.clone();
+            async move {
+                let result = handler()
+                    .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+                    .await;
 
-            let status = func.call(
-                result.map_err(|e| {
-                    log_internal_error_and_inform(&e);
-                    napi::Error::from_reason(PrettyPrintError(&e).to_string())
-                }),
-                ThreadsafeFunctionCallMode::NonBlocking,
-            );
-            if !matches!(status, Status::Ok) {
-                let error = anyhow!("Error calling JS function: {}", status);
-                eprintln!("{error}");
-                return Err::<Vc<()>, _>(error);
+                let status = func.call(result, ThreadsafeFunctionCallMode::NonBlocking);
+                if !matches!(status, Status::Ok) {
+                    let error = anyhow!("Error calling JS function: {}", status);
+                    eprintln!("{error}");
+                    return Err::<Vc<()>, _>(error);
+                }
+                Ok(Default::default())
             }
-            Ok(Default::default())
-        })
+        }
     });
     Ok(External::new(RootTask {
-        turbopack_ctx,
+        turbopack_ctx: ctx,
         task_id: Some(task_id),
     }))
 }

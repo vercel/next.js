@@ -7,7 +7,6 @@ export type DialogProps = {
   'aria-describedby': string
   className?: string
   onClose?: () => void
-  dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 } & React.HTMLAttributes<HTMLDivElement>
 
 const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
@@ -27,7 +26,6 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   onClose,
   'aria-labelledby': ariaLabelledBy,
   'aria-describedby': ariaDescribedBy,
-  dialogResizerRef,
   ...props
 }) {
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
@@ -87,6 +85,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       ref={dialogRef}
       tabIndex={-1}
       data-nextjs-dialog
+      data-nextjs-scrollable-content
       role={role}
       aria-labelledby={ariaLabelledBy}
       aria-describedby={ariaDescribedBy}

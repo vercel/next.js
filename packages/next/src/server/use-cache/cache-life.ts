@@ -105,6 +105,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
         'cacheLife() can only be called inside a "use cache" function.'
       )
     case 'cache':
+    case 'private-cache':
       break
     default:
       workUnitStore satisfies never

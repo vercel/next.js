@@ -43,6 +43,7 @@ import {
 } from '../../lib/metadata/metadata-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -131,6 +132,9 @@ export function markCurrentScopeAsDynamic(
         // subtly different from reading a dynamic data source, which is
         // forbidden inside a cache scope.
         return
+      case 'private-cache':
+        // A private cache scope is already dynamic by definition.
+        return
       case 'prerender-legacy':
       case 'prerender-ppr':
       case 'request':
@@ -183,7 +187,7 @@ export function markCurrentScopeAsDynamic(
 }
 
 /**
- * This function is meant to be used when prerendering without dynamicIO or PPR.
+ * This function is meant to be used when prerendering without cacheComponents or PPR.
  * When called during a build it will cause Next.js to consider the route as dynamic.
  *
  * @internal
@@ -221,6 +225,9 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
       // because the outer cache scope creates a cache boundary. This is
       // subtly different from reading a dynamic data source, which is
       // forbidden inside a cache scope.
+      return
+    case 'private-cache':
+      // A private cache scope is already dynamic by definition.
       return
     case 'prerender':
     case 'prerender-legacy':
@@ -289,12 +296,12 @@ export function trackSynchronousPlatformIOAccessInDev(
 }
 
 /**
- * use this function when prerendering with dynamicIO. If we are doing a
+ * use this function when prerendering with cacheComponents. If we are doing a
  * prospective prerender we don't actually abort because we want to discover
  * all caches for the shell. If this is the actual prerender we do abort.
  *
  * This function accepts a prerenderStore but the caller should ensure we're
- * actually running in dynamicIO mode.
+ * actually running in cacheComponents mode.
  *
  * @internal
  */
@@ -537,6 +544,7 @@ export function createHangingInputAbortSignal(
     case 'prerender-legacy':
     case 'request':
     case 'cache':
+    case 'private-cache':
     case 'unstable-cache':
       return undefined
     default:
@@ -560,45 +568,48 @@ export function annotateDynamicAccess(
 }
 
 export function useDynamicRouteParams(expression: string) {
-  const workStore = workAsyncStorage.getStore()
-
-  if (
-    workStore &&
-    workStore.isStaticGeneration &&
-    workStore.fallbackRouteParams &&
-    workStore.fallbackRouteParams.size > 0
-  ) {
-    // There are fallback route params, we should track these as dynamic
-    // accesses.
-    const workUnitStore = workUnitAsyncStorage.getStore()
-    if (workUnitStore) {
-      switch (workUnitStore.type) {
-        case 'prerender-client':
-          // We are in a prerender with dynamicIO semantics. We are going to
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender-client':
+      case 'prerender': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
+          // We are in a prerender with cacheComponents semantics. We are going to
           // hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole.
           React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
-          break
-        case 'prerender':
-        case 'prerender-ppr':
+        }
+        break
+      }
+      case 'prerender-ppr': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
+          const workStore = workAsyncStorage.getStore()
+          if (!workStore) {
+            throw new InvariantError(
+              'Missing workStore in useDynamicRouteParams'
+            )
+          }
           return postponeWithTracking(
             workStore.route,
             expression,
             workUnitStore.dynamicTracking
           )
-        case 'prerender-legacy':
-          return throwToInterruptStaticGeneration(
-            expression,
-            workStore,
-            workUnitStore
-          )
-        case 'request':
-        case 'cache':
-        case 'unstable-cache':
-          break
-        default:
-          workUnitStore satisfies never
+        }
+        break
       }
+      case 'cache':
+      case 'private-cache':
+        throw new InvariantError(
+          `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+        )
+      case 'prerender-legacy':
+      case 'request':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 }
@@ -678,7 +689,10 @@ export enum PreludeState {
   Errored = 2,
 }
 
-function logDisallowedDynamicError(workStore: WorkStore, error: Error): void {
+export function logDisallowedDynamicError(
+  workStore: WorkStore,
+  error: Error
+): void {
   console.error(error)
 
   if (!workStore.dev) {
@@ -700,11 +714,6 @@ export function throwIfDisallowedDynamic(
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState
 ): void {
-  if (workStore.invalidDynamicUsageError) {
-    logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
-    throw new StaticGenBailoutError()
-  }
-
   if (prelude !== PreludeState.Full) {
     if (dynamicValidation.hasSuspenseAboveBody) {
       // This route has opted into allowing fully dynamic rendering

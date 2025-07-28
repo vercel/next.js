@@ -19,6 +19,8 @@ pub fn add_default_ignore_list(map: &mut swc_sourcemap::SourceMap) {
         if source.starts_with(concatcp!(SOURCE_URL_PROTOCOL, "///[next]"))
             || source.starts_with(concatcp!(SOURCE_URL_PROTOCOL, "///[turbopack]"))
             || source.contains("/node_modules/")
+            || source.ends_with("__nextjs-internal-proxy.cjs")
+            || source.ends_with("__nextjs-internal-proxy.mjs")
         {
             ignored_ids.insert(source_id);
         }

@@ -69,6 +69,11 @@ const filterStackFrame =
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
         .filterStackFrameDEV
     : undefined
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
 
 function onSegmentPrerenderError(error: unknown) {
   const digest = getDigestForWellKnownError(error)
@@ -98,6 +103,7 @@ export async function collectSegmentData(
   //
   try {
     await createFromReadableStream(streamFromBuffer(fullPageDataBuffer), {
+      findSourceMapURL,
       serverConsumerManifest,
     })
     await waitAtLeastOneReactRenderTask()
@@ -179,6 +185,7 @@ async function PrefetchTreeData({
   const initialRSCPayload: InitialRSCPayload = await createFromReadableStream(
     createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
     {
+      findSourceMapURL,
       serverConsumerManifest,
     }
   )
@@ -391,7 +398,7 @@ async function isPartialRSCData(
     signal: abortController.signal,
     onError() {},
     onPostpone() {
-      // If something postponed, i.e. when Dynamic IO is not enabled, we can
+      // If something postponed, i.e. when Cache Components is not enabled, we can
       // infer that the RSC data is partial.
       isPartial = true
     },

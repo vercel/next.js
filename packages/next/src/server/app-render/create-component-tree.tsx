@@ -29,7 +29,9 @@ import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
   BOUNDARY_PREFIX,
   BOUNDARY_SUFFIX,
+  BUILTIN_PREFIX,
   getConventionPathByType,
+  isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
 
 /**
@@ -55,7 +57,7 @@ export function createComponentTree(props: {
     {
       spanName: 'build component tree',
     },
-    () => createComponentTreeInternal(props)
+    () => createComponentTreeInternal(props, true)
   )
 }
 
@@ -71,35 +73,38 @@ function errorMissingDefaultExport(
 
 const cacheNodeKey = 'c'
 
-async function createComponentTreeInternal({
-  loaderTree: tree,
-  parentParams,
-  rootLayoutIncluded,
-  injectedCSS,
-  injectedJS,
-  injectedFontPreloadTags,
-  getViewportReady,
-  getMetadataReady,
-  ctx,
-  missingSlots,
-  preloadCallbacks,
-  authInterrupts,
-  StreamingMetadataOutlet,
-}: {
-  loaderTree: LoaderTree
-  parentParams: Params
-  rootLayoutIncluded: boolean
-  injectedCSS: Set<string>
-  injectedJS: Set<string>
-  injectedFontPreloadTags: Set<string>
-  getViewportReady: () => Promise<void>
-  getMetadataReady: () => Promise<void>
-  ctx: AppRenderContext
-  missingSlots?: Set<string>
-  preloadCallbacks: PreloadCallbacks
-  authInterrupts: boolean
-  StreamingMetadataOutlet: React.ComponentType | null
-}): Promise<CacheNodeSeedData> {
+async function createComponentTreeInternal(
+  {
+    loaderTree: tree,
+    parentParams,
+    rootLayoutIncluded,
+    injectedCSS,
+    injectedJS,
+    injectedFontPreloadTags,
+    getViewportReady,
+    getMetadataReady,
+    ctx,
+    missingSlots,
+    preloadCallbacks,
+    authInterrupts,
+    StreamingMetadataOutlet,
+  }: {
+    loaderTree: LoaderTree
+    parentParams: Params
+    rootLayoutIncluded: boolean
+    injectedCSS: Set<string>
+    injectedJS: Set<string>
+    injectedFontPreloadTags: Set<string>
+    getViewportReady: () => Promise<void>
+    getMetadataReady: () => Promise<void>
+    ctx: AppRenderContext
+    missingSlots?: Set<string>
+    preloadCallbacks: PreloadCallbacks
+    authInterrupts: boolean
+    StreamingMetadataOutlet: React.ComponentType | null
+  },
+  isRoot: boolean
+): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
     workStore,
@@ -297,13 +302,17 @@ async function createComponentTreeInternal({
         case 'prerender':
         case 'prerender-legacy':
         case 'prerender-ppr':
-        case 'cache':
           if (workUnitStore.revalidate > defaultRevalidate) {
             workUnitStore.revalidate = defaultRevalidate
           }
           break
-        case 'prerender-client':
         case 'request':
+          // A request store doesn't have a revalidate property.
+          break
+        // createComponentTree is not called for these stores:
+        case 'cache':
+        case 'private-cache':
+        case 'prerender-client':
         case 'unstable-cache':
           break
         default:
@@ -520,31 +529,34 @@ async function createComponentTreeInternal({
             }
           }
 
-          const seedData = await createComponentTreeInternal({
-            loaderTree: parallelRoute,
-            parentParams: currentParams,
-            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            injectedCSS: injectedCSSWithCurrentLayout,
-            injectedJS: injectedJSWithCurrentLayout,
-            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
-            // but we only want to throw on the first one.
-            getMetadataReady: isChildrenRouteKey
-              ? getMetadataReady
-              : () => Promise.resolve(),
-            getViewportReady: isChildrenRouteKey
-              ? getViewportReady
-              : () => Promise.resolve(),
-            ctx,
-            missingSlots,
-            preloadCallbacks,
-            authInterrupts,
-            // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-            // but we only want to throw on the first one.
-            StreamingMetadataOutlet: isChildrenRouteKey
-              ? StreamingMetadataOutlet
-              : null,
-          })
+          const seedData = await createComponentTreeInternal(
+            {
+              loaderTree: parallelRoute,
+              parentParams: currentParams,
+              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+              injectedCSS: injectedCSSWithCurrentLayout,
+              injectedJS: injectedJSWithCurrentLayout,
+              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+              // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
+              // but we only want to throw on the first one.
+              getMetadataReady: isChildrenRouteKey
+                ? getMetadataReady
+                : () => Promise.resolve(),
+              getViewportReady: isChildrenRouteKey
+                ? getViewportReady
+                : () => Promise.resolve(),
+              ctx,
+              missingSlots,
+              preloadCallbacks,
+              authInterrupts,
+              // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+              // but we only want to throw on the first one.
+              StreamingMetadataOutlet: isChildrenRouteKey
+                ? StreamingMetadataOutlet
+                : null,
+            },
+            false
+          )
 
           childCacheNodeSeedData = seedData
         }
@@ -558,6 +570,9 @@ async function createComponentTreeInternal({
         const templateFilePath = getConventionPathByType(tree, dir, 'template')
         const errorFilePath = getConventionPathByType(tree, dir, 'error')
         const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
+        const globalErrorFilePath = isRoot
+          ? getConventionPathByType(tree, dir, 'global-error')
+          : undefined
 
         const wrappedErrorStyles =
           isSegmentViewEnabled && errorFilePath ? (
@@ -590,6 +605,17 @@ async function createComponentTreeInternal({
               <SegmentViewNode
                 type={`${BOUNDARY_PREFIX}error`}
                 pagePath={errorFilePath + fileNameSuffix}
+              />
+            )}
+            {/* Only show global-error when it's the builtin one */}
+            {globalErrorFilePath && (
+              <SegmentViewNode
+                type={`${BOUNDARY_PREFIX}global-error`}
+                pagePath={
+                  isNextjsBuiltinFilePath(globalErrorFilePath)
+                    ? `${BUILTIN_PREFIX}global-error.js${fileNameSuffix}`
+                    : globalErrorFilePath
+                }
               />
             )}
             {/* do not surface forbidden and unauthorized boundaries yet as they're unstable */}
@@ -726,10 +752,8 @@ async function createComponentTreeInternal({
     let pageElement: React.ReactNode
     if (isClientComponent) {
       if (isStaticGeneration) {
-        const promiseOfParams = createPrerenderParamsForClientSegment(
-          currentParams,
-          workStore
-        )
+        const promiseOfParams =
+          createPrerenderParamsForClientSegment(currentParams)
         const promiseOfSearchParams =
           createPrerenderSearchParamsForClientPage(workStore)
         pageElement = (
@@ -765,13 +789,6 @@ async function createComponentTreeInternal({
       if (isUseCacheFunction(PageComponent)) {
         const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
           PageComponent
-
-        if (!experimental.dynamicIO) {
-          // The "use cache" wrapper takes care of converting this into an
-          // erroring search params promise when passing it to the original
-          // function.
-          searchParams = Promise.resolve({})
-        }
 
         pageElement = (
           <UseCachePageComponent
@@ -832,10 +849,8 @@ async function createComponentTreeInternal({
       let clientSegment: React.ReactNode
 
       if (isStaticGeneration) {
-        const promiseOfParams = createPrerenderParamsForClientSegment(
-          currentParams,
-          workStore
-        )
+        const promiseOfParams =
+          createPrerenderParamsForClientSegment(currentParams)
 
         clientSegment = (
           <ClientSegmentRoot

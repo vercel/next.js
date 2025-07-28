@@ -1,0 +1,19 @@
+/* Panel content padding styles */
+.panel-content {
+  padding: 16px;
+  padding-top: 8px;
+  overflow: hidden;
+}
+
+/* User preferences wrapper styles */
+.user-preferences-wrapper {
+  padding: 20px;
+  padding-top: 8px;
+  overflow: hidden;
+}
+
+/* Panel route base styles */
+.panel-route {
+  opacity: var(--panel-opacity);
+  transition: var(--panel-transition);
+}

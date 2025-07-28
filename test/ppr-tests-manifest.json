@@ -145,13 +145,13 @@
       "test/development/acceptance-app/**/*.test.{t,j}s{,x}"
     ],
     "exclude": [
-      "test/development/app-dir/dynamic-io-*/**/*",
+      "test/development/app-dir/cache-components-*/**/*",
       "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts",
       "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts",
       "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts",
       "test/e2e/app-dir/app-prefetch*/**/*",
-      "test/e2e/app-dir/dynamic-io-*/**/*",
-      "test/e2e/app-dir/dynamic-io/**/*",
+      "test/e2e/app-dir/cache-components-*/**/*",
+      "test/e2e/app-dir/cache-components/**/*",
       "test/e2e/app-dir/fallback-shells/**/*",
       "test/e2e/app-dir/front-redirect-issue/front-redirect-issue.test.ts",
       "test/e2e/app-dir/next-font/**/*",

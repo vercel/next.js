@@ -7,19 +7,32 @@ import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-ru
  *
  * @returns true if there are any unknown route parameters, false otherwise
  */
-function hasFallbackRouteParams() {
+function hasFallbackRouteParams(): boolean {
   if (typeof window === 'undefined') {
     // AsyncLocalStorage should not be included in the client bundle.
-    const { workAsyncStorage } =
-      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+    const { workUnitAsyncStorage } =
+      require('../../server/app-render/work-unit-async-storage.external') as typeof import('../../server/app-render/work-unit-async-storage.external')
 
-    const workStore = workAsyncStorage.getStore()
-    if (!workStore) return false
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (!workUnitStore) return false
 
-    const { fallbackRouteParams } = workStore
-    if (!fallbackRouteParams || fallbackRouteParams.size === 0) return false
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-ppr':
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        return fallbackParams ? fallbackParams.size > 0 : false
+      case 'prerender-legacy':
+      case 'request':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
 
-    return true
+    return false
   }
 
   return false

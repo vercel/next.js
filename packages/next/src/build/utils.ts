@@ -1027,7 +1027,7 @@ export async function isPageStatic({
   pageRuntime,
   edgeInfo,
   pageType,
-  dynamicIO,
+  cacheComponents,
   authInterrupts,
   originalAppPath,
   isrFlushToDisk,
@@ -1043,7 +1043,7 @@ export async function isPageStatic({
   dir: string
   page: string
   distDir: string
-  dynamicIO: boolean
+  cacheComponents: boolean
   authInterrupts: boolean
   configFileName: string
   runtimeEnvConfig: any
@@ -1191,7 +1191,7 @@ export async function isPageStatic({
             await buildAppStaticPaths({
               dir,
               page,
-              dynamicIO,
+              cacheComponents,
               authInterrupts,
               segments,
               distDir,

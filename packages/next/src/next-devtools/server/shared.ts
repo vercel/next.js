@@ -1,7 +1,13 @@
-import type { StackFrame } from 'stacktrace-parser'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import isInternal from '../../shared/lib/is-internal'
+import type { StackFrame } from '../../server/lib/parse-stack'
 import { ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric } from '../../server/lib/source-maps'
+
+export type { StackFrame }
+
+export interface IgnorableStackFrame extends StackFrame {
+  ignored: boolean
+}
 
 export interface OriginalStackFramesRequest {
   frames: StackFrame[]
@@ -58,7 +64,7 @@ export function ignoreListAnonymousStackFramesIfSandwiched(
  * @note It ignores Next.js/React internals, as these can often be huge bundled files.
  */
 export function getOriginalCodeFrame(
-  frame: StackFrame,
+  frame: IgnorableStackFrame,
   source: string | null,
   colors: boolean = process.stdout.isTTY
 ): string | null {
@@ -71,9 +77,9 @@ export function getOriginalCodeFrame(
     {
       start: {
         // 1-based, but -1 means start line without highlighting
-        line: frame.lineNumber ?? -1,
+        line: frame.line1 ?? -1,
         // 1-based, but 0 means whole line without column highlighting
-        column: frame.column ?? 0,
+        column: frame.column1 ?? 0,
       },
     },
     { forceColor: colors }

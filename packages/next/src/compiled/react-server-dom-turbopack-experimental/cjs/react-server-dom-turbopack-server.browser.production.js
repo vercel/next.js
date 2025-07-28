@@ -1996,9 +1996,10 @@ function flushCompletedChunks(request) {
           "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
         )
       ),
-    (request.status = 14),
     null !== request.destination &&
-      (request.destination.close(), (request.destination = null)));
+      ((request.status = 14),
+      request.destination.close(),
+      (request.destination = null)));
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
@@ -2142,7 +2143,6 @@ function resolveServerReference(bundlerConfig, id) {
   }
   return [resolvedModuleData.id, resolvedModuleData.chunks, name];
 }
-var chunkCache = new Map();
 function requireAsyncModule(id) {
   var promise = __turbopack_require__(id);
   if ("function" !== typeof promise.then || "fulfilled" === promise.status)
@@ -2159,18 +2159,18 @@ function requireAsyncModule(id) {
   );
   return promise;
 }
+var instrumentedChunks = new WeakSet(),
+  loadedChunks = new WeakSet();
 function ignoreReject() {}
 function preloadModule(metadata) {
   for (var chunks = metadata[1], promises = [], i = 0; i < chunks.length; i++) {
-    var chunkFilename = chunks[i],
-      entry = chunkCache.get(chunkFilename);
-    if (void 0 === entry) {
-      entry = __turbopack_load__(chunkFilename);
-      promises.push(entry);
-      var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
-      entry.then(resolve, ignoreReject);
-      chunkCache.set(chunkFilename, entry);
-    } else null !== entry && promises.push(entry);
+    var thenable = __turbopack_load_by_url__(chunks[i]);
+    loadedChunks.has(thenable) || promises.push(thenable);
+    if (!instrumentedChunks.has(thenable)) {
+      var resolve = loadedChunks.add.bind(loadedChunks, thenable);
+      thenable.then(resolve, ignoreReject);
+      instrumentedChunks.add(thenable);
+    }
   }
   return 4 === metadata.length
     ? 0 === promises.length
