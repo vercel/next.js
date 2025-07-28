@@ -48,7 +48,6 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
-      eol +
       '/// <reference path="./.next/types/routes.d.ts" />' +
       eol +
       '// NOTE: This file should not be edited' +
@@ -75,7 +74,6 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
-      eol +
       '/// <reference path="./.next/types/routes.d.ts" />' +
       eol +
       '// NOTE: This file should not be edited' +
