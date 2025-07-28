@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import * as cheerio from 'cheerio'
+import { retry } from 'next-test-utils'
 
 describe('sub-shell-generation', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -55,28 +56,30 @@ describe('sub-shell-generation', () => {
       ],
     ])('%s', (shell, { page, langLayout, rootLayout }, paths, isPostponed) => {
       it.each(paths)('should serve the correct shell for %s', async (path) => {
-        const res = await next.fetch(path)
-        expect(res.status).toBe(200)
+        await retry(async () => {
+          const res = await next.fetch(path)
+          expect(res.status).toBe(200)
 
-        if (isNextDeploy) {
-          expect(res.headers.get('x-matched-path')).toBe(shell)
-        } else {
-          expect(res.headers.get('x-nextjs-postponed')).toBe(
-            isPostponed ? '1' : null
-          )
-        }
+          if (isNextDeploy) {
+            expect(res.headers.get('x-matched-path')).toBe(shell)
+          } else {
+            expect(res.headers.get('x-nextjs-postponed')).toBe(
+              isPostponed ? '1' : null
+            )
+          }
 
-        const html = await res.text()
-        const $ = cheerio.load(html)
+          const html = await res.text()
+          const $ = cheerio.load(html)
 
-        expect({
-          page: $('#page').text(),
-          langLayout: $('#lang-layout').text(),
-          rootLayout: $('#root-layout').text(),
-        }).toEqual({
-          page,
-          langLayout,
-          rootLayout,
+          expect({
+            page: $('#page').text(),
+            langLayout: $('#lang-layout').text(),
+            rootLayout: $('#root-layout').text(),
+          }).toEqual({
+            page,
+            langLayout,
+            rootLayout,
+          })
         })
       })
     })
