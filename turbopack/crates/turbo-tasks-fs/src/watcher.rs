@@ -17,7 +17,7 @@ use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
@@ -29,7 +29,8 @@ use turbo_tasks::{
 use crate::{
     DiskFileSystemInner, format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
-    invalidator_map::WriteContent,
+    invalidator_map::LockedInvalidatorMap,
+    path_map::OrderedPathMapExt,
 };
 
 static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
@@ -602,7 +603,7 @@ fn invalidate(
 fn invalidate_path(
     inner: &DiskFileSystemInner,
     report_invalidation_reason: bool,
-    invalidator_map: &mut FxHashMap<PathBuf, FxHashMap<Invalidator, Option<WriteContent>>>,
+    invalidator_map: &mut LockedInvalidatorMap,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
@@ -617,11 +618,11 @@ fn invalidate_path(
 fn invalidate_path_and_children_execute(
     inner: &DiskFileSystemInner,
     report_invalidation_reason: bool,
-    invalidator_map: &mut FxHashMap<PathBuf, FxHashMap<Invalidator, Option<WriteContent>>>,
+    invalidator_map: &mut LockedInvalidatorMap,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
-        for (_, invalidators) in invalidator_map.extract_if(|key, _| key.starts_with(&path)) {
+        for (_, invalidators) in invalidator_map.extract_path_with_children(&path) {
             invalidators
                 .into_iter()
                 .for_each(|(i, _)| invalidate(inner, report_invalidation_reason, &path, i));

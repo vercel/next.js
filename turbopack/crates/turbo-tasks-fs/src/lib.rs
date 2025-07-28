@@ -1,4 +1,5 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
+#![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
@@ -16,6 +17,7 @@ pub mod invalidation;
 mod invalidator_map;
 pub mod json;
 mod mutex_map;
+mod path_map;
 mod read_glob;
 mod retry;
 pub mod rope;
@@ -23,6 +25,7 @@ pub mod source_context;
 pub mod util;
 pub(crate) mod virtual_fs;
 mod watcher;
+
 use std::{
     borrow::Cow,
     cmp::{Ordering, min},
@@ -40,14 +43,10 @@ use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use bitflags::bitflags;
 use dunce::simplified;
-use glob::Glob;
 use indexmap::IndexSet;
-use invalidator_map::InvalidatorMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-pub use read_glob::ReadGlobResult;
-use read_glob::{read_glob, track_glob};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -60,17 +59,19 @@ use turbo_tasks::{
     mark_session_dependent, mark_stateful, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
-use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
-pub use virtual_fs::VirtualFileSystem;
-use watcher::DiskWatcher;
 
 use self::{invalidation::Write, json::UnparsableJson, mutex_map::MutexMap};
 use crate::{
     attach::AttachedFileSystem,
-    invalidator_map::WriteContent,
+    glob::Glob,
+    invalidator_map::{InvalidatorMap, WriteContent},
+    read_glob::{read_glob, track_glob},
     retry::retry_blocking,
     rope::{Rope, RopeReader},
+    util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys},
+    watcher::DiskWatcher,
 };
+pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
 
 /// A (somewhat arbitrary) filename limit that we should try to keep output file names below.
 ///

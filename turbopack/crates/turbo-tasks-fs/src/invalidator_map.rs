@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     path::PathBuf,
     sync::{LockResult, Mutex, MutexGuard},
 };
@@ -16,18 +17,18 @@ pub enum WriteContent {
     Link(ReadRef<LinkContent>),
 }
 
-type InnerMap = FxHashMap<PathBuf, FxHashMap<Invalidator, Option<WriteContent>>>;
+pub type LockedInvalidatorMap = BTreeMap<PathBuf, FxHashMap<Invalidator, Option<WriteContent>>>;
 
 pub struct InvalidatorMap {
     queue: ConcurrentQueue<(PathBuf, Invalidator, Option<WriteContent>)>,
-    map: Mutex<InnerMap>,
+    map: Mutex<LockedInvalidatorMap>,
 }
 
 impl Default for InvalidatorMap {
     fn default() -> Self {
         Self {
             queue: ConcurrentQueue::unbounded(),
-            map: Default::default(),
+            map: Mutex::<LockedInvalidatorMap>::default(),
         }
     }
 }
@@ -37,7 +38,7 @@ impl InvalidatorMap {
         Self::default()
     }
 
-    pub fn lock(&self) -> LockResult<MutexGuard<'_, InnerMap>> {
+    pub fn lock(&self) -> LockResult<MutexGuard<'_, LockedInvalidatorMap>> {
         let mut guard = self.map.lock()?;
         while let Ok((key, value, write_content)) = self.queue.pop() {
             guard.entry(key).or_default().insert(value, write_content);
@@ -76,7 +77,7 @@ impl Serialize for InvalidatorMap {
         // persisted cache, but we don't invalidate the fs writes. Those read invalidations trigger
         // re-inserts into the `InvalidatorMap`. If we knew that certain invalidators were only
         // needed for reads, we could potentially avoid serializing those paths entirely.
-        let inner: &InnerMap = &self.lock().unwrap();
+        let inner: &LockedInvalidatorMap = &self.lock().unwrap();
         serializer.serialize_newtype_struct("InvalidatorMap", inner)
     }
 }
