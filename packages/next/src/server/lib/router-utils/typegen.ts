@@ -12,21 +12,21 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
 
   // Generate AppRoutes union type
   if (appRoutes.length > 0) {
-    result += `type AppRoutes = ${appRoutes.map((route) => `"${route}"`).join(' | ')}\n`
+    result += `type AppRoutes = ${appRoutes.map((route) => JSON.stringify(route)).join(' | ')}\n`
   } else {
     result += 'type AppRoutes = never\n'
   }
 
   // Generate PageRoutes union type
   if (pageRoutes.length > 0) {
-    result += `type PageRoutes = ${pageRoutes.map((route) => `"${route}"`).join(' | ')}\n`
+    result += `type PageRoutes = ${pageRoutes.map((route) => JSON.stringify(route)).join(' | ')}\n`
   } else {
     result += 'type PageRoutes = never\n'
   }
 
   // Generate LayoutRoutes union type
   if (layoutRoutes.length > 0) {
-    result += `type LayoutRoutes = ${layoutRoutes.map((route) => `"${route}"`).join(' | ')}\n`
+    result += `type LayoutRoutes = ${layoutRoutes.map((route) => JSON.stringify(route)).join(' | ')}\n`
   } else {
     result += 'type LayoutRoutes = never\n'
   }
@@ -34,7 +34,7 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
   // Generate RedirectRoutes union type
   if (redirectRoutes.length > 0) {
     result += `type RedirectRoutes = ${redirectRoutes
-      .map((route) => `"${route}"`)
+      .map((route) => JSON.stringify(route))
       .join(' | ')}\n`
   } else {
     result += 'type RedirectRoutes = never\n'
@@ -43,7 +43,7 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
   // Generate RewriteRoutes union type
   if (rewriteRoutes.length > 0) {
     result += `type RewriteRoutes = ${rewriteRoutes
-      .map((route) => `"${route}"`)
+      .map((route) => JSON.stringify(route))
       .join(' | ')}\n`
   } else {
     result += 'type RewriteRoutes = never\n'
@@ -77,7 +77,7 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
 
     // For static routes (no dynamic segments), we can produce an empty parameter map.
     if (!isDynamicRoute(route) || Object.keys(groups ?? {}).length === 0) {
-      paramTypes += `  '${route}': {}\n`
+      paramTypes += `  ${JSON.stringify(route)}: {}\n`
       continue
     }
 
@@ -85,26 +85,27 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
 
     // Process each group based on its properties
     for (const [key, group] of Object.entries(groups as Record<string, any>)) {
+      const escapedKey = JSON.stringify(key)
       if ((group as any).repeat) {
         // Catch-all parameters
         if ((group as any).optional) {
-          paramType += ` ${key}?: string[];`
+          paramType += ` ${escapedKey}?: string[];`
         } else {
-          paramType += ` ${key}: string[];`
+          paramType += ` ${escapedKey}: string[];`
         }
       } else {
         // Regular parameters
         if ((group as any).optional) {
-          paramType += ` ${key}?: string;`
+          paramType += ` ${escapedKey}?: string;`
         } else {
-          paramType += ` ${key}: string;`
+          paramType += ` ${escapedKey}: string;`
         }
       }
     }
 
     paramType += ' }'
 
-    paramTypes += `  '${route}': ${paramType}\n`
+    paramTypes += `  ${JSON.stringify(route)}: ${paramType}\n`
   }
 
   paramTypes += '}\n'
@@ -123,12 +124,12 @@ function generateLayoutSlotMap(routesManifest: RouteTypesManifest): string {
     if ('slots' in routeInfo) {
       const slots = routeInfo.slots.sort()
       if (slots.length > 0) {
-        slotMap += `  '${route}': ${slots.map((slot) => `"${slot}"`).join(' | ')}\n`
+        slotMap += `  ${JSON.stringify(route)}: ${slots.map((slot) => JSON.stringify(slot)).join(' | ')}\n`
       } else {
-        slotMap += `  '${route}': never\n`
+        slotMap += `  ${JSON.stringify(route)}: never\n`
       }
     } else {
-      slotMap += `  '${route}': never\n`
+      slotMap += `  ${JSON.stringify(route)}: never\n`
     }
   }
 
