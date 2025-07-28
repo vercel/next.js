@@ -1,8 +1,10 @@
-import { ReactNode } from 'react'
+import { ReactNode, Suspense } from 'react'
 export default function Root({ children }: { children: ReactNode }) {
   return (
     <html>
-      <body>{children}</body>
+      <body>
+        <Suspense>{children}</Suspense>
+      </body>
     </html>
   )
 }
