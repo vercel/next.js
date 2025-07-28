@@ -1,6 +1,5 @@
-export default async function Layout(props: any) {
-  // TODO
-  const { analytics, team, children } = await props
+export default async function Layout(props: LayoutProps<'/dashboard'>) {
+  const { analytics, team, children } = props
 
   return (
     <div>
