@@ -400,7 +400,7 @@ fn write_value_blocks(
                 value_locations[j].0 = block_index;
             }
         }
-        writer.write_value_block(&buffer, value_compression_dictionary)?;
+        writer.write_value_block(buffer, value_compression_dictionary)?;
         buffer.clear();
     }
 
@@ -480,7 +480,7 @@ fn write_key_blocks_and_compute_amqf(
                 writer.next_block_index(),
             ));
             block.finish();
-            writer.write_key_block(&buffer, key_compression_dictionary)?;
+            writer.write_key_block(buffer, key_compression_dictionary)?;
             buffer.clear();
             current_block_size = 0;
             current_block_start = i;
@@ -585,7 +585,7 @@ impl<'l> KeyBlockBuilder<'l> {
         BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
 
         self.buffer.write_u64::<BE>(entry.key_hash()).unwrap();
-        entry.write_key_to(&mut self.buffer);
+        entry.write_key_to(self.buffer);
         self.buffer.write_u16::<BE>(value_block).unwrap();
 
         self.current_entry += 1;
