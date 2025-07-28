@@ -13,7 +13,6 @@ import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { formatBarrelOptimizedResource } from '../../utils'
 import { getModuleBuildInfo } from '../get-module-build-info'
-import { ModuleFilenameHelpers } from 'next/dist/compiled/webpack/webpack'
 
 type SourceType = javascript.JavascriptParser['sourceType'] | 'commonjs'
 
@@ -147,20 +146,7 @@ ${JSON.stringify(ref)},
         }
       }
 
-      const compilation = this._compilation!
-      const originalSourceURL = ModuleFilenameHelpers.createFilename(
-        module,
-        {
-          moduleFilenameTemplate:
-            'webpack://[namespace]/[resource-path]/__nextjs-internal-proxy.mjs',
-          namespace: '_N_E',
-        },
-        {
-          requestShortener: compilation.requestShortener,
-          chunkGraph: compilation.chunkGraph,
-          hashFunction: compilation.outputOptions.hashFunction,
-        }
-      )
+      const originalSourceURL = `webpack://_N_E/${this.utils.contextify(this.context || this.rootContext, this.resourcePath)}/__nextjs-internal-proxy.mjs`
 
       return this.callback(null, esmSource, {
         version: 3,
@@ -178,20 +164,7 @@ const { createProxy } = require("${MODULE_PROXY_PATH}")
 module.exports = createProxy(${stringifiedResourceKey})
 `
 
-      const compilation = this._compilation!
-      const originalSourceURL = ModuleFilenameHelpers.createFilename(
-        module,
-        {
-          moduleFilenameTemplate:
-            'webpack://[namespace]/[resource-path]/__nextjs-internal-proxy.cjs',
-          namespace: '_N_E',
-        },
-        {
-          requestShortener: compilation.requestShortener,
-          chunkGraph: compilation.chunkGraph,
-          hashFunction: compilation.outputOptions.hashFunction,
-        }
-      )
+      const originalSourceURL = `webpack://_N_E/${this.utils.contextify(this.context || this.rootContext, this.resourcePath)}/__nextjs-internal-proxy.cjs`
 
       return this.callback(null, cjsSource, {
         version: 3,
