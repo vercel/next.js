@@ -57,7 +57,7 @@ export async function writeAppTypeDeclarations({
     )
   }
 
-  const routesPath = path.join(distDir, 'types', 'routes.d.ts')
+  const routesPath = path.join(distDir ?? '.next', 'types', 'routes.d.ts')
 
   directives.push(`/// <reference path="${routesPath}" />`)
 
