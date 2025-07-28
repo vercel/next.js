@@ -104,10 +104,9 @@ pub fn write_static_stored_file<E: Entry>(
 
     let mut file = BufWriter::new(File::create(file)?);
 
+    let capacity = get_compression_buffer_capacity(total_key_size, total_value_size);
     // We use a shared buffer for all operations to avoid excessive allocations
-    let mut buffer = Vec::new();
-
-    reserve_compression_buffer(&mut buffer, total_key_size, total_value_size);
+    let mut buffer = Vec::with_capacity(capacity);
 
     let key_dict = compute_key_compression_dictionary(entries, total_key_size, &mut buffer)?;
     let value_dict = compute_value_compression_dictionary(entries, total_value_size, &mut buffer)?;
@@ -153,11 +152,7 @@ pub fn write_static_stored_file<E: Entry>(
     Ok((meta, file.into_inner()?))
 }
 
-fn reserve_compression_buffer(
-    buffer: &mut Vec<u8>,
-    total_key_size: usize,
-    total_value_size: usize,
-) {
+fn get_compression_buffer_capacity(total_key_size: usize, total_value_size: usize) -> usize {
     let mut size = 0;
     if total_key_size >= MIN_KEY_COMPRESSION_SAMPLES_SIZE {
         let key_compression_samples_size = min(KEY_COMPRESSION_SAMPLES_SIZE, total_key_size / 16);
@@ -168,7 +163,7 @@ fn reserve_compression_buffer(
             min(VALUE_COMPRESSION_SAMPLES_SIZE, total_value_size / 16);
         size = size.max(value_compression_samples_size);
     }
-    buffer.reserve(size);
+    size
 }
 
 /// Computes compression dictionaries from keys of all entries
@@ -182,7 +177,6 @@ fn compute_key_compression_dictionary<E: Entry>(
         return Ok(Vec::new());
     }
     let key_compression_samples_size = min(KEY_COMPRESSION_SAMPLES_SIZE, total_key_size / 16);
-    buffer.reserve(key_compression_samples_size);
     let mut sample_sizes = Vec::new();
 
     // Limit the number of iterations to avoid infinite loops
@@ -210,7 +204,7 @@ fn compute_key_compression_dictionary<E: Entry>(
             }
         }
     }
-    assert!(buffer.len() == sample_sizes.iter().sum::<usize>());
+    debug_assert!(buffer.len() == sample_sizes.iter().sum::<usize>());
     let result = if buffer.len() > MIN_KEY_COMPRESSION_SAMPLES_SIZE && sample_sizes.len() > 5 {
         zstd::dict::from_continuous(buffer, &sample_sizes, KEY_COMPRESSION_DICTIONARY_SIZE)
             .context("Key dictionary creation failed")?
@@ -232,7 +226,6 @@ fn compute_value_compression_dictionary<E: Entry>(
         return Ok(Vec::new());
     }
     let value_compression_samples_size = min(VALUE_COMPRESSION_SAMPLES_SIZE, total_value_size / 16);
-    buffer.reserve(value_compression_samples_size);
     let mut sample_sizes = Vec::new();
 
     // Limit the number of iterations to avoid infinite loops
@@ -258,7 +251,7 @@ fn compute_value_compression_dictionary<E: Entry>(
             }
         }
     }
-    assert!(buffer.len() == sample_sizes.iter().sum::<usize>());
+    debug_assert!(buffer.len() == sample_sizes.iter().sum::<usize>());
     let result = if buffer.len() > MIN_VALUE_COMPRESSION_SAMPLES_SIZE && sample_sizes.len() > 5 {
         zstd::dict::from_continuous(buffer, &sample_sizes, VALUE_COMPRESSION_DICTIONARY_SIZE)
             .context("Value dictionary creation failed")?
@@ -549,7 +542,6 @@ impl<'l> KeyBlockBuilder<'l> {
         debug_assert!(entry_count < (1 << 24));
 
         const ESTIMATED_KEY_SIZE: usize = 16;
-        // TODO use a shared buffer
         buffer.reserve(entry_count as usize * ESTIMATED_KEY_SIZE);
         buffer.write_u8(BLOCK_TYPE_KEY).unwrap();
         buffer.write_u24::<BE>(entry_count).unwrap();
@@ -641,7 +633,11 @@ impl<'l> IndexBlockBuilder<'l> {
     /// Creates a new builder for an index block with the specified number of entries and a pointer
     /// to the first block.
     pub fn new(buffer: &'l mut Vec<u8>, entry_count: u16, first_block: u16) -> Self {
-        buffer.reserve(entry_count as usize * 10 + 3);
+        buffer.reserve(
+            entry_count as usize * (size_of::<u64>() + size_of::<u16>())
+                + size_of::<u8>()
+                + size_of::<u16>(),
+        );
         buffer.write_u8(BLOCK_TYPE_INDEX).unwrap();
         buffer.write_u16::<BE>(first_block).unwrap();
         Self { buffer }
