@@ -732,58 +732,58 @@ export async function imageOptimizer(
     getMaxAge(imageUpstream.cacheControl)
   )
 
-  const upstreamType =
-    (await detectContentType(upstreamBuffer)) ||
-    imageUpstream.contentType?.toLowerCase().trim()
+  const upstreamType = await detectContentType(upstreamBuffer)
 
-  if (upstreamType) {
-    if (
-      upstreamType.startsWith('image/svg') &&
-      !nextConfig.images.dangerouslyAllowSVG
-    ) {
-      if (!opts.silent) {
-        Log.error(
-          `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
-        )
-      }
-      throw new ImageError(
-        400,
-        '"url" parameter is valid but image type is not allowed'
+  if (
+    !upstreamType ||
+    !upstreamType.startsWith('image/') ||
+    upstreamType.includes(',')
+  ) {
+    if (!opts.silent) {
+      Log.error(
+        "The requested resource isn't a valid image for",
+        href,
+        'received',
+        upstreamType
       )
     }
-    if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
-      if (!opts.silent) {
-        Log.warnOnce(
-          `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
-        )
-      }
-      return {
-        buffer: upstreamBuffer,
-        contentType: upstreamType,
-        maxAge,
-        etag: upstreamEtag,
-        upstreamEtag,
-      }
+    throw new ImageError(400, "The requested resource isn't a valid image.")
+  }
+  if (
+    upstreamType.startsWith('image/svg') &&
+    !nextConfig.images.dangerouslyAllowSVG
+  ) {
+    if (!opts.silent) {
+      Log.error(
+        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.`
+      )
     }
-    if (BYPASS_TYPES.includes(upstreamType)) {
-      return {
-        buffer: upstreamBuffer,
-        contentType: upstreamType,
-        maxAge,
-        etag: upstreamEtag,
-        upstreamEtag,
-      }
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but image type is not allowed'
+    )
+  }
+  if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
+    if (!opts.silent) {
+      Log.warnOnce(
+        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
+      )
     }
-    if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
-      if (!opts.silent) {
-        Log.error(
-          "The requested resource isn't a valid image for",
-          href,
-          'received',
-          upstreamType
-        )
-      }
-      throw new ImageError(400, "The requested resource isn't a valid image.")
+    return {
+      buffer: upstreamBuffer,
+      contentType: upstreamType,
+      maxAge,
+      etag: upstreamEtag,
+      upstreamEtag,
+    }
+  }
+  if (BYPASS_TYPES.includes(upstreamType)) {
+    return {
+      buffer: upstreamBuffer,
+      contentType: upstreamType,
+      maxAge,
+      etag: upstreamEtag,
+      upstreamEtag,
     }
   }
 
@@ -792,7 +792,6 @@ export async function imageOptimizer(
   if (mimeType) {
     contentType = mimeType
   } else if (
-    upstreamType?.startsWith('image/') &&
     getExtension(upstreamType) &&
     upstreamType !== WEBP &&
     upstreamType !== AVIF
