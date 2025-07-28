@@ -5,7 +5,7 @@ import { format, measure } from '../lib/measure'
 
 function report(result, element, textarea) {
   const formattedResult = format(result)
-  element.textContent = formattedResult
+  element.textContent += `: ${formattedResult}`
   textarea.current.value += `\n    ${formattedResult}`
   console.log(formattedResult)
   element.disabled = true
