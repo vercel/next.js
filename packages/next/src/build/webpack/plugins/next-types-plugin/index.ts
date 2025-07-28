@@ -18,6 +18,10 @@ import type { PageExtensions } from '../../../page-extensions-type'
 import { devPageFiles } from './shared'
 import { getProxiedPluginState } from '../../../build-context'
 import type { CacheLife } from '../../../../server/use-cache/cache-life'
+import {
+  collectRootParamsFromFileSystem,
+  generateDeclarations,
+} from '../../loaders/next-root-params-loader'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -237,6 +241,7 @@ async function collectNamedSlots(layoutPath: string) {
 // possible to provide the same experience for dynamic routes.
 
 const pluginState = getProxiedPluginState({
+  // used for unstable_rootParams()
   collectedRootParams: {} as Record<string, string[]>,
   routeTypes: {
     edge: {
@@ -1038,6 +1043,14 @@ export class NextTypesPlugin {
             pluginState.routeTypes.node.static = []
           }
 
+          // We can't rely on webpack's module graph, because in dev we do on-demand compilation,
+          // so we'd miss the layouts that haven't been compiled yet
+          const rootParamsPromise = collectRootParamsFromFileSystem({
+            appDir: this.appDir,
+            pageExtensions: this.pageExtensions,
+            trackDirectory: undefined,
+          })
+
           compilation.chunkGroups.forEach((chunkGroup) => {
             chunkGroup.chunks.forEach((chunk) => {
               if (!chunk.name) return
@@ -1076,6 +1089,7 @@ export class NextTypesPlugin {
 
           await Promise.all(promises)
 
+          // unstable_rootParams()
           const rootParams = getRootParamsFromLayouts(
             pluginState.collectedRootParams
           )
@@ -1094,6 +1108,17 @@ export class NextTypesPlugin {
               ) as unknown as webpack.sources.RawSource
             )
           }
+
+          // next/root-params
+          const collectedRootParams = await rootParamsPromise
+          const rootParamsTypesPath = path.join(
+            assetDirRelative,
+            'types/root-params.d.ts'
+          )
+          compilation.emitAsset(
+            rootParamsTypesPath,
+            new sources.RawSource(generateDeclarations(collectedRootParams))
+          )
 
           // Support `"moduleResolution": "Node16" | "NodeNext"` with `"type": "module"`
 

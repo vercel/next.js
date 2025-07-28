@@ -3,21 +3,23 @@ import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import type { DynamicParamTypes } from '../../../server/app-render/types'
 import { getSegmentParam } from '../../../server/app-render/get-segment-param'
+import { InvariantError } from '../../../shared/lib/invariant-error'
 
 export type RootParamsLoaderOpts = {
   appDir: string
   pageExtensions: string[]
 }
 
-type CollectedRootParams = Set<string>
+export type CollectedRootParams = Map<string, Set<DynamicParamTypes>>
 
 const rootParamsLoader: webpack.LoaderDefinitionFunction<RootParamsLoaderOpts> =
   async function () {
     const { appDir, pageExtensions } = this.getOptions()
 
     const allRootParams = await collectRootParamsFromFileSystem({
-      appDir,
+      appDir: appDir,
       pageExtensions,
     })
     // invalidate the result whenever a file/directory is added/removed inside the app dir or its subdirectories,
@@ -30,7 +32,7 @@ const rootParamsLoader: webpack.LoaderDefinitionFunction<RootParamsLoaderOpts> =
     }
 
     // Generate a getter for each root param we found.
-    const sortedRootParamNames = Array.from(allRootParams).sort()
+    const sortedRootParamNames = Array.from(allRootParams.keys()).sort()
     const content = [
       `import { getRootParam } from 'next/dist/server/request/root-params';`,
       ...sortedRootParamNames.map((paramName) => {
@@ -43,7 +45,7 @@ const rootParamsLoader: webpack.LoaderDefinitionFunction<RootParamsLoaderOpts> =
 
 export default rootParamsLoader
 
-async function collectRootParamsFromFileSystem(
+export async function collectRootParamsFromFileSystem(
   opts: Parameters<typeof findRootLayouts>[0]
 ) {
   return collectRootParams({
@@ -59,7 +61,9 @@ function collectRootParams({
   rootLayoutFilePaths: string[]
   appDir: string
 }): CollectedRootParams {
-  const allRootParams: CollectedRootParams = new Set()
+  // Collect the param names and kinds from all root layouts.
+  // Note that if multiple root layouts use the same param name, it can have multiple kinds.
+  const allRootParams: CollectedRootParams = new Map()
 
   for (const rootLayoutFilePath of rootLayoutFilePaths) {
     const params = getParamsFromLayoutFilePath({
@@ -67,7 +71,12 @@ function collectRootParams({
       layoutFilePath: rootLayoutFilePath,
     })
     for (const param of params) {
-      allRootParams.add(param)
+      const { param: paramName, type: paramKind } = param
+      let paramKinds = allRootParams.get(paramName)
+      if (!paramKinds) {
+        allRootParams.set(paramName, (paramKinds = new Set()))
+      }
+      paramKinds.add(paramKind)
     }
   }
 
@@ -144,23 +153,84 @@ async function findRootLayouts({
   return visit(appDir)
 }
 
+type ParamInfo = { param: string; type: DynamicParamTypes }
+
 function getParamsFromLayoutFilePath({
   appDir,
   layoutFilePath,
 }: {
   appDir: string
   layoutFilePath: string
-}): string[] {
+}): ParamInfo[] {
   const rootLayoutPath = normalizeAppPath(
     ensureLeadingSlash(path.dirname(path.relative(appDir, layoutFilePath)))
   )
   const segments = rootLayoutPath.split('/')
-  const paramNames: string[] = []
+  const params: ParamInfo[] = []
   for (const segment of segments) {
     const param = getSegmentParam(segment)
     if (param !== null) {
-      paramNames.push(param.param)
+      params.push(param)
     }
   }
-  return paramNames
+  return params
+}
+
+//=============================================
+// Type declarations
+//=============================================
+
+export function generateDeclarations(rootParams: CollectedRootParams) {
+  const sortedRootParamNames = Array.from(rootParams.keys()).sort()
+  const declarationLines = sortedRootParamNames
+    .map((paramName) => {
+      // A param can have multiple kinds (in different root layouts).
+      // In that case, we'll need to union the types together together.
+      const paramKinds = Array.from(rootParams.get(paramName)!)
+      const possibleTypesForParam = paramKinds.map((kind) =>
+        getTypescriptTypeFromParamKind(kind)
+      )
+      // A root param getter can be called
+      // - in a route handler (not yet implemented)
+      // - a server action (unsupported)
+      // - in another root layout that doesn't share the same root params.
+      // For this reason, we currently always want `... | undefined` in the type.
+      possibleTypesForParam.push(`undefined`)
+
+      const paramType = unionTsTypes(possibleTypesForParam)
+
+      return [
+        `  /** Allows reading the '${paramName}' root param. */`,
+        `  export function ${paramName}(): Promise<${paramType}>`,
+      ].join('\n')
+    })
+    .join('\n\n')
+
+  return `declare module 'next/root-params' {\n${declarationLines}\n}\n`
+}
+
+function getTypescriptTypeFromParamKind(kind: DynamicParamTypes): string {
+  switch (kind) {
+    case 'catchall':
+    case 'catchall-intercepted': {
+      return `string[]`
+    }
+    case 'optional-catchall': {
+      return `string[] | undefined`
+    }
+    case 'dynamic':
+    case 'dynamic-intercepted': {
+      return `string`
+    }
+    default: {
+      kind satisfies never
+      throw new InvariantError(`Unknown param kind ${kind}`)
+    }
+  }
+}
+
+function unionTsTypes(types: string[]) {
+  if (types.length === 0) return 'never'
+  if (types.length === 1) return types[0]
+  return types.map((type) => `(${type})`).join(' | ')
 }

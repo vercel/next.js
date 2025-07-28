@@ -4,16 +4,25 @@ import { join } from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 import { createRequestTracker } from '../../../lib/e2e-utils/request-tracker'
+import { expectTypecheckingSuccess } from './typecheck'
 
 describe('app-root-param-getters - simple', () => {
   const { next, isNextDev, isTurbopack, isNextDeploy } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'simple'),
+    dependencies: {
+      typescript: '5.8.3',
+    },
   })
 
   it('should allow reading root params', async () => {
     const params = { lang: 'en', locale: 'us' }
     const $ = await next.render$(`/${params.lang}/${params.locale}`)
     expect($('p').text()).toBe(`hello world ${JSON.stringify(params)}`)
+
+    if (isNextDev) {
+      // in dev, we need to typecheck manually. note that we have to compile at least one page to get the types
+      await expectTypecheckingSuccess(next)
+    }
   })
 
   it('should allow reading root params in nested pages', async () => {

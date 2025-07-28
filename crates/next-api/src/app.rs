@@ -34,6 +34,7 @@ use next_core::{
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
+    types::get_global_type_declaration_assets,
     util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
@@ -1517,6 +1518,20 @@ impl AppEndpoint {
             .await?;
             server_assets.insert(next_font_manifest_output);
         }
+
+        // Output generated type declarations.
+        //
+        // These aren't endpoint specific, but in dev we compile things by endpoint,
+        // and we still want it to be emitted.
+        // But as long as we always generate the same thing, we should be fine --
+        // at worst, we'll write the same content multiple times.
+        let types_path = node_root.join("types".into()); // Usually .next/types
+        let type_declarations = get_global_type_declaration_assets(
+            types_path,
+            this.app_project.collected_root_params(),
+        )
+        .await?;
+        server_assets.extend(type_declarations.iter());
 
         let endpoint_output = match runtime {
             NextRuntime::Edge => {
