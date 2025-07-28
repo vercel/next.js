@@ -13,7 +13,7 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 
 describe('opentelemetry', () => {
-  const { next, skipped, isNextStart } = nextTestSetup({
+  const { next, skipped, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
