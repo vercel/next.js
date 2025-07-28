@@ -4,11 +4,13 @@ import { promises as fs } from 'fs'
 
 export async function writeAppTypeDeclarations({
   baseDir,
+  distDir,
   imageImportsEnabled,
   hasPagesDir,
   hasAppDir,
 }: {
   baseDir: string
+  distDir: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   hasAppDir: boolean
@@ -55,7 +57,9 @@ export async function writeAppTypeDeclarations({
     )
   }
 
-  directives.push('/// <reference path="./.next/types/routes.d.ts" />')
+  const routesPath = path.join(distDir, 'types', 'routes.d.ts')
+
+  directives.push(`/// <reference path="${routesPath}" />`)
 
   // Push the notice in.
   directives.push(

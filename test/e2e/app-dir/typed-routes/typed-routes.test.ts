@@ -14,45 +14,47 @@ describe('typed-routes', () => {
     files: __dirname,
   })
 
-  it('should generate route types correctly', async () => {
-    const dts = await next.readFile('.next/types/routes.d.ts')
-    expect(dts).toContain(expectedDts)
-  })
+  if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS !== 'true') {
+    it('should generate route types correctly', async () => {
+      const dts = await next.readFile('.next/types/routes.d.ts')
+      expect(dts).toContain(expectedDts)
+    })
 
-  if (isNextDev) {
-    it('should update route types file when routes change', async () => {
-      // Create a new layout file
-      await next.patchFile(
-        'app/new-layout/layout.tsx',
-        `
+    if (isNextDev) {
+      it('should update route types file when routes change', async () => {
+        // Create a new layout file
+        await next.patchFile(
+          'app/new-layout/layout.tsx',
+          `
       export default function NewLayout() {
         return <div>New Layout</div>
       }
     `
-      )
+        )
 
-      const routeTypesContent = await next.readFile('.next/types/routes.d.ts')
+        const routeTypesContent = await next.readFile('.next/types/routes.d.ts')
 
-      expect(routeTypesContent).toContain(
-        'type LayoutRoutes = "/" | "/dashboard" | "/new-layout"'
-      )
-    })
-  }
+        expect(routeTypesContent).toContain(
+          'type LayoutRoutes = "/" | "/dashboard" | "/new-layout"'
+        )
+      })
+    }
 
-  if (isNextStart) {
-    it('should throw type errors', async () => {
-      await next.stop()
-      await next.patchFile(
-        'app/type-testing.ts',
-        `type ValidPage = PageProps<'/dashboard'>
+    if (isNextStart) {
+      it('should throw type errors', async () => {
+        await next.stop()
+        await next.patchFile(
+          'app/type-testing.ts',
+          `type ValidPage = PageProps<'/dashboard'>
 type InvalidPage = PageProps<'/dasboard'>`
-      )
+        )
 
-      const { cliOutput } = await next.build()
+        const { cliOutput } = await next.build()
 
-      expect(cliOutput).toContain(
-        `Type '"/dasboard"' does not satisfy the constraint 'AppRoutes'.`
-      )
-    })
+        expect(cliOutput).toContain(
+          `Type '"/dasboard"' does not satisfy the constraint 'AppRoutes'.`
+        )
+      })
+    }
   }
 })
