@@ -11,7 +11,7 @@ const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
   const server = express()
-  server.all('/:splat(*)', (req, res) => {
+  server.all('/{*splat}', (req, res) => {
     const parsedUrl = parse(req.url, true)
     handleNextRequests(req, res, parsedUrl)
   })
