@@ -52,7 +52,7 @@ export function collectRootParamKeys({
   AppPageModule | AppRouteModule
 >): readonly string[] {
   if (isAppRouteRouteModule(routeModule)) {
-    return []
+    return routeModule.rootParamNames
   }
 
   if (isAppPageRouteModule(routeModule)) {

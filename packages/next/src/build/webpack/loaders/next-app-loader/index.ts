@@ -38,6 +38,7 @@ export type AppLoaderOptions = {
   name: string
   page: string
   pagePath: string
+  rootParams: string[]
   appDir: string
   appPaths: readonly string[] | null
   preferredRegion: string | string[] | undefined
@@ -556,6 +557,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     appDir,
     appPaths,
     pagePath,
+    rootParams,
     pageExtensions,
     rootDir,
     tsconfigPath,
@@ -753,6 +755,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       page: loaderOptions.page,
       name,
       pagePath,
+      rootParams,
       resolveAppRoute,
       pageExtensions,
       nextConfigOutput,

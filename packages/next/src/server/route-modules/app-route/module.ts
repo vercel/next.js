@@ -173,6 +173,7 @@ export interface AppRouteRouteModuleOptions
   extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
+  readonly rootParamNames: string[]
 }
 
 /**
@@ -208,6 +209,7 @@ export class AppRouteRouteModule extends RouteModule<
 
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
+  public readonly rootParamNames: AppRouteRouteModuleOptions['rootParamNames']
 
   private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
   private readonly hasNonStaticMethods: boolean
@@ -219,12 +221,14 @@ export class AppRouteRouteModule extends RouteModule<
     distDir,
     relativeProjectDir,
     resolvedPagePath,
+    rootParamNames,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
     super({ userland, definition, distDir, relativeProjectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+    this.rootParamNames = rootParamNames
 
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
@@ -384,9 +388,7 @@ export class AppRouteRouteModule extends RouteModule<
             (prerenderStore = {
               type: 'prerender',
               phase: 'action',
-              // This replicates prior behavior where rootParams is empty in routes
-              // TODO we need to make this have the proper rootParams for this route
-              rootParams: {},
+              rootParams: requestStore.rootParams,
               fallbackRouteParams: null,
               implicitTags,
               renderSignal: prospectiveController.signal,
@@ -481,7 +483,7 @@ export class AppRouteRouteModule extends RouteModule<
           const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
             type: 'prerender',
             phase: 'action',
-            rootParams: {},
+            rootParams: requestStore.rootParams,
             fallbackRouteParams: null,
             implicitTags,
             renderSignal: finalController.signal,
@@ -567,7 +569,7 @@ export class AppRouteRouteModule extends RouteModule<
           prerenderStore = {
             type: 'prerender-legacy',
             phase: 'action',
-            rootParams: {},
+            rootParams: requestStore.rootParams,
             implicitTags,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
@@ -690,9 +692,20 @@ export class AppRouteRouteModule extends RouteModule<
       null
     )
 
+    // Extract root params from context.params based on rootParamNames
+    const rootParams: Record<string, string | string[] | undefined> = {}
+    if (context.params && this.rootParamNames.length > 0) {
+      for (const paramName of this.rootParamNames) {
+        if (paramName in context.params) {
+          rootParams[paramName] = context.params[paramName]
+        }
+      }
+    }
+
     const requestStore = createRequestStoreForAPI(
       req,
       req.nextUrl,
+      rootParams,
       implicitTags,
       undefined,
       context.prerenderManifest.preview

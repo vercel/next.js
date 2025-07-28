@@ -203,12 +203,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
 
   const actionStore = actionAsyncStorage.getStore()
   if (actionStore) {
-    if (actionStore.isAppRoute) {
-      // TODO(root-params): add support for route handlers
-      throw new Error(
-        `Route ${workStore.route} used ${apiName} inside a Route Handler. Support for this API in Route Handlers is planned for a future version of Next.js.`
-      )
-    }
     if (actionStore.isAction) {
       // Actions are not fundamentally tied to a route (even if they're always submitted from some page),
       // so root params would be inconsistent if an action is called from multiple roots.

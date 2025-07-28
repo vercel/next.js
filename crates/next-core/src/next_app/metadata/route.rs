@@ -103,6 +103,7 @@ pub async fn get_app_metadata_route_entry(
         project_root,
         Some(segment_config),
         next_config,
+        Vc::cell(None), // Metadata routes don't have root params
     ))
 }
 

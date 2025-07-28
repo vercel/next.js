@@ -124,18 +124,13 @@ describe('app-root-param-getters - simple', () => {
     }
   })
 
-  // TODO(root-params): add support for route handlers
-  it('should error when used in a route handler (until we implement it)', async () => {
+  it('should allow reading params in a route handler', async () => {
     const params = { lang: 'en', locale: 'us' }
     const response = await next.fetch(
       `/${params.lang}/${params.locale}/route-handler`
     )
-    expect(response.status).toBe(500)
-    if (!isNextDeploy) {
-      expect(next.cliOutput).toInclude(
-        "Route /[lang]/[locale]/route-handler used `import('next/root-params').lang()` inside a Route Handler. Support for this API in Route Handlers is planned for a future version of Next.js."
-      )
-    }
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(params)
   })
 })
 

@@ -153,9 +153,9 @@ async function findRootLayouts({
   return visit(appDir)
 }
 
-type ParamInfo = { param: string; type: DynamicParamTypes }
+export type ParamInfo = { param: string; type: DynamicParamTypes }
 
-function getParamsFromLayoutFilePath({
+export function getParamsFromLayoutFilePath({
   appDir,
   layoutFilePath,
 }: {

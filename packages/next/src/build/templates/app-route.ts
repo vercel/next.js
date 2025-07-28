@@ -36,10 +36,12 @@ import * as userland from 'VAR_USERLAND'
 // instead of a replacement because this could also be `undefined` instead of
 // an empty string.
 declare const nextConfigOutput: AppRouteRouteModuleOptions['nextConfigOutput']
+declare const rootParamNames: AppRouteRouteModuleOptions['rootParamNames']
 
-// We inject the nextConfigOutput here so that we can use them in the route
+// We inject nextConfigOutput and rootParamNames here so that we can use them in the route
 // module.
 // INJECT:nextConfigOutput
+// INJECT:rootParamNames
 
 const routeModule = new AppRouteRouteModule({
   definition: {
@@ -52,6 +54,7 @@ const routeModule = new AppRouteRouteModule({
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
+  rootParamNames,
   nextConfigOutput,
   userland,
 })
