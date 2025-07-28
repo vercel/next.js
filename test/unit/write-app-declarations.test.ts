@@ -34,6 +34,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
@@ -61,6 +62,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
@@ -86,6 +88,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
@@ -96,6 +99,7 @@ describe('find config', () => {
   it('should include navigation types if app directory is enabled', async () => {
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: true,
@@ -107,6 +111,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: true,
       hasAppDir: true,
