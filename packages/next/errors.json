@@ -757,5 +757,12 @@
   "756": "Route %s not found",
   "757": "Unknown styled string type: %s",
   "758": "Missing workStore in useDynamicRouteParams",
-  "759": "Invariant: missing __PAGE__ segmentPath"
+  "759": "Invariant: missing __PAGE__ segmentPath",
+  "760": "Route %s used %s inside \\`\"use cache\"\\` or \\`unstable_cache\\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
+  "761": "%s must not be used within a client component. Next.js should be preventing it from being included in client components statically, but did not in this case.",
+  "762": "Route %s used %s in Pages Router. This API is only available within App Router.",
+  "763": "\\`unstable_rootParams\\` must not be used within a client component. Next.js should be preventing it from being included in client components statically, but did not in this case.",
+  "764": "Missing workStore in %s",
+  "765": "Route %s used %s inside a Route Handler. Support for this API in Route Handlers is planned for a future version of Next.js.",
+  "766": "%s was used inside a Server Action. This is not supported. Functions from 'next/root-params' can only be called in the context of a route."
 }
