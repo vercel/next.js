@@ -33,7 +33,7 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.root.root().await?.clone_value(),
+            self.root.root().owned().await?,
             Glob::new("**/*.{sass,scss}".into()),
         ))
     }
@@ -62,6 +62,8 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSassModuleIssue {
+    // TODO(PACK-4879): The `file_path` is incorrect for this issue and we should supply
+    // detailed source information.
     file_path: FileSystemPath,
     request: ResolvedVc<Request>,
 }

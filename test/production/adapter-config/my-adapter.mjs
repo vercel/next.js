@@ -1,3 +1,4 @@
+// @ts-check
 /** @type {import('next').NextAdapter } */
 const myAdapter = {
   name: 'my-custom-adapter',

@@ -57,10 +57,10 @@ impl EcmascriptBuildNodeEntryChunk {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
-        let output_root = this.chunking_context.output_root().await?.clone_value();
-        let chunk_path = self.path().await?.clone_value();
+        let output_root = this.chunking_context.output_root().owned().await?;
+        let chunk_path = self.path().owned().await?;
         let chunk_directory = self.path().await?.parent();
-        let runtime_path = self.runtime_chunk().path().await?.clone_value();
+        let runtime_path = self.runtime_chunk().path().owned().await?;
         let runtime_relative_path =
             if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
                 path
@@ -86,11 +86,10 @@ impl EcmascriptBuildNodeEntryChunk {
         writedoc!(
             code,
             r#"
-                const CHUNK_PUBLIC_PATH = {};
-                const runtime = require({});
+                var R=require({})({})
             "#,
+            StringifyJs(&*runtime_relative_path),
             StringifyJs(chunk_public_path),
-            StringifyJs(&*runtime_relative_path)
         )?;
 
         let other_chunks = this.other_chunks.await?;
@@ -102,7 +101,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     // TODO(WEB-1112) This should call `require()` directly, perhaps as an argument
                     // to `loadChunk`.
                     r#"
-                        runtime.loadChunk({});
+                        R.c({})
                     "#,
                     StringifyJs(&other_chunk_public_path)
                 )?;
@@ -121,7 +120,7 @@ impl EcmascriptBuildNodeEntryChunk {
                 writedoc!(
                     code,
                     r#"
-                        runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH);
+                        R.m({})
                     "#,
                     StringifyJs(&*runtime_module_id),
                 )?;
@@ -136,8 +135,8 @@ impl EcmascriptBuildNodeEntryChunk {
         writedoc!(
             code,
             r#"
-                    module.exports = runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH).exports;
-                "#,
+                module.exports=R.m({}).exports
+            "#,
             StringifyJs(&*runtime_module_id),
         )?;
 

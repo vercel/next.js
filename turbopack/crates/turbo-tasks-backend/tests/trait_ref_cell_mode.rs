@@ -135,12 +135,12 @@ where
     Ok(TraitRef::cell(picked_vc.into_trait_ref().await?))
 }
 
-#[turbo_tasks::function(invalidator)]
+#[turbo_tasks::function]
 async fn shared_value_from_input(input: Vc<CellIdSelector>) -> Result<Vc<Box<dyn ValueTrait>>> {
     value_from_input::<SharedValue>(input, Vc::<SharedValue>::cell).await
 }
 
-#[turbo_tasks::function(invalidator)]
+#[turbo_tasks::function]
 async fn new_value_from_input(input: Vc<CellIdSelector>) -> Result<Vc<Box<dyn ValueTrait>>> {
     value_from_input::<NewValue>(input, Vc::<NewValue>::cell).await
 }

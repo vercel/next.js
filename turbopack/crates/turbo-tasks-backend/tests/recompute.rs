@@ -112,7 +112,7 @@ struct Output {
     random_value: u32,
 }
 
-#[turbo_tasks::function(invalidator)]
+#[turbo_tasks::function]
 async fn compute(input: Vc<ChangingInput>, input2: Vc<ChangingInput>) -> Result<Vc<Output>> {
     let state_value = *input.await?.state.get();
     let state_value2 = if state_value < 5 {
@@ -130,7 +130,7 @@ async fn compute(input: Vc<ChangingInput>, input2: Vc<ChangingInput>) -> Result<
     .cell())
 }
 
-#[turbo_tasks::function(invalidator)]
+#[turbo_tasks::function]
 async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     let state_value = *input.await?.state.get();
     Ok(Vc::cell(state_value))

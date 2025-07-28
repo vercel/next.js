@@ -13,7 +13,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::glob::Glob;
@@ -22,6 +22,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
+    module_graph::export_usage::ModuleExportUsageInfo,
     reference::ModuleReference,
     resolve::ModulePart,
 };
@@ -29,12 +30,11 @@ use turbopack_core::{
 use super::base::ReferencedAsset;
 use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext,
+    analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
-    parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
-    simple_tree_shake::ModuleExportUsageInfo,
     tree_shake::asset::EcmascriptModulePartAsset,
     utils::module_id_to_lit,
 };
@@ -67,6 +67,7 @@ pub async fn is_export_missing(
     let exports = module.get_exports().await?;
     let exports = match &*exports {
         EcmascriptExports::None => return Ok(Vc::cell(true)),
+        EcmascriptExports::Unknown => return Ok(Vc::cell(false)),
         EcmascriptExports::Value => return Ok(Vc::cell(false)),
         EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
         EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
@@ -96,7 +97,8 @@ pub async fn is_export_missing(
         match &*exports {
             EcmascriptExports::Value
             | EcmascriptExports::CommonJs
-            | EcmascriptExports::DynamicNamespace => {
+            | EcmascriptExports::DynamicNamespace
+            | EcmascriptExports::Unknown => {
                 return Ok(Vc::cell(false));
             }
             EcmascriptExports::None
@@ -343,7 +345,7 @@ async fn get_all_export_names(
                 if let ReferencedAsset::Some(m) =
                     *ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                 {
-                    Some(get_all_export_names(*m))
+                    Some(expand_star_exports(*m))
                 } else {
                     None
                 },
@@ -372,16 +374,16 @@ async fn get_all_export_names(
 
 #[turbo_tasks::value]
 pub struct ExpandStarResult {
-    pub star_exports: Vec<RcStr>,
-    pub has_dynamic_exports: bool,
+    pub esm_exports: FxIndexMap<RcStr, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    pub dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::function]
 pub async fn expand_star_exports(
-    root_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    root_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<ExpandStarResult>> {
-    let mut set = FxIndexSet::default();
-    let mut has_dynamic_exports = false;
+    let mut esm_exports = FxIndexMap::default();
+    let mut dynamic_exporting_modules = Vec::new();
     let mut checked_modules = FxHashSet::default();
     checked_modules.insert(root_module);
     let mut queue = vec![(root_module, root_module.get_exports())];
@@ -389,13 +391,18 @@ pub async fn expand_star_exports(
         match &*exports.await? {
             EcmascriptExports::EsmExports(exports) => {
                 let exports = exports.await?;
-                set.extend(exports.exports.keys().filter(|n| *n != "default").cloned());
+                for key in exports.exports.keys() {
+                    if key == "default" {
+                        continue;
+                    }
+                    esm_exports.entry(key.clone()).or_insert_with(|| asset);
+                }
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =
                         &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
-                        && checked_modules.insert(**asset)
+                        && checked_modules.insert(*asset)
                     {
-                        queue.push((**asset, asset.get_exports()));
+                        queue.push((*asset, asset.get_exports()));
                     }
                 }
             }
@@ -427,7 +434,7 @@ pub async fn expand_star_exports(
                 .await?
             }
             EcmascriptExports::CommonJs => {
-                has_dynamic_exports = true;
+                dynamic_exporting_modules.push(asset);
                 emit_star_exports_issue(
                     asset.ident(),
                     format!(
@@ -442,14 +449,18 @@ pub async fn expand_star_exports(
                 .await?;
             }
             EcmascriptExports::DynamicNamespace => {
-                has_dynamic_exports = true;
+                dynamic_exporting_modules.push(asset);
+            }
+            EcmascriptExports::Unknown => {
+                // Propagate the Unknown export type to a certain extent.
+                dynamic_exporting_modules.push(asset);
             }
         }
     }
 
     Ok(ExpandStarResult {
-        star_exports: set.into_iter().collect(),
-        has_dynamic_exports,
+        esm_exports,
+        dynamic_exporting_modules,
     }
     .cell())
 }
@@ -493,17 +504,14 @@ impl EsmExports {
     #[turbo_tasks::function]
     pub async fn expand_exports(
         &self,
-        export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
+        export_usage_info: Vc<ModuleExportUsageInfo>,
     ) -> Result<Vc<ExpandedExports>> {
         let mut exports: BTreeMap<RcStr, EsmExport> = self.exports.clone();
         let mut dynamic_exports = vec![];
-        let usage_info = match export_usage_info {
-            Some(usage_info) => Some(usage_info.await?),
-            None => None,
-        };
+        let export_usage_info = export_usage_info.await?;
 
-        if let Some(usage_info) = &usage_info {
-            exports.retain(|export, _| usage_info.is_export_used(export));
+        if !matches!(*export_usage_info, ModuleExportUsageInfo::All) {
+            exports.retain(|export, _| export_usage_info.is_export_used(export));
         }
 
         for &esm_ref in self.star_exports.iter() {
@@ -517,10 +525,11 @@ impl EsmExports {
 
             let export_info = expand_star_exports(**asset).await?;
 
-            for export in &export_info.star_exports {
-                if let Some(usage_info) = &usage_info
-                    && !usage_info.is_export_used(export)
-                {
+            for export in export_info.esm_exports.keys() {
+                if export == "default" {
+                    continue;
+                }
+                if !export_usage_info.is_export_used(export) {
                     continue;
                 }
 
@@ -536,7 +545,7 @@ impl EsmExports {
                 }
             }
 
-            if export_info.has_dynamic_exports {
+            if !export_info.dynamic_exporting_modules.is_empty() {
                 dynamic_exports.push(*asset);
             }
         }
@@ -554,10 +563,11 @@ impl EsmExports {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
-        parsed: Option<Vc<ParseResult>>,
-        export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
+        eval_context: &EvalContext,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Result<CodeGeneration> {
-        let expanded = self.expand_exports(export_usage_info.map(|v| *v)).await?;
+        let export_usage_info = chunking_context.module_export_usage(*ResolvedVc::upcast(module));
+        let expanded = self.expand_exports(export_usage_info).await?;
 
         if scope_hoisting_context.skip_module_exports() && expanded.dynamic_exports.is_empty() {
             // If the current module is not exposed, no need to generate exports.
@@ -567,12 +577,6 @@ impl EsmExports {
             // be handled at runtime via property access, e.g. `export * from "./some-dynamic-cjs"`
             return Ok(CodeGeneration::empty());
         }
-
-        let parsed = if let Some(parsed) = parsed {
-            Some(parsed.await?)
-        } else {
-            None
-        };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
         {
@@ -618,24 +622,16 @@ impl EsmExports {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding = if let Some(parsed) = &parsed {
-                        if let ParseResult::Ok { eval_context, .. } = &**parsed {
-                            if let Some((local, ctxt)) = eval_context.imports.exports.get(exported)
-                            {
-                                Some((Cow::Borrowed(local.as_str()), *ctxt))
-                            } else {
-                                bail!(
-                                    "Expected export to be in eval context {:?} {:?}",
-                                    exported,
-                                    eval_context.imports,
-                                )
-                            }
+                    let binding =
+                        if let Some((local, ctxt)) = eval_context.imports.exports.get(exported) {
+                            Some((Cow::Borrowed(local.as_str()), *ctxt))
                         } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
+                            bail!(
+                                "Expected export to be in eval context {:?} {:?}",
+                                exported,
+                                eval_context.imports,
+                            )
+                        };
                     let (local, ctxt) = binding.unwrap_or_else(|| {
                         // Fallback, shouldn't happen in practice
                         (

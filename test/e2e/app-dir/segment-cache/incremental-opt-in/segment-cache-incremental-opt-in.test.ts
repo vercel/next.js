@@ -3,7 +3,7 @@ import { createRouterAct } from '../router-act'
 import { Page } from 'playwright'
 
 describe('segment cache (incremental opt in)', () => {
-  const { next, isNextDeploy, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
   if (isNextDev) {
@@ -102,11 +102,8 @@ describe('segment cache (incremental opt in)', () => {
 
   describe('multiple prefetches to same link are deduped', () => {
     it('page with PPR enabled', () => testPrefetchDeduping('/ppr-enabled'))
-    // FIXME: When deployed, the _tree prefetch request returns an empty 204.
-    ;(isNextDeploy ? it.failing : it)(
-      'page with PPR enabled, and has a dynamic param',
-      () => testPrefetchDeduping('/ppr-enabled/dynamic-param')
-    )
+    it('page with PPR enabled, and has a dynamic param', () =>
+      testPrefetchDeduping('/ppr-enabled/dynamic-param'))
     it('page with PPR disabled', () => testPrefetchDeduping('/ppr-disabled'))
     it('page with PPR disabled, and has a loading boundary', () =>
       testPrefetchDeduping('/ppr-disabled-with-loading-boundary'))
@@ -475,4 +472,41 @@ describe('segment cache (incremental opt in)', () => {
       )
     }
   )
+
+  it('fully prefetch a page with a dynamic title', async () => {
+    let act
+    const browser = await next.browser('/', {
+      beforePageLoad(p) {
+        act = createRouterAct(p)
+      },
+    })
+
+    await act(
+      async () => {
+        const checkbox = await browser.elementByCss(
+          'input[data-link-accordion="/ppr-disabled-dynamic-head?foo=yay"]'
+        )
+        await checkbox.click()
+      },
+      // Because the link is prefetched with prefetch=true, we should be able to
+      // prefetch the title, even though it's dynamic.
+      {
+        includes: 'Dynamic Title: yay',
+      }
+    )
+
+    // When we navigate to the page, it should not make any additional
+    // network requests, because both the segment data and the head were
+    // fully prefetched.
+    await act(async () => {
+      const link = await browser.elementByCss(
+        'a[href="/ppr-disabled-dynamic-head?foo=yay"]'
+      )
+      await link.click()
+      const pageContent = await browser.elementById('page-content')
+      expect(await pageContent.text()).toBe('Page content')
+      const title = await browser.eval(() => document.title)
+      expect(title).toBe('Dynamic Title: yay')
+    }, 'no-requests')
+  })
 })

@@ -1,2 +1,2 @@
-import { root } from "fixtures";
-console.log(root);
+import { root } from 'fixtures'
+console.log(root)

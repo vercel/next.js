@@ -308,6 +308,13 @@ export function runTests(ctx: RunTestsCtx) {
     expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
+  it('should not forward cookie header', async () => {
+    const query = { w: ctx.w, q: 30, url: '/api/conditional-cookie' }
+    const opts = { headers: { accept: 'image/webp', cookie: '1' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+  })
+
   if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
     it('should maintain vector svg', async () => {
       const query = { w: ctx.w, q: 90, url: '/test.svg' }

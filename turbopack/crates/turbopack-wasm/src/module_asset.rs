@@ -257,12 +257,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             .await?
             .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
-        let mut chunk_item_content = ecmascript_item
+        let chunk_item_content = ecmascript_item
             .content_with_async_module_info(async_module_info)
             .owned()
             .await?;
-
-        chunk_item_content.options.wasm = true;
 
         Ok(chunk_item_content.cell())
     }

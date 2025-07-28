@@ -6,9 +6,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{MinifyType, SourceMapsType},
-    condition::ContextCondition,
-    environment::Environment,
+    chunk::SourceMapsType, condition::ContextCondition, environment::Environment,
     resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
@@ -170,10 +168,6 @@ pub struct ModuleOptionsContext {
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ResolvedVc<ModuleOptionsContext>)>,
 
-    /// `matches!(tree_shaking_mode, Some(TreeShakingMode::Intermediate))` is not enough because we
-    /// use different tree shaking modes for user code and foreign code while intermediate tree
-    /// shaking is a global option.
-    pub remove_unused_exports: bool,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -212,8 +206,6 @@ pub struct CssOptionsContext {
     /// This is useful for node-file-trace, which tries to emit all assets in
     /// the module graph, but neither asset types can be emitted directly.
     pub enable_raw_css: bool,
-
-    pub minify_type: MinifyType,
 
     /// Specifies how Source Maps are handled.
     pub source_maps: SourceMapsType,

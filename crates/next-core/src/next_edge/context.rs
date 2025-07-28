@@ -1,6 +1,7 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOptionsContext};
 use turbopack_browser::BrowserChunkingContext;
@@ -12,15 +13,17 @@ use turbopack_core::{
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
+    module_graph::export_usage::OptionExportUsageInfo,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
+    app_structure::CollectedRootParams,
     mode::NextMode,
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
-    next_import_map::get_next_edge_import_map,
+    next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
     next_shared::resolve::{
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
@@ -82,6 +85,7 @@ pub async fn get_edge_resolve_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
+    collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_edge_import_map = get_next_edge_import_map(
         project_path.clone(),
@@ -89,9 +93,14 @@ pub async fn get_edge_resolve_options_context(
         next_config,
         mode,
         execution_context,
+        collected_root_params,
     )
     .to_resolved()
     .await?;
+    let next_edge_fallback_import_map =
+        get_next_edge_and_server_fallback_import_map(project_path.clone(), NextRuntime::Edge)
+            .to_resolved()
+            .await?;
 
     let mut before_resolve_plugins = vec![ResolvedVc::upcast(
         ModuleFeatureReportResolvePlugin::new(project_path.clone())
@@ -147,15 +156,16 @@ pub async fn get_edge_resolve_options_context(
             .map(RcStr::from),
     );
 
-    if ty.supports_react_server() {
+    if ty.should_use_react_server_condition() {
         custom_conditions.push(rcstr!("react-server"));
     };
 
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().await?.clone_value()),
+        enable_node_modules: Some(project_path.root().owned().await?),
         enable_edge_node_externals: true,
         custom_conditions,
         import_map: Some(next_edge_import_map),
+        fallback_import_map: Some(next_edge_fallback_import_map),
         module: true,
         browser: true,
         after_resolve_plugins,
@@ -185,21 +195,40 @@ pub async fn get_edge_resolve_options_context(
     .cell())
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
+pub struct EdgeChunkingContextOptions {
+    pub mode: Vc<NextMode>,
+    pub root_path: FileSystemPath,
+    pub node_root: FileSystemPath,
+    pub output_root_to_root_path: Vc<RcStr>,
+    pub environment: Vc<Environment>,
+    pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    pub export_usage: Vc<OptionExportUsageInfo>,
+    pub turbo_minify: Vc<bool>,
+    pub turbo_source_maps: Vc<bool>,
+    pub no_mangling: Vc<bool>,
+    pub scope_hoisting: Vc<bool>,
+}
+
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context_with_client_assets(
-    mode: Vc<NextMode>,
-    root_path: FileSystemPath,
-    node_root: FileSystemPath,
-    output_root_to_root_path: ResolvedVc<RcStr>,
+    options: EdgeChunkingContextOptions,
     client_root: FileSystemPath,
     asset_prefix: ResolvedVc<Option<RcStr>>,
-    environment: ResolvedVc<Environment>,
-    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    turbo_minify: Vc<bool>,
-    turbo_source_maps: Vc<bool>,
-    no_mangling: Vc<bool>,
-    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    let EdgeChunkingContextOptions {
+        mode,
+        root_path,
+        node_root,
+        output_root_to_root_path,
+        environment,
+        module_id_strategy,
+        export_usage,
+        turbo_minify,
+        turbo_source_maps,
+        no_mangling,
+        scope_hoisting,
+    } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -209,7 +238,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         client_root.clone(),
         output_root.join("chunks/ssr")?,
         client_root.join("static/media")?,
-        environment,
+        environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
     .asset_base_path(asset_prefix.owned().await?)
@@ -226,7 +255,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     } else {
         SourceMapsType::None
     })
-    .module_id_strategy(module_id_strategy);
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?);
 
     if !next_mode.is_development() {
         builder = builder
@@ -252,27 +282,31 @@ pub async fn get_edge_chunking_context_with_client_assets(
 
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context(
-    mode: Vc<NextMode>,
-    root_path: FileSystemPath,
-    node_root: FileSystemPath,
-    node_root_to_root_path: ResolvedVc<RcStr>,
-    environment: ResolvedVc<Environment>,
-    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    turbo_minify: Vc<bool>,
-    turbo_source_maps: Vc<bool>,
-    no_mangling: Vc<bool>,
-    scope_hoisting: Vc<bool>,
+    options: EdgeChunkingContextOptions,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    let EdgeChunkingContextOptions {
+        mode,
+        root_path,
+        node_root,
+        output_root_to_root_path,
+        environment,
+        module_id_strategy,
+        export_usage,
+        turbo_minify,
+        turbo_source_maps,
+        no_mangling,
+        scope_hoisting,
+    } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         output_root.clone(),
-        node_root_to_root_path.owned().await?,
+        output_root_to_root_path.owned().await?,
         output_root.clone(),
         output_root.join("chunks")?,
         output_root.join("assets")?,
-        environment,
+        environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
     // Since one can't read files in edge directly, any asset need to be fetched
@@ -292,7 +326,8 @@ pub async fn get_edge_chunking_context(
     } else {
         SourceMapsType::None
     })
-    .module_id_strategy(module_id_strategy);
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .export_usage(*export_usage.await?);
 
     if !next_mode.is_development() {
         builder = builder

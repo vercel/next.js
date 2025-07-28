@@ -477,7 +477,7 @@ fn react_server_components_typescript(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
-                    dynamic_io_enabled: false,
+                    cache_components_enabled: false,
                     use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
@@ -505,7 +505,7 @@ fn react_server_components_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer,
-                    dynamic_io_enabled: false,
+                    cache_components_enabled: false,
                     use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
@@ -789,7 +789,7 @@ fn pure(input: PathBuf) {
     );
 }
 
-fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
+fn run_strip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
     test_fixture(
         syntax(),
         &|tr| {
@@ -830,14 +830,14 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
 fn next_transform_strip_page_exports_fixture_data(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_stip_page_exports_test(&input, &output, ExportFilter::StripDefaultExport);
+    run_strip_page_exports_test(&input, &output, ExportFilter::StripDefaultExport);
 }
 
 #[fixture("tests/fixture/strip-page-exports/**/output-default.js")]
 fn next_transform_strip_page_exports_fixture_default(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_stip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
+    run_strip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
 }
 
 #[fixture("tests/fixture/debug-fn-name/**/input.js")]

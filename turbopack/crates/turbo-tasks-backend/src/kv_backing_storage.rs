@@ -166,9 +166,11 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
     where
         T: Send + Sync + 'static,
     {
-        let startup_cache_state = check_db_invalidation_and_cleanup(&base_path)?;
-        let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)?;
-        let database = (database)(versioned_path)?;
+        let startup_cache_state = check_db_invalidation_and_cleanup(&base_path)
+            .context("Failed to check database invalidation and cleanup")?;
+        let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)
+            .context("Failed to handle database versioning")?;
+        let database = (database)(versioned_path).context("Failed to open database")?;
         let backing_storage = Self {
             inner: Arc::new_cyclic(
                 move |weak_inner: &Weak<KeyValueDatabaseBackingStorageInner<T>>| {
@@ -262,12 +264,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 {
     type ReadTransaction<'l> = T::ReadTransaction<'l>;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        T::lower_read_transaction(tx)
-    }
-
     fn next_free_task_id(&self) -> Result<TaskId> {
         Ok(TaskId::try_from(
             self.inner
@@ -304,7 +300,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
-    fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
+    fn serialize(&self, task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
         serialize(task, data)
     }
 

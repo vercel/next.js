@@ -1,7 +1,6 @@
 use std::mem::take;
 
 use anyhow::{Context, Result, bail};
-use async_trait::async_trait;
 use base64::Engine;
 use either::Either;
 use futures::try_join;
@@ -24,7 +23,10 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
+    },
     module::Module,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -190,8 +192,8 @@ async fn webpack_loaders_executor(
     Ok(evaluate_context.process(
         Vc::upcast(FileSource::new(
             embed_file_path(rcstr!("transforms/webpack-loaders.ts"))
-                .await?
-                .clone_value(),
+                .owned()
+                .await?,
         )),
         ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
     ))
@@ -241,7 +243,7 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-        let resource_fs_path = this.source.ident().path().await?.clone_value();
+        let resource_fs_path = this.source.ident().path().owned().await?;
         let resource_fs_path_ref = resource_fs_path.clone();
         let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path_ref) else {
             bail!(format!(
@@ -254,7 +256,7 @@ impl WebpackLoadersProcessedAsset {
             module_asset: webpack_loaders_executor,
             cwd: project_path.clone(),
             env: *env,
-            context_ident_for_issue: this.source.ident().to_resolved().await?,
+            context_source_for_issue: this.source,
             asset_context: evaluate_context,
             chunking_context: *chunking_context,
             resolve_options_context: Some(transform.resolve_options_context),
@@ -312,10 +314,10 @@ impl WebpackLoadersProcessedAsset {
 }
 
 #[turbo_tasks::function]
-pub(crate) fn evaluate_webpack_loader(
+pub(crate) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
-) -> Vc<JavaScriptEvaluation> {
-    custom_evaluate(webpack_loader_context)
+) -> Result<Vc<JavaScriptEvaluation>> {
+    custom_evaluate(webpack_loader_context).await
 }
 
 #[turbo_tasks::function]
@@ -415,7 +417,7 @@ pub struct WebpackLoaderContext {
     pub module_asset: ResolvedVc<Box<dyn Module>>,
     pub cwd: FileSystemPath,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
-    pub context_ident_for_issue: ResolvedVc<AssetIdent>,
+    pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
@@ -423,15 +425,16 @@ pub struct WebpackLoaderContext {
     pub additional_invalidation: ResolvedVc<Completion>,
 }
 
-#[async_trait]
 impl EvaluateContext for WebpackLoaderContext {
     type InfoMessage = InfoMessage;
     type RequestMessage = RequestMessage;
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 
-    fn compute(self, sender: Vc<JavaScriptStreamSender>) {
-        let _ = compute_webpack_loader_evaluation(self, sender);
+    async fn compute(self, sender: Vc<JavaScriptStreamSender>) -> Result<()> {
+        compute_webpack_loader_evaluation(self, sender)
+            .as_side_effect()
+            .await
     }
 
     fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
@@ -466,10 +469,10 @@ impl EvaluateContext for WebpackLoaderContext {
     async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
         EvaluationIssue {
             error,
-            context_ident: self.context_ident_for_issue,
+            source: IssueSource::from_source_only(self.context_source_for_issue),
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
-            root_path: self.chunking_context.root_path().await?.clone_value(),
+            root_path: self.chunking_context.root_path().owned().await?,
         }
         .resolved_cell()
         .emit();
@@ -526,7 +529,7 @@ impl EvaluateContext for WebpackLoaderContext {
 
                 for build_path in resolved_build_paths {
                     BuildDependencyIssue {
-                        context_ident: self.context_ident_for_issue,
+                        source: IssueSource::from_source_only(self.context_source_for_issue),
                         path: build_path,
                     }
                     .resolved_cell()
@@ -535,12 +538,12 @@ impl EvaluateContext for WebpackLoaderContext {
             }
             InfoMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {
-                    file_path: self.context_ident_for_issue.path().await?.clone_value(),
+                    source: IssueSource::from_source_only(self.context_source_for_issue),
                     error,
                     severity,
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root.clone(),
-                    project_dir: self.chunking_context.root_path().await?.clone_value(),
+                    project_dir: self.chunking_context.root_path().owned().await?,
                 }
                 .resolved_cell()
                 .emit();
@@ -580,8 +583,6 @@ impl EvaluateContext for WebpackLoaderContext {
                     options,
                 );
 
-                let request_str = request.to_string().await?;
-                let lookup_path_str = lookup_path.value_to_string().await?;
                 if let Some(source) = *resolved.first_source().await? {
                     if let Some(path) = self
                         .cwd
@@ -591,12 +592,16 @@ impl EvaluateContext for WebpackLoaderContext {
                     } else {
                         bail!(
                             "Resolving {} in {} ends up on a different filesystem",
-                            request_str,
-                            lookup_path_str
+                            request.to_string().await?,
+                            lookup_path.value_to_string().await?
                         );
                     }
                 } else {
-                    bail!("Unable to resolve {} in {}", request_str, lookup_path_str);
+                    bail!(
+                        "Unable to resolve {} in {}",
+                        request.to_string().await?,
+                        lookup_path.value_to_string().await?
+                    );
                 }
             }
         }
@@ -621,7 +626,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 .collect();
 
             EvaluateErrorLoggingIssue {
-                file_path: self.context_ident_for_issue.path().await?.clone_value(),
+                source: IssueSource::from_source_only(self.context_source_for_issue),
                 logging: logs,
                 severity: if has_errors {
                     IssueSeverity::Error
@@ -630,7 +635,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 },
                 assets_for_source_mapping: pool.assets_for_source_mapping,
                 assets_root: pool.assets_root.clone(),
-                project_dir: self.chunking_context.root_path().await?.clone_value(),
+                project_dir: self.chunking_context.root_path().owned().await?,
             }
             .resolved_cell()
             .emit();
@@ -725,8 +730,8 @@ async fn apply_webpack_resolve_options(
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
 pub struct BuildDependencyIssue {
-    pub context_ident: ResolvedVc<AssetIdent>,
     pub path: FileSystemPath,
+    pub source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
@@ -747,7 +752,7 @@ impl Issue for BuildDependencyIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.context_ident.path()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -766,11 +771,16 @@ impl Issue for BuildDependencyIssue {
             .resolved_cell(),
         )))
     }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
+    }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct EvaluateEmittedErrorIssue {
-    pub file_path: FileSystemPath,
+    pub source: IssueSource,
     pub severity: IssueSeverity,
     pub error: StructuredError,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
@@ -782,7 +792,7 @@ pub struct EvaluateEmittedErrorIssue {
 impl Issue for EvaluateEmittedErrorIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -816,11 +826,16 @@ impl Issue for EvaluateEmittedErrorIssue {
             .resolved_cell(),
         )))
     }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
+    }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct EvaluateErrorLoggingIssue {
-    pub file_path: FileSystemPath,
+    pub source: IssueSource,
     pub severity: IssueSeverity,
     #[turbo_tasks(trace_ignore)]
     pub logging: Vec<LogInfo>,
@@ -833,7 +848,7 @@ pub struct EvaluateErrorLoggingIssue {
 impl Issue for EvaluateErrorLoggingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -886,5 +901,10 @@ impl Issue for EvaluateErrorLoggingIssue {
             })
             .collect::<Vec<_>>();
         Vc::cell(Some(StyledString::Stack(lines).resolved_cell()))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }

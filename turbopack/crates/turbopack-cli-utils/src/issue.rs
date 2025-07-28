@@ -226,63 +226,58 @@ pub fn format_issue(
                 out.push('\n');
             }
         }
-        if traces.len() == 1 {
-            let trace = &traces[0];
-            // We don't put the layer in the header for the single case. Either they are all the
-            // same in which case it should be clear from the filename or they are different and we
-            // need to print them on the items anyway.
-            writeln!(styled_issue, "Import trace:").unwrap();
-            format_trace_items(&mut styled_issue, "  ", !are_layers_identical(trace), trace);
-        } else {
-            // When there are multiple traces we:
-            // * display the layer in the header if the trace has a consistent layer
-            // * label the traces with their index, unless the layer is sufficiently unique.
-            styled_issue.push_str("Import traces:\n");
-            let every_trace_has_a_distinct_root_layer = traces
-                .iter()
-                .filter_map(|t| leaf_layer_name(t))
-                .collect::<FxHashSet<RcStr>>()
-                .len()
-                == traces.len();
+
+        // For each trace we:
+        // * display the layer in the header if the trace has a consistent layer
+        // * label the traces with their index, unless the layer is sufficiently unique.
+        writeln!(
+            styled_issue,
+            "Import trace{}:",
+            if traces.len() > 1 { "s" } else { "" }
+        )
+        .unwrap();
+        let every_trace_has_a_distinct_root_layer = traces
+            .iter()
+            .filter_map(|t| leaf_layer_name(t))
+            .collect::<FxHashSet<RcStr>>()
+            .len()
+            == traces.len();
+        for (index, trace) in traces.iter().enumerate() {
+            let layer = leaf_layer_name(trace);
+            let mut trace_indent = "    ";
             if every_trace_has_a_distinct_root_layer {
-                for trace in traces {
-                    writeln!(styled_issue, "  {}:", leaf_layer_name(trace).unwrap()).unwrap();
-                    format_trace_items(&mut styled_issue, "    ", false, trace);
+                writeln!(styled_issue, "  {}:", layer.unwrap()).unwrap();
+            } else if traces.len() > 1 {
+                write!(styled_issue, "  #{}", index + 1).unwrap();
+                if let Some(layer) = layer {
+                    write!(styled_issue, " [{layer}]").unwrap();
                 }
+                writeln!(styled_issue, ":").unwrap();
+            } else if let Some(layer) = layer {
+                write!(styled_issue, " [{layer}]").unwrap();
             } else {
-                for (index, trace) in traces.iter().enumerate() {
-                    let printed_layer = match leaf_layer_name(trace) {
-                        Some(layer) => {
-                            writeln!(styled_issue, "  #{} [{layer}]:", index + 1).unwrap();
-                            false
-                        }
-                        None => {
-                            writeln!(styled_issue, "  #{}:", index + 1).unwrap();
-                            true
-                        }
-                    };
-                    format_trace_items(
-                        &mut styled_issue,
-                        "    ",
-                        !printed_layer || !are_layers_identical(trace),
-                        trace,
-                    );
-                }
+                // There is one trace and no layer (!?) just indent once
+                trace_indent = "  ";
             }
+
+            format_trace_items(
+                &mut styled_issue,
+                trace_indent,
+                !are_layers_identical(trace),
+                trace,
+            );
         }
     }
 
-    write!(
-        issue_text,
-        "{} - [{}] {}",
-        severity.style(severity_to_style(severity)),
-        stage,
-        plain_issue.file_path
-    )
-    .unwrap();
-
-    for line in styled_issue.lines() {
-        writeln!(issue_text, "  {line}").unwrap();
+    let severity = severity.style(severity_to_style(severity));
+    write!(issue_text, "{severity} - [{stage}] ").unwrap();
+    for (index, line) in styled_issue.lines().enumerate() {
+        // don't indent the first line
+        if index > 0 {
+            issue_text.push_str("  ");
+        }
+        issue_text.push_str(line);
+        issue_text.push('\n');
     }
 
     issue_text
@@ -544,21 +539,20 @@ impl IssueReporter for ConsoleUi {
                         println!("{indent}[{category}]");
                         format!("{indent}  ")
                     };
-                    let (mut contextes, mut vendor_contextes): (Vec<_>, Vec<_>) = category_issues
+                    let (mut contexts, mut vendor_contexts): (Vec<_>, Vec<_>) = category_issues
                         .iter_mut()
                         .partition(|(context, _)| !context.contains("node_modules"));
-                    contextes.sort_by_key(|(c, _)| *c);
+                    contexts.sort_by_key(|(c, _)| *c);
                     if show_all {
-                        vendor_contextes.sort_by_key(|(c, _)| *c);
-                        contextes.extend(vendor_contextes);
+                        vendor_contexts.sort_by_key(|(c, _)| *c);
+                        contexts.extend(vendor_contexts);
                     }
                     let category_issues_take_count = if show_all {
                         category_issues_size
                     } else {
-                        min(contextes.len(), DEFAULT_SHOW_COUNT)
+                        min(contexts.len(), DEFAULT_SHOW_COUNT)
                     };
-                    for (context, issues) in contextes.into_iter().take(category_issues_take_count)
-                    {
+                    for (context, issues) in contexts.into_iter().take(category_issues_take_count) {
                         issues.sort();
                         println!("{indent}{}", context.bright_blue());
                         let issues_size = issues.len();
@@ -696,6 +690,6 @@ fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
         format_source_content(source, &mut styled_issue);
         styled_issue
     } else {
-        formatted_title
+        format!("{context_path}  {formatted_title}\n")
     }
 }

@@ -4,8 +4,7 @@
 const nextConfig = {
   experimental: {
     cpus: 1,
-    dynamicIO: true,
-    enablePrerenderSourceMaps: true,
+    cacheComponents: true,
     serverSourceMaps: true,
   },
   serverExternalPackages: ['external-pkg'],

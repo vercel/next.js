@@ -1,2 +1,2 @@
-const { Client } = require("pg");
-const client = new Client();
+const { Client } = require('pg')
+const client = new Client()

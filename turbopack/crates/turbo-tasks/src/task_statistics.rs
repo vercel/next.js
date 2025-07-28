@@ -2,7 +2,7 @@ use std::sync::{Arc, OnceLock};
 
 use serde::{Serialize, Serializer, ser::SerializeMap};
 
-use crate::{FxDashMap, macro_helpers::NativeFunction, registry};
+use crate::{FxDashMap, macro_helpers::NativeFunction};
 
 /// An API for optionally enabling, updating, and reading aggregated statistics.
 #[derive(Default)]
@@ -73,8 +73,7 @@ impl Serialize for TaskStatistics {
     {
         let mut map = serializer.serialize_map(Some(self.inner.len()))?;
         for entry in &self.inner {
-            let key = registry::get_function_global_name(entry.key());
-            map.serialize_entry(key, entry.value())?;
+            map.serialize_entry(entry.key().global_name(), entry.value())?;
         }
         map.end()
     }

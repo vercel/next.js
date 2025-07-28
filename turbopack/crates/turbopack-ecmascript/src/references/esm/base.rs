@@ -23,6 +23,7 @@ use turbopack_core::{
         OptionStyledString, StyledString,
     },
     module::Module,
+    module_graph::export_usage::ModuleExportUsageInfo,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
@@ -92,26 +93,29 @@ impl ReferencedAssetIdent {
                 ctxt,
                 export,
             } => {
-                let ns = Ident::new(
-                    namespace_ident.as_str().into(),
-                    span,
-                    ctxt.unwrap_or_default(),
-                );
                 if let Some(export) = export {
                     Either::Right(MemberExpr {
                         span,
-                        obj: Box::new(Expr::Ident(ns)),
+                        obj: Box::new(Expr::Ident(Ident::new(
+                            namespace_ident.as_str().into(),
+                            DUMMY_SP,
+                            ctxt.unwrap_or_default(),
+                        ))),
                         prop: MemberProp::Computed(ComputedPropName {
-                            span,
+                            span: DUMMY_SP,
                             expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                span,
+                                span: DUMMY_SP,
                                 value: export.as_str().into(),
                                 raw: None,
                             }))),
                         }),
                     })
                 } else {
-                    Either::Left(ns)
+                    Either::Left(Ident::new(
+                        namespace_ident.as_str().into(),
+                        span,
+                        ctxt.unwrap_or_default(),
+                    ))
                 }
             }
         }
@@ -124,13 +128,13 @@ impl ReferencedAssetIdent {
                     Expr::Seq(SeqExpr {
                         exprs: vec![
                             Box::new(Expr::Lit(Lit::Num(Number {
-                                span,
+                                span: DUMMY_SP,
                                 value: 0.0,
                                 raw: None,
                             }))),
                             Box::new(member.into()),
                         ],
-                        span,
+                        span: DUMMY_SP,
                     })
                 } else {
                     member.into()
@@ -165,7 +169,7 @@ impl ReferencedAsset {
                     && let Some(export) = &export
                     && let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await?
                 {
-                    let exports = exports.expand_exports(None).await?;
+                    let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
                         Some(EsmExport::LocalBinding(_, _)) => {
@@ -437,7 +441,7 @@ impl ModuleReference for EsmAssetReference {
             *self.request,
             ty,
             false,
-            Some(self.issue_source.clone()),
+            Some(self.issue_source),
         )
         .await?;
 
@@ -449,7 +453,7 @@ impl ModuleReference for EsmAssetReference {
                     InvalidExport {
                         export: export_name.clone(),
                         module,
-                        source: self.issue_source.clone(),
+                        source: self.issue_source,
                     }
                     .resolved_cell()
                     .emit();
@@ -558,8 +562,12 @@ impl EsmAssetReference {
                         ));
                     }
 
-                    if merged_index.is_some() && this.export_name == Some(ModulePart::Evaluation) {
-                        // No need to import to execution, the module was already inlined.
+                    if merged_index.is_some()
+                        && matches!(*self.export_usage().await?, ExportUsage::Evaluation)
+                    {
+                        // No need to import, the module was already executed and is available in
+                        // the same scope hoisting group (unless it's a
+                        // namespace import)
                     } else {
                         let ident = referenced_asset
                             .get_ident(
@@ -837,7 +845,7 @@ impl Issue for InvalidExport {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source.clone()))
+        Vc::cell(Some(self.source))
     }
 }
 
@@ -847,7 +855,6 @@ pub struct CircularReExport {
     import: Option<RcStr>,
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     module_cycle: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    // TODO ideally we'd have an issue source here
 }
 
 #[turbo_tasks::value_impl]
@@ -898,5 +905,12 @@ impl Issue for CircularReExport {
             ])
             .resolved_cell(),
         )))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        // TODO(PACK-4879): This should point at the buggy export by querying for the source
+        // location
+        Vc::cell(None)
     }
 }

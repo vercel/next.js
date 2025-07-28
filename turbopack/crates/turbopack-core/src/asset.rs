@@ -44,7 +44,7 @@ impl AssetContent {
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json()),
             AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparseable("a redirect can't be parsed as json").cell())
+                Ok(FileJsonContent::unparsable("a redirect can't be parsed as json").cell())
             }
         }
     }
@@ -63,7 +63,7 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.lines()),
-            AssetContent::Redirect { .. } => Ok(FileLinesContent::Unparseable.cell()),
+            AssetContent::Redirect { .. } => Ok(FileLinesContent::Unparsable.cell()),
         }
     }
 
@@ -82,7 +82,7 @@ impl AssetContent {
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json_with_comments()),
             AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparseable("a redirect can't be parsed as json").cell())
+                Ok(FileJsonContent::unparsable("a redirect can't be parsed as json").cell())
             }
         }
     }
@@ -92,16 +92,18 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(file) => {
-                let _ = path.write(**file);
+                path.write(**file).as_side_effect().await?;
             }
             AssetContent::Redirect { target, link_type } => {
-                let _ = path.write_link(
+                path.write_link(
                     LinkContent::Link {
                         target: target.clone(),
                         link_type: *link_type,
                     }
                     .cell(),
-                );
+                )
+                .as_side_effect()
+                .await?;
             }
         }
         Ok(())

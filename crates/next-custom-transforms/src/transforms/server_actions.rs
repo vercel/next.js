@@ -328,7 +328,7 @@ impl<C: Comments> ServerActions<C> {
                 }
             }
         } else {
-            // If we can't determine the arguments (e.g. not staticaly analyzable),
+            // If we can't determine the arguments (e.g. not statically analyzable),
             // we assume all arguments are used.
             arg_mask = 0b111111;
             rest_args = 0b1;
@@ -348,12 +348,6 @@ impl<C: Comments> ServerActions<C> {
 
     fn gen_cache_ident(&mut self) -> Atom {
         let id: Atom = format!("$$RSC_SERVER_CACHE_{0}", self.reference_index).into();
-        self.reference_index += 1;
-        id
-    }
-
-    fn gen_ref_ident(&mut self) -> Atom {
-        let id: Atom = format!("$$RSC_SERVER_REF_{0}", self.reference_index).into();
         self.reference_index += 1;
         id
     }
@@ -467,16 +461,6 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions
             .push((action_name.clone(), action_id.clone()));
 
-        let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone(), arrow.span),
-            ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Some(id.as_arg()))
-                .collect(),
-            action_id.clone(),
-        );
-
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
@@ -503,7 +487,7 @@ impl<C: Comments> ServerActions<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                             args: vec![
-                                action_id.as_arg(),
+                                action_id.clone().as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
                             ..Default::default()
@@ -575,7 +559,29 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        Box::new(register_action_expr.clone())
+        self.hoisted_extra_items
+            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(annotate_ident_as_server_reference(
+                    action_ident.clone(),
+                    action_id.clone(),
+                    arrow.span,
+                )),
+            })));
+
+        if ids_from_closure.is_empty() {
+            Box::new(action_ident.clone().into())
+        } else {
+            Box::new(bind_args_to_ident(
+                action_ident.clone(),
+                ids_from_closure
+                    .iter()
+                    .cloned()
+                    .map(|id| Some(id.as_arg()))
+                    .collect(),
+                action_id.clone(),
+            ))
+        }
     }
 
     fn maybe_hoist_and_create_proxy_for_server_action_function(
@@ -609,20 +615,6 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions
             .push((action_name.clone(), action_id.clone()));
 
-        let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(
-                action_ident.clone(),
-                action_id.clone(),
-                function.span,
-            ),
-            ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Some(id.as_arg()))
-                .collect(),
-            action_id.clone(),
-        );
-
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
             private_ctxt: self.private_ctxt,
@@ -646,7 +638,7 @@ impl<C: Comments> ServerActions<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                             args: vec![
-                                action_id.as_arg(),
+                                action_id.clone().as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
                             ..Default::default()
@@ -695,7 +687,29 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        Box::new(register_action_expr)
+        self.hoisted_extra_items
+            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(annotate_ident_as_server_reference(
+                    action_ident.clone(),
+                    action_id.clone(),
+                    function.span,
+                )),
+            })));
+
+        if ids_from_closure.is_empty() {
+            Box::new(action_ident.clone().into())
+        } else {
+            Box::new(bind_args_to_ident(
+                action_ident.clone(),
+                ids_from_closure
+                    .iter()
+                    .cloned()
+                    .map(|id| Some(id.as_arg()))
+                    .collect(),
+                action_id.clone(),
+            ))
+        }
     }
 
     fn maybe_hoist_and_create_proxy_for_cache_arrow_expr(
@@ -783,6 +797,16 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
+        self.hoisted_extra_items
+            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(annotate_ident_as_server_reference(
+                    cache_ident.clone(),
+                    reference_id.clone(),
+                    arrow.span,
+                )),
+            })));
+
         if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
             assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
         }
@@ -793,41 +817,14 @@ impl<C: Comments> ServerActions<C> {
             .map(|id| Some(id.as_arg()))
             .collect();
 
-        let register_action_expr = annotate_ident_as_server_reference(
-            cache_ident.clone(),
-            reference_id.clone(),
-            arrow.span,
-        );
-
-        // If there're any bound args from the closure, we need to hoist the
-        // register action expression to the top-level, and return the bind
-        // expression inline.
-        if !bound_args.is_empty() {
-            let ref_ident = private_ident!(self.gen_ref_ident());
-
-            let ref_decl = VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Var,
-                decls: vec![VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Ident(ref_ident.clone().into()),
-                    init: Some(Box::new(register_action_expr.clone())),
-                    definite: false,
-                }],
-                ..Default::default()
-            };
-
-            // Hoist the register action expression to the top-level.
-            self.extra_items
-                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(ref_decl)))));
-
-            Box::new(bind_args_to_ref_expr(
-                Expr::Ident(ref_ident.clone()),
+        if bound_args.is_empty() {
+            Box::new(cache_ident.clone().into())
+        } else {
+            Box::new(bind_args_to_ident(
+                cache_ident.clone(),
                 bound_args,
                 reference_id.clone(),
             ))
-        } else {
-            Box::new(register_action_expr)
         }
     }
 
@@ -864,12 +861,6 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions
             .push((cache_name.clone(), reference_id.clone()));
 
-        let register_action_expr = annotate_ident_as_server_reference(
-            cache_ident.clone(),
-            reference_id.clone(),
-            function.span,
-        );
-
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
             private_ctxt: self.private_ctxt,
@@ -904,6 +895,16 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
+        self.hoisted_extra_items
+            .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(annotate_ident_as_server_reference(
+                    cache_ident.clone(),
+                    reference_id.clone(),
+                    function.span,
+                )),
+            })));
+
         if let Some(Ident { sym, .. }) = fn_name {
             assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
         } else if self.in_default_export_decl {
@@ -916,35 +917,14 @@ impl<C: Comments> ServerActions<C> {
             .map(|id| Some(id.as_arg()))
             .collect();
 
-        // If there're any bound args from the closure, we need to hoist the
-        // register action expression to the top-level, and return the bind
-        // expression inline.
-        if !bound_args.is_empty() {
-            let ref_ident = private_ident!(self.gen_ref_ident());
-
-            let ref_decl = VarDecl {
-                span: DUMMY_SP,
-                kind: VarDeclKind::Var,
-                decls: vec![VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Ident(ref_ident.clone().into()),
-                    init: Some(Box::new(register_action_expr.clone())),
-                    definite: false,
-                }],
-                ..Default::default()
-            };
-
-            // Hoist the register action expression to the top-level.
-            self.extra_items
-                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(ref_decl)))));
-
-            Box::new(bind_args_to_ref_expr(
-                Expr::Ident(ref_ident.clone()),
+        if bound_args.is_empty() {
+            Box::new(cache_ident.clone().into())
+        } else {
+            Box::new(bind_args_to_ident(
+                cache_ident.clone(),
                 bound_args,
                 reference_id.clone(),
             ))
-        } else {
-            Box::new(register_action_expr)
         }
     }
 }
@@ -1018,9 +998,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if let Some(directive) = directive {
+            let fn_name = self
+                .fn_decl_ident
+                .clone()
+                .or(self.arrow_or_fn_expr_ident.clone());
+
             if !f.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
-                    span: f.span,
+                    span: fn_name.as_ref().map_or(f.span, |ident| ident.span),
                     directive,
                 });
 
@@ -1086,9 +1071,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
                     child_names,
                     f,
-                    self.fn_decl_ident
-                        .clone()
-                        .or(self.arrow_or_fn_expr_ident.clone()),
+                    fn_name,
                 );
 
                 if self.in_default_export_decl {
@@ -1190,7 +1173,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if let Some(directive) = directive {
             if !a.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
-                    span: a.span,
+                    span: self
+                        .arrow_or_fn_expr_ident
+                        .as_ref()
+                        .map_or(a.span, |ident| ident.span),
                     directive,
                 });
 
@@ -2465,42 +2451,38 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
     })
 }
 
-fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
-    if bound.is_empty() {
-        expr
-    } else {
-        // expr.bind(null, [encryptActionBoundArgs("id", arg1, arg2, ...)])
-        Expr::Call(CallExpr {
+fn bind_args_to_ident(ident: Ident, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
+    // ident.bind(null, [encryptActionBoundArgs("id", arg1, arg2, ...)])
+    Expr::Call(CallExpr {
+        span: DUMMY_SP,
+        callee: Expr::Member(MemberExpr {
             span: DUMMY_SP,
-            callee: Expr::Member(MemberExpr {
-                span: DUMMY_SP,
-                obj: Box::new(expr),
-                prop: MemberProp::Ident(quote_ident!("bind")),
-            })
-            .as_callee(),
-            args: vec![
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
-                },
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: quote_ident!("encryptActionBoundArgs").as_callee(),
-                        args: std::iter::once(ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(action_id.into()),
-                        })
-                        .chain(bound.into_iter().flatten())
-                        .collect(),
-                        ..Default::default()
-                    })),
-                },
-            ],
-            ..Default::default()
+            obj: Box::new(ident.into()),
+            prop: MemberProp::Ident(quote_ident!("bind")),
         })
-    }
+        .as_callee(),
+        args: vec![
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
+            },
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Call(CallExpr {
+                    span: DUMMY_SP,
+                    callee: quote_ident!("encryptActionBoundArgs").as_callee(),
+                    args: std::iter::once(ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(action_id.into()),
+                    })
+                    .chain(bound.into_iter().flatten())
+                    .collect(),
+                    ..Default::default()
+                })),
+            },
+        ],
+        ..Default::default()
+    })
 }
 
 // Detects if two strings are similar (but not the same).
@@ -3097,7 +3079,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                     It is not allowed to define inline "use server" annotated Server Actions in Client Components.
                     To use Server Actions in a Client Component, you can either export them from a separate file with "use server" at the top, or pass them down through props from a Server Component.
 
-                    Read more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components
+                    Read more: https://nextjs.org/docs/app/api-reference/directives/use-server#using-server-functions-in-a-client-component
                 "#
             },
         ),

@@ -316,13 +316,13 @@
             return null;
           };
     React = {
-      "react-stack-bottom-frame": function (callStackForError) {
+      react_stack_bottom_frame: function (callStackForError) {
         return callStackForError();
       }
     };
     var specialPropKeyWarningShown;
     var didWarnAboutElementRef = {};
-    var unknownOwnerDebugStack = React["react-stack-bottom-frame"].bind(
+    var unknownOwnerDebugStack = React.react_stack_bottom_frame.bind(
       React,
       UnknownOwner
     )();

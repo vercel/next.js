@@ -105,12 +105,6 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
     where
         Self: 'l;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        T::lower_read_transaction(tx)
-    }
-
     fn is_empty(&self) -> bool {
         self.database.is_empty()
     }

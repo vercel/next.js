@@ -90,6 +90,11 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { checkPersistentCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
+import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
+import {
+  devToolsConfigMiddleware,
+  getDevToolsConfig,
+} from '../../next-devtools/server/devtools-config-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -437,7 +442,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
       callback(client)
 
-      client.addEventListener('message', ({ data }) => {
+      client.addEventListener('message', async ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data
 
         try {
@@ -565,6 +570,22 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               Log.warn(
                 `Fast Refresh had to perform a full reload${fileMessage}. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
               )
+              break
+            }
+            case 'browser-logs': {
+              if (this.config.experimental.browserDebugInfoInTerminal) {
+                await receiveBrowserLogsWebpack({
+                  entries: payload.entries,
+                  router: payload.router,
+                  sourceType: payload.sourceType,
+                  clientStats: () => this.clientStats,
+                  serverStats: () => this.serverStats,
+                  edgeServerStats: () => this.edgeServerStats,
+                  rootDirectory: this.dir,
+                  distDir: this.distDir,
+                  config: this.config.experimental.browserDebugInfoInTerminal,
+                })
+              }
               break
             }
             default: {
@@ -798,6 +819,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Ensure distDir exists before writing package.json
     await fs.mkdir(this.distDir, { recursive: true })
 
+    const initialDevToolsConfig = await getDevToolsConfig(this.distDir)
+
     const distPackageJsonPath = join(this.distDir, 'package.json')
     // Ensure commonjs handling is used for files in the distDir (generally .next)
     // Files outside of the distDir can be "type": "module"
@@ -909,17 +932,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               isInstrumentationHookFile(page) && pageType === PAGE_TYPES.ROOT
 
             let pageRuntime = staticInfo?.runtime
-
-            if (
-              isMiddlewareFile(page) &&
-              !this.config.experimental.nodeMiddleware &&
-              pageRuntime === 'nodejs'
-            ) {
-              Log.warn(
-                'nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config'
-              )
-              pageRuntime = 'edge'
-            }
 
             runDependingOnPageType({
               page,
@@ -1536,7 +1548,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.webpackHotMiddleware = new WebpackHotMiddleware(
       this.multiCompiler.compilers,
       this.versionInfo,
-      this.devtoolsFrontendUrl
+      this.devtoolsFrontendUrl,
+      initialDevToolsConfig
     )
 
     let booted = false
@@ -1590,6 +1603,19 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           this.activeWebpackConfigs != null
             ? getCacheDirectories(this.activeWebpackConfigs)
             : undefined,
+      }),
+      devToolsConfigMiddleware({
+        distDir: this.distDir,
+        sendUpdateSignal: (data) => {
+          // Update the in-memory devToolsConfig value
+          // which will be used for the next onHMR call.
+          this.webpackHotMiddleware?.updateDevToolsConfig(data)
+
+          this.send({
+            action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
+            data,
+          })
+        },
       }),
     ]
   }

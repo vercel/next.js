@@ -1,13 +1,15 @@
 use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
+use futures_util::TryFutureExt;
 use napi::{
-    JsFunction, Status,
+    Env, JsFunction, JsObject, Status,
     bindgen_prelude::{External, within_runtime_if_available},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use next_api::{
     entrypoints::Entrypoints,
+    module_graph_snapshot::{ModuleGraphSnapshot, get_module_graph_snapshot},
     operation::{
         EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, OptionEndpoint,
         RouteOperation,
@@ -31,11 +33,12 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, UpdateInfo, Vc, get_effects,
+    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, UpdateInfo, Vc,
+    get_effects,
     message_queue::{CompilationEvent, Severity, TimingEvent},
     trace::TraceRawVcs,
 };
-use turbo_tasks_backend::db_invalidation::invalidation_reasons;
+use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
     util::uri_from_file,
@@ -58,14 +61,22 @@ use turbopack_trace_utils::{
 };
 use url::Url;
 
-use super::{
-    endpoint::ExternalEndpoint,
-    utils::{
-        NapiDiagnostic, NapiIssue, NextTurboTasks, RootTask, TurbopackResult, VcArc,
-        create_turbo_tasks, get_diagnostics, get_issues, subscribe,
+use crate::{
+    next_api::{
+        endpoint::ExternalEndpoint,
+        module_graph::NapiModuleGraphSnapshot,
+        turbopack_ctx::{
+            NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject, NextTurboTasks,
+            NextTurbopackContext, create_turbo_tasks,
+        },
+        utils::{
+            DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, get_diagnostics,
+            get_issues, strongly_consistent_catch_collectables, subscribe,
+        },
     },
+    register,
+    util::DhatProfilerGuard,
 };
-use crate::{register, util::DhatProfilerGuard};
 
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
@@ -117,15 +128,18 @@ pub struct NapiWatchOptions {
 
 #[napi(object)]
 pub struct NapiProjectOptions {
-    /// A root path from which all files must be nested under. Trying to access
-    /// a file outside this root will fail. Think of this as a chroot.
+    /// An absolute root path (Unix or Windows path) from which all files must be nested under.
+    /// Trying to access a file outside this root will fail, so think of this as a chroot.
+    /// E.g. `/home/user/projects/my-repo`.
     pub root_path: RcStr,
 
-    /// A path inside the root_path which contains the app/pages directories.
+    /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
+    /// Unix path. E.g. `apps/my-app`
     pub project_path: RcStr,
 
-    /// next.config's distDir. Project initialization occurs eariler than
-    /// deserializing next.config, so passing it as separate option.
+    /// A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
+    /// path. Corresponds to next.config.js's `distDir`.
+    /// E.g. `.next`
     pub dist_dir: RcStr,
 
     /// Filesystem watcher options.
@@ -171,15 +185,19 @@ pub struct NapiProjectOptions {
 /// [NapiProjectOptions] with all fields optional.
 #[napi(object)]
 pub struct NapiPartialProjectOptions {
-    /// A root path from which all files must be nested under. Trying to access
-    /// a file outside this root will fail. Think of this as a chroot.
+    /// An absolute root path  (Unix or Windows path) from which all files must be nested under.
+    /// Trying to access a file outside this root will fail, so think of this as a chroot.
+    /// E.g. `/home/user/projects/my-repo`.
     pub root_path: Option<RcStr>,
 
-    /// A path inside the root_path which contains the app/pages directories.
+    /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
+    /// a Unix path.
+    /// E.g. `apps/my-app`
     pub project_path: Option<RcStr>,
 
-    /// next.config's distDir. Project initialization occurs eariler than
-    /// deserializing next.config, so passing it as separate option.
+    /// A path where to emit the build outputs, relative to [`Project::project_path`], always a
+    /// Unix path. Corresponds to next.config.js's `distDir`.
+    /// E.g. `.next`
     pub dist_dir: Option<Option<RcStr>>,
 
     /// Filesystem watcher options.
@@ -319,150 +337,157 @@ impl From<NapiDefineEnv> for DefineEnv {
 }
 
 pub struct ProjectInstance {
-    turbo_tasks: NextTurboTasks,
+    turbopack_ctx: NextTurbopackContext,
     container: ResolvedVc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
-pub async fn project_new(
+pub fn project_new(
+    env: Env,
     options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
-) -> napi::Result<External<ProjectInstance>> {
-    register();
-    let (exit, exit_receiver) = ExitHandler::new_receiver();
+    napi_callbacks: NapiNextTurbopackCallbacksJsObject,
+) -> napi::Result<JsObject> {
+    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(napi_callbacks)?;
+    env.spawn_future(async move {
+        register();
+        let (exit, exit_receiver) = ExitHandler::new_receiver();
 
-    if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
-        exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || drop(dhat_profiler))
+        if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
+            exit.on_exit(async move {
+                tokio::task::spawn_blocking(move || drop(dhat_profiler))
+                    .await
+                    .unwrap()
+            });
+        }
+
+        let mut trace = std::env::var("NEXT_TURBOPACK_TRACING")
+            .ok()
+            .filter(|v| !v.is_empty());
+
+        if cfg!(feature = "tokio-console") && trace.is_none() {
+            // ensure `trace` is set to *something* so that the `tokio-console` feature works,
+            // otherwise you just get empty output from `tokio-console`, which can be
+            // confusing.
+            trace = Some("overview".to_owned());
+        }
+
+        if let Some(mut trace) = trace {
+            // Trace presets
+            match trace.as_str() {
+                "overview" | "1" => {
+                    trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
+                }
+                "next" => {
+                    trace = TRACING_NEXT_TARGETS.join(",");
+                }
+                "turbopack" => {
+                    trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
+                }
+                "turbo-tasks" => {
+                    trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
+                }
+                _ => {}
+            }
+
+            let subscriber = Registry::default();
+
+            if cfg!(feature = "tokio-console") {
+                trace = format!("{trace},tokio=trace,runtime=trace");
+            }
+            #[cfg(feature = "tokio-console")]
+            let subscriber = subscriber.with(console_subscriber::spawn());
+
+            let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
+
+            let internal_dir = PathBuf::from(&options.root_path)
+                .join(&options.project_path)
+                .join(&options.dist_dir);
+            std::fs::create_dir_all(&internal_dir)
+                .context("Unable to create .next directory")
+                .unwrap();
+            let trace_file = internal_dir.join("trace-turbopack");
+            let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+            let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
+            let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+            exit.on_exit(async move {
+                tokio::task::spawn_blocking(move || drop(trace_writer_guard))
+                    .await
+                    .unwrap();
+            });
+
+            let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
+            if trace_server.is_some() {
+                thread::spawn(move || {
+                    turbopack_trace_server::start_turbopack_trace_server(trace_file);
+                });
+                println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
+            }
+
+            subscriber.init();
+        }
+
+        let memory_limit = turbo_engine_options
+            .memory_limit
+            .map(|m| m as usize)
+            .unwrap_or(usize::MAX);
+        let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
+        let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
+        let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
+        let turbo_tasks = create_turbo_tasks(
+            PathBuf::from(&options.dist_dir),
+            persistent_caching,
+            memory_limit,
+            dependency_tracking,
+            is_ci,
+        )?;
+        let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
+
+        let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
+        if let Some(stats_path) = stats_path {
+            let task_stats = turbo_tasks.task_statistics().enable().clone();
+            exit.on_exit(async move {
+                tokio::task::spawn_blocking(move || {
+                    let mut file = std::fs::File::create(&stats_path)
+                        .with_context(|| format!("failed to create or open {stats_path:?}"))?;
+                    serde_json::to_writer(&file, &task_stats)
+                        .context("failed to serialize or write task statistics")?;
+                    file.flush().context("failed to flush file")
+                })
                 .await
                 .unwrap()
-        });
-    }
-
-    let mut trace = std::env::var("NEXT_TURBOPACK_TRACING")
-        .ok()
-        .filter(|v| !v.is_empty());
-
-    if cfg!(feature = "tokio-console") && trace.is_none() {
-        // ensure `trace` is set to *something* so that the `tokio-console` feature works, otherwise
-        // you just get empty output from `tokio-console`, which can be confusing.
-        trace = Some("overview".to_owned());
-    }
-
-    if let Some(mut trace) = trace {
-        // Trace presets
-        match trace.as_str() {
-            "overview" | "1" => {
-                trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
-            }
-            "next" => {
-                trace = TRACING_NEXT_TARGETS.join(",");
-            }
-            "turbopack" => {
-                trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
-            }
-            "turbo-tasks" => {
-                trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
-            }
-            _ => {}
-        }
-
-        let subscriber = Registry::default();
-
-        if cfg!(feature = "tokio-console") {
-            trace = format!("{trace},tokio=trace,runtime=trace");
-        }
-        #[cfg(feature = "tokio-console")]
-        let subscriber = subscriber.with(console_subscriber::spawn());
-
-        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
-
-        let internal_dir = PathBuf::from(&options.project_path).join(&options.dist_dir);
-        std::fs::create_dir_all(&internal_dir)
-            .context("Unable to create .next directory")
-            .unwrap();
-        let trace_file = internal_dir.join("trace-turbopack");
-        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
-        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
-
-        exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || drop(trace_writer_guard))
-                .await
                 .unwrap();
-        });
-
-        let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
-        if trace_server.is_some() {
-            thread::spawn(move || {
-                turbopack_trace_server::start_turbopack_trace_server(trace_file);
             });
-            println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
         }
 
-        subscriber.init();
-    }
-
-    let memory_limit = turbo_engine_options
-        .memory_limit
-        .map(|m| m as usize)
-        .unwrap_or(usize::MAX);
-    let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
-    let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
-    let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
-    let turbo_tasks = create_turbo_tasks(
-        PathBuf::from(&options.dist_dir),
-        persistent_caching,
-        memory_limit,
-        dependency_tracking,
-        is_ci,
-    )?;
-
-    let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
-    if let Some(stats_path) = stats_path {
-        let task_stats = turbo_tasks.task_statistics().enable().clone();
-        exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || {
-                let mut file = std::fs::File::create(&stats_path)
-                    .with_context(|| format!("failed to create or open {stats_path:?}"))?;
-                serde_json::to_writer(&file, &task_stats)
-                    .context("failed to serialize or write task statistics")?;
-                file.flush().context("failed to flush file")
+        let options: ProjectOptions = options.into();
+        let container = turbo_tasks
+            .run_once(async move {
+                let project = ProjectContainer::new(rcstr!("next.js"), options.dev);
+                let project = project.to_resolved().await?;
+                project.initialize(options).await?;
+                Ok(project)
             })
-            .await
-            .unwrap()
-            .unwrap();
-        });
-    }
-    let options: ProjectOptions = options.into();
-    let container = turbo_tasks
-        .run_once(async move {
-            let project = ProjectContainer::new(rcstr!("next.js"), options.dev);
-            let project = project.to_resolved().await?;
-            project.initialize(options).await?;
-            Ok(project)
-        })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+            .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e))
+            .await?;
 
-    let tasks_ref = turbo_tasks.clone();
-    turbo_tasks.spawn_once_task(async move {
-        benchmark_file_io(
-            tasks_ref,
-            container.project().node_root().await?.clone_value(),
-        )
-        .await
-        .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
-    });
-    Ok(External::new_with_size_hint(
-        ProjectInstance {
-            turbo_tasks,
+        turbo_tasks.spawn_once_task({
+            let tt = turbo_tasks.clone();
+            async move {
+                benchmark_file_io(tt, container.project().node_root().owned().await?)
+                    .await
+                    .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
+            }
+        });
+
+        Ok(External::new(ProjectInstance {
+            turbopack_ctx,
             container,
             exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
-        },
-        100,
-    ))
+        }))
+    })
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -545,14 +570,6 @@ async fn benchmark_file_io(
 
     let duration = Instant::now().duration_since(start);
     if duration > SLOW_FILESYSTEM_THRESHOLD {
-        println!(
-            "Slow filesystem detected. The benchmark took {}ms. If {} is a network drive, \
-             consider moving it to a local folder. If you have an antivirus enabled, consider \
-             excluding your project directory.",
-            duration.as_millis(),
-            directory.to_string_lossy(),
-        );
-
         turbo_tasks.send_compilation_event(Arc::new(SlowFilesystemEvent {
             directory: directory.to_string_lossy().into(),
             duration_ms: duration.as_millis(),
@@ -567,17 +584,16 @@ pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
-    let turbo_tasks = project.turbo_tasks.clone();
+    let ctx = &project.turbopack_ctx;
     let options = options.into();
     let container = project.container;
-    turbo_tasks
+    ctx.turbo_tasks()
         .run_once(async move {
             container.update(options).await?;
             Ok(())
         })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-    Ok(())
 }
 
 /// Invalidates the persistent cache so that it will be deleted next time that a turbopack project
@@ -590,8 +606,11 @@ pub async fn project_invalidate_persistent_cache(
         // TODO: Let the JS caller specify a reason? We need to limit the reasons to ones we know
         // how to generate a message for on the Rust side of the FFI.
         project
-            .turbo_tasks
-            .invalidate_persistent_cache(invalidation_reasons::USER_REQUEST)
+            .turbopack_ctx
+            .turbo_tasks()
+            .backend()
+            .backing_storage()
+            .invalidate(invalidation_reasons::USER_REQUEST)
     })
     .await
     .context("panicked while invalidating persistent cache")??;
@@ -626,7 +645,7 @@ async fn project_on_exit_internal(project: &ProjectInstance) {
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
-    project.turbo_tasks.stop_and_wait().await;
+    project.turbopack_ctx.turbo_tasks().stop_and_wait().await;
     project_on_exit_internal(&project).await;
 }
 
@@ -661,10 +680,14 @@ pub struct NapiRoute {
 }
 
 impl NapiRoute {
-    fn from_route(pathname: String, value: RouteOperation, turbo_tasks: &NextTurboTasks) -> Self {
+    fn from_route(
+        pathname: String,
+        value: RouteOperation,
+        turbopack_ctx: &NextTurbopackContext,
+    ) -> Self {
         let convert_endpoint = |endpoint: OperationVc<OptionEndpoint>| {
-            Some(External::new(ExternalEndpoint(VcArc::new(
-                turbo_tasks.clone(),
+            Some(External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
                 endpoint,
             ))))
         };
@@ -725,10 +748,13 @@ pub struct NapiMiddleware {
 }
 
 impl NapiMiddleware {
-    fn from_middleware(value: &MiddlewareOperation, turbo_tasks: &NextTurboTasks) -> Result<Self> {
+    fn from_middleware(
+        value: &MiddlewareOperation,
+        turbopack_ctx: &NextTurbopackContext,
+    ) -> Result<Self> {
         Ok(NapiMiddleware {
-            endpoint: External::new(ExternalEndpoint(VcArc::new(
-                turbo_tasks.clone(),
+            endpoint: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
                 value.endpoint,
             ))),
         })
@@ -744,15 +770,15 @@ pub struct NapiInstrumentation {
 impl NapiInstrumentation {
     fn from_instrumentation(
         value: &InstrumentationOperation,
-        turbo_tasks: &NextTurboTasks,
+        turbopack_ctx: &NextTurbopackContext,
     ) -> Result<Self> {
         Ok(NapiInstrumentation {
-            node_js: External::new(ExternalEndpoint(VcArc::new(
-                turbo_tasks.clone(),
+            node_js: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
                 value.node_js,
             ))),
-            edge: External::new(ExternalEndpoint(VcArc::new(
-                turbo_tasks.clone(),
+            edge: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
                 value.edge,
             ))),
         })
@@ -772,33 +798,33 @@ pub struct NapiEntrypoints {
 impl NapiEntrypoints {
     fn from_entrypoints_op(
         entrypoints: &EntrypointsOperation,
-        turbo_tasks: &NextTurboTasks,
+        turbopack_ctx: &NextTurbopackContext,
     ) -> Result<Self> {
         let routes = entrypoints
             .routes
             .iter()
-            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbo_tasks))
+            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbopack_ctx))
             .collect();
         let middleware = entrypoints
             .middleware
             .as_ref()
-            .map(|m| NapiMiddleware::from_middleware(m, turbo_tasks))
+            .map(|m| NapiMiddleware::from_middleware(m, turbopack_ctx))
             .transpose()?;
         let instrumentation = entrypoints
             .instrumentation
             .as_ref()
-            .map(|i| NapiInstrumentation::from_instrumentation(i, turbo_tasks))
+            .map(|i| NapiInstrumentation::from_instrumentation(i, turbopack_ctx))
             .transpose()?;
-        let pages_document_endpoint = External::new(ExternalEndpoint(VcArc::new(
-            turbo_tasks.clone(),
+        let pages_document_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
+            turbopack_ctx.clone(),
             entrypoints.pages_document_endpoint,
         )));
-        let pages_app_endpoint = External::new(ExternalEndpoint(VcArc::new(
-            turbo_tasks.clone(),
+        let pages_app_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
+            turbopack_ctx.clone(),
             entrypoints.pages_app_endpoint,
         )));
-        let pages_error_endpoint = External::new(ExternalEndpoint(VcArc::new(
-            turbo_tasks.clone(),
+        let pages_error_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
+            turbopack_ctx.clone(),
             entrypoints.pages_error_endpoint,
         )));
         Ok(NapiEntrypoints {
@@ -861,13 +887,15 @@ pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
-    let turbo_tasks = project.turbo_tasks.clone();
-    let compilation_event_sender = turbo_tasks.clone();
+    let ctx = &project.turbopack_ctx;
+    let container = project.container;
+    let tt = ctx.turbo_tasks();
+    let tt_clone = tt.clone();
 
-    let (entrypoints, issues, diags) = turbo_tasks
+    let (entrypoints, issues, diags) = tt
         .run_once(async move {
             let entrypoints_with_issues_op =
-                get_all_written_entrypoints_with_issues_operation(project.container, app_dir_only);
+                get_all_written_entrypoints_with_issues_operation(container, app_dir_only);
 
             // Read and compile the files
             let EntrypointsWithIssues {
@@ -886,18 +914,18 @@ pub async fn project_write_all_entrypoints_to_disk(
             effects.apply().await?;
 
             // Send a compilation event to indicate that the files have been written to disk
-            compilation_event_sender.send_compilation_event(Arc::new(TimingEvent::new(
+            tt_clone.send_compilation_event(Arc::new(TimingEvent::new(
                 "Finished writing to disk".to_owned(),
                 now.elapsed(),
             )));
 
             Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
         })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+        .await?;
 
     Ok(TurbopackResult {
-        result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbo_tasks)?,
+        result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &project.turbopack_ctx)?,
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
@@ -930,10 +958,10 @@ pub async fn all_entrypoints_write_to_disk_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = project
+    project
         .project()
         .emit_all_output_assets(output_assets_operation(project, app_dir_only))
-        .resolve()
+        .as_side_effect()
         .await?;
 
     Ok(project.entrypoints())
@@ -953,12 +981,46 @@ async fn output_assets_operation(
         .try_join()
         .await?;
 
-    let mut output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = FxIndexSet::default();
-    for assets in endpoint_assets {
-        output_assets.extend(assets.iter());
-    }
+    let output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = endpoint_assets
+        .iter()
+        .flat_map(|assets| assets.iter().copied())
+        .collect();
 
     Ok(Vc::cell(output_assets.into_iter().collect()))
+}
+
+#[napi]
+pub async fn project_entrypoints(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
+    let container = project.container;
+
+    let (entrypoints, issues, diags) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
+
+            // Read and compile the files
+            let EntrypointsWithIssues {
+                entrypoints,
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*entrypoints_with_issues_op
+                .read_strongly_consistent()
+                .await?;
+
+            Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &project.turbopack_ctx)?,
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+    })
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
@@ -966,10 +1028,10 @@ pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = project.turbo_tasks.clone();
+    let turbopack_ctx = project.turbopack_ctx.clone();
     let container = project.container;
     subscribe(
-        turbo_tasks.clone(),
+        turbopack_ctx.clone(),
         func,
         move || {
             async move {
@@ -991,7 +1053,7 @@ pub fn project_entrypoints_subscribe(
             let (entrypoints, issues, diags) = ctx.value;
 
             Ok(vec![TurbopackResult {
-                result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbo_tasks)?,
+                result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbopack_ctx)?,
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
@@ -1045,11 +1107,10 @@ pub fn project_hmr_events(
     identifier: RcStr,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = project.turbo_tasks.clone();
-    let project = project.container;
+    let container = project.container;
     let session = TransientInstance::new(());
     subscribe(
-        turbo_tasks.clone(),
+        project.turbopack_ctx.clone(),
         func,
         {
             let outer_identifier = identifier.clone();
@@ -1058,7 +1119,7 @@ pub fn project_hmr_events(
                 let identifier: RcStr = outer_identifier.clone();
                 let session = session.clone();
                 async move {
-                    let project = project.project().to_resolved().await?;
+                    let project = container.project().to_resolved().await?;
                     let state = project
                         .hmr_version_state(identifier.clone(), session)
                         .to_resolved()
@@ -1171,10 +1232,9 @@ pub fn project_hmr_identifiers_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = project.turbo_tasks.clone();
     let container = project.container;
     subscribe(
-        turbo_tasks.clone(),
+        project.turbopack_ctx.clone(),
         func,
         move || async move {
             let hmr_identifiers_with_issues_op =
@@ -1273,10 +1333,10 @@ pub fn project_update_info_subscribe(
         let message = ctx.value;
         Ok(vec![NapiUpdateMessage::from(message)])
     })?;
-    let turbo_tasks = project.turbo_tasks.clone();
     tokio::spawn(async move {
+        let tt = project.turbopack_ctx.turbo_tasks();
         loop {
-            let update_info = turbo_tasks
+            let update_info = tt
                 .aggregated_update_info(Duration::ZERO, Duration::ZERO)
                 .await;
 
@@ -1288,11 +1348,10 @@ pub fn project_update_info_subscribe(
             let update_info = match update_info {
                 Some(update_info) => update_info,
                 None => {
-                    turbo_tasks
-                        .get_or_wait_aggregated_update_info(Duration::from_millis(
-                            aggregation_ms.into(),
-                        ))
-                        .await
+                    tt.get_or_wait_aggregated_update_info(Duration::from_millis(
+                        aggregation_ms.into(),
+                    ))
+                    .await
                 }
             };
 
@@ -1318,7 +1377,6 @@ pub fn project_compilation_events_subscribe(
     func: JsFunction,
     event_types: Option<Vec<String>>,
 ) -> napi::Result<()> {
-    let turbo_tasks = project.turbo_tasks.clone();
     let tsfn: ThreadsafeFunction<Arc<dyn CompilationEvent>> =
         func.create_threadsafe_function(0, |ctx| {
             let event: Arc<dyn CompilationEvent> = ctx.value;
@@ -1336,7 +1394,8 @@ pub fn project_compilation_events_subscribe(
         })?;
 
     tokio::spawn(async move {
-        let mut receiver = turbo_tasks.get_compilation_events_stream(event_types);
+        let tt = project.turbopack_ctx.turbo_tasks();
+        let mut receiver = tt.subscribe_to_compilation_events(event_types);
         while let Some(msg) = receiver.recv().await {
             let status = tsfn.call(Ok(msg), ThreadsafeFunctionCallMode::Blocking);
 
@@ -1397,18 +1456,14 @@ pub async fn get_source_map_rope(
                     },
                 )
             }
-            _ => bail!("Unknown url scheme"),
+            _ => bail!("Unknown url scheme '{}'", url.scheme()),
         },
         Err(_) => (file_path.to_string(), None),
     };
 
-    let Some(chunk_base) = file.strip_prefix(
-        &(format!(
-            "{}/{}/",
-            container.project().await?.project_path,
-            container.project().dist_dir().await?
-        )),
-    ) else {
+    let Some(chunk_base) =
+        file.strip_prefix(container.project().dist_dir_absolute().await?.as_str())
+    else {
         // File doesn't exist within the dist dir
         return Ok(OptionStringifiedSourceMap::none());
     };
@@ -1487,12 +1542,8 @@ pub async fn project_trace_source_operation(
         }
     };
 
-    let project_root_uri = uri_from_file(
-        container.project().project_root_path().await?.clone_value(),
-        None,
-    )
-    .await?
-        + "/";
+    let project_root_uri =
+        uri_from_file(container.project().project_root_path().owned().await?, None).await? + "/";
     let (file, original_file, is_internal) =
         if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
             // Client code uses file://
@@ -1549,21 +1600,24 @@ pub async fn project_trace_source(
     frame: StackFrame,
     current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
-    let turbo_tasks = project.turbo_tasks.clone();
     let container = project.container;
-    let traced_frame = turbo_tasks
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
         .run_once(async move {
-            project_trace_source_operation(
+            let traced_frame = project_trace_source_operation(
                 container,
                 frame,
                 RcStr::from(current_directory_file_url),
             )
             .read_strongly_consistent()
-            .await
+            .await?;
+            Ok(ReadRef::into_owned(traced_frame))
         })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
+        // source files may have changed or been deleted), so these probably aren't internal errors?
+        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-    Ok(ReadRef::into_owned(traced_frame))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
 }
 
 #[napi]
@@ -1571,11 +1625,11 @@ pub async fn project_get_source_for_asset(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    let turbo_tasks = project.turbo_tasks.clone();
-    let source = turbo_tasks
+    let container = project.container;
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
         .run_once(async move {
-            let source_content = &*project
-                .container
+            let source_content = &*container
                 .project()
                 .project_path()
                 .await?
@@ -1592,10 +1646,11 @@ pub async fn project_get_source_for_asset(
 
             Ok(Some(source_content.content().to_str()?.into_owned()))
         })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
+        // source files may have changed or been deleted), so these probably aren't internal errors?
+        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-
-    Ok(source)
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
 }
 
 #[napi]
@@ -1603,10 +1658,9 @@ pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    let turbo_tasks = project.turbo_tasks.clone();
     let container = project.container;
-
-    let source_map = turbo_tasks
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
         .run_once(async move {
             let Some(map) = &*get_source_map_rope_operation(container, file_path)
                 .read_strongly_consistent()
@@ -1616,10 +1670,11 @@ pub async fn project_get_source_map(
             };
             Ok(Some(map.to_str()?.to_string()))
         })
+        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
+        // source files may have changed or been deleted), so these probably aren't internal errors?
+        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-
-    Ok(source_map)
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
 }
 
 #[napi]
@@ -1630,4 +1685,71 @@ pub fn project_get_source_map_sync(
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
     })
+}
+
+#[napi]
+pub async fn project_module_graph(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<NapiModuleGraphSnapshot>> {
+    let container = project.container;
+    let (module_graph, issues, diagnostics) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let module_graph_op = get_module_graph_with_issues_operation(container);
+            let ModuleGraphWithIssues {
+                module_graph,
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*module_graph_op.connect().await?;
+            Ok((module_graph.clone(), issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: module_graph.map_or_else(NapiModuleGraphSnapshot::default, |m| {
+            NapiModuleGraphSnapshot::from(&*m)
+        }),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diagnostics
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
+    })
+}
+
+#[turbo_tasks::value(serialization = "none")]
+struct ModuleGraphWithIssues {
+    module_graph: Option<ReadRef<ModuleGraphSnapshot>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_module_graph_with_issues_operation(
+    project: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<ModuleGraphWithIssues>> {
+    let module_graph_op = get_module_graph_operation(project);
+    let (module_graph, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(module_graph_op).await?;
+    Ok(ModuleGraphWithIssues {
+        module_graph,
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_module_graph_operation(
+    project: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<ModuleGraphSnapshot>> {
+    let project = project.project();
+    let graph = project.whole_app_module_graphs().await?.full;
+    let snapshot = get_module_graph_snapshot(*graph, None).resolve().await?;
+    Ok(snapshot)
 }

@@ -1,6 +1,7 @@
 import type {
   FlightRouterState,
   Segment as FlightRouterStateSegment,
+  Segment,
 } from '../../../server/app-render/types'
 import { HasLoadingBoundary } from '../../../server/app-render/types'
 import { matchSegment } from '../match-segments'
@@ -17,7 +18,6 @@ import {
   fetchSegmentPrefetchesUsingDynamicRequest,
   type PendingSegmentCacheEntry,
   convertRouteTreeToFlightRouterState,
-  FetchStrategy,
   readOrCreateRevalidatingSegmentEntry,
   upsertSegmentEntry,
   type FulfilledSegmentCacheEntry,
@@ -27,7 +27,16 @@ import {
   getSegmentKeypathForTask,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
-import { getCurrentCacheVersion, PrefetchPriority } from '../segment-cache'
+import {
+  getCurrentCacheVersion,
+  PrefetchPriority,
+  FetchStrategy,
+  type PrefetchTaskFetchStrategy,
+} from '../segment-cache'
+import {
+  addSearchParamsIfPageSegment,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -59,9 +68,13 @@ export type PrefetchTask = {
 
   /**
    * Whether to prefetch dynamic data, in addition to static data. This is
-   * used by <Link prefetch={true}>.
+   * used by `<Link prefetch={true}>`.
+   *
+   * Note that a task with `FetchStrategy.PPR` might need to use
+   * `FetchStrategy.LoadingBoundary` instead if we find out that a route
+   * does not support PPR after doing the initial route prefetch.
    */
-  includeDynamicData: boolean
+  fetchStrategy: PrefetchTaskFetchStrategy
 
   /**
    * sortId is an incrementing counter
@@ -189,13 +202,13 @@ let mostRecentlyHoveredLink: PrefetchTask | null = null
  *
  * @param key The RouteCacheKey to prefetch.
  * @param treeAtTimeOfPrefetch The app's current FlightRouterState
- * @param includeDynamicData Whether to prefetch dynamic data, in addition to
- * static data. This is used by <Link prefetch={true}>.
+ * @param fetchStrategy Whether to prefetch dynamic data, in addition to
+ * static data. This is used by `<Link prefetch={true}>`.
  */
 export function schedulePrefetchTask(
   key: RouteCacheKey,
   treeAtTimeOfPrefetch: FlightRouterState,
-  includeDynamicData: boolean,
+  fetchStrategy: PrefetchTaskFetchStrategy,
   priority: PrefetchPriority,
   onInvalidate: null | (() => void)
 ): PrefetchTask {
@@ -207,7 +220,7 @@ export function schedulePrefetchTask(
     priority,
     phase: PrefetchPhase.RouteTree,
     hasBackgroundWork: false,
-    includeDynamicData,
+    fetchStrategy,
     sortId: sortIdCounter++,
     isCanceled: false,
     onInvalidate,
@@ -243,7 +256,7 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
 export function reschedulePrefetchTask(
   task: PrefetchTask,
   treeAtTimeOfPrefetch: FlightRouterState,
-  includeDynamicData: boolean,
+  fetchStrategy: PrefetchTaskFetchStrategy,
   priority: PrefetchPriority
 ): void {
   // Bump the prefetch task to the top of the queue, as if it were a fresh
@@ -266,7 +279,7 @@ export function reschedulePrefetchTask(
     task === mostRecentlyHoveredLink ? PrefetchPriority.Intent : priority
 
   task.treeAtTimeOfPrefetch = treeAtTimeOfPrefetch
-  task.includeDynamicData = includeDynamicData
+  task.fetchStrategy = fetchStrategy
 
   trackMostRecentlyHoveredLink(task)
 
@@ -545,12 +558,14 @@ function pingRootRouteTree(
       }
       const tree = route.tree
 
-      // Determine which fetch strategy to use for this prefetch task.
-      const fetchStrategy = task.includeDynamicData
-        ? FetchStrategy.Full
-        : route.isPPREnabled
-          ? FetchStrategy.PPR
-          : FetchStrategy.LoadingBoundary
+      // A task's fetch strategy gets set to `PPR` for any "auto" prefetch.
+      // If it turned out that the route isn't PPR-enabled, we need to use `LoadingBoundary` instead.
+      const fetchStrategy =
+        task.fetchStrategy === FetchStrategy.PPR
+          ? route.isPPREnabled
+            ? FetchStrategy.PPR
+            : FetchStrategy.LoadingBoundary
+          : task.fetchStrategy
 
       switch (fetchStrategy) {
         case FetchStrategy.PPR:
@@ -657,7 +672,11 @@ function diffRouteTreeAgainstCurrent(
         oldTreeChild?.[0]
       if (
         oldTreeChildSegment !== undefined &&
-        matchSegment(newTreeChildSegment, oldTreeChildSegment)
+        doesCurrentSegmentMatchCachedSegment(
+          route,
+          newTreeChildSegment,
+          oldTreeChildSegment
+        )
       ) {
         // This segment is already part of the current route. Keep traversing.
         const requestTreeChild = diffRouteTreeAgainstCurrent(
@@ -1175,6 +1194,34 @@ function upsertSegmentOnCompletion(
       upsertSegmentEntry(Date.now(), keypath, fulfilled)
     }
   }, noop)
+}
+
+function doesCurrentSegmentMatchCachedSegment(
+  route: FulfilledRouteCacheEntry,
+  currentSegment: Segment,
+  cachedSegment: Segment
+): boolean {
+  if (cachedSegment === PAGE_SEGMENT_KEY) {
+    // In the FlightRouterState stored by the router, the page segment has the
+    // rendered search params appended to the name of the segment. In the
+    // prefetch cache, however, this is stored separately. So, when comparing
+    // the router's current FlightRouterState to the cached FlightRouterState,
+    // we need to make sure we compare both parts of the segment.
+    // TODO: This is not modeled clearly. We use the same type,
+    // FlightRouterState, for both the CacheNode tree _and_ the prefetch cache
+    // _and_ the server response format, when conceptually those are three
+    // different things and treated in different ways. We should encode more of
+    // this information into the type design so mistakes are less likely.
+    return (
+      currentSegment ===
+      addSearchParamsIfPageSegment(
+        PAGE_SEGMENT_KEY,
+        Object.fromEntries(new URLSearchParams(route.renderedSearch))
+      )
+    )
+  }
+  // Non-page segments are compared using the same function as the server
+  return matchSegment(cachedSegment, currentSegment)
 }
 
 // -----------------------------------------------------------------------------

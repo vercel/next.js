@@ -3,6 +3,7 @@ use std::{iter::FromIterator, sync::LazyLock};
 use rustc_hash::FxHashSet;
 use swc_core::{
     atoms::atom,
+    common::Spanned,
     ecma::{
         ast::{
             Decl, ExportDecl, ExportNamedSpecifier, ExportSpecifier, Expr, ExprOrSpread, ExprStmt,
@@ -79,7 +80,8 @@ impl Visit for CollectExportsVisitor {
                         export_info.generate_image_metadata =
                             Some(name.sym == "generateImageMetadata");
                         export_info.generate_sitemaps = Some(name.sym == "generateSitemaps");
-                        export_info.generate_static_params = name.sym == "generateStaticParams";
+                        export_info.generate_static_params =
+                            (name.sym == "generateStaticParams").then_some(name.span());
                     }
                 }
 
@@ -129,7 +131,8 @@ impl Visit for CollectExportsVisitor {
                 export_info.ssr = id.sym == "getServerSideProps";
                 export_info.generate_image_metadata = Some(id.sym == "generateImageMetadata");
                 export_info.generate_sitemaps = Some(id.sym == "generateSitemaps");
-                export_info.generate_static_params = id.sym == "generateStaticParams";
+                export_info.generate_static_params =
+                    (id.sym == "generateStaticParams").then_some(id.span());
             }
             _ => {}
         }
@@ -166,14 +169,17 @@ impl Visit for CollectExportsVisitor {
                     export_info.generate_sitemaps = Some(true);
                 }
 
-                if !export_info.generate_static_params && value.sym == "generateStaticParams" {
-                    export_info.generate_static_params = true;
+                if export_info.generate_static_params.is_none()
+                    && value.sym == "generateStaticParams"
+                {
+                    export_info.generate_static_params = Some(value.span());
                 }
 
                 if export_info.runtime.is_none() && value.sym == "runtime" {
                     export_info.warnings.push(ExportInfoWarning::new(
                         value.sym.clone(),
                         "it was not assigned to a string literal",
+                        value.span,
                     ));
                 }
 
@@ -181,6 +187,7 @@ impl Visit for CollectExportsVisitor {
                     export_info.warnings.push(ExportInfoWarning::new(
                         value.sym.clone(),
                         "it was not assigned to a string literal or an array of string literals",
+                        value.span,
                     ));
                 }
             }

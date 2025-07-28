@@ -76,10 +76,8 @@ impl ModuleOptions {
         } = *module_options_context.await?;
 
         if !rules.is_empty() {
-            let path_value = path.clone();
-
             for (condition, new_context) in rules.iter() {
-                if condition.matches(&path_value).await? {
+                if condition.matches(&path) {
                     return Ok(ModuleOptions::new(
                         path,
                         **new_context,
@@ -145,11 +143,9 @@ impl ModuleOptions {
             execution_context,
             tree_shaking_mode,
             keep_last_successful_parse,
-            remove_unused_exports,
             ..
         } = *module_options_context.await?;
 
-        let mut refresh = false;
         let mut transforms = vec![];
 
         // Order of transforms is important. e.g. if the React transform occurs before
@@ -158,7 +154,6 @@ impl ModuleOptions {
         // should use `before_transform_plugins`.
         if let Some(enable_jsx) = enable_jsx {
             let jsx = enable_jsx.await?;
-            refresh = jsx.react_refresh;
 
             transforms.push(EcmascriptInputTransform::React {
                 development: jsx.development,
@@ -173,10 +168,8 @@ impl ModuleOptions {
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
-            refresh,
             extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             keep_last_successful_parse,
-            remove_unused_exports,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
@@ -654,7 +647,7 @@ impl ModuleOptions {
 
                             match &condition.path {
                                 ConditionPath::Glob(glob) => RuleCondition::ResourcePathGlob {
-                                    base: execution_context.project_path().await?.clone_value(),
+                                    base: execution_context.project_path().owned().await?,
                                     glob: Glob::new(glob.clone()).await?,
                                 },
                                 ConditionPath::Regex(regex) => {
@@ -663,7 +656,7 @@ impl ModuleOptions {
                             }
                         } else if key.contains('/') {
                             RuleCondition::ResourcePathGlob {
-                                base: execution_context.project_path().await?.clone_value(),
+                                base: execution_context.project_path().owned().await?,
                                 glob: Glob::new(key.clone()).await?,
                             }
                         } else {

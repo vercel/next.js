@@ -82,11 +82,11 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
         let project_fs = disk_file_system_operation(fs_root_rcstr.clone())
             .resolve_strongly_consistent()
             .await?;
-        let project_root = (*disk_file_system_root_operation(project_fs)
+        let project_root = disk_file_system_root_operation(project_fs)
             .resolve_strongly_consistent()
             .await?
-            .await?)
-            .clone();
+            .owned()
+            .await?;
         create_directory_tree(&mut FxHashSet::default(), &fs_root, args.depth, args.width)?;
 
         project_fs.await?.start_watching(None).await?;

@@ -6,13 +6,13 @@ describe('middleware-sitemap', () => {
   })
 
   it('should not be affected by middleware if sitemap.xml is excluded from the matcher', async () => {
-    let html = await next.render('/')
+    const html = await next.render('/')
     expect(html).toContain('redirected')
 
     const xml = await next.render('/sitemap.xml')
     expect(xml).toMatchInlineSnapshot(`
      "<?xml version="1.0" encoding="UTF-8"?>
-     <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
+     <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
      <url>
      <loc>https://vercel.com</loc>
      <lastmod>2023-10-01</lastmod>

@@ -4,9 +4,9 @@
 
 var { m: module, e: exports } = __turbopack_context__;
 {
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css, async loader)")(__turbopack_context__.i);
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css, async loader)")(__turbopack_context__.i);
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry2.css [test] (css, async loader)")(__turbopack_context__.i);
+__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css, async loader)");
+__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css, async loader)");
+__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry2.css [test] (css, async loader)");
 }}),
 }]);
 

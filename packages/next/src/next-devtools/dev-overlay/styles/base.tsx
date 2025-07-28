@@ -1,5 +1,5 @@
 import { css } from '../utils/css'
-import type { DevToolsScale } from '../components/errors/dev-tools-indicator/dev-tools-info/preferences'
+import type { DevToolsScale } from '../shared'
 
 export function Base({ scale = 1 }: { scale?: DevToolsScale }) {
   return (
@@ -141,7 +141,7 @@ export function Base({ scale = 1 }: { scale?: DevToolsScale }) {
           &:hover {
             color: var(--color-blue-900);
           }
-          &:focus {
+          &:focus-visible {
             outline: var(--focus-ring);
           }
         }

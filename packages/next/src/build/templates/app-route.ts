@@ -21,7 +21,6 @@ import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
 } from '../../server/web/utils'
-import { decodePathParams } from '../../server/lib/router-utils/decode-path-params'
 import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
@@ -51,7 +50,7 @@ const routeModule = new AppRouteRouteModule({
     bundlePath: 'VAR_DEFINITION_BUNDLE_PATH',
   },
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
-  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
   userland,
@@ -114,29 +113,15 @@ export async function handler(
     buildId,
     params,
     nextConfig,
-    parsedUrl,
     isDraftMode,
     prerenderManifest,
     routerServerContext,
     isOnDemandRevalidate,
     revalidateOnlyGenerated,
+    resolvedPathname,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
-
-  // TODO: rework this to not be necessary as a middleware
-  // rewrite should not need to pass this context like this
-  // maybe we rely on rewrite header instead
-  let resolvedPathname = getRequestMeta(req, 'rewroteURL')
-
-  if (!resolvedPathname) {
-    resolvedPathname = parsedUrl.pathname || '/'
-  }
-
-  if (resolvedPathname === '/index') {
-    resolvedPathname = '/'
-  }
-  resolvedPathname = decodePathParams(resolvedPathname)
 
   let isIsr = Boolean(
     prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
@@ -184,7 +169,7 @@ export async function handler(
     prerenderManifest,
     renderOpts: {
       experimental: {
-        dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
+        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
       },
       supportsDynamicResponse,
@@ -210,6 +195,7 @@ export async function handler(
   }
   const nodeNextReq = new NodeNextRequest(req)
   const nodeNextRes = new NodeNextResponse(res)
+
   const nextReq = NextRequestAdapter.fromNodeNextRequest(
     nodeNextReq,
     signalFromNodeResponse(res)
@@ -463,7 +449,7 @@ export async function handler(
     }
   } catch (err) {
     // if we aren't wrapped by base-server handle here
-    if (!activeSpan) {
+    if (!activeSpan && !(err instanceof NoFallbackError)) {
       await routeModule.onRequestError(req, err, {
         routerKind: 'App Router',
         routePath: normalizedSrcPage,

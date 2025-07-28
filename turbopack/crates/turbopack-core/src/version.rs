@@ -272,7 +272,7 @@ pub struct VersionState {
 
 #[turbo_tasks::value_impl]
 impl VersionState {
-    #[turbo_tasks::function(invalidator)]
+    #[turbo_tasks::function]
     pub fn get(&self) -> Vc<Box<dyn Version>> {
         TraitRef::cell(self.version.get().0.clone())
     }

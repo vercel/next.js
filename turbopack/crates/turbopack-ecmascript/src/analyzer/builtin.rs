@@ -220,7 +220,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         prop.clone(),
                                     ),
                                     true,
-                                    "spreaded object",
+                                    "spread object",
                                 ));
                             }
                         }
@@ -317,7 +317,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         }
                         true
                     }
-                    // matching mutliple alternative properties on an object like `{a: 1, b: 2}[(a |
+                    // matching multiple alternative properties on an object like `{a: 1, b: 2}[(a |
                     // b)]`
                     JsValue::Alternatives {
                         total_nodes: _,
@@ -602,7 +602,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     }
                 };
                 if let Some(property) = property {
-                    *value = JsValue::alternatives_with_addtional_property(take(parts), property);
+                    *value = JsValue::alternatives_with_additional_property(take(parts), property);
                     true
                 } else {
                     *value = JsValue::alternatives(take(parts));

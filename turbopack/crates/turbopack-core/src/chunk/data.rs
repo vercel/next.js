@@ -21,7 +21,7 @@ pub struct ChunkData {
 pub struct ChunkDataOption(Option<ResolvedVc<ChunkData>>);
 
 // NOTE(alexkirsz) Our convention for naming vector types is to add an "s" to
-// the end of the type name, but in this case it would be both gramatically
+// the end of the type name, but in this case it would be both grammatically
 // incorrect and clash with the variable names everywhere.
 // TODO(WEB-101) Should fix this.
 #[turbo_tasks::value(transparent)]

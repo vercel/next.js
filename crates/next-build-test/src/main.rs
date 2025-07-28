@@ -1,4 +1,9 @@
-use std::{convert::Infallible, str::FromStr, time::Instant};
+use std::{
+    cell::RefCell,
+    convert::Infallible,
+    str::FromStr,
+    time::{Duration, Instant},
+};
 
 use next_api::project::{DefineEnv, ProjectOptions};
 use next_build_test::{Strategy, main_inner};
@@ -42,7 +47,7 @@ fn main() {
 
     match cmd {
         Cmd::Run => {
-            let strat = std::env::args()
+            let strategy = std::env::args()
                 .nth(2)
                 .map(|s| Strategy::from_str(&s))
                 .transpose()
@@ -64,17 +69,28 @@ fn main() {
                 .map(|f| f.split(',').map(ToOwned::to_owned).collect());
 
             if matches!(
-                strat,
+                strategy,
                 Strategy::Sequential { .. } | Strategy::Development { .. }
             ) {
                 factor = 1;
             }
 
+            thread_local! {
+                static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
+            }
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .on_thread_stop(|| {
                     TurboMalloc::thread_stop();
                     tracing::debug!("threads stopped");
+                })
+                .on_thread_park(|| {
+                    LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
+                        if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
+                            swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                            *cell = Some(Instant::now());
+                        }
+                    });
                 })
                 .build()
                 .unwrap()
@@ -126,7 +142,7 @@ fn main() {
                         },
                         noop_backing_storage(),
                     ));
-                    let result = main_inner(&tt, strat, factor, limit, files).await;
+                    let result = main_inner(&tt, strategy, factor, limit, files).await;
                     let memory = TurboMalloc::memory_usage();
                     tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
                     let start = Instant::now();

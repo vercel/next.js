@@ -8,14 +8,15 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_env::EnvMap;
+use turbo_tasks_env::{EnvMap, ProcessEnv};
+use turbo_tasks_fetch::FetchClient;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     ConditionItem, ConditionPath, LoaderRuleItem, OptionWebpackRules,
     module_options_context::{MdxTransformOptions, OptionWebpackConditions},
 };
 use turbopack_core::{
-    issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
@@ -56,7 +57,12 @@ impl CacheKinds {
 
 impl Default for CacheKinds {
     fn default() -> Self {
-        CacheKinds(["default", "remote"].iter().map(|&s| s.into()).collect())
+        CacheKinds(
+            ["default", "remote", "private"]
+                .iter()
+                .map(|&s| s.into())
+                .collect(),
+        )
     }
 }
 
@@ -515,7 +521,7 @@ pub enum ImageFormat {
 pub struct RemotePattern {
     pub hostname: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub protocol: Option<RemotePatternProtocal>,
+    pub protocol: Option<RemotePatternProtocol>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -526,7 +532,7 @@ pub struct RemotePattern {
     Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "kebab-case")]
-pub enum RemotePatternProtocal {
+pub enum RemotePatternProtocol {
     Http,
     Https,
 }
@@ -727,9 +733,9 @@ pub struct ExperimentalConfig {
     server_actions: Option<ServerActionsOrLegacyBool>,
     sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
-    #[serde(rename = "dynamicIO")]
-    dynamic_io: Option<bool>,
+    cache_components: Option<bool>,
     use_cache: Option<bool>,
+    root_params: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -797,6 +803,7 @@ pub struct ExperimentalConfig {
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_use_system_tls_certs: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1116,6 +1123,62 @@ pub struct OptionServerActions(Option<ServerActions>);
 #[turbo_tasks::value(transparent)]
 pub struct OptionJsonValue(pub Option<serde_json::Value>);
 
+#[turbo_tasks::value(shared)]
+struct InvalidLoaderRuleError {
+    ext: RcStr,
+    rename_as: Option<RcStr>,
+    config_file_path: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for InvalidLoaderRuleError {
+    #[turbo_tasks::function]
+    async fn file_path(self: turbo_tasks::Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self.await?.config_file_path.clone().cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: turbo_tasks::Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::Config.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(self: turbo_tasks::Vc<Self>) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(
+            format!(
+                "Invalid loader rule for extension: {}",
+                self.await?.ext.as_str()
+            )
+            .into(),
+        )
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn description(self: turbo_tasks::Vc<Self>) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(StyledString::Stack(vec![
+            StyledString::Text(
+                format!(
+                    "The extension {} contains a wildcard, but the `as` option does not: {}",
+                    self.await?.ext.as_str(),
+                    self.await?
+                        .rename_as
+                        .as_ref()
+                        .map(|r| r.as_str())
+                        .unwrap_or("")
+                )
+                .into(),
+            ),
+            StyledString::Text(
+                "Check out the documentation here for more information:".into(),
+            ),
+            StyledString::Text(
+                "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders".into(),
+            ),
+        ]).resolved_cell())))
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
@@ -1207,12 +1270,16 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn webpack_rules(&self, active_conditions: Vec<RcStr>) -> Vc<OptionWebpackRules> {
+    pub async fn webpack_rules(
+        &self,
+        active_conditions: Vec<RcStr>,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<OptionWebpackRules>> {
         let Some(turbo_rules) = self.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
-            return Vc::cell(None);
+            return Ok(Vc::cell(None));
         };
         if turbo_rules.is_empty() {
-            return Vc::cell(None);
+            return Ok(Vc::cell(None));
         }
         let active_conditions = active_conditions.into_iter().collect::<FxHashSet<_>>();
         let mut rules = FxIndexMap::default();
@@ -1275,6 +1342,22 @@ impl NextConfig {
                     if let FindRuleResult::Found(RuleConfigItemOptions { loaders, rename_as }) =
                         find_rule(rule, &active_conditions)
                     {
+                        // If the extension contains a wildcard, and the rename_as does not,
+                        // emit an issue to prevent users from encountering duplicate module names.
+                        if ext.contains("*") && rename_as.as_ref().is_some_and(|r| !r.contains("*"))
+                        {
+                            let config_file_path =
+                                project_path.join(&format!("./{}", self.config_file_name))?;
+
+                            InvalidLoaderRuleError {
+                                ext: ext.clone(),
+                                config_file_path,
+                                rename_as: rename_as.clone(),
+                            }
+                            .resolved_cell()
+                            .emit();
+                        }
+
                         rules.insert(
                             ext.clone(),
                             LoaderRuleItem {
@@ -1286,7 +1369,7 @@ impl NextConfig {
                 }
             }
         }
-        Vc::cell(Some(ResolvedVc::cell(rules)))
+        Ok(Vc::cell(Some(ResolvedVc::cell(rules))))
     }
 
     #[turbo_tasks::function]
@@ -1507,8 +1590,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_dynamic_io(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
+    pub fn enable_cache_components(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.cache_components.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1517,9 +1600,19 @@ impl NextConfig {
             self.experimental
                 .use_cache
                 // "use cache" was originally implicitly enabled with the
-                // dynamicIO flag, so we transfer the value for dynamicIO to the
+                // cacheComponents flag, so we transfer the value for cacheComponents to the
                 // explicit useCache flag to ensure backwards compatibility.
-                .unwrap_or(self.experimental.dynamic_io.unwrap_or(false)),
+                .unwrap_or(self.experimental.cache_components.unwrap_or(false)),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_root_params(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .root_params
+                // rootParams should be enabled implicitly in cacheComponents.
+                .unwrap_or(self.experimental.cache_components.unwrap_or(false)),
         )
     }
 
@@ -1568,12 +1661,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn turbopack_remove_unused_exports(&self, is_development: bool) -> Vc<bool> {
-        Vc::cell(
+    pub async fn turbopack_remove_unused_exports(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
             self.experimental
                 .turbopack_remove_unused_exports
-                .unwrap_or(!is_development),
-        )
+                .unwrap_or(matches!(*mode.await?, NextMode::Build)),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1641,6 +1734,28 @@ impl NextConfig {
     pub fn output_file_tracing_excludes(&self) -> Vc<OptionJsonValue> {
         Vc::cell(self.output_file_tracing_excludes.clone())
     }
+
+    #[turbo_tasks::function]
+    pub async fn fetch_client(&self, env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<FetchClient>> {
+        // Support both an env var and the experimental flag to provide more flexibility to
+        // developers on locked down systems, depending on if they want to configure this on a
+        // per-system or per-project basis.
+        let use_system_tls_certs = env
+            .read(rcstr!("NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS"))
+            .await?
+            .as_ref()
+            .and_then(|env_value| {
+                // treat empty value same as an unset value
+                (!env_value.is_empty()).then(|| env_value == "1" || env_value == "true")
+            })
+            .or(self.experimental.turbopack_use_system_tls_certs)
+            .unwrap_or(false);
+        Ok(FetchClient {
+            tls_built_in_webpki_certs: !use_system_tls_certs,
+            tls_built_in_native_certs: use_system_tls_certs,
+        }
+        .cell())
+    }
 }
 
 /// A subset of ts/jsconfig that next.js implicitly
@@ -1666,47 +1781,5 @@ impl JsConfig {
     #[turbo_tasks::function]
     pub fn compiler_options(&self) -> Vc<serde_json::Value> {
         Vc::cell(self.compiler_options.clone().unwrap_or_default())
-    }
-}
-
-#[turbo_tasks::value]
-struct OutdatedConfigIssue {
-    path: FileSystemPath,
-    old_name: RcStr,
-    new_name: RcStr,
-    description: RcStr,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for OutdatedConfigIssue {
-    fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Error
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.into()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
-            StyledString::Code(self.old_name.clone()),
-            StyledString::Text(rcstr!(" has been replaced by ")),
-            StyledString::Code(self.new_name.clone()),
-        ])
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.description.clone()).resolved_cell(),
-        ))
     }
 }

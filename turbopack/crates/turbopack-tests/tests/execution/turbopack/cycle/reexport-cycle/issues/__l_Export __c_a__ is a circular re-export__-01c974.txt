@@ -1,4 +1,5 @@
-error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/a.js  Export a is a circular re-export
+error - [bindings] /turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/a.js  Export a is a circular re-export
+  
   
   The export
   
@@ -11,5 +12,6 @@ error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/tu
   
   
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/a.js
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/a.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/index.js

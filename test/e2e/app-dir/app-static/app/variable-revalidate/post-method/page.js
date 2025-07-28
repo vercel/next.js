@@ -1,5 +1,7 @@
 import { fetchRetry } from '../../../lib/fetch-retry'
 
+export const dynamic = 'force-dynamic'
+
 export default async function Page() {
   const data = await fetchRetry(
     'https://next-data-api-endpoint.vercel.app/api/random',
@@ -55,6 +57,20 @@ export default async function Page() {
     {
       method: 'POST',
       body: new URLSearchParams('myParam=myValue&myParam=diffValue'),
+      next: {
+        revalidate: 30,
+      },
+    }
+  ).then((res) => res.text())
+
+  const dataWithBody5 = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      body: new TextEncoder().encode(JSON.stringify({ hi: 'there' })),
+      next: {
+        revalidate: 30,
+      },
     }
   ).then((res) => res.text())
 
@@ -66,6 +82,7 @@ export default async function Page() {
       <p id="data-body2">{dataWithBody2}</p>
       <p id="data-body3">{dataWithBody3}</p>
       <p id="data-body4">{dataWithBody4}</p>
+      <p id="data-body5">{dataWithBody5}</p>
     </>
   )
 }

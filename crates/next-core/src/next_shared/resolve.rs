@@ -45,6 +45,8 @@ static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
+    // TODO(PACK-4879): The filepath is incorrect and there should be a fine grained source
+    // location pointing at the import/require
     pub file_path: FileSystemPath,
     pub messages: Vec<RcStr>,
     pub skip_context_message: bool,
@@ -97,7 +99,7 @@ impl Issue for InvalidImportModuleIssue {
 
 /// A resolver plugin emits an error when specific context imports
 /// specified import requests. It doesn't detect if the import is correctly
-/// alised or not unlike webpack-config does; Instead it should be correctly
+/// aliased or not unlike webpack-config does; Instead it should be correctly
 /// configured when each context sets up its resolve options.
 #[turbo_tasks::value]
 pub(crate) struct InvalidImportResolvePlugin {
@@ -149,7 +151,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
 }
 
 /// Returns a resolve plugin if context have imports to `client-only`.
-/// Only the contexts that alises `client-only` to
+/// Only the contexts that aliases `client-only` to
 /// `next/dist/compiled/client-only/error` should use this.
 pub(crate) fn get_invalid_client_only_resolve_plugin(
     root: FileSystemPath,
@@ -166,7 +168,7 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 }
 
 /// Returns a resolve plugin if context have imports to `server-only`.
-/// Only the contexts that alises `server-only` to
+/// Only the contexts that aliases `server-only` to
 /// `next/dist/compiled/server-only/index` should use this.
 pub(crate) fn get_invalid_server_only_resolve_plugin(
     root: FileSystemPath,
@@ -219,7 +221,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.project_path.root().await?.clone_value(),
+            self.project_path.root().owned().await?,
             Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".into()),
         ))
     }
@@ -273,7 +275,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.root.root().await?.clone_value(),
+            self.root.root().owned().await?,
             Glob::new("**/next/dist/**/*.shared-runtime.js".into()),
         ))
     }
@@ -398,7 +400,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
-            self.root.root().await?.clone_value(),
+            self.root.root().owned().await?,
             Glob::new("**/next/dist/esm/**/*.shared-runtime.js".into()),
         ))
     }

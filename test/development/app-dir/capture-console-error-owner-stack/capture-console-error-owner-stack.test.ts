@@ -20,7 +20,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
           |                 ^",
        "stack": [
          "onClick app/browser/event/page.js (7:17)",
-         "button <anonymous> (0:0)",
+         "button <anonymous>",
          "Page app/browser/event/page.js (5:5)",
        ],
      }
@@ -112,7 +112,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
          |                 ^",
        "stack": [
          "Page app/rsc/page.js (2:17)",
-         "Page <anonymous> (0:0)",
+         "Page <anonymous>",
        ],
      }
     `)

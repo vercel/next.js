@@ -393,14 +393,13 @@ async function exportAppImpl(
           serverActionsManifest,
         }
       : {}),
-    strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      dynamicIO: nextConfig.experimental.dynamicIO ?? false,
+      cacheComponents: nextConfig.experimental.cacheComponents ?? false,
       clientSegmentCache:
         nextConfig.experimental.clientSegmentCache === 'client-only'
           ? 'client-only'
@@ -410,6 +409,14 @@ async function exportAppImpl(
       authInterrupts: !!nextConfig.experimental.authInterrupts,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
+    hasReadableErrorStacks:
+      nextConfig.experimental.serverSourceMaps === true &&
+      // TODO(NDX-531): Checking (and setting) the minify flags should be
+      // unnecessary once name mapping is fixed.
+      (process.env.TURBOPACK
+        ? nextConfig.experimental.turbopackMinify === false
+        : nextConfig.experimental.serverMinification === false) &&
+      nextConfig.experimental.enablePrerenderSourceMaps === true,
   }
 
   const { publicRuntimeConfig } = nextConfig
@@ -620,7 +627,7 @@ async function exportAppImpl(
   let initialPhaseExportPaths: ExportPathEntry[] = []
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
-  if (renderOpts.experimental.dynamicIO) {
+  if (renderOpts.experimental.cacheComponents) {
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)

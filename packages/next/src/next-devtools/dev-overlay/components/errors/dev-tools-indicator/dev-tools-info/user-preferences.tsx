@@ -1,91 +1,118 @@
-import { useState, type HTMLProps } from 'react'
+import type { HTMLProps } from 'react'
+import type {
+  DevToolsIndicatorPosition,
+  DevToolsScale,
+} from '../../../../shared'
+
 import { css } from '../../../../utils/css'
 import EyeIcon from '../../../../icons/eye-icon'
-import {
-  NEXT_DEV_TOOLS_SCALE,
-  STORAGE_KEY_POSITION,
-  STORAGE_KEY_THEME,
-} from '../../../../shared'
+import { NEXT_DEV_TOOLS_SCALE } from '../../../../shared'
 import LightIcon from '../../../../icons/light-icon'
 import DarkIcon from '../../../../icons/dark-icon'
 import SystemIcon from '../../../../icons/system-icon'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
-import {
-  getInitialTheme,
-  type DevToolsIndicatorPosition,
-  type DevToolsScale,
-} from './preferences'
+import { ShortcutRecorder } from './shortcut-recorder'
+import { useRestartServer } from '../../error-overlay-toolbar/use-restart-server'
+import { saveDevToolsConfig } from '../../../../utils/save-devtools-config'
 
 export function UserPreferences({
-  setPosition,
-  position,
+  theme,
   hide,
-  scale,
+  hideShortcut,
+  setHideShortcut,
   setScale,
+  scale,
+  position,
+  setPosition,
   ...props
 }: {
+  theme: 'dark' | 'light' | 'system'
+  hide: () => void
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
   setPosition: (position: DevToolsIndicatorPosition) => void
   position: DevToolsIndicatorPosition
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
-  hide: () => void
 } & DevToolsInfoPropsCore &
   Omit<HTMLProps<HTMLDivElement>, 'size'>) {
-  // derive initial theme from system preference
-  const [theme, setTheme] = useState(getInitialTheme())
+  return (
+    <DevToolsInfo title="Preferences" {...props}>
+      <UserPreferencesBody
+        theme={theme}
+        scale={scale}
+        position={position}
+        setPosition={setPosition}
+        setScale={setScale}
+        hide={hide}
+        hideShortcut={hideShortcut}
+        setHideShortcut={setHideShortcut}
+      />
+    </DevToolsInfo>
+  )
+}
+
+export function UserPreferencesBody({
+  theme,
+  hide,
+  hideShortcut,
+  setHideShortcut,
+  scale,
+  setPosition,
+  setScale,
+  position,
+}: {
+  theme: 'dark' | 'light' | 'system'
+  hide: () => void
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
+  setPosition: (position: DevToolsIndicatorPosition) => void
+  position: DevToolsIndicatorPosition
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
+}) {
+  const { restartServer, isPending } = useRestartServer()
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const portal = document.querySelector('nextjs-portal')
-    if (!portal) return
-
-    setTheme(e.target.value)
+    if (!portal) {
+      return
+    }
 
     if (e.target.value === 'system') {
       portal.classList.remove('dark')
       portal.classList.remove('light')
-      localStorage.removeItem(STORAGE_KEY_THEME)
+      saveDevToolsConfig({ theme: 'system' })
       return
     }
 
     if (e.target.value === 'dark') {
       portal.classList.add('dark')
       portal.classList.remove('light')
-      localStorage.setItem(STORAGE_KEY_THEME, 'dark')
+      saveDevToolsConfig({ theme: 'dark' })
     } else {
       portal.classList.remove('dark')
       portal.classList.add('light')
-      localStorage.setItem(STORAGE_KEY_THEME, 'light')
+      saveDevToolsConfig({ theme: 'light' })
     }
   }
 
   function handlePositionChange(e: React.ChangeEvent<HTMLSelectElement>) {
     setPosition(e.target.value as DevToolsIndicatorPosition)
-    localStorage.setItem(STORAGE_KEY_POSITION, e.target.value)
+    saveDevToolsConfig({
+      devToolsPosition: e.target.value as DevToolsIndicatorPosition,
+    })
   }
 
   function handleSizeChange({ target }: React.ChangeEvent<HTMLSelectElement>) {
     const value = Number(target.value) as DevToolsScale
     setScale(value)
-  }
-
-  function handleRestartDevServer(invalidatePersistentCache: boolean) {
-    let endpoint = '/__nextjs_restart_dev'
-
-    if (invalidatePersistentCache) {
-      endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
-    }
-
-    fetch(endpoint, {
-      method: 'POST',
-    }).then(() => {
-      // TODO: poll server status and reload when the server is back up.
-      // https://github.com/vercel/next.js/pull/80005
-    })
+    saveDevToolsConfig({ scale: value })
   }
 
   return (
-    <DevToolsInfo title="Preferences" {...props}>
+    <>
       <h2 className="dev-tools-info-section-title">General</h2>
       <div className="preferences-container">
         <div className="preference-section">
@@ -174,6 +201,21 @@ export function UserPreferences({
 
         <div className="preference-section">
           <div className="preference-header">
+            <label id="hide-dev-tools">Hide Dev Tools shortcut</label>
+            <p className="preference-description">
+              Set a custom keyboard shortcut to toggle visibility.
+            </p>
+          </div>
+          <div className="preference-control">
+            <ShortcutRecorder
+              value={hideShortcut?.split('+') ?? null}
+              onChange={setHideShortcut}
+            />
+          </div>
+        </div>
+
+        <div className="preference-section">
+          <div className="preference-header">
             <label>Disable Dev Tools for this project</label>
             <p className="preference-description">
               To disable this UI completely, set{' '}
@@ -202,8 +244,9 @@ export function UserPreferences({
               data-restart-dev-server
               className="action-button"
               onClick={() =>
-                handleRestartDevServer(/*invalidatePersistentCache*/ false)
+                restartServer({ invalidatePersistentCache: false })
               }
+              disabled={isPending}
             >
               <span>Restart</span>
             </button>
@@ -228,8 +271,9 @@ export function UserPreferences({
                 data-reset-bundler-cache
                 className="action-button"
                 onClick={() =>
-                  handleRestartDevServer(/*invalidatePersistentCache*/ true)
+                  restartServer({ invalidatePersistentCache: true })
                 }
+                disabled={isPending}
               >
                 <span>Reset Cache</span>
               </button>
@@ -237,7 +281,7 @@ export function UserPreferences({
           </div>
         </div>
       ) : null}
-    </DevToolsInfo>
+    </>
   )
 }
 
@@ -328,15 +372,23 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     font-size: var(--size-14);
     color: var(--color-gray-1000);
     padding: 6px 8px;
+    transition: border-color 150ms var(--timing-swift);
 
     &:hover {
-      background: var(--color-gray-100);
+      border-color: var(--color-gray-500);
+    }
+
+    svg {
+      width: 14px;
+      height: 14px;
+      overflow: visible;
     }
   }
 
   .select-button {
     &:focus-within {
       outline: var(--focus-ring);
+      outline-offset: -1px;
     }
 
     select {
@@ -347,6 +399,11 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
       color: var(--color-gray-1000);
       background: var(--color-background-100);
     }
+  }
+
+  .preference-section button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   :global(.icon) {

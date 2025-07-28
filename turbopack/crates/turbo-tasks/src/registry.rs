@@ -14,8 +14,6 @@ use crate::{
 
 static NAME_TO_FUNCTION: Lazy<RwLock<FxHashMap<&'static str, &'static NativeFunction>>> =
     Lazy::new(RwLock::default);
-static FUNCTION_TO_NAME: Lazy<RwLock<FxHashMap<&'static NativeFunction, &'static str>>> =
-    Lazy::new(RwLock::default);
 
 static VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new_const(
     ValueTypeId::MIN.to_non_zero_u64(),
@@ -78,8 +76,6 @@ where
 
 /// Registers a function so it is available for persistence
 pub fn register_function(global_name: &'static str, func: &'static NativeFunction) {
-    let prev = FUNCTION_TO_NAME.write().unwrap().insert(func, global_name);
-    debug_assert!(prev.is_none(), "function {global_name} registered twice?");
     let prev = NAME_TO_FUNCTION.write().unwrap().insert(global_name, func);
     debug_assert!(
         prev.is_none(),
@@ -89,10 +85,6 @@ pub fn register_function(global_name: &'static str, func: &'static NativeFunctio
 
 pub fn get_function_by_global_name(global_name: &str) -> &'static NativeFunction {
     NAME_TO_FUNCTION.read().unwrap().get(global_name).unwrap()
-}
-
-pub fn get_function_global_name(func: &'static NativeFunction) -> &'static str {
-    FUNCTION_TO_NAME.read().unwrap().get(&func).unwrap()
 }
 
 pub fn register_value_type(

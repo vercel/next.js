@@ -1,4 +1,5 @@
-use std::{fmt::Debug, hash::Hash, pin::Pin};
+use core::panic;
+use std::{fmt::Debug, hash::Hash, pin::Pin, sync::OnceLock};
 
 use anyhow::Result;
 use futures::Future;
@@ -144,13 +145,6 @@ pub struct FunctionMeta {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: bool,
-
-    /// If true, the function will be allowed to call `get_invalidator`. If this is false, the
-    /// `get_invalidator` function will panic on calls.
-    pub invalidator: bool,
-
-    /// If true, the function is statically analyzable immutable.
-    pub immutable: bool,
 }
 
 /// A native (rust) turbo-tasks function. It's used internally by
@@ -166,6 +160,8 @@ pub struct NativeFunction {
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
     pub(crate) implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+
+    global_name: OnceLock<&'static str>,
 }
 
 impl Debug for NativeFunction {
@@ -191,6 +187,7 @@ impl NativeFunction {
             function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
+            global_name: Default::default(),
         }
     }
 
@@ -213,6 +210,7 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn()),
+            global_name: Default::default(),
         }
     }
 
@@ -236,19 +234,14 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn_with_this()),
+            global_name: Default::default(),
         }
     }
 
     /// Executed the function
     pub fn execute(&'static self, this: Option<RawVc>, arg: &dyn MagicAny) -> NativeTaskFuture {
         match (self.implementation).functor(this, arg) {
-            Ok(functor) => {
-                if !self.function_meta.invalidator {
-                    return Box::pin(crate::invalidation::disallow_invalidator(functor));
-                }
-
-                functor
-            }
+            Ok(functor) => functor,
             Err(err) => Box::pin(async { Err(err) }),
         }
     }
@@ -276,7 +269,20 @@ impl NativeFunction {
         tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
     }
 
+    /// Returns the global name for this object
+    pub fn global_name(&self) -> &'static str {
+        self.global_name
+            .get()
+            .expect("cannot call `global_name` unless `register` has already been called")
+    }
+
     pub fn register(&'static self, global_name: &'static str) {
+        match self.global_name.set(global_name) {
+            Ok(_) => {}
+            Err(prev) => {
+                panic!("function {global_name} registered twice, previously with {prev}");
+            }
+        }
         register_function(global_name, self);
     }
 }

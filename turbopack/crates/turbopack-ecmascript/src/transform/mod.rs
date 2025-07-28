@@ -22,13 +22,12 @@ use swc_core::{
     },
     quote,
 };
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{
-    environment::Environment,
-    issue::{Issue, IssueSeverity, IssueStage, StyledString},
-};
+use turbopack_core::{environment::Environment, source::Source};
+
+use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
 
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
@@ -121,6 +120,7 @@ pub struct TransformContext<'a> {
     pub file_name_hash: u128,
     pub query_str: RcStr,
     pub file_path: FileSystemPath,
+    pub source: ResolvedVc<Box<dyn Source>>,
 }
 
 impl EcmascriptInputTransform {
@@ -182,8 +182,8 @@ impl EcmascriptInputTransform {
                     development: Some(*development),
                     import_source: import_source.await?.as_deref().map(Atom::from),
                     refresh: if *refresh {
+                        debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
-                            // __turbopack_context__.k is __turbopack_refresh__
                             refresh_reg: atom!("__turbopack_context__.k.register"),
                             refresh_sig: atom!("__turbopack_context__.k.signature"),
                             ..Default::default()
@@ -209,12 +209,14 @@ impl EcmascriptInputTransform {
                 );
 
                 if *refresh {
+                    debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
+                    debug_assert_eq!(TURBOPACK_MODULE.full, "__turbopack_context__.m");
                     let stmt = quote!(
                         // AMP / No-JS mode does not inject these helpers
-                        "\nif (typeof globalThis.$RefreshHelpers$ === 'object' && \
+                        "if (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
-                         __turbopack_context__.k.registerExports(module, \
-                         globalThis.$RefreshHelpers$); }\n" as Stmt
+                         __turbopack_context__.k.registerExports(__turbopack_context__.m, \
+                         globalThis.$RefreshHelpers$); }" as Stmt
                     );
 
                     match program {
@@ -350,35 +352,5 @@ pub fn remove_directives(program: &mut Program) {
                 .count();
             script.body.drain(0..directive_count);
         }
-    }
-}
-
-#[turbo_tasks::value(shared)]
-pub struct UnsupportedServerActionIssue {
-    pub file_path: FileSystemPath,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for UnsupportedServerActionIssue {
-    fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Error
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
-            "Server actions (\"use server\") are not yet supported in Turbopack"
-        ))
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
     }
 }

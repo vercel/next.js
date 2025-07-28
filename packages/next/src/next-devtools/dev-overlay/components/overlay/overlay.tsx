@@ -3,6 +3,7 @@ import { lock, unlock } from './body-locker'
 
 export type OverlayProps = React.HTMLAttributes<HTMLDivElement> & {
   fixed?: boolean
+  ref?: React.Ref<HTMLDivElement>
 }
 
 const Overlay: React.FC<OverlayProps> = function Overlay({

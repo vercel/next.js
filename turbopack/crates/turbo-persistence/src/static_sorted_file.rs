@@ -419,7 +419,7 @@ struct CurrentKeyBlock {
 
 struct CurrentIndexBlock {
     entries: ArcSlice<u8>,
-    block_indicies_count: usize,
+    block_indices_count: usize,
     index: usize,
 }
 
@@ -439,11 +439,11 @@ impl StaticSortedFileIter<'_> {
         let block_type = block.read_u8()?;
         match block_type {
             BLOCK_TYPE_INDEX => {
-                let block_indicies_count = (block.len() + 8) / 10;
+                let block_indices_count = (block.len() + 8) / 10;
                 let range = 1..block_arc.len();
                 self.stack.push(CurrentIndexBlock {
                     entries: block_arc.slice(range),
-                    block_indicies_count,
+                    block_indices_count,
                     index: 0,
                 });
             }
@@ -500,15 +500,15 @@ impl StaticSortedFileIter<'_> {
             }
             if let Some(CurrentIndexBlock {
                 entries,
-                block_indicies_count,
+                block_indices_count,
                 index,
             }) = self.stack.pop()
             {
                 let block_index = (&entries[index * 10..]).read_u16::<BE>()?;
-                if index + 1 < block_indicies_count {
+                if index + 1 < block_indices_count {
                     self.stack.push(CurrentIndexBlock {
                         entries,
-                        block_indicies_count,
+                        block_indices_count,
                         index: index + 1,
                     });
                 }

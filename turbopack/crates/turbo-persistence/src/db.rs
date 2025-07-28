@@ -5,6 +5,7 @@ use std::{
     fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
     mem::{MaybeUninit, swap, transmute},
+    ops::RangeInclusive,
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -747,8 +748,8 @@ impl TurboPersistence {
         }
 
         impl Compactable for SstWithRange {
-            fn range(&self) -> (u64, u64) {
-                (self.range.min_hash, self.range.max_hash)
+            fn range(&self) -> RangeInclusive<u64> {
+                self.range.min_hash..=self.range.max_hash
             }
 
             fn size(&self) -> u64 {
@@ -823,7 +824,7 @@ impl TurboPersistence {
                 }
 
                 {
-                    let metrics = compute_metrics(&ssts_with_ranges, (0, u64::MAX));
+                    let metrics = compute_metrics(&ssts_with_ranges, 0..=u64::MAX);
                     let guard = log_mutex.lock();
                     let mut log = self.open_log()?;
                     writeln!(
@@ -839,7 +840,7 @@ impl TurboPersistence {
                         writeln!(log, "  merge")?;
                         for i in job.iter() {
                             let seq = ssts_with_ranges[*i].seq;
-                            let (min, max) = ssts_with_ranges[*i].range();
+                            let (min, max) = ssts_with_ranges[*i].range().into_inner();
                             writeln!(log, "    {seq:08} {min:016x}-{max:016x}")?;
                         }
                     }
@@ -870,11 +871,11 @@ impl TurboPersistence {
                 let merge_result = merge_jobs
                     .into_par_iter()
                     .with_min_len(1)
-                    .map(|indicies| {
+                    .map(|indices| {
                         let _span = span.clone().entered();
-                        if indicies.len() == 1 {
+                        if indices.len() == 1 {
                             // If we only have one file, we can just move it
-                            let index = indicies[0];
+                            let index = indices[0];
                             let meta_index = ssts_with_ranges[index].meta_index;
                             let index_in_meta = ssts_with_ranges[index].index_in_meta;
                             let meta_file = &meta_files[meta_index];
@@ -920,7 +921,7 @@ impl TurboPersistence {
                         let mut new_sst_files = Vec::new();
 
                         // Iterate all SST files
-                        let iters = indicies
+                        let iters = indices
                             .iter()
                             .map(|&index| {
                                 let meta_index = ssts_with_ranges[index].meta_index;

@@ -16,6 +16,7 @@ next-api = { workspace = true }
 next-core = { workspace = true }
 num_cpus = "1.16.0"
 rand = { workspace = true, features = ["small_rng"] }
+swc_core = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = "0.1.15"

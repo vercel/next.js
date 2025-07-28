@@ -1,4 +1,4 @@
-[92;4msuggestion - [analysis] [project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:17:0  lint TP1201 new URL(FreeVar(Math)["random"](), import.meta*0*["url"]) is very dynamic
+[92;4msuggestion - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:17:0  lint TP1201 new URL(FreeVar(Math)["random"](), import.meta*0*["url"]) is very dynamic
   
       13 | 
       14 | fs.readFileSync(unknown)

@@ -235,7 +235,7 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    dynamicIO: boolean
+    cacheComponents: boolean
     clientSegmentCache: boolean | 'client-only'
     dynamicOnHover: boolean
     inlineCss: boolean
@@ -262,6 +262,14 @@ export interface RenderOptsPartial {
    * statically generated.
    */
   isDebugDynamicAccesses?: boolean
+
+  /**
+   * This is true when:
+   * - source maps are generated
+   * - source maps are applied
+   * - minification is disabled
+   */
+  hasReadableErrorStacks?: boolean
 
   /**
    * The maximum length of the headers that are emitted by React and added to

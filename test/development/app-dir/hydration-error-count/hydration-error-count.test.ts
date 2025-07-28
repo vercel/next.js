@@ -21,11 +21,15 @@ describe('hydration-error-count', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <InnerLayoutRouter url="/bad-nesting" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                             <Page params={Promise} searchParams={Promise}>
-     >                         <p>
+                           <SegmentViewNode type="page" pagePath="bad-nestin...">
+                             <SegmentTrieNode>
+                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                               <Page params={Promise} searchParams={Promise}>
      >                           <p>
-                           ...",
+     >                             <p>
+                           ...
+                         ...
+               ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -34,7 +38,7 @@ describe('hydration-error-count', () => {
      > 6 |       <p>nest</p>
          |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/bad-nesting/page.tsx (6:7)",
          ],
        },
@@ -46,7 +50,7 @@ describe('hydration-error-count', () => {
      > 6 |       <p>nest</p>
          |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/bad-nesting/page.tsx (6:7)",
          ],
        },
@@ -69,12 +73,16 @@ describe('hydration-error-count', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <InnerLayoutRouter url="/html-diff" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                             <Page params={Promise} searchParams={Promise}>
-                               <p>
-     +                           client
-     -                           server
-                           ...",
+                           <SegmentViewNode type="page" pagePath="html-diff/...">
+                             <SegmentTrieNode>
+                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                               <Page params={Promise} searchParams={Promise}>
+                                 <p>
+     +                             client
+     -                             server
+                           ...
+                         ...
+               ...",
        "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -82,7 +90,7 @@ describe('hydration-error-count', () => {
      > 4 |   return <p>{typeof window === 'undefined' ? 'server' : 'client'}</p>
          |          ^",
        "stack": [
-         "p <anonymous> (0:0)",
+         "p <anonymous>",
          "Page app/html-diff/page.tsx (4:10)",
        ],
      }
@@ -105,11 +113,15 @@ describe('hydration-error-count', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <InnerLayoutRouter url="/two-issues" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                             <Page params={Promise} searchParams={Promise}>
-     >                         <p className="client">
-     >                           <p>
-                           ...",
+                           <SegmentViewNode type="page" pagePath="two-issues...">
+                             <SegmentTrieNode>
+                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                               <Page params={Promise} searchParams={Promise}>
+     >                           <p className="client">
+     >                             <p>
+                           ...
+                         ...
+               ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -118,7 +130,7 @@ describe('hydration-error-count', () => {
      > 10 |       <p>nest</p>
           |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/two-issues/page.tsx (10:7)",
          ],
        },
@@ -133,13 +145,17 @@ describe('hydration-error-count', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <InnerLayoutRouter url="/two-issues" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                             <Page params={Promise} searchParams={Promise}>
-                               <p
-     +                           className="client"
-     -                           className="server"
-                               >
-                           ...",
+                           <SegmentViewNode type="page" pagePath="two-issues...">
+                             <SegmentTrieNode>
+                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                               <Page params={Promise} searchParams={Promise}>
+                                 <p
+     +                             className="client"
+     -                             className="server"
+                                 >
+                           ...
+                         ...
+               ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -147,7 +163,7 @@ describe('hydration-error-count', () => {
      > 10 |       <p>nest</p>
           |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/two-issues/page.tsx (10:7)",
          ],
        },
@@ -171,11 +187,15 @@ describe('hydration-error-count', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <InnerLayoutRouter url="/hydration..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                             <Page params={Promise} searchParams={Promise}>
-     >                         <p>
+                           <SegmentViewNode type="page" pagePath="hydration-...">
+                             <SegmentTrieNode>
+                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                               <Page params={Promise} searchParams={Promise}>
      >                           <p>
-                           ...",
+     >                             <p>
+                           ...
+                         ...
+               ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -184,7 +204,7 @@ describe('hydration-error-count', () => {
      > 12 |       sneaky <p>very sneaky</p>
           |              ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/hydration-with-runtime-errors/page.tsx (12:14)",
          ],
        },
@@ -196,7 +216,7 @@ describe('hydration-error-count', () => {
      > 12 |       sneaky <p>very sneaky</p>
           |              ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/hydration-with-runtime-errors/page.tsx (12:14)",
          ],
        },

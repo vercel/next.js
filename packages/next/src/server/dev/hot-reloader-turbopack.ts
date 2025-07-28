@@ -1,6 +1,6 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
-import { join, extname } from 'path'
+import { join, extname, relative } from 'path'
 import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
@@ -37,7 +37,7 @@ import {
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { deleteCache, deleteFromRequireCache } from './require-cache'
+import { deleteCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -77,12 +77,10 @@ import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { getNodeDebugType } from '../lib/utils'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
-import {
-  setBundlerFindSourceMapImplementation,
-  type ModernSourceMapPayload,
-} from '../patch-error-inspect'
+import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
@@ -100,6 +98,12 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../../build/utils'
+import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
+import { normalizePath } from '../../lib/normalize-path'
+import {
+  devToolsConfigMiddleware,
+  getDevToolsConfig,
+} from '../../next-devtools/server/devtools-config-middleware'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -109,6 +113,8 @@ const isTestMode = !!(
 )
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
+
+declare const __next__clear_chunk_cache__: (() => void) | null | undefined
 
 /**
  * Replaces turbopack:///[project] with the specified project in the `source` field.
@@ -205,16 +211,17 @@ export async function createHotReloaderTurbopack(
     // TODO this need to be set correctly for persistent caching to work
   }
 
-  const supportedBrowsers = await getSupportedBrowsers(projectPath, dev)
+  const supportedBrowsers = getSupportedBrowsers(projectPath, dev)
   const currentNodeJsVersion = process.versions.node
 
+  const rootPath =
+    opts.nextConfig.turbopack?.root ||
+    opts.nextConfig.outputFileTracingRoot ||
+    projectPath
   const project = await bindings.turbo.createProject(
     {
-      projectPath: projectPath,
-      rootPath:
-        opts.nextConfig.turbopack?.root ||
-        opts.nextConfig.outputFileTracingRoot ||
-        projectPath,
+      rootPath,
+      projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
       distDir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(projectPath, nextConfig),
@@ -235,6 +242,7 @@ export async function createHotReloaderTurbopack(
         hasRewrites,
         // TODO: Implement
         middlewareMatchers: undefined,
+        rewrites: opts.fsChecker.rewrites,
       }),
       buildId,
       encryptionKey,
@@ -342,21 +350,11 @@ export async function createHotReloaderTurbopack(
 
     resetFetch()
 
-    const hasAppPaths = writtenEndpoint.serverPaths.some(({ path: p }) =>
-      p.startsWith('server/app')
-    )
-
-    if (hasAppPaths) {
-      deleteFromRequireCache(
-        require.resolve(
-          'next/dist/compiled/next-server/app-page-turbo.runtime.dev.js'
-        )
-      )
-      deleteFromRequireCache(
-        require.resolve(
-          'next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js'
-        )
-      )
+    // Not available in:
+    // - Pages Router (no server-side HMR)
+    // - Edge Runtime (uses browser runtime which already disposes chunks individually)
+    if (typeof __next__clear_chunk_cache__ === 'function') {
+      __next__clear_chunk_cache__()
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
@@ -664,6 +662,15 @@ export async function createHotReloaderTurbopack(
       telemetry: opts.telemetry,
       turbopackProject: project,
     }),
+    devToolsConfigMiddleware({
+      distDir,
+      sendUpdateSignal: (data) => {
+        hotReloader.send({
+          action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
+          data,
+        })
+      },
+    }),
   ]
 
   const versionInfoPromise = getVersionInfo()
@@ -753,7 +760,7 @@ export async function createHotReloaderTurbopack(
           clients.delete(client)
         })
 
-        client.addEventListener('message', ({ data }) => {
+        client.addEventListener('message', async ({ data }) => {
           const parsedData = JSON.parse(
             typeof data !== 'string' ? data.toString() : data
           )
@@ -781,6 +788,7 @@ export async function createHotReloaderTurbopack(
                 }
               )
               break
+
             case 'client-error': // { errorCount, clientId }
             case 'client-warning': // { warningCount, clientId }
             case 'client-success': // { clientId }
@@ -807,6 +815,20 @@ export async function createHotReloaderTurbopack(
             case 'client-added-page':
               // TODO
               break
+            case 'browser-logs': {
+              if (nextConfig.experimental.browserDebugInfoInTerminal) {
+                await receiveBrowserLogsTurbopack({
+                  entries: parsedData.entries,
+                  router: parsedData.router,
+                  sourceType: parsedData.sourceType,
+                  project,
+                  projectPath,
+                  distDir,
+                  config: nextConfig.experimental.browserDebugInfoInTerminal,
+                })
+              }
+              break
+            }
 
             default:
               // Might be a Turbopack message...
@@ -858,6 +880,7 @@ export async function createHotReloaderTurbopack(
 
         ;(async function () {
           const versionInfo = await versionInfoPromise
+          const devToolsConfig = await getDevToolsConfig(distDir)
 
           const sync: SyncAction = {
             action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
@@ -869,6 +892,7 @@ export async function createHotReloaderTurbopack(
               devtoolsFrontendUrl,
             },
             devIndicator: devIndicatorServerState,
+            devToolsConfig,
           }
 
           sendToClient(client, sync)

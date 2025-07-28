@@ -1,21 +1,21 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::hash_map::Entry};
 
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use either::Either;
 use next_core::{
     next_client_reference::{
         ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
-        VisitedClientReferenceGraphNodes, find_server_entries,
+        find_server_entries,
     },
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc,
+    CollectiblesSource, FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::{CssModuleAsset, ModuleCssAsset};
@@ -27,7 +27,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    client_references::{ClientReferenceMapType, ClientReferencesSet, map_client_references},
+    client_references::{ClientManifestEntryType, ClientReferenceManifest, map_client_references},
     dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
     server_actions::{AllActions, AllModuleActions, map_server_actions, to_rsc_context},
 };
@@ -57,30 +57,6 @@ impl NextDynamicGraph {
     ) -> Result<Vc<Self>> {
         let mapped = map_next_dynamic(*graph);
 
-        // TODO shrink graph here, using the information from
-        //  - `mapped` (which lists the relevant nodes)
-        //  - `graph.entries` (which lists the page/route/... entries we need to keep)
-
-        // This would clone the graph and allow changing the node weights. We can probably get away
-        // with keeping the sidecar information separate from the graph itself, though.
-        //
-        // let mut reduced_modules: FxHashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> =
-        // FxHashMap::default(); let mut reduced_graph = DiGraph::new();
-        // for idx in graph.node_indices() {
-        //     let weight = *graph.node_weight(idx).unwrap();
-        //     let new_idx = reduced_graph.add_node(weight);
-        //     reduced_modules.insert(weight, new_idx);
-        //     for e in graph.edges_directed(idx, petgraph::Direction::Outgoing) {
-        //         let target_weight = *graph.node_weight(e.target()).context("Missing
-        // target")?;         if let Some(new_target_idx) =
-        // reduced_modules.get(&target_weight) {
-        // reduced_graph.add_edge(new_idx, *new_target_idx, ());         } else {
-        //             let new_idx = reduced_graph.add_node(target_weight);
-        //             reduced_modules.insert(target_weight, new_idx);
-        //         }
-        //     }
-        // }
-
         Ok(NextDynamicGraph {
             is_single_page,
             graph,
@@ -106,7 +82,7 @@ impl NextDynamicGraph {
             }
 
             let entries = if !self.is_single_page {
-                if !graph.entry_modules().any(|m| m == entry) {
+                if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(vec![]));
                 }
@@ -185,8 +161,6 @@ impl ServerActionsGraph {
     ) -> Result<Vc<Self>> {
         let mapped = map_server_actions(*graph);
 
-        // TODO shrink graph here
-
         Ok(ServerActionsGraph {
             is_single_page,
             graph,
@@ -211,7 +185,7 @@ impl ServerActionsGraph {
                 // The graph contains the whole app, traverse and collect all reachable imports.
                 let graph = &*self.graph.await?;
 
-                if !graph.entry_modules().any(|m| m == entry) {
+                if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(Default::default()));
                 }
@@ -269,7 +243,7 @@ pub struct ClientReferencesGraph {
     is_single_page: bool,
     graph: ResolvedVc<SingleModuleGraph>,
     /// List of client references (modules that entries into the client graph)
-    data: ResolvedVc<ClientReferencesSet>,
+    data: ResolvedVc<ClientReferenceManifest>,
 }
 
 #[turbo_tasks::value_impl]
@@ -283,8 +257,6 @@ impl ClientReferencesGraph {
         // already, which saves us a traversal.
         let mapped = map_client_references(*graph);
 
-        // TODO shrink graph here
-
         Ok(Self {
             is_single_page,
             graph,
@@ -294,7 +266,7 @@ impl ClientReferencesGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_client_references_for_endpoint(
+    async fn get_client_references_for_endpoint(
         &self,
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
@@ -304,7 +276,7 @@ impl ClientReferencesGraph {
             let graph = &*self.graph.await?;
 
             let entries = if !self.is_single_page {
-                if !graph.entry_modules().any(|m| m == entry) {
+                if !graph.has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(ClientReferenceGraphResult::default().cell());
                 }
@@ -313,87 +285,130 @@ impl ClientReferencesGraph {
                 Either::Right(graph.entry_modules())
             };
 
-            let mut client_references = FxIndexSet::default();
-            // Make sure None (for the various internal next/dist/esm/client/components/*) is
-            // listed first
-            let mut client_references_by_server_component =
-                FxIndexMap::from_iter([(None, Vec::new())]);
+            // Because we care about 'evaluation order' we need to collect client references in the
+            // post_order callbacks which is the same as evaluation order
+            let mut client_references = Vec::new();
+            let mut client_reference_modules = Vec::new();
+            let mut server_components = FxHashSet::default();
 
-            graph.traverse_edges_from_entries_topological(
+            // Track how we reached each client reference.  This way if a client reference is
+            // referenced by the root and by a server component we don't only associate it with the
+            // server component.
+            #[derive(PartialEq, Eq, Copy, Clone)]
+            enum ParentType {
+                ServerComponent,
+                Page,
+                Both,
+            }
+            impl ParentType {
+                fn merge(left: Self, right: Self) -> Self {
+                    if left == right {
+                        left
+                    } else {
+                        // One is Both or one is ServerComponent and the other is Page, which means
+                        // Both
+                        Self::Both
+                    }
+                }
+            }
+            // Perform a DFS traversal to collect all client references and the set of server
+            // components for each module.
+            graph.traverse_edges_from_entries_dfs(
                 entries,
-                // state_map is `module -> Option< the current so parent server component >`
+                // state_map is `module -> ParentType` to track whether the module is reachable
+                // directly from an entry point.
                 &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
                     let module = node.module();
-                    let module_type = data.get(&module);
+                    let module_type = data.manifest.get(&module);
 
-                    let current_server_component = if let Some(
-                        ClientReferenceMapType::ServerComponent(module),
-                    ) = module_type
-                    {
-                        Some(*module)
-                    } else if let Some((parent_node, _)) = parent_info {
-                        *state_map.get(&parent_node.module).unwrap()
-                    } else {
-                        // a root node
-                        None
-                    };
+                    let parent_type =
+                        if let Some(ClientManifestEntryType::ServerComponent(_)) = module_type {
+                            ParentType::ServerComponent
+                        } else if let Some((parent_node, _)) = parent_info {
+                            *state_map.get(&parent_node.module).unwrap()
+                        } else {
+                            // a root node
+                            ParentType::Page
+                        };
 
-                    state_map.insert(module, current_server_component);
+                    match state_map.entry(module) {
+                        Entry::Occupied(mut occupied_entry) => {
+                            let current = occupied_entry.get_mut();
+                            let merged = ParentType::merge(*current, parent_type);
+                            if merged != parent_type {
+                                *current = merged;
+                            }
+                        }
+                        Entry::Vacant(vacant_entry) => {
+                            vacant_entry.insert(parent_type);
+                        }
+                    }
 
                     Ok(match module_type {
                         Some(
-                            ClientReferenceMapType::EcmascriptClientReference { .. }
-                            | ClientReferenceMapType::CssClientReference { .. },
+                            ClientManifestEntryType::EcmascriptClientReference { .. }
+                            | ClientManifestEntryType::CssClientReference { .. },
                         ) => GraphTraversalAction::Skip,
                         _ => GraphTraversalAction::Continue,
                     })
                 },
-                |parent_info, node, state_map| {
-                    let Some((parent_node, _)) = parent_info else {
+                |_, node, state_map| {
+                    let module = node.module();
+                    let Some(module_type) = data.manifest.get(&module) else {
                         return Ok(());
                     };
-                    let parent_module = parent_node.module;
 
-                    let parent_server_component = *state_map.get(&parent_module).unwrap();
-
-                    match data.get(&node.module()) {
-                        Some(ClientReferenceMapType::EcmascriptClientReference {
-                            module: module_ref,
-                            ssr_module,
-                        }) => {
-                            let client_reference: ClientReference = ClientReference {
-                                server_component: parent_server_component,
-                                ty: ClientReferenceType::EcmascriptClientReference(*module_ref),
-                            };
-                            client_references.insert(client_reference);
-                            client_references_by_server_component
-                                .entry(parent_server_component)
-                                .or_insert_with(Vec::new)
-                                .push(*ssr_module);
+                    let ty = match module_type {
+                        ClientManifestEntryType::EcmascriptClientReference {
+                            module,
+                            ssr_module: _,
+                        } => ClientReferenceType::EcmascriptClientReference(*module),
+                        ClientManifestEntryType::CssClientReference(module) => {
+                            ClientReferenceType::CssClientReference(*module)
                         }
-                        Some(ClientReferenceMapType::CssClientReference(module_ref)) => {
-                            let client_reference = ClientReference {
-                                server_component: parent_server_component,
-                                ty: ClientReferenceType::CssClientReference(*module_ref),
-                            };
-                            client_references.insert(client_reference);
+                        ClientManifestEntryType::ServerComponent(sc) => {
+                            server_components.insert(*sc);
+                            return Ok(());
                         }
-                        _ => {}
                     };
+
+                    if *state_map.get(&module).unwrap() == ParentType::ServerComponent {
+                        // This is only reachable through server components, we need to wait to
+                        // compute the client references until we have seen all server components
+                        // reachable by this entrypoint, then we can intersect that with the set of
+                        // server components that depend on this client reference
+                        client_reference_modules.push((module, ty));
+                    } else {
+                        // Otherwise there is some path from the root directly to the reference,
+                        // just associate it with the root.
+                        client_references.push(ClientReference {
+                            server_component: None,
+                            ty,
+                        })
+                    }
+
                     Ok(())
                 },
             )?;
 
+            // Now compute all the parent components for each client reference module reachable from
+            // server components
+            client_references.extend(client_reference_modules.into_iter().flat_map(
+                |(module, ty)| {
+                    data.server_components_for_client_reference(module)
+                        .filter(|sc| server_components.contains(sc))
+                        .map(move |sc| ClientReference {
+                            server_component: Some(sc),
+                            ty,
+                        })
+                },
+            ));
+
             Ok(ClientReferenceGraphResult {
                 client_references: client_references.into_iter().collect(),
-                client_references_by_server_component,
                 server_utils: vec![],
                 server_component_entries: vec![],
-                // TODO remove
-                visited_nodes: VisitedClientReferenceGraphNodes::empty()
-                    .to_resolved()
-                    .await?,
             }
             .cell())
         }
@@ -440,8 +455,8 @@ impl Issue for CssGlobalImportIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let parent_path = self.parent_module.ident().path().await?.clone_value();
-        let module_path = self.module.ident().path().await?.clone_value();
+        let parent_path = self.parent_module.ident().path().owned().await?;
+        let module_path = self.module.ident().path().owned().await?;
         let relative_import_location = parent_path.parent();
 
         let import_path = match relative_import_location.get_relative_path_to(&module_path) {
@@ -477,6 +492,8 @@ impl Issue for CssGlobalImportIssue {
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::ProcessModule.into()
     }
+
+    // TODO(PACK-4879): compute the source information by following the module references
 }
 
 type FxModuleNameMap = FxIndexMap<ResolvedVc<Box<dyn Module>>, RcStr>;
@@ -497,9 +514,7 @@ async fn validate_pages_css_imports(
     let module_name_map = module_name_map.await?;
 
     let entries = if !is_single_page {
-        // TODO: Optimize this code by checking if the node is an entry using `get_module` and then
-        // checking if the node is an entry in the graph by looking for the reverse edges.
-        if !graph.entry_modules().any(|m| m == entry) {
+        if !graph.has_entry_module(entry) {
             // the graph doesn't contain the entry, e.g. for the additional module graph
             return Ok(());
         }
@@ -562,20 +577,19 @@ async fn validate_pages_css_imports(
 /// The consumers of this shouldn't need to care about the exact contents since it's abstracted away
 /// by the accessor functions, but
 /// - In dev, contains information about the modules of the current endpoint only
-/// - In prod, there is a single `ReducedGraphs` for the whole app, containing all pages
+/// - In prod, there is a single `GlobalBuildInformation` for the whole app, containing all pages
 #[turbo_tasks::value]
-pub struct ReducedGraphs {
+pub struct GlobalBuildInformation {
     next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
     server_actions: Vec<ResolvedVc<ServerActionsGraph>>,
     client_references: Vec<ResolvedVc<ClientReferencesGraph>>,
     // Data for some more ad-hoc operations
     bare_graphs: ResolvedVc<ModuleGraph>,
     is_single_page: bool,
-    // TODO add other graphs
 }
 
 #[turbo_tasks::value_impl]
-impl ReducedGraphs {
+impl GlobalBuildInformation {
     #[turbo_tasks::function]
     pub async fn new(graphs: Vc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         let graphs_ref = &graphs.await?.graphs;
@@ -712,11 +726,7 @@ impl ReducedGraphs {
                 let results = self
                     .client_references
                     .iter()
-                    .map(|graph| async move {
-                        let get_client_references_for_endpoint =
-                            graph.get_client_references_for_endpoint(entry).await?;
-                        Ok(get_client_references_for_endpoint)
-                    })
+                    .map(|graph| graph.get_client_references_for_endpoint(entry))
                     .try_join()
                     .await?;
 
@@ -728,6 +738,12 @@ impl ReducedGraphs {
                 result
             };
 
+            // TODO(luke.sandberg): at least in the whole_app_module_graph case we should be able to
+            // collect server components and server utilities during the above traversals in the
+            // correct order.  `find_server_entries returns them in reverse topological order (root
+            // layout first, page last) but the above traversals find them in DFS post
+            // order which means we would need to reverse it.
+            // For server_utils the order is irrelevant.
             if has_layout_segments {
                 // Do this separately for now, because the graph traversal order messes up the order
                 // of the server_component_entries.
@@ -785,7 +801,7 @@ impl ReducedGraphs {
                 .collect::<FxIndexMap<_, _>>();
             let identifier_map = ModuleNameMap(identifier_map).cell();
 
-            let _ = graphs
+            graphs
                 .iter()
                 .map(|graph| {
                     validate_pages_css_imports(
@@ -795,6 +811,7 @@ impl ReducedGraphs {
                         app_module,
                         identifier_map,
                     )
+                    .as_side_effect()
                 })
                 .try_join()
                 .await?;
@@ -807,24 +824,25 @@ impl ReducedGraphs {
 }
 
 #[turbo_tasks::function(operation)]
-fn get_reduced_graphs_for_endpoint_inner_operation(
+fn get_global_information_for_endpoint_inner_operation(
     module_graph: ResolvedVc<ModuleGraph>,
     is_single_page: bool,
-) -> Vc<ReducedGraphs> {
-    ReducedGraphs::new(*module_graph, is_single_page)
+) -> Vc<GlobalBuildInformation> {
+    GlobalBuildInformation::new(*module_graph, is_single_page)
 }
 
-/// Generates a [ReducedGraph] for the given project and endpoint containing information that is
-/// either global (module ids, chunking) or computed globally as a performance optimization (client
-/// references, etc).
+/// Generates a [GlobalBuildInformation] for the given project and endpoint containing information
+/// that is either global (module ids, chunking) or computed globally as a performance optimization
+/// (client references, etc).
 #[turbo_tasks::function]
-pub async fn get_reduced_graphs_for_endpoint(
+pub async fn get_global_information_for_endpoint(
     module_graph: ResolvedVc<ModuleGraph>,
     is_single_page: bool,
-) -> Result<Vc<ReducedGraphs>> {
+) -> Result<Vc<GlobalBuildInformation>> {
     // TODO get rid of this function once everything inside of
-    // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
-    let result_op = get_reduced_graphs_for_endpoint_inner_operation(module_graph, is_single_page);
+    // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
+    let result_op =
+        get_global_information_for_endpoint_inner_operation(module_graph, is_single_page);
     let result_vc = if !is_single_page {
         let result_vc = result_op.resolve_strongly_consistent().await?;
         let _issues = result_op.take_collectibles::<Box<dyn Issue>>();

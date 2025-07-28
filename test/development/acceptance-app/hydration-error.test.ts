@@ -73,23 +73,26 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+         <ScrollAndFocusHandler segmentPath={[...]}>
+           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <LoadingBoundary loading={null}>
+                 <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                           <SegmentViewNode type="page" pagePath="page.js">
+                             <SegmentTrieNode>
                              <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
                                    <main className="child">
      +                               client
      -                               server
-                             ...",
+                           ...
+                         ...
+             ...",
        "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -97,7 +100,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |       <main className="child">{isClient ? "client" : "server"}</main>
          |       ^",
        "stack": [
-         "main <anonymous> (0:0)",
+         "main <anonymous>",
          "Mismatch app/page.js (6:7)",
        ],
      }
@@ -150,21 +153,24 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+         <ScrollAndFocusHandler segmentPath={[...]}>
+           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <LoadingBoundary loading={null}>
+                 <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                           <SegmentViewNode type="page" pagePath="page.js">
+                             <SegmentTrieNode>
                              <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
      +                             <main className="only">
-                             ...",
+                           ...
+                         ...
+             ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -172,7 +178,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |       {isClient && <main className="only" />}
          |                    ^",
        "stack": [
-         "main <anonymous> (0:0)",
+         "main <anonymous>",
          "Mismatch app/page.js (6:20)",
        ],
      }
@@ -217,14 +223,16 @@ describe('Error overlay for hydration errors in App router', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <Head>
-                         <script>
-                         <script>
-                         <script>
-                         <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                           <Root params={Promise}>
-                             <html
-       -                       className="server-html"
-                             >
+                         <SegmentViewNode type="layout" pagePath="layout.js">
+                           <SegmentTrieNode>
+                           <script>
+                           <script>
+                           <script>
+                           <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                             <Root params={Promise}>
+                               <html
+       -                         className="server-html"
+                               >
                          ...",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
@@ -233,7 +241,7 @@ describe('Error overlay for hydration errors in App router', () => {
        > 5 |     <html
            |     ^",
          "stack": [
-           "html <anonymous> (0:0)",
+           "html <anonymous>",
            "Root app/layout.js (5:5)",
          ],
        }
@@ -251,11 +259,13 @@ describe('Error overlay for hydration errors in App router', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <Head>
-                         <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                           <Root params={Promise}>
-                             <html
-       -                       className="server-html"
-                             >
+                         <SegmentViewNode type="layout" pagePath="layout.js">
+                           <SegmentTrieNode>
+                           <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                             <Root params={Promise}>
+                               <html
+       -                         className="server-html"
+                               >
                          ...",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
@@ -264,7 +274,7 @@ describe('Error overlay for hydration errors in App router', () => {
        > 5 |     <html
            |     ^",
          "stack": [
-           "html <anonymous> (0:0)",
+           "html <anonymous>",
            "Root app/layout.js (5:5)",
          ],
        }
@@ -299,16 +309,17 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+         <ScrollAndFocusHandler segmentPath={[...]}>
+           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <LoadingBoundary loading={null}>
+                 <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                           <SegmentViewNode type="page" pagePath="page.js">
+                             <SegmentTrieNode>
                              <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
@@ -316,7 +327,9 @@ describe('Error overlay for hydration errors in App router', () => {
      +                             second
      -                             <footer className="3">
                                    ...
-                             ...",
+                           ...
+                         ...
+             ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -324,7 +337,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <div className="parent">
          |     ^",
        "stack": [
-         "div <anonymous> (0:0)",
+         "div <anonymous>",
          "Mismatch app/page.js (5:5)",
        ],
      }
@@ -361,16 +374,20 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                               <Mismatch params={Promise} searchParams={Promise}>
-                                 <div className="parent">
-     -                             <main className="only">
-                             ...",
+                             <SegmentViewNode type="page" pagePath="page.js">
+                               <SegmentTrieNode>
+                               <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                                 <Mismatch params={Promise} searchParams={Promise}>
+                                   <div className="parent">
+     -                               <main className="only">
+                             ...
+                           ...
+               ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -378,7 +395,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <div className="parent">
          |     ^",
        "stack": [
-         "div <anonymous> (0:0)",
+         "div <anonymous>",
          "Mismatch app/page.js (5:5)",
        ],
      }
@@ -411,16 +428,20 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                               <Mismatch params={Promise} searchParams={Promise}>
-                                 <div className="parent">
-     -                             only
-                             ...",
+                             <SegmentViewNode type="page" pagePath="page.js">
+                               <SegmentTrieNode>
+                               <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                                 <Mismatch params={Promise} searchParams={Promise}>
+                                   <div className="parent">
+     -                               only
+                             ...
+                           ...
+               ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -428,7 +449,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 4 |   return <div className="parent">{!isClient && "only"}</div>;
          |          ^",
        "stack": [
-         "div <anonymous> (0:0)",
+         "div <anonymous>",
          "Mismatch app/page.js (4:10)",
        ],
      }
@@ -466,22 +487,25 @@ describe('Error overlay for hydration errors in App router', () => {
      [
        {
          "componentStack": "...
-         <ScrollAndFocusHandler segmentPath={[...]}>
-           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+         <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+           <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+             <LoadingBoundary loading={null}>
+               <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                   <RedirectBoundary>
+                     <RedirectErrorBoundary router={{...}}>
+                       <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                         <SegmentViewNode type="page" pagePath="page.js">
+                           <SegmentTrieNode>
                            <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
                              <Page params={Promise} searchParams={Promise}>
                                <table>
                                  <tbody>
                                    <tr>
      >                               test
-                           ...",
+                         ...
+                       ...
+           ...",
          "description": "In HTML, text nodes cannot be a child of <tr>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -490,7 +514,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |         <tr>test</tr>
          |         ^",
          "stack": [
-           "tr <anonymous> (0:0)",
+           "tr <anonymous>",
            "Page app/page.js (6:9)",
          ],
        },
@@ -501,16 +525,20 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     +                           <table>
-     -                           test
-                             ...",
+                             <SegmentViewNode type="page" pagePath="page.js">
+                               <SegmentTrieNode>
+                               <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                                 <Page params={Promise} searchParams={Promise}>
+     +                             <table>
+     -                             test
+                             ...
+                           ...
+               ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -518,7 +546,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 4 |     <table>
          |     ^",
          "stack": [
-           "table <anonymous> (0:0)",
+           "table <anonymous>",
            "Page app/page.js (4:5)",
          ],
        },
@@ -556,17 +584,21 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <table>
-     >                             {" "}
-                                   ...
-                             ...",
+                             <SegmentViewNode type="page" pagePath="page.js">
+                               <SegmentTrieNode>
+                               <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                                 <Page params={Promise} searchParams={Promise}>
+     >                             <table>
+     >                               {" "}
+                                     ...
+                             ...
+                           ...
+               ...",
        "description": "In HTML, whitespace text nodes cannot be a child of <table>. Make sure you don't have any extra whitespace between tags on each line of your source code.
      This will cause a hydration error.",
        "environmentLabel": null,
@@ -575,7 +607,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 4 |     <table>
          |     ^",
        "stack": [
-         "table <anonymous> (0:0)",
+         "table <anonymous>",
          "Page app/page.js (4:5)",
        ],
      }
@@ -612,14 +644,15 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
-         <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-           <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-             <LoadingBoundary loading={null}>
-               <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} unauthorized={undefined} ...>
-                   <RedirectBoundary>
-                     <RedirectErrorBoundary router={{...}}>
-                       <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+         <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+           <LoadingBoundary loading={null}>
+             <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+               <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                 <RedirectBoundary>
+                   <RedirectErrorBoundary router={{...}}>
+                     <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                       <SegmentViewNode type="page" pagePath="page.js">
+                         <SegmentTrieNode>
                          <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
                            <Mismatch params={Promise} searchParams={Promise}>
                              <div className="parent">
@@ -628,7 +661,8 @@ describe('Error overlay for hydration errors in App router', () => {
      +                           <main className="second">
      -                           <footer className="3">
                                  ...
-                         ...",
+                       ...
+                     ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -636,7 +670,7 @@ describe('Error overlay for hydration errors in App router', () => {
      >  9 |         {isClient && <main className="second" />}
           |                      ^",
        "stack": [
-         "main <anonymous> (0:0)",
+         "main <anonymous>",
          "Mismatch app/page.js (9:22)",
        ],
      }
@@ -709,16 +743,20 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <p>
+                             <SegmentViewNode type="page" pagePath="page.js">
+                               <SegmentTrieNode>
+                               <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                                 <Page params={Promise} searchParams={Promise}>
      >                             <p>
-                             ...",
+     >                               <p>
+                             ...
+                           ...
+               ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -727,7 +765,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |       <p>Nested p tags</p>
          |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (6:7)",
          ],
        },
@@ -739,7 +777,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 6 |       <p>Nested p tags</p>
          |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (6:7)",
          ],
        },
@@ -782,22 +820,25 @@ describe('Error overlay for hydration errors in App router', () => {
      [
        {
          "componentStack": "...
-         <ScrollAndFocusHandler segmentPath={[...]}>
-           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+         <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+           <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+             <LoadingBoundary loading={null}>
+               <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                   <RedirectBoundary>
+                     <RedirectErrorBoundary router={{...}}>
+                       <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                         <SegmentViewNode type="page" pagePath="page.js">
+                           <SegmentTrieNode>
                            <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
                              <Page params={Promise} searchParams={Promise}>
                                <div>
                                  <div>
      >                             <p>
      >                               <div>
-                           ...",
+                         ...
+                       ...
+           ...",
          "description": "In HTML, <div> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -806,7 +847,7 @@ describe('Error overlay for hydration errors in App router', () => {
      >  8 |           <div>Nested div under p tag</div>
           |           ^",
          "stack": [
-           "div <anonymous> (0:0)",
+           "div <anonymous>",
            "Page app/page.js (8:11)",
          ],
        },
@@ -818,7 +859,7 @@ describe('Error overlay for hydration errors in App router', () => {
      >  8 |           <div>Nested div under p tag</div>
           |           ^",
          "stack": [
-           "div <anonymous> (0:0)",
+           "div <anonymous>",
            "Page app/page.js (8:11)",
          ],
        },
@@ -857,16 +898,20 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <div>
-     >                             <tr>
-                             ...",
+                             <SegmentViewNode type="page" pagePath="page.js">
+                               <SegmentTrieNode>
+                               <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                                 <Page params={Promise} searchParams={Promise}>
+     >                             <div>
+     >                               <tr>
+                             ...
+                           ...
+               ...",
          "description": "In HTML, <tr> cannot be a child of <div>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -875,7 +920,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 3 |   return <div><tr></tr></div>
          |               ^",
          "stack": [
-           "tr <anonymous> (0:0)",
+           "tr <anonymous>",
            "Page app/page.js (3:15)",
          ],
        },
@@ -887,7 +932,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 3 |   return <div><tr></tr></div>
          |               ^",
          "stack": [
-           "tr <anonymous> (0:0)",
+           "tr <anonymous>",
            "Page app/page.js (3:15)",
          ],
        },
@@ -929,20 +974,24 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <p>
-                                   <span>
+                             <SegmentViewNode type="page" pagePath="page.js">
+                               <SegmentTrieNode>
+                               <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                                 <Page params={Promise} searchParams={Promise}>
+     >                             <p>
                                      <span>
                                        <span>
                                          <span>
-     >                                     <p>
-                             ...",
+                                           <span>
+     >                                       <p>
+                             ...
+                           ...
+               ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -951,7 +1000,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
          |                                ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (5:32)",
          ],
        },
@@ -964,7 +1013,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
          |     ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (5:5)",
          ],
        },
@@ -976,7 +1025,7 @@ describe('Error overlay for hydration errors in App router', () => {
      > 5 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
          |                                ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page app/page.js (5:32)",
          ],
        },
@@ -1025,24 +1074,22 @@ describe('Error overlay for hydration errors in App router', () => {
       )
     })
 
-    await expect(browser).toDisplayCollapsedRedbox(`
-     [
-       {
-         "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/layout.js (7:7) @ Layout
-     >  7 |       <Script
-          |       ^",
-         "stack": [
-           "Layout app/layout.js (7:7)",
-         ],
-       },
-       {
-         "componentStack": "...
-         <Router actionQueue={{state:{...}, ...}} assetPrefix="" globalError={[...]} gracefullyDegrade={false}>
-           <HistoryUpdater>
-           <RuntimeStyles>
+    if (isTurbopack) {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       [
+         {
+           "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (7:7) @ Layout
+       >  7 |       <Script
+            |       ^",
+           "stack": [
+             "Layout app/layout.js (7:7)",
+           ],
+         },
+         {
+           "componentStack": "...
            <HotReload assetPrefix="" globalError={[...]}>
              <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
@@ -1051,39 +1098,104 @@ describe('Error overlay for hydration errors in App router', () => {
                    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <Head>${isTurbopack ? '\n                         <script>\n                         <script>' : ''}
-                         <Layout>
-     >                     <html>
-                             <body>
-                             <Script src="https://ex..." strategy="beforeInte...">
-     >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                         <Head>
+                         <SegmentViewNode type="layout" pagePath="layout.js">
+                           <SegmentTrieNode>
+                           <script>
+                           <script>
+                           <Layout>
+       >                     <html>
+                               <body>
+                               <Script src="https://ex..." strategy="beforeInte...">
+       >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                          ...",
-         "description": "In HTML, <script> cannot be a child of <html>.
-     This will cause a hydration error.",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/layout.js (7:7) @ Layout
-     >  7 |       <Script
-          |       ^",
-         "stack": [
-           "script <anonymous> (0:0)",
-           "Layout app/layout.js (7:7)",
-         ],
-       },
-       {
-         "description": "<html> cannot contain a nested <script>.
-     See this log for the ancestor stack trace.",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/layout.js (5:5) @ Layout
-     > 5 |     <html>
-         |     ^",
-         "stack": [
-           "html <anonymous> (0:0)",
-           "Layout app/layout.js (5:5)",
-         ],
-       },
-     ]
-    `)
+           "description": "In HTML, <script> cannot be a child of <html>.
+       This will cause a hydration error.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (7:7) @ Layout
+       >  7 |       <Script
+            |       ^",
+           "stack": [
+             "script <anonymous>",
+             "Layout app/layout.js (7:7)",
+           ],
+         },
+         {
+           "description": "<html> cannot contain a nested <script>.
+       See this log for the ancestor stack trace.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (5:5) @ Layout
+       > 5 |     <html>
+           |     ^",
+           "stack": [
+             "html <anonymous>",
+             "Layout app/layout.js (5:5)",
+           ],
+         },
+       ]
+      `)
+    } else {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       [
+         {
+           "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (7:7) @ Layout
+       >  7 |       <Script
+            |       ^",
+           "stack": [
+             "Layout app/layout.js (7:7)",
+           ],
+         },
+         {
+           "componentStack": "...
+           <HotReload assetPrefix="" globalError={[...]}>
+             <AppDevOverlayErrorBoundary globalError={[...]}>
+               <ReplaySsrOnlyErrors>
+               <DevRootHTTPAccessFallbackBoundary>
+                 <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <Head>
+                         <SegmentViewNode type="layout" pagePath="layout.js">
+                           <SegmentTrieNode>
+                           <Layout>
+       >                     <html>
+                               <body>
+                               <Script src="https://ex..." strategy="beforeInte...">
+       >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                         ...",
+           "description": "In HTML, <script> cannot be a child of <html>.
+       This will cause a hydration error.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (7:7) @ Layout
+       >  7 |       <Script
+            |       ^",
+           "stack": [
+             "script <anonymous>",
+             "Layout app/layout.js (7:7)",
+           ],
+         },
+         {
+           "description": "<html> cannot contain a nested <script>.
+       See this log for the ancestor stack trace.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/layout.js (5:5) @ Layout
+       > 5 |     <html>
+           |     ^",
+           "stack": [
+             "html <anonymous>",
+             "Layout app/layout.js (5:5)",
+           ],
+         },
+       ]
+      `)
+    }
   })
 })

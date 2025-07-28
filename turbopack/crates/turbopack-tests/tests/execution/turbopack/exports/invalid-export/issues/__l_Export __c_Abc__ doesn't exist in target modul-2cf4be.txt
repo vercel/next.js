@@ -1,4 +1,4 @@
-error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js  /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js:1:0  Export Abc doesn't exist in target module
+error - [bindings] /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js:1:0  Export Abc doesn't exist in target module
   
          + v----------------------------v
        1 + import { Abc } from './module'
@@ -19,5 +19,6 @@ error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/tu
   | Abd, Eef, a, b, c
   | 
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/index.js

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::Atom,
     base::SwcComments,
-    common::GLOBALS,
+    common::{Span, GLOBALS},
     ecma::{ast::Program, visit::VisitWith},
 };
 
@@ -45,11 +45,12 @@ pub struct PageStaticInfo {
 pub struct ExportInfoWarning {
     pub key: Atom,
     pub message: &'static str,
+    pub span: Span,
 }
 
 impl ExportInfoWarning {
-    pub fn new(key: Atom, message: &'static str) -> Self {
-        Self { key, message }
+    pub fn new(key: Atom, message: &'static str, span: Span) -> Self {
+        Self { key, message, span }
     }
 }
 
@@ -64,7 +65,7 @@ pub struct ExportInfo {
     pub preferred_region: Vec<Atom>,
     pub generate_image_metadata: Option<bool>,
     pub generate_sitemaps: Option<bool>,
-    pub generate_static_params: bool,
+    pub generate_static_params: Option<Span>,
     pub extra_properties: FxHashSet<Atom>,
     pub directives: FxHashSet<Atom>,
     /// extra properties to bubble up warning messages from visitor,

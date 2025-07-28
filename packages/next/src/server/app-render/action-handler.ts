@@ -39,6 +39,7 @@ import {
 import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
 
 import {
+  JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
@@ -52,7 +53,7 @@ import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
-import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge'
+import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
@@ -247,7 +248,7 @@ async function createForwardedActionResponse(
     console.error(`failed to forward action response`, err)
   }
 
-  return RenderResult.fromStatic('{}')
+  return RenderResult.fromStatic('{}', JSON_CONTENT_TYPE_HEADER)
 }
 
 /**
@@ -389,7 +390,7 @@ async function createRedirectRenderResult(
     }
   }
 
-  return RenderResult.fromStatic('')
+  return RenderResult.EMPTY
 }
 
 // Used to compare Host header and Origin header.
@@ -655,7 +656,7 @@ export async function handleAction({
     res.statusCode = 404
     return {
       type: 'done',
-      result: RenderResult.fromStatic('Server action not found.'),
+      result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
     }
   }
 
@@ -679,7 +680,7 @@ export async function handleAction({
 
           // TODO: add body limit
 
-          // Use react-server-dom-webpack/server.edge
+          // Use react-server-dom-webpack/server
           const {
             createTemporaryReferenceSet,
             decodeReply,
@@ -1060,7 +1061,7 @@ export async function handleAction({
       res.setHeader('Location', redirectUrl)
       return {
         type: 'done',
-        result: RenderResult.fromStatic(''),
+        result: RenderResult.EMPTY,
       }
     } else if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)

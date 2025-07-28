@@ -60,12 +60,6 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     where
         Self: 'l;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        tx
-    }
-
     fn is_empty(&self) -> bool {
         self.db.is_empty()
     }

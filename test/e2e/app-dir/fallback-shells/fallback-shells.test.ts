@@ -259,24 +259,28 @@ describe('fallback-shells', () => {
             }
           })
 
-          it('does not render a fallback shell when using a params placeholder', async () => {
-            // This should trigger a blocking prerender of the route shell.
-            const { browser, response } = await next.browserWithResponse(
-              '/with-cached-io/with-static-params/without-suspense/params-in-page/[slug]'
-            )
+          // TODO: Re-enable as deploy test when (potential) infra issue is
+          // resolved.
+          if (!isNextDeploy) {
+            it('does not render a fallback shell when using a params placeholder', async () => {
+              // This should trigger a blocking prerender of the route shell.
+              const { browser, response } = await next.browserWithResponse(
+                '/with-cached-io/with-static-params/without-suspense/params-in-page/[slug]'
+              )
 
-            expect(response.status()).toBe(200)
+              expect(response.status()).toBe(200)
 
-            // This should render the encoded param in the route shell, and not
-            // interpret the param as a fallback param, and subsequently try to
-            // render the fallback shell instead, which would fail because of the
-            // missing parent suspense boundary.
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
-            expect(lastModified).toInclude('Page /%5Bslug%5D')
-            expect(lastModified).toInclude('runtime')
-          })
+              // This should render the encoded param in the route shell, and not
+              // interpret the param as a fallback param, and subsequently try to
+              // render the fallback shell instead, which would fail because of the
+              // missing parent suspense boundary.
+              const lastModified = await browser
+                .elementById('last-modified')
+                .text()
+              expect(lastModified).toInclude('Page /%5Bslug%5D')
+              expect(lastModified).toInclude('runtime')
+            })
+          }
         })
 
         describe('and the params accessed in a cached non-page function', () => {

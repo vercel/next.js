@@ -64,8 +64,8 @@ pub async fn get_client_import_map(project_path: FileSystemPath) -> Result<Vc<Im
             Some(
                 turbopack_ecmascript_runtime::embed_fs()
                     .root()
-                    .await?
-                    .clone_value(),
+                    .owned()
+                    .await?,
             ),
         )
         .resolved_cell(),
@@ -83,7 +83,7 @@ pub async fn get_client_resolve_options_context(
         .to_resolved()
         .await?;
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().await?.clone_value()),
+        enable_node_modules: Some(project_path.root().owned().await?),
         custom_conditions: vec![node_env.await?.to_string().into(), "browser".into()],
         import_map: Some(next_client_import_map),
         browser: true,
