@@ -271,10 +271,10 @@ export async function detectContentType(
     case 'rad':
     case 'raw':
     case 'v':
+    case undefined:
     default:
       return null
   }
-  return null
 }
 
 export class ImageOptimizerCache {
