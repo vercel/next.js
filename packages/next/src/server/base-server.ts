@@ -2013,9 +2013,18 @@ export default abstract class Server<
       isRSCRequest
     ) {
       const headers = req.headers
+
+      const isPrefetchRSCRequest =
+        headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] ||
+        getRequestMeta(req, 'isPrefetchRSCRequest')
+
+      const segmentPrefetchRSCRequest =
+        headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] ||
+        getRequestMeta(req, 'segmentPrefetchRSCRequest')
+
       const expectedHash = computeCacheBustingSearchParam(
-        headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()],
-        headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()],
+        isPrefetchRSCRequest ? '1' : '0',
+        segmentPrefetchRSCRequest,
         headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()],
         headers[NEXT_URL.toLowerCase()]
       )

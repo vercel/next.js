@@ -52,7 +52,7 @@ const addCacheBustingSearchParam = (
   headers: Record<string, string | string[] | undefined>
 ) => {
   const cacheKey = computeCacheBustingSearchParam(
-    headers['Next-Router-Prefetch'],
+    headers['Next-Router-Prefetch'] ? '1' : '0',
     headers['Next-Router-Segment-Prefetch'],
     headers['Next-Router-State-Tree'],
     headers['Next-URL']
