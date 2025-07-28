@@ -24,6 +24,7 @@ describe('find config', () => {
         : '') +
       '/// <reference path="./.next/types/routes.d.ts" />' +
       eol +
+      eol +
       '// NOTE: This file should not be edited' +
       eol +
       '// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.' +
@@ -50,6 +51,7 @@ describe('find config', () => {
         : '') +
       '/// <reference path="./.next/types/routes.d.ts" />' +
       eol +
+      eol +
       '// NOTE: This file should not be edited' +
       eol +
       '// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.' +
@@ -75,6 +77,7 @@ describe('find config', () => {
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
       '/// <reference path="./.next/types/routes.d.ts" />' +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
