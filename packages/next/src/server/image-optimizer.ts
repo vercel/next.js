@@ -155,7 +155,9 @@ async function writeToCacheDir(
  * it matches the "magic number" of known file signatures.
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
-export async function detectContentType(buffer: Buffer) {
+export async function detectContentType(
+  buffer: Buffer
+): Promise<string | null> {
   if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
     return JPEG
   }
@@ -242,15 +244,31 @@ export async function detectContentType(buffer: Buffer) {
         return GIF
       case 'svg':
         return SVG
+      case 'jxl':
+        return JXL
       case 'tiff':
       case 'tif':
         return TIFF
       case 'pdf':
         return PDF
+      case 'dcraw':
+      case 'dz':
+      case 'exr':
+      case 'fits':
+      case 'heif':
+      case 'input':
+      case 'jp2':
+      case 'magick':
+      case 'openslide':
+      case 'ppm':
+      case 'rad':
+      case 'raw':
+      case 'v':
       default:
         return null
     }
   }
+  return null
 }
 
 export class ImageOptimizerCache {
