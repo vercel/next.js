@@ -1,12 +1,6 @@
 use std::{
-<<<<<<< HEAD
     borrow::Cow,
-    cmp::min,
-||||||| parent of 1158fb094f (Turbopack: improve compression dictionary generation)
-    cmp::min,
-=======
     cmp::{max, min},
->>>>>>> 1158fb094f (Turbopack: improve compression dictionary generation)
     fs::File,
     io::{self, BufWriter, Seek, Write},
     path::Path,
