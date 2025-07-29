@@ -1708,6 +1708,7 @@ export default abstract class Server<
 
   public setAssetPrefix(prefix?: string): void {
     this.nextConfig.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+    this.renderOpts.assetPrefix = this.nextConfig.assetPrefix
   }
 
   protected prepared: boolean = false
