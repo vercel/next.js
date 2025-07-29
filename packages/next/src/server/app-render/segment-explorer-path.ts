@@ -34,7 +34,7 @@ export function normalizeConventionFilePath(
     relativePath = `${BUILTIN_PREFIX}${relativePath}`
   }
 
-  return relativePath
+  return relativePath.replace(/\\/g, '/')
 }
 
 // if a filepath is a builtin file. e.g.
