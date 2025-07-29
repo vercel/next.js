@@ -1635,6 +1635,15 @@ export default async function build(
         )
       }
 
+      // We run type checking after route collection but before build.
+      if (!isCompileMode && !isGenerateMode) {
+        await updateBuildDiagnostics({
+          buildStage: 'type-checking',
+        })
+        await startTypeChecking(typeCheckingOptions)
+        traceMemoryUsage('Finished type checking', nextBuildSpan)
+      }
+
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
 
@@ -1789,15 +1798,6 @@ export default async function build(
             distDir,
           },
         })
-      }
-
-      // We run type checking after build.
-      if (!isCompileMode && !isGenerateMode) {
-        await updateBuildDiagnostics({
-          buildStage: 'type-checking',
-        })
-        await startTypeChecking(typeCheckingOptions)
-        traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
       const postCompileSpinner = createSpinner('Collecting page data')
