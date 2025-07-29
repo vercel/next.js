@@ -4,7 +4,6 @@ import React, { createContext, useContext, useOptimistic, useRef } from 'react'
 import type { UrlObject } from 'url'
 import { formatUrl } from '../../shared/lib/router/utils/format-url'
 import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
-import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
 import { addBasePath } from '../add-base-path'
@@ -21,6 +20,7 @@ import {
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
 import { dispatchNavigateAction } from '../components/app-router-instance'
 import { errorOnce } from '../../shared/lib/utils/error-once'
+import { FetchStrategy } from '../components/segment-cache'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -363,10 +363,11 @@ export default function LinkComponent(
    * - false: we will not prefetch if in the viewport at all
    * - 'unstable_dynamicOnHover': this starts in "auto" mode, but switches to "full" when the link is hovered
    */
-  const appPrefetchKind =
+  const fetchStrategy =
     prefetchProp === null || prefetchProp === 'auto'
-      ? PrefetchKind.AUTO
-      : PrefetchKind.FULL
+      ? // We default to PPR. We'll discover whether or not the route supports it with the initial prefetch.
+        FetchStrategy.PPR
+      : FetchStrategy.Full
 
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
@@ -581,7 +582,7 @@ export default function LinkComponent(
           element,
           href,
           router,
-          appPrefetchKind,
+          fetchStrategy,
           prefetchEnabled,
           setOptimisticLinkStatus
         )
@@ -595,7 +596,7 @@ export default function LinkComponent(
         unmountPrefetchableInstance(element)
       }
     },
-    [prefetchEnabled, href, router, appPrefetchKind, setOptimisticLinkStatus]
+    [prefetchEnabled, href, router, fetchStrategy, setOptimisticLinkStatus]
   )
 
   const mergedRef = useMergedRef(observeLinkVisibilityOnMount, childRef)

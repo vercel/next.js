@@ -93,7 +93,7 @@ pub(crate) fn new_static_atom(string: &'static PrehashedString) -> RcStr {
     // Tag it as a static pointer
     entry = ((entry as usize) | STATIC_TAG as usize) as *mut PrehashedString;
     let ptr: NonNull<PrehashedString> = unsafe {
-        // Safety: Box::into_raw returns a non-null pointer
+        // Safety: references always return a non-null pointers
         NonNull::new_unchecked(entry as *mut _)
     };
 
@@ -172,24 +172,31 @@ const fn multiply_mix(x: u64, y: u64) -> u64 {
     }
 }
 
-// Const compatible helper function to read a u64 from a byte array at a given offset
-const fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
-    (bytes[offset] as u64)
-        | ((bytes[offset + 1] as u64) << 8)
-        | ((bytes[offset + 2] as u64) << 16)
-        | ((bytes[offset + 3] as u64) << 24)
-        | ((bytes[offset + 4] as u64) << 32)
-        | ((bytes[offset + 5] as u64) << 40)
-        | ((bytes[offset + 6] as u64) << 48)
-        | ((bytes[offset + 7] as u64) << 56)
+// Const compatible helper function to read a u64 from a byte array at a given
+// offset
+// SAFETY: The caller must ensure that `bytes.len() >= offset + 8`
+#[inline(always)]
+const unsafe fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
+    debug_assert!(offset + 8 <= bytes.len());
+    // Reinterpret the pointer as an array of length 8 at the given offset
+    // SAFETY: it is our callers responsibility to ensure the offset is in range
+    let array = unsafe { bytes.as_ptr().add(offset) } as *const [u8; 8];
+    // SAFETY: this dereference is safe since we started with a reference (non-null) and an in range
+    // offset (callers responsibility)
+    u64::from_le_bytes(unsafe { *array })
 }
 
-// Const compatible helper function to read a u32 from a byte array at a given offset
-const fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
-    (bytes[offset] as u32)
-        | ((bytes[offset + 1] as u32) << 8)
-        | ((bytes[offset + 2] as u32) << 16)
-        | ((bytes[offset + 3] as u32) << 24)
+// Const compatible helper function to read a u32 from a byte array at a given
+// offset
+// SAFETY: The caller must ensure that `bytes.len() >= offset + 4`
+#[inline(always)]
+const unsafe fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
+    debug_assert!(offset + 4 <= bytes.len());
+    // SAFETY: it is our callers responsibility to ensure the offset is in range
+    let array = unsafe { bytes.as_ptr().add(offset) } as *const [u8; 4];
+    // SAFETY: this dereference is safe since we started with a reference (non-null) and an in range
+    // offset (callers responsibility)
+    u32::from_le_bytes(unsafe { *array })
 }
 
 /// Copied from `hash_bytes` of `rustc-hash`.
@@ -219,11 +226,13 @@ pub const fn hash_bytes(bytes: &[u8]) -> u64 {
     if len <= 16 {
         // XOR the input into s0, s1.
         if len >= 8 {
-            s0 ^= read_u64_le(bytes, 0);
-            s1 ^= read_u64_le(bytes, len - 8);
+            // SAFETY: we just checked that len is `>= 8` so these offsets are in range
+            s0 ^= unsafe { read_u64_le(bytes, 0) };
+            s1 ^= unsafe { read_u64_le(bytes, len - 8) };
         } else if len >= 4 {
-            s0 ^= read_u32_le(bytes, 0) as u64;
-            s1 ^= read_u32_le(bytes, len - 4) as u64;
+            // SAFETY: we just checked that len is `>= 4` so these offsets are in range
+            s0 ^= unsafe { read_u32_le(bytes, 0) } as u64;
+            s1 ^= unsafe { read_u32_le(bytes, len - 4) } as u64;
         } else if len > 0 {
             let lo = bytes[0];
             let mid = bytes[len / 2];
@@ -235,8 +244,10 @@ pub const fn hash_bytes(bytes: &[u8]) -> u64 {
         // Handle bulk (can partially overlap with suffix).
         let mut off = 0;
         while off < len - 16 {
-            let x = read_u64_le(bytes, off);
-            let y = read_u64_le(bytes, off + 8);
+            // SAFETY: we just checked that `off >= 16`` away from the end
+            // so these offsets are in range.
+            let x = unsafe { read_u64_le(bytes, off) };
+            let y = unsafe { read_u64_le(bytes, off + 8) };
 
             // Replace s1 with a mix of s0, x, and y, and s0 with s1.
             // This ensures the compiler can unroll this loop into two
@@ -250,8 +261,10 @@ pub const fn hash_bytes(bytes: &[u8]) -> u64 {
             off += 16;
         }
 
-        s0 ^= read_u64_le(bytes, len - 16);
-        s1 ^= read_u64_le(bytes, len - 8);
+        // SAFETY:At this point `len >16` so both these sutractions are >0 and more than 8 away from
+        // the end.`
+        s0 ^= unsafe { read_u64_le(bytes, len - 16) };
+        s1 ^= unsafe { read_u64_le(bytes, len - 8) };
     }
 
     multiply_mix(s0, s1) ^ (len as u64)

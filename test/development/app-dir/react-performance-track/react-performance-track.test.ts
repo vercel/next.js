@@ -15,8 +15,8 @@ describe('react-performance-track', () => {
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
     expect(track).toEqual(
       expect.arrayContaining([
-        { name: 'setTimeout', properties: [] },
-        { name: 'setTimeout', properties: [] },
+        { name: '\u200bsetTimeout', properties: [] },
+        { name: '\u200bsetTimeout', properties: [] },
       ])
     )
   })
@@ -31,7 +31,7 @@ describe('react-performance-track', () => {
         {
           // React might decide to display the shorthand in round brackets differently.
           // Double check with React changes if a shorthand change is intended.
-          name: 'fetch (…/random)',
+          name: '\u200bfetch (…/random)',
           properties: expect.arrayContaining([
             ['status', '200'],
             ['url', '"https://next-data-api-endpoint.vercel.app/api/random"'],

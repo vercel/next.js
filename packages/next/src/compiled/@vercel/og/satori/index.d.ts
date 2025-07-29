@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+type Yoga = any;
 
 declare const code: {
     readonly 'ja-JP': RegExp;
@@ -148,6 +149,8 @@ interface SatoriNode {
     textContent?: string;
 }
 
+declare function init(yoga: Yoga): void;
+
 type SatoriOptions = ({
     width: number;
     height: number;
@@ -168,4 +171,4 @@ type SatoriOptions = ({
 
 declare function satori(element: ReactNode, options: SatoriOptions): Promise<string>;
 
-export { FontOptions as Font, FontStyle, Weight as FontWeight, Locale, SatoriNode, SatoriOptions, satori as default };
+export { FontOptions as Font, FontStyle, Weight as FontWeight, Locale, SatoriNode, SatoriOptions, satori as default, init };

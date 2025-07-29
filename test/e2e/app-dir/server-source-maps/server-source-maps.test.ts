@@ -416,11 +416,12 @@ describe('app-dir - server source maps', () => {
         // Expect the invalid sourcemap warning only once per render.
         // Dynamic I/O renders three times.
         // One from filterStackFrameDEV.
+        // One from findSourceMapURLDEV.
         expect(
           normalizeCliOutput(next.cliOutput.slice(outputIndex)).split(
             'Invalid source map.'
           ).length - 1
-        ).toEqual(4)
+        ).toEqual(5)
       }
     } else {
       // Bundlers silently drop invalid sourcemaps.

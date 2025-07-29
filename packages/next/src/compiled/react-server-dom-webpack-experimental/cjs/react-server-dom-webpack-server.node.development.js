@@ -3907,15 +3907,18 @@
                   "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
                 )
               ),
-            (request.status = CLOSED),
             null !== request.destination &&
-              (request.destination.end(), (request.destination = null)),
+              ((request.status = CLOSED),
+              request.destination.end(),
+              (request.destination = null)),
             null !== request.debugDestination &&
               (request.debugDestination.end(),
               (request.debugDestination = null)))
           : null !== importsChunks &&
             null !== request.destination &&
-            (request.destination.end(), (request.destination = null)));
+            ((request.status = CLOSED),
+            request.destination.end(),
+            (request.destination = null)));
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
