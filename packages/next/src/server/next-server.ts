@@ -1096,9 +1096,9 @@ export default class NextNodeServer extends BaseServer<
       throw new Error('Invariant: pathname is undefined')
     }
 
-    // This is a catch-all route, there should be no fallbacks so mark it as
-    // such.
-    addRequestMeta(req, 'bubbleNoFallback', true)
+    // When in minimal mode we do not bubble the fallback as the
+    // router-server is not present to handle the error
+    addRequestMeta(req, 'bubbleNoFallback', this.minimalMode ? undefined : true)
 
     // TODO: this is only needed until route-module can handle
     // rendering/serving the 404 directly with next-server
