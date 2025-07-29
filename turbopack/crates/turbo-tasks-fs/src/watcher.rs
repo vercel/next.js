@@ -105,6 +105,11 @@ impl Default for DiskWatcher {
 /// [`RecursiveMode::NonRecursive`] (default on Linux).
 pub(crate) struct NonRecursiveDiskWatcherState {
     /// Keeps track of which directories are currently (or were previously) watched.
+    ///
+    /// Invariants:
+    /// - Never contains `root_path`. A watcher for `root_path` is implicitly set up during
+    ///   [`DiskWatcher::start_watching`].
+    /// - Contains all parent directories up to `root_path` for every entry.
     watching: DashSet<PathBuf>,
 }
 
@@ -127,28 +132,31 @@ impl NonRecursiveDiskWatcherState {
         }
     }
 
-    /// Called when a new directory is found in a parent directory we're watching.
+    /// Called when a new directory is found in a parent directory we're watching. Restores the
+    /// watcher if we were previously watching it.
     pub(crate) fn restore_if_watching(
         &self,
         watcher: &DiskWatcher,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        if self.watching.contains(dir_path) {
-            let mut internal = watcher.internal.lock().unwrap();
-            // TODO: Also restore any watchers for children of this directory
-            self.start_watching_dir(&mut internal, dir_path, root_path)?;
+        if dir_path == root_path || !self.watching.contains(dir_path) {
+            return Ok(());
         }
-        Ok(())
+        let mut internal = watcher.internal.lock().unwrap();
+        // TODO: Also restore any watchers for children of this directory
+        self.start_watching_dir(&mut internal, dir_path, root_path)
     }
 
+    /// Called when a file in `dir_path` or `dir_path` itself is read or written. Adds a new watcher
+    /// if we're not already watching the directory.
     pub(crate) fn ensure_watching(
         &self,
         watcher: &DiskWatcher,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        if self.watching.contains(dir_path) {
+        if dir_path == root_path || self.watching.contains(dir_path) {
             return Ok(());
         }
         let mut internal = watcher.internal.lock().unwrap();
@@ -165,6 +173,7 @@ impl NonRecursiveDiskWatcherState {
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
+        debug_assert_ne!(dir_path, root_path);
         let Some(watcher_internal_guard) = watcher_internal_guard.as_mut() else {
             return Ok(());
         };
@@ -179,7 +188,7 @@ impl NonRecursiveDiskWatcherState {
         };
 
         // watch every parent: https://docs.rs/notify/latest/notify/#parent-folder-deletion
-        while path != root_path {
+        loop {
             match watcher_internal_guard.watch(path, RecursiveMode::NonRecursive) {
                 res @ Ok(())
                 | res @ Err(notify::Error {
@@ -196,7 +205,8 @@ impl NonRecursiveDiskWatcherState {
                             |err| err.into(),
                         ));
                     };
-                    if !self.watching.insert(parent_path.to_path_buf()) {
+                    if parent_path == root_path || !self.watching.insert(parent_path.to_path_buf())
+                    {
                         break;
                     }
                     path = parent_path;
