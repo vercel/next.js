@@ -544,7 +544,9 @@ jobs:
   test-new-tests-dev:
     name: Test new tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
+    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
@@ -566,7 +568,9 @@ jobs:
   test-new-tests-start:
     name: Test new tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
+    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
@@ -582,14 +586,15 @@ jobs:
           --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
       timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
-
     secrets: inherit
 
   test-new-tests-deploy:
     name: Test new tests when deployed
     needs:
       ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+    # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
+    # test-new-tests-end-if
 
     strategy:
       fail-fast: false
