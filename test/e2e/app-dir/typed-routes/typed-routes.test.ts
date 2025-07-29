@@ -10,10 +10,14 @@ type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRo
 `
 
 describe('typed-routes', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should generate route types correctly', async () => {
     const dts = await next.readFile('.next/types/routes.d.ts')
