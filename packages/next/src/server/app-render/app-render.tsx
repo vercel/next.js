@@ -505,12 +505,14 @@ async function generateDynamicRSCPayload(
       a: options.actionResult,
       f: flightData,
       b: ctx.sharedContext.buildId,
+      c: prepareInitialCanonicalUrl(url),
     }
   }
 
   // Otherwise, it's a regular RSC response.
   return {
     b: ctx.sharedContext.buildId,
+    c: prepareInitialCanonicalUrl(url),
     f: flightData,
     S: workStore.isStaticGeneration,
   }

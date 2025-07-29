@@ -19,6 +19,7 @@
 
 export type { NavigationResult } from './segment-cache-impl/navigation'
 export type { PrefetchTask } from './segment-cache-impl/scheduler'
+export type { NormalizedSearch } from './segment-cache-impl/cache-key'
 
 const notEnabled: any = () => {
   throw new Error(

@@ -3,7 +3,6 @@ import type {
   FlightRouterState,
   InitialRSCPayload,
   Segment as FlightRouterStateSegment,
-  DynamicParamTypesShort,
 } from './types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -309,7 +308,7 @@ function collectSegmentDataImpl(
 }
 
 function encodeSegmentWithPossibleFallbackParam(
-  segment: [string, string, DynamicParamTypesShort],
+  segment: Exclude<FlightRouterStateSegment, string>,
   fallbackRouteParams: FallbackRouteParams
 ): EncodedSegment {
   const name = segment[0]

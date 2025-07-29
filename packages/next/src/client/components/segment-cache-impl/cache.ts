@@ -9,6 +9,7 @@ import type {
 } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   CacheNodeSeedData,
+  DynamicParamTypesShort,
   Segment as FlightRouterStateSegment,
 } from '../../../server/app-render/types'
 import { HasLoadingBoundary } from '../../../server/app-render/types'
@@ -42,7 +43,13 @@ import type {
   NormalizedSearch,
   RouteCacheKey,
 } from './cache-key'
-import { getRenderedSearch } from './cache-key'
+import {
+  doesStaticSegmentAppearInURL,
+  getRenderedPathname,
+  getRenderedSearch,
+  parseDynamicParamFromURLPart,
+  type RouteParam,
+} from '../../route-params'
 import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
 import { createLRU } from './lru'
 import {
@@ -88,7 +95,10 @@ import { FetchStrategy } from '../segment-cache'
 
 export type RouteTree = {
   key: string
+  // TODO: Remove the `segment` field, now that it can be reconstructed
+  // from `param`.
   segment: FlightRouterStateSegment
+  param: RouteParam | null
   slots: null | {
     [parallelRouteKey: string]: RouteTree
   }
@@ -869,19 +879,69 @@ function rejectSegmentCacheEntry(
   }
 }
 
-function convertRootTreePrefetchToRouteTree(rootTree: RootTreePrefetch) {
-  return convertTreePrefetchToRouteTree(rootTree.tree, ROOT_SEGMENT_KEY)
+function convertRootTreePrefetchToRouteTree(
+  rootTree: RootTreePrefetch,
+  renderedPathname: string
+) {
+  // Remove trailing and leading slashes
+  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
+  const index = 0
+  return convertTreePrefetchToRouteTree(
+    rootTree.tree,
+    ROOT_SEGMENT_KEY,
+    pathnameParts,
+    index
+  )
 }
 
 function convertTreePrefetchToRouteTree(
   prefetch: TreePrefetch,
-  key: string
+  key: string,
+  pathnameParts: Array<string>,
+  pathnamePartsIndex: number
 ): RouteTree {
   // Converts the route tree sent by the server into the format used by the
   // cache. The cached version of the tree includes additional fields, such as a
   // cache key for each segment. Since this is frequently accessed, we compute
   // it once instead of on every access. This same cache key is also used to
   // request the segment from the server.
+
+  let segment = prefetch.segment
+
+  let doesAppearInURL: boolean
+  let param: RouteParam | null = null
+  if (Array.isArray(segment)) {
+    // This segment is parameterized. Get the param from the pathname.
+    const paramType = segment[2] as DynamicParamTypesShort
+    const paramValue = parseDynamicParamFromURLPart(
+      paramType,
+      pathnameParts,
+      pathnamePartsIndex
+    )
+    param = {
+      name: segment[0],
+      value: paramValue,
+      type: paramType,
+    }
+
+    // Assign a cache key to the segment, based on the param value. In the
+    // pre-Segment Cache implementation, the server computes this and sends it
+    // in the body of the response. In the Segment Cache implementation, the
+    // server sends an empty string and we fill it in here.
+    // TODO: This will land in a follow up PR.
+    // segment[1] = getCacheKeyForDynamicParam(paramValue)
+
+    doesAppearInURL = true
+  } else {
+    doesAppearInURL = doesStaticSegmentAppearInURL(segment)
+  }
+
+  // Only increment the index if the segment appears in the URL. If it's a
+  // "virtual" segment, like a route group, it remains the same.
+  const childPathnamePartsIndex = doesAppearInURL
+    ? pathnamePartsIndex + 1
+    : pathnamePartsIndex
+
   let slots: { [parallelRouteKey: string]: RouteTree } | null = null
   const prefetchSlots = prefetch.slots
   if (prefetchSlots !== null) {
@@ -899,13 +959,17 @@ function convertTreePrefetchToRouteTree(
       )
       slots[parallelRouteKey] = convertTreePrefetchToRouteTree(
         childPrefetch,
-        childKey
+        childKey,
+        pathnameParts,
+        childPathnamePartsIndex
       )
     }
   }
+
   return {
     key,
-    segment: prefetch.segment,
+    segment,
+    param,
     slots,
     isRootLayout: prefetch.isRootLayout,
     // This field is only relevant to dynamic routes. For a PPR/static route,
@@ -953,26 +1017,39 @@ function convertFlightRouterStateToRouteTree(
       slots[parallelRouteKey] = childTree
     }
   }
-
-  // The navigation implementation expects the search params to be included
-  // in the segment. However, in the case of a static response, the search
-  // params are omitted. So the client needs to add them back in when reading
-  // from the Segment Cache.
-  //
-  // For consistency, we'll do this for dynamic responses, too.
-  //
-  // TODO: We should move search params out of FlightRouterState and handle them
-  // entirely on the client, similar to our plan for dynamic params.
   const originalSegment = flightRouterState[0]
-  const segmentWithoutSearchParams =
-    typeof originalSegment === 'string' &&
-    originalSegment.startsWith(PAGE_SEGMENT_KEY)
-      ? PAGE_SEGMENT_KEY
-      : originalSegment
+
+  let segment: FlightRouterStateSegment
+  let param: RouteParam | null = null
+  if (Array.isArray(originalSegment)) {
+    const paramValue = originalSegment[3]
+    param = {
+      name: originalSegment[0],
+      value: paramValue === undefined ? null : paramValue,
+      type: originalSegment[2] as DynamicParamTypesShort,
+    }
+    segment = originalSegment
+  } else {
+    // The navigation implementation expects the search params to be included
+    // in the segment. However, in the case of a static response, the search
+    // params are omitted. So the client needs to add them back in when reading
+    // from the Segment Cache.
+    //
+    // For consistency, we'll do this for dynamic responses, too.
+    //
+    // TODO: We should move search params out of FlightRouterState and handle
+    // them entirely on the client, similar to our plan for dynamic params.
+    segment =
+      typeof originalSegment === 'string' &&
+      originalSegment.startsWith(PAGE_SEGMENT_KEY)
+        ? PAGE_SEGMENT_KEY
+        : originalSegment
+  }
 
   return {
     key,
-    segment: segmentWithoutSearchParams,
+    segment,
+    param,
     slots,
     isRootLayout: flightRouterState[4] === true,
     hasLoadingBoundary:
@@ -1157,15 +1234,21 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
-      // Get the search params that were used to render the target page. This may
-      // be different from the search params in the request URL, if the page
+      // Get the params that were used to render the target page. These may
+      // be different from the params in the request URL, if the page
       // was rewritten.
+      const renderedPathname = getRenderedPathname(response)
       const renderedSearch = getRenderedSearch(response)
+
+      const routeTree = convertRootTreePrefetchToRouteTree(
+        serverData,
+        renderedPathname
+      )
 
       const staleTimeMs = serverData.staleTime * 1000
       fulfillRouteCacheEntry(
         entry,
-        convertRootTreePrefetchToRouteTree(serverData),
+        routeTree,
         serverData.head,
         serverData.isHeadPartial,
         Date.now() + staleTimeMs,
@@ -1499,7 +1582,15 @@ function writeDynamicTreeResponseIntoCache(
   canonicalUrl: string,
   routeIsPPREnabled: boolean
 ) {
-  const normalizedFlightDataResult = normalizeFlightData(serverData.f)
+  // Get the URL that was used to render the target page. This may be different
+  // from the URL in the request URL, if the page was rewritten.
+  const renderedSearch = getRenderedSearch(response)
+  const renderedPathname = getRenderedPathname(response)
+
+  const normalizedFlightDataResult = normalizeFlightData(
+    serverData.f,
+    renderedPathname
+  )
   if (
     // A string result means navigating to this route will result in an
     // MPA navigation.
@@ -1532,11 +1623,6 @@ function writeDynamicTreeResponseIntoCache(
   // and the head is completely static.
   const isResponsePartial =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
-
-  // Get the search params that were used to render the target page. This may
-  // be different from the search params in the request URL, if the page
-  // was rewritten.
-  const renderedSearch = getRenderedSearch(response)
 
   const fulfilledEntry = fulfillRouteCacheEntry(
     entry,
@@ -1610,7 +1696,12 @@ function writeDynamicRenderResponseIntoCache(
     }
     return null
   }
-  const flightDatas = normalizeFlightData(serverData.f)
+
+  // Get the URL that was used to render the target page. This may be different
+  // from the URL in the request URL, if the page was rewritten.
+  const renderedPathname = getRenderedPathname(response)
+
+  const flightDatas = normalizeFlightData(serverData.f, renderedPathname)
   if (typeof flightDatas === 'string') {
     // This means navigating to this route will result in an MPA navigation.
     // TODO: We should cache this, too, so that the MPA navigation is immediate.
