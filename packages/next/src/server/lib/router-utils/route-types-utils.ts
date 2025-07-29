@@ -28,10 +28,10 @@ export interface RouteTypesManifest {
 // into the bracket-syntax used by other Next.js route helpers so that we can
 // reuse `getRouteRegex()` to extract groups.
 export function convertCustomRouteSource(source: string): string {
-  // Handle catch-all (one or more / zero or more)  :param* / :param+
+  // Handle catch-all (zero or more / one or more)  :param* / :param+
   let out = source.replace(
     /:([A-Za-z0-9_]+)\*/g,
-    (_m: string, name: string) => `[...${name}]`
+    (_m: string, name: string) => `[[...${name}]]`
   )
   out = out.replace(
     /:([A-Za-z0-9_]+)\+/g,
