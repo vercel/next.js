@@ -340,10 +340,10 @@ impl Hash for RcStr {
             PREHASHED_STRING_LOCATION => {
                 let l = unsafe { deref_from(self.unsafe_data) };
                 state.write_u64(l.hash);
-                state.write_u8(0xff);
+                state.write_u8(0xff); // matches the implementation of the `str` Hash impl
             }
             INLINE_LOCATION => {
-                self.as_str().hash(state);
+                self.inline_as_str().hash(state);
             }
             _ => unsafe { debug_unreachable!() },
         }

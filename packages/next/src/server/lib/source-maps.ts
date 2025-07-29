@@ -1,4 +1,5 @@
 import type { SourceMap } from 'module'
+import { LRUCache } from './lru-cache'
 
 function noSourceMap(): SourceMap | undefined {
   return undefined
@@ -162,6 +163,49 @@ export function filterStackFrameDEV(
 
     return true
   }
+}
+
+const invalidSourceMap = Symbol('invalid-source-map')
+const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
+  512 * 1024 * 1024,
+  (url) =>
+    url === invalidSourceMap
+      ? // Ideally we'd account for key length. So we just guestimate a small source map
+        // so that we don't create a huge cache with empty source maps.
+        8 * 1024
+      : // these URLs contain only ASCII characters so .length is equal to Buffer.byteLength
+        url.length
+)
+export function findSourceMapURLDEV(
+  scriptNameOrSourceURL: string
+): string | null {
+  let sourceMapURL = sourceMapURLs.get(scriptNameOrSourceURL)
+  if (sourceMapURL === undefined) {
+    let sourceMapPayload: ModernSourceMapPayload | undefined
+    try {
+      sourceMapPayload = findSourceMap(scriptNameOrSourceURL)?.payload
+    } catch (cause) {
+      console.error(
+        `${scriptNameOrSourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
+      )
+    }
+
+    if (sourceMapPayload === undefined) {
+      sourceMapURL = invalidSourceMap
+    } else {
+      // TODO: Might be more efficient to extract the relevant section from Index Maps.
+      // Unclear if that search is worth the smaller payload we have to stringify.
+      const sourceMapJSON = JSON.stringify(sourceMapPayload)
+      const sourceMapURLData = Buffer.from(sourceMapJSON, 'utf8').toString(
+        'base64'
+      )
+      sourceMapURL = `data:application/json;base64,${sourceMapURLData}`
+    }
+
+    sourceMapURLs.set(scriptNameOrSourceURL, sourceMapURL)
+  }
+
+  return sourceMapURL === invalidSourceMap ? null : sourceMapURL
 }
 
 export function devirtualizeReactServerURL(sourceURL: string): string {

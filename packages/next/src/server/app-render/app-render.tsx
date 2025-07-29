@@ -80,10 +80,7 @@ import {
   isUserLandError,
   getDigestForWellKnownError,
 } from './create-error-handler'
-import {
-  getShortDynamicParamType,
-  dynamicParamTypes,
-} from './get-short-dynamic-param-type'
+import { dynamicParamTypes } from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
@@ -143,7 +140,6 @@ import {
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
-import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
@@ -195,16 +191,20 @@ import {
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
+import { getRequestMeta } from '../request-meta'
+import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
   segment: string
-) => {
+) => DynamicParam | null
+
+export type DynamicParam = {
   param: string
   value: string | string[] | null
   treeSegment: Segment
   type: DynamicParamTypesShort
-} | null
+}
 
 export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
@@ -364,70 +364,15 @@ function makeGetDynamicParamFromSegment(
     if (!segmentParam) {
       return null
     }
-
-    const key = segmentParam.param
-
-    let value = params[key]
-
-    if (fallbackRouteParams && fallbackRouteParams.has(segmentParam.param)) {
-      value = fallbackRouteParams.get(segmentParam.param)
-    } else if (Array.isArray(value)) {
-      value = value.map((i) => encodeURIComponent(i))
-    } else if (typeof value === 'string') {
-      value = encodeURIComponent(value)
-    }
-
-    if (!value) {
-      const isCatchall = segmentParam.type === 'catchall'
-      const isOptionalCatchall = segmentParam.type === 'optional-catchall'
-
-      if (isCatchall || isOptionalCatchall) {
-        const dynamicParamType = dynamicParamTypes[segmentParam.type]
-        // handle the case where an optional catchall does not have a value,
-        // e.g. `/dashboard/[[...slug]]` when requesting `/dashboard`
-        if (isOptionalCatchall) {
-          return {
-            param: key,
-            value: null,
-            type: dynamicParamType,
-            treeSegment: [key, '', dynamicParamType],
-          }
-        }
-
-        // handle the case where a catchall or optional catchall does not have a value,
-        // e.g. `/foo/bar/hello` and `@slot/[...catchall]` or `@slot/[[...catchall]]` is matched
-        value = pagePath
-          .split('/')
-          // remove the first empty string
-          .slice(1)
-          // replace any dynamic params with the actual values
-          .flatMap((pathSegment) => {
-            const param = parseParameter(pathSegment)
-            // if the segment matches a param, return the param value
-            // otherwise, it's a static segment, so just return that
-            return params[param.key] ?? param.key
-          })
-
-        return {
-          param: key,
-          value,
-          type: dynamicParamType,
-          // This value always has to be a string.
-          treeSegment: [key, value.join('/'), dynamicParamType],
-        }
-      }
-    }
-
-    const type = getShortDynamicParamType(segmentParam.type)
-
-    return {
-      param: key,
-      // The value that is passed to user code.
-      value: value,
-      // The value that is rendered in the router tree.
-      treeSegment: [key, Array.isArray(value) ? value.join('/') : value, type],
-      type: type,
-    }
+    const segmentKey = segmentParam.param
+    const dynamicParamType = dynamicParamTypes[segmentParam.type]
+    return getDynamicParam(
+      params,
+      segmentKey,
+      dynamicParamType,
+      pagePath,
+      fallbackRouteParams
+    )
   }
 }
 
@@ -627,13 +572,17 @@ async function generateDynamicFlightRenderResult(
     const [resolveValidation, validationOutlet] = createValidationOutlet()
     RSCPayload._validation = validationOutlet
 
+    const devValidatingFallbackParams =
+      getRequestMeta(req, 'devValidatingFallbackParams') || null
+
     spawnDynamicValidationInDev(
       resolveValidation,
       ctx.componentMod.tree,
       ctx,
       false,
       ctx.clientReferenceManifest,
-      requestStore
+      requestStore,
+      devValidatingFallbackParams
     )
   }
 
@@ -1947,13 +1896,17 @@ async function renderToStream(
         }
       )
 
+      const devValidatingFallbackParams =
+        getRequestMeta(req, 'devValidatingFallbackParams') || null
+
       spawnDynamicValidationInDev(
         resolveValidation,
         tree,
         ctx,
         res.statusCode === 404,
         clientReferenceManifest,
-        requestStore
+        requestStore,
+        devValidatingFallbackParams
       )
 
       reactServerResult = new ReactServerResult(reactServerStream)
@@ -2304,7 +2257,8 @@ async function spawnDynamicValidationInDev(
   ctx: AppRenderContext,
   isNotFound: boolean,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  fallbackRouteParams: FallbackRouteParams | null
 ): Promise<void> {
   const {
     componentMod: ComponentMod,
@@ -2369,7 +2323,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    fallbackRouteParams: null,
+    fallbackRouteParams,
     implicitTags,
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
@@ -2501,7 +2455,7 @@ async function spawnDynamicValidationInDev(
       type: 'prerender-client',
       phase: 'render',
       rootParams,
-      fallbackRouteParams: null,
+      fallbackRouteParams,
       implicitTags,
       renderSignal: initialClientRenderController.signal,
       controller: initialClientPrerenderController,
@@ -2610,7 +2564,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    fallbackRouteParams: null,
+    fallbackRouteParams,
     implicitTags,
     renderSignal: finalServerRenderController.signal,
     controller: finalServerReactController,
@@ -2698,7 +2652,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender-client',
     phase: 'render',
     rootParams,
-    fallbackRouteParams: null,
+    fallbackRouteParams,
     implicitTags,
     renderSignal: finalClientRenderController.signal,
     controller: finalClientReactController,
@@ -4191,9 +4145,9 @@ const getGlobalErrorStyles = async (
   }
   if (ctx.renderOpts.dev) {
     const dir =
-      process.env.NEXT_RUNTIME === 'edge'
-        ? process.env.__NEXT_EDGE_PROJECT_DIR!
-        : ctx.renderOpts.dir || ''
+      (process.env.NEXT_RUNTIME === 'edge'
+        ? process.env.__NEXT_EDGE_PROJECT_DIR
+        : ctx.renderOpts.dir) || ''
 
     const globalErrorModulePath = normalizeConventionFilePath(
       dir,

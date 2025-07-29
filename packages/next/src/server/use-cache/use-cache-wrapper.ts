@@ -111,6 +111,11 @@ const filterStackFrame =
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
         .filterStackFrameDEV
     : undefined
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -1469,6 +1474,7 @@ export function cache(
       }
 
       return createFromReadableStream(stream, {
+        findSourceMapURL,
         serverConsumerManifest,
         temporaryReferences,
         replayConsoleLogs,
