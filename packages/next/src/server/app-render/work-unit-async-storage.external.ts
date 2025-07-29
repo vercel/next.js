@@ -5,6 +5,7 @@ import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
 import type { DynamicTrackingState } from './dynamic-rendering'
+import type { FallbackRouteParams } from '../request/fallback-params'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -139,6 +140,12 @@ interface PrerenderStoreModernCommon
   readonly rootParams: Params
 
   /**
+   * The set of unknown route parameters. Accessing these will be tracked as
+   * a dynamic access.
+   */
+  readonly fallbackRouteParams: FallbackRouteParams | null
+
+  /**
    * When true, the page is prerendered as a fallback shell, while allowing any
    * dynamic accesses to result in an empty shell. This is the case when there
    * are also routes prerendered with a more complete set of params.
@@ -178,6 +185,12 @@ export interface PrerenderStorePPR
   readonly type: 'prerender-ppr'
   readonly rootParams: Params
   readonly dynamicTracking: null | DynamicTrackingState
+
+  /**
+   * The set of unknown route parameters. Accessing these will be tracked as
+   * a dynamic access.
+   */
+  readonly fallbackRouteParams: FallbackRouteParams | null
 
   /**
    * The resume data cache for this prerender.

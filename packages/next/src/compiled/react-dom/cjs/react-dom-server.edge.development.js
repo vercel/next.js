@@ -4900,6 +4900,27 @@
       }
       return JSCompiler_inline_result$jscomp$0;
     }
+    function pushHaltedAwaitOnComponentStack(task, debugInfo) {
+      if (null != debugInfo)
+        for (var i = debugInfo.length - 1; 0 <= i; i--) {
+          var info = debugInfo[i];
+          if ("string" === typeof info.name) break;
+          if ("number" === typeof info.time) break;
+          if (null != info.awaited) {
+            var bestStack = null == info.debugStack ? info.awaited : info;
+            if (void 0 !== bestStack.debugStack) {
+              task.componentStack = {
+                parent: task.componentStack,
+                type: info,
+                owner: bestStack.owner,
+                stack: bestStack.debugStack
+              };
+              task.debugTask = bestStack.debugTask;
+              break;
+            }
+          }
+        }
+    }
     function pushServerComponentStack(task, debugInfo) {
       if (null != debugInfo)
         for (var i = 0; i < debugInfo.length; i++) {
@@ -6943,7 +6964,10 @@
             "object" === typeof node && null !== node)
           ) {
             if ("function" === typeof node.then) {
-              childIndex = getThenableStateAfterSuspending();
+              childIndex =
+                thrownValue === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               request = spawnNewSuspendedReplayTask(
                 request,
                 task,
@@ -6961,7 +6985,10 @@
               return;
             }
             if ("Maximum call stack size exceeded" === node.message) {
-              node = getThenableStateAfterSuspending();
+              node =
+                thrownValue === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               node = spawnNewSuspendedReplayTask(request, task, node);
               request.pingedTasks.push(node);
               task.formatContext = previousFormatContext;
@@ -6994,7 +7021,10 @@
           ) {
             if ("function" === typeof node.then) {
               segment = node;
-              node = getThenableStateAfterSuspending();
+              node =
+                thrownValue$3 === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               request = spawnNewSuspendedRenderTask(request, task, node).ping;
               segment.then(request, request);
               task.formatContext = previousFormatContext;
@@ -7007,7 +7037,10 @@
               return;
             }
             if ("Maximum call stack size exceeded" === node.message) {
-              segment = getThenableStateAfterSuspending();
+              segment =
+                thrownValue$3 === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               segment = spawnNewSuspendedRenderTask(request, task, segment);
               request.pingedTasks.push(segment);
               task.formatContext = previousFormatContext;
@@ -7116,6 +7149,10 @@
         segment.status = ABORTED;
       }
       segment = getThrownInfo(task.componentStack);
+      var node = task.node;
+      null !== node &&
+        "object" === typeof node &&
+        pushHaltedAwaitOnComponentStack(task, node._debugInfo);
       if (null === boundary) {
         if (13 !== request.status && request.status !== CLOSED) {
           boundary = task.replay;
@@ -7125,38 +7162,28 @@
             return;
           }
           boundary.pendingTasks--;
-          if (0 === boundary.pendingTasks && 0 < boundary.nodes.length) {
-            var errorDigest = logRecoverableError(
-              request,
-              error,
-              segment,
-              null
-            );
+          0 === boundary.pendingTasks &&
+            0 < boundary.nodes.length &&
+            ((node = logRecoverableError(request, error, segment, null)),
             abortRemainingReplayNodes(
               request,
               null,
               boundary.nodes,
               boundary.slots,
               error,
-              errorDigest,
+              node,
               segment,
               !0
-            );
-          }
+            ));
           request.pendingRootTasks--;
           0 === request.pendingRootTasks && completeShell(request);
         }
       } else
         boundary.status !== CLIENT_RENDERED &&
           ((boundary.status = CLIENT_RENDERED),
-          (errorDigest = logRecoverableError(
-            request,
-            error,
-            segment,
-            task.debugTask
-          )),
+          (node = logRecoverableError(request, error, segment, task.debugTask)),
           (boundary.status = CLIENT_RENDERED),
-          encodeErrorForBoundary(boundary, errorDigest, error, segment, !0),
+          encodeErrorForBoundary(boundary, node, error, segment, !0),
           untrackBoundary(request, boundary),
           boundary.parentFlushed &&
             request.clientRenderedBoundaries.push(boundary)),
@@ -7479,7 +7506,10 @@
                   ) {
                     var ping = request.ping;
                     x.then(ping, ping);
-                    request.thenableState = getThenableStateAfterSuspending();
+                    request.thenableState =
+                      thrownValue === SuspenseException
+                        ? getThenableStateAfterSuspending()
+                        : null;
                   } else {
                     request.replay.pendingTasks--;
                     request.abortSet.delete(request);
@@ -7567,7 +7597,10 @@
                   "function" === typeof x$jscomp$0.then
                 ) {
                   request$jscomp$1.status = PENDING;
-                  errorDigest.thenableState = getThenableStateAfterSuspending();
+                  errorDigest.thenableState =
+                    thrownValue === SuspenseException
+                      ? getThenableStateAfterSuspending()
+                      : null;
                   var ping$jscomp$0 = errorDigest.ping;
                   x$jscomp$0.then(ping$jscomp$0, ping$jscomp$0);
                 } else {
@@ -8471,11 +8504,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-edac0dde-20250723" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-9be531cd-20250729" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-edac0dde-20250723\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-9be531cd-20250729\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -10161,5 +10194,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-canary-edac0dde-20250723";
+    exports.version = "19.2.0-canary-9be531cd-20250729";
   })();

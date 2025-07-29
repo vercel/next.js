@@ -841,7 +841,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((col +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
@@ -1281,35 +1281,6 @@
         value
       ]);
     }
-    function markAllTracksInOrder() {
-      supportsUserTiming &&
-        (console.timeStamp(
-          "Server Requests Track",
-          0.001,
-          0.001,
-          "Server Requests \u269b",
-          void 0,
-          "primary-light"
-        ),
-        console.timeStamp(
-          "Server Components Track",
-          0.001,
-          0.001,
-          "Primary",
-          "Server Components \u269b",
-          "primary-light"
-        ));
-    }
-    function getIOColor(functionName) {
-      switch (functionName.charCodeAt(0) % 3) {
-        case 0:
-          return "tertiary-light";
-        case 1:
-          return "tertiary";
-        default:
-          return "tertiary-dark";
-      }
-    }
     function getIODescription(value) {
       try {
         switch (typeof value) {
@@ -1351,6 +1322,35 @@
         }
       } catch (x) {
         return "";
+      }
+    }
+    function markAllTracksInOrder() {
+      supportsUserTiming &&
+        (console.timeStamp(
+          "Server Requests Track",
+          0.001,
+          0.001,
+          "Server Requests \u269b",
+          void 0,
+          "primary-light"
+        ),
+        console.timeStamp(
+          "Server Components Track",
+          0.001,
+          0.001,
+          "Primary",
+          "Server Components \u269b",
+          "primary-light"
+        ));
+    }
+    function getIOColor(functionName) {
+      switch (functionName.charCodeAt(0) % 3) {
+        case 0:
+          return "tertiary-light";
+        case 1:
+          return "tertiary";
+        default:
+          return "tertiary-dark";
       }
     }
     function getIOLongName(ioInfo, description, env, rootEnv) {
@@ -1475,7 +1475,7 @@
               getIOLongName(ioInfo, description, ioInfo.env, rootEnv) +
               " Rejected"),
             debugTask.run(
-              performance.measure.bind(performance, entryName, {
+              performance.measure.bind(performance, "\u200b" + entryName, {
                 start: 0 > startTime ? 0 : startTime,
                 end: endTime,
                 detail: {
@@ -1514,7 +1514,7 @@
               addValueToProperties("Resolved", value, properties, 0, "");
           ioInfo = getIOLongName(ioInfo, description, ioInfo.env, rootEnv);
           debugTask.run(
-            performance.measure.bind(performance, entryName, {
+            performance.measure.bind(performance, "\u200b" + entryName, {
               start: 0 > startTime ? 0 : startTime,
               end: endTime,
               detail: {
@@ -3009,7 +3009,7 @@
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
         ? ((encodedName +=
-            "\n//# sourceURL=rsc://React/" +
+            "\n//# sourceURL=about://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
@@ -3491,7 +3491,7 @@
                           0,
                           ""
                         );
-                      performance.measure(entryName$jscomp$0, {
+                      performance.measure("\u200b" + entryName$jscomp$0, {
                         start: 0 > startTime$jscomp$2 ? 0 : startTime$jscomp$2,
                         end: childrenEndTime$jscomp$1,
                         detail: {
@@ -3560,7 +3560,7 @@
                         debugTask$jscomp$0.run(
                           performance.measure.bind(
                             performance,
-                            entryName$jscomp$1,
+                            "\u200b" + entryName$jscomp$1,
                             {
                               start:
                                 0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
@@ -3578,7 +3578,7 @@
                         );
                       } else
                         console.timeStamp(
-                          entryName$jscomp$1,
+                          "\u200b" + entryName$jscomp$1,
                           0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
                           childrenEndTime$jscomp$2,
                           trackNames[trackIdx$jscomp$2],
@@ -3741,7 +3741,7 @@
                         0,
                         ""
                       );
-                    performance.measure(entryName$jscomp$3, {
+                    performance.measure("\u200b" + entryName$jscomp$3, {
                       start: 0 > startTime$jscomp$5 ? 0 : startTime$jscomp$5,
                       end: childrenEndTime$jscomp$3,
                       detail: {
