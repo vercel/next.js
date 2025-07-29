@@ -12,6 +12,7 @@ type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRo
 describe('typed-routes', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
 
   it('should generate route types correctly', async () => {
