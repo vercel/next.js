@@ -122,7 +122,7 @@ export function Client({ prefix, commonjsAction, esmAction }) {
         </button>
       </p>
       {
-        // holds all the timing data for easier copy past
+        // holds all the timing data for easier copy paste
       }
       <textarea
         readOnly={true}
