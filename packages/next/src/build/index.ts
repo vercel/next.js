@@ -1107,10 +1107,6 @@ export default async function build(
         await recursiveDelete(distDir, /^cache/)
       }
 
-      // We run type checking after build. That's because
-      // we dynamically generate types for each layout and page in the app
-      // directory.
-
       if (appDir && 'exportPathMap' in config) {
         Log.error(
           'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
@@ -1635,13 +1631,9 @@ export default async function build(
         )
       }
 
-      // We run type checking after route collection but before build.
-      if (!isCompileMode && !isGenerateMode) {
-        await updateBuildDiagnostics({
-          buildStage: 'type-checking',
-        })
+      // For pages directory, we run type checking after route collection but before build.
+      if (!appDir && !isCompileMode) {
         await startTypeChecking(typeCheckingOptions)
-        traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
       Log.info('Creating an optimized production build ...')
@@ -1798,6 +1790,15 @@ export default async function build(
             distDir,
           },
         })
+      }
+
+      // For app directory, we run type checking after build.
+      if (appDir && !isCompileMode && !isGenerateMode) {
+        await updateBuildDiagnostics({
+          buildStage: 'type-checking',
+        })
+        await startTypeChecking(typeCheckingOptions)
+        traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
       const postCompileSpinner = createSpinner('Collecting page data')
