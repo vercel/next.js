@@ -141,6 +141,7 @@ import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
+import type { PrerenderedRoute } from '../build/static-paths/types'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1910,6 +1911,7 @@ export default abstract class Server<
     isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
+    prerenderedRoutes?: PrerenderedRoute[]
     fallbackMode?: FallbackMode
   }> {
     // Read whether or not fallback should exist from the manifest.
@@ -2266,13 +2268,42 @@ export default abstract class Server<
       isDynamicRoute(pathname) &&
       (components.getStaticPaths || isAppPath)
     ) {
-      await this.getStaticPaths({
+      const pathsResults = await this.getStaticPaths({
         pathname,
         urlPathname,
         requestHeaders: req.headers,
         page: components.page,
         isAppPath,
       })
+      if (isAppPath && this.nextConfig.experimental.cacheComponents) {
+        if (pathsResults.prerenderedRoutes?.length) {
+          let smallestFallbackRouteParams = null
+          for (const route of pathsResults.prerenderedRoutes) {
+            const fallbackRouteParams = route.fallbackRouteParams
+            if (!fallbackRouteParams || fallbackRouteParams.length === 0) {
+              // There are no fallback route params so we don't need to continue
+              smallestFallbackRouteParams = null
+              break
+            }
+            if (
+              smallestFallbackRouteParams === null ||
+              fallbackRouteParams.length < smallestFallbackRouteParams.length
+            ) {
+              smallestFallbackRouteParams = fallbackRouteParams
+            }
+          }
+          if (smallestFallbackRouteParams) {
+            const devValidatingFallbackParams = new Map<string, string>(
+              smallestFallbackRouteParams.map((v) => [v, ''])
+            )
+            addRequestMeta(
+              req,
+              'devValidatingFallbackParams',
+              devValidatingFallbackParams
+            )
+          }
+        }
+      }
     }
 
     // An OPTIONS request to a page handler is invalid.

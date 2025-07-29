@@ -195,6 +195,7 @@ import {
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
+import { getRequestMeta } from '../request-meta'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -627,13 +628,17 @@ async function generateDynamicFlightRenderResult(
     const [resolveValidation, validationOutlet] = createValidationOutlet()
     RSCPayload._validation = validationOutlet
 
+    const devValidatingFallbackParams =
+      getRequestMeta(req, 'devValidatingFallbackParams') || null
+
     spawnDynamicValidationInDev(
       resolveValidation,
       ctx.componentMod.tree,
       ctx,
       false,
       ctx.clientReferenceManifest,
-      requestStore
+      requestStore,
+      devValidatingFallbackParams
     )
   }
 
@@ -1947,13 +1952,17 @@ async function renderToStream(
         }
       )
 
+      const devValidatingFallbackParams =
+        getRequestMeta(req, 'devValidatingFallbackParams') || null
+
       spawnDynamicValidationInDev(
         resolveValidation,
         tree,
         ctx,
         res.statusCode === 404,
         clientReferenceManifest,
-        requestStore
+        requestStore,
+        devValidatingFallbackParams
       )
 
       reactServerResult = new ReactServerResult(reactServerStream)
@@ -2304,7 +2313,8 @@ async function spawnDynamicValidationInDev(
   ctx: AppRenderContext,
   isNotFound: boolean,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  fallbackRouteParams: FallbackRouteParams | null
 ): Promise<void> {
   const {
     componentMod: ComponentMod,
@@ -2369,7 +2379,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    fallbackRouteParams: null,
+    fallbackRouteParams,
     implicitTags,
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
@@ -2501,7 +2511,7 @@ async function spawnDynamicValidationInDev(
       type: 'prerender-client',
       phase: 'render',
       rootParams,
-      fallbackRouteParams: null,
+      fallbackRouteParams,
       implicitTags,
       renderSignal: initialClientRenderController.signal,
       controller: initialClientPrerenderController,
@@ -2610,7 +2620,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    fallbackRouteParams: null,
+    fallbackRouteParams,
     implicitTags,
     renderSignal: finalServerRenderController.signal,
     controller: finalServerReactController,
@@ -2698,7 +2708,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender-client',
     phase: 'render',
     rootParams,
-    fallbackRouteParams: null,
+    fallbackRouteParams,
     implicitTags,
     renderSignal: finalClientRenderController.signal,
     controller: finalClientReactController,
