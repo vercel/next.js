@@ -94,11 +94,11 @@ const item = await getItem() // cache HIT
 - Subsequent function calls of the request in the same render pass will be a cache `HIT`, and the data will be returned from memory without executing the function.
 - Once the route has been rendered and the rendering pass is complete, memory is "reset" and all request memoization entries are cleared.
 
-> **Good to know**:>
+> **Good to know**:
 >
 > - Request memoization of `fetch` requests using the `GET` or `HEAD` methods is achieved with React `cache` function and custom logic - as such it is a Next.js feature. It's included here to show how it interacts with the other caching mechanisms.
 >   Note that in React itself, all memoization with React `cache` (for all types of requests, including `fetch` requests using the `GET` or `HEAD` methods) is opt-in and has to be manually implemented.
-> - Memoization only applies to the `GET` method in `fetch` requests.
+> - Memoization only applies to the `GET` or `HEAD` method in `fetch` requests.
 > - Memoization only applies to the React Component tree. This means:
 >   - It applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
 >   - It doesn't apply to `fetch` requests in Route Handlers as they are not a part of the React component tree.
@@ -420,7 +420,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`cookies`](#cookies)                                                   | Revalidate (Server Action) | Opt out               |                       |                      |
 | [`headers`, `searchParams`](#dynamic-apis)                              |                            | Opt out               |                       |                      |
 | [`generateStaticParams`](#generatestaticparams)                         |                            | Cache                 |                       |                      |
-| [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache                |
+| [`React.cache`]                                                         |                            |                       |                       | Cache                |
 | [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       | Cache                 |                      |
 
 ### `<Link>`
