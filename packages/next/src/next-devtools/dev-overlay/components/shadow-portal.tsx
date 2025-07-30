@@ -1,8 +1,9 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { STORAGE_KEY_THEME } from '../shared'
+import { useDevOverlayContext } from '../../dev-overlay.browser'
 
 export function ShadowPortal({ children }: { children: React.ReactNode }) {
+  const { state } = useDevOverlayContext()
   let portalNode = React.useRef<HTMLElement | null>(null)
   let shadowNode = React.useRef<ShadowRoot | null>(null)
   let [, forceUpdate] = React.useState<{} | undefined>()
@@ -14,16 +15,16 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const ownerDocument = document
     portalNode.current = ownerDocument.querySelector('nextjs-portal')!
-    // load default color preference from localstorage
-    if (typeof localStorage !== 'undefined') {
-      const theme = localStorage.getItem(STORAGE_KEY_THEME)
-      if (theme === 'dark') {
-        portalNode.current.classList.add('dark')
-        portalNode.current.classList.remove('light')
-      } else if (theme === 'light') {
-        portalNode.current.classList.remove('dark')
-        portalNode.current.classList.add('light')
-      }
+
+    if (state.theme === 'dark') {
+      portalNode.current.classList.add('dark')
+      portalNode.current.classList.remove('light')
+    } else if (state.theme === 'light') {
+      portalNode.current.classList.add('light')
+      portalNode.current.classList.remove('dark')
+    } else {
+      portalNode.current.classList.remove('dark')
+      portalNode.current.classList.remove('light')
     }
 
     // We can only attach but never detach a shadow root.
@@ -35,7 +36,7 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
       shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })
     }
     forceUpdate({})
-  }, [])
+  }, [state.theme])
 
   return shadowNode.current
     ? createPortal(children, shadowNode.current as any)

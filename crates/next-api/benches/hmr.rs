@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     fs::{create_dir_all, write},
     mem::forget,
     path::{Path, PathBuf},
@@ -154,10 +155,22 @@ fn load_next_config() -> RcStr {
 }
 
 fn runtime() -> Runtime {
+    thread_local! {
+        static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
+    }
+
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {
             turbo_tasks_malloc::TurboMalloc::thread_stop();
+        })
+        .on_thread_park(|| {
+            LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
+                if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
+                    swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                    *cell = Some(Instant::now());
+                }
+            });
         })
         .build()
         .context("Failed to build tokio runtime")

@@ -22,6 +22,7 @@ export function cacheTag(...tags: string[]): void {
         'cacheTag() can only be called inside a "use cache" function.'
       )
     case 'cache':
+    case 'private-cache':
       break
     default:
       workUnitStore satisfies never

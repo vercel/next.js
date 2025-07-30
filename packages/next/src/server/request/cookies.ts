@@ -114,6 +114,8 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             workStore,
             workUnitStore
           )
+        case 'private-cache':
+          return makeUntrackedExoticCookies(workUnitStore.cookies)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
@@ -146,7 +148,6 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           } else {
             return makeUntrackedExoticCookies(underlyingCookies)
           }
-          break
         default:
           workUnitStore satisfies never
       }
@@ -472,6 +473,7 @@ function syncIODev(route: string | undefined, expression: string) {
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
         break
       default:

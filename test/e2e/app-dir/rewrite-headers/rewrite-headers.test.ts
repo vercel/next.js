@@ -368,6 +368,37 @@ const cases: {
       'x-nextjs-rewritten-query': 'key=value',
     },
   },
+  {
+    name: 'next.config.js rewrites with path-matched query HTML',
+    pathname: '/rewrites-to-query/andrew',
+    expected: {
+      'x-nextjs-rewritten-path': null,
+      'x-nextjs-rewritten-query': null,
+    },
+  },
+  {
+    name: 'next.config.js rewrites with path-matched query RSC',
+    pathname: '/rewrites-to-query/andrew',
+    headers: {
+      RSC: '1',
+    },
+    expected: {
+      'x-nextjs-rewritten-path': '/other',
+      'x-nextjs-rewritten-query': 'key=andrew',
+    },
+  },
+  {
+    name: 'next.config.js rewrites with path-matched query Prefetch RSC',
+    pathname: '/rewrites-to-query/andrew',
+    headers: {
+      RSC: '1',
+      'Next-Router-Prefetch': '1',
+    },
+    expected: {
+      'x-nextjs-rewritten-path': '/other',
+      'x-nextjs-rewritten-query': 'key=andrew',
+    },
+  },
 ]
 
 describe('rewrite-headers', () => {
@@ -387,7 +418,7 @@ describe('rewrite-headers', () => {
         // Add cache busting param for RSC requests
         if (headers.RSC === '1') {
           const cacheBustingParam = computeCacheBustingSearchParam(
-            headers['Next-Router-Prefetch'],
+            headers['Next-Router-Prefetch'] ? '1' : '0',
             undefined,
             headers['Next-Router-State-Tree'],
             undefined

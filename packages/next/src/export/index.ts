@@ -393,7 +393,6 @@ async function exportAppImpl(
           serverActionsManifest,
         }
       : {}),
-    strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {

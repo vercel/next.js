@@ -18,6 +18,7 @@ export function bailoutToClientRendering(reason: string): void | never {
         throw new BailoutToCSRError(reason)
       case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
         break
       default:

@@ -113,19 +113,7 @@ impl DiskWatcher {
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        use anyhow::Context;
-        // HACK: Rewrite NotFound io errors to PathNotFound
-        // This shouldn't ever happen (notify should transform this for us), but even after
-        // https://github.com/notify-rs/notify/pull/611, it seems like there's still some case where
-        // it can occur with inotify on Linux.
-        fn map_notify_err(mut err: notify::Error) -> notify::Error {
-            if let notify::ErrorKind::Io(io_err) = &err.kind
-                && io_err.kind() == std::io::ErrorKind::NotFound
-            {
-                err.kind = notify::ErrorKind::PathNotFound;
-            }
-            err
-        }
+        use anyhow::Context; // inner import due to conditional compilation
 
         if let Some(watcher) = watcher.as_mut() {
             let mut path = dir_path;
@@ -136,10 +124,7 @@ impl DiskWatcher {
                     path.display()
                 ));
             };
-            while let Err(err) = watcher
-                .watch(path, RecursiveMode::NonRecursive)
-                .map_err(map_notify_err)
-            {
+            while let Err(err) = watcher.watch(path, RecursiveMode::NonRecursive) {
                 match err {
                     notify::Error {
                         kind: notify::ErrorKind::PathNotFound,

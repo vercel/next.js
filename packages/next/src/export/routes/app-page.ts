@@ -216,8 +216,12 @@ export async function exportAppPage(
     )
 
     return {
-      // Only include the metadata if the environment has next support.
-      metadata: hasNextSupport ? meta : undefined,
+      // Filter the metadata if the environment does not have next support.
+      metadata: hasNextSupport
+        ? meta
+        : {
+            segmentPaths: meta.segmentPaths,
+          },
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
       cacheControl,

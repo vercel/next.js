@@ -13,9 +13,6 @@ declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:* as userland500Page
 // OPTIONAL_IMPORT:incrementalCacheHandler
 
-// TODO: re-enable this once we've refactored to use implicit matches
-// const renderToHTML = undefined
-
 import RouteModule, {
   type PagesRouteHandlerContext,
 } from '../../server/route-modules/pages/module'
@@ -28,6 +25,7 @@ import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
+import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 
 // injected by the loader afterwards.
 declare const nextConfig: NextConfigComplete
@@ -143,7 +141,6 @@ async function requestHandler(
       ComponentMod: pageMod,
       pageConfig: pageMod.pageConfig,
       routeModule: pageMod.routeModule,
-      strictNextHead: nextConfig.experimental.strictNextHead ?? true,
       canonicalBase: nextConfig.amp.canonicalBase || '',
       previewProps: prerenderManifest.preview,
       ampOptimizerConfig: nextConfig.experimental.amp?.optimizer,
@@ -195,7 +192,7 @@ async function requestHandler(
     const headers = new Headers()
 
     // Set content type
-    const contentType = result.contentType || 'text/html; charset=utf-8'
+    const contentType = result.contentType || HTML_CONTENT_TYPE_HEADER
     headers.set('Content-Type', contentType)
 
     // Add metadata headers
@@ -342,8 +339,6 @@ async function requestHandler(
 
   const tracer = getTracer()
 
-  // TODO: activeSpan code path is for when wrapped by
-  // next-server can be removed when this is no longer used
   return tracer.withPropagatedContext(req.headers, () =>
     tracer.trace(
       BaseServerSpan.handleRequest,

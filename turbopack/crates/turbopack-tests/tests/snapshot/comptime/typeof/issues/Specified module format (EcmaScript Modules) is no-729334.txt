@@ -4,5 +4,6 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/t
   Exports made by CommonJs syntax will lead to a runtime error, since the module is in EcmaScript mode. Either change the "type" field in the package.json or replace CommonJs syntax with EcmaScript import/export syntax in the source file.
   
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs
-    ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/index.js

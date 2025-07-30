@@ -45,6 +45,7 @@ futures = { workspace = true }
 owo-colors = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
+swc_core = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["json"] }

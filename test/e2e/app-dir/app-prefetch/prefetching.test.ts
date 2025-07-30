@@ -305,7 +305,7 @@ describe('app dir - prefetching', () => {
 
     const url = new URL('/prefetch-auto/justputit', 'http://localhost')
     const cacheBustingParam = computeCacheBustingSearchParam(
-      headers['Next-Router-Prefetch'],
+      headers['Next-Router-Prefetch'] ? '1' : '0',
       undefined,
       headers['Next-Router-State-Tree'],
       headers['Next-Url']

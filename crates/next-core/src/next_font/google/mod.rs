@@ -9,7 +9,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
-use turbo_tasks_fetch::{HttpResponseBody, fetch};
+use turbo_tasks_fetch::{FetchClient, HttpResponseBody};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
     json::parse_json_with_source_context,
@@ -182,6 +182,7 @@ pub struct NextFontGoogleCssModuleReplacer {
     project_path: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
     next_mode: ResolvedVc<NextMode>,
+    fetch_client: ResolvedVc<FetchClient>,
 }
 
 #[turbo_tasks::value_impl]
@@ -191,11 +192,13 @@ impl NextFontGoogleCssModuleReplacer {
         project_path: FileSystemPath,
         execution_context: ResolvedVc<ExecutionContext>,
         next_mode: ResolvedVc<NextMode>,
+        fetch_client: ResolvedVc<FetchClient>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
             execution_context,
             next_mode,
+            fetch_client,
         })
     }
 
@@ -228,7 +231,14 @@ impl NextFontGoogleCssModuleReplacer {
         let stylesheet_str = mocked_responses_path
             .as_ref()
             .map_or_else(
-                || fetch_real_stylesheet(stylesheet_url.clone(), css_virtual_path.clone()).boxed(),
+                || {
+                    fetch_real_stylesheet(
+                        *self.fetch_client,
+                        stylesheet_url.clone(),
+                        css_virtual_path.clone(),
+                    )
+                    .boxed()
+                },
                 |p| get_mock_stylesheet(stylesheet_url.clone(), p, *self.execution_context).boxed(),
             )
             .await?;
@@ -365,13 +375,17 @@ struct NextFontGoogleFontFileOptions {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: FileSystemPath,
+    fetch_client: ResolvedVc<FetchClient>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: FileSystemPath) -> Vc<Self> {
-        Self::cell(NextFontGoogleFontFileReplacer { project_path })
+    pub fn new(project_path: FileSystemPath, fetch_client: ResolvedVc<FetchClient>) -> Vc<Self> {
+        Self::cell(NextFontGoogleFontFileReplacer {
+            project_path,
+            fetch_client,
+        })
     }
 }
 
@@ -426,7 +440,9 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
-        let Some(font) = fetch_from_google_fonts(url.into(), font_virtual_path.clone()).await?
+        let Some(font) =
+            fetch_from_google_fonts(*self.fetch_client, url.into(), font_virtual_path.clone())
+                .await?
         else {
             return Ok(ImportMapResult::Result(ResolveResult::unresolvable()).cell());
         };
@@ -648,24 +664,23 @@ fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontGoogleFontF
 }
 
 async fn fetch_real_stylesheet(
+    fetch_client: Vc<FetchClient>,
     stylesheet_url: RcStr,
     css_virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<RcStr>>> {
-    let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path).await?;
+    let body = fetch_from_google_fonts(fetch_client, stylesheet_url, css_virtual_path).await?;
 
     Ok(body.map(|body| body.to_string()))
 }
 
 async fn fetch_from_google_fonts(
+    fetch_client: Vc<FetchClient>,
     url: RcStr,
     virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
-    let result = fetch(
-        url,
-        Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)),
-        Vc::cell(None),
-    )
-    .await?;
+    let result = fetch_client
+        .fetch(url, Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)))
+        .await?;
 
     Ok(match *result {
         Ok(r) => Some(*r.await?.body),

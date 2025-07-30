@@ -3,8 +3,9 @@ use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
     app_structure::{
-        AppPageLoaderTree, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints,
-        FileSystemPathVec, MetadataItem, get_entrypoints,
+        AppPageLoaderTree, CollectedRootParams, Entrypoint as AppEntrypoint,
+        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, collect_root_params,
+        get_entrypoints,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
@@ -82,8 +83,10 @@ use crate::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
-    project::{ModuleGraphs, Project},
-    route::{AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, Route, Routes},
+    project::{BaseAndFullModuleGraph, Project},
+    route::{
+        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
+    },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     webpack_stats::generate_webpack_stats,
 };
@@ -202,6 +205,11 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    async fn collected_root_params(self: Vc<Self>) -> Result<Vc<CollectedRootParams>> {
+        Ok(collect_root_params(self.app_entrypoints()))
+    }
+
+    #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_client_module_options_context(
             self.project().project_path().owned().await?,
@@ -295,6 +303,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            Some(self.collected_root_params()),
         ))
     }
 
@@ -306,6 +315,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            Some(self.collected_root_params()),
         ))
     }
 
@@ -317,6 +327,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            Some(self.collected_root_params()),
         ))
     }
 
@@ -330,6 +341,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            Some(self.collected_root_params()),
         ))
     }
 
@@ -627,6 +639,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            None, // root params are not available in client modules
         ))
     }
 
@@ -638,6 +651,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            None, // root params are not available in client modules
         ))
     }
 
@@ -859,7 +873,7 @@ impl AppProject {
         rsc_entry: ResolvedVc<Box<dyn Module>>,
         client_shared_entries: Vc<EvaluatableAssets>,
         has_layout_segments: bool,
-    ) -> Result<Vc<ModuleGraphs>> {
+    ) -> Result<Vc<BaseAndFullModuleGraph>> {
         if *self.project.per_page_module_graph().await? {
             let should_trace = self.project.next_mode().await?.is_production();
             let client_shared_entries = client_shared_entries
@@ -956,7 +970,7 @@ impl AppProject {
                 graphs.push(additional_module_graph);
 
                 let full = ModuleGraph::from_graphs(graphs);
-                Ok(ModuleGraphs {
+                Ok(BaseAndFullModuleGraph {
                     base: base.to_resolved().await?,
                     full: full.to_resolved().await?,
                 }
@@ -976,7 +990,9 @@ pub fn app_entry_point_to_route(
     entrypoint: AppEntrypoint,
 ) -> Vc<Route> {
     match entrypoint {
-        AppEntrypoint::AppPage { pages, loader_tree } => Route::AppPage(
+        AppEntrypoint::AppPage {
+            pages, loader_tree, ..
+        } => Route::AppPage(
             pages
                 .into_iter()
                 .map(|page| AppPageRoute {
@@ -1010,6 +1026,7 @@ pub fn app_entry_point_to_route(
             page,
             path,
             root_layouts,
+            ..
         } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
@@ -1021,7 +1038,7 @@ pub fn app_entry_point_to_route(
                 .resolved_cell(),
             ),
         },
-        AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
+        AppEntrypoint::AppMetadata { page, metadata, .. } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
                 AppEndpoint {
@@ -1937,10 +1954,10 @@ impl Endpoint for AppEndpoint {
         };
 
         async move {
-            let output = self.output().await?;
-            let output_assets = self.output().output_assets();
-            let node_root = this.app_project.project().node_root();
-            let node_root_ref = &node_root.await?;
+            let output = self.output();
+            let output_assets = output.output_assets();
+            let output = output.await?;
+            let node_root = &*this.app_project.project().node_root().await?;
 
             let (server_paths, client_paths) = if this
                 .app_project
@@ -1969,7 +1986,7 @@ impl Endpoint for AppEndpoint {
 
             let written_endpoint = match *output {
                 AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
-                    server_entry_path: node_root_ref
+                    server_entry_path: node_root
                         .get_path_to(&*rsc_chunk.path().await?)
                         .context("Node.js chunk entry path must be inside the node root")?
                         .to_string(),
@@ -2070,6 +2087,22 @@ impl Endpoint for AppEndpoint {
         Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
             server_actions_loader,
         ])]))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
+        let this = self.await?;
+        let app_entry = self.app_endpoint_entry().await?;
+        let module_graphs = this
+            .app_project
+            .app_module_graphs(
+                self,
+                *app_entry.rsc_entry,
+                this.app_project.client_runtime_entries(),
+                matches!(this.ty, AppEndpointType::Page { .. }),
+            )
+            .await?;
+        Ok(Vc::cell(vec![module_graphs.full]))
     }
 }
 

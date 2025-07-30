@@ -25,6 +25,7 @@ use crate::{
 #[derive(
     Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat,
 )]
+#[repr(transparent)]
 pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
 
 impl TaskInput for RoaringBitmapWrapper {

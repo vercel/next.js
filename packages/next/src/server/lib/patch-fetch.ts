@@ -17,8 +17,8 @@ import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import {
   getCacheSignal,
+  type RevalidateStore,
   type WorkUnitAsyncStorage,
-  type WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
@@ -365,7 +365,7 @@ export function createPatchedFetcher(
           `fetch ${input.toString()}`
         )
 
-        let revalidateStore: Extract<WorkUnitStore, { tags: any }> | undefined
+        let revalidateStore: RevalidateStore | undefined
 
         if (workUnitStore) {
           switch (workUnitStore.type) {
@@ -375,6 +375,7 @@ export function createPatchedFetcher(
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
+            case 'private-cache':
               revalidateStore = workUnitStore
               break
             case 'request':
@@ -415,6 +416,7 @@ export function createPatchedFetcher(
             case 'prerender-legacy':
             case 'request':
             case 'cache':
+            case 'private-cache':
               break
             default:
               workUnitStore satisfies never
@@ -567,6 +569,7 @@ export function createPatchedFetcher(
             case 'prerender-legacy':
             case 'request':
             case 'cache':
+            case 'private-cache':
             case 'unstable-cache':
               break
             default:
@@ -677,6 +680,7 @@ export function createPatchedFetcher(
                 case 'prerender-legacy':
                 case 'request':
                 case 'cache':
+                case 'private-cache':
                 case 'unstable-cache':
                   break
                 default:
@@ -711,6 +715,7 @@ export function createPatchedFetcher(
           switch (workUnitStore.type) {
             case 'request':
             case 'cache':
+            case 'private-cache':
               isHmrRefresh = workUnitStore.isHmrRefresh ?? false
               serverComponentsHmrCache = workUnitStore.serverComponentsHmrCache
               break
@@ -847,6 +852,7 @@ export function createPatchedFetcher(
                   case 'prerender-legacy':
                   case 'request':
                   case 'cache':
+                  case 'private-cache':
                   case 'unstable-cache':
                   case undefined:
                     return createCachedDynamicResponse(
@@ -917,6 +923,7 @@ export function createPatchedFetcher(
                 case 'prerender-legacy':
                 case 'request':
                 case 'cache':
+                case 'private-cache':
                 case 'unstable-cache':
                   break
                 default:
@@ -1018,6 +1025,7 @@ export function createPatchedFetcher(
                 case 'prerender-legacy':
                 case 'request':
                 case 'cache':
+                case 'private-cache':
                 case 'unstable-cache':
                   break
                 default:
@@ -1050,6 +1058,7 @@ export function createPatchedFetcher(
                     )
                   case 'request':
                   case 'cache':
+                  case 'private-cache':
                   case 'unstable-cache':
                   case 'prerender-legacy':
                   case 'prerender-ppr':

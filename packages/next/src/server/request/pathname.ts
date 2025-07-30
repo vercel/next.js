@@ -29,9 +29,13 @@ export function createServerPathnameForMetadata(
           workUnitStore
         )
       }
-      case 'request':
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+        throw new InvariantError(
+          'createServerPathnameForMetadata should not be called in cache contexts.'
+        )
+      case 'request':
         break
       default:
         workUnitStore satisfies never
@@ -45,25 +49,32 @@ function createPrerenderPathname(
   workStore: WorkStore,
   prerenderStore: PrerenderStore
 ): Promise<string> {
-  const fallbackParams = workStore.fallbackRouteParams
-  if (fallbackParams && fallbackParams.size > 0) {
-    switch (prerenderStore.type) {
-      case 'prerender':
+  switch (prerenderStore.type) {
+    case 'prerender-client':
+      throw new InvariantError(
+        'createPrerenderPathname was called inside a client component scope.'
+      )
+    case 'prerender': {
+      const fallbackParams = prerenderStore.fallbackRouteParams
+      if (fallbackParams && fallbackParams.size > 0) {
         return makeHangingPromise<string>(
           prerenderStore.renderSignal,
           '`pathname`'
         )
-      case 'prerender-client':
-        throw new InvariantError(
-          'createPrerenderPathname was called inside a client component scope.'
-        )
-      case 'prerender-ppr':
-        return makeErroringPathname(workStore, prerenderStore.dynamicTracking)
-      case 'prerender-legacy':
-        return makeErroringPathname(workStore, null)
-      default:
-        prerenderStore satisfies never
+      }
+      break
     }
+    case 'prerender-ppr': {
+      const fallbackParams = prerenderStore.fallbackRouteParams
+      if (fallbackParams && fallbackParams.size > 0) {
+        return makeErroringPathname(workStore, prerenderStore.dynamicTracking)
+      }
+      break
+    }
+    case 'prerender-legacy':
+      break
+    default:
+      prerenderStore satisfies never
   }
 
   // We don't have any fallback params so we have an entirely static safe params object

@@ -13,6 +13,7 @@ import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
 import { getRequestMeta } from '../../server/request-meta'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
+import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
@@ -32,6 +33,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
 import { getBotType, isBot } from '../../shared/lib/router/utils/is-bot'
 import {
@@ -43,7 +45,11 @@ import {
 } from '../../server/response-cache'
 import { FallbackMode, parseFallbackField } from '../../lib/fallback'
 import RenderResult from '../../server/render-result'
-import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
+import {
+  CACHE_ONE_YEAR,
+  HTML_CONTENT_TYPE_HEADER,
+  NEXT_CACHE_TAGS_HEADER,
+} from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
@@ -101,7 +107,7 @@ export const routeModule = new AppPageRouteModule({
     loaderTree: tree,
   },
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
-  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
 export async function handler(
@@ -159,6 +165,7 @@ export async function handler(
     revalidateOnlyGenerated,
     routerServerContext,
     nextConfig,
+    interceptionRoutePatterns,
   } = prepareResult
 
   const pathname = parsedUrl.pathname || '/'
@@ -309,6 +316,19 @@ export async function handler(
     staticPathKey = resolvedPathname
   }
 
+  // If this is a request for an app path that should be statically generated
+  // and we aren't in the edge runtime, strip the flight headers so it will
+  // generate the static response.
+  if (
+    !routeModule.isDev &&
+    !isDraftMode &&
+    isSSG &&
+    isRSCRequest &&
+    !isDynamicRSCRequest
+  ) {
+    stripFlightHeaders(req.headers)
+  }
+
   const ComponentMod = {
     ...entryBase,
     tree,
@@ -338,6 +358,11 @@ export async function handler(
   const activeSpan = tracer.getActiveScopeSpan()
 
   try {
+    const varyHeader = routeModule.getVaryHeader(
+      resolvedPathname,
+      interceptionRoutePatterns
+    )
+    res.setHeader('Vary', varyHeader)
     const invokeRouteModule = async (
       span: Span | undefined,
       context: AppPageRouteHandlerContext
@@ -459,7 +484,14 @@ export async function handler(
           clientReferenceManifest,
           setIsrStatus: routerServerContext?.setIsrStatus,
 
-          dir: routeModule.projectDir,
+          dir:
+            process.env.NEXT_RUNTIME === 'nodejs'
+              ? (require('path') as typeof import('path')).join(
+                  /* turbopackIgnore: true */
+                  process.cwd(),
+                  routeModule.relativeProjectDir
+                )
+              : `${process.cwd()}/${routeModule.relativeProjectDir}`,
           isDraftMode,
           isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
           botType,
@@ -727,7 +759,7 @@ export async function handler(
           cacheControl: { revalidate: 1, expire: undefined },
           value: {
             kind: CachedRouteKind.PAGES,
-            html: RenderResult.fromStatic(''),
+            html: RenderResult.EMPTY,
             pageData: {},
             headers: undefined,
             status: undefined,
@@ -916,10 +948,12 @@ export async function handler(
           return sendRenderResult({
             req,
             res,
-            type: 'rsc',
             generateEtags: nextConfig.generateEtags,
             poweredByHeader: nextConfig.poweredByHeader,
-            result: RenderResult.fromStatic(matchedSegment),
+            result: RenderResult.fromStatic(
+              matchedSegment,
+              RSC_CONTENT_TYPE_HEADER
+            ),
             cacheControl: cacheEntry.cacheControl,
           })
         }
@@ -934,10 +968,9 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'rsc',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
-          result: RenderResult.fromStatic(''),
+          result: RenderResult.EMPTY,
           cacheControl: cacheEntry.cacheControl,
         })
       }
@@ -1040,7 +1073,6 @@ export async function handler(
           return sendRenderResult({
             req,
             res,
-            type: 'rsc',
             generateEtags: nextConfig.generateEtags,
             poweredByHeader: nextConfig.poweredByHeader,
             result: cachedData.html,
@@ -1060,10 +1092,12 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'rsc',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
-          result: RenderResult.fromStatic(cachedData.rscData),
+          result: RenderResult.fromStatic(
+            cachedData.rscData,
+            RSC_CONTENT_TYPE_HEADER
+          ),
           cacheControl: cacheEntry.cacheControl,
         })
       }
@@ -1074,11 +1108,16 @@ export async function handler(
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
-      if (!didPostpone || minimalMode) {
+      if (!didPostpone || minimalMode || isRSCRequest) {
         // If we're in test mode, we should add a sentinel chunk to the response
         // that's between the static and dynamic parts so we can compare the
         // chunks and add assertions.
-        if (process.env.__NEXT_TEST_MODE && minimalMode && isRoutePPREnabled) {
+        if (
+          process.env.__NEXT_TEST_MODE &&
+          minimalMode &&
+          isRoutePPREnabled &&
+          body.contentType === HTML_CONTENT_TYPE_HEADER
+        ) {
           // As we're in minimal mode, the static part would have already been
           // streamed first. The only part that this streams is the dynamic part
           // so we should FIRST stream the sentinel and THEN the dynamic part.
@@ -1088,7 +1127,6 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'html',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
@@ -1115,7 +1153,6 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'html',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
@@ -1171,7 +1208,6 @@ export async function handler(
       return sendRenderResult({
         req,
         res,
-        type: 'html',
         generateEtags: nextConfig.generateEtags,
         poweredByHeader: nextConfig.poweredByHeader,
         result: body,
@@ -1204,7 +1240,7 @@ export async function handler(
     }
   } catch (err) {
     // if we aren't wrapped by base-server handle here
-    if (!activeSpan) {
+    if (!activeSpan && !(err instanceof NoFallbackError)) {
       await routeModule.onRequestError(
         req,
         err,

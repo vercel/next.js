@@ -139,7 +139,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         return
       }
 
-      if (request.endsWith('.external')) {
+      if (request.match(/\.external(\.js)?$/)) {
         const resolve = getResolve()
         const resolved = await resolve(context, request)
         const relative = path.relative(

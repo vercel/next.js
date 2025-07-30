@@ -100,6 +100,10 @@ import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compi
 import { getSupportedBrowsers } from '../../build/utils'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
+import {
+  devToolsConfigMiddleware,
+  getDevToolsConfig,
+} from '../../next-devtools/server/devtools-config-middleware'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -658,6 +662,15 @@ export async function createHotReloaderTurbopack(
       telemetry: opts.telemetry,
       turbopackProject: project,
     }),
+    devToolsConfigMiddleware({
+      distDir,
+      sendUpdateSignal: (data) => {
+        hotReloader.send({
+          action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
+          data,
+        })
+      },
+    }),
   ]
 
   const versionInfoPromise = getVersionInfo()
@@ -867,6 +880,7 @@ export async function createHotReloaderTurbopack(
 
         ;(async function () {
           const versionInfo = await versionInfoPromise
+          const devToolsConfig = await getDevToolsConfig(distDir)
 
           const sync: SyncAction = {
             action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
@@ -878,6 +892,7 @@ export async function createHotReloaderTurbopack(
               devtoolsFrontendUrl,
             },
             devIndicator: devIndicatorServerState,
+            devToolsConfig,
           }
 
           sendToClient(client, sync)

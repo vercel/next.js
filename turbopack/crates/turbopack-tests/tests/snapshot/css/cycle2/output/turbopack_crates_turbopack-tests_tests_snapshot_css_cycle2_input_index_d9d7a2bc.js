@@ -4,8 +4,8 @@
 
 var { m: module, e: exports } = __turbopack_context__;
 {
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/1.css [test] (css, async loader)")(__turbopack_context__.i);
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/2.css [test] (css, async loader)")(__turbopack_context__.i);
+__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/1.css [test] (css, async loader)");
+__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/2.css [test] (css, async loader)");
 }}),
 }]);
 

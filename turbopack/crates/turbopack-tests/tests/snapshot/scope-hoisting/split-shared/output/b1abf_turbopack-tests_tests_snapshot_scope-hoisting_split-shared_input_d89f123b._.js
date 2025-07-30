@@ -4,13 +4,13 @@
 
 var { m: module, e: exports } = __turbopack_context__;
 {
-setTimeout(()=>__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/inner.js [test] (ecmascript, async loader)")(__turbopack_context__.i), 500);
+setTimeout(()=>__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/inner.js [test] (ecmascript, async loader)"), 500);
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/y/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
 {
-setTimeout(()=>__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/y/middle.js [test] (ecmascript, async loader)")(__turbopack_context__.i), 1000);
+setTimeout(()=>__turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/y/middle.js [test] (ecmascript, async loader)"), 1000);
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

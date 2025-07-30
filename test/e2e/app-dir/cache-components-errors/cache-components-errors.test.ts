@@ -2,6 +2,8 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { assertNoErrorToast } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
 
+const isRspack = process.env.NEXT_RSPACK !== undefined
+
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
@@ -213,30 +215,30 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at InnerLayoutRouter (bundler:///<next-src>)
+                   at RedirectErrorBoundary (bundler:///<next-src>)
+                   at RedirectBoundary (bundler:///<next-src>)
+                   at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                   at LoadingBoundary (bundler:///<next-src>)
+                   at ErrorBoundary (bundler:///<next-src>)
+                   at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                   at ScrollAndFocusHandler (bundler:///<next-src>)
+                   at RenderFromTemplateContext (bundler:///<next-src>)
+                   at OuterLayoutRouter (bundler:///<next-src>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at InnerLayoutRouter (bundler:///<next-src>)
+                   at RedirectErrorBoundary (bundler:///<next-src>)
+                   at RedirectBoundary (bundler:///<next-src>)
+                   at HTTPAccessFallbackErrorBoundary (bundler:///<next-src>)
+                   at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                   at LoadingBoundary (bundler:///<next-src>)
+                   at ErrorBoundary (bundler:///<next-src>)
+                   at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                   at ScrollAndFocusHandler (bundler:///<next-src>)
+                   at RenderFromTemplateContext (bundler:///<next-src>)
+                   at OuterLayoutRouter (bundler:///<next-src>)
                  333 |  */
                  334 | function InnerLayoutRouter({
                > 335 |   tree,
@@ -632,7 +634,7 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at IndirectionTwo (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:34)
+                   at IndirectionTwo (bundler:///app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -657,7 +659,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at c (turbopack:///[project]/app/dynamic-root/indirection.tsx:7:34)
+                   at a (bundler:///app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -686,31 +688,31 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at IndirectionTwo (webpack:///app/dynamic-root/indirection.tsx:7:34)
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at IndirectionTwo (bundler:///app/dynamic-root/indirection.tsx:7:34)
+                   at InnerLayoutRouter (bundler:///<next-src>)
+                   at RedirectErrorBoundary (bundler:///<next-src>)
+                   at RedirectBoundary (bundler:///<next-src>)
+                   at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                   at LoadingBoundary (bundler:///<next-src>)
+                   at ErrorBoundary (bundler:///<next-src>)
+                   at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                   at ScrollAndFocusHandler (bundler:///<next-src>)
+                   at RenderFromTemplateContext (bundler:///<next-src>)
+                   at OuterLayoutRouter (bundler:///<next-src>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at InnerLayoutRouter (bundler:///<next-src>)
+                   at RedirectErrorBoundary (bundler:///<next-src>)
+                   at RedirectBoundary (bundler:///<next-src>)
+                   at HTTPAccessFallbackErrorBoundary (bundler:///<next-src>)
+                   at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                   at LoadingBoundary (bundler:///<next-src>)
+                   at ErrorBoundary (bundler:///<next-src>)
+                   at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                   at ScrollAndFocusHandler (bundler:///<next-src>)
+                   at RenderFromTemplateContext (bundler:///<next-src>)
+                   at OuterLayoutRouter (bundler:///<next-src>)
                   5 | }
                   6 |
                >  7 | export function IndirectionTwo({ children }) {
@@ -720,30 +722,30 @@ describe('Cache Components Errors', () => {
                  10 |
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at InnerLayoutRouter (bundler:///<next-src>)
+                   at RedirectErrorBoundary (bundler:///<next-src>)
+                   at RedirectBoundary (bundler:///<next-src>)
+                   at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                   at LoadingBoundary (bundler:///<next-src>)
+                   at ErrorBoundary (bundler:///<next-src>)
+                   at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                   at ScrollAndFocusHandler (bundler:///<next-src>)
+                   at RenderFromTemplateContext (bundler:///<next-src>)
+                   at OuterLayoutRouter (bundler:///<next-src>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at InnerLayoutRouter (webpack://<next-src>)
-                   at RedirectErrorBoundary (webpack://<next-src>)
-                   at RedirectBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                   at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                   at LoadingBoundary (webpack://<next-src>)
-                   at ErrorBoundary (webpack://<next-src>)
-                   at InnerScrollAndFocusHandler (webpack://<next-src>)
-                   at ScrollAndFocusHandler (webpack://<next-src>)
-                   at RenderFromTemplateContext (webpack://<next-src>)
-                   at OuterLayoutRouter (webpack://<next-src>)
+                   at InnerLayoutRouter (bundler:///<next-src>)
+                   at RedirectErrorBoundary (bundler:///<next-src>)
+                   at RedirectBoundary (bundler:///<next-src>)
+                   at HTTPAccessFallbackErrorBoundary (bundler:///<next-src>)
+                   at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                   at LoadingBoundary (bundler:///<next-src>)
+                   at ErrorBoundary (bundler:///<next-src>)
+                   at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                   at ScrollAndFocusHandler (bundler:///<next-src>)
+                   at RenderFromTemplateContext (bundler:///<next-src>)
+                   at OuterLayoutRouter (bundler:///<next-src>)
                  333 |  */
                  334 | function InnerLayoutRouter({
                > 335 |   tree,
@@ -926,8 +928,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at getRandomNumber (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:15)
-                     at RandomReadingComponent (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:40:18)
+                     at getRandomNumber (bundler:///app/sync-random-without-fallback/page.tsx:32:15)
+                     at RandomReadingComponent (bundler:///app/sync-random-without-fallback/page.tsx:40:18)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -944,7 +946,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at f (turbopack:///[project]/app/sync-random-without-fallback/page.tsx:32:15)
+                     at a (bundler:///app/sync-random-without-fallback/page.tsx:32:15)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -963,8 +965,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random
-                     at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:15)
-                     at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:18)
+                     at getRandomNumber (bundler:///app/sync-random-without-fallback/page.tsx:32:15)
+                     at RandomReadingComponent (bundler:///app/sync-random-without-fallback/page.tsx:40:18)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -1187,7 +1189,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (turbopack:///[project]/app/sync-cookies/page.tsx:17:67)
+                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:67)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
@@ -1206,8 +1208,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at e (turbopack:///[project]/app/sync-cookies/page.tsx:17:67)
-                     at a (<anonymous>)
+                     at a (bundler:///app/sync-cookies/page.tsx:17:67)
+                     at b (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
                  > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
@@ -1225,7 +1227,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (webpack:///app/sync-cookies/page.tsx:17:67)
+                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:67)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
@@ -1412,7 +1414,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (turbopack:///[project]/app/sync-headers/page.tsx:17:70)
+                     at HeadersReadingComponent (bundler:///app/sync-headers/page.tsx:17:70)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
@@ -1431,8 +1433,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at e (turbopack:///[project]/app/sync-headers/page.tsx:17:70)
-                     at a (<anonymous>)
+                     at a (bundler:///app/sync-headers/page.tsx:17:70)
+                     at b (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
                  > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
@@ -1450,7 +1452,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (webpack:///app/sync-headers/page.tsx:17:70)
+                     at HeadersReadingComponent (bundler:///app/sync-headers/page.tsx:17:70)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
@@ -1665,7 +1667,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at SyncIO (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1682,7 +1684,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at a (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1701,7 +1703,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at SyncIO (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1831,40 +1833,40 @@ describe('Cache Components Errors', () => {
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                      at section (<anonymous>)
                      at main (<anonymous>)
-                     at InnerLayoutRouter (webpack://<next-src>)
-                     at RedirectErrorBoundary (webpack://<next-src>)
-                     at RedirectBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                     at LoadingBoundary (webpack://<next-src>)
-                     at ErrorBoundary (webpack://<next-src>)
-                     at InnerScrollAndFocusHandler (webpack://<next-src>)
-                     at ScrollAndFocusHandler (webpack://<next-src>)
+                     at InnerLayoutRouter (bundler:///<next-src>)
+                     at RedirectErrorBoundary (bundler:///<next-src>)
+                     at RedirectBoundary (bundler:///<next-src>)
+                     at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                     at LoadingBoundary (bundler:///<next-src>)
+                     at ErrorBoundary (bundler:///<next-src>)
+                     at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                     at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
-                     at OuterLayoutRouter (webpack://<next-src>)
+                     at OuterLayoutRouter (bundler:///<next-src>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at InnerLayoutRouter (webpack://<next-src>)
-                     at RedirectErrorBoundary (webpack://<next-src>)
-                     at RedirectBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                     at LoadingBoundary (webpack://<next-src>)
-                     at ErrorBoundary (webpack://<next-src>)
-                     at InnerScrollAndFocusHandler (webpack://<next-src>)
-                     at ScrollAndFocusHandler (webpack://<next-src>)
+                     at InnerLayoutRouter (bundler:///<next-src>)
+                     at RedirectErrorBoundary (bundler:///<next-src>)
+                     at RedirectBoundary (bundler:///<next-src>)
+                     at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                     at LoadingBoundary (bundler:///<next-src>)
+                     at ErrorBoundary (bundler:///<next-src>)
+                     at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                     at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
-                     at OuterLayoutRouter (webpack://<next-src>)
-                     at InnerLayoutRouter (webpack://<next-src>)
-                     at RedirectErrorBoundary (webpack://<next-src>)
-                     at RedirectBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackErrorBoundary (webpack://<next-src>)
-                     at HTTPAccessFallbackBoundary (webpack://<next-src>)
-                     at LoadingBoundary (webpack://<next-src>)
-                     at ErrorBoundary (webpack://<next-src>)
-                     at InnerScrollAndFocusHandler (webpack://<next-src>)
-                     at ScrollAndFocusHandler (webpack://<next-src>)
+                     at OuterLayoutRouter (bundler:///<next-src>)
+                     at InnerLayoutRouter (bundler:///<next-src>)
+                     at RedirectErrorBoundary (bundler:///<next-src>)
+                     at RedirectBoundary (bundler:///<next-src>)
+                     at HTTPAccessFallbackErrorBoundary (bundler:///<next-src>)
+                     at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                     at LoadingBoundary (bundler:///<next-src>)
+                     at ErrorBoundary (bundler:///<next-src>)
+                     at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                     at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
-                     at OuterLayoutRouter (webpack://<next-src>)
+                     at OuterLayoutRouter (bundler:///<next-src>)
                    333 |  */
                    334 | function InnerLayoutRouter({
                  > 335 |   tree,
@@ -1974,7 +1976,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at SyncIO (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -1991,7 +1993,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at c (turbopack:///[project]/app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at a (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2010,7 +2012,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at SyncIO (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2096,7 +2098,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at CookiesReadingComponent (turbopack:///[project]/app/use-cache-cookies/page.tsx:22:18)
+                     at CookiesReadingComponent (bundler:///app/use-cache-cookies/page.tsx:22:18)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
@@ -2113,7 +2115,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at <unknown> (turbopack:///[project]/app/use-cache-cookies/page.tsx:22:11)
+                     at <unknown> (bundler:///app/use-cache-cookies/page.tsx:22:11)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
@@ -2132,8 +2134,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at CookiesReadingComponent (webpack:///app/use-cache-cookies/page.tsx:22:18)
-                     at <unknown> (webpack://<next-src>)
+                     at CookiesReadingComponent (bundler:///app/use-cache-cookies/page.tsx:22:18)
+                     at <unknown> (bundler:///<next-src>)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
@@ -2219,7 +2221,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at DraftModeEnablingComponent (turbopack:///[project]/app/use-cache-draft-mode/page.tsx:20:26)
+                     at DraftModeEnablingComponent (bundler:///app/use-cache-draft-mode/page.tsx:20:26)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
                    19 |   try {
                  > 20 |     ;(await draftMode()).enable()
@@ -2236,7 +2238,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at <unknown> (turbopack:///[project]/app/use-cache-draft-mode/page.tsx:20:26)
+                     at <unknown> (bundler:///app/use-cache-draft-mode/page.tsx:20:26)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
                    19 |   try {
                  > 20 |     ;(await draftMode()).enable()
@@ -2255,7 +2257,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at DraftModeEnablingComponent (webpack:///app/use-cache-draft-mode/page.tsx:20:26)
+                     at DraftModeEnablingComponent (bundler:///app/use-cache-draft-mode/page.tsx:20:26)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
                    19 |   try {
                  > 20 |     ;(await draftMode()).enable()
@@ -2339,7 +2341,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at HeadersReadingComponent (turbopack:///[project]/app/use-cache-headers/page.tsx:21:18)
+                     at HeadersReadingComponent (bundler:///app/use-cache-headers/page.tsx:21:18)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
@@ -2356,7 +2358,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at <unknown> (turbopack:///[project]/app/use-cache-headers/page.tsx:21:11)
+                     at <unknown> (bundler:///app/use-cache-headers/page.tsx:21:11)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
@@ -2375,8 +2377,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at HeadersReadingComponent (webpack:///app/use-cache-headers/page.tsx:21:18)
-                     at <unknown> (webpack://<next-src>)
+                     at HeadersReadingComponent (bundler:///app/use-cache-headers/page.tsx:21:18)
+                     at <unknown> (bundler:///<next-src>)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
@@ -2404,6 +2406,604 @@ describe('Cache Components Errors', () => {
                 `)
               }
             }
+          })
+        }
+      })
+    })
+
+    describe('With `use cache: private`', () => {
+      describe('in `unstable_cache`', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser(
+              '/use-cache-private-in-unstable-cache'
+            )
+
+            if (isTurbopack) {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ [project]/app/use-cache-private-in-unstable-cache/page.tsx [app-rsc] (ecmascript)
+               > 21 | const getCachedData = unstable_cache(async () => {
+                    |                                      ^",
+                 "stack": [
+                   "[project]/app/use-cache-private-in-unstable-cache/page.tsx [app-rsc] (ecmascript) app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "<FIXME-file-protocol>",
+                   "<FIXME-file-protocol>",
+                   "<FIXME-next-dist-dir>",
+                 ],
+               }
+              `)
+            } else if (isRspack) {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
+               > 21 | const getCachedData = unstable_cache(async () => {
+                    |                                      ^",
+                 "stack": [
+                   "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "<FIXME-next-dist-dir>",
+                   "<FIXME-next-dist-dir>",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
+               > 21 | const getCachedData = unstable_cache(async () => {
+                    |                                      ^",
+                 "stack": [
+                   "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "<FIXME-next-dist-dir>",
+                 ],
+               }
+              `)
+            }
+          })
+        } else {
+          it('should error the build', async () => {
+            try {
+              await prerender('/use-cache-private-in-unstable-cache')
+            } catch {
+              // we expect the build to fail
+            }
+
+            const output = getPrerenderOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            if (isTurbopack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at 0 (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                   19 | }
+                   20 |
+                 > 21 | const getCachedData = unstable_cache(async () => {
+                      |                                      ^
+                   22 |   'use cache: private'
+                   23 |
+                   24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at 0 (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at a (<next-dist-dir>)
+                   19 | }
+                   20 |
+                 > 21 | const getCachedData = unstable_cache(async () => {
+                      |                                      ^
+                   22 |   'use cache: private'
+                   23 |
+                   24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+                `)
+              }
+            } else {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at 0 (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                   19 | }
+                   20 |
+                 > 21 | const getCachedData = unstable_cache(async () => {
+                      |                                      ^
+                   22 |   'use cache: private'
+                   23 |
+                   24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+                `)
+              }
+            }
+          })
+        }
+      })
+
+      describe('in `use cache`', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser(
+              '/use-cache-private-in-use-cache'
+            )
+
+            if (isTurbopack) {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ [project]/app/use-cache-private-in-use-cache/page.tsx [app-rsc] (ecmascript)
+               > 15 | async function Private() {
+                    | ^",
+                 "stack": [
+                   "[project]/app/use-cache-private-in-use-cache/page.tsx [app-rsc] (ecmascript) app/use-cache-private-in-use-cache/page.tsx (15:1)",
+                   "<FIXME-file-protocol>",
+                   "<FIXME-file-protocol>",
+                   "<FIXME-next-dist-dir>",
+                 ],
+               }
+              `)
+            } else if (isRspack) {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ eval
+               > 15 | async function Private() {
+                    | ^",
+                 "stack": [
+                   "eval app/use-cache-private-in-use-cache/page.tsx (15:1)",
+                   "<FIXME-next-dist-dir>",
+                   "<FIXME-next-dist-dir>",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ eval
+               > 15 | async function Private() {
+                    | ^",
+                 "stack": [
+                   "eval app/use-cache-private-in-use-cache/page.tsx (15:1)",
+                   "<FIXME-next-dist-dir>",
+                 ],
+               }
+              `)
+            }
+          })
+        } else {
+          it('should error the build', async () => {
+            try {
+              await prerender('/use-cache-private-in-use-cache')
+            } catch {
+              // we expect the build to fail
+            }
+
+            const output = getPrerenderOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            // TODO: Ideally, the error should only be shown once.
+            if (isTurbopack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 0 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 1 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 0 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at 1 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:16)
+                     at a (<next-dist-dir>)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 2 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at 3 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:16)
+                     at b (<next-dist-dir>)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
+                `)
+              }
+            } else {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 0 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 1 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
+                `)
+              }
+            }
+          })
+        }
+      })
+
+      describe('without Suspense', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser(
+              '/use-cache-private-without-suspense'
+            )
+
+            if (isTurbopack) {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
+               > 10 |       <Private />
+                    |       ^",
+                 "stack": [
+                   "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
+               > 10 |       <Private />
+                    |       ^",
+                 "stack": [
+                   "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            }
+          })
+        } else {
+          it('should error the build', async () => {
+            try {
+              await prerender('/use-cache-private-without-suspense')
+            } catch {
+              // we expect the build to fail
+            }
+
+            const output = getPrerenderOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            if (isTurbopack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-without-suspense/page: /use-cache-private-without-suspense"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
+                `)
+              }
+            } else {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at InnerLayoutRouter (bundler:///<next-src>)
+                     at RedirectErrorBoundary (bundler:///<next-src>)
+                     at RedirectBoundary (bundler:///<next-src>)
+                     at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                     at LoadingBoundary (bundler:///<next-src>)
+                     at ErrorBoundary (bundler:///<next-src>)
+                     at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                     at ScrollAndFocusHandler (bundler:///<next-src>)
+                     at RenderFromTemplateContext (bundler:///<next-src>)
+                     at OuterLayoutRouter (bundler:///<next-src>)
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at InnerLayoutRouter (bundler:///<next-src>)
+                     at RedirectErrorBoundary (bundler:///<next-src>)
+                     at RedirectBoundary (bundler:///<next-src>)
+                     at HTTPAccessFallbackErrorBoundary (bundler:///<next-src>)
+                     at HTTPAccessFallbackBoundary (bundler:///<next-src>)
+                     at LoadingBoundary (bundler:///<next-src>)
+                     at ErrorBoundary (bundler:///<next-src>)
+                     at InnerScrollAndFocusHandler (bundler:///<next-src>)
+                     at ScrollAndFocusHandler (bundler:///<next-src>)
+                     at RenderFromTemplateContext (bundler:///<next-src>)
+                     at OuterLayoutRouter (bundler:///<next-src>)
+                   333 |  */
+                   334 | function InnerLayoutRouter({
+                 > 335 |   tree,
+                       |   ^
+                   336 |   segmentPath,
+                   337 |   cacheNode,
+                   338 |   url,
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-without-suspense/page: /use-cache-private-without-suspense"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
+                     at e (<next-dist-dir>)
+                     at f (<next-dist-dir>)
+                     at g (<next-dist-dir>)
+                     at h (<next-dist-dir>)
+                     at i (<next-dist-dir>)
+                     at j (<next-dist-dir>)
+                     at main (<anonymous>)
+                     at body (<anonymous>)
+                     at html (<anonymous>)
+                     at k (<next-dist-dir>)
+                     at l (<next-dist-dir>)
+                     at m (<next-dist-dir>)
+                     at n (<next-dist-dir>)
+                     at o (<next-dist-dir>)
+                     at p (<next-dist-dir>)
+                     at q (<next-dist-dir>)
+                     at r (<next-dist-dir>)
+                     at s (<next-dist-dir>)
+                     at t (<next-dist-dir>)
+                     at u (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
+                `)
+              }
+            }
+          })
+        }
+      })
+
+      describe('with `connection()`', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser('/use-cache-private-connection')
+
+            if (isTurbopack) {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": "Route /use-cache-private-connection used "connection" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-connection/page.tsx (25:21) @ Private
+               > 25 |     await connection()
+                    |                     ^",
+                 "stack": [
+                   "Private app/use-cache-private-connection/page.tsx (25:21)",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": "Route /use-cache-private-connection used "connection" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-connection/page.tsx (25:21) @ Private
+               > 25 |     await connection()
+                    |                     ^",
+                 "stack": [
+                   "Private app/use-cache-private-connection/page.tsx (25:21)",
+                 ],
+               }
+              `)
+            }
+          })
+        } else {
+          // TODO: With prefetch sentinels this should yield a build error.
+          it('should not fail the build and show no runtime error (caught in userland)', async () => {
+            await prerender('/use-cache-private-connection')
+            await next.start({ skipBuild: true })
+
+            const browser = await next.browser(
+              '/use-cache-private-connection',
+              { pushErrorAsConsoleLog: true }
+            )
+
+            expect(await browser.elementById('private').text()).toBe('Private')
+
+            expect(await browser.log()).not.toContainEqual(
+              expect.objectContaining({ source: 'error' })
+            )
+
+            expect(next.cliOutput.slice(cliOutputLength)).not.toInclude('Error')
+          })
+        }
+      })
+
+      describe('with `headers()`', () => {
+        if (isNextDev) {
+          it('should show a redbox error', async () => {
+            const browser = await next.browser('/use-cache-private-headers')
+
+            if (isTurbopack) {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-headers/page.tsx (25:18) @ Private
+               > 25 |     await headers()
+                    |                  ^",
+                 "stack": [
+                   "Private app/use-cache-private-headers/page.tsx (25:18)",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayRedbox(`
+               {
+                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "environmentLabel": null,
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-headers/page.tsx (25:18) @ Private
+               > 25 |     await headers()
+                    |                  ^",
+                 "stack": [
+                   "Private app/use-cache-private-headers/page.tsx (25:18)",
+                 ],
+               }
+              `)
+            }
+          })
+        } else {
+          // TODO: With prefetch sentinels this should yield a build error.
+          it('should not fail the build and show no runtime error (caught in userland)', async () => {
+            await prerender('/use-cache-private-headers')
+            await next.start({ skipBuild: true })
+            cliOutputLength = next.cliOutput.length
+
+            const browser = await next.browser('/use-cache-private-headers', {
+              pushErrorAsConsoleLog: true,
+            })
+
+            expect(await browser.elementById('private').text()).toBe('Private')
+
+            expect(await browser.log()).not.toContainEqual(
+              expect.objectContaining({ source: 'error' })
+            )
+
+            expect(next.cliOutput.slice(cliOutputLength)).not.toInclude('Error')
           })
         }
       })

@@ -217,11 +217,11 @@ export class AppRouteRouteModule extends RouteModule<
     userland,
     definition,
     distDir,
-    projectDir,
+    relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition, distDir, projectDir })
+    super({ userland, definition, distDir, relativeProjectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
@@ -387,6 +387,7 @@ export class AppRouteRouteModule extends RouteModule<
               // This replicates prior behavior where rootParams is empty in routes
               // TODO we need to make this have the proper rootParams for this route
               rootParams: {},
+              fallbackRouteParams: null,
               implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
@@ -481,6 +482,7 @@ export class AppRouteRouteModule extends RouteModule<
             type: 'prerender',
             phase: 'action',
             rootParams: {},
+            fallbackRouteParams: null,
             implicitTags,
             renderSignal: finalController.signal,
             controller: finalController,
@@ -667,8 +669,6 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the context for the static generation.
     const staticGenerationContext: WorkStoreContext = {
-      // App Routes don't support unknown route params.
-      fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
@@ -1165,6 +1165,9 @@ function trackDynamic(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'cache':
+      case 'private-cache':
+        // TODO: Should we allow reading cookies and search params from the
+        // request for private caches in route handlers?
         throw new Error(
           `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
         )
