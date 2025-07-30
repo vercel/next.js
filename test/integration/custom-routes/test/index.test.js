@@ -2559,14 +2559,14 @@ const runTests = (isDev = false) => {
           },
         ],
         rsc: {
-          header: 'RSC',
+          header: 'rsc',
           contentTypeHeader: 'text/x-component',
           didPostponeHeader: 'x-nextjs-postponed',
           varyHeader:
-            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch',
-          prefetchHeader: 'Next-Router-Prefetch',
+            'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch',
+          prefetchHeader: 'next-router-prefetch',
           prefetchSegmentDirSuffix: '.segments',
-          prefetchSegmentHeader: 'Next-Router-Segment-Prefetch',
+          prefetchSegmentHeader: 'next-router-segment-prefetch',
           prefetchSegmentSuffix: '.segment.rsc',
           prefetchSuffix: '.prefetch.rsc',
           suffix: '.rsc',

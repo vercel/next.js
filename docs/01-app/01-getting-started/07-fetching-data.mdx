@@ -106,7 +106,7 @@ There are two ways to fetch data in Client Components, using:
 You can use React's [`use` hook](https://react.dev/reference/react/use) to [stream](#streaming) data from the server to client. Start by fetching data in your Server component, and pass the promise to your Client Component as prop:
 
 ```tsx filename="app/blog/page.tsx" switcher
-import Posts from '@/app/ui/posts
+import Posts from '@/app/ui/posts'
 import { Suspense } from 'react'
 
 export default function Page() {
@@ -122,7 +122,7 @@ export default function Page() {
 ```
 
 ```jsx filename="app/blog/page.js" switcher
-import Posts from '@/app/ui/posts
+import Posts from '@/app/ui/posts'
 import { Suspense } from 'react'
 
 export default function Page() {

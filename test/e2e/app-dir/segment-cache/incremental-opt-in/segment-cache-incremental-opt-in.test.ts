@@ -37,8 +37,8 @@ describe('segment cache (incremental opt in)', () => {
             const url = request.url()
             const prefetchInfo = {
               href: new URL(url).pathname,
-              segment: headers['Next-Router-Segment-Prefetch'.toLowerCase()],
-              base: headers['Next-Router-State-Tree'.toLowerCase()] ?? null,
+              segment: headers['next-router-segment-prefetch'],
+              base: headers['next-router-state-tree'] ?? null,
             }
             const key = JSON.stringify(prefetchInfo)
             if (prefetches.has(key)) {

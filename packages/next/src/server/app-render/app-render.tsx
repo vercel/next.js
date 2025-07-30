@@ -282,28 +282,23 @@ function parseRequestHeaders(
 
   // dev warmup requests are treated as prefetch RSC requests
   const isPrefetchRequest =
-    isDevWarmupRequest ||
-    headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
+    isDevWarmupRequest || headers[NEXT_ROUTER_PREFETCH_HEADER] !== undefined
 
-  const isHmrRefresh =
-    headers[NEXT_HMR_REFRESH_HEADER.toLowerCase()] !== undefined
+  const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
 
   // dev warmup requests are treated as prefetch RSC requests
-  const isRSCRequest =
-    isDevWarmupRequest || headers[RSC_HEADER.toLowerCase()] !== undefined
+  const isRSCRequest = isDevWarmupRequest || headers[RSC_HEADER] !== undefined
 
   const shouldProvideFlightRouterState =
     isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
 
   const flightRouterState = shouldProvideFlightRouterState
-    ? parseAndValidateFlightRouterState(
-        headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
-      )
+    ? parseAndValidateFlightRouterState(headers[NEXT_ROUTER_STATE_TREE_HEADER])
     : undefined
 
   // Checks if this is a prefetch of the Route Tree by the Segment Cache
   const isRouteTreePrefetchRequest =
-    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] === '/_tree'
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
 
   const csp =
     headers['content-security-policy'] ||
@@ -399,7 +394,7 @@ function NonIndex({
 /**
  * This is used by server actions & client-side navigations to generate RSC data from a client-side request.
  * This function is only called on "dynamic" requests (ie, there wasn't already a static response).
- * It uses request headers (namely `Next-Router-State-Tree`) to determine where to start rendering.
+ * It uses request headers (namely `next-router-state-tree`) to determine where to start rendering.
  */
 async function generateDynamicRSCPayload(
   ctx: AppRenderContext,
@@ -4145,9 +4140,9 @@ const getGlobalErrorStyles = async (
   }
   if (ctx.renderOpts.dev) {
     const dir =
-      process.env.NEXT_RUNTIME === 'edge'
-        ? process.env.__NEXT_EDGE_PROJECT_DIR!
-        : ctx.renderOpts.dir || ''
+      (process.env.NEXT_RUNTIME === 'edge'
+        ? process.env.__NEXT_EDGE_PROJECT_DIR
+        : ctx.renderOpts.dir) || ''
 
     const globalErrorModulePath = normalizeConventionFilePath(
       dir,

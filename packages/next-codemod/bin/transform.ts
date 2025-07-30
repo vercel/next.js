@@ -129,7 +129,7 @@ export async function runTransform(
   if (verbose) {
     args.push('--verbose=2')
   }
-  args.push('--no-babel')
+  args.push('--parser=tsx')
 
   args.push('--ignore-pattern=**/node_modules/**')
   args.push('--ignore-pattern=**/.next/**')

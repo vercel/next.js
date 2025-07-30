@@ -52,10 +52,10 @@ const addCacheBustingSearchParam = (
   headers: Record<string, string | string[] | undefined>
 ) => {
   const cacheKey = computeCacheBustingSearchParam(
-    headers['Next-Router-Prefetch'] ? '1' : '0',
-    headers['Next-Router-Segment-Prefetch'],
-    headers['Next-Router-State-Tree'],
-    headers['Next-URL']
+    headers['next-router-prefetch'] ? '1' : '0',
+    headers['next-router-segment-prefetch'],
+    headers['next-router-state-tree'],
+    headers['next-url']
   )
 
   if (cacheKey === null) {
@@ -535,8 +535,8 @@ describe('ppr-full', () => {
         it('should have correct headers', async () => {
           await retry(async () => {
             const headers = {
-              RSC: '1',
-              'Next-Router-Prefetch': '1',
+              rsc: '1',
+              'next-router-prefetch': '1',
             }
             const urlWithCacheBusting = addCacheBustingSearchParam(
               pathname,
@@ -573,8 +573,8 @@ describe('ppr-full', () => {
         it('should not contain dynamic content', async () => {
           const unexpected = `${Date.now()}:${Math.random()}`
           const headers = {
-            RSC: '1',
-            'Next-Router-Prefetch': '1',
+            rsc: '1',
+            'next-router-prefetch': '1',
             'X-Test-Input': unexpected,
           }
           const urlWithCacheBusting = addCacheBustingSearchParam(
@@ -596,7 +596,7 @@ describe('ppr-full', () => {
     describe('Dynamic RSC Response', () => {
       describe.each(pages)('for $pathname', ({ pathname, dynamic }) => {
         it('should have correct headers', async () => {
-          const headers = { RSC: '1' }
+          const headers = { rsc: '1' }
           const urlWithCacheBusting = addCacheBustingSearchParam(
             pathname,
             headers
@@ -621,7 +621,7 @@ describe('ppr-full', () => {
           it('should contain dynamic content', async () => {
             const expected = `${Date.now()}:${Math.random()}`
             const headers = {
-              RSC: '1',
+              rsc: '1',
               'X-Test-Input': expected,
             }
             const urlWithCacheBusting = addCacheBustingSearchParam(
@@ -641,7 +641,7 @@ describe('ppr-full', () => {
           it('should not contain dynamic content', async () => {
             const unexpected = `${Date.now()}:${Math.random()}`
             const headers = {
-              RSC: '1',
+              rsc: '1',
               'X-Test-Input': unexpected,
             }
             const urlWithCacheBusting = addCacheBustingSearchParam(

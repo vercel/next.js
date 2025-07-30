@@ -1480,7 +1480,7 @@ export default async function loadConfig(
 
     if (userConfig.experimental?.turbo) {
       curLog.warn(
-        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` as Turbopack is now stable.'
+        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` or run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .`'
       )
 
       // Merge the two configs, preferring values in `config.turbopack`.

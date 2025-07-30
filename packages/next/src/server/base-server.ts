@@ -614,10 +614,9 @@ export default abstract class Server<
       parsedUrl.pathname = originalPathname
 
       // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER.toLowerCase()] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
-      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] =
-        segmentPath
+      req.headers[RSC_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
 
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
@@ -629,8 +628,8 @@ export default abstract class Server<
       )
 
       // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER.toLowerCase()] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
+      req.headers[RSC_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
     } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
@@ -640,7 +639,7 @@ export default abstract class Server<
       )
 
       // Mark the request as a RSC request.
-      req.headers[RSC_HEADER.toLowerCase()] = '1'
+      req.headers[RSC_HEADER] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
     } else if (req.headers['x-now-route-matches']) {
       // If we didn't match, return with the flight headers stripped. If in
@@ -651,14 +650,14 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
 
       return false
-    } else if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+    } else if (req.headers[RSC_HEADER] === '1') {
       addRequestMeta(req, 'isRSCRequest', true)
 
-      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
+      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1') {
         addRequestMeta(req, 'isPrefetchRSCRequest', true)
 
         const segmentPrefetchRSCRequest =
-          req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()]
+          req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
         if (typeof segmentPrefetchRSCRequest === 'string') {
           addRequestMeta(
             req,
@@ -1333,7 +1332,7 @@ export default abstract class Server<
                   params
                 )
 
-                req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] =
+                req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] =
                   segmentPrefetchRSCRequest
                 addRequestMeta(
                   req,
@@ -1652,7 +1651,7 @@ export default abstract class Server<
   ): Promise<void>
 
   public setAssetPrefix(prefix?: string): void {
-    this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+    this.nextConfig.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
   }
 
   protected prepared: boolean = false
@@ -2017,18 +2016,18 @@ export default abstract class Server<
       const headers = req.headers
 
       const isPrefetchRSCRequest =
-        headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] ||
+        headers[NEXT_ROUTER_PREFETCH_HEADER] ||
         getRequestMeta(req, 'isPrefetchRSCRequest')
 
       const segmentPrefetchRSCRequest =
-        headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] ||
+        headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] ||
         getRequestMeta(req, 'segmentPrefetchRSCRequest')
 
       const expectedHash = computeCacheBustingSearchParam(
         isPrefetchRSCRequest ? '1' : '0',
         segmentPrefetchRSCRequest,
-        headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()],
-        headers[NEXT_URL.toLowerCase()]
+        headers[NEXT_ROUTER_STATE_TREE_HEADER],
+        headers[NEXT_URL]
       )
       const actualHash =
         getRequestMeta(req, 'cacheBustingSearchParam') ??

@@ -246,6 +246,13 @@ export interface PrivateUseCacheStore extends CommonUseCacheStore {
    * access the request cookies.
    */
   readonly cookies: ReadonlyRequestCookies
+
+  /**
+   * Private caches don't currently need to track root params in the cache key
+   * because they're not persisted anywhere, so we can allow root params access
+   * (unlike public caches)
+   */
+  readonly rootParams: Params
 }
 
 export type UseCacheStore = PublicUseCacheStore | PrivateUseCacheStore
