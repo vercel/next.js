@@ -1010,7 +1010,6 @@ async fn insert_next_shared_aliases(
         vec![
             request_to_import_mapping(project_path.clone(), "./mdx-components"),
             request_to_import_mapping(project_path.clone(), "./src/mdx-components"),
-            request_to_import_mapping(project_path.clone(), "@mdx-js/react"),
             request_to_import_mapping(project_path.clone(), "@next/mdx/mdx-components.js"),
         ],
     );

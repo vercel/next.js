@@ -103,7 +103,6 @@
     "@fullhuman/postcss-purgecss": "1.3.0",
     "@jest/expect-utils": "29.7.0",
     "@mdx-js/loader": "2.2.1",
-    "@mdx-js/react": "2.2.1",
     "@next/bundle-analyzer": "workspace:*",
     "@next/env": "workspace:*",
     "@next/eslint-plugin-next": "workspace:*",

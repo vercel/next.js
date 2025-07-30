@@ -6,7 +6,6 @@ describe('modularizeImports', () => {
     dependencies: {
       '@next/mdx': 'canary',
       '@mdx-js/loader': '^2.2.1',
-      '@mdx-js/react': '^2.2.1',
     },
   })
 
