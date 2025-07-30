@@ -675,11 +675,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn project_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(
-            PROJECT_FILESYSTEM_NAME.into(),
-            self.root_path.clone(),
-            vec![],
-        )
+        DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), self.root_path.clone())
     }
 
     #[turbo_tasks::function]
@@ -690,7 +686,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(rcstr!("output"), self.root_path.clone(), vec![])
+        DiskFileSystem::new(rcstr!("output"), self.root_path.clone())
     }
 
     #[turbo_tasks::function]

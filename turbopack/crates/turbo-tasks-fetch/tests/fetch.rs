@@ -127,7 +127,7 @@ async fn invalidation_does_not_invalidate() {
 }
 
 fn get_issue_context() -> Vc<FileSystemPath> {
-    DiskFileSystem::new(rcstr!("root"), rcstr!("/"), vec![]).root()
+    DiskFileSystem::new(rcstr!("root"), rcstr!("/")).root()
 }
 
 #[tokio::test]

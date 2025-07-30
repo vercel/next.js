@@ -159,7 +159,7 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
 
 #[turbo_tasks::function(operation)]
 fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new(rcstr!("project"), fs_root, Vec::new())
+    DiskFileSystem::new(rcstr!("project"), fs_root)
 }
 
 #[turbo_tasks::function(operation)]

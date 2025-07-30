@@ -513,11 +513,8 @@ impl DiskFileSystem {
     /// * `name` - Name of the filesystem.
     /// * `root` - Path to the given filesystem's root. Should be
     ///   [canonicalized][std::fs::canonicalize].
-    /// * `ignored_subpaths` - A list of subpaths that should not trigger invalidation. This should
-    ///   be a full path, since it is possible that root & project dir is different and requires to
-    ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
-    pub fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
+    pub fn new(name: RcStr, root: RcStr) -> Result<Vc<Self>> {
         mark_stateful();
 
         let instance = DiskFileSystem {
@@ -529,9 +526,7 @@ impl DiskFileSystem {
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
                 semaphore: create_semaphore(),
-                watcher: DiskWatcher::new(
-                    ignored_subpaths.into_iter().map(PathBuf::from).collect(),
-                ),
+                watcher: DiskWatcher::new(),
             }),
         };
 
