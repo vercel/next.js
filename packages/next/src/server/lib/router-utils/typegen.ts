@@ -151,12 +151,12 @@ ${routeTypes}
 
 ${paramTypes}
 
-export type ParamsOf<P extends Routes> = ParamMap[P]
+export type ParamsOf<Route extends Routes> = ParamMap[Route]
 
 ${layoutSlotMap}
 
-type LayoutChildren<P extends LayoutRoutes> = { children: React.ReactNode } & {
-  [K in LayoutSlotMap[P]]: React.ReactNode
+type LayoutChildren<LayoutRoute extends LayoutRoutes> = { children: React.ReactNode } & {
+  [K in LayoutSlotMap[LayoutRoute]]: React.ReactNode
 }
 
 export type { AppRoutes, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes }
@@ -172,8 +172,8 @@ declare global {
    * }
    * \`\`\`
    */
-  type PageProps<P extends AppRoutes> = {
-    params: Promise<ParamsOf<P>>
+  type PageProps<AppRoute extends AppRoutes> = {
+    params: Promise<ParamsOf<AppRoute>>
     searchParams: Promise<Record<string, string | string[] | undefined>>
   }
   
@@ -186,9 +186,9 @@ declare global {
    * }
    * \`\`\`
    */
-  type LayoutProps<P extends LayoutRoutes> = {
-    params: Promise<ParamsOf<P>>
-  } & LayoutChildren<P>
+  type LayoutProps<LayoutRoute extends LayoutRoutes> = {
+    params: Promise<ParamsOf<LayoutRoute>>
+  } & LayoutChildren<LayoutRoute>
 }
 `
 }

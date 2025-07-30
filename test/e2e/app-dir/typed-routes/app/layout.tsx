@@ -1,9 +1,10 @@
-import { ReactNode, Suspense } from 'react'
-export default function Root({ children }: { children: ReactNode }) {
+import { Suspense } from 'react'
+
+export default function Root(props: LayoutProps<'/'>) {
   return (
     <html>
       <body>
-        <Suspense>{children}</Suspense>
+        <Suspense>{props.children}</Suspense>
       </body>
     </html>
   )
