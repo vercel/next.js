@@ -3,7 +3,7 @@ import { unlink } from 'fs/promises'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('multiple-lockfiles - has-output-file-tracing-root', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
       // This will silence the multiple lockfiles warning.
@@ -16,7 +16,12 @@ describe('multiple-lockfiles - has-output-file-tracing-root', () => {
         lockfileVersion: 3,
       }),
     },
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   afterAll(async () => {
     // Cleanup to ensure it doesn't affect other tests.

@@ -3,7 +3,7 @@ import { unlink } from 'fs/promises'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('multiple-lockfiles', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, skipped, isTurbopack } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
       // Write a package-lock.json file to the parent directory to simulate
@@ -14,7 +14,12 @@ describe('multiple-lockfiles', () => {
         lockfileVersion: 3,
       }),
     },
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   afterAll(async () => {
     // Cleanup to ensure it doesn't affect other tests.
