@@ -35,7 +35,9 @@ Fetch caching is **not** supported in `middleware`. Any fetches done inside of y
 
 ## Request Memoization
 
-Next.js extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
+### Memoization Default Behavior
+
+Next.js wraps (with custom logic and React `cache` function) the [`fetch` API](#fetch) requests that use the `GET` or `HEAD` methods to automatically **memoize** those requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
 
 <Image
   alt="Deduplicated Fetch Requests"
@@ -45,7 +47,7 @@ Next.js extends the [`fetch` API](#fetch) to automatically **memoize** requests 
   height="857"
 />
 
-For example, if you need to use the same data across a route (e.g. in a Layout, Page, and multiple components), you do not have to fetch data at the top of the tree, and forward props between components. Instead, you can fetch data in the components that need it without worrying about the performance implications of making multiple requests across the network for the same data.
+For example, if you need to use the same data across a route (e.g., in a Layout, Page, and multiple components), you do not have to fetch data at the top of the tree and forward props between components. Instead, you can fetch data in the components that need it without worrying about the performance implications of making multiple requests across the network for the same data.
 
 ```tsx filename="app/example.tsx" switcher
 async function getItem() {
@@ -92,14 +94,15 @@ const item = await getItem() // cache HIT
 - Subsequent function calls of the request in the same render pass will be a cache `HIT`, and the data will be returned from memory without executing the function.
 - Once the route has been rendered and the rendering pass is complete, memory is "reset" and all request memoization entries are cleared.
 
-> **Good to know**:
+> **Good to know**:>
 >
-> - Request memoization is a React feature, not a Next.js feature. It's included here to show how it interacts with the other caching mechanisms.
+> - Request memoization of `fetch` requests using the `GET` or `HEAD` methods is achieved with React `cache` function and custom logic - as such it is a Next.js feature. It's included here to show how it interacts with the other caching mechanisms.
+>   Note that in React itself, all memoization with React `cache` (for all types of requests, including `fetch` requests using the `GET` or `HEAD` methods) is opt-in and has to be manually implemented.
 > - Memoization only applies to the `GET` method in `fetch` requests.
-> - Memoization only applies to the React Component tree, this means:
+> - Memoization only applies to the React Component tree. This means:
 >   - It applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
 >   - It doesn't apply to `fetch` requests in Route Handlers as they are not a part of the React component tree.
-> - For cases where `fetch` is not suitable (e.g. some database clients, CMS clients, or GraphQL clients), you can use the [React `cache` function](#react-cache-function) to memoize functions.
+> - For cases where `fetch` is not suitable (e.g., some database clients, CMS clients, or GraphQL clients), you can use the [React `cache` function](#opting-into-memoization-for-all-requests) to memoize functions.
 
 ### Duration
 
@@ -109,15 +112,40 @@ The cache lasts the lifetime of a server request until the React component tree 
 
 Since the memoization is not shared across server requests and only applies during rendering, there is no need to revalidate it.
 
-### Opting out
+### Opting Out Of Default Memoization
 
-Memoization only applies to the `GET` method in `fetch` requests, other methods, such as `POST` and `DELETE`, are not memoized. This default behavior is a React optimization and we do not recommend opting out of it.
+Memoization only applies to the `GET` method in `fetch` requests. Other methods, such as `POST` and `DELETE`, are not memoized. This default behavior is a React optimization, and we do not recommend opting out of it.
 
-To manage individual requests, you can use the [`signal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/signal) property from [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController).
+To manage individual requests, you can use the [`signal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/signal) property from [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController):
 
 ```js filename="app/example.js"
 const { signal } = new AbortController()
 fetch(url, { signal })
+```
+
+### Opting Into Memoization For All Requests
+
+As mentioned above, default memoization in Next.js is built upon the React `cache` function that allows you to memoize the return value of a function, allowing you to call the same function multiple times while only executing it once. `fetch` requests using the `GET` or `HEAD` methods are automatically memoized, so you do not need to wrap it in React `cache`.
+However, for other `fetch` methods, or when using data-fetching libraries (such as some database, CMS, or GraphQL clients) that don't inherently memoize requests, you can use `cache` to manually memoize data requests.
+
+```ts filename="utils/get-item.ts" switcher
+import { cache } from 'react'
+import db from '@/lib/db'
+
+export const getItem = cache(async (id: string) => {
+  const item = await db.item.findUnique({ id })
+  return item
+})
+```
+
+```js filename="utils/get-item.js" switcher
+import { cache } from 'react'
+import db from '@/lib/db'
+
+export const getItem = cache(async (id) => {
+  const item = await db.item.findUnique({ id })
+  return item
+})
 ```
 
 ## Data Cache
