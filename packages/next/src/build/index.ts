@@ -77,7 +77,6 @@ import {
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
-  UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
@@ -3090,12 +3089,6 @@ export default async function build(
             ]
 
             for (const prerenderedRoute of prerenderedRoutes) {
-              // TODO: check if still needed?
-              // Exclude the /_not-found route.
-              if (prerenderedRoute.pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
-                continue
-              }
-
               if (
                 isRoutePPREnabled &&
                 prerenderedRoute.fallbackRouteParams &&
@@ -3114,7 +3107,6 @@ export default async function build(
             // Handle all the static routes.
             for (const route of staticPrerenderedRoutes) {
               if (isDynamicRoute(page) && route.pathname === page) continue
-              if (route.pathname === UNDERSCORE_NOT_FOUND_ROUTE) continue
 
               const {
                 metadata = {},
@@ -3530,7 +3522,7 @@ export default async function build(
             return staticGenerationSpan
               .traceChild('move-exported-app-not-found-')
               .traceAsyncFn(async () => {
-                const orig = path.join(
+                const underscoreNotFoundHtml = path.join(
                   distDir,
                   'server',
                   'app',
@@ -3540,9 +3532,10 @@ export default async function build(
                   .join('pages', '404.html')
                   .replace(/\\/g, '/')
 
-                if (existsSync(orig)) {
+                // If the _not-found.html exists, use it instead of the pages 404.html
+                if (existsSync(underscoreNotFoundHtml)) {
                   await fs.copyFile(
-                    orig,
+                    underscoreNotFoundHtml,
                     path.join(distDir, 'server', updatedRelativeDest)
                   )
 

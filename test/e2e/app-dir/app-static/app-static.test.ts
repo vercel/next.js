@@ -987,6 +987,19 @@ describe('app-dir static/dynamic handling', () => {
            "initialRevalidateSeconds": false,
            "srcRoute": "/",
          },
+         "/_not-found": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/_not-found.rsc",
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+         },
          "/api/large-data": {
            "allowHeader": [
              "host",
