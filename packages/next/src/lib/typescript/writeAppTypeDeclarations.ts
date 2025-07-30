@@ -57,9 +57,12 @@ export async function writeAppTypeDeclarations({
     )
   }
 
-  directives.push(
-    `/// <reference path="./${distDir ?? '.next'}/types/routes.d.ts" />`
+  const routeTypesPath = path.posix.join(
+    distDir.replaceAll(path.win32.sep, path.posix.sep),
+    'types/routes.d.ts'
   )
+
+  directives.push(`/// <reference path="./${routeTypesPath}" />`)
 
   // Push the notice in.
   directives.push(
