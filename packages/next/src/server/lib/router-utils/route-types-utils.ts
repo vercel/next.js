@@ -8,6 +8,7 @@ import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { mkdir } from 'fs/promises'
 import fs from 'fs'
 import { generateRouteTypesFile } from './typegen'
+import { tryToParsePath } from '../../../lib/try-to-parse-path'
 
 interface RouteInfo {
   path: string
@@ -28,28 +29,45 @@ export interface RouteTypesManifest {
 // into the bracket-syntax used by other Next.js route helpers so that we can
 // reuse `getRouteRegex()` to extract groups.
 export function convertCustomRouteSource(source: string): string {
-  // Handle catch-all (zero or more / one or more)  :param* / :param+
-  let out = source.replace(
-    /:([A-Za-z0-9_]+)\*/g,
-    (_m: string, name: string) => `[[...${name}]]`
-  )
-  out = out.replace(
-    /:([A-Za-z0-9_]+)\+/g,
-    (_m: string, name: string) => `[...${name}]`
-  )
-  // Optional catch-all  :param?
-  out = out.replace(
-    /:([A-Za-z0-9_]+)\?/g,
-    (_m: string, name: string) => `[[...${name}]]`
-  )
-  // Standard dynamic segment :param (ensure we don't convert already replaced ones)
-  out = out.replace(
-    /:([A-Za-z0-9_]+)/g,
-    (_m: string, name: string) => `[${name}]`
-  )
+  const parseResult = tryToParsePath(source)
+
+  if (parseResult.error || !parseResult.tokens) {
+    // Fallback to original source if parsing fails
+    return source.startsWith('/') ? source : '/' + source
+  }
+
+  let result = ''
+
+  for (const token of parseResult.tokens) {
+    if (typeof token === 'string') {
+      // Literal path segment
+      result += token
+    } else {
+      // Parameter token
+      const { name, modifier, prefix } = token
+
+      // Add the prefix (usually '/')
+      result += prefix
+
+      if (modifier === '*') {
+        // Catch-all zero or more: :param* -> [[...param]]
+        result += `[[...${name}]]`
+      } else if (modifier === '+') {
+        // Catch-all one or more: :param+ -> [...param]
+        result += `[...${name}]`
+      } else if (modifier === '?') {
+        // Optional catch-all: :param? -> [[...param]]
+        result += `[[...${name}]]`
+      } else {
+        // Standard dynamic segment: :param -> [param]
+        result += `[${name}]`
+      }
+    }
+  }
+
   // Ensure leading slash
-  if (!out.startsWith('/')) out = '/' + out
-  return out
+  if (!result.startsWith('/')) result = '/' + result
+  return result
 }
 
 /**

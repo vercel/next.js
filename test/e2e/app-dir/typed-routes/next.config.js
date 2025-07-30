@@ -9,6 +9,16 @@ const nextConfig = {
         destination: '/project/:slug',
         permanent: true,
       },
+      {
+        source: '/blog/:category/:slug*',
+        destination: '/posts/:category/:slug*',
+        permanent: false,
+      },
+      {
+        source: '/optional/:param?',
+        destination: '/fallback',
+        permanent: false,
+      },
     ]
   },
   async rewrites() {
@@ -18,6 +28,10 @@ const nextConfig = {
         {
           source: '/docs-old/:path+',
           destination: '/docs/:path+',
+        },
+        {
+          source: '/api-legacy/:version/:endpoint*',
+          destination: '/api/:version/:endpoint*',
         },
       ],
       fallback: [],

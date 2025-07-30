@@ -4,8 +4,8 @@ const expectedDts = `
 type AppRoutes = "/" | "/_shop/[[...category]]" | "/dashboard" | "/dashboard/settings" | "/docs/[...slug]" | "/gallery/photo/[id]" | "/project/[slug]"
 type PageRoutes = "/about" | "/users/[id]"
 type LayoutRoutes = "/" | "/dashboard"
-type RedirectRoutes = "/project/[slug]"
-type RewriteRoutes = "/docs-old/[...path]"
+type RedirectRoutes = "/blog/[category]/[[...slug]]" | "/optional/[[...param]]" | "/project/[slug]"
+type RewriteRoutes = "/api-legacy/[version]/[[...endpoint]]" | "/docs-old/[...path]"
 type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes
 `
 
@@ -22,6 +22,23 @@ describe('typed-routes', () => {
   it('should generate route types correctly', async () => {
     const dts = await next.readFile('.next/types/routes.d.ts')
     expect(dts).toContain(expectedDts)
+  })
+
+  it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
+    const dts = await next.readFile('.next/types/routes.d.ts')
+
+    // Test standard dynamic segment: :slug -> [slug]
+    expect(dts).toContain('"/project/[slug]"')
+
+    // Test catch-all one-or-more: :path+ -> [...path]
+    expect(dts).toContain('"/docs-old/[...path]"')
+
+    // Test catch-all zero-or-more: :slug* -> [[...slug]]
+    expect(dts).toContain('"/blog/[category]/[[...slug]]"')
+    expect(dts).toContain('"/api-legacy/[version]/[[...endpoint]]"')
+
+    // Test optional parameter: :param? -> [[...param]]
+    expect(dts).toContain('"/optional/[[...param]]"')
   })
 
   if (isNextDev) {
