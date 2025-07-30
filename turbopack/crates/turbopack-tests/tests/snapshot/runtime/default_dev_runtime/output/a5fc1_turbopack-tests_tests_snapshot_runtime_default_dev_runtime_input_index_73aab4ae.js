@@ -1,6 +1,5 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
     "output/a5fc1_turbopack-tests_tests_snapshot_runtime_default_dev_runtime_input_index_73aab4ae.js",
-    {},
     {"otherChunks":["output/b1abf_turbopack-tests_tests_snapshot_runtime_default_dev_runtime_input_index_9cac9e61.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/runtime/default_dev_runtime/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
@@ -285,6 +284,36 @@ function createPromise() {
         reject: reject
     };
 }
+// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
+// The CompressedModuleFactories format is
+// - 1 or more module ids
+// - a module factory function
+// So walking this is a little complex but the flat structure is also fast to
+// traverse, we can use `typeof` operators to distinguish the two cases.
+function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+    let i = offset;
+    while(i < chunkModules.length){
+        let moduleId = chunkModules[i];
+        let end = i + 1;
+        // Find our factory function
+        while(end < chunkModules.length && typeof chunkModules[end] !== 'function'){
+            end++;
+        }
+        if (end === chunkModules.length) {
+            throw new Error('malformed chunk format, expected a factory function');
+        }
+        if (!moduleFactories.has(moduleId)) {
+            const moduleFactoryFn = chunkModules[end];
+            applyModuleFactoryName(moduleFactoryFn);
+            newModuleId?.(moduleId);
+            for(; i < end; i++){
+                moduleId = chunkModules[i];
+                moduleFactories.set(moduleId, moduleFactoryFn);
+            }
+        }
+        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
+    }
+}
 // everything below is adapted from webpack
 // https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
 const turbopackQueues = Symbol('turbopack queues');
@@ -458,7 +487,7 @@ var SourceType = /*#__PURE__*/ function(SourceType) {
    */ SourceType[SourceType["Update"] = 2] = "Update";
     return SourceType;
 }(SourceType || {});
-const moduleFactories = Object.create(null);
+const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();
 const availableModuleChunks = new Map();
@@ -492,7 +521,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
     }
     const includedList = chunkData.included || [];
     const modulesPromises = includedList.map((included)=>{
-        if (moduleFactories[included]) return true;
+        if (moduleFactories.has(included)) return true;
         return availableModules.get(included);
     });
     if (modulesPromises.length > 0 && modulesPromises.every((p)=>p)) {
@@ -553,7 +582,7 @@ function loadChunkByUrl(chunkUrl) {
 browserContextPrototype.L = loadChunkByUrl;
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrlInternal(sourceType, sourceData, chunkUrl) {
-    const thenable = BACKEND.loadChunkCached(sourceType, sourceData, chunkUrl);
+    const thenable = BACKEND.loadChunkCached(sourceType, chunkUrl);
     let entry = instrumentedBackendLoadChunks.get(thenable);
     if (entry === undefined) {
         const resolve = instrumentedBackendLoadChunks.set.bind(instrumentedBackendLoadChunks, thenable, loadedChunk);
@@ -634,19 +663,6 @@ function getPathFromScript(chunkScript) {
     const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
     const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
-}
-function registerCompressedModuleFactory(moduleId, moduleFactory) {
-    if (!moduleFactories[moduleId]) {
-        if (Array.isArray(moduleFactory)) {
-            let [moduleFactoryFn, otherIds] = moduleFactory;
-            moduleFactories[moduleId] = moduleFactoryFn;
-            for (const otherModuleId of otherIds){
-                moduleFactories[otherModuleId] = moduleFactoryFn;
-            }
-        } else {
-            moduleFactories[moduleId] = moduleFactory;
-        }
-    }
 }
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
@@ -766,7 +782,7 @@ DevContext.prototype = Context.prototype;
 function instantiateModule(moduleId, sourceType, sourceData) {
     // We are in development, this is always a string.
     let id = moduleId;
-    const moduleFactory = moduleFactories[id];
+    const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
@@ -1045,7 +1061,7 @@ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedMod
     // Update module factories.
     for (const [moduleId, factory] of newModuleFactories.entries()){
         applyModuleFactoryName(factory);
-        moduleFactories[moduleId] = factory;
+        moduleFactories.set(moduleId, factory);
     }
     // TODO(alexkirsz) Run new runtime entries here.
     // TODO(alexkirsz) Dependencies: call accept handlers for outdated deps.
@@ -1096,7 +1112,7 @@ function applyChunkListUpdate(update) {
             const chunkUrl = getChunkRelativeUrl(chunkPath);
             switch(chunkUpdate.type){
                 case 'added':
-                    BACKEND.loadChunkCached(SourceType.Update, undefined, chunkUrl);
+                    BACKEND.loadChunkCached(SourceType.Update, chunkUrl);
                     break;
                 case 'total':
                     DEV_BACKEND.reloadChunk?.(chunkUrl);
@@ -1479,13 +1495,15 @@ function createModuleHot(moduleId, hotData) {
  */ function markChunkListAsRuntime(chunkListPath) {
     runtimeChunkLists.add(chunkListPath);
 }
-function registerChunk([chunkScript, chunkModules, runtimeParams]) {
-    const chunkPath = getPathFromScript(chunkScript);
-    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
-        // Give the module factory a nice name to improve stack traces.
-        applyModuleFactoryName(Array.isArray(moduleFactory) ? moduleFactory[0] : moduleFactory);
-        registerCompressedModuleFactory(moduleId, moduleFactory);
-        addModuleToChunk(moduleId, chunkPath);
+function registerChunk(registration) {
+    const chunkPath = getPathFromScript(registration[0]);
+    let runtimeParams;
+    // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
+    if (registration.length === 2) {
+        runtimeParams = registration[1];
+    } else {
+        runtimeParams = undefined;
+        installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories, (id)=>addModuleToChunk(id, chunkPath));
     }
     return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
@@ -1556,8 +1574,8 @@ let BACKEND;
         /**
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
-     */ loadChunkCached (sourceType, sourceData, chunkUrl) {
-            return doLoadChunk(sourceType, sourceData, chunkUrl);
+     */ loadChunkCached (sourceType, chunkUrl) {
+            return doLoadChunk(sourceType, chunkUrl);
         },
         async loadWebAssembly (_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
             const req = fetchWebAssembly(wasmChunkPath);
@@ -1595,7 +1613,7 @@ let BACKEND;
     /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
-   */ function doLoadChunk(sourceType, _sourceData, chunkUrl) {
+   */ function doLoadChunk(sourceType, chunkUrl) {
         const resolver = getOrCreateResolver(chunkUrl);
         if (resolver.loadingStarted) {
             return resolver.promise;
@@ -1778,8 +1796,8 @@ const chunksToRegister = globalThis.TURBOPACK;
 globalThis.TURBOPACK = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
 const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
-chunkListsToRegister.forEach(registerChunkList);
 globalThis.TURBOPACK_CHUNK_LISTS = { push: registerChunkList };
+chunkListsToRegister.forEach(registerChunkList);
 })();
 
 

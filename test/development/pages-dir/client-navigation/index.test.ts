@@ -29,14 +29,14 @@ describe('Client Navigation', () => {
       })
       await browser.elementByCss('#empty-props').click()
       await expect(browser).toDisplayRedbox(`
-         {
-           "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": null,
-           "stack": [],
-         }
-        `)
+       {
+         "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
       expect(pageErrors).toEqual([
         expect.objectContaining({
           message:

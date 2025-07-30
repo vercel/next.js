@@ -66,12 +66,11 @@ type LoadWebAssemblyModule = (
 
 type ModuleCache<M> = Record<ModuleId, M>
 // TODO properly type values here
-type ModuleFactories = Record<ModuleId, Function>
-// The value is an array with scope hoisting
-type CompressedModuleFactories = Record<
-  ModuleId,
-  Function | [Function, ModuleId[]]
->
+type ModuleFactories = Map<ModuleId, Function>
+// This is an alternating, non-empty module factory functions and module ids
+// [id1, id2..., factory1, id3, factory2, id4, id5, factory3]
+// There are multiple ids to support scope hoisting modules
+type CompressedModuleFactories = Array<ModuleId | Function>
 
 type RelativeURL = (inputUrl: string) => void
 type ResolvePathFromModule = (moduleId: string) => string

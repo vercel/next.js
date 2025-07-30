@@ -170,8 +170,8 @@ pub async fn get_browser_runtime_code(
             code,
             r#"
             const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
-            chunkListsToRegister.forEach(registerChunkList);
             globalThis.TURBOPACK_CHUNK_LISTS = {{ push: registerChunkList }};
+            chunkListsToRegister.forEach(registerChunkList);
         "#
         )?;
     }

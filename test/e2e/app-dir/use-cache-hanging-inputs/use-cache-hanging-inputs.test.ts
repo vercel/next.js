@@ -276,13 +276,13 @@ describe('use-cache-hanging-inputs', () => {
           expect(errorSource).toMatchInlineSnapshot(`
             "app/bound-args/page.tsx (13:15) @ {module evaluation}
 
-              11 |   const uncachedDataPromise = fetchUncachedData()
-              12 |
-            > 13 |   const Foo = async () => {
-                 |               ^
-              14 |     'use cache'
-              15 |
-              16 |     return ("
+             11 |   const uncachedDataPromise = fetchUncachedData()
+             12 |
+           > 13 |   const Foo = async () => {
+                |               ^
+             14 |     'use cache'
+             15 |
+             16 |     return ("
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}

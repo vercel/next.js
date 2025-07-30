@@ -571,8 +571,6 @@ describe('app-dir - server source maps', () => {
          > 6 |   runHiddenSetOfSetsInternal('rsc-anonymous-stack-frame-sandwich: internal')
              |                             ^",
              "stack": [
-               "Set.forEach <anonymous>",
-               "Set.forEach <anonymous>",
                "Page app/rsc-anonymous-stack-frame-sandwich/page.js (6:29)",
                "Page <anonymous>",
              ],

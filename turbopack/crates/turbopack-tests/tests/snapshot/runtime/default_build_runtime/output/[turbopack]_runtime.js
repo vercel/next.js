@@ -274,6 +274,36 @@ function createPromise() {
         reject: reject
     };
 }
+// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
+// The CompressedModuleFactories format is
+// - 1 or more module ids
+// - a module factory function
+// So walking this is a little complex but the flat structure is also fast to
+// traverse, we can use `typeof` operators to distinguish the two cases.
+function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+    let i = offset;
+    while(i < chunkModules.length){
+        let moduleId = chunkModules[i];
+        let end = i + 1;
+        // Find our factory function
+        while(end < chunkModules.length && typeof chunkModules[end] !== 'function'){
+            end++;
+        }
+        if (end === chunkModules.length) {
+            throw new Error('malformed chunk format, expected a factory function');
+        }
+        if (!moduleFactories.has(moduleId)) {
+            const moduleFactoryFn = chunkModules[end];
+            applyModuleFactoryName(moduleFactoryFn);
+            newModuleId?.(moduleId);
+            for(; i < end; i++){
+                moduleId = chunkModules[i];
+                moduleFactories.set(moduleId, moduleFactoryFn);
+            }
+        }
+        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
+    }
+}
 // everything below is adapted from webpack
 // https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
 const turbopackQueues = Symbol('turbopack queues');
@@ -520,20 +550,9 @@ var SourceType = /*#__PURE__*/ function(SourceType) {
     return SourceType;
 }(SourceType || {});
 process.env.TURBOPACK = '1';
-function stringifySourceInfo(sourceType, sourceData) {
-    switch(sourceType){
-        case 0:
-            return `runtime for chunk ${sourceData}`;
-        case 1:
-            return `parent module ${sourceData}`;
-        default:
-            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-    }
-}
 const nodeContextPrototype = Context.prototype;
 const url = require('url');
-const fs = require('fs/promises');
-const moduleFactories = Object.create(null);
+const moduleFactories = new Map();
 nodeContextPrototype.M = moduleFactories;
 const moduleCache = Object.create(null);
 nodeContextPrototype.c = moduleCache;
@@ -576,9 +595,7 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
     try {
         const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
         const chunkModules = require(resolved);
-        for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
-            registerCompressedModuleFactory(moduleId, moduleFactory);
-        }
+        installCompressedModuleFactories(chunkModules, 0, moduleFactories);
         loadedChunks.add(chunkPath);
     } catch (e) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
@@ -588,31 +605,6 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
         throw new Error(errorMessage, {
             cause: e
         });
-    }
-}
-function loadChunkUncached(chunkPath) {
-    // resolve to an absolute path to simplify `require` handling
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-    // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
-    // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
-    const chunkModules = require(resolved);
-    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
-        registerCompressedModuleFactory(moduleId, moduleFactory);
-    }
-}
-function registerCompressedModuleFactory(moduleId, moduleFactory) {
-    if (!moduleFactories[moduleId]) {
-        if (Array.isArray(moduleFactory)) {
-            let [moduleFactoryFn, otherIds] = moduleFactory;
-            applyModuleFactoryName(moduleFactoryFn);
-            moduleFactories[moduleId] = moduleFactoryFn;
-            for (const otherModuleId of otherIds){
-                moduleFactories[otherModuleId] = moduleFactoryFn;
-            }
-        } else {
-            applyModuleFactoryName(moduleFactory);
-            moduleFactories[moduleId] = moduleFactory;
-        }
     }
 }
 function loadChunkAsync(chunkData) {
@@ -625,8 +617,12 @@ function loadChunkAsync(chunkData) {
     let entry = chunkCache.get(chunkPath);
     if (entry === undefined) {
         try {
-            // Load the chunk synchronously
-            loadChunkUncached(chunkPath);
+            // resolve to an absolute path to simplify `require` handling
+            const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
+            // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+            // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
+            const chunkModules = require(resolved);
+            installCompressedModuleFactories(chunkModules, 0, moduleFactories);
             entry = loadedChunk;
         } catch (e) {
             const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
@@ -661,7 +657,7 @@ function getWorkerBlobURL(_chunks) {
 }
 nodeContextPrototype.b = getWorkerBlobURL;
 function instantiateModule(id, sourceType, sourceData) {
-    const moduleFactory = moduleFactories[id];
+    const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
