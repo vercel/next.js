@@ -56,13 +56,12 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
 }
 
 function generateParamTypes(routesManifest: RouteTypesManifest): string {
-  const allRoutes: Record<string, any> = {
+  const allRoutes = {
     ...routesManifest.appRoutes,
     ...routesManifest.pageRoutes,
     ...routesManifest.layoutRoutes,
-    // Redirect / rewrite routes are optional
-    ...((routesManifest as any).redirectRoutes ?? {}),
-    ...((routesManifest as any).rewriteRoutes ?? {}),
+    ...routesManifest.redirectRoutes,
+    ...routesManifest.rewriteRoutes,
   }
 
   let paramTypes = 'type ParamMap = {\n'
@@ -73,7 +72,7 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
   )
 
   for (const [route, routeInfo] of sortedRoutes) {
-    const { groups } = routeInfo as any
+    const { groups } = routeInfo
 
     // For static routes (no dynamic segments), we can produce an empty parameter map.
     if (!isDynamicRoute(route) || Object.keys(groups ?? {}).length === 0) {
@@ -84,18 +83,18 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
     let paramType = '{'
 
     // Process each group based on its properties
-    for (const [key, group] of Object.entries(groups as Record<string, any>)) {
+    for (const [key, group] of Object.entries(groups)) {
       const escapedKey = JSON.stringify(key)
-      if ((group as any).repeat) {
+      if (group.repeat) {
         // Catch-all parameters
-        if ((group as any).optional) {
+        if (group.optional) {
           paramType += ` ${escapedKey}?: string[];`
         } else {
           paramType += ` ${escapedKey}: string[];`
         }
       } else {
         // Regular parameters
-        if ((group as any).optional) {
+        if (group.optional) {
           paramType += ` ${escapedKey}?: string;`
         } else {
           paramType += ` ${escapedKey}: string;`
