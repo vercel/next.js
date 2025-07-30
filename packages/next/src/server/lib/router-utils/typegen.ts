@@ -64,7 +64,7 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
     ...routesManifest.rewriteRoutes,
   }
 
-  let paramTypes = 'type ParamMap = {\n'
+  let paramTypes = 'interface ParamMap {\n'
 
   // Sort routes deterministically for consistent output
   const sortedRoutes = Object.entries(allRoutes).sort(([a], [b]) =>
@@ -112,7 +112,7 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
 }
 
 function generateLayoutSlotMap(routesManifest: RouteTypesManifest): string {
-  let slotMap = 'type LayoutSlotMap = {\n'
+  let slotMap = 'interface LayoutSlotMap {\n'
 
   // Sort routes deterministically for consistent output
   const sortedLayoutRoutes = Object.entries(routesManifest.layoutRoutes).sort(
@@ -154,10 +154,6 @@ export type ParamsOf<Route extends Routes> = ParamMap[Route]
 
 ${layoutSlotMap}
 
-type LayoutChildren<LayoutRoute extends LayoutRoutes> = { children: React.ReactNode } & {
-  [K in LayoutSlotMap[LayoutRoute]]: React.ReactNode
-}
-
 export type { AppRoutes, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes }
 
 declare global {
@@ -171,8 +167,8 @@ declare global {
    * }
    * \`\`\`
    */
-  type PageProps<AppRoute extends AppRoutes> = {
-    params: Promise<ParamsOf<AppRoute>>
+  interface PageProps<AppRoute extends AppRoutes> {
+    params: Promise<ParamMap[AppRoute]>
     searchParams: Promise<Record<string, string | string[] | undefined>>
   }
   
@@ -186,8 +182,11 @@ declare global {
    * \`\`\`
    */
   type LayoutProps<LayoutRoute extends LayoutRoutes> = {
-    params: Promise<ParamsOf<LayoutRoute>>
-  } & LayoutChildren<LayoutRoute>
+    params: Promise<ParamMap[LayoutRoute]>
+    children: React.ReactNode
+  } & {
+    [K in LayoutSlotMap[LayoutRoute]]: React.ReactNode
+  }
 }
 `
 }
