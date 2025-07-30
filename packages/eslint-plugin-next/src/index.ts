@@ -1,3 +1,5 @@
+type SeverityString = 'error' | 'off' | 'warn'
+
 const recommendedRules = {
   // warnings
   '@next/next/google-font-display': 'warn',
@@ -22,12 +24,12 @@ const recommendedRules = {
   '@next/next/no-duplicate-head': 'error',
   '@next/next/no-head-import-in-document': 'error',
   '@next/next/no-script-component-in-head': 'error',
-}
+} satisfies Record<string, SeverityString>
 
 const coreWebVitalsRules = {
   '@next/next/no-html-link-for-pages': 'error',
   '@next/next/no-sync-scripts': 'error',
-}
+} satisfies Record<string, SeverityString>
 
 const plugin = {
   rules: {
