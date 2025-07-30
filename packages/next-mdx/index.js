@@ -31,7 +31,6 @@ module.exports =
         config.resolve.alias['next-mdx-import-source-file'] = [
           'private-next-root-dir/src/mdx-components',
           'private-next-root-dir/mdx-components',
-          '@mdx-js/react',
           require.resolve('./mdx-components.js'),
         ]
         config.module.rules.push({

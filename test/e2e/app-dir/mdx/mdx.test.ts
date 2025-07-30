@@ -7,7 +7,6 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       dependencies: {
         '@next/mdx': 'canary',
         '@mdx-js/loader': '^2.2.1',
-        '@mdx-js/react': '^2.2.1',
         'rehype-katex': '7.0.1',
         'rehype-slug': '6.0.0',
         'remark-gfm': '4.0.1',

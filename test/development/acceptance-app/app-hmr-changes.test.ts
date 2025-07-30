@@ -11,7 +11,6 @@ describe('Error overlay - RSC build errors', () => {
       '@next/mdx': 'canary',
       'react-wrap-balancer': '^0.2.4',
       'react-tweet': '^3.2.0',
-      '@mdx-js/react': '^2.3.0',
       tailwindcss: '^3.2.6',
       typescript: 'latest',
       '@types/react': '^18.0.28',
