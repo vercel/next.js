@@ -255,9 +255,10 @@ impl DiskFileSystemInner {
         let invalidator = turbo_tasks::get_invalidator();
         self.invalidator_map
             .insert(path_to_key(path), invalidator, None);
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        if let Some(dir) = path.parent() {
-            self.watcher.ensure_watching(dir, self.root_path())?;
+        if let Some(non_recursive) = &self.watcher.non_recursive_state
+            && let Some(dir) = path.parent()
+        {
+            non_recursive.ensure_watching(&self.watcher, dir, self.root_path())?;
         }
         Ok(())
     }
@@ -284,9 +285,10 @@ impl DiskFileSystemInner {
             .collect::<Vec<_>>();
         invalidators.insert(invalidator, Some(write_content));
         drop(invalidator_map);
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        if let Some(dir) = path.parent() {
-            self.watcher.ensure_watching(dir, self.root_path())?;
+        if let Some(non_recursive) = &self.watcher.non_recursive_state
+            && let Some(dir) = path.parent()
+        {
+            non_recursive.ensure_watching(&self.watcher, dir, self.root_path())?;
         }
         Ok(old_invalidators)
     }
@@ -297,8 +299,9 @@ impl DiskFileSystemInner {
         let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
             .insert(path_to_key(path), invalidator, None);
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        self.watcher.ensure_watching(path, self.root_path())?;
+        if let Some(non_recursive) = &self.watcher.non_recursive_state {
+            non_recursive.ensure_watching(&self.watcher, path, self.root_path())?;
+        }
         Ok(())
     }
 
