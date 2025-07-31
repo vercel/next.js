@@ -142,10 +142,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/server/page.js (2:27)
+         "source": "./app/server/page.js (2:28)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                            ^",
          "stack": [],
        }
       `)
@@ -206,10 +206,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/client/page.js (2:27)
+         "source": "./app/client/page.js (2:28)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                            ^",
          "stack": [],
        }
       `)
@@ -623,10 +623,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:41)
+         "source": "./index.js (10:42)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                         ^",
+            |                                          ^",
          "stack": [],
        }
       `)
@@ -660,10 +660,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:41)
+         "source": "./index.js (10:42)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                         ^",
+            |                                          ^",
          "stack": [],
        }
       `)
@@ -1016,10 +1016,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/page.js (1:3)
+         "source": "./app/page.js (1:4)
        Parsing ecmascript source code failed
        > 1 | {{{
-           |   ^",
+           |    ^",
          "stack": [],
        }
       `)
