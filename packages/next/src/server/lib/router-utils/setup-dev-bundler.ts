@@ -588,6 +588,11 @@ async function startWatcher(
             appFiles.add(pageName)
           }
 
+          appRoutes.push({
+            route: normalizePathSep(pageName),
+            filePath: fileName,
+          })
+
           if (routedPages.includes(pageName)) {
             continue
           }
@@ -598,21 +603,18 @@ async function startWatcher(
             // entries that actually use getStaticProps/getServerSideProps
             opts.fsChecker.nextDataRoutes.add(pageName)
           }
+
+          pageRoutes.push({
+            route: normalizePathSep(pageName),
+            filePath: fileName,
+          })
         }
 
         // Record pages
         if (isAppPath) {
           appPageFilePaths.set(pageName, fileName)
-          appRoutes.push({
-            route: normalizePathSep(pageName),
-            filePath: fileName,
-          })
         } else {
           pagesPageFilePaths.set(pageName, fileName)
-          pageRoutes.push({
-            route: normalizePathSep(pageName),
-            filePath: fileName,
-          })
         }
 
         if (appDir && pageNameSet.has(pageName)) {
