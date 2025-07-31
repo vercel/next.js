@@ -38,6 +38,8 @@ describe.each(['app', 'pages'] as const)(
 
       // shouldn't affect if the app builds or not
       // packageManager: ['--use-npm', '--use-pnpm', '--use-yarn', '--use-bun'],
+
+      reactCompiler: ['--react-compiler', '--no-react-compiler'],
     }
 
     const getPermutations = <T>(items: T[][]): T[][] => {
