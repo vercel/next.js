@@ -50,7 +50,7 @@ impl<'l> ProcessInParallelContext<'l> {
         };
         let turbo_tasks = self.turbo_tasks.clone();
         let span = self.span.clone();
-        self.handle.spawn_blocking(|| {
+        self.handle.spawn(async move {
             turbo_tasks_scope(turbo_tasks, || {
                 let _guard = span.entered();
                 f()
