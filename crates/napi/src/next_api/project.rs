@@ -39,10 +39,9 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath,
-    util::{sys_to_unix, uri_from_file},
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, util::uri_from_file,
 };
-use turbo_unix_path::get_relative_path_to;
+use turbo_unix_path::{get_relative_path_to, sys_to_unix};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
@@ -1417,8 +1416,8 @@ pub async fn get_source_map_rope(
             "file" => {
                 let path = match url.to_file_path() {
                     Ok(path) => path.to_string_lossy().into(),
-                    Err(error) => {
-                        bail!("Failed to convert file URL to file path: {error:?}");
+                    Err(_) => {
+                        bail!("Failed to convert file URL to file path: {url}");
                     }
                 };
                 let module = url.query_pairs().find(|(k, _)| k == "id");
