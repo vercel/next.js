@@ -5,10 +5,7 @@ import {
   type DynamicTrackingState,
 } from '../app-render/dynamic-rendering'
 
-import {
-  workUnitAsyncStorage,
-  type StaticPrerenderStore,
-} from '../app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
@@ -19,23 +16,36 @@ export function createServerPathnameForMetadata(
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
-      case 'prerender':
-      case 'prerender-client':
-      case 'prerender-ppr':
-      case 'prerender-legacy': {
-        return createPrerenderPathname(
-          underlyingPathname,
-          workStore,
-          workUnitStore
+      case 'prerender': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
+          return makeHangingPromise<string>(
+            workUnitStore.renderSignal,
+            '`pathname`'
+          )
+        }
+        break
+      }
+      case 'prerender-client': {
+        throw new InvariantError(
+          'createServerPathnameForMetadata was called inside a client component scope.'
         )
+      }
+      case 'prerender-ppr': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
+          return makeErroringPathname(workStore, workUnitStore.dynamicTracking)
+        }
+        break
       }
       case 'cache':
       case 'private-cache':
-      case 'unstable-cache':
+      case 'unstable-cache': {
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called in cache contexts.'
         )
-
+      }
+      case 'prerender-legacy':
       case 'prerender-runtime':
       case 'request':
         break
@@ -43,43 +53,6 @@ export function createServerPathnameForMetadata(
         workUnitStore satisfies never
     }
   }
-  return createRenderPathname(underlyingPathname)
-}
-
-function createPrerenderPathname(
-  underlyingPathname: string,
-  workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore
-): Promise<string> {
-  switch (prerenderStore.type) {
-    case 'prerender-client':
-      throw new InvariantError(
-        'createPrerenderPathname was called inside a client component scope.'
-      )
-    case 'prerender': {
-      const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams && fallbackParams.size > 0) {
-        return makeHangingPromise<string>(
-          prerenderStore.renderSignal,
-          '`pathname`'
-        )
-      }
-      break
-    }
-    case 'prerender-ppr': {
-      const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams && fallbackParams.size > 0) {
-        return makeErroringPathname(workStore, prerenderStore.dynamicTracking)
-      }
-      break
-    }
-    case 'prerender-legacy':
-      break
-    default:
-      prerenderStore satisfies never
-  }
-
-  // We don't have any fallback params so we have an entirely static safe params object
   return Promise.resolve(underlyingPathname)
 }
 
@@ -116,8 +89,4 @@ function makeErroringPathname<T>(
   // isn't a native promise (it's not really). This is so that awaiting
   // the promise will call the `then` property triggering the lazy postpone
   return new Proxy(promise, {})
-}
-
-function createRenderPathname(underlyingPathname: string): Promise<string> {
-  return Promise.resolve(underlyingPathname)
 }
