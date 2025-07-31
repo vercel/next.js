@@ -56,8 +56,11 @@ export function resolveHref(
   }
 
   try {
+    const shouldUseAsPath =
+      urlAsString.startsWith('#') || urlAsString.startsWith('?')
+
     base = new URL(
-      urlAsString.startsWith('#') ? router.asPath : router.pathname,
+      shouldUseAsPath ? router.asPath : router.pathname,
       'http://n'
     )
   } catch (_) {
