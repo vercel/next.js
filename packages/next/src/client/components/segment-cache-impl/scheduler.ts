@@ -586,7 +586,38 @@ function pingRootRouteTree(
             spawnedEntries,
             fetchStrategy
           )
-          const needsDynamicRequest = spawnedEntries.size > 0
+
+          let needsDynamicRequest = spawnedEntries.size > 0
+
+          if (
+            !needsDynamicRequest &&
+            route.isHeadPartial &&
+            route.TODO_metadataStatus === EntryStatus.Empty
+          ) {
+            // All the segment data is already cached, however, we need to issue
+            // a request anyway so we can prefetch the head. Update the status
+            // field to prevent additional requests from being spawned while
+            // this one is in progress.
+            // TODO: This is a temporary, targeted solution to fix a regression
+            // we found. It exists to prevent the scheduler from sending a
+            // redundant request if there's already one in progress.
+            // Essentially, it will attempt once at most, then give up until the
+            // route entry expires or is evicted by other means. But because
+            // this doesn't have its own stale time separate from the route
+            // itself, there will be edge cases where the metadata fails to be
+            // fully prefetched. Consider caching metadata using a separate
+            // entry type so we can model this more cleanly. The circumstances
+            // that lead to this branch running in the first place are
+            // relatively rare, so it's not critical.
+            route.TODO_metadataStatus = EntryStatus.Fulfilled
+            needsDynamicRequest = true
+            // This instructs the server to only send the metadata.
+            dynamicRequestTree[3] = 'metadata-only'
+            // We can null out the children to reduce the request size, since
+            // they won't be needed.
+            dynamicRequestTree[1] = {}
+          }
+
           if (needsDynamicRequest) {
             // Perform a dynamic prefetch request and populate the cache with
             // the result

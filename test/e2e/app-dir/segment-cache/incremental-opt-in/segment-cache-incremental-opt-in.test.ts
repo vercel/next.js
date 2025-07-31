@@ -185,11 +185,7 @@ describe('segment cache (incremental opt in)', () => {
           )
           await checkbox.click()
         },
-        // This assertion will fail if more than one request includes the given
-        // string. Because the string appears in the FlightRouterState for the
-        // page, it effectively asserts that only one prefetch request is issued
-        // — the one for the route tree.
-        { includes: 'ppr-disabled-with-loading-boundary' }
+        { includes: 'Loading...', block: 'reject' }
       )
 
       // Navigate to the page
@@ -233,11 +229,8 @@ describe('segment cache (incremental opt in)', () => {
         )
         await checkbox.click()
       },
-      // This assertion will fail if more than one request includes the given
-      // string. Because the string appears in the FlightRouterState for the
-      // page, it effectively asserts that only one prefetch request is issued
-      // — the one for the route tree.
-      { includes: 'ppr-disabled' }
+      // We should not prefetch the page content
+      { includes: 'Page content', block: 'reject' }
     )
 
     // Navigate to the page

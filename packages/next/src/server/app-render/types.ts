@@ -57,6 +57,7 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
         s.literal('refetch'),
         s.literal('refresh'),
         s.literal('inside-shared-layout'),
+        s.literal('metadata-only'),
       ])
     )
   ),
@@ -87,6 +88,9 @@ export type FlightRouterState = [
    *   treated as new regardless. If it does match, though, the server does not
    *   need to render it, because the client already has it.
    *
+   * - "metadata-only" instructs the server to skip rendering the segments and
+   *   only send the head data.
+   *
    *   A bit confusing, but that's because it has only one extremely narrow use
    *   case — during a non-PPR prefetch, the server uses it to find the first
    *   loading boundary beneath a shared layout.
@@ -95,7 +99,12 @@ export type FlightRouterState = [
    *   make sense for the client to send a FlightRouterState, since this type is
    *   overloaded with concerns.
    */
-  refresh?: 'refetch' | 'refresh' | 'inside-shared-layout' | null,
+  refresh?:
+    | 'refetch'
+    | 'refresh'
+    | 'inside-shared-layout'
+    | 'metadata-only'
+    | null,
   isRootLayout?: boolean,
   /**
    * Only present when responding to a tree prefetch request. Indicates whether
