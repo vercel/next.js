@@ -417,9 +417,9 @@ async function createComponentTreeInternal(
     process.env.NODE_ENV === 'development' &&
     ctx.renderOpts.devtoolSegmentExplorer
   const dir =
-    process.env.NEXT_RUNTIME === 'edge'
-      ? process.env.__NEXT_EDGE_PROJECT_DIR!
-      : ctx.renderOpts.dir || ''
+    (process.env.NEXT_RUNTIME === 'edge'
+      ? process.env.__NEXT_EDGE_PROJECT_DIR
+      : ctx.renderOpts.dir) || ''
 
   // Use the same condition to render metadataOutlet as metadata
   const metadataOutlet = StreamingMetadataOutlet ? (
@@ -1139,9 +1139,9 @@ async function createBoundaryConventionElement({
     process.env.NODE_ENV === 'development' &&
     ctx.renderOpts.devtoolSegmentExplorer
   const dir =
-    process.env.NEXT_RUNTIME === 'edge'
-      ? process.env.__NEXT_EDGE_PROJECT_DIR!
-      : ctx.renderOpts.dir || ''
+    (process.env.NEXT_RUNTIME === 'edge'
+      ? process.env.__NEXT_EDGE_PROJECT_DIR
+      : ctx.renderOpts.dir) || ''
   const { SegmentViewNode } = ctx.componentMod
   const element = Component ? (
     <>

@@ -83,9 +83,9 @@ describe('segment cache (CDN cache busting)', () => {
         async () => {
           const res = await fetch('/target-page', {
             headers: {
-              RSC: '1',
-              'Next-Router-Prefetch': '1',
-              'Next-Router-Segment-Prefetch': '/_tree',
+              rsc: '1',
+              'next-router-prefetch': '1',
+              'next-router-segment-prefetch': '/_tree',
             },
           })
           return {

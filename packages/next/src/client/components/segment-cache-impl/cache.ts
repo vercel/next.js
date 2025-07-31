@@ -109,6 +109,9 @@ type RouteCacheEntryShared = {
   // received a response from the server.
   couldBeIntercepted: boolean
 
+  // See comment in scheduler.ts for context
+  TODO_metadataStatus: EntryStatus.Empty | EntryStatus.Fulfilled
+
   // LRU-related fields
   keypath: null | Prefix<RouteCacheKeypath>
   next: null | RouteCacheEntry
@@ -554,6 +557,8 @@ export function readOrCreateRouteCacheEntry(
     // Similarly, we don't yet know if the route supports PPR.
     isPPREnabled: false,
     renderedSearch: null,
+
+    TODO_metadataStatus: EntryStatus.Empty,
 
     // LRU-related fields
     keypath: null,

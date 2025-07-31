@@ -41,7 +41,6 @@ export async function unstable_rootParams(): Promise<Params> {
 
   switch (workUnitStore.type) {
     case 'cache':
-    case 'private-cache':
     case 'unstable-cache': {
       throw new Error(
         `Route ${workStore.route} used \`unstable_rootParams()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
@@ -56,6 +55,7 @@ export async function unstable_rootParams(): Promise<Params> {
         workStore,
         workUnitStore
       )
+    case 'private-cache':
     case 'request':
       return Promise.resolve(workUnitStore.rootParams)
     default:
@@ -228,7 +228,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
 
   switch (workUnitStore.type) {
     case 'unstable-cache':
-    case 'private-cache':
     case 'cache': {
       throw new Error(
         `Route ${workStore.route} used ${apiName} inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
@@ -245,6 +244,7 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         apiName
       )
     }
+    case 'private-cache':
     case 'request': {
       break
     }

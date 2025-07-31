@@ -76,6 +76,7 @@ import {
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import type { PrerenderedRoute } from '../../build/static-paths/types'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -795,6 +796,7 @@ export default class DevServer extends Server {
     page: string
     isAppPath: boolean
   }): Promise<{
+    prerenderedRoutes?: PrerenderedRoute[]
     staticPaths?: string[]
     fallbackMode?: FallbackMode
   }> {
@@ -855,18 +857,19 @@ export default class DevServer extends Server {
       []
     )
       .then(async (res) => {
-        const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
-          res.value
+        const { prerenderedRoutes, fallbackMode: fallback } = res.value
 
         if (isAppPath) {
           if (this.nextConfig.output === 'export') {
-            if (!staticPaths) {
+            if (!prerenderedRoutes) {
               throw new Error(
                 `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
               )
             }
 
-            if (!staticPaths.some((item) => item.pathname === urlPathname)) {
+            if (
+              !prerenderedRoutes.some((item) => item.pathname === urlPathname)
+            ) {
               throw new Error(
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
@@ -888,9 +891,11 @@ export default class DevServer extends Server {
 
         const value: {
           staticPaths: string[] | undefined
+          prerenderedRoutes: PrerenderedRoute[] | undefined
           fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths?.map((route) => route.pathname),
+          staticPaths: prerenderedRoutes?.map((route) => route.pathname),
+          prerenderedRoutes,
           fallbackMode: fallback,
         }
 
@@ -898,7 +903,7 @@ export default class DevServer extends Server {
           res.value?.fallbackMode !== undefined &&
           // This matches the hasGenerateStaticParams logic
           // we do during build
-          (!isAppPath || (staticPaths && staticPaths.length > 0))
+          (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
         ) {
           // we write the static paths to partial manifest for
           // fallback handling inside of entry handler's

@@ -709,7 +709,6 @@ async fn get_mock_stylesheet(
             .to_str()
             .context("Must exist")?
             .into(),
-        vec![],
     ));
 
     let ExecutionContext {

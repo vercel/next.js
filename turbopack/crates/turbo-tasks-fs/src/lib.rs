@@ -1,4 +1,5 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
+#![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
@@ -16,6 +17,7 @@ pub mod invalidation;
 mod invalidator_map;
 pub mod json;
 mod mutex_map;
+mod path_map;
 mod read_glob;
 mod retry;
 pub mod rope;
@@ -23,6 +25,7 @@ pub mod source_context;
 pub mod util;
 pub(crate) mod virtual_fs;
 mod watcher;
+
 use std::{
     borrow::Cow,
     cmp::{Ordering, min},
@@ -40,14 +43,10 @@ use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use bitflags::bitflags;
 use dunce::simplified;
-use glob::Glob;
 use indexmap::IndexSet;
-use invalidator_map::InvalidatorMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-pub use read_glob::ReadGlobResult;
-use read_glob::{read_glob, track_glob};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -60,17 +59,19 @@ use turbo_tasks::{
     mark_session_dependent, mark_stateful, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
-use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
-pub use virtual_fs::VirtualFileSystem;
-use watcher::DiskWatcher;
 
 use self::{invalidation::Write, json::UnparsableJson, mutex_map::MutexMap};
 use crate::{
     attach::AttachedFileSystem,
-    invalidator_map::WriteContent,
+    glob::Glob,
+    invalidator_map::{InvalidatorMap, WriteContent},
+    read_glob::{read_glob, track_glob},
     retry::retry_blocking,
     rope::{Rope, RopeReader},
+    util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys},
+    watcher::DiskWatcher,
 };
+pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
 
 /// A (somewhat arbitrary) filename limit that we should try to keep output file names below.
 ///
@@ -254,10 +255,11 @@ impl DiskFileSystemInner {
     fn register_read_invalidator(&self, path: &Path) -> Result<()> {
         let invalidator = turbo_tasks::get_invalidator();
         self.invalidator_map
-            .insert(path_to_key(path), invalidator, None);
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        if let Some(dir) = path.parent() {
-            self.watcher.ensure_watching(dir, self.root_path())?;
+            .insert(path.to_owned(), invalidator, None);
+        if let Some(non_recursive) = &self.watcher.non_recursive_state
+            && let Some(dir) = path.parent()
+        {
+            non_recursive.ensure_watching(&self.watcher, dir, self.root_path())?;
         }
         Ok(())
     }
@@ -272,7 +274,7 @@ impl DiskFileSystemInner {
         write_content: WriteContent,
     ) -> Result<Vec<(Invalidator, Option<WriteContent>)>> {
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
-        let invalidators = invalidator_map.entry(path_to_key(path)).or_default();
+        let invalidators = invalidator_map.entry(path.to_owned()).or_default();
         let old_invalidators = invalidators
             .extract_if(|i, old_write_content| {
                 i == &invalidator
@@ -284,9 +286,10 @@ impl DiskFileSystemInner {
             .collect::<Vec<_>>();
         invalidators.insert(invalidator, Some(write_content));
         drop(invalidator_map);
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        if let Some(dir) = path.parent() {
-            self.watcher.ensure_watching(dir, self.root_path())?;
+        if let Some(non_recursive) = &self.watcher.non_recursive_state
+            && let Some(dir) = path.parent()
+        {
+            non_recursive.ensure_watching(&self.watcher, dir, self.root_path())?;
         }
         Ok(old_invalidators)
     }
@@ -296,9 +299,10 @@ impl DiskFileSystemInner {
     fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
         let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
-            .insert(path_to_key(path), invalidator, None);
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        self.watcher.ensure_watching(path, self.root_path())?;
+            .insert(path.to_owned(), invalidator, None);
+        if let Some(non_recursive) = &self.watcher.non_recursive_state {
+            non_recursive.ensure_watching(&self.watcher, path, self.root_path())?;
+        }
         Ok(())
     }
 
@@ -330,7 +334,7 @@ impl DiskFileSystemInner {
     /// Calls the given
     fn invalidate_with_reason<R: InvalidationReason + Clone>(
         &self,
-        reason: impl Fn(String) -> R + Sync,
+        reason: impl Fn(&Path) -> R + Sync,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
         let span = tracing::Span::current();
@@ -342,7 +346,7 @@ impl DiskFileSystemInner {
             .chain(dir_invalidator_map.into_par_iter())
             .flat_map(|(path, invalidators)| {
                 let _span = span.clone().entered();
-                let reason_for_path = reason(path);
+                let reason_for_path = reason(&path);
                 invalidators
                     .into_par_iter()
                     .map(move |i| (reason_for_path.clone(), i))
@@ -446,7 +450,7 @@ impl DiskFileSystem {
 
     pub fn invalidate_with_reason<R: InvalidationReason + Clone>(
         &self,
-        reason: impl Fn(String) -> R + Sync,
+        reason: impl Fn(&Path) -> R + Sync,
     ) {
         self.inner.invalidate_with_reason(reason);
     }
@@ -501,10 +505,6 @@ fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<
     }
 }
 
-pub fn path_to_key(path: impl AsRef<Path>) -> String {
-    path.as_ref().to_string_lossy().to_string()
-}
-
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
     /// Create a new instance of `DiskFileSystem`.
@@ -513,11 +513,8 @@ impl DiskFileSystem {
     /// * `name` - Name of the filesystem.
     /// * `root` - Path to the given filesystem's root. Should be
     ///   [canonicalized][std::fs::canonicalize].
-    /// * `ignored_subpaths` - A list of subpaths that should not trigger invalidation. This should
-    ///   be a full path, since it is possible that root & project dir is different and requires to
-    ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
-    pub fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
+    pub fn new(name: RcStr, root: RcStr) -> Result<Vc<Self>> {
         mark_stateful();
 
         let instance = DiskFileSystem {
@@ -529,9 +526,7 @@ impl DiskFileSystem {
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
                 semaphore: create_semaphore(),
-                watcher: DiskWatcher::new(
-                    ignored_subpaths.into_iter().map(PathBuf::from).collect(),
-                ),
+                watcher: DiskWatcher::new(),
             }),
         };
 
@@ -753,11 +748,12 @@ impl FileSystem for DiskFileSystem {
                 .await?;
             if compare == FileComparison::Equal {
                 if !old_invalidators.is_empty() {
-                    let key = path_to_key(&full_path);
                     for (invalidator, write_content) in old_invalidators {
-                        inner
-                            .invalidator_map
-                            .insert(key.clone(), invalidator, write_content);
+                        inner.invalidator_map.insert(
+                            full_path.clone().into_owned(),
+                            invalidator,
+                            write_content,
+                        );
                     }
                 }
                 return Ok(());
@@ -896,11 +892,12 @@ impl FileSystem for DiskFileSystem {
             };
             if is_equal {
                 if !old_invalidators.is_empty() {
-                    let key = path_to_key(&full_path);
                     for (invalidator, write_content) in old_invalidators {
-                        inner
-                            .invalidator_map
-                            .insert(key.clone(), invalidator, write_content);
+                        inner.invalidator_map.insert(
+                            full_path.clone().into_owned(),
+                            invalidator,
+                            write_content,
+                        );
                     }
                 }
                 return Ok(());

@@ -187,14 +187,15 @@ function createUseCacheStore(
       explicitExpire: undefined,
       explicitStale: undefined,
       tags: null,
-      hmrRefreshHash:
-        outerWorkUnitStore && getHmrRefreshHash(workStore, outerWorkUnitStore),
-      isHmrRefresh: outerWorkUnitStore?.isHmrRefresh ?? false,
-      serverComponentsHmrCache: outerWorkUnitStore?.serverComponentsHmrCache,
+      hmrRefreshHash: getHmrRefreshHash(workStore, outerWorkUnitStore),
+      isHmrRefresh: outerWorkUnitStore.isHmrRefresh ?? false,
+      serverComponentsHmrCache: outerWorkUnitStore.serverComponentsHmrCache,
       forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
-      draftMode:
-        outerWorkUnitStore &&
-        getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
+      draftMode: getDraftModeProviderForCacheScope(
+        workStore,
+        outerWorkUnitStore
+      ),
+      rootParams: outerWorkUnitStore.rootParams,
       cookies: outerWorkUnitStore.cookies,
     }
   } else {

@@ -40,14 +40,25 @@ export function findRootDir(cwd: string) {
       .map((str) => '\n   * ' + str)
       .join('')
 
-    Log.warnOnce(
-      `Warning: Next.js inferred your workspace root, but it may not be correct.\n` +
-        ` We detected multiple lockfiles and selected ${lockFiles[lockFiles.length - 1]} as the root directory.\n` +
-        ` To silence this warning, set turbopack.root in your Next.js config, or consider ` +
-        `removing one of the lockfiles if it's not needed.\n` +
-        `   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.\n` +
-        ` Detected additional lockfiles: ${additionalLockFiles}\n`
-    )
+    if (process.env.TURBOPACK) {
+      Log.warnOnce(
+        `Warning: Next.js inferred your workspace root, but it may not be correct.\n` +
+          ` We detected multiple lockfiles and selected the directory of ${lockFiles[lockFiles.length - 1]} as the root directory.\n` +
+          ` To silence this warning, set \`turbopack.root\` in your Next.js config, or consider ` +
+          `removing one of the lockfiles if it's not needed.\n` +
+          `   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.\n` +
+          ` Detected additional lockfiles: ${additionalLockFiles}\n`
+      )
+    } else {
+      Log.warnOnce(
+        `Warning: Next.js inferred your workspace root, but it may not be correct.\n` +
+          ` We detected multiple lockfiles and selected the directory of ${lockFiles[lockFiles.length - 1]} as the root directory.\n` +
+          ` To silence this warning, set \`outputFileTracingRoot\` in your Next.js config, or consider ` +
+          `removing one of the lockfiles if it's not needed.\n` +
+          `   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.\n` +
+          ` Detected additional lockfiles: ${additionalLockFiles}\n`
+      )
+    }
   }
 
   return dirname(lockFile)

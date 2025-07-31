@@ -6,4 +6,4 @@ Codemods are transformations that run on your codebase programmatically. This al
 
 ## Documentation
 
-Visit [nextjs.org/docs/advanced-features/codemods](https://nextjs.org/docs/advanced-features/codemods) to view the documentation for this package.
+Visit [nextjs.org/docs/advanced-features/codemods](https://nextjs.org/docs/app/guides/upgrading/codemods) to view the documentation for this package.

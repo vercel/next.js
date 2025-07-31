@@ -141,6 +141,7 @@ import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
+import type { PrerenderedRoute } from '../build/static-paths/types'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -613,10 +614,9 @@ export default abstract class Server<
       parsedUrl.pathname = originalPathname
 
       // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER.toLowerCase()] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
-      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] =
-        segmentPath
+      req.headers[RSC_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
 
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
@@ -628,8 +628,8 @@ export default abstract class Server<
       )
 
       // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER.toLowerCase()] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
+      req.headers[RSC_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
     } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
@@ -639,7 +639,7 @@ export default abstract class Server<
       )
 
       // Mark the request as a RSC request.
-      req.headers[RSC_HEADER.toLowerCase()] = '1'
+      req.headers[RSC_HEADER] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
     } else if (req.headers['x-now-route-matches']) {
       // If we didn't match, return with the flight headers stripped. If in
@@ -650,14 +650,14 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
 
       return false
-    } else if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+    } else if (req.headers[RSC_HEADER] === '1') {
       addRequestMeta(req, 'isRSCRequest', true)
 
-      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
+      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1') {
         addRequestMeta(req, 'isPrefetchRSCRequest', true)
 
         const segmentPrefetchRSCRequest =
-          req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()]
+          req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
         if (typeof segmentPrefetchRSCRequest === 'string') {
           addRequestMeta(
             req,
@@ -1332,7 +1332,7 @@ export default abstract class Server<
                   params
                 )
 
-                req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] =
+                req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] =
                   segmentPrefetchRSCRequest
                 addRequestMeta(
                   req,
@@ -1651,7 +1651,7 @@ export default abstract class Server<
   ): Promise<void>
 
   public setAssetPrefix(prefix?: string): void {
-    this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+    this.nextConfig.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
   }
 
   protected prepared: boolean = false
@@ -1910,6 +1910,7 @@ export default abstract class Server<
     isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
+    prerenderedRoutes?: PrerenderedRoute[]
     fallbackMode?: FallbackMode
   }> {
     // Read whether or not fallback should exist from the manifest.
@@ -2013,11 +2014,20 @@ export default abstract class Server<
       isRSCRequest
     ) {
       const headers = req.headers
+
+      const isPrefetchRSCRequest =
+        headers[NEXT_ROUTER_PREFETCH_HEADER] ||
+        getRequestMeta(req, 'isPrefetchRSCRequest')
+
+      const segmentPrefetchRSCRequest =
+        headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] ||
+        getRequestMeta(req, 'segmentPrefetchRSCRequest')
+
       const expectedHash = computeCacheBustingSearchParam(
-        headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()],
-        headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()],
-        headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()],
-        headers[NEXT_URL.toLowerCase()]
+        isPrefetchRSCRequest ? '1' : '0',
+        segmentPrefetchRSCRequest,
+        headers[NEXT_ROUTER_STATE_TREE_HEADER],
+        headers[NEXT_URL]
       )
       const actualHash =
         getRequestMeta(req, 'cacheBustingSearchParam') ??
@@ -2257,13 +2267,42 @@ export default abstract class Server<
       isDynamicRoute(pathname) &&
       (components.getStaticPaths || isAppPath)
     ) {
-      await this.getStaticPaths({
+      const pathsResults = await this.getStaticPaths({
         pathname,
         urlPathname,
         requestHeaders: req.headers,
         page: components.page,
         isAppPath,
       })
+      if (isAppPath && this.nextConfig.experimental.cacheComponents) {
+        if (pathsResults.prerenderedRoutes?.length) {
+          let smallestFallbackRouteParams = null
+          for (const route of pathsResults.prerenderedRoutes) {
+            const fallbackRouteParams = route.fallbackRouteParams
+            if (!fallbackRouteParams || fallbackRouteParams.length === 0) {
+              // There are no fallback route params so we don't need to continue
+              smallestFallbackRouteParams = null
+              break
+            }
+            if (
+              smallestFallbackRouteParams === null ||
+              fallbackRouteParams.length < smallestFallbackRouteParams.length
+            ) {
+              smallestFallbackRouteParams = fallbackRouteParams
+            }
+          }
+          if (smallestFallbackRouteParams) {
+            const devValidatingFallbackParams = new Map<string, string>(
+              smallestFallbackRouteParams.map((v) => [v, ''])
+            )
+            addRequestMeta(
+              req,
+              'devValidatingFallbackParams',
+              devValidatingFallbackParams
+            )
+          }
+        }
+      }
     }
 
     // An OPTIONS request to a page handler is invalid.
