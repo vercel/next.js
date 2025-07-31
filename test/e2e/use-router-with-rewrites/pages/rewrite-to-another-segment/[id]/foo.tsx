@@ -7,7 +7,7 @@ export default function Page() {
   function handlePush() {
     router.push({
       query: {
-        param: 1,
+        id: 1,
       },
     })
   }
@@ -15,20 +15,21 @@ export default function Page() {
   function handleReplace() {
     router.replace({
       query: {
-        param: 1,
+        id: 2,
       },
     })
   }
 
   return (
     <>
+      <p>{router.query.id}</p>
       <button id="router-push" onClick={handlePush}>
         router.push
       </button>
       <button id="router-replace" onClick={handleReplace}>
         router.replace
       </button>
-      <Link href="?param=1">Link</Link>
+      <Link href="?id=3">Link</Link>
     </>
   )
 }
