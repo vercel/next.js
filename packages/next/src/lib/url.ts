@@ -52,3 +52,8 @@ export function stripNextRscUnionQuery(relativeUrl: string): string {
 
   return urlInstance.pathname + urlInstance.search
 }
+
+export function stripSearchParamsFromReqUrl(rawUrl: string): string {
+  const parsedUrl = parseReqUrl(rawUrl)!
+  return `${parsedUrl.pathname}${parsedUrl.hash}`
+}

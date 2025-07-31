@@ -67,6 +67,68 @@ describe('segment cache (search params)', () => {
     expect(await result.innerText()).toBe('Search param: c_PPR')
   })
 
+  it('when prefetching a lazily generated ISR PPR page, does not include search params in the response', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/search-params', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Prefetch a page with param 'one' and search param `e_PPR`.
+    const revealA = await browser.elementByCss(
+      'input[data-link-accordion="/search-params/target-page/one?searchParam=e_PPR"]'
+    )
+    console.log('revealing link (e_PPR)')
+    await act(
+      async () => {
+        await revealA.click()
+      },
+      // The response will include a shell of the page, but nothing that is
+      // based on the search param.
+      {
+        includes: 'e_PPR',
+        block: 'reject',
+      }
+    )
+
+    console.log('revealing link (f_PPR)')
+    // Prefetch the same page but with the search param changed to `f_PPR`.
+    const revealC = await browser.elementByCss(
+      'input[data-link-accordion="/search-params/target-page/one?searchParam=f_PPR"]'
+    )
+    await act(
+      async () => {
+        await revealC.click()
+      },
+      // This should not issue a new request for the page segment, because
+      // search params are not included in the the PPR shell. So we can reuse
+      // the shell we fetched for `searchParam=a`.
+      { includes: 'target-page-with-search-param', block: 'reject' }
+    )
+
+    console.log('navigating to link (f_PPR)')
+    // Navigate to one of the links.
+    const linkC = await browser.elementByCss(
+      'a[href="/search-params/target-page/one?searchParam=f_PPR"]'
+    )
+    await act(
+      async () => {
+        await linkC.click()
+      },
+      // The search param streams in on navigation
+      {
+        includes: 'Search param: f_PPR',
+      }
+    )
+    expect(await browser.elementById('target-page-with-param').text()).toBe(
+      'Param: one'
+    )
+    expect(
+      await browser.elementById('target-page-with-search-param').text()
+    ).toBe('Search param: f_PPR')
+  })
+
   it('when fetching without PPR (e.g. prefetch={true}), includes the search params in the cache key', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/search-params', {

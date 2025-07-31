@@ -38,6 +38,21 @@ export default function SearchParamsPage({
             searchParam=d_full, prefetch=true
           </LinkAccordion>
         </li>
+        <li>
+          with route param
+          <ul>
+            <li>
+              <LinkAccordion href="/search-params/target-page/one?searchParam=e_PPR">
+                param=one, searchParam=e_PPR
+              </LinkAccordion>
+            </li>
+            <li>
+              <LinkAccordion href="/search-params/target-page/one?searchParam=f_PPR">
+                param=one, searchParam=f_PPR
+              </LinkAccordion>
+            </li>
+          </ul>
+        </li>
       </ul>
       <p>
         Demonstrates that pages that render based on search params are cached
