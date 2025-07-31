@@ -1,6 +1,6 @@
 import type { DynamicParamTypesShort } from '../server/app-render/types'
 import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
-import { ROOT_SEGMENT_KEY } from '../shared/lib/segment-cache/segment-value-encoding'
+import { ROOT_SEGMENT_REQUEST_KEY } from '../shared/lib/segment-cache/segment-value-encoding'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
@@ -93,7 +93,7 @@ export function doesStaticSegmentAppearInURL(segment: string): boolean {
   // inferring it on the client based on the segment type. Something like
   // a `doesAppearInURL` flag in FlightRouterState.
   if (
-    segment === ROOT_SEGMENT_KEY ||
+    segment === ROOT_SEGMENT_REQUEST_KEY ||
     // For some reason, the loader tree sometimes includes extra __PAGE__
     // "layouts" when part of a parallel route. But it's not a leaf node.
     // Otherwise, we wouldn't need this special case because pages are
