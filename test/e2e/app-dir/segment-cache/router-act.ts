@@ -159,7 +159,7 @@ export function createRouterAct(
             // `act` controls the timing of when responses reach the client,
             // but it should not affect the timing of when requests reach the
             // server; we pass the request to the server the immediately.
-            result: new Promise(async (resolve) => {
+            result: (async () => {
               const originalResponse = await page.request.fetch(request, {
                 maxRedirects: 0,
               })
@@ -172,13 +172,13 @@ export function createRouterAct(
               const headers = originalResponse.headers()
               delete headers['transfer-encoding']
 
-              resolve({
+              return {
                 text: await originalResponse.text(),
                 body: await originalResponse.body(),
                 headers,
                 status: originalResponse.status(),
-              })
-            }),
+              }
+            })(),
             didProcess: false,
           })
           if (onDidIssueFirstRequest !== null) {
@@ -417,14 +417,14 @@ ${fulfilled.body}
                     batch.pendingRequests.add({
                       url: req.url(),
                       route: null,
-                      result: new Promise(async (resolve) => {
-                        resolve({
+                      result: (async () => {
+                        return {
                           text: await res.text(),
                           body: await res.body(),
                           headers: res.headers(),
                           status: res.status(),
-                        })
-                      }),
+                        }
+                      })(),
                       didProcess: false,
                     })
                     page.off('response', handleResponse)

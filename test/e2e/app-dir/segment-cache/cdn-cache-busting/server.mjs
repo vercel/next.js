@@ -135,11 +135,15 @@ async function createFakeCDN(destPort) {
         }
         resolveCDNEntry(entry)
       })
-      return
+    } else {
+      // If the response isn't cacheable, pipe it through to the client.
+      res.writeHead(
+        proxyRes.statusCode || 200,
+        proxyRes.statusMessage,
+        proxyRes.headers
+      )
+      proxyRes.pipe(res)
     }
-    // If the response isn't cacheable, pipe it through to the client.
-    proxyRes.pipe(res)
-    return
   })
 
   return cdnServer
