@@ -886,7 +886,6 @@ describe('pages/ error recovery', () => {
         5 |   throw Error('no ' + i)
         6 | }, 1000)
         7 | export default function FunctionNamed() {
-          :                                         ^
           \`----
        Caused by:
            Syntax Error
@@ -954,7 +953,6 @@ describe('pages/ error recovery', () => {
         5 |   throw Error('no ' + i)
         6 | }, 1000)
         7 | export default function FunctionNamed() {
-          :                                         ^
           \`----
        Caused by:
            Syntax Error
