@@ -93,31 +93,30 @@ function createOrGetCachedDraftMode(
   workStore: WorkStore | undefined
 ): Promise<DraftMode> {
   const cacheKey = draftModeProvider ?? NullDraftMode
-  const cachedDraftMode = CachedDraftModes.get(cacheKey)
+  let promise = CachedDraftModes.get(cacheKey)
 
-  if (cachedDraftMode) {
-    return cachedDraftMode
-  }
-
-  let promise: Promise<DraftMode>
-
-  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
-    const route = workStore?.route
-
+  if (!promise) {
     if (process.env.__NEXT_CACHE_COMPONENTS) {
-      return createDraftModeWithDevWarnings(draftModeProvider, route)
+      if (process.env.NODE_ENV === 'development') {
+        promise = createDraftModeWithDevWarnings(
+          draftModeProvider,
+          workStore?.route
+        )
+      } else {
+        promise = Promise.resolve(new DraftMode(draftModeProvider))
+      }
+    } else {
+      if (process.env.NODE_ENV === 'development') {
+        promise = createExoticDraftModeWithDevWarnings(
+          draftModeProvider,
+          workStore?.route
+        )
+      } else {
+        promise = createExoticDraftMode(draftModeProvider)
+      }
     }
-
-    promise = createExoticDraftModeWithDevWarnings(draftModeProvider, route)
-  } else {
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      return Promise.resolve(new DraftMode(draftModeProvider))
-    }
-
-    promise = createExoticDraftMode(draftModeProvider)
+    CachedDraftModes.set(cacheKey, promise)
   }
-
-  CachedDraftModes.set(cacheKey, promise)
 
   return promise
 }

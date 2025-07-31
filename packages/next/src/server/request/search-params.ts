@@ -198,26 +198,21 @@ function createRenderSearchParams(
     // dictionary object.
     return Promise.resolve({})
   } else {
-    if (
-      process.env.NODE_ENV === 'development' &&
-      !workStore.isPrefetchRequest
-    ) {
-      if (process.env.__NEXT_CACHE_COMPONENTS) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
+      if (process.env.NODE_ENV === 'development') {
         return makeUntrackedSearchParamsWithDevWarnings(
           underlyingSearchParams,
           workStore
         )
       }
-
-      return makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
-        underlyingSearchParams,
-        workStore
-      )
+      return makeUntrackedSearchParams(underlyingSearchParams)
     } else {
-      if (process.env.__NEXT_CACHE_COMPONENTS) {
-        return makeUntrackedSearchParams(underlyingSearchParams)
+      if (process.env.NODE_ENV === 'development') {
+        return makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
+          underlyingSearchParams,
+          workStore
+        )
       }
-
       return makeUntrackedExoticSearchParams(underlyingSearchParams)
     }
   }

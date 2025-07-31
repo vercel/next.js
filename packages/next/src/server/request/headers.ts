@@ -150,25 +150,24 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
-          if (
-            process.env.NODE_ENV === 'development' &&
-            !workStore?.isPrefetchRequest
-          ) {
-            if (process.env.__NEXT_CACHE_COMPONENTS) {
+          if (process.env.__NEXT_CACHE_COMPONENTS) {
+            if (process.env.NODE_ENV === 'development') {
               return makeUntrackedHeadersWithDevWarnings(
                 workUnitStore.headers,
                 workStore?.route
               )
             }
-
-            return makeUntrackedExoticHeadersWithDevWarnings(
-              workUnitStore.headers,
-              workStore?.route
-            )
+            return makeUntrackedHeaders(workUnitStore.headers)
           } else {
+            if (process.env.NODE_ENV === 'development') {
+              return makeUntrackedExoticHeadersWithDevWarnings(
+                workUnitStore.headers,
+                workStore?.route
+              )
+            }
             return makeUntrackedExoticHeaders(workUnitStore.headers)
           }
-          break
+
         default:
           workUnitStore satisfies never
       }
@@ -196,6 +195,17 @@ function makeHangingHeaders(
   )
   CachedHeaders.set(prerenderStore, promise)
 
+  return promise
+}
+
+function makeUntrackedHeaders(
+  underlyingHeaders: ReadonlyHeaders
+): Promise<ReadonlyHeaders> {
+  let promise = CachedHeaders.get(underlyingHeaders)
+  if (!promise) {
+    promise = Promise.resolve(underlyingHeaders)
+    CachedHeaders.set(underlyingHeaders, promise)
+  }
   return promise
 }
 

@@ -116,7 +116,19 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           )
         case 'prerender-runtime':
         case 'private-cache':
-          return makeUntrackedExoticCookies(workUnitStore.cookies)
+          if (process.env.__NEXT_CACHE_COMPONENTS) {
+            if (process.env.NODE_ENV === 'development') {
+              return makeUntrackedCookiesWithDevWarnings(workUnitStore.cookies)
+            }
+            return makeUntrackedCookies(workUnitStore.cookies)
+          } else {
+            if (process.env.NODE_ENV === 'development') {
+              return makeUntrackedExoticCookiesWithDevWarnings(
+                workUnitStore.cookies
+              )
+            }
+            return makeUntrackedExoticCookies(workUnitStore.cookies)
+          }
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
@@ -131,24 +143,24 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             underlyingCookies = workUnitStore.cookies
           }
 
-          if (
-            process.env.NODE_ENV === 'development' &&
-            !workStore?.isPrefetchRequest
-          ) {
-            if (process.env.__NEXT_CACHE_COMPONENTS) {
+          if (process.env.__NEXT_CACHE_COMPONENTS) {
+            if (process.env.NODE_ENV === 'development') {
               return makeUntrackedCookiesWithDevWarnings(
                 underlyingCookies,
                 workStore?.route
               )
             }
-
-            return makeUntrackedExoticCookiesWithDevWarnings(
-              underlyingCookies,
-              workStore?.route
-            )
+            return makeUntrackedCookies(underlyingCookies)
           } else {
+            if (process.env.NODE_ENV === 'development') {
+              return makeUntrackedExoticCookiesWithDevWarnings(
+                underlyingCookies,
+                workStore?.route
+              )
+            }
             return makeUntrackedExoticCookies(underlyingCookies)
           }
+
         default:
           workUnitStore satisfies never
       }
@@ -183,6 +195,15 @@ function makeHangingCookies(
   )
   CachedCookies.set(prerenderStore, promise)
 
+  return promise
+}
+
+function makeUntrackedCookies(underlyingCookies: ReadonlyRequestCookies) {
+  let promise = CachedCookies.get(underlyingCookies)
+  if (!promise) {
+    promise = Promise.resolve(underlyingCookies)
+    CachedCookies.set(underlyingCookies, promise)
+  }
   return promise
 }
 

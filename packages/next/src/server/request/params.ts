@@ -63,11 +63,14 @@ export function createParamsFromClient(
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
-      case 'prerender':
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      case 'prerender':
+        throw new InvariantError(
+          'createParamsFromClient should not be called in a server prerender.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -100,10 +103,13 @@ export function createServerParamsForRoute(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      case 'prerender-client':
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called in a client prerender.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -128,10 +134,13 @@ export function createServerParamsForServerSegment(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      case 'prerender-client':
+        throw new InvariantError(
+          'createServerParamsForServerSegment should not be called in a client prerender.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -154,7 +163,6 @@ export function createPrerenderParamsForClientSegment(
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
-      case 'prerender':
       case 'prerender-client':
         const fallbackParams = workUnitStore.fallbackRouteParams
         if (fallbackParams) {
@@ -169,6 +177,10 @@ export function createPrerenderParamsForClientSegment(
           }
         }
         break
+      case 'prerender':
+        throw new InvariantError(
+          'createPrerenderParamsForClientSegment should not be called in a server prerender.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -245,23 +257,21 @@ function createRenderParams(
   underlyingParams: Params,
   workStore: WorkStore
 ): Promise<Params> {
-  if (process.env.NODE_ENV === 'development' && !workStore.isPrefetchRequest) {
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    if (process.env.NODE_ENV === 'development') {
       return makeDynamicallyTrackedParamsWithDevWarnings(
         underlyingParams,
         workStore
       )
     }
-
-    return makeDynamicallyTrackedExoticParamsWithDevWarnings(
-      underlyingParams,
-      workStore
-    )
+    return makeUntrackedParams(underlyingParams)
   } else {
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      return makeUntrackedParams(underlyingParams)
+    if (process.env.NODE_ENV === 'development') {
+      return makeDynamicallyTrackedExoticParamsWithDevWarnings(
+        underlyingParams,
+        workStore
+      )
     }
-
     return makeUntrackedExoticParams(underlyingParams)
   }
 }
