@@ -161,9 +161,12 @@ export type FlightSegmentPath =
  * however in the future we want to be able to fetch arbitrary partial segments
  * without having to fetch all its children. So this response format will
  * likely change.
+ * TODO: We should combine this with FlightRouterState when sending a response
+ * from the server. It was only introduced as a separate type because of all
+ * the other places that FlightRouterState leaked into the codebase. Should be
+ * easier once Segment Cache lands.
  */
 export type CacheNodeSeedData = [
-  segment: Segment,
   node: React.ReactNode | null,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null

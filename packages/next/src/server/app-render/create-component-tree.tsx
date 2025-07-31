@@ -412,8 +412,6 @@ async function createComponentTreeInternal(
     }
   }
 
-  // Resolve the segment param
-  const actualSegment = segmentParam ? segmentParam.treeSegment : segment
   const isSegmentViewEnabled =
     process.env.NODE_ENV === 'development' &&
     ctx.renderOpts.devtoolSegmentExplorer
@@ -691,7 +689,6 @@ async function createComponentTreeInternal(
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
     return [
-      actualSegment,
       <React.Fragment key={cacheNodeKey}>
         {layerAssets}
         {parallelRouteProps.children}
@@ -720,7 +717,6 @@ async function createComponentTreeInternal(
     experimental.isRoutePPREnabled
   ) {
     return [
-      actualSegment,
       <React.Fragment key={cacheNodeKey}>
         <Postpone
           reason='dynamic = "force-dynamic" was used'
@@ -824,7 +820,6 @@ async function createComponentTreeInternal(
       )
 
     return [
-      actualSegment,
       <React.Fragment key={cacheNodeKey}>
         {wrappedPageElement}
         {layerAssets}
@@ -1008,7 +1003,6 @@ async function createComponentTreeInternal(
 
     // For layouts we just render the component
     return [
-      actualSegment,
       wrappedSegmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,

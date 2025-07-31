@@ -360,6 +360,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
  * Returns a function that parses the dynamic segment and return the associated value.
  */
 function makeGetDynamicParamFromSegment(
+  isClientSegmentCacheEnabled: boolean,
   params: { [key: string]: any },
   pagePath: string,
   fallbackRouteParams: FallbackRouteParams | null
@@ -375,6 +376,7 @@ function makeGetDynamicParamFromSegment(
     const segmentKey = segmentParam.param
     const dynamicParamType = dynamicParamTypes[segmentParam.type]
     return getDynamicParam(
+      isClientSegmentCacheEnabled,
       params,
       segmentKey,
       dynamicParamType,
@@ -1271,7 +1273,6 @@ async function getErrorRSCPayload(
   // For metadata notFound error there's no global not found boundary on top
   // so we create a not found page with AppRouter
   const seedData: CacheNodeSeedData = [
-    initialTree[0],
     <html id="__next_error__">
       <head></head>
       <body>
@@ -1660,6 +1661,7 @@ async function renderToHTMLOrFlightImpl(
   const params = renderOpts.params ?? {}
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
+    renderOpts.experimental.clientSegmentCache !== false,
     params,
     pagePath,
     fallbackRouteParams

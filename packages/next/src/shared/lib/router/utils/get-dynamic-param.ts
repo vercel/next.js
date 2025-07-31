@@ -14,6 +14,7 @@ import type { FallbackRouteParams } from '../../../../server/request/fallback-pa
  * and optional is, alas, unfortunate.
  */
 export function getDynamicParam(
+  isClientSegmentCacheEnabled: boolean,
   params: { [key: string]: any },
   segmentKey: string,
   dynamicParamType: DynamicParamTypesShort,
@@ -42,7 +43,13 @@ export function getDynamicParam(
           param: segmentKey,
           value: null,
           type: dynamicParamType,
-          treeSegment: [segmentKey, '', dynamicParamType],
+          treeSegment: [
+            segmentKey,
+            // When Segment Cache is enabled, we don't send down a cache key
+            // TODO: Remove this field entirely once Segment Cache lands.
+            '',
+            dynamicParamType,
+          ],
         }
       }
 
@@ -65,7 +72,13 @@ export function getDynamicParam(
         value,
         type: dynamicParamType,
         // This value always has to be a string.
-        treeSegment: [segmentKey, value.join('/'), dynamicParamType],
+        treeSegment: [
+          segmentKey,
+          // When Segment Cache is enabled, we don't send down a cache key
+          // TODO: Remove this field entirely once Segment Cache lands.
+          isClientSegmentCacheEnabled ? '' : value.join('/'),
+          dynamicParamType,
+        ],
       }
     }
   }
@@ -77,7 +90,13 @@ export function getDynamicParam(
     // The value that is rendered in the router tree.
     treeSegment: [
       segmentKey,
-      Array.isArray(value) ? value.join('/') : value,
+      // When Segment Cache is enabled, we don't send down a cache key
+      // TODO: Remove this field entirely once Segment Cache lands.
+      isClientSegmentCacheEnabled
+        ? ''
+        : Array.isArray(value)
+          ? value.join('/')
+          : value,
       dynamicParamType,
     ],
     type: dynamicParamType,

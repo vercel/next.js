@@ -332,7 +332,7 @@ function readRenderSnapshotFromCache(
       null,
       tree.isRootLayout,
     ],
-    seedData: [segment, rsc, childSeedDatas, loading, isPartial],
+    seedData: [rsc, childSeedDatas, loading, isPartial],
   }
 }
 

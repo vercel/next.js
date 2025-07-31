@@ -5,7 +5,6 @@ import type {
   PreloadCallbacks,
   Segment,
 } from './types'
-import { matchSegment } from '../../client/components/match-segments'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
@@ -13,7 +12,7 @@ import {
   createFlightRouterStateFromLoaderTree,
   createRouteTreePrefetch,
 } from './create-flight-router-state-from-loader-tree'
-import type { AppRenderContext } from './app-render'
+import type { AppRenderContext, DynamicParam } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import {
   DEFAULT_SEGMENT_KEY,
@@ -105,7 +104,11 @@ export async function walkTreeWithFlightRouterState({
     // No further router state available
     !flightRouterState ||
     // Segment in router state does not match current segment
-    !matchSegment(actualSegment, flightRouterState[0]) ||
+    (segmentParam === null
+      ? // Common case: This is not a parameterized segment. Compare strings.
+        actualSegment !== flightRouterState[0]
+      : // This segment has a param. Compare both the param name and value.
+        !doesSegmentParamMatch(segmentParam, flightRouterState[0])) ||
     // Last item in the tree
     parallelRoutesKeys.length === 0 ||
     // Explicit refresh
@@ -329,4 +332,26 @@ const canSegmentBeOverridden = (
   }
 
   return getSegmentParam(existingSegment)?.param === segment[0]
+}
+
+function doesSegmentParamMatch(
+  serverSegmentParam: DynamicParam,
+  clientSegment: Segment
+): boolean {
+  if (typeof clientSegment === 'string') {
+    // The segment sent by the client does not contain a route param.
+    return false
+  }
+  const clientParamName = clientSegment[0]
+  if (clientParamName !== serverSegmentParam.param) {
+    // The name of the param does not match.
+    return false
+  }
+  // Compare the value of the param. If the value is an array, the client
+  // concatenates the values, so we must do the same to compare.
+  const clientParamKey = clientSegment[1]
+  const serverParamKey = Array.isArray(serverSegmentParam.value)
+    ? serverSegmentParam.value.join('/')
+    : serverSegmentParam.value
+  return clientParamKey === serverParamKey
 }

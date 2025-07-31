@@ -11,6 +11,8 @@ import {
 import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
+import type { NormalizedSearch } from '../segment-cache'
+import { urlToUrlWithoutFlightMarker } from '../../route-params'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
@@ -50,12 +52,16 @@ export function createInitialRouterState({
   //
   // Instead, we'll perform a HEAD request and read the rewritten URL from
   // that response.
-  const renderedPathname = new URL(initialCanonicalUrl, 'http://localhost')
-    .pathname
+  const renderedUrl = urlToUrlWithoutFlightMarker(
+    new URL(initialCanonicalUrl, 'http://localhost')
+  )
+  const renderedPathname = renderedUrl.pathname
+  const renderedSearch = renderedUrl.search as NormalizedSearch
 
   const normalizedFlightData = getFlightDataPartsFromPath(
     initialFlightData[0],
-    renderedPathname
+    renderedPathname,
+    renderedSearch
   )
   const {
     tree: initialTree,
@@ -64,8 +70,8 @@ export function createInitialRouterState({
   } = normalizedFlightData
   // For the SSR render, seed data should always be available (we only send back a `null` response
   // in the case of a `loading` segment, pre-PPR.)
-  const rsc = initialSeedData?.[1]
-  const loading = initialSeedData?.[3] ?? null
+  const rsc = initialSeedData?.[0]
+  const loading = initialSeedData?.[2] ?? null
 
   const cache: CacheNode = {
     lazyData: null,

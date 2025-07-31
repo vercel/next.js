@@ -130,7 +130,7 @@ function updateCacheNodeOnNavigation(
   // Diff the old and new trees to reuse the shared layouts.
   const oldRouterStateChildren = oldRouterState[1]
   const newRouterStateChildren = newRouterState[1]
-  const prefetchDataChildren = prefetchData !== null ? prefetchData[2] : null
+  const prefetchDataChildren = prefetchData !== null ? prefetchData[1] : null
 
   if (!didFindRootLayout) {
     // We're currently traversing the part of the tree that was also part of
@@ -522,14 +522,14 @@ function createCacheNodeOnNavigation(
     // There's no existing CacheNode for this segment, but we do have prefetch
     // data. If the prefetch data is fully static (i.e. does not contain any
     // dynamic holes), we don't need to request it from the server.
-    rsc = prefetchData[1]
-    loading = prefetchData[3]
+    rsc = prefetchData[0]
+    loading = prefetchData[2]
     head = isLeafSegment ? possiblyPartialPrefetchHead : null
     // Even though we're accessing the data from the prefetch cache, this is
     // conceptually a new segment, not a reused one. So we should update the
     // navigatedAt timestamp.
     cacheNodeNavigatedAt = navigatedAt
-    const isPrefetchRscPartial = prefetchData[4]
+    const isPrefetchRscPartial = prefetchData[3]
     if (
       // Check if the segment data is partial
       isPrefetchRscPartial ||
@@ -570,7 +570,7 @@ function createCacheNodeOnNavigation(
   // We already have a full segment we can render, so we don't need to request a
   // new one from the server. Keep traversing down the tree until we reach
   // something that requires a dynamic request.
-  const prefetchDataChildren = prefetchData !== null ? prefetchData[2] : null
+  const prefetchDataChildren = prefetchData !== null ? prefetchData[1] : null
   const taskChildren = new Map()
   const existingCacheNodeChildren =
     existingCacheNode !== undefined ? existingCacheNode.parallelRoutes : null
@@ -881,7 +881,7 @@ function finishTaskUsingDynamicDataPayload(
   // The server returned more data than we need to finish the task. Skip over
   // the extra segments until we reach the leaf task node.
   const serverChildren = serverRouterState[1]
-  const dynamicDataChildren = dynamicData[2]
+  const dynamicDataChildren = dynamicData[1]
 
   for (const parallelRouteKey in serverRouterState) {
     const serverRouterStateChild: FlightRouterState =
@@ -923,7 +923,7 @@ function createPendingCacheNode(
   scrollableSegmentsResult: Array<FlightSegmentPath>
 ): ReadyCacheNode {
   const routerStateChildren = routerState[1]
-  const prefetchDataChildren = prefetchData !== null ? prefetchData[2] : null
+  const prefetchDataChildren = prefetchData !== null ? prefetchData[1] : null
 
   const parallelRoutes = new Map()
   for (let parallelRouteKey in routerStateChildren) {
@@ -970,8 +970,8 @@ function createPendingCacheNode(
     scrollableSegmentsResult.push(segmentPath)
   }
 
-  const maybePrefetchRsc = prefetchData !== null ? prefetchData[1] : null
-  const maybePrefetchLoading = prefetchData !== null ? prefetchData[3] : null
+  const maybePrefetchRsc = prefetchData !== null ? prefetchData[0] : null
+  const maybePrefetchLoading = prefetchData !== null ? prefetchData[2] : null
   return {
     lazyData: null,
     parallelRoutes: parallelRoutes,
@@ -1012,7 +1012,7 @@ function finishPendingCacheNode(
   // data promise to `null` to trigger a lazy fetch during render.
   const taskStateChildren = taskState[1]
   const serverStateChildren = serverState[1]
-  const dataChildren = dynamicData[2]
+  const dataChildren = dynamicData[1]
 
   // The router state that we traverse the tree with (taskState) is the same one
   // that we used to construct the pending Cache Node tree. That way we're sure
@@ -1072,7 +1072,7 @@ function finishPendingCacheNode(
   // Use the dynamic data from the server to fulfill the deferred RSC promise
   // on the Cache Node.
   const rsc = cacheNode.rsc
-  const dynamicSegmentData = dynamicData[1]
+  const dynamicSegmentData = dynamicData[0]
   if (rsc === null) {
     // This is a lazy cache node. We can overwrite it. This is only safe
     // because we know that the LayoutRouter suspends if `rsc` is `null`.
