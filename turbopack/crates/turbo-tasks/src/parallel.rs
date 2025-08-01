@@ -28,7 +28,7 @@ fn good_chunk_size(len: usize) -> usize {
     static GOOD_CHUNK_COUNT: LazyLock<usize> =
         LazyLock::new(|| available_parallelism().map_or(16, |c| c.get() * 4));
     let min_chunk_count = *GOOD_CHUNK_COUNT;
-    (len + min_chunk_count - 1) / min_chunk_count
+    len.div_ceil(min_chunk_count)
 }
 
 /// Context to allow spawning a task with a limited lifetime.
