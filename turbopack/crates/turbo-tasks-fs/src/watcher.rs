@@ -5,7 +5,7 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     sync::{
-        Arc, LazyLock,
+        Arc, LazyLock, RwLock, RwLockWriteGuard,
         mpsc::{Receiver, TryRecvError, channel},
     },
     time::Duration,
@@ -16,7 +16,6 @@ use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
-use parking_lot::{RwLock, RwLockWriteGuard};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
@@ -92,8 +91,8 @@ impl State {
 
     fn write(&self) -> StateWriteGuard<'_> {
         match self {
-            Self::Recursive(state) => StateWriteGuard::Recursive(state.write()),
-            Self::NonRecursive(state) => StateWriteGuard::NonRecursive(state.write()),
+            Self::Recursive(state) => StateWriteGuard::Recursive(state.write().unwrap()),
+            Self::NonRecursive(state) => StateWriteGuard::NonRecursive(state.write().unwrap()),
         }
     }
 }
@@ -152,7 +151,7 @@ mod non_recursive_helpers {
 
     /// Called after a rescan in case a previously watched-but-deleted directory was recreated.
     pub fn restore_all_watched_ignore_errors(state: &RwLock<NonRecursiveState>, root_path: &Path) {
-        let mut guard = state.write();
+        let mut guard = state.write().unwrap();
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
             return;
         };
@@ -182,7 +181,7 @@ mod non_recursive_helpers {
 
         // fast path: the directory isn't in `watched`, only take a read lock and bail out early
         {
-            let guard = state.read();
+            let guard = state.read().unwrap();
             let NonRecursiveState::Watching(watching_state) = &*guard else {
                 return Ok(());
             };
@@ -192,7 +191,7 @@ mod non_recursive_helpers {
         }
 
         // slow path: re-watch the path
-        let mut guard = state.write();
+        let mut guard = state.write().unwrap();
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
             return Ok(());
         };
@@ -226,7 +225,7 @@ mod non_recursive_helpers {
         // fast path: the directory is already in `watched`, only take a read lock and bail out
         // early
         {
-            let guard = state.read();
+            let guard = state.read().unwrap();
             let NonRecursiveState::Watching(watching_state) = &*guard else {
                 return Ok(());
             };
@@ -236,7 +235,7 @@ mod non_recursive_helpers {
         }
 
         // slow path: watch the path
-        let mut guard = state.write();
+        let mut guard = state.write().unwrap();
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
             return Ok(());
         };
@@ -445,8 +444,8 @@ impl DiskWatcher {
 
     pub fn stop_watching(&self) {
         match &self.state {
-            State::Recursive(state) => *state.write() = RecursiveState::Stopped,
-            State::NonRecursive(state) => *state.write() = NonRecursiveState::Stopped,
+            State::Recursive(state) => *state.write().unwrap() = RecursiveState::Stopped,
+            State::NonRecursive(state) => *state.write().unwrap() = NonRecursiveState::Stopped,
         }
         // thread will detect the stop because the channel is disconnected when `NotifyWatcher` is
         // dropped
