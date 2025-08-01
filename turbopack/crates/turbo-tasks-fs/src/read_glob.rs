@@ -224,11 +224,7 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
-                "temp".into(),
-                path,
-                Vec::new(),
-            ));
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new("temp".into(), path));
             let read_dir = fs
                 .root()
                 .await?
@@ -298,11 +294,7 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
-                "temp".into(),
-                path,
-                Vec::new(),
-            ));
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new("temp".into(), path));
             let read_dir = fs
                 .root()
                 .await?
@@ -383,11 +375,7 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
-                "temp".into(),
-                path,
-                Vec::new(),
-            ));
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new("temp".into(), path));
             let dir = fs.root().await?.join("dir")?;
             let read_dir = track_star_star_glob(dir.clone())
                 .read_strongly_consistent()
@@ -457,11 +445,7 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
-                "temp".into(),
-                path,
-                Vec::new(),
-            ));
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new("temp".into(), path));
             let err = fs
                 .root()
                 .await?
@@ -517,11 +501,7 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
-                "temp".into(),
-                path,
-                Vec::new(),
-            ));
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new("temp".into(), path));
             let err = fs
                 .root()
                 .await?

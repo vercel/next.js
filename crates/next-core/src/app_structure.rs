@@ -923,21 +923,53 @@ async fn directory_tree_to_loader_tree(
 ///   set.
 /// * `file_path` - The file path to the default page if neither the current module nor the parent
 ///   module is set.
+/// * `is_first_layer_group_route` - If true, the module will be overridden with the parent module
+///   if it is not set.
 async fn check_and_update_module_references(
     app_dir: FileSystemPath,
     module: &mut Option<FileSystemPath>,
     parent_module: &mut Option<FileSystemPath>,
     file_path: &str,
+    is_first_layer_group_route: bool,
 ) -> Result<()> {
     match (module.as_mut(), parent_module.as_mut()) {
+        // If the module is set, update the parent module to the same value
         (Some(module), _) => *parent_module = Some(module.clone()),
-        (None, Some(parent_module)) => *module = Some(parent_module.clone()),
+        // If we are in a first layer group route and we have a parent module, we want to override
+        // a nonexistent module with the parent module
+        (None, Some(parent_module)) if is_first_layer_group_route => {
+            *module = Some(parent_module.clone())
+        }
+        // If we are not in a first layer group route, and the module is not set, and the parent
+        // module is set, we do nothing
+        (None, Some(_)) => {}
+        // If the module is not set, and the parent module is not set, we override with the default
+        // page. This can only happen in the root directory because after this the parent module
+        // will always be set.
         (None, None) => {
-            let default_page = get_next_package(app_dir.clone()).await?.join(file_path)?;
-
+            let default_page = get_next_package(app_dir).await?.join(file_path)?;
             *module = Some(default_page.clone());
             *parent_module = Some(default_page);
         }
+    }
+
+    Ok(())
+}
+
+/// Checks if the current directory is the root directory and if the module is not set.
+/// If the module is not set, it will be set to the default page.
+///
+/// # Arguments
+/// * `app_dir` - The application directory.
+/// * `module` - The module to check and update if it is not set.
+/// * `file_path` - The file path to the default page if the module is not set.
+async fn check_and_update_global_module_references(
+    app_dir: FileSystemPath,
+    module: &mut Option<FileSystemPath>,
+    file_path: &str,
+) -> Result<()> {
+    if module.is_none() {
+        *module = Some(get_next_package(app_dir).await?.join(file_path)?);
     }
 
     Ok(())
@@ -967,16 +999,19 @@ async fn directory_tree_to_loader_tree_internal(
 
     // the root directory in the app dir.
     let is_root_directory = app_page.is_root();
-    // an alternative root layout (in a route group which affects the page, but not
-    // the path).
-    let is_root_layout = app_path.is_root() && modules.layout.is_some();
 
-    if is_root_directory || is_root_layout {
+    // If the first layer is a group route, we treat it as root layer
+    let is_first_layer_group_route = app_page.is_first_layer_group_route();
+
+    // Handle the non-global modules that should always be overridden for top level groups or set to
+    // the default page if they are not set.
+    if is_root_directory || is_first_layer_group_route {
         check_and_update_module_references(
             app_dir.clone(),
             &mut modules.not_found,
             &mut parent_modules.not_found,
             "dist/client/components/builtin/not-found.js",
+            is_first_layer_group_route,
         )
         .await?;
 
@@ -985,6 +1020,7 @@ async fn directory_tree_to_loader_tree_internal(
             &mut modules.forbidden,
             &mut parent_modules.forbidden,
             "dist/client/components/builtin/forbidden.js",
+            is_first_layer_group_route,
         )
         .await?;
 
@@ -993,13 +1029,15 @@ async fn directory_tree_to_loader_tree_internal(
             &mut modules.unauthorized,
             &mut parent_modules.unauthorized,
             "dist/client/components/builtin/unauthorized.js",
+            is_first_layer_group_route,
         )
         .await?;
+    }
 
-        check_and_update_module_references(
+    if is_root_directory {
+        check_and_update_global_module_references(
             app_dir.clone(),
             &mut modules.global_error,
-            &mut parent_modules.global_error,
             "dist/client/components/builtin/global-error.js",
         )
         .await?;

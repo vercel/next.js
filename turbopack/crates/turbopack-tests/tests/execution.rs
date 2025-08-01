@@ -281,8 +281,8 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         resource_path.to_str().unwrap()
     );
 
-    let root_fs = DiskFileSystem::new(rcstr!("workspace"), REPO_ROOT.clone(), vec![]);
-    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone(), vec![]);
+    let root_fs = DiskFileSystem::new(rcstr!("workspace"), REPO_ROOT.clone());
+    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone());
     let project_root = project_fs.root().owned().await?;
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(

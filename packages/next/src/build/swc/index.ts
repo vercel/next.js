@@ -19,8 +19,6 @@ import { isDeepStrictEqual } from 'util'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
-  NapiModuleGraphSnapshot,
-  NapiModuleGraphSnapshots,
   NapiPartialProjectOptions,
   NapiProjectOptions,
   NapiSourceDiagnostic,
@@ -671,14 +669,6 @@ function bindingToApi(
       return napiEntrypointsToRawEntrypoints(napiEndpoints)
     }
 
-    async getEntrypoints() {
-      const napiEndpoints = (await binding.projectEntrypoints(
-        this._nativeProject
-      )) as TurbopackResult<NapiEntrypoints>
-
-      return napiEntrypointsToRawEntrypoints(napiEndpoints)
-    }
-
     entrypointsSubscribe() {
       const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
         false,
@@ -752,12 +742,6 @@ function bindingToApi(
       )
     }
 
-    moduleGraph(): Promise<TurbopackResult<NapiModuleGraphSnapshot>> {
-      return binding.projectModuleGraph(this._nativeProject) as Promise<
-        TurbopackResult<NapiModuleGraphSnapshot>
-      >
-    }
-
     invalidatePersistentCache(): Promise<void> {
       return binding.projectInvalidatePersistentCache(this._nativeProject)
     }
@@ -808,12 +792,6 @@ function bindingToApi(
       )
       await serverSubscription.next()
       return serverSubscription
-    }
-
-    async moduleGraphs(): Promise<TurbopackResult<NapiModuleGraphSnapshots>> {
-      return binding.endpointModuleGraphs(this._nativeEndpoint) as Promise<
-        TurbopackResult<NapiModuleGraphSnapshots>
-      >
     }
   }
 

@@ -24,6 +24,7 @@ function hasFallbackRouteParams(): boolean {
         return fallbackParams ? fallbackParams.size > 0 : false
       case 'prerender-legacy':
       case 'request':
+      case 'prerender-runtime':
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':

@@ -10,14 +10,14 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use dashmap::DashSet;
 use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
@@ -29,8 +29,8 @@ use turbo_tasks::{
 use crate::{
     DiskFileSystemInner, format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
-    invalidator_map::WriteContent,
-    path_to_key,
+    invalidator_map::LockedInvalidatorMap,
+    path_map::OrderedPathMapExt,
 };
 
 static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
@@ -78,12 +78,6 @@ impl DiskWatcherInternal {
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct DiskWatcher {
-    /// Array of paths that should not notify invalidations.
-    /// `notify` currently doesn't support unwatching subpaths from the root,
-    /// so underlying we still watches filesystem event but only skips to
-    /// invalidate.
-    ignored_subpaths: Vec<PathBuf>,
-
     #[serde(skip)]
     internal: Mutex<Option<DiskWatcherInternal>>,
 
@@ -94,7 +88,6 @@ pub(crate) struct DiskWatcher {
 impl Default for DiskWatcher {
     fn default() -> Self {
         Self {
-            ignored_subpaths: Vec::new(),
             internal: Mutex::new(None),
             non_recursive_state: NonRecursiveDiskWatcherState::try_new(),
         }
@@ -105,6 +98,11 @@ impl Default for DiskWatcher {
 /// [`RecursiveMode::NonRecursive`] (default on Linux).
 pub(crate) struct NonRecursiveDiskWatcherState {
     /// Keeps track of which directories are currently (or were previously) watched.
+    ///
+    /// Invariants:
+    /// - Never contains `root_path`. A watcher for `root_path` is implicitly set up during
+    ///   [`DiskWatcher::start_watching`].
+    /// - Contains all parent directories up to `root_path` for every entry.
     watching: DashSet<PathBuf>,
 }
 
@@ -127,28 +125,31 @@ impl NonRecursiveDiskWatcherState {
         }
     }
 
-    /// Called when a new directory is found in a parent directory we're watching.
+    /// Called when a new directory is found in a parent directory we're watching. Restores the
+    /// watcher if we were previously watching it.
     pub(crate) fn restore_if_watching(
         &self,
         watcher: &DiskWatcher,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        if self.watching.contains(dir_path) {
-            let mut internal = watcher.internal.lock().unwrap();
-            // TODO: Also restore any watchers for children of this directory
-            self.start_watching_dir(&mut internal, dir_path, root_path)?;
+        if dir_path == root_path || !self.watching.contains(dir_path) {
+            return Ok(());
         }
-        Ok(())
+        let mut internal = watcher.internal.lock().unwrap();
+        // TODO: Also restore any watchers for children of this directory
+        self.start_watching_dir(&mut internal, dir_path, root_path)
     }
 
+    /// Called when a file in `dir_path` or `dir_path` itself is read or written. Adds a new watcher
+    /// if we're not already watching the directory.
     pub(crate) fn ensure_watching(
         &self,
         watcher: &DiskWatcher,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        if self.watching.contains(dir_path) {
+        if dir_path == root_path || self.watching.contains(dir_path) {
             return Ok(());
         }
         let mut internal = watcher.internal.lock().unwrap();
@@ -165,52 +166,55 @@ impl NonRecursiveDiskWatcherState {
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        if let Some(watcher_internal_guard) = watcher_internal_guard.as_mut() {
-            let mut path = dir_path;
-            let err_with_context = |err| {
-                return Err(err).context(format!(
-                    "Unable to watch {} (tried up to {})",
-                    dir_path.display(),
-                    path.display()
-                ));
-            };
-            while let Err(err) = watcher_internal_guard.watch(path, RecursiveMode::NonRecursive) {
-                match err {
-                    notify::Error {
-                        kind: notify::ErrorKind::PathNotFound,
-                        ..
-                    } => {
-                        // The path was probably deleted before we could process the event. That's
-                        // okay, just make sure we're watching the parent directory, so we can know
-                        // if it gets recreated.
-                        let Some(parent_path) = path.parent() else {
-                            // this should never happen as we break before we reach the root path
-                            return err_with_context(err);
-                        };
-                        if parent_path == root_path {
-                            // assume there's already a root watcher
-                            break;
-                        }
-                        if !self.watching.insert(parent_path.to_owned()) {
-                            // we're already watching the parent path!
-                            break;
-                        }
-                        path = parent_path;
+        debug_assert_ne!(dir_path, root_path);
+        let Some(watcher_internal_guard) = watcher_internal_guard.as_mut() else {
+            return Ok(());
+        };
+
+        let mut path = dir_path;
+        let err_with_context = |err: anyhow::Error| {
+            return Err(err).context(format!(
+                "Unable to watch {} (tried up to {})",
+                dir_path.display(),
+                path.display()
+            ));
+        };
+
+        // watch every parent: https://docs.rs/notify/latest/notify/#parent-folder-deletion
+        loop {
+            match watcher_internal_guard.watch(path, RecursiveMode::NonRecursive) {
+                res @ Ok(())
+                | res @ Err(notify::Error {
+                    // The path was probably deleted before we could process the event. That's
+                    // okay, just make sure we're watching the parent directory, so we can know
+                    // if it gets recreated.
+                    kind: notify::ErrorKind::PathNotFound,
+                    ..
+                }) => {
+                    let Some(parent_path) = path.parent() else {
+                        // this should never happen as we break before we reach the root path
+                        return err_with_context(res.err().map_or_else(
+                            || anyhow!("failed to compute parent path"),
+                            |err| err.into(),
+                        ));
+                    };
+                    if parent_path == root_path || !self.watching.insert(parent_path.to_path_buf())
+                    {
+                        break;
                     }
-                    _ => return err_with_context(err),
+                    path = parent_path;
                 }
+                Err(err) => return err_with_context(err.into()),
             }
         }
+
         Ok(())
     }
 }
 
 impl DiskWatcher {
-    pub(crate) fn new(ignored_subpaths: Vec<PathBuf>) -> Self {
-        Self {
-            ignored_subpaths,
-            ..Default::default()
-        }
+    pub(crate) fn new() -> Self {
+        Default::default()
     }
 
     /// Create a watcher and start watching by creating `debounced` watcher
@@ -256,6 +260,7 @@ impl DiskWatcher {
         };
 
         if let Some(non_recursive) = &self.non_recursive_state {
+            internal.watch(fs_inner.root_path(), RecursiveMode::NonRecursive)?;
             for dir_path in non_recursive.watching.iter() {
                 internal.watch(&dir_path, RecursiveMode::NonRecursive)?;
             }
@@ -279,7 +284,8 @@ impl DiskWatcher {
                     let _span = span.clone().entered();
                     let reason = WatchStart {
                         name: fs_inner.name.clone(),
-                        path: path.into(),
+                        // this path is just used for display purposes
+                        path: RcStr::from(path.to_string_lossy()),
                     };
                     invalidators
                         .into_par_iter()
@@ -374,7 +380,8 @@ impl DiskWatcher {
 
                             if report_invalidation_reason {
                                 inner.invalidate_with_reason(|path| InvalidateRescan {
-                                    path: RcStr::from(path),
+                                    // this path is just used for display purposes
+                                    path: RcStr::from(path.to_string_lossy()),
                                 });
                             } else {
                                 inner.invalidate();
@@ -390,18 +397,7 @@ impl DiskWatcher {
                             break;
                         }
 
-                        let paths: Vec<PathBuf> = event
-                            .paths
-                            .iter()
-                            .filter(|p| {
-                                !self
-                                    .ignored_subpaths
-                                    .iter()
-                                    .any(|ignored| p.starts_with(ignored))
-                            })
-                            .cloned()
-                            .collect();
-
+                        let paths: Vec<PathBuf> = event.paths;
                         if paths.is_empty() {
                             // this event isn't useful, but keep trying to process the batch
                             event_result = rx.try_recv();
@@ -601,12 +597,11 @@ fn invalidate(
 fn invalidate_path(
     inner: &DiskFileSystemInner,
     report_invalidation_reason: bool,
-    invalidator_map: &mut FxHashMap<String, FxHashMap<Invalidator, Option<WriteContent>>>,
+    invalidator_map: &mut LockedInvalidatorMap,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
-        let key = path_to_key(&path);
-        if let Some(invalidators) = invalidator_map.remove(&key) {
+        if let Some(invalidators) = invalidator_map.remove(&path) {
             invalidators
                 .into_iter()
                 .for_each(|(i, _)| invalidate(inner, report_invalidation_reason, &path, i));
@@ -617,12 +612,11 @@ fn invalidate_path(
 fn invalidate_path_and_children_execute(
     inner: &DiskFileSystemInner,
     report_invalidation_reason: bool,
-    invalidator_map: &mut FxHashMap<String, FxHashMap<Invalidator, Option<WriteContent>>>,
+    invalidator_map: &mut LockedInvalidatorMap,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
-        let path_key = path_to_key(&path);
-        for (_, invalidators) in invalidator_map.extract_if(|key, _| key.starts_with(&path_key)) {
+        for (_, invalidators) in invalidator_map.extract_path_with_children(&path) {
             invalidators
                 .into_iter()
                 .for_each(|(i, _)| invalidate(inner, report_invalidation_reason, &path, i));

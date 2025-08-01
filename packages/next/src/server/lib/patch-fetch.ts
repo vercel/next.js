@@ -370,6 +370,7 @@ export function createPatchedFetcher(
         if (workUnitStore) {
           switch (workUnitStore.type) {
             case 'prerender':
+            case 'prerender-runtime':
             // TODO: Stop accumulating tags in client prerender. (fallthrough)
             case 'prerender-client':
             case 'prerender-ppr':
@@ -412,6 +413,7 @@ export function createPatchedFetcher(
               break
             case 'prerender':
             case 'prerender-client':
+            case 'prerender-runtime':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':
@@ -552,6 +554,7 @@ export function createPatchedFetcher(
         if (hasNoExplicitCacheConfig && workUnitStore !== undefined) {
           switch (workUnitStore.type) {
             case 'prerender':
+            case 'prerender-runtime':
             // While we don't want to do caching in the client scope we know the
             // fetch will be dynamic for cacheComponents so we may as well avoid the
             // call here. (fallthrough)
@@ -668,6 +671,7 @@ export function createPatchedFetcher(
               switch (workUnitStore.type) {
                 case 'prerender':
                 case 'prerender-client':
+                case 'prerender-runtime':
                   if (cacheSignal) {
                     cacheSignal.endRead()
                     cacheSignal = null
@@ -721,6 +725,7 @@ export function createPatchedFetcher(
               break
             case 'prerender':
             case 'prerender-client':
+            case 'prerender-runtime':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
@@ -840,6 +845,7 @@ export function createPatchedFetcher(
                 switch (workUnitStore?.type) {
                   case 'prerender':
                   case 'prerender-client':
+                  case 'prerender-runtime':
                     return createCachedPrerenderResponse(
                       res,
                       cacheKey,
@@ -912,6 +918,7 @@ export function createPatchedFetcher(
               switch (workUnitStore.type) {
                 case 'prerender':
                 case 'prerender-client':
+                case 'prerender-runtime':
                   // We sometimes use the cache to dedupe fetches that do not
                   // specify a cache configuration. In these cases we want to
                   // make sure we still exclude them from prerenders if
@@ -1013,6 +1020,7 @@ export function createPatchedFetcher(
               switch (workUnitStore.type) {
                 case 'prerender':
                 case 'prerender-client':
+                case 'prerender-runtime':
                   if (cacheSignal) {
                     cacheSignal.endRead()
                     cacheSignal = null
@@ -1052,6 +1060,7 @@ export function createPatchedFetcher(
                 switch (workUnitStore.type) {
                   case 'prerender':
                   case 'prerender-client':
+                  case 'prerender-runtime':
                     return makeHangingPromise<Response>(
                       workUnitStore.renderSignal,
                       'fetch()'

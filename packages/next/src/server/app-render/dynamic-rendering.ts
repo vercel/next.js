@@ -230,6 +230,7 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
       // A private cache scope is already dynamic by definition.
       return
     case 'prerender':
+    case 'prerender-runtime':
     case 'prerender-legacy':
     case 'prerender-ppr':
     case 'prerender-client':
@@ -333,6 +334,21 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   throw createPrerenderInterruptedError(
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
   )
+}
+
+/**
+ * Use this function when dynamically prerendering with dynamicIO.
+ * We don't want to error, because it's better to return something
+ * (and we've already aborted the render at the point where the sync dynamic error occured),
+ * but we should log an error server-side.
+ * @internal
+ */
+export function warnOnSyncDynamicError(dynamicTracking: DynamicTrackingState) {
+  if (dynamicTracking.syncDynamicErrorWithStack) {
+    // the server did something sync dynamic, likely
+    // leading to an early termination of the prerender.
+    console.error(dynamicTracking.syncDynamicErrorWithStack)
+  }
 }
 
 // For now these implementations are the same so we just reexport
@@ -519,6 +535,7 @@ export function createHangingInputAbortSignal(
 ): AbortSignal | undefined {
   switch (workUnitStore.type) {
     case 'prerender':
+    case 'prerender-runtime':
       const controller = new AbortController()
 
       if (workUnitStore.cacheSignal) {
@@ -599,6 +616,10 @@ export function useDynamicRouteParams(expression: string) {
         }
         break
       }
+      case 'prerender-runtime':
+        throw new InvariantError(
+          `\`${expression}\` was called during a runtime prerender. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+        )
       case 'cache':
       case 'private-cache':
         throw new InvariantError(

@@ -163,10 +163,19 @@ export function createRouterAct(
               const originalResponse = await page.request.fetch(request, {
                 maxRedirects: 0,
               })
+
+              // WORKAROUND:
+              // intercepting responses with 'Transfer-Encoding: chunked' (used for streaming)
+              // seems to be problematic sometimes, making the browser error with `net::ERR_INCOMPLETE_CHUNKED_ENCODING`.
+              // In particular, this seems to happen when blocking a streaming navigation response. (but not always)
+              // Playwright buffers the whole body anyway, so we can remove the header to sidestep this.
+              const headers = originalResponse.headers()
+              delete headers['transfer-encoding']
+
               resolve({
                 text: await originalResponse.text(),
                 body: await originalResponse.body(),
-                headers: originalResponse.headers(),
+                headers,
                 status: originalResponse.status(),
               })
             }),

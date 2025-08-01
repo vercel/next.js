@@ -2015,16 +2015,26 @@ export default abstract class Server<
     ) {
       const headers = req.headers
 
-      const isPrefetchRSCRequest =
-        headers[NEXT_ROUTER_PREFETCH_HEADER] ||
-        getRequestMeta(req, 'isPrefetchRSCRequest')
+      const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
+      const routerPrefetch =
+        prefetchHeaderValue !== undefined
+          ? // We only recognize '1' and '2'. Strip all other values here.
+            prefetchHeaderValue === '1' || prefetchHeaderValue === '2'
+            ? prefetchHeaderValue
+            : undefined
+          : // For runtime prefetches, we always perform a dynamic request,
+            // so we don't expect the header to be stripped by an intermediate layer.
+            // This should only happen for static prefetches, so we only handle those here.
+            getRequestMeta(req, 'isPrefetchRSCRequest')
+            ? '1'
+            : undefined
 
       const segmentPrefetchRSCRequest =
         headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] ||
         getRequestMeta(req, 'segmentPrefetchRSCRequest')
 
       const expectedHash = computeCacheBustingSearchParam(
-        isPrefetchRSCRequest ? '1' : '0',
+        routerPrefetch,
         segmentPrefetchRSCRequest,
         headers[NEXT_ROUTER_STATE_TREE_HEADER],
         headers[NEXT_URL]

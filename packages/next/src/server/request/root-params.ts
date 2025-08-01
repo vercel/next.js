@@ -9,9 +9,9 @@ import {
 } from '../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
-  type PrerenderStore,
   type PrerenderStoreLegacy,
   type PrerenderStorePPR,
+  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { FallbackRouteParams } from './fallback-params'
@@ -56,6 +56,7 @@ export async function unstable_rootParams(): Promise<Params> {
         workUnitStore
       )
     case 'private-cache':
+    case 'prerender-runtime':
     case 'request':
       return Promise.resolve(workUnitStore.rootParams)
     default:
@@ -66,7 +67,7 @@ export async function unstable_rootParams(): Promise<Params> {
 function createPrerenderRootParams(
   underlyingParams: Params,
   workStore: WorkStore,
-  prerenderStore: PrerenderStore
+  prerenderStore: StaticPrerenderStore
 ): Promise<Params> {
   switch (prerenderStore.type) {
     case 'prerender-client': {
@@ -245,6 +246,7 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       )
     }
     case 'private-cache':
+    case 'prerender-runtime':
     case 'request': {
       break
     }
@@ -258,7 +260,7 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
 function createPrerenderRootParamPromise(
   paramName: string,
   workStore: WorkStore,
-  prerenderStore: PrerenderStore,
+  prerenderStore: StaticPrerenderStore,
   apiName: string
 ): Promise<ParamValue> {
   switch (prerenderStore.type) {

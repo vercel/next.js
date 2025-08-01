@@ -10,10 +10,10 @@ import {
 
 import {
   workUnitAsyncStorage,
-  type PrerenderStore,
   type PrerenderStorePPR,
   type PrerenderStoreLegacy,
-  type PrerenderStoreModern,
+  type StaticPrerenderStoreModern,
+  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -74,6 +74,10 @@ export function createParamsFromClient(
         throw new InvariantError(
           'createParamsFromClient should not be called in cache contexts.'
         )
+      case 'prerender-runtime':
+        throw new InvariantError(
+          'createParamsFromClient should not be called in a runtime prerender.'
+        )
       case 'request':
         break
       default:
@@ -106,6 +110,7 @@ export function createServerParamsForRoute(
         throw new InvariantError(
           'createServerParamsForRoute should not be called in cache contexts.'
         )
+      case 'prerender-runtime':
       case 'request':
         break
       default:
@@ -133,6 +138,7 @@ export function createServerParamsForServerSegment(
         throw new InvariantError(
           'createServerParamsForServerSegment should not be called in cache contexts.'
         )
+      case 'prerender-runtime':
       case 'request':
         break
       default:
@@ -171,6 +177,7 @@ export function createPrerenderParamsForClientSegment(
         )
       case 'prerender-ppr':
       case 'prerender-legacy':
+      case 'prerender-runtime':
       case 'request':
         break
       default:
@@ -186,7 +193,7 @@ export function createPrerenderParamsForClientSegment(
 function createPrerenderParams(
   underlyingParams: Params,
   workStore: WorkStore,
-  prerenderStore: PrerenderStore
+  prerenderStore: StaticPrerenderStore
 ): Promise<Params> {
   switch (prerenderStore.type) {
     case 'prerender':
@@ -291,7 +298,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
 
 function makeHangingParams(
   underlyingParams: Params,
-  prerenderStore: PrerenderStoreModern
+  prerenderStore: StaticPrerenderStoreModern
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -578,6 +585,7 @@ function syncIODev(
         break
       case 'prerender':
       case 'prerender-client':
+      case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':
