@@ -111,11 +111,13 @@ export async function collectBuildTraces({
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
         distDir,
-        'next-server.js.nft.json'
+        isTurbopack ? 'next-server.ref.js.nft.json' : 'next-server.js.nft.json'
       )
       const nextMinimalTraceOutput = path.join(
         distDir,
-        'next-minimal-server.js.nft.json'
+        isTurbopack
+          ? 'next-minimal-server.ref.js.nft.json'
+          : 'next-minimal-server.js.nft.json'
       )
       const root = outputFileTracingRoot
 
