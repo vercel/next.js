@@ -5,7 +5,6 @@ import {
 } from '../../../shared/lib/router/utils/route-regex'
 import type { NextConfigComplete } from '../../config-shared'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
-import { mkdir } from 'fs/promises'
 import fs from 'fs'
 import { generateRouteTypesFile } from './typegen'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'

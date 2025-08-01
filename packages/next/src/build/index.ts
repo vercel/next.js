@@ -210,7 +210,6 @@ import {
   sortPages,
   sortSortableRouteObjects,
 } from '../shared/lib/router/utils/sortable-routes'
-import { mkdir } from 'fs/promises'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -1561,6 +1560,11 @@ export default async function build(
           } satisfies RoutesManifest
         })
 
+      // For pages directory, we run type checking after route collection but before build.
+      if (!appDir && !isCompileMode) {
+        await startTypeChecking(typeCheckingOptions)
+      }
+
       let clientRouterFilters:
         | undefined
         | ReturnType<typeof createClientRouterFilter>
@@ -1629,11 +1633,6 @@ export default async function build(
         throw new Error(
           'The "parallelServerBuildTraces" and "parallelServerCompiles" options may only be used when build workers can be used. Read more: https://nextjs.org/docs/messages/parallel-build-without-worker'
         )
-      }
-
-      // For pages directory, we run type checking after route collection but before build.
-      if (!appDir && !isCompileMode) {
-        await startTypeChecking(typeCheckingOptions)
       }
 
       Log.info('Creating an optimized production build ...')
