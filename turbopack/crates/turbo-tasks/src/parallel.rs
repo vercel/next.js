@@ -17,7 +17,10 @@ use tokio::{
 };
 use tracing::{Instrument, Span};
 
-use crate::{TurboTasksApi, turbo_tasks, turbo_tasks_scope};
+use crate::{
+    TurboTasksApi,
+    manager::{try_turbo_tasks, turbo_tasks_try_scope},
+};
 
 /// Calculates a good chunk size for parallel processing based on the number of available threads.
 /// This is used to ensure that the workload is evenly distributed across the threads.
@@ -37,7 +40,7 @@ struct ProcessInParallelContext<'l, R: Send + 'l> {
     results: Box<[Option<R>]>,
     index: usize,
     handle: Handle,
-    turbo_tasks: Arc<dyn TurboTasksApi>,
+    turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
     phantom: std::marker::PhantomData<&'l ()>,
 }
@@ -52,7 +55,7 @@ impl<'l, R: Send + 'l> ProcessInParallelContext<'l, R> {
             results: results.into_boxed_slice(),
             index: 0,
             handle: Handle::current(),
-            turbo_tasks: turbo_tasks(),
+            turbo_tasks: try_turbo_tasks(),
             span: Span::current(),
             phantom: std::marker::PhantomData,
         }
@@ -93,7 +96,7 @@ impl<'l, R: Send + 'l> ProcessInParallelContext<'l, R> {
         let turbo_tasks = self.turbo_tasks.clone();
         let span = self.span.clone();
         self.handle.spawn(async move {
-            turbo_tasks_scope(turbo_tasks, || {
+            turbo_tasks_try_scope(turbo_tasks, || {
                 let _guard = span.entered();
                 f();
             })

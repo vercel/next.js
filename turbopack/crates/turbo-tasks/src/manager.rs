@@ -1680,12 +1680,24 @@ pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
     TURBO_TASKS.with(|arc| arc.clone())
 }
 
+pub fn try_turbo_tasks() -> Option<Arc<dyn TurboTasksApi>> {
+    TURBO_TASKS.try_with(|arc| arc.clone()).ok()
+}
+
 pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T {
     TURBO_TASKS.with(|arc| func(arc))
 }
 
 pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -> T {
     TURBO_TASKS.sync_scope(tt, f)
+}
+
+pub fn turbo_tasks_try_scope<T>(tt: Option<Arc<dyn TurboTasksApi>>, f: impl FnOnce() -> T) -> T {
+    if let Some(tt) = tt {
+        TURBO_TASKS.sync_scope(tt, f)
+    } else {
+        f()
+    }
 }
 
 pub fn turbo_tasks_future_scope<T>(
