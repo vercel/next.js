@@ -670,12 +670,13 @@ async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleAssetContext>> {
     let resolve_options = ResolveOptionsContext {
+        enable_node_native_modules: true,
         emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         custom_conditions: match ty {
-            ExternalType::CommonJs => vec![rcstr!("require")],
-            ExternalType::EcmaScriptModule => vec![rcstr!("import")],
-            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![],
+            ExternalType::CommonJs => vec![rcstr!("require"), rcstr!("node")],
+            ExternalType::EcmaScriptModule => vec![rcstr!("import"), rcstr!("node")],
+            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![rcstr!("node")],
         },
         ..Default::default()
     };
@@ -688,11 +689,13 @@ async fn externals_tracing_module_context(
         // are actually representative of what Turbopack does.
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_types: true,
                 source_maps: SourceMapsType::None,
                 ..Default::default()
             },
             css: CssOptionsContext {
                 source_maps: SourceMapsType::None,
+                enable_raw_css: true,
                 ..Default::default()
             },
             // Environment is not passed in order to avoid downleveling JS / CSS for
