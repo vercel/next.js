@@ -206,7 +206,7 @@ export async function writeRouteTypesManifest(
   const dirname = path.dirname(filePath)
 
   if (!fs.existsSync(dirname)) {
-    await mkdir(dirname, { recursive: true })
+    await fs.promises.mkdir(dirname, { recursive: true })
   }
 
   await fs.promises.writeFile(filePath, generateRouteTypesFile(manifest))
