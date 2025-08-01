@@ -29,60 +29,107 @@ fn good_chunk_size(len: usize) -> usize {
 }
 
 /// Context to allow spawning a task with a limited lifetime.
-struct ProcessInParallelContext<'l> {
+///
+/// ## Safety
+///
+/// This context must not be dropped before all tasks spawned with it have been awaited.
+struct ProcessInParallelContext<'l, R: Send + 'l> {
+    results: Box<[Option<R>]>,
+    index: usize,
     handle: Handle,
     turbo_tasks: Arc<dyn TurboTasksApi>,
     span: Span,
     phantom: std::marker::PhantomData<&'l ()>,
 }
 
-impl<'l> ProcessInParallelContext<'l> {
-    fn task<R, F>(&self, f: F) -> JoinHandle<R>
+impl<'l, R: Send + 'l> ProcessInParallelContext<'l, R> {
+    fn new(len: usize) -> Self {
+        let mut results = Vec::with_capacity(len);
+        for _ in 0..len {
+            results.push(None);
+        }
+        Self {
+            results: results.into_boxed_slice(),
+            index: 0,
+            handle: Handle::current(),
+            turbo_tasks: turbo_tasks(),
+            span: Span::current(),
+            phantom: std::marker::PhantomData,
+        }
+    }
+
+    fn task<F>(&mut self, f: F) -> JoinHandle<()>
     where
-        R: Send + 'static,
         F: FnOnce() -> R + Send + 'l,
     {
-        let f: Box<dyn FnOnce() -> R + Send + 'l> = Box::new(f);
-        let f: Box<dyn FnOnce() -> R + Send + 'static> = unsafe {
-            transmute::<Box<dyn FnOnce() -> R + Send + 'l>, Box<dyn FnOnce() -> R + Send + 'static>>(
-                f,
-            )
+        struct SendablePtr<T>(*mut Option<T>);
+        unsafe impl<T: Send> Send for SendablePtr<T> {}
+        unsafe impl<T: Sync> Sync for SendablePtr<T> {}
+        impl<T> SendablePtr<T> {
+            fn new(reference: &mut Option<T>) -> Self {
+                SendablePtr(reference as *mut Option<T>)
+            }
+
+            unsafe fn get_mut(&mut self) -> &mut Option<T> {
+                // SAFETY: This is a valid pointer, as we got this pointer from a reference.
+                unsafe { &mut *self.0 }
+            }
+        }
+
+        let mut result_cell = SendablePtr::new(&mut self.results[self.index]);
+        self.index += 1;
+
+        let f: Box<dyn FnOnce() + Send + 'l> = Box::new(move || {
+            let result = f();
+            // SAFETY: This is a valid pointer, as we got this pointer from a reference.
+            let result_cell = unsafe { result_cell.get_mut() };
+            *result_cell = Some(result);
+        });
+        // SAFETY: In `process_in_parallel` we ensure that the spawned tasks is awaited before the
+        // lifetime `'l` ends.
+        let f: Box<dyn FnOnce() + Send + 'static> = unsafe {
+            transmute::<Box<dyn FnOnce() + Send + 'l>, Box<dyn FnOnce() + Send + 'static>>(f)
         };
         let turbo_tasks = self.turbo_tasks.clone();
         let span = self.span.clone();
         self.handle.spawn(async move {
             turbo_tasks_scope(turbo_tasks, || {
                 let _guard = span.entered();
-                f()
+                f();
             })
         })
+    }
+
+    /// Converts the context into a vector of results
+    ///
+    /// ## Safety
+    ///
+    /// The caller must ensure that all tasks have been awaited before calling this method.
+    unsafe fn into_results(self) -> Vec<Option<R>> {
+        self.results.into_vec()
     }
 }
 
 /// Helper method to spawn tasks in parallel, ensuring that all tasks are awaited and errors are
 /// handled. Also ensures turbo tasks and tracing context are maintained across the tasks.
-fn process_in_parallel<'l, I, R, F>(inner: I, mut result: F)
+///
+/// ## Safety
+///
+/// The caller must ensure that all references in `inner` are valid for the lifetime `'l`.
+unsafe fn process_in_parallel<'l, I, R>(len: usize, inner: I) -> Vec<Option<R>>
 where
-    R: 'l,
-    I: FnOnce(&ProcessInParallelContext<'l>) -> Vec<JoinHandle<R>> + 'l,
-    F: FnMut(R) + 'l,
+    R: Send + 'l,
+    I: FnOnce(&mut ProcessInParallelContext<'l, R>) -> Vec<JoinHandle<()>> + 'l,
 {
-    let context = ProcessInParallelContext {
-        handle: Handle::current(),
-        turbo_tasks: turbo_tasks(),
-        span: Span::current(),
-        phantom: std::marker::PhantomData,
-    };
-    let tasks = inner(&context);
+    let mut process_context = ProcessInParallelContext::new(len);
+    let tasks = inner(&mut process_context);
     block_in_place(|| {
-        context.handle.block_on(
+        process_context.handle.block_on(
             async {
                 let mut first_err = None;
                 for task in tasks {
                     match task.await {
-                        Ok(r) => {
-                            result(r);
-                        }
+                        Ok(()) => {}
                         Err(err) if first_err.is_none() => {
                             // SAFETY: We need to finish all tasks before panicking.
                             first_err = Some(err);
@@ -96,9 +143,11 @@ where
                     panic::resume_unwind(err.into_panic());
                 }
             }
-            .instrument(context.span.clone()),
+            .instrument(process_context.span.clone()),
         );
     });
+    // SAFETY: We ensure that all tasks have been awaited before calling this method.
+    unsafe { process_context.into_results() }
 }
 
 pub fn for_each<'l, T, F>(items: &'l [T], f: F)
@@ -112,8 +161,10 @@ where
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
-    process_in_parallel(
-        |ctx| {
+    // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
+    // function.
+    unsafe {
+        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
             items
                 .chunks(chunk_size)
                 .map(|chunk| {
@@ -124,11 +175,11 @@ where
                     })
                 })
                 .collect::<Vec<_>>()
-        },
-        |_| {},
-    );
-    // SAFETY: Ensure reference is kept until here
+        })
+    };
+    // SAFETY: Ensure references are kept until here
     let _ = items;
+    let _ = f;
 }
 
 pub fn into_for_each<T>(items: Vec<T>, f: impl Fn(T) + Send + Sync)
@@ -141,24 +192,31 @@ where
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
+    // SAFETY: transmuting to ManuallyDrop is always safe. We just need to make sure to not leak
+    // memory.
     let mut items = unsafe { transmute::<Vec<T>, Vec<ManuallyDrop<T>>>(items) };
-    process_in_parallel(
-        |ctx| {
+    // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
+    // function.
+    unsafe {
+        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
             items
                 .chunks_mut(chunk_size)
                 .map(|chunk| {
                     ctx.task(move || {
-                        for item in chunk {
-                            let item = unsafe { ManuallyDrop::take(item) };
+                        // SAFETY: Even when f() panics we drop all items in the chunk.
+                        for item in MapEvenWhenDropped::new(chunk.iter_mut(), |item| {
+                            ManuallyDrop::take(item)
+                        }) {
                             f(item);
                         }
                     })
                 })
                 .collect::<Vec<_>>()
-        },
-        |_| {},
-    );
+        })
+    };
+    // SAFETY: Ensure references are kept until here
     drop(items);
+    let _ = f;
 }
 
 pub fn try_for_each<'l, T, E>(
@@ -175,9 +233,10 @@ where
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
-    let mut result = Ok(());
-    process_in_parallel(
-        |ctx| {
+    // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
+    // function.
+    let results = unsafe {
+        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
             items
                 .chunks(chunk_size)
                 .map(|chunk| {
@@ -189,17 +248,12 @@ where
                     })
                 })
                 .collect::<Vec<_>>()
-        },
-        |r| {
-            if let Err(e) = r {
-                if result.is_ok() {
-                    result = Err(e);
-                }
-            }
-        },
-    );
-    // SAFETY: Ensure reference is kept until here
+        })
+    };
+    let result = results.into_iter().flatten().collect::<Result<(), E>>();
+    // SAFETY: Ensure references are kept until here
     let _ = items;
+    let _ = f;
     result
 }
 
@@ -217,9 +271,10 @@ where
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
-    let mut result = Ok(());
-    process_in_parallel(
-        |ctx| {
+    // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
+    // function.
+    let results = unsafe {
+        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
             items
                 .chunks_mut(chunk_size)
                 .map(|chunk| {
@@ -231,17 +286,12 @@ where
                     })
                 })
                 .collect::<Vec<_>>()
-        },
-        |r| {
-            if let Err(e) = r {
-                if result.is_ok() {
-                    result = Err(e);
-                }
-            }
-        },
-    );
-    // SAFETY: Ensure reference is kept until here
+        })
+    };
+    let result = results.into_iter().flatten().collect::<Result<(), E>>();
+    // SAFETY: Ensure references are kept until here
     let _ = items;
+    let _ = f;
     result
 }
 
@@ -259,40 +309,40 @@ where
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
-    let mut result = Ok(());
+    // SAFETY: transmuting to ManuallyDrop is always safe. We just need to make sure to not leak
+    // memory.
     let mut items = unsafe { transmute::<Vec<T>, Vec<ManuallyDrop<T>>>(items) };
-    process_in_parallel(
-        |ctx| {
+    // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
+    // function.
+    let results = unsafe {
+        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
             items
                 .chunks_mut(chunk_size)
                 .map(|chunk| {
                     ctx.task(move || {
-                        for item in chunk {
-                            let item = unsafe { ManuallyDrop::take(item) };
+                        // SAFETY: Even when f() panics we drop all items in the chunk.
+                        for item in MapEvenWhenDropped::new(chunk.iter_mut(), |item| {
+                            ManuallyDrop::take(item)
+                        }) {
                             f(item)?;
                         }
                         Ok(())
                     })
                 })
                 .collect::<Vec<_>>()
-        },
-        |r| {
-            if let Err(e) = r {
-                if result.is_ok() {
-                    result = Err(e);
-                }
-            }
-        },
-    );
-    // SAFETY: Ensure reference is kept until here
+        })
+    };
+    let result = results.into_iter().flatten().collect::<Result<(), E>>();
+    // SAFETY: Ensure references are kept until here
     let _ = items;
+    let _ = f;
     result
 }
 
 pub fn map_collect<'l, T, I, R>(items: &'l [T], f: impl Fn(&'l T) -> I + Send + Sync) -> R
 where
     T: Sync,
-    I: Send + Sync,
+    I: Send + Sync + 'l,
     R: FromIterator<I>,
 {
     let len = items.len();
@@ -301,27 +351,21 @@ where
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
-    let mut result = Vec::with_capacity(items.len().div_ceil(chunk_size));
-    process_in_parallel(
-        |ctx| {
+    // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
+    // function.
+    let results = unsafe {
+        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
             items
                 .chunks(chunk_size)
-                .map(|chunk| {
-                    ctx.task(move || {
-                        let vec = chunk.iter().map(f).collect::<Vec<_>>();
-                        unsafe { transmute::<Vec<I>, Vec<()>>(vec) }
-                    })
-                })
+                .map(|chunk| ctx.task(move || chunk.iter().map(f).collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
-        },
-        |r| {
-            let r: Vec<I> = unsafe { transmute::<Vec<()>, Vec<I>>(r) };
-            result.push(r)
-        },
-    );
-    // SAFETY: Ensure reference is kept until here
+        })
+    };
+    let result = results.into_iter().flatten().flatten().collect();
+    // SAFETY: Ensure references are kept until here
     let _ = items;
-    result.into_iter().flatten().collect::<R>()
+    let _ = f;
+    result
 }
 
 pub fn into_map_collect<'l, T, I, R>(items: Vec<T>, f: impl Fn(T) -> I + Send + Sync) -> R
@@ -337,31 +381,74 @@ where
     let chunk_size = good_chunk_size(len);
     let f = &f;
     let mut items = unsafe { transmute::<Vec<T>, Vec<ManuallyDrop<T>>>(items) };
-    let mut result = Vec::with_capacity(items.len().div_ceil(chunk_size));
-    process_in_parallel(
-        |ctx| {
+    // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
+    // function.
+    let results = unsafe {
+        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
             items
                 .chunks_mut(chunk_size)
                 .map(|chunk| {
                     ctx.task(move || {
-                        let vec = chunk
-                            .iter_mut()
-                            .map(|item| {
-                                let item = unsafe { ManuallyDrop::take(item) };
-                                f(item)
-                            })
-                            .collect::<Vec<_>>();
-                        unsafe { transmute::<Vec<I>, Vec<()>>(vec) }
+                        // SAFETY: Even when f() panics we drop all items in the chunk.
+                        MapEvenWhenDropped::new(chunk.iter_mut(), |item| ManuallyDrop::take(item))
+                            .map(f)
+                            .collect::<Vec<_>>()
                     })
                 })
                 .collect::<Vec<_>>()
-        },
-        |r| {
-            let r: Vec<I> = unsafe { transmute::<Vec<()>, Vec<I>>(r) };
-            result.push(r);
-        },
-    );
-    // SAFETY: Ensure reference is kept until here
+        })
+    };
+    let result = results.into_iter().flatten().flatten().collect();
+    // SAFETY: Ensure references are kept until here
     let _ = items;
-    result.into_iter().flatten().collect::<R>()
+    let _ = f;
+    result
+}
+
+struct MapEvenWhenDropped<I, B, F>
+where
+    I: Iterator,
+    F: FnMut(I::Item) -> B,
+{
+    iter: I,
+    f: F,
+}
+
+impl<I, B, F> MapEvenWhenDropped<I, B, F>
+where
+    I: Iterator,
+    F: FnMut(I::Item) -> B,
+{
+    fn new(iter: I, f: F) -> Self {
+        Self { iter, f }
+    }
+}
+
+impl<I, B, F> Iterator for MapEvenWhenDropped<I, B, F>
+where
+    I: Iterator,
+    F: FnMut(I::Item) -> B,
+{
+    type Item = B;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(&mut self.f)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+impl<I, B, F> Drop for MapEvenWhenDropped<I, B, F>
+where
+    I: Iterator,
+    F: FnMut(I::Item) -> B,
+{
+    fn drop(&mut self) {
+        // Ensure that the mapping function is called even when the iterator is dropped.
+        for item in &mut self.iter {
+            drop((self.f)(item));
+        }
+    }
 }

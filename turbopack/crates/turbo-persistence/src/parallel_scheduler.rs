@@ -37,7 +37,7 @@ pub trait ParallelScheduler: Clone + Sync + Send {
     ) -> R
     where
         T: Sync,
-        I: Send + Sync,
+        I: Send + Sync + 'l,
         R: FromIterator<I>;
 
     fn into_parallel_map_collect<T, I, R>(
@@ -116,7 +116,7 @@ impl ParallelScheduler for SerialScheduler {
     ) -> R
     where
         T: Sync,
-        I: Send + Sync,
+        I: Send + Sync + 'l,
         R: FromIterator<I>,
     {
         items.iter().map(f).collect()

@@ -55,7 +55,7 @@ impl ParallelScheduler for TurboTasksParallelScheduler {
     ) -> R
     where
         T: Sync,
-        I: Send + Sync,
+        I: Send + Sync + 'l,
         R: FromIterator<I>,
     {
         parallel::map_collect(items, f)
