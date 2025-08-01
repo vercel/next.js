@@ -1305,7 +1305,7 @@ export default async function build(
         .traceChild('generate-route-types')
         .traceAsyncFn(async () => {
           const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
-          await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+          await fs.mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
           const pageRoutes: Array<{ route: string; filePath: string }> = []
           const appRoutes: Array<{ route: string; filePath: string }> = []
