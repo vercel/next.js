@@ -16,7 +16,8 @@
           describe: "test-unversioned",
           dirty: false,
         },
-        false
+        false,
+        true,
       ).unwrap().0
     )
   )

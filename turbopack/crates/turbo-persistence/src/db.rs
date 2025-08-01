@@ -1,5 +1,4 @@
 use std::{
-    any::{Any, TypeId},
     borrow::Cow,
     collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
@@ -117,9 +116,6 @@ pub struct TurboPersistence {
     read_only: bool,
     /// The inner state of the database. Writing will update that.
     inner: RwLock<Inner>,
-    /// A cache for the last WriteBatch. It is used to avoid reallocation of buffers for the
-    /// WriteBatch.
-    idle_write_batch: Mutex<Option<(TypeId, Box<dyn Any + Send + Sync>)>>,
     /// A flag to indicate if a write operation is currently active. Prevents multiple concurrent
     /// write operations.
     active_write_operation: AtomicBool,
@@ -161,7 +157,6 @@ impl TurboPersistence {
                 meta_files: Vec::new(),
                 current_sequence_number: 0,
             }),
-            idle_write_batch: Mutex::new(None),
             active_write_operation: AtomicBool::new(false),
             aqmf_cache: AqmfCache::with(
                 AQMF_CACHE_SIZE as usize / AQMF_AVG_SIZE,
@@ -418,13 +413,6 @@ impl TurboPersistence {
             );
         }
         let current = self.inner.read().current_sequence_number;
-        if let Some((ty, any)) = self.idle_write_batch.lock().take()
-            && ty == TypeId::of::<WriteBatch<K, FAMILIES>>()
-        {
-            let mut write_batch = *any.downcast::<WriteBatch<K, FAMILIES>>().unwrap();
-            write_batch.reset(current);
-            return Ok(write_batch);
-        }
         Ok(WriteBatch::new(self.path.clone(), current))
     }
 
@@ -466,10 +454,6 @@ impl TurboPersistence {
             keys_written,
         })?;
         self.active_write_operation.store(false, Ordering::Release);
-        self.idle_write_batch.lock().replace((
-            TypeId::of::<WriteBatch<K, FAMILIES>>(),
-            Box::new(write_batch),
-        ));
         Ok(())
     }
 
@@ -803,15 +787,27 @@ impl TurboPersistence {
             keys_written: u64,
         }
 
+        let mut compact_config = compact_config.clone();
+        let merge_jobs = sst_by_family
+            .iter()
+            .map(|ssts_with_ranges| {
+                if compact_config.max_merge_segment_count == 0 {
+                    return Vec::new();
+                }
+                let merge_jobs = get_merge_segments(ssts_with_ranges, &compact_config);
+                compact_config.max_merge_segment_count -= merge_jobs.len();
+                merge_jobs
+            })
+            .collect::<Vec<_>>();
+
         let result = sst_by_family
             .into_par_iter()
+            .zip(merge_jobs.into_par_iter())
             .with_min_len(1)
             .enumerate()
-            .map(|(family, ssts_with_ranges)| {
+            .map(|(family, (ssts_with_ranges, merge_jobs))| {
                 let family = family as u32;
                 let _span = span.clone().entered();
-
-                let merge_jobs = get_merge_segments(&ssts_with_ranges, compact_config);
 
                 if merge_jobs.is_empty() {
                     return Ok(PartialResultPerFamily {

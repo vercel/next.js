@@ -82,10 +82,6 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     /// The list of new SST files that have been created.
     /// Tuple of (sequence number, file).
     new_sst_files: Mutex<Vec<(u32, File)>>,
-    /// Collectors that are currently unused, but have memory preallocated.
-    idle_collectors: Mutex<Vec<Collector<K>>>,
-    /// Collectors that are currently unused, but have memory preallocated.
-    idle_thread_local_collectors: Mutex<Vec<Collector<K, THREAD_LOCAL_SIZE_SHIFT>>>,
 }
 
 impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
@@ -102,16 +98,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 .map(|_| Mutex::new(GlobalCollectorState::Unsharded(Collector::new()))),
             meta_collectors: [(); FAMILIES].map(|_| Mutex::new(Vec::new())),
             new_sst_files: Mutex::new(Vec::new()),
-            idle_collectors: Mutex::new(Vec::new()),
-            idle_thread_local_collectors: Mutex::new(Vec::new()),
         }
-    }
-
-    /// Resets the write batch to a new sequence number. This is called when the WriteBatch is
-    /// reused.
-    pub(crate) fn reset(&mut self, current: u32) {
-        self.current_sequence_number
-            .store(current, Ordering::SeqCst);
     }
 
     /// Returns the thread local state for the current thread.
@@ -134,12 +121,8 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         family: u32,
     ) -> Result<&'l mut Collector<K, THREAD_LOCAL_SIZE_SHIFT>> {
         debug_assert!(usize_from_u32(family) < FAMILIES);
-        let collector = state.collectors[usize_from_u32(family)].get_or_insert_with(|| {
-            self.idle_thread_local_collectors
-                .lock()
-                .pop()
-                .unwrap_or_else(|| Collector::new())
-        });
+        let collector =
+            state.collectors[usize_from_u32(family)].get_or_insert_with(|| Collector::new());
         if collector.is_full() {
             self.flush_thread_local_collector(family, collector)?;
         }
@@ -172,7 +155,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                             for collector in shards.iter_mut() {
                                 if collector.is_full() {
                                     full_collectors
-                                        .push(replace(&mut *collector, self.get_new_collector()));
+                                        .push(replace(&mut *collector, Collector::new()));
                                 }
                             }
                             *global_collector_state = GlobalCollectorState::Sharded(shards);
@@ -183,8 +166,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                         let collector = &mut shards[shard];
                         collector.add_entry(entry);
                         if collector.is_full() {
-                            full_collectors
-                                .push(replace(&mut *collector, self.get_new_collector()));
+                            full_collectors.push(replace(&mut *collector, Collector::new()));
                         }
                     }
                 }
@@ -193,26 +175,10 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         for mut global_collector in full_collectors {
             // When the global collector is full, we create a new SST file.
             let sst = self.create_sst_file(family, global_collector.sorted())?;
-            global_collector.clear();
             self.new_sst_files.lock().push(sst);
-            self.dispose_collector(global_collector);
+            drop(global_collector);
         }
         Ok(())
-    }
-
-    fn get_new_collector(&self) -> Collector<K> {
-        self.idle_collectors
-            .lock()
-            .pop()
-            .unwrap_or_else(|| Collector::new())
-    }
-
-    fn dispose_collector(&self, collector: Collector<K>) {
-        self.idle_collectors.lock().push(collector);
-    }
-
-    fn dispose_thread_local_collector(&self, collector: Collector<K, THREAD_LOCAL_SIZE_SHIFT>) {
-        self.idle_thread_local_collectors.lock().push(collector);
     }
 
     /// Puts a key-value pair into the write batch.
@@ -261,7 +227,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         collectors.into_par_iter().try_for_each(|mut collector| {
             let _span = span.clone().entered();
             self.flush_thread_local_collector(family, &mut collector)?;
-            self.dispose_thread_local_collector(collector);
+            drop(collector);
             anyhow::Ok(())
         })?;
 
@@ -278,7 +244,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             GlobalCollectorState::Sharded(_) => {
                 let GlobalCollectorState::Sharded(shards) = replace(
                     &mut *collector_state,
-                    GlobalCollectorState::Unsharded(self.get_new_collector()),
+                    GlobalCollectorState::Unsharded(Collector::new()),
                 ) else {
                     unreachable!();
                 };
@@ -288,7 +254,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                         let sst = self.create_sst_file(family, collector.sorted())?;
                         collector.clear();
                         self.new_sst_files.lock().push(sst);
-                        self.dispose_collector(collector);
+                        drop(collector);
                     }
                     anyhow::Ok(())
                 })?;
@@ -332,7 +298,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                         {
                             *shared_error.lock() = Err(err);
                         }
-                        this.dispose_thread_local_collector(collector);
+                        drop(collector);
                     });
                 }
             }
@@ -344,8 +310,8 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let mut new_sst_files = take(self.new_sst_files.get_mut());
         let shared_new_sst_files = Mutex::new(&mut new_sst_files);
 
-        let new_collectors = [(); FAMILIES]
-            .map(|_| Mutex::new(GlobalCollectorState::Unsharded(self.get_new_collector())));
+        let new_collectors =
+            [(); FAMILIES].map(|_| Mutex::new(GlobalCollectorState::Unsharded(Collector::new())));
         let collectors = replace(&mut self.collectors, new_collectors);
         let span = Span::current();
         collectors
@@ -370,7 +336,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 if !collector.is_empty() {
                     let sst = self.create_sst_file(family, collector.sorted())?;
                     collector.clear();
-                    self.dispose_collector(collector);
+                    drop(collector);
                     shared_new_sst_files.lock().push(sst);
                 }
                 anyhow::Ok(())

@@ -37,7 +37,10 @@ fn package_import_map_from_import_mapping(
     package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
-    import_map.insert_exact_alias(format!("@vercel/turbopack/{package_name}"), package_mapping);
+    import_map.insert_exact_alias(
+        RcStr::from(format!("@vercel/turbopack/{package_name}")),
+        package_mapping,
+    );
     import_map.cell()
 }
 
@@ -48,7 +51,7 @@ fn package_import_map_from_context(
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
-        format!("@vercel/turbopack/{package_name}"),
+        RcStr::from(format!("@vercel/turbopack/{package_name}")),
         ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
     import_map.cell()
@@ -181,8 +184,8 @@ impl ModuleOptions {
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
             transforms.push(EcmascriptInputTransform::GlobalTypeofs {
                 window_value: match enable_typeof_window_inlining {
-                    TypeofWindow::Object => "object".to_string(),
-                    TypeofWindow::Undefined => "undefined".to_string(),
+                    TypeofWindow::Object => rcstr!("object"),
+                    TypeofWindow::Undefined => rcstr!("undefined"),
                 },
             });
         }
@@ -461,7 +464,7 @@ impl ModuleOptions {
                     .context("execution_context is required for the postcss_transform")?;
 
                 let import_map = if let Some(postcss_package) = options.postcss_package {
-                    package_import_map_from_import_mapping("postcss".into(), *postcss_package)
+                    package_import_map_from_import_mapping(rcstr!("postcss"), *postcss_package)
                 } else {
                     package_import_map_from_context(
                         rcstr!("postcss"),
@@ -618,12 +621,12 @@ impl ModuleOptions {
                 webpack_loaders_options.loader_runner_package
             {
                 package_import_map_from_import_mapping(
-                    "loader-runner".into(),
+                    rcstr!("loader-runner"),
                     *loader_runner_package,
                 )
             } else {
                 package_import_map_from_context(
-                    "loader-runner".into(),
+                    rcstr!("loader-runner"),
                     path.context("need_path in ModuleOptions::new is incorrect")?,
                 )
             };

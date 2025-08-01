@@ -91,6 +91,7 @@ export async function turbopackBuild(): Promise<{
       memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
       isCi: isCI,
+      isShortSession: true,
     }
   )
   try {

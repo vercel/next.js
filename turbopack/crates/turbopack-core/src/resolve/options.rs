@@ -335,7 +335,8 @@ impl ImportMap {
         prefix: impl Into<RcStr> + 'a,
         mapping: ResolvedVc<ImportMapping>,
     ) {
-        self.map.insert(AliasPattern::wildcard(prefix, ""), mapping);
+        self.map
+            .insert(AliasPattern::wildcard(prefix, rcstr!("")), mapping);
     }
 
     /// Inserts a wildcard alias with suffix into the import map.

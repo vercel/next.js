@@ -105,7 +105,7 @@ pub async fn pathname_for_path(
     };
     let path = match (path_ty, path) {
         // "/" is special-cased to "/index" for data routes.
-        (PathType::Data, "") => "/index".into(),
+        (PathType::Data, "") => rcstr!("/index"),
         // `get_path_to` always strips the leading `/` from the path, so we need to add
         // it back here.
         (_, path) => format!("/{path}").into(),
@@ -141,7 +141,7 @@ pub async fn get_transpiled_packages(
 
     let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
-        "dist/lib/default-transpiled-packages.json".into(),
+        rcstr!("dist/lib/default-transpiled-packages.json"),
     )
     .await?;
 
@@ -280,8 +280,10 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "Next.js can't recognize the exported `config` field in route"
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -553,7 +555,7 @@ pub async fn parse_config_from_source(
                             if let Expr::Lit(Lit::Str(str_value)) = &**init {
                                 let mut config = NextSourceConfig::default();
 
-                                let runtime = str_value.value.to_string();
+                                let runtime = &str_value.value;
                                 match runtime.as_str() {
                                     "edge" | "experimental-edge" => {
                                         config.runtime = NextRuntime::Edge;
