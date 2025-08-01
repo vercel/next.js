@@ -64,7 +64,7 @@ static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct DiskWatcher {
-    #[serde(skip, default = "State::new_pending")]
+    #[serde(skip, default = "State::new_stopped")]
     state: State,
 }
 
@@ -81,13 +81,11 @@ enum StateWriteGuard<'a> {
 }
 
 impl State {
-    fn new_pending() -> Self {
+    fn new_stopped() -> Self {
         match *WATCH_RECURSIVE_MODE {
-            RecursiveMode::Recursive => Self::Recursive(RwLock::new(RecursiveState::Pending)),
+            RecursiveMode::Recursive => Self::Recursive(RwLock::new(RecursiveState::Stopped)),
             RecursiveMode::NonRecursive => {
-                Self::NonRecursive(RwLock::new(NonRecursiveState::Pending {
-                    ensure_watched: BTreeSet::default(),
-                }))
+                Self::NonRecursive(RwLock::new(NonRecursiveState::Stopped))
             }
         }
     }
@@ -103,26 +101,21 @@ impl State {
 /// Used by when [`WATCH_RECURSIVE_MODE`] is [`RecursiveMode::Recursive`] (default on macOS and
 /// Windows).
 enum RecursiveState {
-    /// [`DiskWatcher::start_watching`] hasn't been called yet.
-    Pending,
+    /// Used when [`DiskWatcher::start_watching`] hasn't been called yet or after
+    /// [`DiskWatcher::stop_watching`] is called.
+    Stopped,
     Watching {
         /// Hold onto the watcher: When this is dropped, it will cause the channel to disconnect
         _notify_watcher: NotifyWatcher,
     },
-    /// Used after [`DiskWatcher::stop_watching`] is called.
-    Stopped,
 }
 
 /// Used by when [`WATCH_RECURSIVE_MODE`] is [`RecursiveMode::NonRecursive`] (default on Linux).
 enum NonRecursiveState {
-    /// [`DiskWatcher::start_watching`] hasn't been called yet.
-    Pending {
-        /// Used to queue paths to watch when [`DiskWatcher::start_watching`] is called.
-        ensure_watched: BTreeSet<PathBuf>,
-    },
-    Watching(NonRecursiveWatchingState),
-    /// Used after [`DiskWatcher::stop_watching`] is called.
+    /// Used when [`DiskWatcher::start_watching`] hasn't been called yet or after
+    /// [`DiskWatcher::stop_watching`] is called.
     Stopped,
+    Watching(NonRecursiveWatchingState),
 }
 
 // split out from the `NonRecursiveState` enum because we want to pass this value around
@@ -161,7 +154,6 @@ mod non_recursive_helpers {
     pub fn restore_all_watched_ignore_errors(state: &RwLock<NonRecursiveState>, root_path: &Path) {
         let mut guard = state.write();
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
-            debug_assert!(matches!(&*guard, NonRecursiveState::Stopped));
             return;
         };
         for dir_path in watching_state.watched.iter() {
@@ -172,21 +164,6 @@ mod non_recursive_helpers {
             // `self.watched` while iterating over it (write lock overlapping with a read lock).
             let _ = start_watching_dir(&mut watching_state.notify_watcher, dir_path, root_path);
         }
-    }
-
-    /// Called when transitioning from [`NonRecursiveState::Pending`] to
-    /// [`NonRecursiveState::Watching`].
-    ///
-    /// This variant of the function is "reentrant" because it assumes you've already acquired the
-    /// lock.
-    pub fn restore_all_watched_reentrant(
-        watching_state: &mut NonRecursiveWatchingState,
-        root_path: &Path,
-    ) -> Result<()> {
-        for dir_path in watching_state.watched.iter() {
-            start_watching_dir(&mut watching_state.notify_watcher, dir_path, root_path)?;
-        }
-        Ok(())
     }
 
     /// Called when a new directory is found in a parent directory we're watching. Restores the
@@ -207,7 +184,6 @@ mod non_recursive_helpers {
         {
             let guard = state.read();
             let NonRecursiveState::Watching(watching_state) = &*guard else {
-                debug_assert!(matches!(&*guard, NonRecursiveState::Stopped));
                 return Ok(());
             };
             if !watching_state.watched.contains(dir_path) {
@@ -218,7 +194,6 @@ mod non_recursive_helpers {
         // slow path: re-watch the path
         let mut guard = state.write();
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
-            debug_assert!(matches!(&*guard, NonRecursiveState::Stopped));
             return Ok(());
         };
 
@@ -237,9 +212,6 @@ mod non_recursive_helpers {
     /// if we're not already watching the directory.
     ///
     /// This should be called *before* reading a file to avoid a race condition.
-    ///
-    /// This function can be called during [`NonRecursiveState::Pending`] or
-    /// [`NonRecursiveState::Stopped`]. When pending, the path will be queued.
     pub fn ensure_watched(
         state: &RwLock<NonRecursiveState>,
         dir_path: &Path,
@@ -255,47 +227,22 @@ mod non_recursive_helpers {
         // early
         {
             let guard = state.read();
-            let watched = match &*guard {
-                NonRecursiveState::Watching(watching_state) => &watching_state.watched,
-                NonRecursiveState::Pending { ensure_watched } => ensure_watched,
-                NonRecursiveState::Stopped => {
-                    return Ok(());
-                }
+            let NonRecursiveState::Watching(watching_state) = &*guard else {
+                return Ok(());
             };
-            if watched.contains(dir_path) {
+            if watching_state.watched.contains(dir_path) {
                 return Ok(());
             }
         }
 
         // slow path: watch the path
         let mut guard = state.write();
-        match &mut *guard {
-            NonRecursiveState::Watching(watching_state) => {
-                if watching_state.watched.insert(dir_path.to_path_buf()) {
-                    start_watching_dir_and_parents(watching_state, dir_path, root_path)?;
-                }
-            }
-            NonRecursiveState::Pending { ensure_watched } => {
-                // queue the path and parents to be watched during `start_watching`
-                let mut cur_path = dir_path;
-                while ensure_watched.insert(cur_path.to_path_buf()) {
-                    let Some(parent_path) = cur_path.parent() else {
-                        // this should never happen as we break before we reach the root path
-                        anyhow::bail!(
-                            "failed to compute parent path of {cur_path:?} while queuing watch of
-                            {dir_path:?} in root {root_path:?}"
-                        );
-                    };
-                    if parent_path == root_path {
-                        break;
-                    }
-                    cur_path = parent_path;
-                }
-            }
-            NonRecursiveState::Stopped => {
-                return Ok(());
-            }
+        let NonRecursiveState::Watching(watching_state) = &mut *guard else {
+            return Ok(());
         };
+        if watching_state.watched.insert(dir_path.to_path_buf()) {
+            start_watching_dir_and_parents(watching_state, dir_path, root_path)?;
+        }
         Ok(())
     }
 
@@ -364,7 +311,7 @@ mod non_recursive_helpers {
 impl DiskWatcher {
     pub fn new() -> Self {
         Self {
-            state: State::new_pending(),
+            state: State::new_stopped(),
         }
     }
 
@@ -391,17 +338,16 @@ impl DiskWatcher {
     ) -> Result<()> {
         let state_guard = self.state.write();
 
-        // check that we're in a pending state
-        match &state_guard {
-            StateWriteGuard::Recursive(guard) if matches!(**guard, RecursiveState::Pending) => {}
-            StateWriteGuard::NonRecursive(guard)
-                if matches!(**guard, NonRecursiveState::Pending { .. }) => {}
-            _ => {
-                unreachable!(
-                    "`start_watching` should be called exactly once, and not after `stop_watching`"
-                )
-            }
-        };
+        // bail out if we're already watching
+        if let StateWriteGuard::Recursive(guard) = &state_guard
+            && matches!(**guard, RecursiveState::Watching { .. })
+        {
+            return Ok(());
+        } else if let StateWriteGuard::NonRecursive(guard) = &state_guard
+            && matches!(**guard, NonRecursiveState::Watching(..))
+        {
+            return Ok(());
+        }
 
         // Create a channel to receive the events.
         let (tx, rx) = channel();
@@ -419,37 +365,18 @@ impl DiskWatcher {
             NotifyWatcher::Recommended(RecommendedWatcher::new(tx, Config::default())?)
         };
 
+        // TOCTOU: we must watch `root_path` before calling any invalidators and setting up the
+        // watchers in their associated functions
         let root_path = fs_inner.root_path();
-        let set_watching_state: Box<dyn FnOnce()> = match state_guard {
-            StateWriteGuard::Recursive(mut recursive) => {
-                notify_watcher.watch(root_path, RecursiveMode::Recursive)?;
-
-                // defer this update until the end of the function
-                Box::new(move || {
-                    *recursive = RecursiveState::Watching {
-                        _notify_watcher: notify_watcher,
-                    }
-                })
-            }
-            StateWriteGuard::NonRecursive(mut non_recursive) => {
-                let NonRecursiveState::Pending { ensure_watched } = &mut *non_recursive else {
-                    unreachable!();
-                };
-                notify_watcher.watch(root_path, RecursiveMode::NonRecursive)?;
-                let mut watching_state = NonRecursiveWatchingState {
-                    notify_watcher,
-                    watched: take(ensure_watched),
-                };
-                non_recursive_helpers::restore_all_watched_reentrant(
-                    &mut watching_state,
-                    root_path,
-                )?;
-
-                Box::new(move || *non_recursive = NonRecursiveState::Watching(watching_state))
-            }
+        let recursive_mode = match state_guard {
+            StateWriteGuard::Recursive(_) => RecursiveMode::Recursive,
+            StateWriteGuard::NonRecursive(_) => RecursiveMode::NonRecursive,
         };
+        notify_watcher.watch(root_path, recursive_mode)?;
 
-        // We need to invalidate all reads that happened before watching
+        // We need to invalidate all reads or writes that happened before watching. As a
+        // side-effect, this will call `ensure_watched` again, setting up any watchers needed.
+        //
         // Best is to start_watching before starting to read
         {
             let span = tracing::info_span!("invalidate filesystem");
@@ -498,8 +425,20 @@ impl DiskWatcher {
         });
 
         // Updating `self.state` is done last. If we panic while setting up the watcher, it'll
-        // stay in the `Pending` state.
-        set_watching_state();
+        // stay in the `Stopped` state.
+        match state_guard {
+            StateWriteGuard::Recursive(mut recursive) => {
+                *recursive = RecursiveState::Watching {
+                    _notify_watcher: notify_watcher,
+                }
+            }
+            StateWriteGuard::NonRecursive(mut non_recursive) => {
+                *non_recursive = NonRecursiveState::Watching(NonRecursiveWatchingState {
+                    notify_watcher,
+                    watched: BTreeSet::new(),
+                })
+            }
+        };
 
         Ok(())
     }
