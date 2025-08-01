@@ -452,3 +452,81 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicI32, Ordering};
+
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_parallel_for_each() {
+        let input = vec![1, 2, 3, 4, 5];
+        let sum = AtomicI32::new(0);
+        for_each(&input, |&x| {
+            sum.fetch_add(x, Ordering::SeqCst);
+        });
+        assert_eq!(sum.load(Ordering::SeqCst), 15);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_parallel_try_for_each() {
+        let input = vec![1, 2, 3, 4, 5];
+        let result = try_for_each(&input, |&x| {
+            if x % 2 == 0 {
+                Ok(())
+            } else {
+                Err(format!("Odd number {x} encountered"))
+            }
+        });
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Odd number 1 encountered");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_parallel_try_for_each_mut() {
+        let mut input = vec![1, 2, 3, 4, 5];
+        let result = try_for_each_mut(&mut input, |x| {
+            *x += 10;
+            if *x % 2 == 0 {
+                Ok(())
+            } else {
+                Err(format!("Odd number {} encountered", *x))
+            }
+        });
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Odd number 11 encountered");
+        assert_eq!(input, vec![11, 12, 13, 14, 15]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_parallel_into_for_each() {
+        let input = vec![1, 2, 3, 4, 5];
+        let sum = AtomicI32::new(0);
+        into_for_each(input, |x| {
+            sum.fetch_add(x, Ordering::SeqCst);
+        });
+        assert_eq!(sum.load(Ordering::SeqCst), 15);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_parallel_map_collect() {
+        let input = vec![1, 2, 3, 4, 5];
+        let result: Vec<_> = map_collect(&input, |&x| x * 2);
+        assert_eq!(result, vec![2, 4, 6, 8, 10]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_parallel_into_map_collect() {
+        let input = vec![1, 2, 3, 4, 5];
+        let result: Vec<_> = into_map_collect(input, |x| x * 2);
+        assert_eq!(result, vec![2, 4, 6, 8, 10]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_parallel_into_map_collect_many() {
+        let input = vec![1; 1000];
+        let result: Vec<_> = into_map_collect(input, |x| x * 2);
+        assert_eq!(result, vec![2; 1000]);
+    }
+}
