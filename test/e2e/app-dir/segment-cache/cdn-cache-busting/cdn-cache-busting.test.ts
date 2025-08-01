@@ -11,6 +11,8 @@ describe('segment cache (CDN cache busting)', () => {
     return
   }
 
+  // TODO(runtime-ppr): add tests for runtime prefetches
+
   // To debug these tests locally, run:
   //   node start.mjs
   //

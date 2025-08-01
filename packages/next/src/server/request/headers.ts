@@ -101,6 +101,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           )
         case 'prerender':
         case 'prerender-client':
+        case 'prerender-runtime':
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
@@ -119,6 +120,7 @@ export function headers(): Promise<ReadonlyHeaders> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'prerender':
+        case 'prerender-runtime':
           return makeHangingHeaders(workUnitStore)
         case 'prerender-client':
           const exportName = '`headers`'
@@ -433,6 +435,7 @@ function syncIODev(route: string | undefined, expression: string) {
         break
       case 'prerender':
       case 'prerender-client':
+      case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':

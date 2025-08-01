@@ -82,13 +82,32 @@ export interface RequestStore extends CommonWorkUnitStore {
 export type PrerenderStoreModern =
   | PrerenderStoreModernClient
   | PrerenderStoreModernServer
+  | PrerenderStoreModernRuntime
 
-export interface PrerenderStoreModernClient extends PrerenderStoreModernCommon {
+/** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
+export type StaticPrerenderStoreModern = Exclude<
+  PrerenderStoreModern,
+  PrerenderStoreModernRuntime
+>
+
+export interface PrerenderStoreModernClient
+  extends PrerenderStoreModernCommon,
+    StaticPrerenderStoreCommon {
   readonly type: 'prerender-client'
 }
 
-export interface PrerenderStoreModernServer extends PrerenderStoreModernCommon {
+export interface PrerenderStoreModernServer
+  extends PrerenderStoreModernCommon,
+    StaticPrerenderStoreCommon {
   readonly type: 'prerender'
+}
+
+export interface PrerenderStoreModernRuntime
+  extends PrerenderStoreModernCommon {
+  readonly type: 'prerender-runtime'
+
+  readonly cookies: RequestStore['cookies']
+  readonly draftMode: RequestStore['draftMode']
 }
 
 export interface RevalidateStore {
@@ -140,20 +159,6 @@ interface PrerenderStoreModernCommon
   readonly rootParams: Params
 
   /**
-   * The set of unknown route parameters. Accessing these will be tracked as
-   * a dynamic access.
-   */
-  readonly fallbackRouteParams: FallbackRouteParams | null
-
-  /**
-   * When true, the page is prerendered as a fallback shell, while allowing any
-   * dynamic accesses to result in an empty shell. This is the case when there
-   * are also routes prerendered with a more complete set of params.
-   * Prerendering those routes would catch any invalid dynamic accesses.
-   */
-  readonly allowEmptyStaticShell: boolean
-
-  /**
    * A mutable resume data cache for this prerender.
    */
   prerenderResumeDataCache: PrerenderResumeDataCache | null
@@ -177,6 +182,22 @@ interface PrerenderStoreModernCommon
    * Only available in dev mode.
    */
   readonly captureOwnerStack: undefined | (() => string | null)
+}
+
+interface StaticPrerenderStoreCommon {
+  /**
+   * The set of unknown route parameters. Accessing these will be tracked as
+   * a dynamic access.
+   */
+  readonly fallbackRouteParams: FallbackRouteParams | null
+
+  /**
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
+   */
+  readonly allowEmptyStaticShell: boolean
 }
 
 export interface PrerenderStorePPR
@@ -209,6 +230,12 @@ export type PrerenderStore =
   | PrerenderStoreLegacy
   | PrerenderStorePPR
   | PrerenderStoreModern
+
+// /** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
+export type StaticPrerenderStore = Exclude<
+  PrerenderStore,
+  PrerenderStoreModernRuntime
+>
 
 export interface CommonCacheStore
   extends Omit<CommonWorkUnitStore, 'implicitTags'> {
@@ -289,6 +316,7 @@ export function getPrerenderResumeDataCache(
 ): PrerenderResumeDataCache | null {
   switch (workUnitStore.type) {
     case 'prerender':
+    case 'prerender-runtime':
     case 'prerender-ppr':
       return workUnitStore.prerenderResumeDataCache
     case 'prerender-client':
@@ -313,6 +341,7 @@ export function getRenderResumeDataCache(
     case 'request':
       return workUnitStore.renderResumeDataCache
     case 'prerender':
+    case 'prerender-runtime':
     case 'prerender-client':
       if (workUnitStore.renderResumeDataCache) {
         // If we are in a prerender, we might have a render resume data cache
@@ -343,10 +372,61 @@ export function getHmrRefreshHash(
       case 'cache':
       case 'private-cache':
       case 'prerender':
+      case 'prerender-runtime':
         return workUnitStore.hmrRefreshHash
       case 'request':
         return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
       case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
+
+  return undefined
+}
+
+export function isHmrRefresh(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore
+): boolean {
+  if (workStore.dev) {
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'private-cache':
+      case 'request':
+        return workUnitStore.isHmrRefresh ?? false
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-runtime':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
+
+  return false
+}
+
+export function getServerComponentsHmrCache(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore
+): ServerComponentsHmrCache | undefined {
+  if (workStore.dev) {
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'private-cache':
+      case 'request':
+        return workUnitStore.serverComponentsHmrCache
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
@@ -371,6 +451,7 @@ export function getDraftModeProviderForCacheScope(
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
+      case 'prerender-runtime':
       case 'request':
         return workUnitStore.draftMode
       case 'prerender':
@@ -392,6 +473,7 @@ export function getCacheSignal(
   switch (workUnitStore.type) {
     case 'prerender':
     case 'prerender-client':
+    case 'prerender-runtime':
       return workUnitStore.cacheSignal
     case 'prerender-ppr':
     case 'prerender-legacy':

@@ -53,7 +53,7 @@ export function connection(): Promise<void> {
         }
         case 'private-cache': {
           // It might not be intuitive to throw for private caches as well, but
-          // we don't consider dynamic prefetches as "actual requests" (in the
+          // we don't consider runtime prefetches as "actual requests" (in the
           // navigation sense), despite allowing them to read cookies.
           const error = new Error(
             `Route ${workStore.route} used "connection" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
@@ -68,6 +68,7 @@ export function connection(): Promise<void> {
           )
         case 'prerender':
         case 'prerender-client':
+        case 'prerender-runtime':
           // We return a promise that never resolves to allow the prerender to
           // stall at this point.
           return makeHangingPromise(

@@ -764,5 +764,11 @@
   "763": "\\`unstable_rootParams\\` must not be used within a client component. Next.js should be preventing it from being included in client components statically, but did not in this case.",
   "764": "Missing workStore in %s",
   "765": "Route %s used %s inside a Route Handler. Support for this API in Route Handlers is planned for a future version of Next.js.",
-  "766": "%s was used inside a Server Action. This is not supported. Functions from 'next/root-params' can only be called in the context of a route."
+  "766": "%s was used inside a Server Action. This is not supported. Functions from 'next/root-params' can only be called in the context of a route.",
+  "767": "A runtime prerender store should not be used for a route handler.",
+  "768": "createPrerenderSearchParamsForClientPage should not be called in a runtime prerender.",
+  "769": "createSearchParamsFromClient should not be called in a runtime prerender.",
+  "770": "createParamsFromClient should not be called in a runtime prerender.",
+  "771": "\\`%s\\` was called during a runtime prerender. Next.js should be preventing %s from being included in server components statically, but did not in this case.",
+  "772": "FetchStrategy.PPRRuntime should never be used when `experimental.clientSegmentCache` is disabled"
 }

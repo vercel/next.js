@@ -114,6 +114,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             workStore,
             workUnitStore
           )
+        case 'prerender-runtime':
         case 'private-cache':
           return makeUntrackedExoticCookies(workUnitStore.cookies)
         case 'request':
@@ -470,6 +471,7 @@ function syncIODev(route: string | undefined, expression: string) {
         break
       case 'prerender':
       case 'prerender-client':
+      case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':

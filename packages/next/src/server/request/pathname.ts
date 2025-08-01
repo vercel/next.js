@@ -7,7 +7,7 @@ import {
 
 import {
   workUnitAsyncStorage,
-  type PrerenderStore,
+  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -35,6 +35,8 @@ export function createServerPathnameForMetadata(
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called in cache contexts.'
         )
+
+      case 'prerender-runtime':
       case 'request':
         break
       default:
@@ -47,7 +49,7 @@ export function createServerPathnameForMetadata(
 function createPrerenderPathname(
   underlyingPathname: string,
   workStore: WorkStore,
-  prerenderStore: PrerenderStore
+  prerenderStore: StaticPrerenderStore
 ): Promise<string> {
   switch (prerenderStore.type) {
     case 'prerender-client':

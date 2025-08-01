@@ -1189,6 +1189,10 @@ function trackDynamic(
         throw new InvariantError(
           'A client prerender store should not be used for a route handler.'
         )
+      case 'prerender-runtime':
+        throw new InvariantError(
+          'A runtime prerender store should not be used for a route handler.'
+        )
       case 'prerender-ppr':
         return postponeWithTracking(
           store.route,
