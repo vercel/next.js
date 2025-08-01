@@ -16,8 +16,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::{CssModuleAsset, ModuleCssAsset};
@@ -767,16 +767,17 @@ impl GlobalBuildInformation {
                         Ok(None)
                     }
                 };
+                // Wait for both in parallel since `find_server_entries` tends to be slower than the
+                // graph traversals
                 let (results, server_entries) = join!(results, server_entries);
 
-                let mut iter = results?.into_iter();
-                let mut result = ReadRef::into_owned(iter.next().unwrap());
-                for r in iter {
-                    // We only aggregate the client_references, everything else is recomputed below
-                    result
-                        .client_references
-                        .extend(r.client_references.iter().copied());
-                }
+                let mut result = ClientReferenceGraphResult {
+                    client_references: results?
+                        .iter()
+                        .flat_map(|r| r.client_references.iter().copied())
+                        .collect(),
+                    ..Default::default()
+                };
                 if let Some(ServerEntries {
                     server_utils,
                     server_component_entries,
