@@ -1201,30 +1201,38 @@ export default async function build(
           process.env.NEXT_PRIVATE_APP_PATHS || '[]'
         )
 
-        let appPaths = Boolean(process.env.NEXT_PRIVATE_APP_PATHS)
-          ? providedAppPaths
-          : await nextBuildSpan
-              .traceChild('collect-app-paths')
-              .traceAsyncFn(() =>
-                recursiveReadDir(appDir, {
-                  pathnameFilter: (absolutePath) =>
-                    validFileMatcher.isAppRouterPage(absolutePath) ||
-                    // For now we only collect the root /not-found page in the app
-                    // directory as the 404 fallback
-                    validFileMatcher.isRootNotFound(absolutePath),
-                  ignorePartFilter: (part) => part.startsWith('_'),
-                })
-              )
+        let appPaths: string[]
+        let layoutPaths: string[]
 
-        let layoutPaths = await nextBuildSpan
-          .traceChild('collect-layout-paths')
-          .traceAsyncFn(() =>
-            recursiveReadDir(appDir, {
-              pathnameFilter: (absolutePath) =>
-                validFileMatcher.isAppLayoutPage(absolutePath),
-              ignorePartFilter: (part) => part.startsWith('_'),
-            })
+        if (Boolean(process.env.NEXT_PRIVATE_APP_PATHS)) {
+          appPaths = providedAppPaths
+          layoutPaths = []
+        } else {
+          // Collect both app pages and layouts in a single directory traversal
+          const allAppFiles = await nextBuildSpan
+            .traceChild('collect-app-files')
+            .traceAsyncFn(() =>
+              recursiveReadDir(appDir, {
+                pathnameFilter: (absolutePath) =>
+                  validFileMatcher.isAppRouterPage(absolutePath) ||
+                  // For now we only collect the root /not-found page in the app
+                  // directory as the 404 fallback
+                  validFileMatcher.isRootNotFound(absolutePath) ||
+                  validFileMatcher.isAppLayoutPage(absolutePath),
+                ignorePartFilter: (part) => part.startsWith('_'),
+              })
+            )
+
+          // Separate app pages from layouts
+          appPaths = allAppFiles.filter(
+            (absolutePath) =>
+              validFileMatcher.isAppRouterPage(absolutePath) ||
+              validFileMatcher.isRootNotFound(absolutePath)
           )
+          layoutPaths = allAppFiles.filter((absolutePath) =>
+            validFileMatcher.isAppLayoutPage(absolutePath)
+          )
+        }
 
         mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
