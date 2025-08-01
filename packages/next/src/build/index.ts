@@ -108,8 +108,15 @@ import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import {
   createPagesMapping,
+  collectAppFiles,
   getStaticInfoIncludingLayouts,
   sortByPageExts,
+  processPageRoutes,
+  processAppRoutes,
+  processLayoutRoutes,
+  extractSlotsFromAppRoutes,
+  type RouteInfo,
+  type SlotInfo,
 } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -215,8 +222,6 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
 } from '../server/lib/router-utils/route-types-utils'
-import { isParallelRouteSegment } from '../shared/lib/segment'
-import { ensureLeadingSlash } from '../shared/lib/page-path/ensure-leading-slash'
 
 type Fallback = null | boolean | string
 
@@ -1222,29 +1227,12 @@ export default async function build(
           layoutPaths = []
         } else {
           // Collect both app pages and layouts in a single directory traversal
-          const allAppFiles = await nextBuildSpan
+          const result = await nextBuildSpan
             .traceChild('collect-app-files')
-            .traceAsyncFn(() =>
-              recursiveReadDir(appDir, {
-                pathnameFilter: (absolutePath) =>
-                  validFileMatcher.isAppRouterPage(absolutePath) ||
-                  // For now we only collect the root /not-found page in the app
-                  // directory as the 404 fallback
-                  validFileMatcher.isRootNotFound(absolutePath) ||
-                  validFileMatcher.isAppLayoutPage(absolutePath),
-                ignorePartFilter: (part) => part.startsWith('_'),
-              })
-            )
+            .traceAsyncFn(() => collectAppFiles(appDir, config.pageExtensions))
 
-          // Separate app pages from layouts
-          appPaths = allAppFiles.filter(
-            (absolutePath) =>
-              validFileMatcher.isAppRouterPage(absolutePath) ||
-              validFileMatcher.isRootNotFound(absolutePath)
-          )
-          layoutPaths = allAppFiles.filter((absolutePath) =>
-            validFileMatcher.isAppLayoutPage(absolutePath)
-          )
+          appPaths = result.appPaths
+          layoutPaths = result.layoutPaths
         }
 
         mappedAppPages = await nextBuildSpan
@@ -1327,73 +1315,28 @@ export default async function build(
           const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
           await fs.mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
-          const pageRoutes: Array<{ route: string; filePath: string }> = []
-          const appRoutes: Array<{ route: string; filePath: string }> = []
-          const layoutRoutes: Array<{ route: string; filePath: string }> = []
-          const slots: Array<{ name: string; parent: string }> = []
+          let pageRoutes: RouteInfo[] = []
+          let appRoutes: RouteInfo[] = []
+          let layoutRoutes: RouteInfo[] = []
+          let slots: SlotInfo[] = []
 
           // Build pages routes
-          for (const [route, filePath] of Object.entries(mappedPages)) {
-            // Only filter out _app, _error, _document, and API routes
-            // (TODO) should we filter out API routes?
-            if (isReservedPage(route)) continue
-
-            pageRoutes.push({
-              route: normalizePathSep(route),
-              filePath: filePath.replace(/^private-next-pages\//, 'pages/'),
-            })
-          }
+          const processedPages = processPageRoutes(mappedPages, dir)
+          // We combine both page routes and API routes
+          pageRoutes = [
+            ...processedPages.pageRoutes,
+            ...processedPages.pageApiRoutes,
+          ]
 
           // Build app routes
           if (appDir && mappedAppPages) {
-            for (const [route, filePath] of Object.entries(mappedAppPages)) {
-              if (route === '/_not-found/page') continue
-
-              const segments = route.split('/')
-              for (let i = segments.length - 1; i >= 0; i--) {
-                const segment = segments[i]
-                if (isParallelRouteSegment(segment)) {
-                  const parentPath = normalizeAppPath(
-                    segments.slice(0, i).join('/')
-                  )
-
-                  const slotName = segment.slice(1)
-                  // check if the slot already exists
-                  if (
-                    slots.some(
-                      (s) => s.name === slotName && s.parent === parentPath
-                    )
-                  )
-                    continue
-
-                  slots.push({
-                    name: slotName,
-                    parent: parentPath,
-                  })
-                  break
-                }
-              }
-
-              appRoutes.push({
-                route: normalizeAppPath(normalizePathSep(route)),
-                filePath: filePath.replace(/^private-next-app-dir\//, 'app/'),
-              })
-            }
+            slots = extractSlotsFromAppRoutes(mappedAppPages)
+            appRoutes = processAppRoutes(mappedAppPages, dir)
           }
 
           // Build app layouts
           if (appDir && mappedAppLayouts) {
-            for (const [route, filePath] of Object.entries(mappedAppLayouts)) {
-              layoutRoutes.push({
-                route: ensureLeadingSlash(
-                  normalizeAppPath(normalizePathSep(route)).replace(
-                    /\/layout$/,
-                    ''
-                  )
-                ),
-                filePath: filePath.replace(/^private-next-app-dir\//, 'app/'),
-              })
-            }
+            layoutRoutes = processLayoutRoutes(mappedAppLayouts, dir)
           }
 
           const routeTypesManifest = await createRouteTypesManifest({
