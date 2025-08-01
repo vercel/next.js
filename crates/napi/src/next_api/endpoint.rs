@@ -4,21 +4,25 @@ use anyhow::Result;
 use futures_util::TryFutureExt;
 use napi::{JsFunction, bindgen_prelude::External};
 use next_api::{
+    module_graph_snapshot::{ModuleGraphSnapshot, get_module_graph_snapshot},
     operation::OptionEndpoint,
     paths::ServerPath,
     route::{
-        EndpointOutputPaths, endpoint_client_changed_operation, endpoint_server_changed_operation,
-        endpoint_write_to_disk_operation,
+        Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
+        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
-use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue};
+use turbo_tasks::{
+    Completion, Effects, OperationVc, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
+use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
 
 use super::utils::{
     DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
     strongly_consistent_catch_collectables, subscribe,
 };
+use crate::next_api::module_graph::NapiModuleGraphSnapshot;
 
 #[napi(object)]
 #[derive(Default)]
@@ -79,6 +83,11 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
             },
         }
     }
+}
+
+#[napi(object)]
+pub struct NapiModuleGraphSnapshots {
+    pub module_graphs: Vec<NapiModuleGraphSnapshot>,
 }
 
 // NOTE(alexkirsz) We go through an extra layer of indirection here because of
@@ -152,6 +161,105 @@ pub async fn endpoint_write_to_disk(
         result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+    })
+}
+
+#[turbo_tasks::value(serialization = "none")]
+struct ModuleGraphsWithIssues {
+    module_graphs: Option<ReadRef<ModuleGraphSnapshots>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_module_graphs_with_issues_operation(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> Result<Vc<ModuleGraphsWithIssues>> {
+    let module_graphs_op = get_module_graphs_operation(endpoint_op);
+    let (module_graphs, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(module_graphs_op).await?;
+    Ok(ModuleGraphsWithIssues {
+        module_graphs,
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
+#[turbo_tasks::value(transparent)]
+struct ModuleGraphSnapshots(Vec<ReadRef<ModuleGraphSnapshot>>);
+
+#[turbo_tasks::function(operation)]
+async fn get_module_graphs_operation(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> Result<Vc<ModuleGraphSnapshots>> {
+    let Some(endpoint) = *endpoint_op.connect().await? else {
+        return Ok(Vc::cell(vec![]));
+    };
+    let graphs = endpoint.module_graphs().await?;
+    let entries = endpoint.entries().await?;
+    let entry_modules = entries.iter().flat_map(|e| e.entries()).collect::<Vec<_>>();
+    let snapshots = graphs
+        .iter()
+        .map(async |&graph| {
+            let module_graph = graph.await?;
+            let entry_modules = entry_modules
+                .iter()
+                .map(async |&m| Ok(module_graph.has_entry(m).await?.then_some(m)))
+                .try_flat_join()
+                .await?;
+            Ok((*graph, entry_modules))
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .map(|(graph, entry_modules)| (graph, Vc::cell(entry_modules)))
+        .collect::<Vec<_>>()
+        .into_iter()
+        .map(async |(graph, entry_modules)| {
+            get_module_graph_snapshot(graph, Some(entry_modules)).await
+        })
+        .try_join()
+        .await?;
+    Ok(Vc::cell(snapshots))
+}
+
+#[napi]
+pub async fn endpoint_module_graphs(
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+) -> napi::Result<TurbopackResult<NapiModuleGraphSnapshots>> {
+    let endpoint_op: OperationVc<OptionEndpoint> = ***endpoint;
+    let (module_graphs, issues, diagnostics) = endpoint
+        .turbopack_ctx()
+        .turbo_tasks()
+        .run_once(async move {
+            let module_graphs_op = get_module_graphs_with_issues_operation(endpoint_op);
+            let ModuleGraphsWithIssues {
+                module_graphs,
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*module_graphs_op.connect().await?;
+            Ok((module_graphs.clone(), issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: NapiModuleGraphSnapshots {
+            module_graphs: module_graphs
+                .into_iter()
+                .flat_map(|m| m.into_iter())
+                .map(|m| NapiModuleGraphSnapshot::from(&**m))
+                .collect(),
+        },
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diagnostics
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
     })
 }
 
