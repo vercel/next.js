@@ -61,10 +61,10 @@ The SST file contains only data without any header.
 - serialized key Compression Dictionary
 - serialized value Compression Dictionary
 - foreach block
-  - 4 bytes end of block offset relative to start of all blocks
-- foreach block
   - 4 bytes uncompressed block length
   - compressed data
+- foreach block
+  - 4 bytes end of block offset relative to start of all blocks
 
 #### Index Block
 
