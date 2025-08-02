@@ -107,7 +107,9 @@ impl EcmascriptBrowserChunkContent {
         // with itself so later chunks can register directly with it.
         write!(
             code,
-            "(globalThis.TURBOPACK ||= []).push([{script_or_path},"
+            // `||=` would be better but we need to be es2020 compatible
+            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
+            "(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([{script_or_path},"
         )?;
 
         let content = this.content.await?;

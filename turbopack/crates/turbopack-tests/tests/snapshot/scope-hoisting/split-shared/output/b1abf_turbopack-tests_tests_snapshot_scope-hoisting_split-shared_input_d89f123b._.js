@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK ||= []).push(["output/b1abf_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_d89f123b._.js",
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/b1abf_turbopack-tests_tests_snapshot_scope-hoisting_split-shared_input_d89f123b._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;

@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK ||= []).push(["output/4e721_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_4d74c0a3.js",
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/4e721_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_4d74c0a3.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;

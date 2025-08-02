@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK ||= []).push(["output/[root-of-the-server]__e251cfe1._.js",
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/[root-of-the-server]__e251cfe1._.js",
 "[externals]/bun:ffi [external] (bun:ffi, cjs)", ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;

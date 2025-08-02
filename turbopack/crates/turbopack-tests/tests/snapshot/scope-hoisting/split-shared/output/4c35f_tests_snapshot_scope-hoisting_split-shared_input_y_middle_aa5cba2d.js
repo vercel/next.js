@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK ||= []).push(["output/4c35f_tests_snapshot_scope-hoisting_split-shared_input_y_middle_aa5cba2d.js",
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/4c35f_tests_snapshot_scope-hoisting_split-shared_input_y_middle_aa5cba2d.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/y/middle.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 

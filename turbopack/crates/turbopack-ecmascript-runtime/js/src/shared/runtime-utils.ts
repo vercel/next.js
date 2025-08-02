@@ -442,6 +442,8 @@ function installCompressedModuleFactories(
     if (end === chunkModules.length) {
       throw new Error('malformed chunk format, expected a factory function')
     }
+    // Each chunk item has a 'primary id' and optional additional ids. If the primary id is already
+    // present we know all the additional ids are also present, so we don't need to check.
     if (!moduleFactories.has(moduleId)) {
       const moduleFactoryFn = chunkModules[end] as Function
       applyModuleFactoryName(moduleFactoryFn)

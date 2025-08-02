@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK ||= []).push(["output/4e721_crates_turbopack-tests_tests_snapshot_source_maps_merged-unicode_input_795dc95a._.js",
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/4e721_crates_turbopack-tests_tests_snapshot_source_maps_merged-unicode_input_795dc95a._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/jsx-runtime.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
