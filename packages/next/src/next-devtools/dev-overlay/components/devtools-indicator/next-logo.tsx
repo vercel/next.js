@@ -28,6 +28,12 @@ export function NextLogo({
 
   const hasError = totalErrorCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
+  const [previousHasError, setPreviousHasError] = useState(hasError)
+  if (previousHasError !== hasError) {
+    setPreviousHasError(hasError)
+    // Reset the expanded state when the error state changes
+    setIsErrorExpanded(hasError)
+  }
   const [dismissed, setDismissed] = useState(false)
   const newErrorDetected = useUpdateAnimation(
     totalErrorCount,
@@ -42,10 +48,6 @@ export function NextLogo({
   )
   const isExpanded = isErrorExpanded || state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
-
-  if (hasError && !isErrorExpanded) {
-    setIsErrorExpanded(hasError)
-  }
 
   return (
     <div
