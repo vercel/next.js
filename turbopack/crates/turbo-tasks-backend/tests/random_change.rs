@@ -9,7 +9,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn random_change() {
     run(&REGISTRATION, || async {
         let state = make_state();

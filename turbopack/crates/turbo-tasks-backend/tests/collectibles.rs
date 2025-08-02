@@ -14,7 +14,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn transitive_emitting() {
     run(&REGISTRATION, || async {
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
@@ -32,7 +32,7 @@ async fn transitive_emitting() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn transitive_emitting_indirect() {
     run(&REGISTRATION, || async {
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
@@ -50,7 +50,7 @@ async fn transitive_emitting_indirect() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn multi_emitting() {
     run(&REGISTRATION, || async {
         let result_op = my_multi_emitting_function();
@@ -68,7 +68,7 @@ async fn multi_emitting() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn taking_collectibles() {
     run(&REGISTRATION, || async {
         let result_op = my_collecting_function();
@@ -84,7 +84,7 @@ async fn taking_collectibles() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn taking_collectibles_extra_layer() {
     run(&REGISTRATION, || async {
         let result_op = my_collecting_function_indirect();
@@ -100,7 +100,7 @@ async fn taking_collectibles_extra_layer() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn taking_collectibles_parallel() {
     run(&REGISTRATION, || async {
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!("a"));
@@ -142,7 +142,7 @@ async fn taking_collectibles_parallel() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn taking_collectibles_with_resolve() {
     run(&REGISTRATION, || async {
         let result_op = my_transitive_emitting_function_with_resolve(rcstr!("resolve"));
