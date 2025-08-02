@@ -185,6 +185,7 @@ pub fn create_turbo_tasks(
     _memory_limit: usize,
     dependency_tracking: bool,
     is_ci: bool,
+    is_short_session: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         let version_info = GitVersionInfo {
@@ -192,8 +193,12 @@ pub fn create_turbo_tasks(
             dirty: option_env!("CI").is_none_or(|value| value.is_empty())
                 && env!("VERGEN_GIT_DIRTY") == "true",
         };
-        let (backing_storage, cache_state) =
-            default_backing_storage(&output_path.join("cache/turbopack"), &version_info, is_ci)?;
+        let (backing_storage, cache_state) = default_backing_storage(
+            &output_path.join("cache/turbopack"),
+            &version_info,
+            is_ci,
+            is_short_session,
+        )?;
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {

@@ -1,7 +1,8 @@
-use std::ops::Deref;
+use std::{ops::Deref, sync::LazyLock};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks_fs::FileSystemPath;
@@ -41,11 +42,15 @@ pub struct MetadataFileMatch<'a> {
 }
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
-    let (_whole, stem, number) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$",
-        stem
-    )?;
-
+    static NUMBERED_METADATA_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new("^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$").unwrap()
+    });
+    let captures = NUMBERED_METADATA_RE.captures(stem)?;
+    // these captures must be defined if `captures` is `Some(...)`.
+    let (stem, number) = (
+        captures.get(1).unwrap().as_str(),
+        captures.get(2).unwrap().as_str(),
+    );
     Some((stem, number))
 }
 

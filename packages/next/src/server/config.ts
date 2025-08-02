@@ -711,17 +711,12 @@ function assignDefaults(
   }
 
   // use the highest level lockfile as tracing root
-  if (!result?.outputFileTracingRoot || !result?.turbopack?.root) {
+  if (!result?.outputFileTracingRoot && !result?.turbopack?.root) {
     let rootDir = findRootDir(dir)
 
     if (rootDir) {
-      if (!result?.outputFileTracingRoot) {
-        result.outputFileTracingRoot = rootDir
-      }
-
-      if (!result?.turbopack?.root) {
-        dset(result, ['turbopack', 'root'], rootDir)
-      }
+      result.outputFileTracingRoot = rootDir
+      dset(result, ['turbopack', 'root'], rootDir)
     }
   }
 
@@ -1480,7 +1475,7 @@ export default async function loadConfig(
 
     if (userConfig.experimental?.turbo) {
       curLog.warn(
-        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` as Turbopack is now stable.'
+        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` or run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .`'
       )
 
       // Merge the two configs, preferring values in `config.turbopack`.

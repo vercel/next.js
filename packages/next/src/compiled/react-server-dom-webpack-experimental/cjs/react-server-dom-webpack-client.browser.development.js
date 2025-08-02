@@ -1117,35 +1117,6 @@
         value
       ]);
     }
-    function markAllTracksInOrder() {
-      supportsUserTiming &&
-        (console.timeStamp(
-          "Server Requests Track",
-          0.001,
-          0.001,
-          "Server Requests \u269b",
-          void 0,
-          "primary-light"
-        ),
-        console.timeStamp(
-          "Server Components Track",
-          0.001,
-          0.001,
-          "Primary",
-          "Server Components \u269b",
-          "primary-light"
-        ));
-    }
-    function getIOColor(functionName) {
-      switch (functionName.charCodeAt(0) % 3) {
-        case 0:
-          return "tertiary-light";
-        case 1:
-          return "tertiary";
-        default:
-          return "tertiary-dark";
-      }
-    }
     function getIODescription(value) {
       try {
         switch (typeof value) {
@@ -1187,6 +1158,35 @@
         }
       } catch (x) {
         return "";
+      }
+    }
+    function markAllTracksInOrder() {
+      supportsUserTiming &&
+        (console.timeStamp(
+          "Server Requests Track",
+          0.001,
+          0.001,
+          "Server Requests \u269b",
+          void 0,
+          "primary-light"
+        ),
+        console.timeStamp(
+          "Server Components Track",
+          0.001,
+          0.001,
+          "Primary",
+          "Server Components \u269b",
+          "primary-light"
+        ));
+    }
+    function getIOColor(functionName) {
+      switch (functionName.charCodeAt(0) % 3) {
+        case 0:
+          return "tertiary-light";
+        case 1:
+          return "tertiary";
+        default:
+          return "tertiary-dark";
       }
     }
     function getIOLongName(ioInfo, description, env, rootEnv) {
@@ -4433,10 +4433,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-19baee81-20250725",
+      version: "19.2.0-experimental-c260b38d-20250731",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-19baee81-20250725",
+      reconcilerVersion: "19.2.0-experimental-c260b38d-20250731",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

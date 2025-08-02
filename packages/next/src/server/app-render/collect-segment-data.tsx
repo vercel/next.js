@@ -3,7 +3,6 @@ import type {
   FlightRouterState,
   InitialRSCPayload,
   Segment as FlightRouterStateSegment,
-  DynamicParamTypesShort,
 } from './types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -69,6 +68,11 @@ const filterStackFrame =
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
         .filterStackFrameDEV
     : undefined
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
 
 function onSegmentPrerenderError(error: unknown) {
   const digest = getDigestForWellKnownError(error)
@@ -98,6 +102,7 @@ export async function collectSegmentData(
   //
   try {
     await createFromReadableStream(streamFromBuffer(fullPageDataBuffer), {
+      findSourceMapURL,
       serverConsumerManifest,
     })
     await waitAtLeastOneReactRenderTask()
@@ -179,6 +184,7 @@ async function PrefetchTreeData({
   const initialRSCPayload: InitialRSCPayload = await createFromReadableStream(
     createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
     {
+      findSourceMapURL,
       serverConsumerManifest,
     }
   )
@@ -302,7 +308,7 @@ function collectSegmentDataImpl(
 }
 
 function encodeSegmentWithPossibleFallbackParam(
-  segment: [string, string, DynamicParamTypesShort],
+  segment: Exclude<FlightRouterStateSegment, string>,
   fallbackRouteParams: FallbackRouteParams
 ): EncodedSegment {
   const name = segment[0]

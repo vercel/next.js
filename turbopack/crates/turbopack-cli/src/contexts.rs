@@ -44,23 +44,23 @@ impl fmt::Display for NodeEnv {
     }
 }
 
-async fn foreign_code_context_condition() -> Result<ContextCondition> {
-    Ok(ContextCondition::InDirectory("node_modules".to_string()))
+fn foreign_code_context_condition() -> ContextCondition {
+    ContextCondition::InDirectory("node_modules".to_string())
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_import_map(project_path: FileSystemPath) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
-    import_map.insert_singleton_alias("@swc/helpers", project_path.clone());
-    import_map.insert_singleton_alias("styled-jsx", project_path.clone());
-    import_map.insert_singleton_alias("react", project_path.clone());
-    import_map.insert_singleton_alias("react-dom", project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("@swc/helpers"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("styled-jsx"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("react"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("react-dom"), project_path.clone());
 
     import_map.insert_wildcard_alias(
-        "@vercel/turbopack-ecmascript-runtime/",
+        rcstr!("@vercel/turbopack-ecmascript-runtime/"),
         ImportMapping::PrimaryAlternative(
-            "./*".into(),
+            rcstr!("./*"),
             Some(
                 turbopack_ecmascript_runtime::embed_fs()
                     .root()
@@ -84,7 +84,7 @@ pub async fn get_client_resolve_options_context(
         .await?;
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),
-        custom_conditions: vec![node_env.await?.to_string().into(), "browser".into()],
+        custom_conditions: vec![node_env.await?.to_string().into(), rcstr!("browser")],
         import_map: Some(next_client_import_map),
         browser: true,
         module: true,
@@ -94,7 +94,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         rules: vec![(
-            foreign_code_context_condition().await?,
+            foreign_code_context_condition(),
             module_options_context.clone().resolved_cell(),
         )],
         ..module_options_context
@@ -161,7 +161,7 @@ async fn get_client_module_options_context(
         },
         enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
         rules: vec![(
-            foreign_code_context_condition().await?,
+            foreign_code_context_condition(),
             module_options_context.clone().resolved_cell(),
         )],
         module_rules: vec![module_rules],

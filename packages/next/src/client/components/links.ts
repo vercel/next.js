@@ -17,6 +17,7 @@ import {
 } from './segment-cache'
 import { startTransition } from 'react'
 import { PrefetchKind } from './router-reducer/router-reducer-types'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 type LinkElement = HTMLAnchorElement | SVGAElement
 
@@ -264,7 +265,7 @@ export function onNavigationIntent(
       process.env.__NEXT_DYNAMIC_ON_HOVER &&
       unstable_upgradeToDynamicPrefetch
     ) {
-      // Switch to a full, dynamic prefetch
+      // Switch to a full prefetch
       instance.fetchStrategy = FetchStrategy.Full
     }
     rescheduleLinkPrefetch(instance, PrefetchPriority.Intent)
@@ -377,6 +378,13 @@ function prefetchWithOldCacheImplementation(instance: PrefetchableInstance) {
       case FetchStrategy.Full: {
         prefetchKind = PrefetchKind.FULL
         break
+      }
+      case FetchStrategy.PPRRuntime: {
+        // We can only get here if Client Segment Cache is off, and in that case
+        // it shouldn't be possible for a link to request a runtime prefetch.
+        throw new InvariantError(
+          'FetchStrategy.PPRRuntime should never be used when `experimental.clientSegmentCache` is disabled'
+        )
       }
       default: {
         instance.fetchStrategy satisfies never

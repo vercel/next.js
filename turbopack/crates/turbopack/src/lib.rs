@@ -654,8 +654,8 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
         emulate_environment: Some(env),
         loose_errors: true,
         custom_conditions: match ty {
-            ExternalType::CommonJs => vec!["require".into()],
-            ExternalType::EcmaScriptModule => vec!["import".into()],
+            ExternalType::CommonJs => vec![rcstr!("require")],
+            ExternalType::EcmaScriptModule => vec![rcstr!("import")],
             ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![],
         },
         ..Default::default()

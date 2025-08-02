@@ -116,4 +116,9 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'app-dir-runtime-config-experimental-edge',
     version: '15.0.0-canary.179',
   },
+  {
+    title: 'Updates `next.config.js` to use the new `turbopack` configuration',
+    value: 'next-experimental-turbo-to-turbopack',
+    version: '10.0.0',
+  },
 ]

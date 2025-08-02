@@ -329,6 +329,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
         const actionQueue = getAppRouterActionQueue()
         const prefetchKind = options?.kind ?? PrefetchKind.AUTO
 
+        // We don't currently offer a way to issue a runtime prefetch via `router.prefetch()`.
+        // This will be possible when we update its API to not take a PrefetchKind.
         let fetchStrategy: PrefetchTaskFetchStrategy
         switch (prefetchKind) {
           case PrefetchKind.AUTO: {

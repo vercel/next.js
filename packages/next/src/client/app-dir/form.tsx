@@ -61,6 +61,7 @@ export default function Form({
     }
   }
 
+  // TODO(runtime-ppr): allow runtime prefetches in Form
   const prefetch =
     prefetchProp === false || prefetchProp === null ? prefetchProp : null
 

@@ -36,15 +36,19 @@ const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
+const JXL = 'image/jxl'
+const JP2 = 'image/jp2'
+const HEIC = 'image/heic'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const ICO = 'image/x-icon'
 const ICNS = 'image/x-icns'
 const TIFF = 'image/tiff'
 const BMP = 'image/bmp'
+const PDF = 'application/pdf'
 const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const BYPASS_TYPES = [SVG, ICO, ICNS, BMP]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
@@ -152,7 +156,9 @@ async function writeToCacheDir(
  * it matches the "magic number" of known file signatures.
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
-export function detectContentType(buffer: Buffer) {
+export async function detectContentType(
+  buffer: Buffer
+): Promise<string | null> {
   if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
     return JPEG
   }
@@ -198,7 +204,77 @@ export function detectContentType(buffer: Buffer) {
   if ([0x42, 0x4d].every((b, i) => buffer[i] === b)) {
     return BMP
   }
-  return null
+  if ([0xff, 0x0a].every((b, i) => buffer[i] === b)) {
+    return JXL
+  }
+  if (
+    [
+      0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
+    ].every((b, i) => buffer[i] === b)
+  ) {
+    return JXL
+  }
+  if (
+    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return HEIC
+  }
+  if ([0x25, 0x50, 0x44, 0x46, 0x2d].every((b, i) => buffer[i] === b)) {
+    return PDF
+  }
+  if (
+    [
+      0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
+    ].every((b, i) => buffer[i] === b)
+  ) {
+    return JP2
+  }
+
+  const sharp = getSharp(null)
+  const meta = await sharp(buffer)
+    .metadata()
+    .catch((_) => null)
+  switch (meta?.format) {
+    case 'avif':
+      return AVIF
+    case 'webp':
+      return WEBP
+    case 'png':
+      return PNG
+    case 'jpeg':
+    case 'jpg':
+      return JPEG
+    case 'gif':
+      return GIF
+    case 'svg':
+      return SVG
+    case 'jxl':
+      return JXL
+    case 'jp2':
+      return JP2
+    case 'tiff':
+    case 'tif':
+      return TIFF
+    case 'pdf':
+      return PDF
+    case 'dcraw':
+    case 'dz':
+    case 'exr':
+    case 'fits':
+    case 'heif':
+    case 'input':
+    case 'magick':
+    case 'openslide':
+    case 'ppm':
+    case 'rad':
+    case 'raw':
+    case 'v':
+    case undefined:
+    default:
+      return null
+  }
 }
 
 export class ImageOptimizerCache {
@@ -634,7 +710,6 @@ export async function fetchInternalImage(
     const mocked = createRequestResponseMocks({
       url: href,
       method: _req.method || 'GET',
-      headers: _req.headers,
       socket: _req.socket,
     })
 
@@ -703,58 +778,58 @@ export async function imageOptimizer(
     getMaxAge(imageUpstream.cacheControl)
   )
 
-  const upstreamType =
-    detectContentType(upstreamBuffer) ||
-    imageUpstream.contentType?.toLowerCase().trim()
+  const upstreamType = await detectContentType(upstreamBuffer)
 
-  if (upstreamType) {
-    if (
-      upstreamType.startsWith('image/svg') &&
-      !nextConfig.images.dangerouslyAllowSVG
-    ) {
-      if (!opts.silent) {
-        Log.error(
-          `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
-        )
-      }
-      throw new ImageError(
-        400,
-        '"url" parameter is valid but image type is not allowed'
+  if (
+    !upstreamType ||
+    !upstreamType.startsWith('image/') ||
+    upstreamType.includes(',')
+  ) {
+    if (!opts.silent) {
+      Log.error(
+        "The requested resource isn't a valid image for",
+        href,
+        'received',
+        upstreamType
       )
     }
-    if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
-      if (!opts.silent) {
-        Log.warnOnce(
-          `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
-        )
-      }
-      return {
-        buffer: upstreamBuffer,
-        contentType: upstreamType,
-        maxAge,
-        etag: upstreamEtag,
-        upstreamEtag,
-      }
+    throw new ImageError(400, "The requested resource isn't a valid image.")
+  }
+  if (
+    upstreamType.startsWith('image/svg') &&
+    !nextConfig.images.dangerouslyAllowSVG
+  ) {
+    if (!opts.silent) {
+      Log.error(
+        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.`
+      )
     }
-    if (BYPASS_TYPES.includes(upstreamType)) {
-      return {
-        buffer: upstreamBuffer,
-        contentType: upstreamType,
-        maxAge,
-        etag: upstreamEtag,
-        upstreamEtag,
-      }
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but image type is not allowed'
+    )
+  }
+  if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
+    if (!opts.silent) {
+      Log.warnOnce(
+        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
+      )
     }
-    if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
-      if (!opts.silent) {
-        Log.error(
-          "The requested resource isn't a valid image for",
-          href,
-          'received',
-          upstreamType
-        )
-      }
-      throw new ImageError(400, "The requested resource isn't a valid image.")
+    return {
+      buffer: upstreamBuffer,
+      contentType: upstreamType,
+      maxAge,
+      etag: upstreamEtag,
+      upstreamEtag,
+    }
+  }
+  if (BYPASS_TYPES.includes(upstreamType)) {
+    return {
+      buffer: upstreamBuffer,
+      contentType: upstreamType,
+      maxAge,
+      etag: upstreamEtag,
+      upstreamEtag,
     }
   }
 
@@ -763,7 +838,6 @@ export async function imageOptimizer(
   if (mimeType) {
     contentType = mimeType
   } else if (
-    upstreamType?.startsWith('image/') &&
     getExtension(upstreamType) &&
     upstreamType !== WEBP &&
     upstreamType !== AVIF

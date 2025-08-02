@@ -51,11 +51,7 @@ let BACKEND: RuntimeBackend
       }
     },
 
-    loadChunkCached(
-      _sourceType: SourceType,
-      _sourceData: SourceData,
-      _chunkUrl: ChunkUrl
-    ) {
+    loadChunkCached(_sourceType: SourceType, _chunkUrl: ChunkUrl) {
       throw new Error('chunk loading is not supported')
     },
 

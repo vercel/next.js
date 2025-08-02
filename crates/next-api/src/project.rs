@@ -323,14 +323,15 @@ impl ProjectContainer {
                 .await?;
         } else {
             project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                path: RcStr::from(path),
+                // this path is just used for display purposes
+                path: RcStr::from(path.to_string_lossy()),
             });
         }
         let output_fs = output_fs_operation(project)
             .read_strongly_consistent()
             .await?;
         output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-            path: RcStr::from(path),
+            path: RcStr::from(path.to_string_lossy()),
         });
         Ok(())
     }
@@ -421,13 +422,14 @@ impl ProjectContainer {
                     .await?;
             } else {
                 project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                    path: RcStr::from(path),
+                    // this path is just used for display purposes
+                    path: RcStr::from(path.to_string_lossy()),
                 });
             }
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
             prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                path: RcStr::from(path),
+                path: RcStr::from(path.to_string_lossy()),
             });
         }
 
@@ -673,11 +675,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn project_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(
-            PROJECT_FILESYSTEM_NAME.into(),
-            self.root_path.clone(),
-            vec![],
-        )
+        DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), self.root_path.clone())
     }
 
     #[turbo_tasks::function]
@@ -688,7 +686,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(rcstr!("output"), self.root_path.clone(), vec![])
+        DiskFileSystem::new(rcstr!("output"), self.root_path.clone())
     }
 
     #[turbo_tasks::function]
@@ -973,9 +971,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn whole_app_module_graphs(
-        self: ResolvedVc<Self>,
-    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+    pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
             let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
@@ -1339,6 +1335,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in middleware
             ),
             Layer::new_with_user_friendly_name(
                 rcstr!("middleware-edge"),
@@ -1399,6 +1396,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in middleware
             ),
             Layer::new_with_user_friendly_name(rcstr!("middleware"), rcstr!("Middleware")),
         )))
@@ -1516,6 +1514,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in instrumentation
             ),
             Layer::new_with_user_friendly_name(
                 rcstr!("instrumentation"),
@@ -1577,6 +1576,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in instrumentation
             ),
             Layer::new_with_user_friendly_name(
                 rcstr!("instrumentation-edge"),
@@ -1815,7 +1815,7 @@ impl Project {
 #[turbo_tasks::function(operation)]
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
-) -> Result<Vc<BaseAndFullModuleGraph>> {
+) -> Result<Vc<ModuleGraphs>> {
     mark_root();
 
     let should_trace = project.next_mode().await?.is_production();
@@ -1833,7 +1833,7 @@ async fn whole_app_module_graph_operation(
     );
 
     let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
-    Ok(BaseAndFullModuleGraph {
+    Ok(ModuleGraphs {
         base: base.to_resolved().await?,
         full: full.to_resolved().await?,
     }
@@ -1841,7 +1841,7 @@ async fn whole_app_module_graph_operation(
 }
 
 #[turbo_tasks::value(shared)]
-pub struct BaseAndFullModuleGraph {
+pub struct ModuleGraphs {
     pub base: ResolvedVc<ModuleGraph>,
     pub full: ResolvedVc<ModuleGraph>,
 }
