@@ -125,8 +125,8 @@ where
     I: FnOnce(&mut ProcessInParallelContext<'l, R>) -> Vec<JoinHandle<()>> + 'l,
 {
     let mut process_context = ProcessInParallelContext::new(len);
-    let tasks = inner(&mut process_context);
     block_in_place(|| {
+        let tasks = inner(&mut process_context);
         process_context.handle.block_on(
             async {
                 let mut first_err = None;
