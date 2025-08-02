@@ -236,8 +236,7 @@ describe('Client Navigation rendering', () => {
            "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "pages/error-inside-page.js (2:9) @
-         {default export}
+           "source": "pages/error-inside-page.js (2:9) @ {default export}
          > 2 |   throw new Error('This is an expected error')
              |         ^",
            "stack": [

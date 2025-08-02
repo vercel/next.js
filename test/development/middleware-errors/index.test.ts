@@ -57,8 +57,7 @@ describe('middleware - development errors', () => {
            "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "middleware.js (3:15) @
-         {default export}
+           "source": "middleware.js (3:15) @ {default export}
          > 3 |         throw new Error('boom')
              |               ^",
            "stack": [

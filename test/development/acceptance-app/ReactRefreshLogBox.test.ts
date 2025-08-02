@@ -938,8 +938,7 @@ describe('ReactRefreshLogBox app', () => {
          "description": "test",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (3:11) @
-       {default export}
+         "source": "index.js (3:11) @ {default export}
        > 3 |     throw new Error('test')
            |           ^",
          "stack": [

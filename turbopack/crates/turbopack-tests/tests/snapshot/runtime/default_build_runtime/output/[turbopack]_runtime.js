@@ -414,6 +414,12 @@ contextPrototype.U = relativeURL;
     throw new Error('dynamic usage of require is not supported');
 }
 contextPrototype.z = requireStub;
+function applyModuleFactoryName(factory) {
+    // Give the module factory a nice name to improve stack traces.
+    Object.defineProperty(factory, 'name', {
+        value: '__TURBOPACK__module__evaluation__'
+    });
+}
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
@@ -571,17 +577,7 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
         const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
         const chunkModules = require(resolved);
         for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
-            if (!moduleFactories[moduleId]) {
-                if (Array.isArray(moduleFactory)) {
-                    const [moduleFactoryFn, otherIds] = moduleFactory;
-                    moduleFactories[moduleId] = moduleFactoryFn;
-                    for (const otherModuleId of otherIds){
-                        moduleFactories[otherModuleId] = moduleFactoryFn;
-                    }
-                } else {
-                    moduleFactories[moduleId] = moduleFactory;
-                }
-            }
+            registerCompressedModuleFactory(moduleId, moduleFactory);
         }
         loadedChunks.add(chunkPath);
     } catch (e) {
@@ -601,16 +597,21 @@ function loadChunkUncached(chunkPath) {
     // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
     const chunkModules = require(resolved);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
-        if (!moduleFactories[moduleId]) {
-            if (Array.isArray(moduleFactory)) {
-                const [moduleFactoryFn, otherIds] = moduleFactory;
-                moduleFactories[moduleId] = moduleFactoryFn;
-                for (const otherModuleId of otherIds){
-                    moduleFactories[otherModuleId] = moduleFactoryFn;
-                }
-            } else {
-                moduleFactories[moduleId] = moduleFactory;
+        registerCompressedModuleFactory(moduleId, moduleFactory);
+    }
+}
+function registerCompressedModuleFactory(moduleId, moduleFactory) {
+    if (!moduleFactories[moduleId]) {
+        if (Array.isArray(moduleFactory)) {
+            let [moduleFactoryFn, otherIds] = moduleFactory;
+            applyModuleFactoryName(moduleFactoryFn);
+            moduleFactories[moduleId] = moduleFactoryFn;
+            for (const otherModuleId of otherIds){
+                moduleFactories[otherModuleId] = moduleFactoryFn;
             }
+        } else {
+            applyModuleFactoryName(moduleFactory);
+            moduleFactories[moduleId] = moduleFactory;
         }
     }
 }

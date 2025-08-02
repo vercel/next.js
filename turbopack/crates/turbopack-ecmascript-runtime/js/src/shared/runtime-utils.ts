@@ -625,3 +625,10 @@ contextPrototype.z = requireStub
 type ContextConstructor<M> = {
   new (module: Module): TurbopackBaseContext<M>
 }
+
+function applyModuleFactoryName(factory: Function) {
+  // Give the module factory a nice name to improve stack traces.
+  Object.defineProperty(factory, 'name', {
+    value: '__TURBOPACK__module__evaluation__',
+  })
+}

@@ -425,6 +425,12 @@ contextPrototype.U = relativeURL;
     throw new Error('dynamic usage of require is not supported');
 }
 contextPrototype.z = requireStub;
+function applyModuleFactoryName(factory) {
+    // Give the module factory a nice name to improve stack traces.
+    Object.defineProperty(factory, 'name', {
+        value: '__TURBOPACK__module__evaluation__'
+    });
+}
 /**
  * This file contains runtime types and functions that are shared between all
  * Turbopack *development* ECMAScript runtimes.
@@ -1038,6 +1044,7 @@ function disposePhase(outdatedModules, disposedModules) {
 function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, reportError) {
     // Update module factories.
     for (const [moduleId, factory] of newModuleFactories.entries()){
+        applyModuleFactoryName(factory);
         moduleFactories[moduleId] = factory;
     }
     // TODO(alexkirsz) Run new runtime entries here.
@@ -1475,6 +1482,8 @@ function createModuleHot(moduleId, hotData) {
 function registerChunk([chunkScript, chunkModules, runtimeParams]) {
     const chunkPath = getPathFromScript(chunkScript);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
+        // Give the module factory a nice name to improve stack traces.
+        applyModuleFactoryName(Array.isArray(moduleFactory) ? moduleFactory[0] : moduleFactory);
         registerCompressedModuleFactory(moduleId, moduleFactory);
         addModuleToChunk(moduleId, chunkPath);
     }

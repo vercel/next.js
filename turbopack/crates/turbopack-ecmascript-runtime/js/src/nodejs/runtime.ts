@@ -164,13 +164,6 @@ function registerCompressedModuleFactory(
   }
 }
 
-function applyModuleFactoryName(factory: Function) {
-  // Give the module factory a nice name to improve stack traces.
-  Object.defineProperty(factory, 'name', {
-    value: '__TURBOPACK__module__evaluation__',
-  })
-}
-
 function loadChunkAsync(
   this: TurbopackBaseContext<Module>,
   chunkData: ChunkData
