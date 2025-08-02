@@ -306,7 +306,7 @@ const UserPreferencesWrapper = () => {
 }
 
 export const usePanelContext = () => useContext(PanelContext)
-export const PanelContext = createContext<{
+const PanelContext = createContext<{
   name: PanelStateKind
   mounted: boolean
 }>(null!)

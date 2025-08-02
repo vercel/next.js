@@ -10,7 +10,7 @@ import {
   parseLineNumberFromCodeFrameLine,
 } from './parse-code-frame'
 
-export type CodeFrameProps = {
+type CodeFrameProps = {
   stackFrame: StackFrame
   codeFrame: string
 }

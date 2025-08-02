@@ -1,4 +1,3 @@
-import type { HTMLProps } from 'react'
 import type {
   DevToolsIndicatorPosition,
   DevToolsScale,
@@ -11,48 +10,9 @@ import { NEXT_DEV_TOOLS_SCALE } from '../../../../shared'
 import LightIcon from '../../../../icons/light-icon'
 import DarkIcon from '../../../../icons/dark-icon'
 import SystemIcon from '../../../../icons/system-icon'
-import type { DevToolsInfoPropsCore } from './dev-tools-info'
-import { DevToolsInfo } from './dev-tools-info'
 import { ShortcutRecorder } from './shortcut-recorder'
 import { useRestartServer } from '../../error-overlay-toolbar/use-restart-server'
 import { saveDevToolsConfig } from '../../../../utils/save-devtools-config'
-
-export function UserPreferences({
-  theme,
-  hide,
-  hideShortcut,
-  setHideShortcut,
-  setScale,
-  scale,
-  position,
-  setPosition,
-  ...props
-}: {
-  theme: 'dark' | 'light' | 'system'
-  hide: () => void
-  hideShortcut: string | null
-  setHideShortcut: (value: string | null) => void
-  setPosition: (position: DevToolsIndicatorPosition) => void
-  position: DevToolsIndicatorPosition
-  scale: DevToolsScale
-  setScale: (value: DevToolsScale) => void
-} & DevToolsInfoPropsCore &
-  Omit<HTMLProps<HTMLDivElement>, 'size'>) {
-  return (
-    <DevToolsInfo title="Preferences" {...props}>
-      <UserPreferencesBody
-        theme={theme}
-        scale={scale}
-        position={position}
-        setPosition={setPosition}
-        setScale={setScale}
-        hide={hide}
-        hideShortcut={hideShortcut}
-        setHideShortcut={setHideShortcut}
-      />
-    </DevToolsInfo>
-  )
-}
 
 export function UserPreferencesBody({
   theme,

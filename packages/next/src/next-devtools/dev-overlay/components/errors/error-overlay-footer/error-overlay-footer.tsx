@@ -1,7 +1,7 @@
 import { ErrorFeedback } from './error-feedback/error-feedback'
 import { styles as feedbackStyles } from './error-feedback/error-feedback'
 
-export type ErrorOverlayFooterProps = {
+type ErrorOverlayFooterProps = {
   errorCode: string | undefined
 }
 

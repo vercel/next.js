@@ -175,7 +175,7 @@ interface Velocity {
   timestamp: number
 }
 
-export function useDrag(options: UseDragOptions) {
+function useDrag(options: UseDragOptions) {
   const ref = useRef<HTMLDivElement>(null)
   const machine = useRef<
     | { state: 'idle' | 'press' | 'drag-end' }
