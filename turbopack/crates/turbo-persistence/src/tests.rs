@@ -45,7 +45,7 @@ impl ParallelScheduler for RayonParallelScheduler {
         items.into_par_iter().try_for_each(f)
     }
 
-    fn try_into_parallel_for_each<T, E>(
+    fn try_vec_into_parallel_for_each<T, E>(
         &self,
         items: Vec<T>,
         f: impl (Fn(T) -> Result<(), E>) + Send + Sync,
@@ -76,7 +76,7 @@ impl ParallelScheduler for RayonParallelScheduler {
             .collect()
     }
 
-    fn into_parallel_map_collect<T, I, R>(
+    fn vec_into_parallel_map_collect<T, I, R>(
         &self,
         items: Vec<T>,
         f: impl Fn(T) -> I + Send + Sync,

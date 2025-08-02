@@ -185,7 +185,7 @@ where
     let _ = f;
 }
 
-pub fn into_for_each<T>(items: Vec<T>, f: impl Fn(T) + Send + Sync)
+pub fn vec_into_for_each<T>(items: Vec<T>, f: impl Fn(T) + Send + Sync)
 where
     T: Send + Sync,
 {
@@ -371,7 +371,7 @@ where
     result
 }
 
-pub fn into_map_collect<'l, T, I, R>(items: Vec<T>, f: impl Fn(T) -> I + Send + Sync) -> R
+pub fn vec_into_map_collect<'l, T, I, R>(items: Vec<T>, f: impl Fn(T) -> I + Send + Sync) -> R
 where
     T: Send + Sync,
     I: Send + Sync + 'l,
@@ -503,10 +503,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_parallel_into_for_each() {
+    async fn test_parallel_vec_into_for_each() {
         let input = vec![1, 2, 3, 4, 5];
         let sum = AtomicI32::new(0);
-        into_for_each(input, |x| {
+        vec_into_for_each(input, |x| {
             sum.fetch_add(x, Ordering::SeqCst);
         });
         assert_eq!(sum.load(Ordering::SeqCst), 15);
@@ -522,14 +522,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_parallel_into_map_collect() {
         let input = vec![1, 2, 3, 4, 5];
-        let result: Vec<_> = into_map_collect(input, |x| x * 2);
+        let result: Vec<_> = vec_into_map_collect(input, |x| x * 2);
         assert_eq!(result, vec![2, 4, 6, 8, 10]);
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_parallel_into_map_collect_many() {
+    async fn test_parallel_vec_into_map_collect_many() {
         let input = vec![1; 1000];
-        let result: Vec<_> = into_map_collect(input, |x| x * 2);
+        let result: Vec<_> = vec_into_map_collect(input, |x| x * 2);
         assert_eq!(result, vec![2; 1000]);
     }
 }
