@@ -448,10 +448,10 @@ describe('app-dir - server source maps', () => {
           '' +
             '\nError: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
-            '\n    at {module evaluation} (app/module-evaluation/module.js:1:22)' +
+            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
-            '\n    at {module evaluation} (app/module-evaluation/page.js:1:1)' +
-            '\n    at {module evaluation} (.next'
+            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/page.js:1:1)' +
+            '\n    at __TURBOPACK__module__evaluation__ (.next'
         )
       } else {
         expect(cliOutput).toContain(
