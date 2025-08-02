@@ -274,7 +274,7 @@ describe('use-cache-hanging-inputs', () => {
 
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-            "app/bound-args/page.tsx (13:15) @ {module evaluation}
+           "app/bound-args/page.tsx (13:15) @ {module evaluation}
 
              11 |   const uncachedDataPromise = fetchUncachedData()
              12 |
