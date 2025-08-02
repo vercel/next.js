@@ -312,10 +312,8 @@ impl DiskFileSystemInner {
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
         let invalidators = invalidator_map
             .into_iter()
-            .chain(dir_invalidator_map.into_iter())
-            .flat_map(|(_, invalidators)| {
-                invalidators.into_iter().map(|(invalidator, _)| invalidator)
-            })
+            .chain(dir_invalidator_map)
+            .flat_map(|(_, invalidators)| invalidators.into_keys())
             .collect::<Vec<_>>();
         parallel::into_for_each(invalidators, |invalidator| invalidator.invalidate());
     }
@@ -332,12 +330,12 @@ impl DiskFileSystemInner {
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
         let invalidators = invalidator_map
             .into_iter()
-            .chain(dir_invalidator_map.into_iter())
+            .chain(dir_invalidator_map)
             .flat_map(|(path, invalidators)| {
                 let reason_for_path = reason(&path);
                 invalidators
-                    .into_iter()
-                    .map(move |(i, _)| (reason_for_path.clone(), i))
+                    .into_keys()
+                    .map(move |i| (reason_for_path.clone(), i))
             })
             .collect::<Vec<_>>();
         parallel::into_for_each(invalidators, |(reason, invalidator)| {

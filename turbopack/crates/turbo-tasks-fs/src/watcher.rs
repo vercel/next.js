@@ -399,9 +399,7 @@ impl DiskWatcher {
             let _span = tracing::info_span!("invalidate filesystem").entered();
             let invalidator_map = take(&mut *fs_inner.invalidator_map.lock().unwrap());
             let dir_invalidator_map = take(&mut *fs_inner.dir_invalidator_map.lock().unwrap());
-            let iter = invalidator_map
-                .into_iter()
-                .chain(dir_invalidator_map.into_iter());
+            let iter = invalidator_map.into_iter().chain(dir_invalidator_map);
             if report_invalidation_reason {
                 let invalidators = iter
                     .flat_map(|(path, invalidators)| {
@@ -418,7 +416,7 @@ impl DiskWatcher {
                 });
             } else {
                 let invalidators = iter
-                    .flat_map(|(_, invalidators)| invalidators.into_iter().map(move |(i, _)| i))
+                    .flat_map(|(_, invalidators)| invalidators.into_keys())
                     .collect::<Vec<_>>();
                 parallel::into_for_each(invalidators, |invalidator| {
                     invalidator.invalidate();
