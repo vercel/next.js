@@ -3,11 +3,10 @@ use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
-use smallvec::{SmallVec, smallvec};
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
-        ArrayLit, AssignTarget, Expr, ExprOrSpread, ExprStmt, Ident, SimpleAssignTarget, Stmt, Str,
+        ArrayLit, AssignTarget, Expr, ExprStmt, Ident, Lit, Number, SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
@@ -39,20 +38,47 @@ use crate::{
     utils::module_id_to_lit,
 };
 
+/// Models the 'liveness' of an esm export
+/// All ESM exports are technically live but many never change and we can optimize representation to
+/// support that
+#[derive(
+    Copy, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
+pub enum Liveness {
+    // The binding never changes after module evaluation
+    Constant,
+    // The binding may change after module evaluation
+    Live,
+    // The binding needs to be exposed as mutable to callers.  This isn't part of the spec but is
+    // part of our
+    Mutable,
+}
+
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
     /// The last bool is true if the binding is a mutable binding
-    LocalBinding(RcStr, bool),
+    LocalBinding(RcStr, Liveness),
     /// An imported binding that is exported (export { a as b } from "...")
     ///
     /// The last bool is true if the binding is a mutable binding
-    ImportedBinding(ResolvedVc<Box<dyn ModuleReference>>, RcStr, bool),
+    ImportedBinding(ResolvedVc<Box<dyn ModuleReference>>, RcStr, Liveness),
     /// An imported namespace that is exported (export * from "...")
     ImportedNamespace(ResolvedVc<Box<dyn ModuleReference>>),
     /// An error occurred while resolving the export
     Error,
+}
+
+impl EsmExport {
+    pub fn liveness(&self) -> Liveness {
+        match self {
+            EsmExport::LocalBinding(_, liveness) => *liveness,
+            EsmExport::ImportedBinding(_, _, liveness) => *liveness,
+            EsmExport::ImportedNamespace(_) => Liveness::Constant,
+            EsmExport::Error => Liveness::Live,
+        }
+    }
 }
 
 #[turbo_tasks::function]
@@ -534,7 +560,9 @@ impl EsmExports {
                         EsmExport::ImportedBinding(
                             ResolvedVc::upcast(esm_ref),
                             export.clone(),
-                            false,
+                            // we could analyze the target module and only export as live if it
+                            // does this could also be a runtime thing
+                            Liveness::Live,
                         ),
                     );
                 }
@@ -561,8 +589,10 @@ impl EsmExports {
         eval_context: &EvalContext,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Result<CodeGeneration> {
-        let export_usage_info = chunking_context.module_export_usage(*ResolvedVc::upcast(module));
-        let expanded = self.expand_exports(export_usage_info).await?;
+        let export_usage_info = chunking_context
+            .module_export_usage(*ResolvedVc::upcast(module))
+            .await?;
+        let expanded = self.expand_exports(*export_usage_info.export_usage).await?;
 
         if scope_hoisting_context.skip_module_exports() && expanded.dynamic_exports.is_empty() {
             // If the current module is not exposed, no need to generate exports.
@@ -607,13 +637,21 @@ impl EsmExports {
             }
         }
 
+        #[derive(Eq, PartialEq)]
+        enum ExportBinding {
+            Getter(Expr),
+            GetterSetter(Expr, Expr),
+            Value(Expr),
+            None,
+        }
+
         let mut getters = Vec::new();
         for (exported, local) in &expanded.exports {
-            let exprs: SmallVec<[Expr; 1]> = match local {
-                EsmExport::Error => smallvec![quote!(
+            let exprs: ExportBinding = match local {
+                EsmExport::Error => ExportBinding::Getter(quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
-                )],
-                EsmExport::LocalBinding(name, mutable) => {
+                )),
+                EsmExport::LocalBinding(name, liveness) => {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
@@ -639,24 +677,25 @@ impl EsmExports {
                         )
                     });
 
-                    if *mutable {
-                        let local = Ident::new(local.into(), DUMMY_SP, ctxt);
-                        smallvec![
+                    let local = Ident::new(local.into(), DUMMY_SP, ctxt);
+                    match (liveness, export_usage_info.is_circuit_breaker) {
+                        (Liveness::Constant, false) => {
+                            ExportBinding::Value(quote!("$local" as Expr, local = local))
+                        }
+                        (Liveness::Live, _) | (Liveness::Constant, true) => {
+                            ExportBinding::Getter(quote!("() => $local" as Expr, local = local))
+                        }
+                        (Liveness::Mutable, _) => ExportBinding::GetterSetter(
                             quote!("() => $local" as Expr, local = local.clone()),
                             quote!(
                                 "($new) => $local = $new" as Expr,
                                 local = local,
                                 new = Ident::new(format!("new_{name}").into(), DUMMY_SP, ctxt),
-                            )
-                        ]
-                    } else {
-                        smallvec![quote!(
-                            "() => $local" as Expr,
-                            local = Ident::new((name as &str).into(), DUMMY_SP, ctxt)
-                        )]
+                            ),
+                        ),
                     }
                 }
-                EsmExport::ImportedBinding(esm_ref, name, mutable) => {
+                EsmExport::ImportedBinding(esm_ref, name, liveness) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
@@ -664,30 +703,38 @@ impl EsmExports {
                         .await?
                         .map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
-                            if *mutable {
-                                smallvec![
+                            let read_expr = expr.map_either(Expr::from, Expr::from).into_inner();
+                            // For imported bindings we could simply export the'import' and have the runtime hook the bindings together.
+                            // This would be cute, slightly smaller codegen but efficiency is an open question.  In fact we could even
+                            // perform the 'liveness' check at runtime by querying the property descriptor.
+                            match (liveness, export_usage_info.is_circuit_breaker) {
+                                (Liveness::Constant, false) => ExportBinding::Value(quote!(
+                                "$expr" as Expr, expr: Expr = read_expr
+                            )),
+                                 (Liveness::Live, _) | (Liveness::Constant, true) => ExportBinding::Getter(quote!(
+                                "() => $expr" as Expr,
+                                expr: Expr = read_expr
+                            )),
+                                (Liveness::Mutable, _) => ExportBinding::GetterSetter(
                                 quote!(
                                     "() => $expr" as Expr,
-                                    expr: Expr = expr.clone().map_either(Expr::from, Expr::from).into_inner(),
+                                    expr: Expr = read_expr,
                                 ),
                                 quote!(
                                     "($new) => $lhs = $new" as Expr,
                                     lhs: AssignTarget = AssignTarget::Simple(
-                                        expr.map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
+                                        ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
                                     new = Ident::new(
                                         format!("new_{name}").into(),
                                         DUMMY_SP,
                                         Default::default()
                                     ),
                                 )
-                                ]
-                            } else {
-                                smallvec![quote!(
-                                    "(() => $expr)" as Expr,
-                                    expr: Expr = expr.map_either(Expr::from, Expr::from).into_inner()
-                                )]
+                            ),
                             }
-                        }).unwrap_or_default()
+
+                            }
+                        ).unwrap_or(ExportBinding::None)
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset =
@@ -696,24 +743,42 @@ impl EsmExports {
                         .get_ident(chunking_context, None, scope_hoisting_context)
                         .await?
                         .map(|ident| {
-                            smallvec![quote!(
-                                "(() => $imported)" as Expr,
-                                imported: Expr = ident.as_expr(DUMMY_SP, false)
-                            )]
+                            let imported = ident.as_expr(DUMMY_SP, false);
+                            if export_usage_info.is_circuit_breaker {
+                                ExportBinding::Getter(quote!(
+                                    "(() => $imported)" as Expr,
+                                    imported: Expr = imported
+                                ))
+                            } else {
+                                ExportBinding::Value(imported)
+                            }
                         })
-                        .unwrap_or_default()
+                        .unwrap_or(ExportBinding::None)
                 }
             };
-            if !exprs.is_empty() {
+            if exprs != ExportBinding::None {
                 getters.push(Some(
-                    Expr::Lit(swc_core::ecma::ast::Lit::Str(Str {
+                    Expr::Lit(Lit::Str(Str {
                         span: DUMMY_SP,
                         value: exported.as_str().into(),
                         raw: None,
                     }))
                     .into(),
                 ));
-                getters.extend(exprs.into_iter().map(|e| Some(ExprOrSpread::from(e))));
+                match exprs {
+                    ExportBinding::Getter(getter) => {
+                        getters.push(Some(getter.into()));
+                    }
+                    ExportBinding::GetterSetter(getter, setter) => {
+                        getters.push(Some(getter.into()));
+                        getters.push(Some(setter.into()));
+                    }
+                    ExportBinding::Value(value) => {
+                        getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
+                        getters.push(Some(value.into()));
+                    }
+                    ExportBinding::None => {}
+                };
             }
         }
         let getters = Expr::Array(ArrayLit {
@@ -721,15 +786,18 @@ impl EsmExports {
             elems: getters,
         });
         let dynamic_stmt = if !dynamic_exports.is_empty() {
-            Some(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Expr::from_exprs(dynamic_exports),
-            }))
+            vec![CodeGenerationHoistedStmt::new(
+                rcstr!("__turbopack_dynamic__"),
+                Stmt::Expr(ExprStmt {
+                    span: DUMMY_SP,
+                    expr: Expr::from_exprs(dynamic_exports),
+                }),
+            )]
         } else {
-            None
+            vec![]
         };
 
-        let early_hoisted_stmts = vec![CodeGenerationHoistedStmt::new(
+        let esm_exports = vec![CodeGenerationHoistedStmt::new(
             rcstr!("__turbopack_esm__"),
             if let Some(module) = scope_hoisting_context.module() {
                 let id = module.chunk_item_id(Vc::upcast(chunking_context)).await?;
@@ -745,15 +813,12 @@ impl EsmExports {
                 )
             },
         )];
-
-        Ok(CodeGeneration::new(
-            vec![],
-            [dynamic_stmt
-                .map(|stmt| CodeGenerationHoistedStmt::new(rcstr!("__turbopack_dynamic__"), stmt))]
-            .into_iter()
-            .flatten()
-            .collect(),
-            early_hoisted_stmts,
-        ))
+        // If we are a circuit breaker module we need to expose exports first so they are available
+        // to a cyclic importer otherwise we put them at the bottom of the module factory.
+        Ok(if export_usage_info.is_circuit_breaker {
+            CodeGeneration::new(vec![], dynamic_stmt, esm_exports, vec![], vec![])
+        } else {
+            CodeGeneration::new(vec![], vec![], vec![], dynamic_stmt, esm_exports)
+        })
     }
 }

@@ -18,7 +18,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
-    references::esm::{EsmExport, EsmExports},
+    references::esm::{EsmExport, EsmExports, Liveness},
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -98,11 +98,19 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
                 .to_resolved()
                 .await?,
         );
-
+        let liveness = if let EcmascriptExports::EsmExports(exports) =
+            &*self.module.get_exports().await?
+            && let Some(export) = exports.await?.exports.get("default")
+        {
+            export.liveness()
+        } else {
+            Liveness::Live
+        };
         let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
         exports.insert(
-            rcstr!("default"),
-            EsmExport::ImportedBinding(module_reference, rcstr!("default"), false),
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, liveness),
         );
 
         Ok(EcmascriptExports::EsmExports(

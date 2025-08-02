@@ -22,6 +22,7 @@ use crate::{
     EcmascriptModuleContentOptions, EcmascriptOptions, MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGens,
+    export::Liveness,
     parse::ParseResult,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
@@ -306,7 +307,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                             .await?,
                         ),
                         original_export.clone(),
-                        false,
+                        Liveness::Live,
                     ),
                 );
             }
