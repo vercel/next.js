@@ -2151,7 +2151,6 @@ export default async function getBaseWebpackConfig(
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          typedRoutes: true, // TODO: I think this does more than just enable typed routes??
           cacheLifeConfig: config.experimental.cacheLife,
           originalRewrites,
           originalRedirects,

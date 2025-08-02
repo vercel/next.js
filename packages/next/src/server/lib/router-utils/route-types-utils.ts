@@ -6,7 +6,7 @@ import {
 import type { NextConfigComplete } from '../../config-shared'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import fs from 'fs'
-import { generateRouteTypesFile } from './typegen'
+import { generateRouteTypesFile, generateLinkTypesFile } from './typegen'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 
 interface RouteInfo {
@@ -27,46 +27,71 @@ export interface RouteTypesManifest {
 // Convert a custom-route source string (`/blog/:slug`, `/docs/:path*`, ...)
 // into the bracket-syntax used by other Next.js route helpers so that we can
 // reuse `getRouteRegex()` to extract groups.
-export function convertCustomRouteSource(source: string): string {
+export function convertCustomRouteSource(source: string): string[] {
   const parseResult = tryToParsePath(source)
 
   if (parseResult.error || !parseResult.tokens) {
     // Fallback to original source if parsing fails
-    return source.startsWith('/') ? source : '/' + source
+    return source.startsWith('/') ? [source] : ['/' + source]
   }
 
-  let result = ''
+  const possibleNormalizedRoutes = ['']
+  let slugCnt = 1
+
+  function append(suffix: string) {
+    for (let i = 0; i < possibleNormalizedRoutes.length; i++) {
+      possibleNormalizedRoutes[i] += suffix
+    }
+  }
+
+  function fork(suffix: string) {
+    const currentLength = possibleNormalizedRoutes.length
+    for (let i = 0; i < currentLength; i++) {
+      possibleNormalizedRoutes.push(possibleNormalizedRoutes[i] + suffix)
+    }
+  }
 
   for (const token of parseResult.tokens) {
-    if (typeof token === 'string') {
-      // Literal path segment
-      result += token
-    } else {
-      // Parameter token
-      const { name, modifier, prefix } = token
-
-      // Add the prefix (usually '/')
-      result += prefix
-
-      if (modifier === '*') {
-        // Catch-all zero or more: :param* -> [[...param]]
-        result += `[[...${name}]]`
-      } else if (modifier === '+') {
-        // Catch-all one or more: :param+ -> [...param]
-        result += `[...${name}]`
-      } else if (modifier === '?') {
-        // Optional catch-all: :param? -> [[...param]]
-        result += `[[...${name}]]`
-      } else {
-        // Standard dynamic segment: :param -> [param]
-        result += `[${name}]`
+    if (typeof token === 'object') {
+      // Make sure the slug is always named.
+      const slug = token.name || (slugCnt++ === 1 ? 'slug' : `slug${slugCnt}`)
+      if (token.modifier === '*') {
+        append(`${token.prefix}[[...${slug}]]`)
+      } else if (token.modifier === '+') {
+        append(`${token.prefix}[...${slug}]`)
+      } else if (token.modifier === '') {
+        if (token.pattern === '[^\\/#\\?]+?') {
+          // A safe slug
+          append(`${token.prefix}[${slug}]`)
+        } else if (token.pattern === '.*') {
+          // An optional catch-all slug
+          append(`${token.prefix}[[...${slug}]]`)
+        } else if (token.pattern === '.+') {
+          // A catch-all slug
+          append(`${token.prefix}[...${slug}]`)
+        } else {
+          // Other regex patterns are not supported. Skip this route.
+          return []
+        }
+      } else if (token.modifier === '?') {
+        if (/^[a-zA-Z0-9_/]*$/.test(token.pattern)) {
+          // An optional slug with plain text only, fork the route.
+          append(token.prefix)
+          fork(token.pattern)
+        } else {
+          // Optional modifier `?` and regex patterns are not supported.
+          return []
+        }
       }
+    } else if (typeof token === 'string') {
+      append(token)
     }
   }
 
   // Ensure leading slash
-  if (!result.startsWith('/')) result = '/' + result
-  return result
+  return possibleNormalizedRoutes.map((route) =>
+    route.startsWith('/') ? route : '/' + route
+  )
 }
 
 /**
@@ -165,11 +190,12 @@ export async function createRouteTypesManifest({
     const rd = await redirects()
 
     for (const item of rd) {
-      const source = convertCustomRouteSource(item.source)
-
-      manifest.redirectRoutes[source] = {
-        path: source,
-        groups: extractRouteParams(source),
+      const possibleRoutes = convertCustomRouteSource(item.source)
+      for (const route of possibleRoutes) {
+        manifest.redirectRoutes[route] = {
+          path: route,
+          groups: extractRouteParams(route),
+        }
       }
     }
   }
@@ -187,10 +213,12 @@ export async function createRouteTypesManifest({
         ]
 
     for (const item of allSources) {
-      const source = convertCustomRouteSource(item.source)
-      manifest.rewriteRoutes[source] = {
-        path: source,
-        groups: extractRouteParams(source),
+      const possibleRoutes = convertCustomRouteSource(item.source)
+      for (const route of possibleRoutes) {
+        manifest.rewriteRoutes[route] = {
+          path: route,
+          groups: extractRouteParams(route),
+        }
       }
     }
   }
@@ -209,8 +237,12 @@ export async function writeRouteTypesManifest(
     await fs.promises.mkdir(dirname, { recursive: true })
   }
 
-  await fs.promises.writeFile(
-    filePath,
-    generateRouteTypesFile(manifest, config)
-  )
+  // Write the main routes.d.ts file
+  await fs.promises.writeFile(filePath, generateRouteTypesFile(manifest))
+
+  // Write the link.d.ts file if typedRoutes is enabled
+  if (config.experimental?.typedRoutes === true) {
+    const linkTypesPath = path.join(dirname, 'link.d.ts')
+    await fs.promises.writeFile(linkTypesPath, generateLinkTypesFile(manifest))
+  }
 }

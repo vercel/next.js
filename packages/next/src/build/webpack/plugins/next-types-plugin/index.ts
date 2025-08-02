@@ -31,7 +31,6 @@ interface Options {
   dev: boolean
   isEdgeServer: boolean
   pageExtensions: PageExtensions
-  typedRoutes: boolean
   cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   originalRewrites: Rewrites | undefined
   originalRedirects: Redirect[] | undefined
@@ -563,7 +562,6 @@ export class NextTypesPlugin {
   isEdgeServer: boolean
   pageExtensions: string[]
   pagesDir: string
-  typedRoutes: boolean
   cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   distDirAbsolutePath: string
 
@@ -575,7 +573,6 @@ export class NextTypesPlugin {
     this.isEdgeServer = options.isEdgeServer
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
-    this.typedRoutes = options.typedRoutes
     this.cacheLifeConfig = options.cacheLifeConfig
     this.distDirAbsolutePath = path.join(this.dir, this.distDir)
   }
@@ -599,8 +596,6 @@ export class NextTypesPlugin {
   }
 
   collectPage(filePath: string) {
-    if (!this.typedRoutes) return
-
     const isApp = filePath.startsWith(this.appDir + path.sep)
     const isPages = !isApp && filePath.startsWith(this.pagesDir + path.sep)
 

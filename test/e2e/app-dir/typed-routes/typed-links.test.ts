@@ -11,7 +11,7 @@ describe('typed-links', () => {
   }
 
   it('should generate types for next/link', async () => {
-    const dts = await next.readFile('.next/types/routes.d.ts')
+    const dts = await next.readFile('.next/types/link.d.ts')
     expect(dts).toContain(`declare module 'next/link'`)
   })
 

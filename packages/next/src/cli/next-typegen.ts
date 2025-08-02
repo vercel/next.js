@@ -129,7 +129,11 @@ const nextTypegen = async (
     rewrites: nextConfig.rewrites,
   })
 
-  await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath)
+  await writeRouteTypesManifest(
+    routeTypesManifest,
+    routeTypesFilePath,
+    nextConfig
+  )
 
   console.log('✓ Route types generated successfully')
 }

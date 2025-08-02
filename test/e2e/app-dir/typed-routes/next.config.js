@@ -17,11 +17,6 @@ const nextConfig = {
         destination: '/posts/:category/:slug*',
         permanent: false,
       },
-      {
-        source: '/optional/:param?',
-        destination: '/fallback',
-        permanent: false,
-      },
     ]
   },
   async rewrites() {
