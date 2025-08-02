@@ -1,19 +1,8 @@
 import type { Preview } from '@storybook/react'
-import { useInsertionEffect } from 'react'
 import { withDevOverlayContexts } from '../src/next-devtools/dev-overlay/storybook/with-dev-overlay-contexts'
 
-function CreatePortalNode() {
-  useInsertionEffect(() => {
-    const portalNode = document.createElement('nextjs-portal')
-    document.body.appendChild(portalNode)
-
-    return () => {
-      document.body.removeChild(portalNode)
-    }
-  })
-
-  return null
-}
+const portalNode = document.querySelector('nextjs-portal')!
+const shadowRoot = portalNode.attachShadow({ mode: 'open' })
 
 const preview: Preview = {
   parameters: {
@@ -63,15 +52,7 @@ const preview: Preview = {
       manual: true,
     },
   },
-  decorators: [
-    withDevOverlayContexts(),
-    (Story) => (
-      <>
-        <CreatePortalNode />
-        <Story />
-      </>
-    ),
-  ],
+  decorators: [withDevOverlayContexts({ shadowRoot })],
 }
 
 export default preview

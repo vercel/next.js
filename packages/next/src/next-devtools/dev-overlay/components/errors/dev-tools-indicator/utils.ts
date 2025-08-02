@@ -1,10 +1,5 @@
 import { useEffect } from 'react'
 
-export const getShadowRoot = () => {
-  const portal = document.querySelector('nextjs-portal')
-  return portal?.shadowRoot
-}
-
 export function useFocusTrap(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null> | null,

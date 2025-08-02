@@ -1,6 +1,7 @@
 import './segment-boundary-trigger.css'
 import { useCallback, useState, useRef, useMemo } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
+import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import type {
   SegmentBoundaryType,
   SegmentNodeState,
@@ -31,12 +32,7 @@ export function SegmentBoundaryTrigger({
   const { pagePath, boundaryType, setBoundaryType: onSelectBoundary } = currNode
 
   const [isOpen, setIsOpen] = useState(false)
-  // TODO: move this shadowRoot ref util to a shared hook or into context
-  const [shadowRoot] = useState<ShadowRoot>(() => {
-    const ownerDocument = document
-    const portalNode = ownerDocument.querySelector('nextjs-portal')!
-    return portalNode.shadowRoot! as ShadowRoot
-  })
+  const { shadowRoot } = useDevOverlayContext()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
