@@ -1048,7 +1048,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index index.js (2:44)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
-           "Page index.js (15:9)",
+           "Page index.js (16:8)",
          ],
        }
       `)

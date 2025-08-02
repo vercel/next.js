@@ -560,7 +560,6 @@ describe('Cache Components Errors', () => {
              > 59 |   const response = await fetch(
                   |                          ^",
                  "stack": [
-                   "Promise.then <anonymous>",
                    "fetchRandom app/dynamic-root/page.tsx (59:26)",
                    "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (22:9)",
@@ -575,7 +574,6 @@ describe('Cache Components Errors', () => {
              > 59 |   const response = await fetch(
                   |                          ^",
                  "stack": [
-                   "Promise.then <anonymous>",
                    "fetchRandom app/dynamic-root/page.tsx (59:26)",
                    "FetchingComponent app/dynamic-root/page.tsx (45:56)",
                    "Page app/dynamic-root/page.tsx (27:7)",

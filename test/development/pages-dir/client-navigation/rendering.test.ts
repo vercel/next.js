@@ -278,7 +278,6 @@ describe('Client Navigation rendering', () => {
              | ^",
            "stack": [
              "{module evaluation} pages/error-in-the-global-scope.js (1:1)",
-
              "<FIXME-next-dist-dir>",
            ],
          }
