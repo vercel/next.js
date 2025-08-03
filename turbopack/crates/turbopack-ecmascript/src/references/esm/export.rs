@@ -704,7 +704,7 @@ impl EsmExports {
                         .map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
                             let read_expr = expr.map_either(Expr::from, Expr::from).into_inner();
-                            // For imported bindings we could simply export the'import' and have the runtime hook the bindings together.
+                            // For imported bindings we could simply export the 'import' and have the runtime hook the bindings together.
                             // This would be cute, slightly smaller codegen but efficiency is an open question.  In fact we could even
                             // perform the 'liveness' check at runtime by querying the property descriptor.
                             match (liveness, export_usage_info.is_circuit_breaker) {
