@@ -602,7 +602,7 @@ pub fn decompress_into_arc(
     // Safety: We know that the buffer is not shared yet.
     let decompressed = unsafe { Arc::get_mut_unchecked(&mut buffer) };
     // Safety: decompress_with_dict will only write to `decompressed` and not read from it.
-    let bytes_writes = decompress_with_dict(&block, decompressed, compression_dictionary)?;
+    let bytes_writes = decompress_with_dict(block, decompressed, compression_dictionary)?;
     assert_eq!(
         bytes_writes, uncompressed_length as usize,
         "Decompressed length does not match expected length"
