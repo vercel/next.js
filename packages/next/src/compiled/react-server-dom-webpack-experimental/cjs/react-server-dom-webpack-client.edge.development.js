@@ -1458,7 +1458,7 @@
           "object" === typeof value && null !== value
             ? addObjectToProperties(value, properties, 0, "")
             : void 0 !== value &&
-              addValueToProperties("Resolved", value, properties, 0, "");
+              addValueToProperties("awaited value", value, properties, 0, "");
           asyncInfo = getIOLongName(
             asyncInfo.awaited,
             description,
@@ -1501,7 +1501,7 @@
         debugTask
           ? ((error = [
               [
-                "Rejected",
+                "rejected with",
                 "object" === typeof error &&
                 null !== error &&
                 "string" === typeof error.message
@@ -1835,7 +1835,7 @@
                 waitForReference(
                   debugChunk,
                   {},
-                  "",
+                  "debug",
                   response,
                   initializeDebugInfo,
                   [""]

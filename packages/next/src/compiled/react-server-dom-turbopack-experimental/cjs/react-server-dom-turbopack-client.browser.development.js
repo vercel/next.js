@@ -1247,7 +1247,7 @@
           "object" === typeof value && null !== value
             ? addObjectToProperties(value, properties, 0, "")
             : void 0 !== value &&
-              addValueToProperties("Resolved", value, properties, 0, "");
+              addValueToProperties("awaited value", value, properties, 0, "");
           asyncInfo = getIOLongName(
             asyncInfo.awaited,
             description,
@@ -1290,7 +1290,7 @@
         debugTask
           ? ((error = [
               [
-                "Rejected",
+                "rejected with",
                 "object" === typeof error &&
                 null !== error &&
                 "string" === typeof error.message
@@ -1618,7 +1618,7 @@
                 waitForReference(
                   debugChunk,
                   {},
-                  "",
+                  "debug",
                   response,
                   initializeDebugInfo,
                   [""]
@@ -4417,10 +4417,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-c260b38d-20250731",
+      version: "19.2.0-experimental-be11cb5c-20250804",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-c260b38d-20250731",
+      reconcilerVersion: "19.2.0-experimental-be11cb5c-20250804",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

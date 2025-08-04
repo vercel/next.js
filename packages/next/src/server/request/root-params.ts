@@ -203,6 +203,13 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
     throw new InvariantError(`Missing workStore in ${apiName}`)
   }
 
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (!workUnitStore) {
+    throw new Error(
+      `Route ${workStore.route} used ${apiName} outside of a Server Component. This is not allowed.`
+    )
+  }
+
   const actionStore = actionAsyncStorage.getStore()
   if (actionStore) {
     if (actionStore.isAppRoute) {
@@ -211,21 +218,15 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         `Route ${workStore.route} used ${apiName} inside a Route Handler. Support for this API in Route Handlers is planned for a future version of Next.js.`
       )
     }
-    if (actionStore.isAction) {
+    if (actionStore.isAction && workUnitStore.phase === 'action') {
       // Actions are not fundamentally tied to a route (even if they're always submitted from some page),
       // so root params would be inconsistent if an action is called from multiple roots.
+      // Make sure we check if the phase is "action" - we should not error in the rerender
+      // after an action revalidates or updates cookies (which will still have `actionStore.isAction === true`)
       throw new Error(
         `${apiName} was used inside a Server Action. This is not supported. Functions from 'next/root-params' can only be called in the context of a route.`
       )
     }
-  }
-
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
-  if (!workUnitStore) {
-    throw new Error(
-      `Route ${workStore.route} used ${apiName} in Pages Router. This API is only available within App Router.`
-    )
   }
 
   switch (workUnitStore.type) {

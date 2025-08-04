@@ -1158,7 +1158,7 @@
                 waitForReference(
                   debugChunk,
                   {},
-                  "",
+                  "debug",
                   response,
                   initializeDebugInfo,
                   [""]
@@ -3371,10 +3371,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-c260b38d-20250731",
+      version: "19.2.0-canary-be11cb5c-20250804",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-c260b38d-20250731",
+      reconcilerVersion: "19.2.0-canary-be11cb5c-20250804",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
