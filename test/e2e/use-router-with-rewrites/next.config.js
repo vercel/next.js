@@ -12,6 +12,7 @@ const nextConfig = {
           source: '/rewrite-to-another-segment/:id',
           destination: '/rewrite-to-another-segment/:id/foo',
         },
+        // Even though there's rewrite, below won't work as expected due to trade-off.
         {
           source: '/rewrite-to-same-segment/1',
           destination: '/rewrite-to-same-segment/001',

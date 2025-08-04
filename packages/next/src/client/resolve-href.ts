@@ -8,6 +8,8 @@ import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateAs } from '../shared/lib/router/utils/interpolate-as'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 
 /**
  * Resolves a given hyperlink with a certain router state (basePath not included).
@@ -56,13 +58,37 @@ export function resolveHref(
   }
 
   try {
-    const shouldUseAsPath =
-      urlAsString.startsWith('#') || urlAsString.startsWith('?')
+    let baseBase = urlAsString.startsWith('#') ? router.asPath : router.pathname
 
-    base = new URL(
-      shouldUseAsPath ? router.asPath : router.pathname,
-      'http://n'
-    )
+    // If the provided href is only a query string, it is safer to use the asPath
+    // considering rewrites.
+    if (urlAsString.startsWith('?')) {
+      baseBase = router.asPath
+
+      // However, if the pathname is dynamic, we need to use the pathname
+      // to preserve the query interpolation and rewrites.
+      if (isDynamicRoute(router.pathname)) {
+        baseBase = router.pathname
+
+        const routeRegex = getRouteRegex(router.pathname)
+        const match = getRouteMatcher(routeRegex)(router.asPath)
+
+        // For dynamic routes, if asPath doesn't match the pathname regex,
+        // treat it as a rewritten path and use asPath to preserve the current URL
+        // instead of the rewrite destination.
+        if (!match) {
+          baseBase = router.asPath
+        }
+        // Note: There is an edge case where the pathname is dynamic and also rewritten,
+        // but to a same segment.
+        // E.g. in /[slug] path, rewrite /foo -> /bar
+        // In this case, it will be treated as non-rewritten path and possibly interpolate
+        // the query string. This is a trade-off of not resolving rewrites path on every
+        // Router/Link calls.
+      }
+    }
+
+    base = new URL(baseBase, 'http://n')
   } catch (_) {
     // fallback to / for invalid asPath values e.g. //
     base = new URL('/', 'http://n')
