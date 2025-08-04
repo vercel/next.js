@@ -193,20 +193,20 @@ Because of this automatic behavior, you don’t need to manually add a nonce to 
 If you're using nonces, you may need to explicitly opt pages into dynamic rendering:
 
 ```tsx filename="app/page.tsx" switcher
-// Force dynamic rendering for pages using nonces
 import { connection } from 'next/server'
 
 export default function Page() {
+  // wait for an incoming request to render this page
   await connection()
   // Your page content
 }
 ```
 
 ```jsx filename="app/page.jsx" switcher
-// Force dynamic rendering for pages using nonces
 import { connection } from 'next/server'
 
 export default function Page() {
+  // wait for an incoming request to render this page
   await connection()
   // Your page content
 }
