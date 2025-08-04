@@ -65,7 +65,7 @@ export default function Layout(/* layout props */) {
 }
 ```
 
-For other cases, you can create a client module that loads the polyfills you need.
+For other cases, you can create a client module that loads the polyfills you need. For example if you only want to polyfill client side:
 
 ```tsx filename="app/polyfill.ts"
 'use client'
@@ -94,7 +94,9 @@ export default function Layout(/* layout props */) {
 
 Using this strategy prevents dead-code elimination from removing the polyfill and marks its usage explicitly.
 
-The best approach is to isolate unsupported features to specific UI sections and conditionally load the polyfill before using them.
+</AppOnly>
+
+The best approach is to isolate unsupported features to specific UI sections and conditionally load the polyfill before using it.
 
 ```ts filename="hooks/analytics.ts" switcher
 import { useCallback } from 'react'
@@ -127,8 +129,6 @@ export const useAnalytics = () => {
   return tracker
 }
 ```
-
-</AppOnly>
 
 ## JavaScript Language Features
 
