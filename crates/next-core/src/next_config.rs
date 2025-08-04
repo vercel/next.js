@@ -1170,10 +1170,10 @@ impl Issue for InvalidLoaderRuleError {
                 .into(),
             ),
             StyledString::Text(
-                "Check out the documentation here for more information:".into(),
+                rcstr!("Check out the documentation here for more information:"),
             ),
             StyledString::Text(
-                "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders".into(),
+                rcstr!("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"),
             ),
         ]).resolved_cell())))
     }

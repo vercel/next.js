@@ -116,7 +116,7 @@ pub async fn is_babel_loader_available(project_path: FileSystemPath) -> Result<V
     let result = resolve(
         project_path.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        Request::parse(Pattern::Constant("babel-loader/package.json".into())),
+        Request::parse(Pattern::Constant(rcstr!("babel-loader/package.json"))),
         node_cjs_resolve_options(project_path),
     );
     let assets = result.primary_sources().await?;

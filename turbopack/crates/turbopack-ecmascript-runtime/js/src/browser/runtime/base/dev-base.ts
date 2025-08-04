@@ -148,6 +148,10 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   }
 
   if (module) {
+    if (module.error) {
+      throw module.error
+    }
+
     if (module.parents.indexOf(sourceModule.id) === -1) {
       module.parents.push(sourceModule.id)
     }
@@ -180,7 +184,7 @@ function instantiateModule(
   // We are in development, this is always a string.
   let id = moduleId as string
 
-  const moduleFactory = moduleFactories[id]
+  const moduleFactory = moduleFactories.get(id)
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
@@ -234,7 +238,6 @@ function instantiateModule(
     throw error
   }
 
-  module.loaded = true
   if (module.namespaceObject && module.exports !== module.namespaceObject) {
     // in case of a circular dependency: cjs1 -> esm2 -> cjs1
     interopEsm(module.exports, module.namespaceObject)
@@ -551,7 +554,8 @@ function applyPhase(
 ) {
   // Update module factories.
   for (const [moduleId, factory] of newModuleFactories.entries()) {
-    moduleFactories[moduleId] = factory
+    applyModuleFactoryName(factory)
+    moduleFactories.set(moduleId, factory)
   }
 
   // TODO(alexkirsz) Run new runtime entries here.
@@ -612,7 +616,7 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
 
       switch (chunkUpdate.type) {
         case 'added':
-          BACKEND.loadChunkCached(SourceType.Update, undefined, chunkUrl)
+          BACKEND.loadChunkCached(SourceType.Update, chunkUrl)
           break
         case 'total':
           DEV_BACKEND.reloadChunk?.(chunkUrl)
@@ -1117,17 +1121,21 @@ function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
   runtimeChunkLists.add(chunkListPath)
 }
 
-function registerChunk([
-  chunkScript,
-  chunkModules,
-  runtimeParams,
-]: ChunkRegistration) {
-  const chunkPath = getPathFromScript(chunkScript)
-  for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
-    registerCompressedModuleFactory(moduleId, moduleFactory)
-    addModuleToChunk(moduleId, chunkPath)
+function registerChunk(registration: ChunkRegistration) {
+  const chunkPath = getPathFromScript(registration[0])
+  let runtimeParams: RuntimeParams | undefined
+  // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
+  if (registration.length === 2) {
+    runtimeParams = registration[1] as RuntimeParams
+  } else {
+    runtimeParams = undefined
+    installCompressedModuleFactories(
+      registration as CompressedModuleFactories,
+      /* offset= */ 1,
+      moduleFactories,
+      (id: ModuleId) => addModuleToChunk(id, chunkPath)
+    )
   }
-
   return BACKEND.registerChunk(chunkPath, runtimeParams)
 }
 

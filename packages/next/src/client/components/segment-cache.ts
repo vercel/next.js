@@ -19,6 +19,7 @@
 
 export type { NavigationResult } from './segment-cache-impl/navigation'
 export type { PrefetchTask } from './segment-cache-impl/scheduler'
+export type { NormalizedSearch } from './segment-cache-impl/cache-key'
 
 const notEnabled: any = () => {
   throw new Error(
@@ -142,9 +143,13 @@ export const enum PrefetchPriority {
 }
 
 export const enum FetchStrategy {
-  PPR,
-  Full,
-  LoadingBoundary,
+  // Deliberately ordered so we can easily compare two segments
+  // and determine if one segment is "more specific" than another
+  // (i.e. if it's likely that it contains more data)
+  LoadingBoundary = 0,
+  PPR = 1,
+  PPRRuntime = 2,
+  Full = 3,
 }
 
 /**
@@ -153,4 +158,7 @@ export const enum FetchStrategy {
  * until we complete the initial tree prefetch request, so we use `PPR` to signal both cases
  * and adjust it based on the route when actually fetching.
  * */
-export type PrefetchTaskFetchStrategy = FetchStrategy.PPR | FetchStrategy.Full
+export type PrefetchTaskFetchStrategy =
+  | FetchStrategy.PPR
+  | FetchStrategy.PPRRuntime
+  | FetchStrategy.Full

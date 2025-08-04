@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "15.4.2-canary.21",
+  "version": "15.4.2-canary.29",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -102,14 +102,13 @@
     ]
   },
   "dependencies": {
-    "@next/env": "15.4.2-canary.21",
+    "@next/env": "15.4.2-canary.29",
     "@swc/helpers": "0.5.15",
     "caniuse-lite": "^1.0.30001579",
     "postcss": "8.4.31",
     "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
-    "@modelcontextprotocol/sdk": "^1.15.1",
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.51.1",
     "babel-plugin-react-compiler": "*",
@@ -122,9 +121,6 @@
       "optional": true
     },
     "sass": {
-      "optional": true
-    },
-    "@modelcontextprotocol/sdk": {
       "optional": true
     },
     "@opentelemetry/api": {
@@ -160,7 +156,7 @@
     "@babel/runtime": "7.27.0",
     "@babel/traverse": "7.27.0",
     "@babel/types": "7.27.0",
-    "@base-ui-components/react": "1.0.0-beta.1",
+    "@base-ui-components/react": "1.0.0-beta.2",
     "@capsizecss/metrics": "3.4.0",
     "@edge-runtime/cookies": "6.0.0",
     "@edge-runtime/ponyfill": "4.0.0",
@@ -168,14 +164,13 @@
     "@hapi/accept": "5.0.2",
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
-    "@modelcontextprotocol/sdk": "1.15.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "15.4.2-canary.21",
-    "@next/polyfill-module": "15.4.2-canary.21",
-    "@next/polyfill-nomodule": "15.4.2-canary.21",
-    "@next/react-refresh-utils": "15.4.2-canary.21",
-    "@next/swc": "15.4.2-canary.21",
+    "@next/font": "15.4.2-canary.29",
+    "@next/polyfill-module": "15.4.2-canary.29",
+    "@next/polyfill-nomodule": "15.4.2-canary.29",
+    "@next/react-refresh-utils": "15.4.2-canary.29",
+    "@next/swc": "15.4.2-canary.29",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.51.1",
     "@rspack/core": "1.4.5",

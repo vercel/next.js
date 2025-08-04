@@ -1,7 +1,7 @@
 use anyhow::Result;
 use regex::bytes::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 
 use crate::globset::parse;
@@ -100,7 +100,7 @@ impl Glob {
     #[turbo_tasks::function]
     pub async fn alternatives(globs: Vec<Vc<Glob>>) -> Result<Vc<Self>> {
         match globs.len() {
-            0 => Ok(Glob::new("".into())),
+            0 => Ok(Glob::new(rcstr!(""))),
             1 => Ok(globs.into_iter().next().unwrap()),
             _ => {
                 let mut new_glob = String::new();
@@ -193,6 +193,8 @@ mod tests {
     #[case::alternatives_nested2("{a,b/c,d/e/{f,g/h}}", "b/c")]
     #[case::alternatives_nested3("{a,b/c,d/e/{f,g/h}}", "d/e/f")]
     #[case::alternatives_nested4("{a,b/c,d/e/{f,g/h}}", "d/e/g/h")]
+    #[case::alternatives_empty1("react{,-dom}", "react")]
+    #[case::alternatives_empty2("react{,-dom}", "react-dom")]
     #[case::alternatives_chars("[abc]", "b")]
     fn glob_match(#[case] glob: &str, #[case] path: &str) {
         let glob = Glob::parse(glob).unwrap();

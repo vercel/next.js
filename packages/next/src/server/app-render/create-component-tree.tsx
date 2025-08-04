@@ -300,6 +300,7 @@ async function createComponentTreeInternal(
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'prerender':
+        case 'prerender-runtime':
         case 'prerender-legacy':
         case 'prerender-ppr':
           if (workUnitStore.revalidate > defaultRevalidate) {

@@ -302,7 +302,7 @@ describe('Error recovery app', () => {
            "Index.useCallback[increment] index.js (7:11)",
            "button <anonymous>",
            "Index index.js (12:7)",
-           "Page index.js (8:16)",
+           "Page index.js (10:5)",
          ],
        }
       `)

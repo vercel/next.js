@@ -34,7 +34,6 @@ use turbopack_core::{
     chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::Layer,
     issue::{IssueExt, IssueSource, StyledString, module::ModuleIssue},
     module::Module,
@@ -643,19 +642,16 @@ async fn process_default_internal(
 }
 
 #[turbo_tasks::function]
-async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleAssetContext>> {
-    let env = Environment::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
-    ))
-    .to_resolved()
-    .await?;
-
+async fn externals_tracing_module_context(
+    ty: ExternalType,
+    compile_time_info: Vc<CompileTimeInfo>,
+) -> Result<Vc<ModuleAssetContext>> {
     let resolve_options = ResolveOptionsContext {
-        emulate_environment: Some(env),
+        emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         custom_conditions: match ty {
-            ExternalType::CommonJs => vec!["require".into()],
-            ExternalType::EcmaScriptModule => vec!["import".into()],
+            ExternalType::CommonJs => vec![rcstr!("require")],
+            ExternalType::EcmaScriptModule => vec![rcstr!("import")],
             ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![],
         },
         ..Default::default()
@@ -663,7 +659,7 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
 
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
-        CompileTimeInfo::builder(env).cell().await?,
+        compile_time_info,
         // Keep these options more or less in sync with
         // turbopack/crates/turbopack/tests/node-file-trace.rs to ensure that the NFT unit tests
         // are actually representative of what Turbopack does.
@@ -784,7 +780,7 @@ impl AssetContext for ModuleAssetContext {
                         ResolveResultItem::External { name, ty, traced } => {
                             let replacement = if replace_externals {
                                 let tracing_mode = if traced == ExternalTraced::Traced
-                                    && let Some(tracing_root) = &self
+                                    && let Some(options) = &self
                                         .module_options_context()
                                         .await?
                                         .enable_externals_tracing
@@ -793,13 +789,17 @@ impl AssetContext for ModuleAssetContext {
                                     // request will later be resolved relative to tracing_root
                                     // anyway.
 
+                                    let options = options.await?;
                                     CachedExternalTracingMode::Traced {
                                         externals_context: ResolvedVc::upcast(
-                                            externals_tracing_module_context(ty)
-                                                .to_resolved()
-                                                .await?,
+                                            externals_tracing_module_context(
+                                                ty,
+                                                *options.compile_time_info,
+                                            )
+                                            .to_resolved()
+                                            .await?,
                                         ),
-                                        root_origin: tracing_root.join("_")?,
+                                        root_origin: options.tracing_root.join("_")?,
                                     }
                                 } else {
                                     CachedExternalTracingMode::Untraced

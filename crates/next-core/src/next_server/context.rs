@@ -8,8 +8,8 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        ModuleRule, TypeofWindow, TypescriptTransformOptions,
+        CssOptionsContext, EcmascriptOptionsContext, ExternalsTracingOptions, JsxTransformOptions,
+        ModuleOptionsContext, ModuleRule, TypeofWindow, TypescriptTransformOptions,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::Transition,
@@ -19,6 +19,7 @@ use turbopack_core::{
         ChunkingConfig, MangleType, MinifyType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
+    compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{
         Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
@@ -388,6 +389,49 @@ pub async fn get_server_compile_time_info(
 }
 
 #[turbo_tasks::function]
+pub async fn get_tracing_compile_time_info() -> Result<Vc<CompileTimeInfo>> {
+    CompileTimeInfo::builder(
+        Environment::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment::default().resolved_cell(),
+        ))
+        .to_resolved()
+        .await?,
+    )
+    /*
+    We'd really like to set `process.env.NODE_ENV = "production"` here, but with that,
+    `react/cjs/react.development.js` won't be copied anymore (as expected).
+    However if you `import` react from native ESM: `import {createContext} from 'react';`, it fails with
+    ```
+    import {createContext} from 'react';
+            ^^^^^^^^^^^^^
+    SyntaxError: Named export 'createContext' not found. The requested module 'react' is a CommonJS module, which may not support all module.exports as named exports.
+    CommonJS modules can always be imported via the default export, for example using:
+    ```
+    This is because Node's import-cjs-from-esm feature can correctly find all named exports in
+    ```
+    // `react/index.js`
+    if (process.env.NODE_ENV === 'production') {
+      module.exports = require('./cjs/react.production.js');
+    } else {
+      module.exports = require('./cjs/react.development.js');
+    }
+    ```
+    if both files exist (which is what's happening so far).
+    If `react.development.js` doesn't exist, then it bails with that error message.
+    Also just removing that second branch works fine, but a `require` to a non-existent file fails.
+    */
+    .defines(
+        compile_time_defines!(
+            process.env.TURBOPACK = true,
+            // process.env.NODE_ENV = "production",
+        )
+        .resolved_cell(),
+    )
+    .cell()
+    .await
+}
+
+#[turbo_tasks::function]
 pub async fn get_server_module_options_context(
     project_path: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
@@ -544,7 +588,13 @@ pub async fn get_server_module_options_context(
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         enable_externals_tracing: if next_mode.is_production() {
-            Some(project_path)
+            Some(
+                ExternalsTracingOptions {
+                    tracing_root: project_path,
+                    compile_time_info: get_tracing_compile_time_info().to_resolved().await?,
+                }
+                .resolved_cell(),
+            )
         } else {
             None
         },

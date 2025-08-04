@@ -67,7 +67,7 @@ describe('segment cache (search params)', () => {
     expect(await result.innerText()).toBe('Search param: c_PPR')
   })
 
-  it('when fetching without PPR (e.g. prefetch={true}), includes the search params in the cache key', async () => {
+  it('when fetching without PPR (e.g. prefetch="unstable_forceStale"), includes the search params in the cache key', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/search-params', {
       beforePageLoad(page) {
@@ -75,7 +75,7 @@ describe('segment cache (search params)', () => {
       },
     })
 
-    // Prefetch a page with search param `b_full`. This link has prefetch={true}
+    // Prefetch a page with search param `b_full`. This link has prefetch='unstable_forceStale'
     // so it will fetch the entire page, including the search param.
     const revealB = await browser.elementByCss(
       'input[data-link-accordion="/search-params/target-page?searchParam=b_full"]'
@@ -91,7 +91,7 @@ describe('segment cache (search params)', () => {
     )
 
     // Prefetch a link with a different search param, and without
-    // prefetch={true}. This must fetch a new shell, because it can't use the
+    // prefetch='unstable_forceStale'. This must fetch a new shell, because it can't use the
     // entry we fetched for `searchParam=b_full` (because that one wasn't a
     // shell — it included the search param).
     const revealA = await browser.elementByCss(
@@ -106,7 +106,7 @@ describe('segment cache (search params)', () => {
       { includes: 'target-page-with-search-param' }
     )
 
-    // Prefetch a different link using prefetch={true}. Again, this must issue
+    // Prefetch a different link using prefetch='unstable_forceStale'. Again, this must issue
     // a new request, because it's a full page prefetch and we haven't fetched
     // this particular search param before.
     // TODO: As an future optimization, if a navigation to this link occurs
