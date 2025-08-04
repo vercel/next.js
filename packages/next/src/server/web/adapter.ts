@@ -298,9 +298,8 @@ export async function adapter(
                 onAfterTaskError: undefined,
               },
               requestEndedState: { ended: false },
-              isPrefetchRequest: request.headers.has(
-                NEXT_ROUTER_PREFETCH_HEADER
-              ),
+              isPrefetchRequest:
+                request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
               previouslyRevalidatedTags: [],
             })

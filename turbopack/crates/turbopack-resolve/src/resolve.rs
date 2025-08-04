@@ -84,6 +84,15 @@ const NODE_EXTERNALS: [&str; 64] = [
 
 const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "async_hooks"];
 
+const BUN_EXTERNALS: [&str; 6] = [
+    "bun:ffi",
+    "bun:jsc",
+    "bun:sqlite",
+    "bun:test",
+    "bun:wrap",
+    "bun",
+];
+
 #[turbo_tasks::function]
 async fn base_resolve_options(
     fs: ResolvedVc<Box<dyn FileSystem>>,
@@ -98,11 +107,15 @@ async fn base_resolve_options(
     } else {
         opt.enable_node_externals
     };
-    if node_externals || opt.enable_edge_node_externals {
-        let untraced_external_cell =
-            ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
-                .resolved_cell();
+    let untraced_external_cell =
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+            .resolved_cell();
 
+    for req in BUN_EXTERNALS {
+        direct_mappings.insert(AliasPattern::exact(req), untraced_external_cell);
+    }
+
+    if node_externals || opt.enable_edge_node_externals {
         if node_externals {
             for req in NODE_EXTERNALS {
                 direct_mappings.insert(AliasPattern::exact(req), untraced_external_cell);
@@ -112,6 +125,7 @@ async fn base_resolve_options(
                 );
             }
         }
+
         if opt.enable_edge_node_externals {
             for req in EDGE_NODE_EXTERNALS {
                 direct_mappings.insert(

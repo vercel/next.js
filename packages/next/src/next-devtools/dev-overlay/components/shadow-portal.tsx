@@ -38,7 +38,7 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
     forceUpdate({})
   }, [state.theme])
 
-  return shadowNode.current
-    ? createPortal(children, shadowNode.current as any)
-    : null
+  // eslint-disable-next-line react-hooks/react-compiler -- TODO
+  const shadowRoot = shadowNode.current
+  return shadowRoot ? createPortal(children, shadowRoot as any) : null
 }

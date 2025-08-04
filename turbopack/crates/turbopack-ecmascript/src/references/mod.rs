@@ -39,7 +39,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, atom},
     common::{
         GLOBALS, Globals, Span, Spanned,
         comments::{CommentKind, Comments},
@@ -1469,7 +1469,7 @@ async fn compile_time_info_for_module_type(
             DefinableNameSegment::Name(rcstr!("meta")),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("object".into());
+        .or_insert(rcstr!("object").into());
     free_var_references
         .entry(vec![
             DefinableNameSegment::Name(rcstr!("exports")),
@@ -1487,31 +1487,31 @@ async fn compile_time_info_for_module_type(
             DefinableNameSegment::Name(rcstr!("require")),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("function".into());
+        .or_insert(rcstr!("function").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(rcstr!("require"))])
         .or_insert(require.into());
 
-    let dir_name: RcStr = rcstr!("__dirname");
+    let dir_name = rcstr!("__dirname");
     free_var_references
         .entry(vec![
             DefinableNameSegment::Name(dir_name.clone()),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("string".into());
+        .or_insert(rcstr!("string").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(dir_name)])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::DirName,
         ));
-    let file_name: RcStr = rcstr!("__filename");
+    let file_name = rcstr!("__filename");
 
     free_var_references
         .entry(vec![
             DefinableNameSegment::Name(file_name.clone()),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("string".into());
+        .or_insert(rcstr!("string").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(file_name)])
         .or_insert(FreeVarReference::InputRelative(
@@ -1519,16 +1519,16 @@ async fn compile_time_info_for_module_type(
         ));
 
     // Compiletime rewrite the nodejs `global` to `globalThis`
-    let global: RcStr = rcstr!("global");
+    let global = rcstr!("global");
     free_var_references
         .entry(vec![
             DefinableNameSegment::Name(global.clone()),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("object".into());
+        .or_insert(rcstr!("object").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(global)])
-        .or_insert(FreeVarReference::Ident("globalThis".into()));
+        .or_insert(FreeVarReference::Ident(rcstr!("globalThis")));
 
     free_var_references.extend(TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
@@ -1558,9 +1558,9 @@ async fn compile_time_info_for_module_type(
             DefinableNameSegment::TypeOf,
         ])
         .or_insert(if is_esm {
-            "undefined".into()
+            rcstr!("undefined").into()
         } else {
-            "object".into()
+            rcstr!("object").into()
         });
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
@@ -2268,7 +2268,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                                 WellKnownFunctionKind::PathJoin,
                                             )),
                                             vec![
-                                                JsValue::FreeVar("__dirname".into()),
+                                                JsValue::FreeVar(atom!("__dirname")),
                                                 pkg_or_dir.clone(),
                                             ],
                                         ),
@@ -2328,9 +2328,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     WellKnownFunctionKind::PathJoin,
                                 )),
                                 vec![
-                                    JsValue::FreeVar("__dirname".into()),
+                                    JsValue::FreeVar(atom!("__dirname")),
                                     p.into(),
-                                    "intl".into(),
+                                    atom!("intl").into(),
                                 ],
                             ),
                             ImportAttributes::empty_ref(),
@@ -3567,7 +3567,7 @@ impl From<Vec<AstParentKind>> for AstPath {
     }
 }
 
-pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| "__turbopack-helper__".into());
+pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| atom!("__turbopack-helper__"));
 
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     let annotations = ImportAnnotations::parse(import.with.as_deref());

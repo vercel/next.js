@@ -4824,6 +4824,9 @@
         ((ReactSharedInternals.recentlyCreatedOwnerStacks = 0),
         (lastResetTime = now));
     }
+    function isEligibleForOutlining(request, boundary) {
+      return 500 < boundary.byteSize && null === boundary.contentPreamble;
+    }
     function defaultErrorHandler(error) {
       if (
         "object" === typeof error &&
@@ -5516,7 +5519,7 @@
           if (
             1 !== rowBoundary.pendingTasks ||
             rowBoundary.parentFlushed ||
-            500 < rowBoundary.byteSize
+            isEligibleForOutlining(request, rowBoundary)
           ) {
             allCompleteAndInlinable = !1;
             break;
@@ -6664,7 +6667,7 @@
                   ) {
                     if (
                       ((newBoundary.status = COMPLETED),
-                      !(500 < newBoundary.byteSize))
+                      !isEligibleForOutlining(request, newBoundary))
                     ) {
                       null !== prevRow$jscomp$0 &&
                         0 === --prevRow$jscomp$0.pendingTasks &&
@@ -8181,7 +8184,7 @@
             (row = boundary.row),
               null !== row &&
                 hoistHoistables(row.hoistables, boundary.contentState),
-              500 < boundary.byteSize ||
+              isEligibleForOutlining(request, boundary) ||
                 (boundary.fallbackAbortableTasks.forEach(
                   abortTaskSoft,
                   request
@@ -8575,6 +8578,7 @@
       switch (boundary.status) {
         case COMPLETED:
           hoistPreambleState(request.renderState, preamble);
+          request.byteSize += boundary.byteSize;
           segment = boundary.completedSegments[0];
           if (!segment)
             throw Error(
@@ -8607,17 +8611,17 @@
         null === request.completedPreambleSegments
       ) {
         var collectedPreambleSegments = [],
+          originalRequestByteSize = request.byteSize,
           hasPendingPreambles = preparePreambleFromSegment(
             request,
             request.completedRootSegment,
             collectedPreambleSegments
           ),
           preamble = request.renderState.preamble;
-        if (
-          !1 === hasPendingPreambles ||
-          (preamble.headChunks && preamble.bodyChunks)
-        )
-          request.completedPreambleSegments = collectedPreambleSegments;
+        !1 === hasPendingPreambles ||
+        (preamble.headChunks && preamble.bodyChunks)
+          ? (request.completedPreambleSegments = collectedPreambleSegments)
+          : (request.byteSize = originalRequestByteSize);
       }
     }
     function flushSubtree(request, destination, segment, hoistableState) {
@@ -8730,7 +8734,7 @@
             hoistHoistables(hoistableState, boundary.fallbackState),
           flushSubtree(request, destination, segment, hoistableState);
       else if (
-        500 < boundary.byteSize &&
+        isEligibleForOutlining(request, boundary) &&
         flushedByteSize + boundary.byteSize > request.progressiveChunkSize
       )
         (boundary.rootSegmentID = request.nextSegmentId++),
@@ -8747,7 +8751,7 @@
           hoistHoistables(hoistableState, boundary.contentState);
         segment = boundary.row;
         null !== segment &&
-          500 < boundary.byteSize &&
+          isEligibleForOutlining(request, boundary) &&
           0 === --segment.pendingTasks &&
           finishSuspenseListRow(request, segment);
         writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
@@ -8791,7 +8795,7 @@
       completedSegments.length = 0;
       completedSegments = boundary.row;
       null !== completedSegments &&
-        500 < boundary.byteSize &&
+        isEligibleForOutlining(request, boundary) &&
         0 === --completedSegments.pendingTasks &&
         finishSuspenseListRow(request, completedSegments);
       writeHoistablesForBoundary(
@@ -9508,11 +9512,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-9784cb37-20250730" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-c260b38d-20250731" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-9784cb37-20250730\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-c260b38d-20250731\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11331,5 +11335,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-experimental-9784cb37-20250730";
+    exports.version = "19.2.0-experimental-c260b38d-20250731";
   })();

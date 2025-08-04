@@ -20,7 +20,8 @@ export function io(expression: string, type: ApiType) {
   }
 
   switch (workUnitStore.type) {
-    case 'prerender': {
+    case 'prerender':
+    case 'prerender-runtime': {
       const prerenderSignal = workUnitStore.controller.signal
 
       if (prerenderSignal.aborted === false) {

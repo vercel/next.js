@@ -139,7 +139,6 @@ export const CODE_FRAME_STYLES = `
   }
 
   .code-frame-link [data-text] {
-    display: inline-flex;
     text-align: left;
     margin: auto 6px;
   }

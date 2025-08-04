@@ -1,6 +1,5 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4c35f_tests_snapshot_imports_ignore-comments_input_vercel_mjs_2b2136b9._.js", {
-
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)": ((__turbopack_context__) => {
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/4c35f_tests_snapshot_imports_ignore-comments_input_vercel_mjs_2b2136b9._.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)", ((__turbopack_context__) => {
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -10,4 +9,4 @@ __turbopack_context__.v((parentImport) => {
     });
 });
 }),
-}]);
+]);

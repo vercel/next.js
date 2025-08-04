@@ -192,7 +192,7 @@ export async function handler(
    */
   const isPrefetchRSCRequest =
     getRequestMeta(req, 'isPrefetchRSCRequest') ??
-    Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER])
+    req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1' // exclude runtime prefetches, which use '2'
 
   // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 

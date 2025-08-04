@@ -253,6 +253,8 @@ pub struct NapiTurboEngineOptions {
     pub dependency_tracking: Option<bool>,
     /// Whether the project is running in a CI environment.
     pub is_ci: Option<bool>,
+    /// Whether the project is running in a short session.
+    pub is_short_session: Option<bool>,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -434,12 +436,14 @@ pub fn project_new(
         let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
         let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
         let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
+        let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
         let turbo_tasks = create_turbo_tasks(
             PathBuf::from(&options.dist_dir),
             persistent_caching,
             memory_limit,
             dependency_tracking,
             is_ci,
+            is_short_session,
         )?;
         let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 

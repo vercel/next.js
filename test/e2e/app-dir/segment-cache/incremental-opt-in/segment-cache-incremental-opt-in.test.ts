@@ -285,7 +285,7 @@ describe('segment cache (incremental opt in)', () => {
   )
 
   it(
-    'when a link is prefetched with <Link prefetch=true>, no dynamic request ' +
+    'when a link is prefetched with <Link prefetch="unstable_forceStale">, no dynamic request ' +
       'is made on navigation',
     async () => {
       let act
@@ -324,7 +324,7 @@ describe('segment cache (incremental opt in)', () => {
   )
 
   it(
-    'when prefetching with prefetch=true, refetches cache entries that only ' +
+    'when prefetching with prefetch="unstable_forceStale", refetches cache entries that only ' +
       'contain partial data',
     async () => {
       let act
@@ -343,7 +343,7 @@ describe('segment cache (incremental opt in)', () => {
         { includes: 'Loading (PPR shell of shared-layout)...' }
       )
 
-      // Prefetch the same link again, this time with prefetch=true to include
+      // Prefetch the same link again, this time with prefetch="unstable_forceStale" to include
       // the dynamic data
       await act(
         async () => {
@@ -370,7 +370,7 @@ describe('segment cache (incremental opt in)', () => {
           // If this fails, it likely means that the partial cache entry that
           // resulted from prefetching the normal link (<Link prefetch={false}>)
           // was not properly re-fetched when the full link (<Link
-          // prefetch={true}>) was prefetched.
+          // prefetch='unstable_forceStale'>) was prefetched.
           await browser.elementById('page-content')
         },
         // Assert that no network requests are initiated within this block.
@@ -380,7 +380,7 @@ describe('segment cache (incremental opt in)', () => {
   )
 
   it(
-    'when prefetching with prefetch=true, refetches partial cache entries ' +
+    'when prefetching with prefetch="unstable_forceStale", refetches partial cache entries ' +
       "even if there's already a pending PPR request",
     async () => {
       // This test is hard to describe succinctly because it involves a fairly
@@ -427,7 +427,7 @@ describe('segment cache (incremental opt in)', () => {
         )
 
         // Before the previous prefetch finishes, prefetch the same link again,
-        // this time with prefetch=true to include the dynamic data.
+        // this time with prefetch="unstable_forceStale" to include the dynamic data.
         await act(
           async () => {
             const checkbox = await browser.elementById(
@@ -457,7 +457,7 @@ describe('segment cache (incremental opt in)', () => {
           // If this fails, it likely means that the pending cache entry that
           // resulted from prefetching the normal link (<Link prefetch={false}>)
           // was not properly re-fetched when the full link (<Link
-          // prefetch={true}>) was prefetched.
+          // prefetch='unstable_forceStale'>) was prefetched.
           await browser.elementById('page-content')
         },
         // Assert that no network requests are initiated within this block.

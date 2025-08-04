@@ -1,6 +1,5 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_dfe8423f._.js", {
-
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css module, async loader)": ((__turbopack_context__) => {
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_dfe8423f._.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css module, async loader)", ((__turbopack_context__) => {
 
 __turbopack_context__.v((parentImport) => {
     return Promise.resolve().then(() => {
@@ -8,10 +7,10 @@ __turbopack_context__.v((parentImport) => {
     });
 });
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css [test] (css, async loader)": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css [test] (css, async loader)", ((__turbopack_context__) => {
 
 __turbopack_context__.v((parentImport) => {
     return Promise.resolve();
 });
 }),
-}]);
+]);

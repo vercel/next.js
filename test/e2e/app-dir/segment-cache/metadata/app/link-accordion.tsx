@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { type LinkProps } from 'next/link'
 import { useState } from 'react'
 
 export function LinkAccordion({
@@ -11,7 +11,7 @@ export function LinkAccordion({
 }: {
   href: string
   children: string
-  prefetch?: boolean | 'unstable_forceStale' | 'auto'
+  prefetch?: LinkProps['prefetch']
   id?: string
 }) {
   const [isVisible, setIsVisible] = useState(false)
@@ -25,7 +25,6 @@ export function LinkAccordion({
         id={id}
       />
       {isVisible ? (
-        // @ts-expect-error - unstable_forceStale is not yet part of the types
         <Link href={href} prefetch={prefetch}>
           {children}
         </Link>

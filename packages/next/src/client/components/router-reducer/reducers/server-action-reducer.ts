@@ -55,6 +55,7 @@ import {
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
 import { revalidateEntireCache } from '../../segment-cache'
+import { getRenderedPathname } from '../../../route-params'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -180,9 +181,25 @@ async function fetchServerAction(
       Promise.resolve(res),
       { callServer, findSourceMapURL, temporaryReferences }
     )
+
+    let renderedPathname
+    if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+      // Read the URL from the response object.
+      renderedPathname = getRenderedPathname(res)
+    } else {
+      // Before Segment Cache is enabled, we should not rely on the new
+      // rewrite headers (x-rewritten-path, x-rewritten-query) because that
+      // is a breaking change. Read the URL from the response body.
+      const canonicalUrlParts = response.c
+      renderedPathname = new URL(
+        canonicalUrlParts.join('/'),
+        'http://localhost'
+      ).pathname
+    }
+
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
     actionResult = redirectLocation ? undefined : response.a
-    actionFlightData = normalizeFlightData(response.f)
+    actionFlightData = normalizeFlightData(response.f, renderedPathname)
   } else {
     // An external redirect doesn't contain RSC data.
     actionResult = undefined

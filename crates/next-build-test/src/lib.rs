@@ -11,7 +11,7 @@ use next_api::{
     project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadConsistency, ResolvedVc, TransientInstance, TurboTasks, Vc, get_effects};
 use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
@@ -41,7 +41,7 @@ pub async fn main_inner(
 
     let project = tt
         .run_once(async {
-            let project = ProjectContainer::new("next-build-test".into(), options.dev);
+            let project = ProjectContainer::new(rcstr!("next-build-test"), options.dev);
             let project = project.to_resolved().await?;
             project.initialize(options).await?;
             Ok(project)

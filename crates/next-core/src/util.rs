@@ -1,6 +1,7 @@
-use std::future::Future;
+use std::{future::Future, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
+use regex::Regex;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use swc_core::{
     common::{GLOBALS, Spanned, source_map::SmallPos},
@@ -105,7 +106,7 @@ pub async fn pathname_for_path(
     };
     let path = match (path_ty, path) {
         // "/" is special-cased to "/index" for data routes.
-        (PathType::Data, "") => "/index".into(),
+        (PathType::Data, "") => rcstr!("/index"),
         // `get_path_to` always strips the leading `/` from the path, so we need to add
         // it back here.
         (_, path) => format!("/{path}").into(),
@@ -141,7 +142,7 @@ pub async fn get_transpiled_packages(
 
     let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
-        "dist/lib/default-transpiled-packages.json".into(),
+        rcstr!("dist/lib/default-transpiled-packages.json"),
     )
     .await?;
 
@@ -280,8 +281,10 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "Next.js can't recognize the exported `config` field in route"
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -553,7 +556,7 @@ pub async fn parse_config_from_source(
                             if let Expr::Lit(Lit::Str(str_value)) = &**init {
                                 let mut config = NextSourceConfig::default();
 
-                                let runtime = str_value.value.to_string();
+                                let runtime = &str_value.value;
                                 match runtime.as_str() {
                                     "edge" | "experimental-edge" => {
                                         config.runtime = NextRuntime::Edge;
@@ -762,10 +765,11 @@ pub async fn load_next_js_template(
 
     // Update the relative imports to be absolute. This will update any relative
     // imports to be relative to the root of the `next` package.
-    let regex = lazy_regex::regex!("(?:from '(\\..*)'|import '(\\..*)')");
+    static IMPORT_PATH_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("(?:from '(\\..*)'|import '(\\..*)')").unwrap());
 
     let mut count = 0;
-    let mut content = replace_all(regex, &content, |caps| {
+    let mut content = replace_all(&IMPORT_PATH_RE, &content, |caps| {
         let from_request = caps.get(1).map_or("", |c| c.as_str());
         let import_request = caps.get(2).map_or("", |c| c.as_str());
 
@@ -830,16 +834,13 @@ pub async fn load_next_js_template(
     }
 
     // Check to see if there's any remaining template variables.
-    let regex = lazy_regex::regex!("/VAR_[A-Z_]+");
-    let matches = regex
-        .find_iter(&content)
-        .map(|m| m.as_str().to_string())
-        .collect::<Vec<_>>();
+    static TEMPLATE_VAR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("VAR_[A-Z_]+").unwrap());
+    let mut matches = TEMPLATE_VAR_RE.find_iter(&content).peekable();
 
-    if !matches.is_empty() {
+    if matches.peek().is_some() {
         bail!(
             "Invariant: Expected to replace all template variables, found {}",
-            matches.join(", "),
+            matches.map(|m| m.as_str()).collect::<Vec<_>>().join(", "),
         )
     }
 
@@ -851,7 +852,7 @@ pub async fn load_next_js_template(
         let difference = replacements
             .keys()
             .filter(|k| !replaced.contains(*k))
-            .cloned()
+            .copied()
             .collect::<Vec<_>>();
 
         bail!(
@@ -873,16 +874,14 @@ pub async fn load_next_js_template(
     }
 
     // Check to see if there's any remaining injections.
-    let regex = lazy_regex::regex!("// INJECT:[A-Za-z0-9_]+");
-    let matches = regex
-        .find_iter(&content)
-        .map(|m| m.as_str().to_string())
-        .collect::<Vec<_>>();
+    static INJECT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("// INJECT:[A-Za-z0-9_]+").unwrap());
+    let mut matches = INJECT_RE.find_iter(&content).peekable();
 
-    if !matches.is_empty() {
+    if matches.peek().is_some() {
         bail!(
             "Invariant: Expected to inject all injections, found {}",
-            matches.join(", "),
+            matches.map(|m| m.as_str()).collect::<Vec<_>>().join(", "),
         )
     }
 
@@ -894,7 +893,7 @@ pub async fn load_next_js_template(
         let difference = injections
             .keys()
             .filter(|k| !injected.contains(*k))
-            .cloned()
+            .copied()
             .collect::<Vec<_>>();
 
         bail!(
@@ -937,16 +936,14 @@ pub async fn load_next_js_template(
     }
 
     // Check to see if there's any remaining imports.
-    let regex = lazy_regex::regex!("// OPTIONAL_IMPORT:(\\* as )?[A-Za-z0-9_]+");
-    let matches = regex
-        .find_iter(&content)
-        .map(|m| m.as_str().to_string())
-        .collect::<Vec<_>>();
+    static OPTIONAL_IMPORT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("// OPTIONAL_IMPORT:(\\* as )?[A-Za-z0-9_]+").unwrap());
+    let mut matches = OPTIONAL_IMPORT_RE.find_iter(&content).peekable();
 
-    if !matches.is_empty() {
+    if matches.peek().is_some() {
         bail!(
             "Invariant: Expected to inject all imports, found {}",
-            matches.join(", "),
+            matches.map(|m| m.as_str()).collect::<Vec<_>>().join(", "),
         )
     }
 

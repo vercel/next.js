@@ -3666,6 +3666,9 @@ function describeComponentStackByType(type) {
   }
   return "";
 }
+function isEligibleForOutlining(request, boundary) {
+  return 500 < boundary.byteSize && null === boundary.contentPreamble;
+}
 function defaultErrorHandler(error) {
   if (
     "object" === typeof error &&
@@ -4028,7 +4031,7 @@ function tryToResolveTogetherRow(request, togetherRow) {
       if (
         1 !== rowBoundary.pendingTasks ||
         rowBoundary.parentFlushed ||
-        500 < rowBoundary.byteSize
+        isEligibleForOutlining(request, rowBoundary)
       ) {
         allCompleteAndInlinable = !1;
         break;
@@ -4642,7 +4645,10 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 queueCompletedSegment(newBoundary, contentRootSegment),
                 0 === newBoundary.pendingTasks && 0 === newBoundary.status)
               ) {
-                if (((newBoundary.status = 1), !(500 < newBoundary.byteSize))) {
+                if (
+                  ((newBoundary.status = 1),
+                  !isEligibleForOutlining(request, newBoundary))
+                ) {
                   null !== prevRow &&
                     0 === --prevRow.pendingTasks &&
                     finishSuspenseListRow(request, prevRow);
@@ -5570,7 +5576,7 @@ function finishedTask(request$jscomp$0, boundary, row, segment) {
         (row = boundary.row),
           null !== row &&
             hoistHoistables(row.hoistables, boundary.contentState),
-          500 < boundary.byteSize ||
+          isEligibleForOutlining(request$jscomp$0, boundary) ||
             (boundary.fallbackAbortableTasks.forEach(
               abortTaskSoft,
               request$jscomp$0
@@ -5890,6 +5896,7 @@ function preparePreambleFromSegment(
   switch (boundary.status) {
     case 1:
       hoistPreambleState(request.renderState, preamble);
+      request.byteSize += boundary.byteSize;
       segment = boundary.completedSegments[0];
       if (!segment)
         throw Error(
@@ -5922,17 +5929,16 @@ function preparePreamble(request) {
     null === request.completedPreambleSegments
   ) {
     var collectedPreambleSegments = [],
+      originalRequestByteSize = request.byteSize,
       hasPendingPreambles = preparePreambleFromSegment(
         request,
         request.completedRootSegment,
         collectedPreambleSegments
       ),
       preamble = request.renderState.preamble;
-    if (
-      !1 === hasPendingPreambles ||
-      (preamble.headChunks && preamble.bodyChunks)
-    )
-      request.completedPreambleSegments = collectedPreambleSegments;
+    !1 === hasPendingPreambles || (preamble.headChunks && preamble.bodyChunks)
+      ? (request.completedPreambleSegments = collectedPreambleSegments)
+      : (request.byteSize = originalRequestByteSize);
   }
 }
 function flushSubtree(request, destination, segment, hoistableState) {
@@ -6018,7 +6024,7 @@ function flushSegment(request, destination, segment, hoistableState) {
       destination.push("\x3c!--/$--\x3e")
     );
   if (
-    500 < boundary.byteSize &&
+    isEligibleForOutlining(request, boundary) &&
     flushedByteSize + boundary.byteSize > request.progressiveChunkSize
   )
     return (
@@ -6036,7 +6042,7 @@ function flushSegment(request, destination, segment, hoistableState) {
   hoistableState && hoistHoistables(hoistableState, boundary.contentState);
   segment = boundary.row;
   null !== segment &&
-    500 < boundary.byteSize &&
+    isEligibleForOutlining(request, boundary) &&
     0 === --segment.pendingTasks &&
     finishSuspenseListRow(request, segment);
   request.renderState.generateStaticMarkup ||
@@ -6078,7 +6084,7 @@ function flushCompletedBoundary(request, destination, boundary) {
   completedSegments.length = 0;
   completedSegments = boundary.row;
   null !== completedSegments &&
-    500 < boundary.byteSize &&
+    isEligibleForOutlining(request, boundary) &&
     0 === --completedSegments.pendingTasks &&
     finishSuspenseListRow(request, completedSegments);
   writeHoistablesForBoundary(
@@ -6568,4 +6574,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.2.0-canary-9784cb37-20250730";
+exports.version = "19.2.0-canary-c260b38d-20250731";
