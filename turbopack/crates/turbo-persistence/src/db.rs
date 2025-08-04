@@ -918,9 +918,9 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                                 });
                             }
 
-                            fn create_sst_file<S: ParallelScheduler>(
+                            fn create_sst_file<'l, S: ParallelScheduler>(
                                 parallel_scheduler: &S,
-                                entries: &[LookupEntry],
+                                entries: &[LookupEntry<'l>],
                                 total_key_size: usize,
                                 total_value_size: usize,
                                 path: &Path,
@@ -964,7 +964,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
                             let mut total_key_size = 0;
                             let mut total_value_size = 0;
-                            let mut current: Option<LookupEntry> = None;
+                            let mut current: Option<LookupEntry<'_>> = None;
                             let mut entries = Vec::new();
                             let mut last_entries = Vec::new();
                             let mut last_entries_total_sizes = (0, 0);
@@ -975,7 +975,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                                 if let Some(current) = current.take() {
                                     if current.key != entry.key {
                                         let key_size = current.key.len();
-                                        let value_size = current.value.size_in_sst();
+                                        let value_size = current.value.uncompressed_size_in_sst();
                                         total_key_size += key_size;
                                         total_value_size += value_size;
 
@@ -1023,7 +1023,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                             }
                             if let Some(entry) = current {
                                 total_key_size += entry.key.len();
-                                total_value_size += entry.value.size_in_sst();
+                                total_value_size += entry.value.uncompressed_size_in_sst();
                                 entries.push(entry);
                             }
 

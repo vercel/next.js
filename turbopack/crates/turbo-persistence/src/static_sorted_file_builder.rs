@@ -12,7 +12,7 @@ use lzzzz::lz4::{ACC_LEVEL_DEFAULT, max_compressed_size};
 
 use crate::static_sorted_file::{
     BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
-    KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+    KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL, decompress_into_arc,
 };
 
 /// The maximum number of entries that should go into a single key block
@@ -68,6 +68,12 @@ pub enum EntryValue<'l> {
     Small { value: &'l [u8] },
     /// Medium-sized value. They are stored in their own value block.
     Medium { value: &'l [u8] },
+    /// Medium-sized value. They are stored in their own value block. Precompressed.
+    MediumCompressed {
+        uncompressed_size: u32,
+        block: &'l [u8],
+        dictionary: &'l [u8],
+    },
     /// Large-sized value. They are stored in a blob file.
     Large { blob: u32 },
     /// Tombstone. The value was removed.
@@ -386,7 +392,18 @@ fn write_value_blocks(
                 value_locations.push((block_index, 0));
                 writer.write_value_block(value, value_compression_dictionary)?;
             }
-            _ => {
+            EntryValue::MediumCompressed {
+                uncompressed_size,
+                block,
+                dictionary,
+            } => {
+                let block_index = writer.next_block_index();
+                value_locations.push((block_index, 0));
+                // Recompress block with a different dictionary
+                let decompressed = decompress_into_arc(uncompressed_size, block, dictionary)?;
+                writer.write_value_block(&decompressed, value_compression_dictionary)?;
+            }
+            EntryValue::Deleted | EntryValue::Large { .. } => {
                 value_locations.push((0, 0));
             }
         }
@@ -438,7 +455,7 @@ fn write_key_blocks_and_compute_amqf(
                     value.len().try_into().unwrap(),
                 );
             }
-            EntryValue::Medium { .. } => {
+            EntryValue::Medium { .. } | EntryValue::MediumCompressed { .. } => {
                 block.put_medium(entry, value_location.0);
             }
             EntryValue::Large { blob } => {
