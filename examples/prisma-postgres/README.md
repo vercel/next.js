@@ -232,7 +232,7 @@ Once the server is running, visit `http://localhost:3000` to start using the app
 
 The app includes the following routes:
 
-- `/`: Display the thee most recent posts
+- `/`: Display the three most recent posts
 - `/posts`: Paginated list view of all posts
 - `/posts/new`: Create a new post
 - `/users/new`: Create a new user
@@ -242,7 +242,7 @@ The app includes the following routes:
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fprisma-orm&env=DATABASE_URL&envDescription=Add%20your%20PRISMA%20POSTGRES%20database%20url&project-name=prisma-orm-app&repository-name=prisma-orm)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fprisma-postgres&env=DATABASE_URL&envDescription=Add%20your%20PRISMA%20POSTGRES%20database%20url&project-name=prisma-postgres-app&repository-name=prisma-postgres)
 
 ## Additional information
 
