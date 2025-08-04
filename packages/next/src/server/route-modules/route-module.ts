@@ -152,6 +152,7 @@ export abstract class RouteModule<
     } else {
       const { join } = require('node:path') as typeof import('node:path')
       const absoluteProjectDir = join(
+        /* turbopackIgnore: true */
         process.cwd(),
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
@@ -390,6 +391,7 @@ export abstract class RouteModule<
 
         const { join } = require('node:path') as typeof import('node:path')
         const absoluteProjectDir = join(
+          /* turbopackIgnore: true */
           process.cwd(),
           getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
         )
@@ -432,6 +434,7 @@ export abstract class RouteModule<
       }
       const { join } = require('node:path') as typeof import('node:path')
       const projectDir = join(
+        /* turbopackIgnore: true */
         process.cwd(),
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
@@ -539,6 +542,7 @@ export abstract class RouteModule<
         require('node:path') as typeof import('node:path')
 
       absoluteProjectDir = join(
+        /* turbopackIgnore: true */
         process.cwd(),
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
