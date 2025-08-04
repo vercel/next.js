@@ -103,7 +103,7 @@ impl OutputAsset for EcmascriptBrowserChunk {
         let ident = this.ident_for_path();
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
 
     #[turbo_tasks::function]
@@ -176,7 +176,7 @@ impl Introspectable for EcmascriptBrowserChunk {
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
         let chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
         children.insert((rcstr!("chunk"), chunk));

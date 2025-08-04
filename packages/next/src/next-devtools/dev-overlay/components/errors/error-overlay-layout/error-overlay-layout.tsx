@@ -28,7 +28,6 @@ import {
   DIALOG_HEADER_STYLES,
 } from '../dialog/header'
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
-import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
@@ -37,6 +36,7 @@ import { EnvironmentNameLabel } from '../environment-name-label/environment-name
 import { useFocusTrap } from '../dev-tools-indicator/utils'
 import { Fader } from '../../fader'
 import { Resizer } from '../../resizer'
+import { OverlayBackdrop } from '../../overlay'
 
 export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
@@ -52,6 +52,7 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
+  generateErrorInfo: () => string
 }
 
 export function ErrorOverlayLayout({
@@ -70,6 +71,7 @@ export function ErrorOverlayLayout({
   setActiveIndex,
   isTurbopack,
   dialogResizerRef,
+  generateErrorInfo,
   // This prop is used to animate the dialog, it comes from a parent component (<ErrorOverlay>)
   // If it's not being passed, we should just render the component as it is being
   // used without the context of a parent component that controls its state (e.g. Storybook).
@@ -109,7 +111,8 @@ export function ErrorOverlayLayout({
   }
 
   return (
-    <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
+    <ErrorOverlayOverlay {...animationProps}>
+      <OverlayBackdrop fixed={isBuildError} />
       <div
         data-nextjs-dialog-root
         onTransitionEnd={onTransitionEnd}
@@ -125,7 +128,6 @@ export function ErrorOverlayLayout({
         />
         <ErrorOverlayDialog
           onClose={onClose}
-          dialogResizerRef={dialogResizerRef}
           data-has-footer={hasFooter}
           onScroll={onScroll}
           footer={hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
@@ -150,7 +152,11 @@ export function ErrorOverlayLayout({
                       />
                     )}
                   </span>
-                  <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
+                  <ErrorOverlayToolbar
+                    error={error}
+                    debugInfo={debugInfo}
+                    generateErrorInfo={generateErrorInfo}
+                  />
                 </div>
                 <ErrorMessage errorMessage={errorMessage} />
               </ErrorOverlayDialogHeader>
@@ -184,7 +190,6 @@ export const styles = `
   ${errorTypeLabelStyles}
   ${errorMessageStyles}
   ${toolbarStyles}
-  ${CALL_STACK_STYLES}
 
   [data-nextjs-error-label-group] {
     display: flex;

@@ -66,7 +66,6 @@ impl CustomTransformer for RelayTransformer {
         let path_to_proj = PathBuf::from(
             ctx.file_path
                 .parent()
-                .await?
                 .get_relative_path_to(&self.project_path)
                 .context("Expected relative path to relay artifact")?,
         );

@@ -161,6 +161,15 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
+  const isTurbopack = Boolean(
+    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
+  )
+  if (isTurbopack) {
+    process.env.TURBOPACK = '1'
+  }
+
+  isTurboSession = isTurbopack
+
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
   // Check if pages dir exists and warn if not
@@ -219,7 +228,9 @@ const nextDev = async (
   // some set-ups that rely on listening on other interfaces
   const host = options.hostname
 
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+    silent: false,
+  })
 
   if (
     options.experimentalUploadTrace &&
@@ -235,15 +246,6 @@ const nextDev = async (
     isDev: true,
     hostname: host,
   }
-
-  const isTurbopack = Boolean(
-    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
-  )
-  if (isTurbopack) {
-    process.env.TURBOPACK = '1'
-  }
-
-  isTurboSession = isTurbopack
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)

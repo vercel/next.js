@@ -3,7 +3,11 @@ use std::{fs, time::Instant};
 use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{constants::MAX_MEDIUM_VALUE_SIZE, db::TurboPersistence, write_batch::WriteBatch};
+use crate::{
+    constants::MAX_MEDIUM_VALUE_SIZE,
+    db::{CompactConfig, TurboPersistence},
+    write_batch::WriteBatch,
+};
 
 #[test]
 fn full_cycle() -> Result<()> {
@@ -455,7 +459,12 @@ fn persist_changes() -> Result<()> {
     {
         let db = TurboPersistence::open(path.to_path_buf())?;
 
-        db.compact(1.0, 3, u64::MAX)?;
+        db.compact(&CompactConfig {
+            optimal_merge_count: 4,
+            min_merge_duplication_bytes: 1,
+            optimal_merge_duplication_bytes: 1,
+            ..Default::default()
+        })?;
 
         check(&db, 1, 13)?;
         check(&db, 2, 22)?;
@@ -528,7 +537,12 @@ fn partial_compaction() -> Result<()> {
         {
             let db = TurboPersistence::open(path.to_path_buf())?;
 
-            db.compact(3.0, 3, u64::MAX)?;
+            db.compact(&CompactConfig {
+                optimal_merge_count: 4,
+                min_merge_duplication_bytes: 1,
+                optimal_merge_duplication_bytes: 1,
+                ..Default::default()
+            })?;
 
             for j in 0..i {
                 check(&db, j, j)?;
@@ -630,7 +644,12 @@ fn merge_file_removal() -> Result<()> {
         {
             let db = TurboPersistence::open(path.to_path_buf())?;
 
-            db.compact(3.0, 3, u64::MAX)?;
+            db.compact(&CompactConfig {
+                optimal_merge_count: 4,
+                min_merge_duplication_bytes: 1,
+                optimal_merge_duplication_bytes: 1,
+                ..Default::default()
+            })?;
 
             for j in 0..32 {
                 check(&db, j, expected_values[j as usize])?;

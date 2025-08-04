@@ -155,10 +155,6 @@ async function main() {
           NEXT_TEST_VERSION: nextTestVersion,
           IS_TURBOPACK_TEST: '1',
           TURBOPACK_BUILD: testMode === 'start' ? '1' : undefined,
-          NEXT_EXTERNAL_TESTS_FILTERS:
-            testMode === 'dev'
-              ? 'test/turbopack-dev-tests-manifest.json'
-              : 'test/turbopack-build-tests-manifest.json',
         },
       })
     }

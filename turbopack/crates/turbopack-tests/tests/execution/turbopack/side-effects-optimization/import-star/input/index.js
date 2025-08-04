@@ -1,10 +1,14 @@
 import * as R from 'ramda'
+import { pipe } from 'ramda'
 
-console.log((0, R.pipe)('a', 'b', 'c'))
-console.log(R.pipe('a', 'b', 'c'))
+it('should have the correct `this` context', () => {
+  expect((0, R.pipe)()).toBe(false)
+  expect(R.pipe()).toBe(true)
+  expect(pipe()).toBe(false)
+})
 
 it('should import only pipe.js', () => {
-  const modules = Object.keys(__turbopack_modules__)
+  const modules = Array.from(__turbopack_modules__.keys())
   expect(modules).toContainEqual(
     expect.stringMatching(/input\/node_modules\/ramda\/pipe/)
   )

@@ -4,7 +4,6 @@ import type { NextParsedUrlQuery } from '../../../../server/request-meta'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import type { BaseNextRequest } from '../../../../server/base-http'
 
-import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
 import {
@@ -13,6 +12,7 @@ import {
 } from './interception-routes'
 import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
 import type { Params } from '../../../../server/request/params'
+import { safePathToRegexp, safeCompile } from './route-match-utils'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -156,7 +156,7 @@ export function compileNonPath(value: string, params: Params): string {
 
   // the value needs to start with a forward-slash to be compiled
   // correctly
-  return compile(`/${value}`, { validate: false })(params).slice(1)
+  return safeCompile(`/${value}`, { validate: false })(params).slice(1)
 }
 
 export function parseDestination(args: {
@@ -193,12 +193,18 @@ export function parseDestination(args: {
     hash = unescapeSegments(hash)
   }
 
+  let search = parsed.search
+  if (search) {
+    search = unescapeSegments(search)
+  }
+
   return {
     ...parsed,
     pathname,
     hostname,
     href,
     hash,
+    search,
   }
 }
 
@@ -210,7 +216,11 @@ export function prepareDestination(args: {
 }) {
   const parsedDestination = parseDestination(args)
 
-  const { hostname: destHostname, query: destQuery } = parsedDestination
+  const {
+    hostname: destHostname,
+    query: destQuery,
+    search: destSearch,
+  } = parsedDestination
 
   // The following code assumes that the pathname here includes the hash if it's
   // present.
@@ -222,20 +232,20 @@ export function prepareDestination(args: {
   const destParams: (string | number)[] = []
 
   const destPathParamKeys: Key[] = []
-  pathToRegexp(destPath, destPathParamKeys)
+  safePathToRegexp(destPath, destPathParamKeys)
   for (const key of destPathParamKeys) {
     destParams.push(key.name)
   }
 
   if (destHostname) {
     const destHostnameParamKeys: Key[] = []
-    pathToRegexp(destHostname, destHostnameParamKeys)
+    safePathToRegexp(destHostname, destHostnameParamKeys)
     for (const key of destHostnameParamKeys) {
       destParams.push(key.name)
     }
   }
 
-  const destPathCompiler = compile(
+  const destPathCompiler = safeCompile(
     destPath,
     // we don't validate while compiling the destination since we should
     // have already validated before we got to this point and validating
@@ -248,7 +258,7 @@ export function prepareDestination(args: {
 
   let destHostnameCompiler
   if (destHostname) {
-    destHostnameCompiler = compile(destHostname, { validate: false })
+    destHostnameCompiler = safeCompile(destHostname, { validate: false })
   }
 
   // update any params in query values
@@ -311,7 +321,9 @@ export function prepareDestination(args: {
     }
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    delete (parsedDestination as any).search
+    parsedDestination.search = destSearch
+      ? compileNonPath(destSearch, args.params)
+      : ''
   } catch (err: any) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(

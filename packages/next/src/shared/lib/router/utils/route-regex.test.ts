@@ -1,5 +1,5 @@
 import { getNamedRouteRegex } from './route-regex'
-import { parseParameter } from './route-regex'
+import { parseParameter } from './get-dynamic-param'
 
 describe('getNamedRouteRegex', () => {
   it('should handle interception markers adjacent to dynamic path segments', () => {

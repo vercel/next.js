@@ -140,6 +140,7 @@ describe('getSocialImageFallbackMetadataBase', () => {
       delete process.env.VERCEL_ENV
       delete process.env.VERCEL_BRANCH_URL
       delete process.env.VERCEL_PROJECT_PRODUCTION_URL
+      delete process.env.__NEXT_EXPERIMENTAL_HTTPS
 
       process.env = originalEnv
     })
@@ -157,6 +158,24 @@ describe('getSocialImageFallbackMetadataBase', () => {
       process.env.NODE_ENV = 'production'
       expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
         'http://localhost:3000/'
+      )
+    })
+
+    it('should return localhost url in local dev mode with experimental https', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'development'
+      process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://localhost:3000/'
+      )
+    })
+
+    it('should return localhost url in local build mode with experimental https', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://localhost:3000/'
       )
     })
 

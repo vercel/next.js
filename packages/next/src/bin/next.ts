@@ -20,6 +20,7 @@ import type { NextLintOptions } from '../cli/next-lint.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
+import type { NextTypegenOptions } from '../cli/next-typegen.js'
 
 if (process.env.NEXT_RSPACK) {
   // silent rspack's schema check
@@ -124,7 +125,10 @@ program
     )}`
   )
   .option('-d, --debug', 'Enables a more verbose build output.')
-
+  .option(
+    '--debug-prerender',
+    'Enables debug mode for prerendering. Not for production use!'
+  )
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
@@ -378,6 +382,24 @@ program
       mod.nextTelemetry(options, arg)
     )
   )
+
+program
+  .command('typegen')
+  .description(
+    'Generate TypeScript definitions for routes, pages, and layouts without running a full build.'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to generate types. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .action((directory: string, options: NextTypegenOptions) =>
+    import('../cli/next-typegen.js').then((mod) =>
+      mod.nextTypegen(options, directory)
+    )
+  )
+  .usage('[directory] [options]')
 
 program
   .command('experimental-test')

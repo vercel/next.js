@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
@@ -12,7 +13,7 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 
 describe('opentelemetry', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -169,7 +170,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': 7,
+                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -358,7 +359,7 @@ describe('opentelemetry', () => {
           })
 
           it('should handle RSC with fetch in RSC mode', async () => {
-            await next.fetch('/app/param/rsc-fetch', {
+            await next.fetch(`/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`, {
               ...env.fetchInit,
               headers: {
                 ...env.fetchInit?.headers,
@@ -376,7 +377,7 @@ describe('opentelemetry', () => {
                   'http.method': 'GET',
                   'http.route': '/app/[param]/rsc-fetch',
                   'http.status_code': 200,
-                  'http.target': '/app/param/rsc-fetch',
+                  'http.target': `/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`,
                   'next.route': '/app/[param]/rsc-fetch',
                   'next.rsc': true,
                   'next.span_name': 'RSC GET /app/[param]/rsc-fetch',

@@ -1,1 +1,1 @@
-require("hot-shots");
+require('hot-shots')

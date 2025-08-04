@@ -14,9 +14,11 @@ const isRspack = !!process.env.NEXT_RSPACK
 
 const nextConfigWithCacheHandler: NextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheHandlers: {
-      custom: require.resolve('next/dist/server/lib/cache-handlers/default'),
+      custom: require.resolve(
+        'next/dist/server/lib/cache-handlers/default.external'
+      ),
     },
   },
 }

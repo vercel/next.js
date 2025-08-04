@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    reference_type::ReferenceType, source::Source, source_transform::SourceTransforms,
+    environment::Environment, reference_type::ReferenceType, source::Source,
+    source_transform::SourceTransforms,
 };
 use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
@@ -77,7 +78,7 @@ pub enum ModuleRuleEffect {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug, Copy, Clone)]
+#[derive(Hash, Debug, Clone)]
 pub enum ModuleType {
     Ecmascript {
         transforms: ResolvedVc<EcmascriptInputTransforms>,
@@ -103,6 +104,7 @@ pub enum ModuleType {
     CssModule,
     Css {
         ty: CssModuleAssetType,
+        environment: Option<ResolvedVc<Environment>>,
     },
     StaticUrlJs,
     StaticUrlCss,

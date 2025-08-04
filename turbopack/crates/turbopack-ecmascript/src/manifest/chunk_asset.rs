@@ -40,7 +40,7 @@ pub struct ManifestAsyncModule {
 #[turbo_tasks::value_impl]
 impl ManifestAsyncModule {
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -153,7 +153,7 @@ impl Asset for ManifestAsyncModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for ManifestAsyncModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: ResolvedVc<Self>,
         _module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,

@@ -92,7 +92,7 @@ describe('use-cache-standalone-search-params', () => {
         `)
 
         expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
-    at Page (app/search-params-caught/page.tsx:11:4)`)
+    at Page (app/search-params-caught/page.tsx:11:5)`)
       })
 
       it('should also show an error after the second reload', async () => {

@@ -5,6 +5,8 @@ import { check } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
+const isRspack = !!process.env.NEXT_RSPACK
+
 describe('Error recovery app', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -33,7 +35,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
@@ -50,6 +52,28 @@ describe('Error recovery app', () => {
        Parsing ecmascript source code failed
        > 1 | export default () => <div/
            |                           ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Unexpected eof
+               │    ,---- 
+               │  1 | export default () => <div/
+               │    \`----
+               │ 
+               │ 
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
@@ -118,10 +142,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/server/page.js (2:27)
+         "source": "./app/server/page.js (2:26)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                          ^",
          "stack": [],
        }
       `)
@@ -136,7 +160,7 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
+          :                          ^
           \`----
        Caused by:
            Syntax Error
@@ -182,10 +206,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/client/page.js (2:27)
+         "source": "./app/client/page.js (2:26)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                          ^",
          "stack": [],
        }
       `)
@@ -200,7 +224,7 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
+          :                          ^
           \`----
        Caused by:
            Syntax Error
@@ -255,13 +279,17 @@ describe('Error recovery app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('0')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
 
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
+      // TODO(sokra): The location is wrong because of an bug with HMR and source maps.
+      // When the code `index.js` changes, this also moves the locations of `app/page.js` in the bundled file.
+      // So the SourceMap is updated to reflect that. But the browser still has the old bundled file loaded.
+      // So we look up locations from the old bundle in the new source maps, which leads to mismatched locations.
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "oops",
@@ -272,11 +300,9 @@ describe('Error recovery app', () => {
             |           ^",
          "stack": [
            "Index.useCallback[increment] index.js (7:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (12:7)",
-           "Page index.js (10:6)",
+           "Page index.js (10:5)",
          ],
        }
       `)
@@ -291,9 +317,7 @@ describe('Error recovery app', () => {
             |           ^",
          "stack": [
            "Index.useCallback[increment] index.js (7:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (12:7)",
            "Page app/page.js (4:10)",
          ],
@@ -325,7 +349,7 @@ describe('Error recovery app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 1')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
@@ -455,7 +479,6 @@ describe('Error recovery app', () => {
     )
 
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -467,7 +490,6 @@ describe('Error recovery app', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
-           "Set.forEach <anonymous> (0:0)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Index index.js (6:7)",
@@ -547,19 +569,35 @@ describe('Error recovery app', () => {
     )
 
     await browser.eval('window.triggerError()')
-    await expect(browser).toDisplayCollapsedRedbox(`
-     {
-       "description": "no 1",
-       "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": "index.js (7:11) @ eval
-     >  7 |     throw Error('no ' + i)
-          |           ^",
-       "stack": [
-         "eval index.js (7:11)",
-       ],
-     }
-    `)
+    if (isRspack) {
+      await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "no 1",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "index.js (7:11) @ eval
+         > 7 |     throw Error('no ' + i)
+             |           ^",
+           "stack": [
+             "eval index.js (7:11)",
+           ],
+         }
+        `)
+    } else {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "no 1",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (7:11) @ eval
+       >  7 |     throw Error('no ' + i)
+            |           ^",
+         "stack": [
+           "eval index.js (7:11)",
+         ],
+       }
+      `)
+    }
 
     // Make a syntax error.
     await session.patch(
@@ -585,10 +623,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:41)
+         "source": "./index.js (10:39)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                         ^",
+            |                                       ^",
          "stack": [],
        }
       `)
@@ -602,7 +640,7 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
+           :                                       ^
            \`----
        Caused by:
            Syntax Error
@@ -622,10 +660,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:41)
+         "source": "./index.js (10:39)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                         ^",
+            |                                       ^",
          "stack": [],
        }
       `)
@@ -639,7 +677,7 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
+           :                                       ^
            \`----
        Caused by:
            Syntax Error
@@ -697,7 +735,6 @@ describe('Error recovery app', () => {
 
     // We get an error because Foo didn't import React. Fair.
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -709,7 +746,6 @@ describe('Error recovery app', () => {
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
-           "Set.forEach <anonymous> (0:0)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "FunctionDefault index.js (4:10)",
@@ -799,6 +835,34 @@ describe('Error recovery app', () => {
        Parsing ecmascript source code failed
        > 5 |     return <h1>Default Export</h1>;
            |     ^^^^^^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Expected '{', got 'return'
+               │    ,-[5:1]
+               │  2 |
+               │  3 | class ClassDefault extends React.Component {
+               │  4 |   render()
+               │  5 |     return <h1>Default Export</h1>;
+               │    :     ^^^^^^
+               │  6 |   }
+               │  7 | }
+               │    \`----
+               │ 
+               │ 
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
@@ -904,7 +968,6 @@ describe('Error recovery app', () => {
     )
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
@@ -916,7 +979,6 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "Set.forEach <anonymous> (0:0)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Page index.js (10:16)",
@@ -954,10 +1016,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/page.js (1:3)
+         "source": "./app/page.js (1:2)
        Parsing ecmascript source code failed
        > 1 | {{{
-           |   ^",
+           |  ^",
          "stack": [],
        }
       `)
@@ -971,7 +1033,7 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
           ,----
         1 | {{{
-          :   ^
+          :  ^
           \`----
        Caused by:
            Syntax Error",

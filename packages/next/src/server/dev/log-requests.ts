@@ -171,7 +171,10 @@ function formatCacheStatus(cacheStatus: FetchMetric['cacheStatus']): string {
       return green('(HMR cache)')
     case 'hit':
       return green('(cache hit)')
-    default:
+    case 'miss':
+    case 'skip':
       return yellow(`(cache ${cacheStatus})`)
+    default:
+      return cacheStatus satisfies never
   }
 }

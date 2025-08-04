@@ -1,0 +1,1 @@
+import "./entry-base.js";

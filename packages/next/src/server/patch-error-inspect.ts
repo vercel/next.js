@@ -1,13 +1,15 @@
-import {
-  findSourceMap as nativeFindSourceMap,
-  type SourceMapPayload,
-} from 'module'
+import { findSourceMap as nativeFindSourceMap } from 'module'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { parseStack } from './lib/parse-stack'
+import {
+  type ModernSourceMapPayload,
+  findApplicableSourceMapPayload,
+  ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
+  sourceMapIgnoreListsEverything,
+} from './lib/source-maps'
+import { parseStack, type StackFrame } from './lib/parse-stack'
 import { getOriginalCodeFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim } from '../lib/picocolors'
@@ -27,31 +29,7 @@ export function setBundlerFindSourceMapImplementation(
   bundlerFindSourceMapPayload = findSourceMapImplementation
 }
 
-/**
- * https://tc39.es/source-map/#index-map
- */
-interface IndexSourceMapSection {
-  offset: {
-    line: number
-    column: number
-  }
-  map: ModernRawSourceMap
-}
-
-// TODO(veil): Upstream types
-interface IndexSourceMap {
-  version: number
-  file: string
-  sections: IndexSourceMapSection[]
-}
-
-interface ModernRawSourceMap extends SourceMapPayload {
-  ignoreList?: number[]
-}
-
-export type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
-
-interface IgnoreableStackFrame extends StackFrame {
+interface IgnorableStackFrame extends StackFrame {
   ignored: boolean
 }
 
@@ -60,31 +38,36 @@ type SourceMapCache = Map<
   null | { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
 
-function frameToString(frame: StackFrame): string {
-  let sourceLocation = frame.lineNumber !== null ? `:${frame.lineNumber}` : ''
-  if (frame.column !== null && sourceLocation !== '') {
-    sourceLocation += `:${frame.column}`
+function frameToString(
+  methodName: string | null,
+  sourceURL: string | null,
+  line1: number | null,
+  column1: number | null
+): string {
+  let sourceLocation = line1 !== null ? `:${line1}` : ''
+  if (column1 !== null && sourceLocation !== '') {
+    sourceLocation += `:${column1}`
   }
 
   let fileLocation: string | null
   if (
-    frame.file !== null &&
-    frame.file.startsWith('file://') &&
-    URL.canParse(frame.file)
+    sourceURL !== null &&
+    sourceURL.startsWith('file://') &&
+    URL.canParse(sourceURL)
   ) {
     // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
     // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
     // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
     // since relative to cwd is both the shortest and snappiest.
-    fileLocation = path.relative(process.cwd(), url.fileURLToPath(frame.file))
-  } else if (frame.file !== null && frame.file.startsWith('/')) {
-    fileLocation = path.relative(process.cwd(), frame.file)
+    fileLocation = path.relative(process.cwd(), url.fileURLToPath(sourceURL))
+  } else if (sourceURL !== null && sourceURL.startsWith('/')) {
+    fileLocation = path.relative(process.cwd(), sourceURL)
   } else {
-    fileLocation = frame.file
+    fileLocation = sourceURL
   }
 
-  return frame.methodName
-    ? `    at ${frame.methodName} (${fileLocation}${sourceLocation})`
+  return methodName
+    ? `    at ${methodName} (${fileLocation}${sourceLocation})`
     : `    at ${fileLocation}${sourceLocation}`
 }
 
@@ -116,43 +99,12 @@ function shouldIgnoreListOriginalFrame(file: string): boolean {
   return file.includes('node_modules')
 }
 
-/**
- * Finds the sourcemap payload applicable to a given frame.
- * Equal to the input unless an Index Source Map is used.
- */
-function findApplicableSourceMapPayload(
-  frame: StackFrame,
-  payload: ModernSourceMapPayload
-): ModernRawSourceMap | undefined {
-  if ('sections' in payload) {
-    const frameLine = frame.lineNumber ?? 0
-    const frameColumn = frame.column ?? 0
-    // Sections must not overlap and must be sorted: https://tc39.es/source-map/#section-object
-    // Therefore the last section that has an offset less than or equal to the frame is the applicable one.
-    // TODO(veil): Binary search
-    let section: IndexSourceMapSection | undefined = payload.sections[0]
-    for (
-      let i = 0;
-      i < payload.sections.length &&
-      payload.sections[i].offset.line <= frameLine &&
-      payload.sections[i].offset.column <= frameColumn;
-      i++
-    ) {
-      section = payload.sections[i]
-    }
-
-    return section === undefined ? undefined : section.map
-  } else {
-    return payload
-  }
-}
-
 interface SourcemappableStackFrame extends StackFrame {
   file: NonNullable<StackFrame['file']>
 }
 
 interface SourceMappedFrame {
-  stack: IgnoreableStackFrame
+  stack: IgnorableStackFrame
   // DEV only
   code: string | null
 }
@@ -162,15 +114,32 @@ function createUnsourcemappedFrame(
 ): SourceMappedFrame {
   return {
     stack: {
-      arguments: frame.arguments,
-      column: frame.column,
       file: frame.file,
-      lineNumber: frame.lineNumber,
+      line1: frame.line1,
+      column1: frame.column1,
       methodName: frame.methodName,
+      arguments: frame.arguments,
       ignored: shouldIgnoreListGeneratedFrame(frame.file),
     },
     code: null,
   }
+}
+
+function ignoreListAnonymousStackFramesIfSandwiched(
+  sourceMappedFrames: Array<{
+    stack: IgnorableStackFrame
+    code: string | null
+  }>
+) {
+  return ignoreListAnonymousStackFramesIfSandwichedGeneric(
+    sourceMappedFrames,
+    (frame) => frame.stack.file === '<anonymous>',
+    (frame) => frame.stack.ignored,
+    (frame) => frame.stack.methodName,
+    (frame) => {
+      frame.stack.ignored = true
+    }
+  )
 }
 
 /**
@@ -183,7 +152,7 @@ function getSourcemappedFrameIfPossible(
   sourceMapCache: SourceMapCache,
   inspectOptions: util.InspectOptions
 ): {
-  stack: IgnoreableStackFrame
+  stack: IgnorableStackFrame
   code: string | null
 } {
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
@@ -257,33 +226,36 @@ function getSourcemappedFrameIfPossible(
   }
 
   const sourcePosition = sourceMapConsumer.originalPositionFor({
-    column: frame.column ?? 0,
-    line: frame.lineNumber ?? 1,
+    column: (frame.column1 ?? 1) - 1,
+    line: frame.line1 ?? 1,
   })
 
+  const applicableSourceMap = findApplicableSourceMapPayload(
+    (frame.line1 ?? 1) - 1,
+    (frame.column1 ?? 1) - 1,
+    sourceMapPayload
+  )
+  let ignored =
+    applicableSourceMap !== undefined &&
+    sourceMapIgnoreListsEverything(applicableSourceMap)
   if (sourcePosition.source === null) {
     return {
       stack: {
         arguments: frame.arguments,
-        column: frame.column,
         file: frame.file,
-        lineNumber: frame.lineNumber,
+        line1: frame.line1,
+        column1: frame.column1,
         methodName: frame.methodName,
-        ignored: shouldIgnoreListGeneratedFrame(frame.file),
+        ignored: ignored || shouldIgnoreListGeneratedFrame(frame.file),
       },
       code: null,
     }
   }
 
-  const applicableSourceMap = findApplicableSourceMapPayload(
-    frame,
-    sourceMapPayload
-  )
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
-  let ignored = false
   if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
-  } else if (shouldIgnoreListOriginalFrame(sourcePosition.source)) {
+  } else if (!ignored && shouldIgnoreListOriginalFrame(sourcePosition.source)) {
     // Externals may be libraries that don't ship ignoreLists.
     // This is really taking control away from libraries.
     // They should still ship `ignoreList` so that attached debuggers ignore-list their frames.
@@ -291,7 +263,7 @@ function getSourcemappedFrameIfPossible(
     // Though keep in mind that Turbopack omits empty `ignoreList`.
     // So if we establish this convention, we should communicate it to the ecosystem.
     ignored = true
-  } else {
+  } else if (!ignored) {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
     const sourceIndex = applicableSourceMap.sources.indexOf(
       sourcePosition.source
@@ -299,7 +271,7 @@ function getSourcemappedFrameIfPossible(
     ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
   }
 
-  const originalFrame: IgnoreableStackFrame = {
+  const originalFrame: IgnorableStackFrame = {
     // We ignore the sourcemapped name since it won't be the correct name.
     // The callsite will point to the column of the variable name instead of the
     // name of the enclosing function.
@@ -307,9 +279,9 @@ function getSourcemappedFrameIfPossible(
     methodName: frame.methodName
       ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
       ?.replace('__webpack_exports__.', ''),
-    column: sourcePosition.column,
     file: sourcePosition.source,
-    lineNumber: sourcePosition.line,
+    line1: sourcePosition.line,
+    column1: sourcePosition.column + 1,
     // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
     arguments: [],
     ignored,
@@ -357,9 +329,14 @@ function parseAndSourceMap(
   // doesn't implement the name computation correctly.
   const errorName = computeErrorName(error)
 
-  let idx = unparsedStack.indexOf('react-stack-bottom-frame')
+  let idx = unparsedStack.indexOf('react_stack_bottom_frame')
   if (idx !== -1) {
     idx = unparsedStack.lastIndexOf('\n', idx)
+  } else {
+    idx = unparsedStack.indexOf('react-stack-bottom-frame')
+    if (idx !== -1) {
+      idx = unparsedStack.lastIndexOf('\n', idx)
+    }
   }
   if (idx !== -1 && !showIgnoreListed) {
     // Cut off everything after the bottom frame since it'll be React internals.
@@ -369,11 +346,24 @@ function parseAndSourceMap(
   const unsourcemappedStack = parseStack(unparsedStack)
   const sourceMapCache: SourceMapCache = new Map()
 
-  let sourceMappedStack = ''
+  const sourceMappedFrames: Array<{
+    stack: IgnorableStackFrame
+    code: string | null
+  }> = []
   let sourceFrame: null | string = null
   for (const frame of unsourcemappedStack) {
     if (frame.file === null) {
-      sourceMappedStack += '\n' + frameToString(frame)
+      sourceMappedFrames.push({
+        code: null,
+        stack: {
+          file: frame.file,
+          line1: frame.line1,
+          column1: frame.column1,
+          methodName: frame.methodName,
+          arguments: frame.arguments,
+          ignored: false,
+        },
+      })
     } else {
       const sourcemappedFrame = getSourcemappedFrameIfPossible(
         // We narrowed this earlier by bailing if `frame.file` is null.
@@ -381,7 +371,11 @@ function parseAndSourceMap(
         sourceMapCache,
         inspectOptions
       )
+      sourceMappedFrames.push(sourcemappedFrame)
 
+      // We can determine the sourceframe here.
+      // anonymous frames won't have a sourceframe so we don't need to scan
+      // all stacks again to check if they are sandwiched between ignored frames.
       if (
         sourceFrame === null &&
         // TODO: Is this the right choice?
@@ -390,14 +384,35 @@ function parseAndSourceMap(
       ) {
         sourceFrame = sourcemappedFrame.code
       }
-      if (!sourcemappedFrame.stack.ignored) {
-        // TODO: Consider what happens if every frame is ignore listed.
-        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
-      } else if (showIgnoreListed && !inspectOptions.colors) {
-        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
-      } else if (showIgnoreListed) {
-        sourceMappedStack += '\n' + dim(frameToString(sourcemappedFrame.stack))
-      }
+    }
+  }
+
+  ignoreListAnonymousStackFramesIfSandwiched(sourceMappedFrames)
+
+  let sourceMappedStack = ''
+  for (let i = 0; i < sourceMappedFrames.length; i++) {
+    const frame = sourceMappedFrames[i]
+
+    if (!frame.stack.ignored) {
+      sourceMappedStack +=
+        '\n' +
+        frameToString(
+          frame.stack.methodName,
+          frame.stack.file,
+          frame.stack.line1,
+          frame.stack.column1
+        )
+    } else if (showIgnoreListed) {
+      sourceMappedStack +=
+        '\n' +
+        dim(
+          frameToString(
+            frame.stack.methodName,
+            frame.stack.file,
+            frame.stack.line1,
+            frame.stack.column1
+          )
+        )
     }
   }
 

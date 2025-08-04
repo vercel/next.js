@@ -14,7 +14,11 @@ export type ReadyRuntimeError = {
   type: 'runtime' | 'console' | 'recoverable'
 }
 
-export const useFrames = (error: ReadyRuntimeError): OriginalStackFrame[] => {
+export const useFrames = (
+  error: ReadyRuntimeError | null
+): OriginalStackFrame[] => {
+  if (!error) return []
+
   if ('use' in React) {
     const frames = error.frames
 

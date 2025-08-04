@@ -12,7 +12,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::source::Source;
 
@@ -31,7 +31,7 @@ pub enum WebpackRuntime {
         /// before converting to string
         #[turbo_tasks(trace_ignore)]
         chunk_request_expr: JsValue,
-        context_path: ResolvedVc<FileSystemPath>,
+        context_path: FileSystemPath,
     },
     None,
 }
@@ -216,13 +216,13 @@ pub async fn webpack_runtime(
 
                     return Ok(WebpackRuntime::Webpack5 {
                         chunk_request_expr: value,
-                        context_path: source.ident().path().parent().to_resolved().await?,
+                        context_path: source.ident().path().await?.parent(),
                     }
                     .into());
                 }
             }
         }
-        ParseResult::Unparseable { .. } | ParseResult::NotFound => {}
+        ParseResult::Unparsable { .. } | ParseResult::NotFound => {}
     }
     Ok(WebpackRuntime::None.into())
 }

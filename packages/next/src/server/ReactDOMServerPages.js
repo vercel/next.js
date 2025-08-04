@@ -1,6 +1,7 @@
 let ReactDOMServer
 
 try {
+  // TODO: Use Node.js build unless we're in an Edge runtime.
   ReactDOMServer = require('react-dom/server.edge')
 } catch (error) {
   if (

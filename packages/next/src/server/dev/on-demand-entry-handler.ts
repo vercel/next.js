@@ -473,7 +473,7 @@ export async function findPagePathData(
       // If they're not presented, then fallback to global-not-found
       return {
         filename: require.resolve(
-          'next/dist/client/components/global-not-found'
+          'next/dist/client/components/builtin/global-not-found'
         ),
         bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
         page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
@@ -828,10 +828,6 @@ export function onDemandEntryHandler({
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
       let pageRuntime = staticInfo.runtime
-
-      if (isMiddlewareFile(page) && !nextConfig.experimental.nodeMiddleware) {
-        pageRuntime = 'edge'
-      }
 
       runDependingOnPageType({
         page: route.page,

@@ -13,6 +13,7 @@ import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
 import { getRequestMeta } from '../../server/request-meta'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
+import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
@@ -32,6 +33,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
 import { getBotType, isBot } from '../../shared/lib/router/utils/is-bot'
 import {
@@ -41,10 +43,13 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache'
-import { decodePathParams } from '../../server/lib/router-utils/decode-path-params'
 import { FallbackMode, parseFallbackField } from '../../lib/fallback'
 import RenderResult from '../../server/render-result'
-import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
+import {
+  CACHE_ONE_YEAR,
+  HTML_CONTENT_TYPE_HEADER,
+  NEXT_CACHE_TAGS_HEADER,
+} from '../../lib/constants'
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags'
 import { sendRenderResult } from '../../server/send-payload'
@@ -83,6 +88,7 @@ export const __next_app__ = {
 }
 
 import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -101,7 +107,7 @@ export const routeModule = new AppPageRouteModule({
     loaderTree: tree,
   },
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
-  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
 export async function handler(
@@ -155,10 +161,11 @@ export async function handler(
     subresourceIntegrityManifest,
     prerenderManifest,
     isDraftMode,
-
+    resolvedPathname,
     revalidateOnlyGenerated,
     routerServerContext,
     nextConfig,
+    interceptionRoutePatterns,
   } = prepareResult
 
   const pathname = parsedUrl.pathname || '/'
@@ -166,30 +173,14 @@ export async function handler(
 
   let { isOnDemandRevalidate } = prepareResult
 
-  // TODO: rework this to not be necessary as a middleware
-  // rewrite should not need to pass this context like this
-  // maybe we rely on rewrite header instead
-  let resolvedPathname = getRequestMeta(req, 'rewroteURL') || pathname
-
-  if (resolvedPathname === '/index') {
-    resolvedPathname = '/'
-  }
-  resolvedPathname = decodePathParams(resolvedPathname)
-
-  const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
-  const isPrerendered = prerenderManifest.routes[resolvedPathname]
+  const prerenderInfo = routeModule.match(pathname, prerenderManifest)
+  const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
   let isSSG = Boolean(
     prerenderInfo ||
       isPrerendered ||
       prerenderManifest.routes[normalizedSrcPage]
   )
-
-  // if the page is dynamicParams: false and this pathname wasn't prerender
-  // trigger the no fallback handling
-  if (isSSG && prerenderInfo?.fallback === false && !isPrerendered) {
-    throw new NoFallbackError()
-  }
 
   const userAgent = req.headers['user-agent'] || ''
   const botType = getBotType(userAgent)
@@ -201,7 +192,7 @@ export async function handler(
    */
   const isPrefetchRSCRequest =
     getRequestMeta(req, 'isPrefetchRSCRequest') ??
-    Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER])
+    req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1' // exclude runtime prefetches, which use '2'
 
   // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 
@@ -316,6 +307,28 @@ export async function handler(
     ssgCacheKey = resolvedPathname
   }
 
+  // the staticPathKey differs from ssgCacheKey since
+  // ssgCacheKey is null in dev since we're always in "dynamic"
+  // mode in dev to bypass the cache, but we still need to honor
+  // dynamicParams = false in dev mode
+  let staticPathKey = ssgCacheKey
+  if (!staticPathKey && routeModule.isDev) {
+    staticPathKey = resolvedPathname
+  }
+
+  // If this is a request for an app path that should be statically generated
+  // and we aren't in the edge runtime, strip the flight headers so it will
+  // generate the static response.
+  if (
+    !routeModule.isDev &&
+    !isDraftMode &&
+    isSSG &&
+    isRSCRequest &&
+    !isDynamicRSCRequest
+  ) {
+    stripFlightHeaders(req.headers)
+  }
+
   const ComponentMod = {
     ...entryBase,
     tree,
@@ -345,6 +358,11 @@ export async function handler(
   const activeSpan = tracer.getActiveScopeSpan()
 
   try {
+    const varyHeader = routeModule.getVaryHeader(
+      resolvedPathname,
+      interceptionRoutePatterns
+    )
+    res.setHeader('Vary', varyHeader)
     const invokeRouteModule = async (
       span: Span | undefined,
       context: AppPageRouteHandlerContext
@@ -357,7 +375,7 @@ export async function handler(
       // we should seed the resume data cache.
       if (process.env.NODE_ENV === 'development') {
         if (
-          nextConfig.experimental.dynamicIO &&
+          nextConfig.experimental.cacheComponents &&
           !isPrefetchRSCRequest &&
           !context.renderOpts.isPossibleServerAction
         ) {
@@ -466,7 +484,14 @@ export async function handler(
           clientReferenceManifest,
           setIsrStatus: routerServerContext?.setIsrStatus,
 
-          dir: routeModule.projectDir,
+          dir:
+            process.env.NEXT_RUNTIME === 'nodejs'
+              ? (require('path') as typeof import('path')).join(
+                  /* turbopackIgnore: true */
+                  process.cwd(),
+                  routeModule.relativeProjectDir
+                )
+              : `${process.cwd()}/${routeModule.relativeProjectDir}`,
           isDraftMode,
           isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
           botType,
@@ -504,7 +529,7 @@ export async function handler(
             isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
-            dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
+            cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
             clientSegmentCache: Boolean(
               nextConfig.experimental.clientSegmentCache
             ),
@@ -649,19 +674,38 @@ export async function handler(
       if (
         !minimalMode &&
         fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
-        ssgCacheKey &&
+        staticPathKey &&
         !didRespond &&
         !isDraftMode &&
         pageIsDynamic &&
         (isProduction || !isPrerendered)
       ) {
+        // if the page has dynamicParams: false and this pathname wasn't
+        // prerendered trigger the no fallback handling
+        if (
+          // In development, fall through to render to handle missing
+          // getStaticPaths.
+          (isProduction || prerenderInfo) &&
+          // When fallback isn't present, abort this render so we 404
+          fallbackMode === FallbackMode.NOT_FOUND
+        ) {
+          throw new NoFallbackError()
+        }
+
         let fallbackResponse: ResponseCacheEntry | null | undefined
 
         if (isRoutePPREnabled && !isRSCRequest) {
+          const cacheKey =
+            typeof prerenderInfo?.fallback === 'string'
+              ? prerenderInfo.fallback
+              : isProduction
+                ? normalizedSrcPage
+                : null
+
           // We use the response cache here to handle the revalidation and
           // management of the fallback shell.
           fallbackResponse = await routeModule.handleResponse({
-            cacheKey: isProduction ? normalizedSrcPage : null,
+            cacheKey,
             req,
             nextConfig,
             routeKind: RouteKind.APP_PAGE,
@@ -715,7 +759,7 @@ export async function handler(
           cacheControl: { revalidate: 1, expire: undefined },
           value: {
             kind: CachedRouteKind.PAGES,
-            html: RenderResult.fromStatic(''),
+            html: RenderResult.EMPTY,
             pageData: {},
             headers: undefined,
             status: undefined,
@@ -904,10 +948,12 @@ export async function handler(
           return sendRenderResult({
             req,
             res,
-            type: 'rsc',
             generateEtags: nextConfig.generateEtags,
             poweredByHeader: nextConfig.poweredByHeader,
-            result: RenderResult.fromStatic(matchedSegment),
+            result: RenderResult.fromStatic(
+              matchedSegment,
+              RSC_CONTENT_TYPE_HEADER
+            ),
             cacheControl: cacheEntry.cacheControl,
           })
         }
@@ -922,10 +968,9 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'rsc',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
-          result: RenderResult.fromStatic(''),
+          result: RenderResult.EMPTY,
           cacheControl: cacheEntry.cacheControl,
         })
       }
@@ -999,6 +1044,16 @@ export async function handler(
         res.statusCode = cachedData.status
       }
 
+      // Redirect information is encoded in RSC payload, so we don't need to use redirect status codes
+      if (
+        !minimalMode &&
+        cachedData.status &&
+        RedirectStatusCode[cachedData.status] &&
+        isRSCRequest
+      ) {
+        res.statusCode = 200
+      }
+
       // Mark that the request did postpone.
       if (didPostpone) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
@@ -1018,7 +1073,6 @@ export async function handler(
           return sendRenderResult({
             req,
             res,
-            type: 'rsc',
             generateEtags: nextConfig.generateEtags,
             poweredByHeader: nextConfig.poweredByHeader,
             result: cachedData.html,
@@ -1038,10 +1092,12 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'rsc',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
-          result: RenderResult.fromStatic(cachedData.rscData),
+          result: RenderResult.fromStatic(
+            cachedData.rscData,
+            RSC_CONTENT_TYPE_HEADER
+          ),
           cacheControl: cacheEntry.cacheControl,
         })
       }
@@ -1052,11 +1108,25 @@ export async function handler(
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
-      if (!didPostpone || minimalMode) {
+      if (!didPostpone || minimalMode || isRSCRequest) {
+        // If we're in test mode, we should add a sentinel chunk to the response
+        // that's between the static and dynamic parts so we can compare the
+        // chunks and add assertions.
+        if (
+          process.env.__NEXT_TEST_MODE &&
+          minimalMode &&
+          isRoutePPREnabled &&
+          body.contentType === HTML_CONTENT_TYPE_HEADER
+        ) {
+          // As we're in minimal mode, the static part would have already been
+          // streamed first. The only part that this streams is the dynamic part
+          // so we should FIRST stream the sentinel and THEN the dynamic part.
+          body.unshift(createPPRBoundarySentinel())
+        }
+
         return sendRenderResult({
           req,
           res,
-          type: 'html',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
@@ -1071,7 +1141,7 @@ export async function handler(
       if (isDebugStaticShell || isDebugDynamicAccesses) {
         // Since we're not resuming the render, we need to at least add the
         // closing body and html tags to create valid HTML.
-        body.chain(
+        body.push(
           new ReadableStream({
             start(controller) {
               controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
@@ -1083,7 +1153,6 @@ export async function handler(
         return sendRenderResult({
           req,
           res,
-          type: 'html',
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
           result: body,
@@ -1091,11 +1160,18 @@ export async function handler(
         })
       }
 
+      // If we're in test mode, we should add a sentinel chunk to the response
+      // that's between the static and dynamic parts so we can compare the
+      // chunks and add assertions.
+      if (process.env.__NEXT_TEST_MODE) {
+        body.push(createPPRBoundarySentinel())
+      }
+
       // This request has postponed, so let's create a new transformer that the
       // dynamic data can pipe to that will attach the dynamic data to the end
       // of the response.
       const transformer = new TransformStream<Uint8Array, Uint8Array>()
-      body.chain(transformer.readable)
+      body.push(transformer.readable)
 
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
@@ -1132,7 +1208,6 @@ export async function handler(
       return sendRenderResult({
         req,
         res,
-        type: 'html',
         generateEtags: nextConfig.generateEtags,
         poweredByHeader: nextConfig.poweredByHeader,
         result: body,
@@ -1165,7 +1240,7 @@ export async function handler(
     }
   } catch (err) {
     // if we aren't wrapped by base-server handle here
-    if (!activeSpan) {
+    if (!activeSpan && !(err instanceof NoFallbackError)) {
       await routeModule.onRequestError(
         req,
         err,
@@ -1185,4 +1260,21 @@ export async function handler(
     // rethrow so that we can handle serving error page
     throw err
   }
+}
+
+// TODO: omit this from production builds, only test builds should include it
+/**
+ * Creates a readable stream that emits a PPR boundary sentinel.
+ *
+ * @returns A readable stream that emits a PPR boundary sentinel.
+ */
+function createPPRBoundarySentinel() {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(
+        new TextEncoder().encode('<!-- PPR_BOUNDARY_SENTINEL -->')
+      )
+      controller.close()
+    },
+  })
 }

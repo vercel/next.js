@@ -30,11 +30,11 @@ pub struct ResolveOptionsContext {
     #[serde(default)]
     /// Enable resolving of the node_modules folder when within the provided
     /// directory
-    pub enable_node_modules: Option<ResolvedVc<FileSystemPath>>,
+    pub enable_node_modules: Option<FileSystemPath>,
     #[serde(default)]
     /// A specific path to a tsconfig.json file to use for resolving modules. If `None`, one will
     /// be looked up through the filesystem
-    pub tsconfig_path: Option<ResolvedVc<FileSystemPath>>,
+    pub tsconfig_path: Option<FileSystemPath>,
     #[serde(default)]
     /// Mark well-known Node.js modules as external imports and load them using
     /// native `require`. e.g. url, querystring, os

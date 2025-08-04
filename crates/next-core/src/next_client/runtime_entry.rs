@@ -12,7 +12,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {
-    Request(ResolvedVc<Request>, ResolvedVc<FileSystemPath>),
+    Request(ResolvedVc<Request>, FileSystemPath),
     Evaluatable(ResolvedVc<Box<dyn EvaluatableAsset>>),
     Source(ResolvedVc<Box<dyn Source>>),
 }
@@ -24,16 +24,16 @@ impl RuntimeEntry {
         self: Vc<Self>,
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<EvaluatableAssets>> {
-        let (request, path) = match *self.await? {
-            RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssets::one(*e)),
+        let (request, path) = match &*self.await? {
+            RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssets::one(**e)),
             RuntimeEntry::Source(source) => {
                 return Ok(EvaluatableAssets::one(source.to_evaluatable(asset_context)));
             }
-            RuntimeEntry::Request(r, path) => (r, path),
+            RuntimeEntry::Request(r, path) => (*r, path.clone()),
         };
 
         let modules = cjs_resolve(
-            Vc::upcast(PlainResolveOrigin::new(asset_context, *path)),
+            Vc::upcast(PlainResolveOrigin::new(asset_context, path.clone())),
             *request,
             None,
             false,

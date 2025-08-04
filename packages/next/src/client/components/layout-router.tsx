@@ -33,13 +33,14 @@ import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
-import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/router/utils/disable-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
 import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 const Activity = process.env.__NEXT_ROUTER_BF_CACHE
   ? (require('react') as typeof import('react')).unstable_Activity
@@ -244,7 +245,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       focusAndScrollRef.hashFragment = null
       focusAndScrollRef.segmentPaths = []
 
-      handleSmoothScroll(
+      disableSmoothScrollDuringRouteTransition(
         () => {
           // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
@@ -281,7 +282,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         }
       )
 
-      // Mutate after scrolling so that it can be read by `handleSmoothScroll`
+      // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
       focusAndScrollRef.onlyHashChange = false
 
       // Set focus on the element
@@ -507,6 +508,7 @@ export default function OuterLayoutRouter({
   forbidden,
   unauthorized,
   gracefullyDegrade,
+  segmentViewBoundaries,
 }: {
   parallelRouterKey: string
   error: ErrorComponent | undefined
@@ -519,6 +521,7 @@ export default function OuterLayoutRouter({
   forbidden: React.ReactNode | undefined
   unauthorized: React.ReactNode | undefined
   gracefullyDegrade?: boolean
+  segmentViewBoundaries?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -613,6 +616,27 @@ export default function OuterLayoutRouter({
       ? RenderChildren
       : ErrorBoundary
 
+    let segmentBoundaryTriggerNode: React.ReactNode = null
+    let segmentViewStateNode: React.ReactNode = null
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
+    ) {
+      const { SegmentBoundaryTriggerNode, SegmentViewStateNode } =
+        require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+
+      const pagePrefix = normalizeAppPath(url)
+      segmentViewStateNode = (
+        <SegmentViewStateNode key={pagePrefix} page={pagePrefix} />
+      )
+
+      segmentBoundaryTriggerNode = (
+        <>
+          <SegmentBoundaryTriggerNode />
+        </>
+      )
+    }
+
     // TODO: The loading module data for a segment is stored on the parent, then
     // applied to each of that parent segment's parallel route slots. In the
     // simple case where there's only one parallel route (the `children` slot),
@@ -645,10 +669,12 @@ export default function OuterLayoutRouter({
                       cacheNode={cacheNode}
                       segmentPath={segmentPath}
                     />
+                    {segmentBoundaryTriggerNode}
                   </RedirectBoundary>
                 </HTTPAccessFallbackBoundary>
               </LoadingBoundary>
             </ErrorBoundaryComponent>
+            {segmentViewStateNode}
           </ScrollAndFocusHandler>
         }
       >
@@ -657,6 +683,18 @@ export default function OuterLayoutRouter({
         {template}
       </TemplateContext.Provider>
     )
+
+    if (process.env.NODE_ENV !== 'production') {
+      const { SegmentStateProvider } =
+        require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+
+      child = (
+        <SegmentStateProvider key={stateKey}>
+          {child}
+          {segmentViewBoundaries}
+        </SegmentStateProvider>
+      )
+    }
 
     if (process.env.__NEXT_ROUTER_BF_CACHE) {
       child = (

@@ -3,17 +3,20 @@ import type { Telemetry } from '../../telemetry/storage'
 import { RESTART_EXIT_CODE } from '../../server/lib/utils'
 import { middlewareResponse } from './middleware-response'
 import type { Project } from '../../build/swc/types'
+import { invalidatePersistentCache as invalidateWebpackPersistentCache } from '../../build/webpack/cache-invalidation'
 
 const EVENT_DEV_OVERLAY_RESTART_SERVER = 'DEV_OVERLAY_RESTART_SERVER'
 
 interface RestartDevServerMiddlewareConfig {
   telemetry: Telemetry
   turbopackProject?: Project
+  webpackCacheDirectories?: Set<string>
 }
 
 export function getRestartDevServerMiddleware({
   telemetry,
   turbopackProject,
+  webpackCacheDirectories,
 }: RestartDevServerMiddlewareConfig) {
   /**
    * Some random value between 1 and Number.MAX_SAFE_INTEGER (inclusive). The same value is returned
@@ -34,16 +37,25 @@ export function getRestartDevServerMiddleware({
       return middlewareResponse.methodNotAllowed(res)
     }
 
-    const invalidatePersistentCache = searchParams.has(
+    const shouldInvalidatePersistentCache = searchParams.has(
       'invalidatePersistentCache'
     )
-    if (invalidatePersistentCache) {
-      await turbopackProject?.invalidatePersistentCache()
+    if (shouldInvalidatePersistentCache) {
+      if (webpackCacheDirectories != null) {
+        await Promise.all(
+          Array.from(webpackCacheDirectories).map(
+            invalidateWebpackPersistentCache
+          )
+        )
+      }
+      if (turbopackProject != null) {
+        await turbopackProject.invalidatePersistentCache()
+      }
     }
 
     telemetry.record({
       eventName: EVENT_DEV_OVERLAY_RESTART_SERVER,
-      payload: { invalidatePersistentCache },
+      payload: { invalidatePersistentCache: shouldInvalidatePersistentCache },
     })
 
     // TODO: Use flushDetached

@@ -4,6 +4,7 @@ import type {
   ExternalObject,
   RefCell,
   NapiTurboEngineOptions,
+  NapiSourceDiagnostic,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
@@ -46,6 +47,10 @@ export interface Binding {
 
   rspack: {
     getModuleNamedExports(resourcePath: string): Promise<string[]>
+    warnForEdgeRuntime(
+      source: string,
+      isProduction: boolean
+    ): Promise<NapiSourceDiagnostic[]>
   }
 }
 
@@ -233,9 +238,9 @@ export interface Project {
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 
-  compilationEventsSubscribe(): AsyncIterableIterator<
-    TurbopackResult<CompilationEvent>
-  >
+  compilationEventsSubscribe(
+    eventTypes?: string[]
+  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
   invalidatePersistentCache(): Promise<void>
 
@@ -341,18 +346,22 @@ export type WrittenEndpoint =
 
 export interface ProjectOptions {
   /**
-   * A root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail. Think of this as a chroot.
+   * An absolute root path (Unix or Windows path) from which all files must be nested under. Trying
+   * to access a file outside this root will fail, so think of this as a chroot.
+   * E.g. `/home/user/projects/my-repo`.
    */
   rootPath: string
 
   /**
-   * A path inside the root_path which contains the app/pages directories.
+   * A path which contains the app/pages directories, relative to `root_path`, always a Unix path.
+   * E.g. `apps/my-app`
    */
   projectPath: string
 
   /**
-   * The path to the .next directory.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always a Unix
+   * path. Corresponds to next.config.js's `distDir`.
+   * E.g. `.next`
    */
   distDir: string
 
@@ -418,15 +427,21 @@ export interface ProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+
+  /**
+   * The version of Node.js that is available/currently running.
+   */
+  currentNodeJsVersion: string
 }
 
 export interface DefineEnv {
-  client: RustifiedEnv
-  edge: RustifiedEnv
-  nodejs: RustifiedEnv
+  client: RustifiedOptionalEnv
+  edge: RustifiedOptionalEnv
+  nodejs: RustifiedOptionalEnv
 }
 
 export type RustifiedEnv = { name: string; value: string }[]
+export type RustifiedOptionalEnv = { name: string; value: string | undefined }[]
 
 export interface GlobalEntrypoints {
   app: Endpoint | undefined

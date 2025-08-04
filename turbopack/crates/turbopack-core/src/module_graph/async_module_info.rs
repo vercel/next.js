@@ -73,14 +73,14 @@ async fn compute_async_module_info_single(
     // modules in the SCC is async.
 
     let mut async_modules = self_async_modules;
-    graph.traverse_edges_from_entries_topological(
+    graph.traverse_edges_from_entries_dfs(
         graph.entry_modules(),
         &mut (),
         |_, _, _| Ok(GraphTraversalAction::Continue),
         |parent_info, module, _| {
             let Some((parent_module, ref_data)) = parent_info else {
                 // An entry module
-                return;
+                return Ok(());
             };
             let module = module.module();
             let parent_module = parent_module.module;
@@ -88,6 +88,7 @@ async fn compute_async_module_info_single(
             if ref_data.chunking_type.is_inherit_async() && async_modules.contains(&module) {
                 async_modules.insert(parent_module);
             }
+            Ok(())
         },
     )?;
 

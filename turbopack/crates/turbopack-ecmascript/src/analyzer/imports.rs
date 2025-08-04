@@ -7,7 +7,7 @@ use swc_core::{
     ecma::{
         ast::*,
         atoms::{Atom, atom},
-        utils::find_pat_ids,
+        utils::{IsDirective, find_pat_ids},
         visit::{Visit, VisitWith},
     },
 };
@@ -40,7 +40,7 @@ static ANNOTATION_CHUNKING_TYPE: Lazy<Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
-static ATTRIBUTE_MODULE_TYPE: Lazy<Atom> = Lazy::new(|| "type".into());
+static ATTRIBUTE_MODULE_TYPE: Lazy<Atom> = Lazy::new(|| atom!("type"));
 
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
@@ -168,6 +168,9 @@ pub(crate) struct ImportMap {
 
     /// True if the module is an ESM module due to top-level await.
     has_top_level_await: bool,
+
+    /// True if the module has "use strict"
+    pub(crate) strict: bool,
 
     /// Locations of [webpack-style "magic comments"][magic] that override import behaviors.
     ///
@@ -494,7 +497,7 @@ impl Visit for Analyzer<'_> {
                     Some(imported) => (local.to_id(), orig_name(imported)),
                     _ => (local.to_id(), local.sym.clone()),
                 },
-                ImportSpecifier::Default(s) => (s.local.to_id(), "default".into()),
+                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
                 ImportSpecifier::Namespace(s) => {
                     self.data.namespace_imports.insert(s.local.to_id(), i);
                     continue;
@@ -705,6 +708,18 @@ impl Visit for Analyzer<'_> {
 
     fn visit_program(&mut self, m: &Program) {
         self.data.has_top_level_await = has_top_level_await(m).is_some();
+        self.data.strict = match m {
+            Program::Module(module) => module
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+            Program::Script(script) => script
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+        };
 
         m.visit_children_with(self);
     }

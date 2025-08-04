@@ -385,12 +385,16 @@ impl Issue for FatalStreamIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Other("websocket".into()).cell()
+        IssueStage::Other(rcstr!("websocket")).cell()
     }
 
     #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        ServerFileSystem::new().root().join(self.resource.clone())
+    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(ServerFileSystem::new()
+            .root()
+            .await?
+            .join(&self.resource)?
+            .cell())
     }
 
     #[turbo_tasks::function]

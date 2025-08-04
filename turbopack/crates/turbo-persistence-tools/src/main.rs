@@ -22,15 +22,17 @@ fn main() -> Result<()> {
         .context("Failed to retrieve meta information")?;
     for meta_file in meta_info {
         println!(
-            "META {:08}.meta: family = {}, ",
-            meta_file.sequence_number, meta_file.family
+            "META {:08}.meta: family = {}, sst_size = {} MiB",
+            meta_file.sequence_number,
+            meta_file.family,
+            meta_file.entries.iter().map(|e| e.sst_size).sum::<u64>() / 1024 / 1024,
         );
         for MetaFileEntryInfo {
             sequence_number,
             min_hash,
             max_hash,
-            aqmf_size,
-            aqmf_entries,
+            amqf_size,
+            amqf_entries,
             sst_size,
             key_compression_dictionary_size,
             value_compression_dictionary_size,
@@ -41,7 +43,7 @@ fn main() -> Result<()> {
                 "  SST {sequence_number:08}.sst: {min_hash:016x} - {max_hash:016x} (p = 1/{})",
                 u64::MAX / (max_hash - min_hash + 1)
             );
-            println!("    AQMF {aqmf_entries} entries = {} KiB", aqmf_size / 1024);
+            println!("    AMQF {amqf_entries} entries = {} KiB", amqf_size / 1024);
             println!(
                 "    {} KiB = {} kiB key compression dict + {} KiB value compression dict + \
                  {block_count} blocks (avg {} bytes/block)",

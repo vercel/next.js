@@ -5,6 +5,7 @@ export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUN
     console.log($$ACTION_ARG_0.at(1), $$ACTION_ARG_1, $$ACTION_ARG_1.current);
     console.log($$ACTION_ARG_2.push.call($$ACTION_ARG_2, 5));
 };
+registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 export function Component() {
     const data = [
         1,
@@ -21,6 +22,6 @@ export function Component() {
             current: 1
         }
     };
-    var action = registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", data, baz.value, foo));
+    var action = $$RSC_SERVER_ACTION_0.bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", data, baz.value, foo));
     return <form action={action}/>;
 }

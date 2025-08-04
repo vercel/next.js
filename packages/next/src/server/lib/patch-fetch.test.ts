@@ -41,7 +41,7 @@ describe('createPatchedFetcher', () => {
       get: jest.fn(),
       set: jest.fn(() => resolveIncrementalCacheSet()),
       generateCacheKey: jest.fn(() => 'test-cache-key'),
-      lock: jest.fn(() => resolveIncrementalCacheSet),
+      lock: jest.fn(() => () => {}),
     } as unknown as IncrementalCache
 
     // We only need to provide a few of the WorkStore properties.

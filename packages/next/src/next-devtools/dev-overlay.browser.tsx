@@ -17,9 +17,19 @@ import {
   ACTION_BUILDING_INDICATOR_SHOW,
   ACTION_RENDERING_INDICATOR_HIDE,
   ACTION_RENDERING_INDICATOR_SHOW,
+  ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
+  ACTION_DEVTOOLS_CONFIG,
+  type OverlayState,
+  type DispatcherEvent,
 } from './dev-overlay/shared'
 
-import { startTransition, useInsertionEffect } from 'react'
+import {
+  createContext,
+  startTransition,
+  useContext,
+  useInsertionEffect,
+  type ActionDispatch,
+} from 'react'
 import { createRoot } from 'react-dom/client'
 import { FontStyles } from './dev-overlay/font/font-styles'
 import type { HydrationErrorState } from './shared/hydration-error'
@@ -30,8 +40,9 @@ import type { VersionInfo } from '../server/dev/parse-version-info'
 import {
   insertSegmentNode,
   removeSegmentNode,
-  type SegmentNode,
-} from './dev-overlay/segment-explorer'
+} from './dev-overlay/segment-explorer-trie'
+import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
+import type { DevToolsConfig } from './dev-overlay/shared'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -42,6 +53,7 @@ export interface Dispatcher {
   onRefresh(): void
   onStaticIndicator(status: boolean): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
+  onDevToolsConfig(config: DevToolsConfig): void
   onUnhandledError(reason: Error): void
   onUnhandledRejection(reason: Error): void
   openErrorOverlay(): void
@@ -51,14 +63,9 @@ export interface Dispatcher {
   buildingIndicatorShow(): void
   renderingIndicatorHide(): void
   renderingIndicatorShow(): void
-  segmentExplorerNodeAdd(
-    nodeType: SegmentNode['type'],
-    pagePath: SegmentNode['pagePath']
-  ): void
-  segmentExplorerNodeRemove(
-    nodeType: SegmentNode['type'],
-    pagePath: SegmentNode['pagePath']
-  ): void
+  segmentExplorerNodeAdd(nodeState: SegmentNodeState): void
+  segmentExplorerNodeRemove(nodeState: SegmentNodeState): void
+  segmentExplorerUpdateRouteState(page: string): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -111,6 +118,11 @@ export const dispatcher: Dispatcher = {
       dispatch({ type: ACTION_DEV_INDICATOR, devIndicator })
     }
   ),
+  onDevToolsConfig: createQueuable(
+    (dispatch: Dispatch, devToolsConfig: DevToolsConfig) => {
+      dispatch({ type: ACTION_DEVTOOLS_CONFIG, devToolsConfig })
+    }
+  ),
   onUnhandledError: createQueuable((dispatch: Dispatch, error: Error) => {
     dispatch({
       type: ACTION_UNHANDLED_ERROR,
@@ -145,21 +157,18 @@ export const dispatcher: Dispatcher = {
     dispatch({ type: ACTION_RENDERING_INDICATOR_SHOW })
   }),
   segmentExplorerNodeAdd: createQueuable(
-    (
-      _: Dispatch,
-      nodeType: SegmentNode['type'],
-      pagePath: SegmentNode['pagePath']
-    ) => {
-      insertSegmentNode({ type: nodeType, pagePath })
+    (_: Dispatch, nodeState: SegmentNodeState) => {
+      insertSegmentNode(nodeState)
     }
   ),
   segmentExplorerNodeRemove: createQueuable(
-    (
-      _: Dispatch,
-      nodeType: SegmentNode['type'],
-      pagePath: SegmentNode['pagePath']
-    ) => {
-      removeSegmentNode({ type: nodeType, pagePath })
+    (_: Dispatch, nodeState: SegmentNodeState) => {
+      removeSegmentNode(nodeState)
+    }
+  ),
+  segmentExplorerUpdateRouteState: createQueuable(
+    (dispatch: Dispatch, page: string) => {
+      dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page })
     }
   ),
 }
@@ -215,14 +224,26 @@ function DevOverlayRoot({
     <>
       {/* Fonts can only be loaded outside the Shadow DOM. */}
       <FontStyles />
-      <DevOverlay
-        state={state}
-        dispatch={dispatch}
-        getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
-      />
+      <DevOverlayContext
+        value={{
+          dispatch,
+          getSquashedHydrationErrorDetails,
+          state,
+        }}
+      >
+        <DevOverlay />
+      </DevOverlayContext>
     </>
   )
 }
+export const DevOverlayContext = createContext<{
+  state: OverlayState & {
+    routerType: 'pages' | 'app'
+  }
+  dispatch: ActionDispatch<[action: DispatcherEvent]>
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
+}>(null!)
+export const useDevOverlayContext = () => useContext(DevOverlayContext)
 
 let isPagesMounted = false
 let isAppMounted = false

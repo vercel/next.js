@@ -102,7 +102,7 @@ impl CssChunk {
             {
                 fileify_source_map(
                     content.source_map.as_ref(),
-                    self.chunking_context().root_path(),
+                    self.chunking_context().root_path().owned().await?,
                 )
                 .await?
             } else {
@@ -111,7 +111,9 @@ impl CssChunk {
 
             body.push_source(&content.inner_code, source_map);
 
-            writeln!(body, "{close}")?;
+            if !close.is_empty() {
+                writeln!(body, "{close}")?;
+            }
             writeln!(body)?;
         }
 
@@ -152,8 +154,8 @@ impl CssChunk {
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let CssChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
-            let path = chunk_item.asset_ident().path().to_resolved().await?;
-            Some((path, path.await?))
+            let path = chunk_item.asset_ident().path().owned().await?;
+            Some((path.clone(), path))
         } else {
             None
         };
@@ -164,13 +166,13 @@ impl CssChunk {
             if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
                 let path = chunk_item.asset_ident().path().await?;
                 while !path.is_inside_or_equal_ref(common_path_ref) {
-                    let parent = common_path_vc.parent().to_resolved().await?;
+                    let parent = common_path_vc.parent();
                     if parent == *common_path_vc {
                         common_path = None;
                         break;
                     }
                     *common_path_vc = parent;
-                    *common_path_ref = (*common_path_vc).await?;
+                    *common_path_ref = common_path_vc.clone();
                 }
             }
         }
@@ -189,7 +191,7 @@ impl CssChunk {
             path: if let Some((common_path, _)) = common_path {
                 common_path
             } else {
-                ServerFileSystem::new().root().to_resolved().await?
+                ServerFileSystem::new().root().owned().await?
             },
             query: RcStr::default(),
             fragment: RcStr::default(),
@@ -240,8 +242,8 @@ pub struct CssChunkContent {
 #[turbo_tasks::value_impl]
 impl Chunk for CssChunk {
     #[turbo_tasks::function]
-    fn ident(self: Vc<Self>) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path())
+    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
+        Ok(AssetIdent::from_path(self.path().owned().await?))
     }
 
     #[turbo_tasks::function]
@@ -254,6 +256,14 @@ impl Chunk for CssChunk {
 impl OutputChunk for CssChunk {
     #[turbo_tasks::function]
     async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
+        if !*self
+            .chunking_context
+            .is_dynamic_chunk_content_loading_enabled()
+            .await?
+        {
+            return Ok(OutputChunkRuntimeInfo::empty());
+        }
+
         let content = self.content.await?;
         let entries_chunk_items = &content.chunk_items;
         let included_ids = entries_chunk_items
@@ -287,7 +297,7 @@ impl OutputChunk for CssChunk {
             .into_iter()
             .flatten()
             .collect();
-        let module_chunks = if entries_chunk_items.len() > 1 {
+        let module_chunks = if content.chunk_items.len() > 1 {
             content
                 .chunk_items
                 .iter()
@@ -319,10 +329,12 @@ impl OutputAsset for CssChunk {
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let ident = self.ident_for_path();
 
-        Ok(self
-            .await?
-            .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".css")))
+        Ok(self.await?.chunking_context.chunk_path(
+            Some(Vc::upcast(self)),
+            ident,
+            None,
+            rcstr!(".css"),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -330,14 +342,18 @@ impl OutputAsset for CssChunk {
         let this = self.await?;
         let content = this.content.await?;
         let mut references = content.referenced_output_assets.owned().await?;
-        let single_item_chunks = content.chunk_items.len() > 1;
+        let should_generate_single_item_chunks = content.chunk_items.len() > 1
+            && *this
+                .chunking_context
+                .is_dynamic_chunk_content_loading_enabled()
+                .await?;
         references.extend(
             content
                 .chunk_items
                 .iter()
                 .map(|item| async {
                     let references = item.references().await?.into_iter().copied();
-                    Ok(if single_item_chunks {
+                    Ok(if should_generate_single_item_chunks {
                         Either::Left(
                             references.chain(std::iter::once(ResolvedVc::upcast(
                                 SingleItemCssChunk::new(*this.chunking_context, **item)

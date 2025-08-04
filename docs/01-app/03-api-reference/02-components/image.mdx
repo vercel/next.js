@@ -412,10 +412,10 @@ When providing the `src` prop to the `<Image>` component, both the `srcset` and 
 ```html filename="output.html"
 <img
   srcset="
-    /_next/image?url=%2Fme.jpg&w=640&q=75 1x,
-    /_next/image?url=%2Fme.jpg&w=828&q=75 2x
+    /_next/image?url=%2Fprofile.jpg&w=640&q=75 1x,
+    /_next/image?url=%2Fprofile.jpg&w=828&q=75 2x
   "
-  src="/_next/image?url=%2Fme.jpg&w=828&q=75"
+  src="/_next/image?url=%2Fprofile.jpg&w=828&q=75"
 />
 ```
 
@@ -430,8 +430,8 @@ For example, when upgrading an existing website from `<img>` to `<Image>`, you m
 ```html filename="output.html"
 <img
   srcset="
-    /_next/image?url=%2Fme.jpg&w=640&q=75 1x,
-    /_next/image?url=%2Fme.jpg&w=828&q=75 2x
+    /_next/image?url=%2Fprofile.jpg&w=640&q=75 1x,
+    /_next/image?url=%2Fprofile.jpg&w=828&q=75 2x
   "
   src="/override.jpg"
 />
@@ -802,6 +802,18 @@ module.exports = {
 module.exports = {
   images: {
     contentDispositionType: 'inline',
+  },
+}
+```
+
+#### `contentSecurityPolicy`
+
+`contentSecurityPolicy` allows you to configure the [`Content-Security-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) header for images. This is particularly important when using [`dangerouslyAllowSVG`](#dangerouslyallowsvg) to prevent scripts embedded in the image from executing.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 }
 ```

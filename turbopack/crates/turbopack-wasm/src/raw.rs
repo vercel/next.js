@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -57,7 +57,7 @@ impl Module for RawWebAssemblyModuleAsset {
             .source
             .ident()
             .with_modifier(rcstr!("wasm raw"))
-            .with_layer(self.asset_context.layer().owned().await?))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer()))
     }
 }
 
@@ -111,7 +111,7 @@ impl ChunkItem for RawModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
+    fn references(&self) -> Result<Vc<OutputAssets>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(self.wasm_asset)]))
     }
 

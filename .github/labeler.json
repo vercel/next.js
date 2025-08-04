@@ -45,7 +45,7 @@
     ],
     "CI approved": [
       { "type": "user", "pattern": "SukkaW" },
-      { "type": "user", "pattern": "vercel-release-bot" },
+      { "type": "user", "pattern": "nextjs-bot" },
       { "type": "user", "pattern": "raunofreiberg" }
     ],
     "created-by: Next.js team": [
@@ -59,6 +59,8 @@
       { "type": "user", "pattern": "ijjk" },
       { "type": "user", "pattern": "lazarv" },
       { "type": "user", "pattern": "lubieowoce" },
+      { "type": "user", "pattern": "bgub" },
+      { "type": "user", "pattern": "RobPruzan" },
       { "type": "user", "pattern": "samcx" },
       { "type": "user", "pattern": "sebmarkbage" },
       { "type": "user", "pattern": "shuding" },

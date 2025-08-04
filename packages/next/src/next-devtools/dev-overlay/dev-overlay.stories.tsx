@@ -1,16 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import type { DispatcherEvent, OverlayState } from './shared'
+import type { OverlayState } from './shared'
 
 // @ts-expect-error
 import imgApp from './app.png'
 
-import { useReducer } from 'react'
 import { DevOverlay } from './dev-overlay'
+import { errors } from './storybook/errors'
 import {
-  ACTION_ERROR_OVERLAY_CLOSE,
-  ACTION_ERROR_OVERLAY_OPEN,
-  ACTION_ERROR_OVERLAY_TOGGLE,
-} from './shared'
+  storybookDefaultOverlayState,
+  useStorybookOverlayReducer,
+} from './storybook/use-overlay-reducer'
+import { DevOverlayContext } from '../dev-overlay.browser'
 
 const meta: Meta<typeof DevOverlay> = {
   component: DevOverlay,
@@ -34,98 +34,53 @@ const meta: Meta<typeof DevOverlay> = {
 export default meta
 type Story = StoryObj<typeof DevOverlay>
 
-const initialState: OverlayState = {
-  nextId: 0,
-  routerType: 'app',
-  buildError: null,
-  disableDevIndicator: false,
-  showIndicator: true,
-  errors: [
-    {
-      id: 1,
-      error: Object.assign(new Error('First error message'), {
-        __NEXT_ERROR_CODE: 'E001',
-      }),
-      componentStackFrames: [
-        {
-          file: 'app/page.tsx',
-          component: 'Home',
-          lineNumber: 10,
-          column: 5,
-          canOpenInEditor: true,
-        },
-      ],
-      frames: [
-        {
-          file: 'app/page.tsx',
-          methodName: 'Home',
-          arguments: [],
-          lineNumber: 10,
-          column: 5,
-        },
-      ],
-      type: 'runtime',
-    },
-    {
-      id: 2,
-      error: Object.assign(new Error('Second error message'), {
-        __NEXT_ERROR_CODE: 'E002',
-      }),
-      frames: [],
-      type: 'runtime',
-    },
-    {
-      id: 3,
-      error: Object.assign(new Error('Third error message'), {
-        __NEXT_ERROR_CODE: 'E003',
-      }),
-      frames: [],
-      type: 'runtime',
-    },
-  ],
-  refreshState: { type: 'idle' },
-  notFound: false,
-  buildingIndicator: false,
-  renderingIndicator: false,
-  staticIndicator: false,
-  debugInfo: { devtoolsFrontendUrl: undefined },
-  versionInfo: {
-    installed: '15.2.0',
-    staleness: 'fresh',
-  },
-  isErrorOverlayOpen: true,
-}
-
-function useOverlayReducer() {
-  return useReducer<OverlayState, [DispatcherEvent]>(
-    (state, action): OverlayState => {
-      switch (action.type) {
-        case ACTION_ERROR_OVERLAY_CLOSE: {
-          return { ...state, isErrorOverlayOpen: false }
-        }
-        case ACTION_ERROR_OVERLAY_OPEN: {
-          return { ...state, isErrorOverlayOpen: true }
-        }
-        case ACTION_ERROR_OVERLAY_TOGGLE: {
-          return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
-        }
-        default: {
-          return state
-        }
-      }
-      return state
-    },
-    initialState
-  )
-}
-
 function getNoSquashedHydrationErrorDetails() {
   return null
 }
 
+const initialState: OverlayState = {
+  ...storybookDefaultOverlayState,
+  errors: errors,
+}
+
 export const Default: Story = {
   render: function DevOverlayStory() {
-    const [state, dispatch] = useOverlayReducer()
+    const [state, dispatch] = useStorybookOverlayReducer(initialState)
+    return (
+      <div
+        style={{
+          height: '100vh',
+          backgroundColor: 'black',
+        }}
+      >
+        {/* TODO: NEXT-4643 */}
+        <img
+          src={imgApp}
+          style={{
+            width: '100%',
+            height: '100vh',
+            objectFit: 'contain',
+          }}
+        />
+        <DevOverlayContext
+          value={{
+            dispatch,
+            getSquashedHydrationErrorDetails:
+              getNoSquashedHydrationErrorDetails,
+            state,
+          }}
+        >
+          <DevOverlay />
+        </DevOverlayContext>
+      </div>
+    )
+  },
+}
+
+// todo: fix story with "Context arg provider" wrapper
+export const WithPanel: Story = {
+  render: function DevOverlayStory() {
+    const [state, dispatch] = useStorybookOverlayReducer(initialState)
     return (
       <>
         <img
@@ -136,14 +91,16 @@ export const Default: Story = {
             objectFit: 'contain',
           }}
         />
-        <DevOverlay
-          state={state}
-          dispatch={dispatch}
-          getSquashedHydrationErrorDetails={
-            // Testing like App Router where we no longer quash hydration errors
-            getNoSquashedHydrationErrorDetails
-          }
-        />
+        <DevOverlayContext
+          value={{
+            dispatch,
+            getSquashedHydrationErrorDetails:
+              getNoSquashedHydrationErrorDetails,
+            state,
+          }}
+        >
+          <DevOverlay />
+        </DevOverlayContext>
       </>
     )
   },

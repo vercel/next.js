@@ -4,7 +4,10 @@ import type { FlightDataPath } from '../../../server/app-render/types'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
-import { createSeededPrefetchCacheEntry } from './prefetch-cache-utils'
+import {
+  createSeededPrefetchCacheEntry,
+  STATIC_STALETIME_MS,
+} from './prefetch-cache-utils'
 import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
@@ -34,7 +37,26 @@ export function createInitialRouterState({
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
-  const normalizedFlightData = getFlightDataPartsFromPath(initialFlightData[0])
+
+  // TODO: Eventually we want to always read the rendered params from the URL
+  // and/or the x-rewritten-path header, so that we can omit them from the
+  // response body. This lets reuse cached responses if params aren't referenced
+  // anywhere in the actual page data, e.g. if they're only accessed by client
+  // components. However, during the initial render, there's no way to access
+  // the headers. For a partially dynamic page, this is OK, because there's
+  // going to be a dynamic server render regardless, so we can send the URL
+  // in the resume body. For a completely static page, though, there's no
+  // dynamic server render, so that won't work.
+  //
+  // Instead, we'll perform a HEAD request and read the rewritten URL from
+  // that response.
+  const renderedPathname = new URL(initialCanonicalUrl, 'http://localhost')
+    .pathname
+
+  const normalizedFlightData = getFlightDataPartsFromPath(
+    initialFlightData[0],
+    renderedPathname
+  )
   const {
     tree: initialTree,
     seedData: initialSeedData,
@@ -132,7 +154,13 @@ export function createInitialRouterState({
         // add a way to split a single Flight stream into static and dynamic
         // parts. But in the meantime we should at least make this work for
         // fully static pages.
-        staleTime: -1,
+        staleTime:
+          // In the old router, there was only a single configurable staleTime (experimental.staleTimes)
+          // As an abundance of caution, this will only set the initial staleTime to the configured value
+          // if we're not leveraging the segment cache, which has its own prefetching semantics.
+          prerendered && !process.env.__NEXT_CLIENT_SEGMENT_CACHE
+            ? STATIC_STALETIME_MS
+            : -1,
       },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,

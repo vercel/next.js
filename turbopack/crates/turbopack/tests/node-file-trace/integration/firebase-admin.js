@@ -1,1 +1,1 @@
-require("firebase-admin");
+require('firebase-admin')

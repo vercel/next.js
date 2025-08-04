@@ -75,6 +75,8 @@ import {
   getInstrumentationModule,
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import type { PrerenderedRoute } from '../../build/static-paths/types'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -116,7 +118,6 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
@@ -784,15 +785,18 @@ export default class DevServer extends Server {
 
   protected async getStaticPaths({
     pathname,
+    urlPathname,
     requestHeaders,
     page,
     isAppPath,
   }: {
     pathname: string
+    urlPathname: string
     requestHeaders: IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
   }): Promise<{
+    prerenderedRoutes?: PrerenderedRoute[]
     staticPaths?: string[]
     fallbackMode?: FallbackMode
   }> {
@@ -819,7 +823,9 @@ export default class DevServer extends Server {
             configFileName,
             publicRuntimeConfig,
             serverRuntimeConfig,
-            dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
+            cacheComponents: Boolean(
+              this.nextConfig.experimental.cacheComponents
+            ),
           },
           httpAgentOptions,
           locales,
@@ -851,8 +857,25 @@ export default class DevServer extends Server {
       []
     )
       .then(async (res) => {
-        const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
-          res.value
+        const { prerenderedRoutes, fallbackMode: fallback } = res.value
+
+        if (isAppPath) {
+          if (this.nextConfig.output === 'export') {
+            if (!prerenderedRoutes) {
+              throw new Error(
+                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+              )
+            }
+
+            if (
+              !prerenderedRoutes.some((item) => item.pathname === urlPathname)
+            ) {
+              throw new Error(
+                `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
+              )
+            }
+          }
+        }
 
         if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {
@@ -868,13 +891,20 @@ export default class DevServer extends Server {
 
         const value: {
           staticPaths: string[] | undefined
+          prerenderedRoutes: PrerenderedRoute[] | undefined
           fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths?.map((route) => route.pathname),
+          staticPaths: prerenderedRoutes?.map((route) => route.pathname),
+          prerenderedRoutes,
           fallbackMode: fallback,
         }
 
-        if (res.value?.fallbackMode !== undefined) {
+        if (
+          res.value?.fallbackMode !== undefined &&
+          // This matches the hasGenerateStaticParams logic
+          // we do during build
+          (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
+        ) {
           // we write the static paths to partial manifest for
           // fallback handling inside of entry handler's
           const rawExistingManifest = await fs.promises.readFile(
@@ -887,8 +917,22 @@ export default class DevServer extends Server {
             existingManifest.routes[staticPath] = {} as any
           }
           existingManifest.dynamicRoutes[pathname] = {
+            dataRoute: null,
+            dataRouteRegex: null,
             fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
-          } as any
+            fallbackRevalidate: false,
+            fallbackExpire: undefined,
+            fallbackHeaders: undefined,
+            fallbackStatus: undefined,
+            fallbackRootParams: undefined,
+            fallbackSourceRoute: pathname,
+            prefetchDataRoute: undefined,
+            prefetchDataRouteRegex: undefined,
+            routeRegex: getRouteRegex(pathname).re.source,
+            experimentalPPR: undefined,
+            renderingMode: undefined,
+            allowHeader: [],
+          }
 
           const updatedManifest = JSON.stringify(existingManifest)
 
