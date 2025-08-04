@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use byteorder::{BE, ByteOrder, WriteBytesExt};
 
 use crate::{
-    compression::{compress_into_buffer, decompress_into_arc},
+    compression::compress_into_buffer,
     static_sorted_file::{
         BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
         KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
@@ -31,18 +31,11 @@ const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 64 * 1024;
 /// The aimed false positive rate for the AMQF
 const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
 
-/// The maximum compression dictionary size for value blocks
-const VALUE_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
 /// The maximum compression dictionary size for key and index blocks
 const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
-/// The maximum bytes that should be selected as value samples to create a compression dictionary
-const VALUE_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;
 /// The maximum bytes that should be selected as key samples to create a compression dictionary
 const KEY_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;
 /// The minimum bytes that should be selected as value samples. Below that no compression dictionary
-/// is used.
-const MIN_VALUE_COMPRESSION_SAMPLES_SIZE: usize = 1024;
-/// The minimum bytes that should be selected as key samples. Below that no compression dictionary
 /// is used.
 const MIN_KEY_COMPRESSION_SAMPLES_SIZE: usize = 1024;
 /// The bytes that are used per key/value entry for a sample.
@@ -74,7 +67,6 @@ pub enum EntryValue<'l> {
     MediumCompressed {
         uncompressed_size: u32,
         block: &'l [u8],
-        dictionary: &'l [u8],
     },
     /// Large-sized value. They are stored in a blob file.
     Large { blob: u32 },
@@ -92,8 +84,6 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub amqf: Cow<'a, [u8]>,
     /// The key compression dictionary
     pub key_compression_dictionary_length: u16,
-    /// The value compression dictionary
-    pub value_compression_dictionary_length: u16,
     /// The number of blocks in the SST file
     pub block_count: u16,
     /// The file size of the SST file
@@ -105,21 +95,18 @@ pub struct StaticSortedFileBuilderMeta<'a> {
 pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     total_key_size: usize,
-    total_value_size: usize,
     file: &Path,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
     debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
 
     let mut file = BufWriter::new(File::create(file)?);
 
-    let capacity = get_compression_buffer_capacity(total_key_size, total_value_size);
+    let capacity = get_compression_buffer_capacity(total_key_size);
     // We use a shared buffer for all operations to avoid excessive allocations
     let mut buffer = Vec::with_capacity(capacity);
 
     let key_dict = compute_key_compression_dictionary(entries, total_key_size, &mut buffer)?;
-    let value_dict = compute_value_compression_dictionary(entries, total_value_size, &mut buffer)?;
     file.write_all(&key_dict)?;
-    file.write_all(&value_dict)?;
 
     let mut block_writer = BlockWriter::new(&mut file, &mut buffer);
 
@@ -129,7 +116,7 @@ pub fn write_static_stored_file<E: Entry>(
     let mut buffer = Vec::new();
 
     let min_hash = entries.first().map_or(u64::MAX, |e| e.key_hash());
-    let value_locations = write_value_blocks(entries, &value_dict, &mut block_writer, &mut buffer)
+    let value_locations = write_value_blocks(entries, &mut block_writer, &mut buffer)
         .context("Failed to write value blocks")?;
     let amqf = write_key_blocks_and_compute_amqf(
         entries,
@@ -152,7 +139,6 @@ pub fn write_static_stored_file<E: Entry>(
         max_hash,
         amqf: Cow::Owned(amqf),
         key_compression_dictionary_length: key_dict.len().try_into().unwrap(),
-        value_compression_dictionary_length: value_dict.len().try_into().unwrap(),
         block_count,
         size: file.stream_position()?,
         entries: entries.len() as u64,
@@ -160,16 +146,11 @@ pub fn write_static_stored_file<E: Entry>(
     Ok((meta, file.into_inner()?))
 }
 
-fn get_compression_buffer_capacity(total_key_size: usize, total_value_size: usize) -> usize {
+fn get_compression_buffer_capacity(total_key_size: usize) -> usize {
     let mut size = 0;
     if total_key_size >= MIN_KEY_COMPRESSION_SAMPLES_SIZE {
         let key_compression_samples_size = min(KEY_COMPRESSION_SAMPLES_SIZE, total_key_size / 16);
         size = key_compression_samples_size;
-    }
-    if total_value_size >= MIN_VALUE_COMPRESSION_SAMPLES_SIZE {
-        let value_compression_samples_size =
-            min(VALUE_COMPRESSION_SAMPLES_SIZE, total_value_size / 16);
-        size = size.max(value_compression_samples_size);
     }
     size
 }
@@ -223,53 +204,6 @@ fn compute_key_compression_dictionary<E: Entry>(
     Ok(result)
 }
 
-/// Computes compression dictionaries from values of all entries
-#[tracing::instrument(level = "trace", skip(entries))]
-fn compute_value_compression_dictionary<E: Entry>(
-    entries: &[E],
-    total_value_size: usize,
-    buffer: &mut Vec<u8>,
-) -> Result<Vec<u8>> {
-    if total_value_size < MIN_VALUE_COMPRESSION_SAMPLES_SIZE {
-        return Ok(Vec::new());
-    }
-    let value_compression_samples_size = min(VALUE_COMPRESSION_SAMPLES_SIZE, total_value_size / 16);
-    let mut sample_sizes = Vec::new();
-
-    // Limit the number of iterations to avoid infinite loops
-    let max_iterations = total_value_size / COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY * 2;
-    for i in 0..max_iterations {
-        let entry = &entries[i % entries.len()];
-        let remaining = value_compression_samples_size - buffer.len();
-        if remaining < MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
-            break;
-        }
-        if let EntryValue::Small { value } | EntryValue::Medium { value } = entry.value() {
-            let len = value.len();
-            if len >= MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
-                let used_len = min(remaining, COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY);
-                if len <= used_len {
-                    sample_sizes.push(len);
-                    buffer.extend_from_slice(value);
-                } else {
-                    sample_sizes.push(used_len);
-                    let p = buffer.len() % (len - used_len);
-                    buffer.extend_from_slice(&value[p..p + used_len]);
-                };
-            }
-        }
-    }
-    debug_assert!(buffer.len() == sample_sizes.iter().sum::<usize>());
-    let result = if buffer.len() > MIN_VALUE_COMPRESSION_SAMPLES_SIZE && sample_sizes.len() > 5 {
-        zstd::dict::from_continuous(buffer, &sample_sizes, VALUE_COMPRESSION_DICTIONARY_SIZE)
-            .context("Value dictionary creation failed")?
-    } else {
-        Vec::new()
-    };
-    buffer.clear();
-    Ok(result)
-}
-
 struct BlockWriter<'l> {
     buffer: &'l mut Vec<u8>,
     block_offsets: Vec<u32>,
@@ -301,23 +235,29 @@ impl<'l> BlockWriter<'l> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_key_block(&mut self, block: &[u8], dict: &[u8]) -> Result<()> {
-        self.write_block(block, dict, false)
+        self.write_block(block, Some(dict), false)
             .context("Failed to write key block")
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn write_index_block(&mut self, block: &[u8], dict: &[u8]) -> Result<()> {
-        self.write_block(block, dict, false)
+        self.write_block(block, Some(dict), false)
             .context("Failed to write index block")
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn write_value_block(&mut self, block: &[u8], dict: &[u8]) -> Result<()> {
-        self.write_block(block, dict, false)
+    fn write_small_value_block(&mut self, block: &[u8]) -> Result<()> {
+        self.write_block(block, None, false)
+            .context("Failed to write small value block")
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn write_value_block(&mut self, block: &[u8]) -> Result<()> {
+        self.write_block(block, None, true)
             .context("Failed to write value block")
     }
 
-    fn write_block(&mut self, block: &[u8], dict: &[u8], long_term: bool) -> Result<()> {
+    fn write_block(&mut self, block: &[u8], dict: Option<&[u8]>, long_term: bool) -> Result<()> {
         let uncompressed_size = block.len().try_into().unwrap();
         self.compress_block_into_buffer(block, dict, long_term)?;
         let len = (self.buffer.len() + 4).try_into().unwrap();
@@ -340,14 +280,34 @@ impl<'l> BlockWriter<'l> {
         Ok(())
     }
 
+    fn write_compressed_block(&mut self, uncompressed_size: u32, block: &[u8]) -> Result<()> {
+        let len = (block.len() + 4).try_into().unwrap();
+        let offset = self
+            .block_offsets
+            .last()
+            .copied()
+            .unwrap_or_default()
+            .checked_add(len)
+            .expect("Block offset overflow");
+        self.block_offsets.push(offset);
+
+        self.writer
+            .write_u32::<BE>(uncompressed_size)
+            .context("Failed to write uncompressed size")?;
+        self.writer
+            .write_all(block)
+            .context("Failed to write compressed block")?;
+        Ok(())
+    }
+
     /// Compresses a block with a compression dictionary.
     fn compress_block_into_buffer(
         &mut self,
         block: &[u8],
-        dict: &[u8],
+        dict: Option<&[u8]>,
         long_term: bool,
     ) -> Result<()> {
-        compress_into_buffer(block, Some(dict), long_term, self.buffer)
+        compress_into_buffer(block, dict, long_term, self.buffer)
     }
 }
 
@@ -355,7 +315,6 @@ impl<'l> BlockWriter<'l> {
 #[tracing::instrument(level = "trace", skip_all)]
 fn write_value_blocks(
     entries: &[impl Entry],
-    value_compression_dictionary: &[u8],
     writer: &mut BlockWriter<'_>,
     buffer: &mut Vec<u8>,
 ) -> Result<Vec<(u16, u32)>> {
@@ -378,7 +337,7 @@ fn write_value_blocks(
                             value_locations[j].0 = block_index;
                         }
                     }
-                    writer.write_value_block(buffer, value_compression_dictionary)?;
+                    writer.write_small_value_block(buffer)?;
                     buffer.clear();
                     current_block_start = i;
                     current_block_size = 0;
@@ -391,19 +350,15 @@ fn write_value_blocks(
             EntryValue::Medium { value } => {
                 let block_index = writer.next_block_index();
                 value_locations.push((block_index, 0));
-                writer.write_value_block(value, value_compression_dictionary)?;
+                writer.write_value_block(value)?;
             }
             EntryValue::MediumCompressed {
                 uncompressed_size,
                 block,
-                dictionary,
             } => {
                 let block_index = writer.next_block_index();
                 value_locations.push((block_index, 0));
-                // Recompress block with a different dictionary
-                let decompressed =
-                    decompress_into_arc(uncompressed_size, block, Some(dictionary), false)?;
-                writer.write_value_block(&decompressed, value_compression_dictionary)?;
+                writer.write_compressed_block(uncompressed_size, block)?;
             }
             EntryValue::Deleted | EntryValue::Large { .. } => {
                 value_locations.push((0, 0));
@@ -419,7 +374,7 @@ fn write_value_blocks(
                 value_locations[j].0 = block_index;
             }
         }
-        writer.write_value_block(buffer, value_compression_dictionary)?;
+        writer.write_small_value_block(buffer)?;
         buffer.clear();
     }
 

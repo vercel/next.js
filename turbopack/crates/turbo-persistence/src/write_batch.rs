@@ -407,17 +407,15 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
     fn create_sst_file(
         &self,
         family: u32,
-        collector_data: (&[CollectorEntry<K>], usize, usize),
+        collector_data: (&[CollectorEntry<K>], usize),
     ) -> Result<(u32, File)> {
-        let (entries, total_key_size, total_value_size) = collector_data;
+        let (entries, total_key_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
         let path = self.db_path.join(format!("{seq:08}.sst"));
         let (meta, file) = self
             .parallel_scheduler
-            .block_in_place(|| {
-                write_static_stored_file(entries, total_key_size, total_value_size, &path)
-            })
+            .block_in_place(|| write_static_stored_file(entries, total_key_size, &path))
             .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
 
         #[cfg(feature = "verify_sst_content")]
@@ -440,7 +438,6 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                 StaticSortedFileMetaData {
                     sequence_number: seq,
                     key_compression_dictionary_length: meta.key_compression_dictionary_length,
-                    value_compression_dictionary_length: meta.value_compression_dictionary_length,
                     block_count: meta.block_count,
                 },
             )?;

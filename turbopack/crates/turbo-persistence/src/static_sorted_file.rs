@@ -65,8 +65,6 @@ pub struct StaticSortedFileMetaData {
     pub sequence_number: u32,
     /// The length of the key compression dictionary.
     pub key_compression_dictionary_length: u16,
-    /// The length of the value compression dictionary.
-    pub value_compression_dictionary_length: u16,
     /// The number of blocks in the SST file.
     pub block_count: u16,
 }
@@ -79,19 +77,12 @@ impl StaticSortedFileMetaData {
 
     pub fn blocks_start(&self) -> usize {
         let k: usize = self.key_compression_dictionary_length.into();
-        let v: usize = self.value_compression_dictionary_length.into();
-        k + v
+        k
     }
 
     pub fn key_compression_dictionary_range(&self) -> Range<usize> {
         let start = 0;
         let end: usize = self.key_compression_dictionary_length.into();
-        start..end
-    }
-
-    pub fn value_compression_dictionary_range(&self) -> Range<usize> {
-        let start = self.key_compression_dictionary_length as usize;
-        let end = start + self.value_compression_dictionary_length as usize;
         start..end
     }
 }
@@ -310,7 +301,7 @@ impl StaticSortedFile {
             match value_block_cache.get_value_or_guard(&(self.meta.sequence_number, block), None) {
                 GuardResult::Value(block) => block,
                 GuardResult::Guard(guard) => {
-                    let block = self.read_value_block(block)?;
+                    let block = self.read_small_value_block(block)?;
                     let _ = guard.insert(block.clone());
                     block
                 }
@@ -323,25 +314,26 @@ impl StaticSortedFile {
     fn read_key_block(&self, block_index: u16) -> Result<ArcSlice<u8>> {
         self.read_block(
             block_index,
-            &self.mmap[self.meta.key_compression_dictionary_range()],
+            Some(&self.mmap[self.meta.key_compression_dictionary_range()]),
             false,
         )
     }
 
     /// Reads a value block from the file.
+    fn read_small_value_block(&self, block_index: u16) -> Result<ArcSlice<u8>> {
+        self.read_block(block_index, None, false)
+    }
+
+    /// Reads a value block from the file.
     fn read_value_block(&self, block_index: u16) -> Result<ArcSlice<u8>> {
-        self.read_block(
-            block_index,
-            &self.mmap[self.meta.value_compression_dictionary_range()],
-            false,
-        )
+        self.read_block(block_index, None, true)
     }
 
     /// Reads a block from the file.
     fn read_block(
         &self,
         block_index: u16,
-        compression_dictionary: &[u8],
+        compression_dictionary: Option<&[u8]>,
         long_term: bool,
     ) -> Result<ArcSlice<u8>> {
         let (uncompressed_length, block) = self.get_compressed_block(block_index)?;
@@ -349,7 +341,7 @@ impl StaticSortedFile {
         let buffer = decompress_into_arc(
             uncompressed_length,
             block,
-            Some(compression_dictionary),
+            compression_dictionary,
             long_term,
         )?;
         Ok(ArcSlice::from(buffer))
@@ -496,8 +488,6 @@ impl<'l> StaticSortedFileIter<'l> {
                     LazyLookupValue::Medium {
                         uncompressed_size,
                         block,
-                        dictionary: &self.this.mmap
-                            [self.this.meta.value_compression_dictionary_range()],
                     }
                 } else {
                     let value = self

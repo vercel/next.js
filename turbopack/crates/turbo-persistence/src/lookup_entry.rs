@@ -22,7 +22,6 @@ pub enum LazyLookupValue<'l> {
     Medium {
         uncompressed_size: u32,
         block: &'l [u8],
-        dictionary: &'l [u8],
     },
 }
 
@@ -79,11 +78,9 @@ impl Entry for LookupEntry<'_> {
             LazyLookupValue::Medium {
                 uncompressed_size,
                 block,
-                dictionary,
             } => EntryValue::MediumCompressed {
                 uncompressed_size: *uncompressed_size,
                 block,
-                dictionary,
             },
         }
     }
