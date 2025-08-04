@@ -9,26 +9,24 @@ describe('use-router-with-rewrites', () => {
     const browser = await next.browser('/')
     await browser.elementById('router-push').click()
 
-    expect(await browser.url()).toBe(
-      `http://localhost:${next.appPort}/?param=1`
-    )
+    const url = new URL(await browser.url())
+    expect(url.pathname + url.search).toBe('/?param=1')
   })
 
   it('should preserve current pathname when using useRouter.replace with rewrites', async () => {
     const browser = await next.browser('/')
     await browser.elementById('router-replace').click()
 
-    expect(await browser.url()).toBe(
-      `http://localhost:${next.appPort}/?param=1`
-    )
+    const url = new URL(await browser.url())
+    expect(url.pathname + url.search).toBe('/?param=1')
   })
 
   it('should preserve current pathname when using Link with rewrites', async () => {
     const browser = await next.browser('/')
     await browser.elementByCss('a').click()
-    expect(await browser.url()).toBe(
-      `http://localhost:${next.appPort}/?param=1`
-    )
+
+    const url = new URL(await browser.url())
+    expect(url.pathname + url.search).toBe('/?param=1')
   })
 
   describe('rewrite to another segment', () => {
@@ -36,8 +34,9 @@ describe('use-router-with-rewrites', () => {
       const browser = await next.browser('/rewrite-to-another-segment/0')
       await browser.elementById('router-push').click()
 
-      expect(await browser.url()).toBe(
-        `http://localhost:${next.appPort}/rewrite-to-another-segment/0?id=1`
+      const url = new URL(await browser.url())
+      expect(url.pathname + url.search).toBe(
+        '/rewrite-to-another-segment/0?id=1'
       )
     })
 
@@ -45,8 +44,9 @@ describe('use-router-with-rewrites', () => {
       const browser = await next.browser('/rewrite-to-another-segment/0')
       await browser.elementById('router-replace').click()
 
-      expect(await browser.url()).toBe(
-        `http://localhost:${next.appPort}/rewrite-to-another-segment/0?id=2`
+      const url = new URL(await browser.url())
+      expect(url.pathname + url.search).toBe(
+        '/rewrite-to-another-segment/0?id=2'
       )
     })
 
@@ -54,8 +54,9 @@ describe('use-router-with-rewrites', () => {
       const browser = await next.browser('/rewrite-to-another-segment/0')
       await browser.elementByCss('a').click()
 
-      expect(await browser.url()).toBe(
-        `http://localhost:${next.appPort}/rewrite-to-another-segment/0?id=3`
+      const url = new URL(await browser.url())
+      expect(url.pathname + url.search).toBe(
+        '/rewrite-to-another-segment/0?id=3'
       )
     })
   })
@@ -67,9 +68,8 @@ describe('use-router-with-rewrites', () => {
       const browser = await next.browser('/rewrite-to-same-segment/0')
       await browser.elementById('router-push').click()
 
-      expect(await browser.url()).toBe(
-        `http://localhost:${next.appPort}/rewrite-to-same-segment/1`
-      )
+      const url = new URL(await browser.url())
+      expect(url.pathname + url.search).toBe('/rewrite-to-same-segment/1')
 
       expect(await browser.elementByCss('p').text()).toBe('1')
     })
@@ -78,9 +78,8 @@ describe('use-router-with-rewrites', () => {
       const browser = await next.browser('/rewrite-to-same-segment/0')
       await browser.elementById('router-replace').click()
 
-      expect(await browser.url()).toBe(
-        `http://localhost:${next.appPort}/rewrite-to-same-segment/2`
-      )
+      const url = new URL(await browser.url())
+      expect(url.pathname + url.search).toBe('/rewrite-to-same-segment/2')
 
       expect(await browser.elementByCss('p').text()).toBe('2')
     })
@@ -89,9 +88,8 @@ describe('use-router-with-rewrites', () => {
       const browser = await next.browser('/rewrite-to-same-segment/0')
       await browser.elementByCss('a').click()
 
-      expect(await browser.url()).toBe(
-        `http://localhost:${next.appPort}/rewrite-to-same-segment/3`
-      )
+      const url = new URL(await browser.url())
+      expect(url.pathname + url.search).toBe('/rewrite-to-same-segment/3')
 
       expect(await browser.elementByCss('p').text()).toBe('3')
     })
