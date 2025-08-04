@@ -470,12 +470,7 @@ fn node_file_trace<B: Backend + 'static>(
                         bench_suites_lock.push(BenchSuite {
                             suite: input
                                 .trim_start_matches("node-file-trace/integration/")
-                                .to_string()
-                                + (if multi_threaded {
-                                    " (multi-threaded)"
-                                } else {
-                                    ""
-                                }),
+                                .to_string(),
                             is_faster,
                             rust_duration,
                             node_duration,
