@@ -48,55 +48,22 @@ In this case, you should add a top-level import for the **specific polyfill** yo
 </PagesOnly>
 
 <AppOnly>
-For polyfills that must load early, use `next/script` with the `beforeInteractive` strategy.
-
-This can negatively impact users with modern browsers, so avoid it when possible.
-
-```tsx filename="app/layout.tsx"
-
-export default function Layout(/* layout props */) {
-  return (
-    {/* other UI elements */}
-    <Script strategy="beforeInteractive" src="https://source-to-the-polyfill/" />
-    {/* A vendor script, that needs the polyfill, and also needs to run immediately */}
-    <Script strategy="beforeInteractive" src="https://critical-vendor-script/" />
-    {/* rest of UI */}
-  )
-}
-```
+ 
+To include polyfills, you can import them into the [`instrumentation-client.js` file](/docs/app/api-reference/file-conventions/instrumentation-client).
 
 For other cases, you can create a client module that loads the polyfills you need. For example if you only want to polyfill client side:
 
-```tsx filename="app/polyfill.ts"
-'use client'
-import languageFeature from 'polyfill-for-feature'
-
-if (typeof window !== 'undefined') {
-  // check if the polyfill needs to be applied
-}
-
-export const Polyfill = null
+```ts filename="instrumentation-client.ts" switcher
+import './polyfills'
 ```
 
-And use it in your root layout.
-
-```tsx filename="app/layout.tsx"
-import { Polyfill } from './polyfill'
-
-export default function Layout(/* layout props */) {
-  return (
-    {/* other UI elements */}
-    {Polyfill}
-    {/* rest of UI */}
-  )
-}
+```js filename="instrumentation-client.js" switcher
+import './polyfills'
 ```
-
-Using this strategy prevents dead-code elimination from removing the polyfill and marks its usage explicitly.
 
 </AppOnly>
 
-The best approach is to isolate unsupported features to specific UI sections and conditionally load the polyfill before using it.
+The best approach is to isolate unsupported features to specific UI sections and conditionally load the polyfill if needed.
 
 ```ts filename="hooks/analytics.ts" switcher
 import { useCallback } from 'react'
