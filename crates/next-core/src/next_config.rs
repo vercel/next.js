@@ -29,6 +29,7 @@ use turbopack_ecmascript_plugins::transform::{
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
+    app_structure::FileSystemPathVec,
     mode::NextMode,
     next_import_map::mdx_import_source_file,
     next_shared::{
@@ -1128,6 +1129,9 @@ pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
 pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 
 #[turbo_tasks::value(transparent)]
+pub struct OptionFileSystemPath(Option<FileSystemPath>);
+
+#[turbo_tasks::value(transparent)]
 pub struct OptionServerActions(Option<ServerActions>);
 
 #[turbo_tasks::value(transparent)]
@@ -1226,8 +1230,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn cache_handler(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.cache_handler.clone())
+    pub fn cache_handler(&self, project_path: FileSystemPath) -> Result<Vc<OptionFileSystemPath>> {
+        if let Some(handler) = &self.cache_handler {
+            Ok(Vc::cell(Some(project_path.join(handler)?)))
+        } else {
+            Ok(Vc::cell(None))
+        }
     }
 
     #[turbo_tasks::function]
@@ -1359,8 +1367,7 @@ impl NextConfig {
                         // emit an issue to prevent users from encountering duplicate module names.
                         if ext.contains("*") && rename_as.as_ref().is_some_and(|r| !r.contains("*"))
                         {
-                            let config_file_path =
-                                project_path.join(&format!("./{}", self.config_file_name))?;
+                            let config_file_path = project_path.join(&self.config_file_name)?;
 
                             InvalidLoaderRuleError {
                                 ext: ext.clone(),
@@ -1479,6 +1486,23 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn modularize_imports(&self) -> Vc<ModularizeImports> {
         Vc::cell(self.modularize_imports.clone().unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_cache_handlers(
+        &self,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<FileSystemPathVec>> {
+        if let Some(handlers) = &self.experimental.cache_handlers {
+            Ok(Vc::cell(
+                handlers
+                    .values()
+                    .map(|h| project_path.join(h))
+                    .collect::<Result<Vec<_>>>()?,
+            ))
+        } else {
+            Ok(Vc::cell(vec![]))
+        }
     }
 
     #[turbo_tasks::function]
