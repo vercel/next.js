@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, fxindexmap};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -37,7 +37,7 @@ pub async fn get_app_page_entry(
     edge_context: ResolvedVc<ModuleAssetContext>,
     loader_tree: Vc<AppPageLoaderTree>,
     page: AppPage,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree);
@@ -73,7 +73,11 @@ pub async fn get_app_page_entry(
         writeln!(result, "{import}")?;
     }
 
-    let pages = pages.iter().map(|page| page.to_string()).try_join().await?;
+    let pages = pages
+        .iter()
+        .map(|page| page.value_to_string())
+        .try_join()
+        .await?;
 
     let original_name: RcStr = page.to_string().into();
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
@@ -81,21 +85,21 @@ pub async fn get_app_page_entry(
     // Load the file from the next.js codebase.
     let source = load_next_js_template(
         "app-page.js",
-        project_root,
+        project_root.clone(),
         fxindexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
             "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
                 GLOBAL_ERROR.into()
              } else {
-                "next/dist/client/components/global-error".into()
+                rcstr!("next/dist/client/components/builtin/global-error")
             },
         },
         fxindexmap! {
             "tree" => loader_tree_code,
             "pages" => StringifyJs(&pages).to_string().into(),
-            "__next_app_require__" => TURBOPACK_REQUIRE.full.into(),
-            "__next_app_load_chunk__" => TURBOPACK_LOAD.full.into(),
+            "__next_app_require__" => TURBOPACK_REQUIRE.bound().into(),
+            "__next_app_load_chunk__" => TURBOPACK_LOAD.bound().into(),
         },
         fxindexmap! {},
     )
@@ -123,7 +127,7 @@ pub async fn get_app_page_entry(
     if is_edge {
         rsc_entry = wrap_edge_page(
             *ResolvedVc::upcast(module_asset_context),
-            project_root,
+            project_root.clone(),
             rsc_entry,
             page,
             next_config,
@@ -142,7 +146,7 @@ pub async fn get_app_page_entry(
 #[turbo_tasks::function]
 async fn wrap_edge_page(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
     next_config: Vc<NextConfig>,
@@ -151,37 +155,17 @@ async fn wrap_edge_page(
 
     let next_config_val = &*next_config.await?;
 
-    // TODO(WEB-1824): add build support
-    let dev = true;
-
-    // TODO(timneutkens): remove this
-    let is_server_component = true;
-
-    let server_actions = next_config.experimental_server_actions().await?;
-
-    let sri_enabled = !dev
-        && next_config
-            .experimental_sri()
-            .await?
-            .as_ref()
-            .map(|sri| sri.algorithm.as_ref())
-            .is_some();
-
     let source = load_next_js_template(
         "edge-ssr-app.js",
-        project_root,
+        project_root.clone(),
         fxindexmap! {
             "VAR_USERLAND" => INNER.into(),
             "VAR_PAGE" => page.to_string().into(),
         },
         fxindexmap! {
-            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
             // TODO do we really need to pass the entire next config here?
             // This is bad for invalidation as any config change will invalidate this
             "nextConfig" => serde_json::to_string(next_config_val)?.into(),
-            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string().into(),
-            "dev" => serde_json::Value::Bool(dev).to_string().into(),
-            "serverActions" => serde_json::to_string(&server_actions)?.into(),
         },
         fxindexmap! {
             "incrementalCacheHandler" => None,

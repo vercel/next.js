@@ -31,7 +31,7 @@ impl NextDynamicTransition {
         .cell()
     }
 
-    /// Create a transition that applies `client_transiton` and adds a marker
+    /// Create a transition that applies `client_transition` and adds a marker
     /// `NextDynamicEntryModule`.
     #[turbo_tasks::function]
     pub fn new_client(client_transition: ResolvedVc<Box<dyn Transition>>) -> Vc<Self> {

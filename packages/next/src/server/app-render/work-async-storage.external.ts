@@ -1,7 +1,6 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { FetchMetrics } from '../base-http'
-import type { FallbackRouteParams } from '../request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
@@ -25,17 +24,20 @@ export interface WorkStore {
    */
   readonly route: string
 
-  /**
-   * The set of unknown route parameters. Accessing these will be tracked as
-   * a dynamic access.
-   */
-  readonly fallbackRouteParams: FallbackRouteParams | null
-
   readonly incrementalCache?: IncrementalCache
   readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
 
   readonly isOnDemandRevalidate?: boolean
   readonly isBuildTimePrerendering?: boolean
+
+  /**
+   * This is true when:
+   * - source maps are generated
+   * - source maps are applied
+   * - minification is disabled
+   */
+  readonly hasReadableErrorStacks?: boolean
+
   readonly isRevalidate?: boolean
 
   forceDynamic?: boolean
@@ -97,7 +99,7 @@ export interface WorkStore {
   >
   readonly assetPrefix?: string
 
-  dynamicIOEnabled: boolean
+  cacheComponentsEnabled: boolean
   dev: boolean
 
   /**

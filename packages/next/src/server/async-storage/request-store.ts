@@ -14,7 +14,7 @@ import {
   MutableRequestCookiesAdapter,
   RequestCookiesAdapter,
   responseCookiesToRequestCookies,
-  wrapWithMutableAccessCheck,
+  createCookiesWithMutableAccessCheck,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
@@ -28,7 +28,7 @@ import type { ImplicitTags } from '../lib/implicit-tags'
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
   for (const header of FLIGHT_HEADERS) {
-    cleaned.delete(header.toLowerCase())
+    cleaned.delete(header)
   }
 
   return HeadersAdapter.seal(cleaned)
@@ -235,9 +235,8 @@ function createRequestStoreImpl(
     },
     get userspaceMutableCookies() {
       if (!cache.userspaceMutableCookies) {
-        const userspaceMutableCookies = wrapWithMutableAccessCheck(
-          this.mutableCookies
-        )
+        const userspaceMutableCookies =
+          createCookiesWithMutableAccessCheck(this)
         cache.userspaceMutableCookies = userspaceMutableCookies
       }
       return cache.userspaceMutableCookies

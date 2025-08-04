@@ -25,7 +25,7 @@ async fn test_transient_emit_from_persistent() {
 }
 
 #[turbo_tasks::function(operation)]
-async fn emit_incorrect_task_input_operation(value: IncorrectTaskInput) {
+fn emit_incorrect_task_input_operation(value: IncorrectTaskInput) {
     turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn Number>>(value.0));
 }
 

@@ -7,6 +7,7 @@ use std::{
 
 use bitfield::bitfield;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use smallvec::SmallVec;
 use turbo_tasks::{FxDashMap, TaskId};
 
 use crate::{
@@ -98,7 +99,6 @@ bitfield! {
     /// Item was modified after snapshot mode was entered. A snapshot was taken.
     pub meta_snapshot, set_meta_snapshot: 4;
     pub data_snapshot, set_data_snapshot: 5;
-    pub is_immutable, set_is_immutable: 6;
 }
 
 impl InnerStorageState {
@@ -441,7 +441,7 @@ macro_rules! generate_inner_storage {
                 self.dynamic.count(ty)
             }
 
-            pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef> {
+            pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref, get(): $($config)*);
                 self.dynamic.get(key)
@@ -453,7 +453,7 @@ macro_rules! generate_inner_storage {
                 self.dynamic.contains_key(key)
             }
 
-            pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut> {
+            pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref_mut, get_mut(): $($config)*);
                 self.dynamic.get_mut(key)
@@ -612,18 +612,27 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn new() -> Self {
+    pub fn new(small_preallocation: bool) -> Self {
+        let map_capacity: usize = if small_preallocation {
+            1024
+        } else {
+            1024 * 1024
+        };
+        let modified_capacity: usize = if small_preallocation { 0 } else { 1024 };
+        let shard_factor: usize = if small_preallocation { 4 } else { 64 };
+
         let shard_amount =
-            (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
+            (available_parallelism().map_or(4, |v| v.get()) * shard_factor).next_power_of_two();
+
         Self {
             snapshot_mode: AtomicBool::new(false),
             modified: FxDashMap::with_capacity_and_hasher_and_shard_amount(
-                1024,
+                modified_capacity,
                 Default::default(),
                 shard_amount,
             ),
             map: FxDashMap::with_capacity_and_hasher_and_shard_amount(
-                1024 * 1024,
+                map_capacity,
                 Default::default(),
                 shard_amount,
             ),
@@ -661,7 +670,7 @@ impl Storage {
             .with_max_len(1)
             .map(|shard| {
                 let mut direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
-                let mut modified: Vec<TaskId> = Vec::new();
+                let mut modified: SmallVec<[TaskId; 4]> = SmallVec::new();
                 {
                     // Take the snapshots from the modified map
                     let guard = shard.write();
@@ -838,7 +847,7 @@ impl StorageWriteGuard<'_> {
                     }
                 }
                 (false, true) => {
-                    // Not in snapshot mode and item is already modfied
+                    // Not in snapshot mode and item is already modified
                     // Do nothing
                 }
                 (true, false) => {
@@ -1091,7 +1100,7 @@ impl Drop for SnapshotGuard<'_> {
 
 pub struct SnapshotShard<'l, PP, P, PS> {
     direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)>,
-    modified: Vec<TaskId>,
+    modified: SmallVec<[TaskId; 4]>,
     storage: &'l Storage,
     guard: Option<Arc<SnapshotGuard<'l>>>,
     process: &'l P,

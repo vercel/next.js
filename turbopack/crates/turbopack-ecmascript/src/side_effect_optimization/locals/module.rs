@@ -5,7 +5,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, MergeableModule, MergeableModules,
+        MergeableModulesExposed,
+    },
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -16,13 +19,12 @@ use turbopack_core::{
 use super::chunk_item::EcmascriptModuleLocalsChunkItem;
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
-    EcmascriptModuleContent, EcmascriptModuleContentOptions,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, MergedEcmascriptModule,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
-    simple_tree_shake::get_module_export_usages,
 };
 
 /// A module derived from an original ecmascript module that only contains the
@@ -92,8 +94,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
 
     #[turbo_tasks::function]
     async fn module_content_options(
-        self: Vc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        self: ResolvedVc<Self>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
@@ -104,26 +105,15 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
         let analyze = original_module.analyze();
         let analyze_result = analyze.await?;
 
-        let module_type_result = *original_module.determine_module_type().await?;
+        let module_type_result = original_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(self))
+            .reference_module_source_maps(Vc::upcast(*self))
             .await?;
-
-        let export_usage_info = if original_module.options().await?.remove_unused_exports {
-            Some(
-                get_module_export_usages(*module_graph, Vc::upcast(self))
-                    .to_resolved()
-                    .await?,
-            )
-        } else {
-            None
-        };
 
         Ok(EcmascriptModuleContentOptions {
             parsed,
-            ident: self.ident().to_resolved().await?,
+            module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
-            module_graph,
             chunking_context,
             references: analyze.local_references().to_resolved().await?,
             esm_references: analyze_result.esm_local_references,
@@ -134,7 +124,6 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             original_source_map: analyze_result.source_map,
             exports,
             async_module_info,
-            export_usage_info,
         }
         .cell())
     }
@@ -192,16 +181,29 @@ impl ChunkableModule for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             EcmascriptModuleLocalsChunkItem {
                 module: self,
-                module_graph,
                 chunking_context,
             }
             .cell(),
         )
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModuleLocalsModule {
+    #[turbo_tasks::function]
+    async fn merge(
+        &self,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(modules, entry_points, self.module.await?.options).await?,
+        ))
     }
 }

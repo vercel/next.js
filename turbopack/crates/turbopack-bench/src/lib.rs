@@ -325,7 +325,7 @@ fn bench_hmr_internal(
                                     .evaluate_expression("globalThis.HMR_IS_HAPPENING")
                                     .await
                                     .unwrap();
-                                // Make sure that we are really measuring HMR and not accidentically
+                                // Make sure that we are really measuring HMR and not accidentally
                                 // full refreshing the page
                                 assert!(hmr_is_happening.value().unwrap().as_bool().unwrap());
                             },

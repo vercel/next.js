@@ -74,15 +74,15 @@ pub struct StaticSortedFileMetaData {
 }
 
 impl StaticSortedFileMetaData {
-    pub fn block_offsets_start(&self) -> usize {
-        let k: usize = self.key_compression_dictionary_length.into();
-        let v: usize = self.value_compression_dictionary_length.into();
-        k + v
+    pub fn block_offsets_start(&self, sst_len: usize) -> usize {
+        let bc: usize = self.block_count.into();
+        sst_len - (bc * size_of::<u32>())
     }
 
     pub fn blocks_start(&self) -> usize {
-        let bc: usize = self.block_count.into();
-        self.block_offsets_start() + bc * size_of::<u32>()
+        let k: usize = self.key_compression_dictionary_length.into();
+        let v: usize = self.value_compression_dictionary_length.into();
+        k + v
     }
 
     pub fn key_compression_dictionary_range(&self) -> Range<usize> {
@@ -347,11 +347,11 @@ impl StaticSortedFile {
                 self.meta.sequence_number,
                 block_index,
                 self.meta.block_count,
-                self.meta.block_offsets_start(),
+                self.meta.block_offsets_start(self.mmap.len()),
                 self.meta.blocks_start()
             );
         }
-        let offset = self.meta.block_offsets_start() + block_index as usize * 4;
+        let offset = self.meta.block_offsets_start(self.mmap.len()) + block_index as usize * 4;
         #[cfg(feature = "strict_checks")]
         if offset + 4 > self.mmap.len() {
             bail!(
@@ -361,7 +361,7 @@ impl StaticSortedFile {
                 block_index,
                 offset,
                 self.mmap.len(),
-                self.meta.block_offsets_start(),
+                self.meta.block_offsets_start(self.mmap.len()),
                 self.meta.blocks_start()
             );
         }
@@ -382,7 +382,7 @@ impl StaticSortedFile {
                 block_start,
                 block_end,
                 self.mmap.len(),
-                self.meta.block_offsets_start(),
+                self.meta.block_offsets_start(self.mmap.len()),
                 self.meta.blocks_start()
             );
         }
@@ -419,7 +419,7 @@ struct CurrentKeyBlock {
 
 struct CurrentIndexBlock {
     entries: ArcSlice<u8>,
-    block_indicies_count: usize,
+    block_indices_count: usize,
     index: usize,
 }
 
@@ -439,11 +439,11 @@ impl StaticSortedFileIter<'_> {
         let block_type = block.read_u8()?;
         match block_type {
             BLOCK_TYPE_INDEX => {
-                let block_indicies_count = (block.len() + 8) / 10;
+                let block_indices_count = (block.len() + 8) / 10;
                 let range = 1..block_arc.len();
                 self.stack.push(CurrentIndexBlock {
                     entries: block_arc.slice(range),
-                    block_indicies_count,
+                    block_indices_count,
                     index: 0,
                 });
             }
@@ -500,15 +500,15 @@ impl StaticSortedFileIter<'_> {
             }
             if let Some(CurrentIndexBlock {
                 entries,
-                block_indicies_count,
+                block_indices_count,
                 index,
             }) = self.stack.pop()
             {
                 let block_index = (&entries[index * 10..]).read_u16::<BE>()?;
-                if index + 1 < block_indicies_count {
+                if index + 1 < block_indices_count {
                     self.stack.push(CurrentIndexBlock {
                         entries,
-                        block_indicies_count,
+                        block_indices_count,
                         index: index + 1,
                     });
                 }

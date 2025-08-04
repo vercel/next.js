@@ -1,6 +1,6 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc, fxindexmap};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -32,13 +32,13 @@ pub async fn get_app_route_entry(
     edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
     page: AppPage,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     original_segment_config: Option<Vc<NextSegmentConfig>>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let segment_from_source = parse_segment_config_from_source(source);
     let config = if let Some(original_segment_config) = original_segment_config {
-        let mut segment_config = (*segment_from_source.await?).clone();
+        let mut segment_config = segment_from_source.owned().await?;
         segment_config.apply_parent_config(&*original_segment_config.await?);
         segment_config.into()
     } else {
@@ -55,33 +55,32 @@ pub async fn get_app_route_entry(
     let original_name: RcStr = page.to_string().into();
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
-    let path = source.ident().path();
+    let path = source.ident().path().owned().await?;
 
-    const INNER: &str = "INNER_APP_ROUTE";
+    let inner = rcstr!("INNER_APP_ROUTE");
 
     let output_type: RcStr = next_config
         .await?
         .output
         .as_ref()
         .map(|o| match o {
-            OutputType::Standalone => "\"standalone\"".to_string(),
-            OutputType::Export => "\"export\"".to_string(),
+            OutputType::Standalone => rcstr!("\"standalone\""),
+            OutputType::Export => rcstr!("\"export\""),
         })
-        .map(RcStr::from)
-        .unwrap_or_else(|| "\"\"".into());
+        .unwrap_or(rcstr!("\"\""));
 
     // Load the file from the next.js codebase.
     let virtual_source = load_next_js_template(
         "app-route.js",
-        project_root,
+        project_root.clone(),
         fxindexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().as_str().into(),
+            "VAR_DEFINITION_FILENAME" => path.file_stem().unwrap().into(),
             // TODO(alexkirsz) Is this necessary?
             "VAR_DEFINITION_BUNDLE_PATH" => "".to_string().into(),
-            "VAR_RESOLVED_PAGE_PATH" => path.to_string().owned().await?,
-            "VAR_USERLAND" => INNER.into(),
+            "VAR_RESOLVED_PAGE_PATH" => path.value_to_string().owned().await?,
+            "VAR_USERLAND" => inner.clone(),
         },
         fxindexmap! {
             "nextConfigOutput" => output_type
@@ -100,7 +99,7 @@ pub async fn get_app_route_entry(
         .await?;
 
     let inner_assets = fxindexmap! {
-        INNER.into() => userland_module
+        inner => userland_module
     };
 
     let mut rsc_entry = module_asset_context
@@ -132,20 +131,20 @@ pub async fn get_app_route_entry(
 #[turbo_tasks::function]
 async fn wrap_edge_route(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    const INNER: &str = "INNER_ROUTE_ENTRY";
+    let inner = rcstr!("INNER_ROUTE_ENTRY");
 
     let next_config = &*next_config.await?;
 
     let source = load_next_js_template(
         "edge-app-route.js",
-        project_root,
+        project_root.clone(),
         fxindexmap! {
-            "VAR_USERLAND" => INNER.into(),
+            "VAR_USERLAND" => inner.clone(),
             "VAR_PAGE" => page.to_string().into(),
         },
         fxindexmap! {
@@ -156,7 +155,7 @@ async fn wrap_edge_route(
     .await?;
 
     let inner_assets = fxindexmap! {
-        INNER.into() => entry
+        inner => entry
     };
 
     let wrapped = asset_context
@@ -168,7 +167,7 @@ async fn wrap_edge_route(
 
     Ok(wrap_edge_entry(
         asset_context,
-        project_root,
+        project_root.clone(),
         wrapped,
         AppPath::from(page).to_string().into(),
     ))

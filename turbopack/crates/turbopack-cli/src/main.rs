@@ -1,7 +1,7 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 
-use std::path::Path;
+use std::{cell::RefCell, path::Path, time::Instant};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -22,16 +22,30 @@ use turbopack_trace_utils::{
 static ALLOC: TurboMalloc = TurboMalloc;
 
 fn main() {
-    let args = Arguments::parse();
+    thread_local! {
+        static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
+    }
 
     let mut rt = tokio::runtime::Builder::new_multi_thread();
-    rt.enable_all().on_thread_stop(|| {
-        TurboMalloc::thread_stop();
-    });
+    rt.enable_all()
+        .on_thread_stop(|| {
+            TurboMalloc::thread_stop();
+        })
+        .on_thread_park(|| {
+            LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
+                use std::time::Duration;
+
+                if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
+                    swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                    *cell = Some(Instant::now());
+                }
+            });
+        });
 
     #[cfg(not(codspeed))]
     rt.disable_lifo_slot();
 
+    let args = Arguments::parse();
     rt.build().unwrap().block_on(main_inner(args)).unwrap();
 }
 

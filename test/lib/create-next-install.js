@@ -81,7 +81,12 @@ async function createNextInstall({
         )
         require('console').log('Creating temp repo dir', tmpRepoDir)
 
-        for (const item of ['package.json', 'packages']) {
+        for (const item of [
+          'package.json',
+          'packages',
+          // Otherwise pnpm will not recognize workspaces
+          'pnpm-workspace.yaml',
+        ]) {
           await rootSpan
             .traceChild(`copy ${item} to temp dir`)
             .traceAsyncFn(() =>
@@ -103,28 +108,38 @@ async function createNextInstall({
             )
         }
 
-        const nativePath = path.join(origRepoDir, 'packages/next-swc/native')
-
-        const hasNativeBinary = fs.existsSync(nativePath)
-          ? fs.readdirSync(nativePath).some((item) => item.endsWith('.node'))
-          : false
-
-        if (hasNativeBinary) {
-          process.env.NEXT_TEST_NATIVE_DIR = nativePath
-        } else {
-          const swcDirectory = fs
-            .readdirSync(path.join(origRepoDir, 'node_modules/@next'))
-            .find((directory) => directory.startsWith('swc-'))
-          process.env.NEXT_TEST_NATIVE_DIR = path.join(
-            origRepoDir,
-            'node_modules/@next',
-            swcDirectory
+        if (process.env.NEXT_TEST_WASM) {
+          const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
+          const hasWasmBinary = fs.existsSync(
+            path.join(wasmPath, 'package.json')
           )
+          if (hasWasmBinary) {
+            process.env.NEXT_TEST_WASM_DIR = wasmPath
+          }
+        } else {
+          const nativePath = path.join(origRepoDir, 'packages/next-swc/native')
+          const hasNativeBinary = fs.existsSync(nativePath)
+            ? fs.readdirSync(nativePath).some((item) => item.endsWith('.node'))
+            : false
+
+          if (hasNativeBinary) {
+            process.env.NEXT_TEST_NATIVE_DIR = nativePath
+          } else {
+            const swcDirectory = fs
+              .readdirSync(path.join(origRepoDir, 'node_modules/@next'))
+              .find((directory) => directory.startsWith('swc-'))
+            process.env.NEXT_TEST_NATIVE_DIR = path.join(
+              origRepoDir,
+              'node_modules/@next',
+              swcDirectory
+            )
+          }
         }
 
         // log for clarity of which version we're using
         require('console').log({
-          swcDirectory: process.env.NEXT_TEST_NATIVE_DIR,
+          swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
+          swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
         })
 
         pkgPaths = await rootSpan

@@ -659,6 +659,7 @@ describe('CLI Usage', () => {
       expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
+      expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
     test('Allow retry if default port is already in use', async () => {
@@ -679,7 +680,7 @@ describe('CLI Usage', () => {
       }
 
       expect(output).toMatch(
-        '⚠ Port 3000 is in use, using available port 3001 instead.'
+        '⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.'
       )
     })
 

@@ -1,6 +1,11 @@
 import { useRef } from 'react'
-import { MENU_DURATION_MS, useClickOutside, useFocusTrap } from '../utils'
+import {
+  MENU_DURATION_MS,
+  useClickOutsideAndEscape,
+  useFocusTrap,
+} from '../utils'
 import { useDelayedRender } from '../../../../hooks/use-delayed-render'
+import { css } from '../../../../utils/css'
 
 export interface DevToolsInfoPropsCore {
   isOpen: boolean
@@ -37,7 +42,7 @@ export function DevToolsInfo({
     // Bring focus to close button, so the user can easily close the overlay
     closeButtonRef.current?.focus()
   })
-  useClickOutside(ref, triggerRef, isOpen, close)
+  useClickOutsideAndEscape(ref, triggerRef, mounted, close)
 
   if (!mounted) {
     return null
@@ -84,9 +89,8 @@ export function DevToolsInfo({
   )
 }
 
-export const DEV_TOOLS_INFO_STYLES = `
+export const DEV_TOOLS_INFO_STYLES = css`
   [data-info-popover] {
-    -webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -97,7 +101,7 @@ export const DEV_TOOLS_INFO_STYLES = `
     border-radius: var(--rounded-xl);
     position: absolute;
     font-family: var(--font-stack-sans);
-    z-index: 1000;
+    z-index: 3;
     overflow: hidden;
     opacity: 0;
     outline: 0;
@@ -135,7 +139,7 @@ export const DEV_TOOLS_INFO_STYLES = `
   .dev-tools-info-close-button {
     all: unset;
     width: 20px;
-    height: 20px;    
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -33,7 +33,6 @@ import { addRequestMeta } from '../../request-meta'
 import {
   compileNonPath,
   matchHas,
-  parseDestination,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
@@ -324,7 +323,7 @@ export function getResolveRoutes(
     }
 
     async function handleRoute(
-      route: (typeof routes)[0]
+      route: Route
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
       let curPathname = parsedUrl.pathname || '/'
 
@@ -423,7 +422,10 @@ export function getResolveRoutes(
             // base path.
             if (updated) {
               if (hadBasePath) {
-                normalized = path.posix.join(config.basePath, normalized)
+                normalized =
+                  normalized === '/'
+                    ? config.basePath
+                    : path.posix.join(config.basePath, normalized)
               }
 
               // Re-add the trailing slash (if required).
@@ -741,8 +743,7 @@ export function getResolveRoutes(
             // is currently on, which wouldn't be extractable from the matched route params.
             // This attempts to extract the dynamic params from the provided router state.
             if (isInterceptionRouteRewrite(route as Rewrite)) {
-              const stateHeader =
-                req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+              const stateHeader = req.headers[NEXT_ROUTER_STATE_TREE_HEADER]
 
               if (stateHeader) {
                 rewriteParams = {
@@ -757,16 +758,6 @@ export function getResolveRoutes(
             // this is a no-op -- we couldn't extract dynamic params from the provided router state,
             // so we'll just use the params from the route matcher
           }
-
-          // We extract the search params of the destination so we can set it on
-          // the response headers. We don't want to use the following
-          // `parsedDestination` as the query object is mutated.
-          const { search: destinationSearch, pathname: destinationPathname } =
-            parseDestination({
-              destination: route.destination,
-              params: rewriteParams,
-              query: parsedUrl.query,
-            })
 
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
@@ -784,17 +775,20 @@ export function getResolveRoutes(
           }
 
           // Set the rewrite headers only if this is a RSC request.
-          if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+          if (req.headers[RSC_HEADER] === '1') {
             // We set the rewritten path and query headers on the response now
             // that we know that the it's not an external rewrite.
-            if (parsedUrl.pathname !== destinationPathname) {
-              res.setHeader(NEXT_REWRITTEN_PATH_HEADER, destinationPathname)
+            if (parsedUrl.pathname !== parsedDestination.pathname) {
+              res.setHeader(
+                NEXT_REWRITTEN_PATH_HEADER,
+                parsedDestination.pathname
+              )
             }
-            if (destinationSearch) {
+            if (parsedUrl.search !== parsedDestination.search) {
               res.setHeader(
                 NEXT_REWRITTEN_QUERY_HEADER,
                 // remove the leading ? from the search
-                destinationSearch.slice(1)
+                parsedDestination.search.slice(1)
               )
             }
           }

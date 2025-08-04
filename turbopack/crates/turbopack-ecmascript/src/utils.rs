@@ -1,13 +1,15 @@
+use std::ops::Deref;
+
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::DUMMY_SP,
+    common::{DUMMY_SP, SyntaxContext},
     ecma::{
         ast::{Expr, Lit, Str},
         visit::AstParentKind,
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
@@ -216,6 +218,30 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
     })
 }
 
+#[derive(Hash, Debug, Clone, Copy, Eq, Serialize, Deserialize, PartialEq, TraceRawVcs)]
+pub struct AstSyntaxContext(#[turbo_tasks(trace_ignore)] SyntaxContext);
+
+impl TaskInput for AstSyntaxContext {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
+unsafe impl NonLocalValue for AstSyntaxContext {}
+
+impl Deref for AstSyntaxContext {
+    type Target = SyntaxContext;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<SyntaxContext> for AstSyntaxContext {
+    fn from(v: SyntaxContext) -> Self {
+        Self(v)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
@@ -239,7 +265,11 @@ mod tests {
             Pattern::Constant(rcstr!("hello/world")),
             js_value_to_pattern(&JsValue::Concat(
                 1,
-                vec!["hello".into(), "\\".into(), "world".into()]
+                vec![
+                    rcstr!("hello").into(),
+                    rcstr!("\\").into(),
+                    rcstr!("world").into()
+                ]
             ))
         );
     }

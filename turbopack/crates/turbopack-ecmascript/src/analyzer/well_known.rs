@@ -1,6 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
@@ -162,13 +163,13 @@ pub fn object_assign(args: Vec<JsValue>) -> JsValue {
 
 pub fn path_join(args: Vec<JsValue>) -> JsValue {
     if args.is_empty() {
-        return ".".into();
+        return rcstr!(".").into();
     }
     let mut parts = Vec::new();
     for item in args {
         if let Some(str) = item.as_str() {
-            let splitted = str.split('/');
-            parts.extend(splitted.map(|s| s.into()));
+            let split = str.split('/');
+            parts.extend(split.map(|s| s.into()));
         } else {
             parts.push(item);
         }
@@ -203,9 +204,12 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     for part in iter {
         let is_str = part.as_str().is_some();
         if last_is_str && is_str {
-            results.push("/".into());
+            results.push(rcstr!("/").into());
         } else {
-            results.push(JsValue::alternatives(vec!["/".into(), "".into()]));
+            results.push(JsValue::alternatives(vec![
+                rcstr!("/").into(),
+                rcstr!("").into(),
+            ]));
         }
         results.push(part);
         last_is_str = is_str;
@@ -246,7 +250,7 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
                     }
                     ".." => {
                         if results.pop().is_none() {
-                            results_final.push("..".into());
+                            results_final.push(rcstr!("..").into());
                         }
                     }
                     _ => results.push(str.into()),
@@ -274,9 +278,12 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
     for part in iter {
         let is_str = part.as_str().is_some();
         if last_was_str && is_str {
-            results.push("/".into());
+            results.push(rcstr!("/").into());
         } else {
-            results.push(JsValue::alternatives(vec!["/".into(), "".into()]));
+            results.push(JsValue::alternatives(vec![
+                rcstr!("/").into(),
+                rcstr!("").into(),
+            ]));
         }
         results.push(part);
         last_was_str = is_str;
@@ -291,7 +298,7 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
             if let Some(i) = str.rfind('/') {
                 return JsValue::Constant(ConstantValue::Str(str[..i].to_string().into()));
             } else {
-                return JsValue::Constant(ConstantValue::Str("".into()));
+                return JsValue::Constant(ConstantValue::Str(rcstr!("").into()));
             }
         } else if let JsValue::Concat(_, items) = arg
             && let Some(last) = items.last_mut()
@@ -619,7 +626,7 @@ pub fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         (.., Some("join")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         (.., Some("dirname")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         (.., Some("resolve")) => {
-            // cwd is added while resolving in refernces.rs
+            // cwd is added while resolving in references.rs
             JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(JsValue::from(
                 "",
             ))))

@@ -13,6 +13,14 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
+import type {
+  ManifestRewriteRoute,
+  ManifestHeaderRoute,
+  ManifestRedirectRoute,
+  RouteType,
+  ManifestRoute,
+} from '../build'
+import { isStableBuild } from '../shared/lib/canary-only'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -26,11 +34,40 @@ export type NextConfigComplete = Required<NextConfig> & {
   experimental: Omit<ExperimentalConfig, 'turbo'>
 }
 
+export type AdapterOutputs = Array<{
+  id: string
+  fallbackID?: string
+  runtime?: 'nodejs' | 'edge'
+  pathname: string
+  allowQuery?: string[]
+  config?: {
+    maxDuration?: number
+    expiration?: number
+    revalidate?: number
+  }
+  assets?: Record<string, string>
+  filePath: string
+  type: RouteType
+}>
+
 export interface NextAdapter {
   name: string
-  modifyConfig(
+  modifyConfig?: (
     config: NextConfigComplete
-  ): Promise<NextConfigComplete> | NextConfigComplete
+  ) => Promise<NextConfigComplete> | NextConfigComplete
+  onBuildComplete?: (ctx: {
+    routes: {
+      headers: Array<ManifestHeaderRoute>
+      redirects: Array<ManifestRedirectRoute>
+      rewrites: {
+        beforeFiles: Array<ManifestRewriteRoute>
+        afterFiles: Array<ManifestRewriteRoute>
+        fallback: Array<ManifestRewriteRoute>
+      }
+      dynamicRoutes: ReadonlyArray<ManifestRoute>
+    }
+    outputs: AdapterOutputs
+  }) => Promise<void> | void
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -282,7 +319,6 @@ export interface LoggingConfig {
 export interface ExperimentalConfig {
   adapterPath?: string
   useSkewCookie?: boolean
-  nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
     remote?: string
@@ -298,8 +334,6 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
-  /** @default true */
-  strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
   /**
@@ -416,6 +450,11 @@ export interface ExperimentalConfig {
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   turbopackMinify?: boolean
+
+  /**
+   * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
+   */
+  turbopackScopeHoisting?: boolean
 
   /**
    * Enable persistent caching for the turbopack dev server and build.
@@ -658,6 +697,11 @@ export interface ExperimentalConfig {
    * Prerendering feature of Next.js, and it enables `react@experimental` being
    * used for the `app` directory.
    */
+  cacheComponents?: boolean
+
+  /**
+   * @deprecated Use `experimental.cacheComponents` instead.
+   */
   dynamicIO?: boolean
 
   /**
@@ -701,9 +745,41 @@ export interface ExperimentalConfig {
   devtoolSegmentExplorer?: boolean
 
   /**
-   * Enable new panel UI for the Next.js DevTools.
+   * Enable debug information to be forwarded from browser to dev server stdout/stderr
    */
-  devtoolNewPanelUI?: boolean
+  browserDebugInfoInTerminal?:
+    | boolean
+    | {
+        /**
+         * Option to limit stringification at a specific nesting depth when logging circular objects.
+         * @default 5
+         */
+        depthLimit?: number
+
+        /**
+         * Maximum number of properties/elements to stringify when logging objects/arrays with circular references.
+         * @default 100
+         */
+        edgeLimit?: number
+        /**
+         * Whether to include source location information in debug output when available
+         */
+        showSourceLocation?: boolean
+      }
+
+  /**
+   * When enabled, will only opt-in to special smooth scroll handling when
+   * data-scroll-behavior="smooth" is present on the <html> element.
+   * This will be the default, non-configurable behavior in the next major version.
+   *
+   * @default false
+   */
+  optimizeRouterScrolling?: boolean
+
+  /**
+   * Enable accessing root params via the `next/root-params` module.
+   */
+  rootParams?: boolean
 }
 
 export type ExportPathMap = {
@@ -758,7 +834,7 @@ export type ExportPathMap = {
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
-     * the app has `experimental.ppr` and `experimental.dynamicIO` enabled, and
+     * the app has `experimental.ppr` and `experimental.cacheComponents` enabled, and
      * there are also routes prerendered with a more complete set of params.
      * Prerendering those routes would catch any invalid dynamic accesses.
      *
@@ -1210,7 +1286,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig = {
+export const defaultConfig = Object.freeze({
   env: {},
   webpack: null,
   eslint: {
@@ -1271,7 +1347,6 @@ export const defaultConfig = {
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     useSkewCookie: false,
-    nodeMiddleware: false,
     cacheLife: {
       default: {
         stale: undefined, // defaults to staleTimes.static
@@ -1319,7 +1394,8 @@ export const defaultConfig = {
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
-    enablePrerenderSourceMaps: false,
+    // Will default to cacheComponents value.
+    enablePrerenderSourceMaps: undefined,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
@@ -1368,15 +1444,7 @@ export const defaultConfig = {
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
-    ppr:
-      // TODO: remove once we've made PPR default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
-      // has been set to `true`, enable the experimental PPR feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+    ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
@@ -1384,7 +1452,9 @@ export const defaultConfig = {
     viewTransition: false,
     routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
-    validateRSCRequestHeaders: false,
+    validateRSCRequestHeaders: !!(
+      process.env.__NEXT_TEST_MODE || !isStableBuild()
+    ),
     staleTimes: {
       dynamic: 0,
       static: 300,
@@ -1395,16 +1465,18 @@ export const defaultConfig = {
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
-    dynamicIO: false,
+    cacheComponents: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolSegmentExplorer: false,
+    devtoolSegmentExplorer: true,
+    browserDebugInfoInTerminal: false,
+    optimizeRouterScrolling: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-} satisfies NextConfig
+} satisfies NextConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

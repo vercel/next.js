@@ -18,10 +18,7 @@ pub struct VirtualSource {
 #[turbo_tasks::value_impl]
 impl VirtualSource {
     #[turbo_tasks::function]
-    pub async fn new(
-        path: Vc<FileSystemPath>,
-        content: ResolvedVc<AssetContent>,
-    ) -> Result<Vc<Self>> {
+    pub async fn new(path: FileSystemPath, content: ResolvedVc<AssetContent>) -> Result<Vc<Self>> {
         Ok(Self::cell(VirtualSource {
             ident: AssetIdent::from_path(path).to_resolved().await?,
             content,

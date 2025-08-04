@@ -51,7 +51,7 @@ pub async fn module_references(
             collector.emit().await?;
             Ok(Vc::cell(references))
         }
-        ParseResult::Unparseable { .. } | ParseResult::NotFound => Ok(Vc::cell(Vec::new())),
+        ParseResult::Unparsable { .. } | ParseResult::NotFound => Ok(Vc::cell(Vec::new())),
     }
 }
 

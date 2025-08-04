@@ -1,0 +1,45 @@
+diff --git a/cjs/utils/detectBrowser.js b/cjs/utils/detectBrowser.js
+index ff68691c7e4e7063e7f1ca879ff731aa95534b19..d937075fc126a8e78e9ba63331f6edb3c4146834 100644
+--- a/cjs/utils/detectBrowser.js
++++ b/cjs/utils/detectBrowser.js
+@@ -34,8 +34,8 @@ function getNavigatorData() {
+     };
+   }
+   return {
+-    platform: navigator.platform,
+-    maxTouchPoints: navigator.maxTouchPoints
++    platform: navigator.platform ?? '',
++    maxTouchPoints: navigator.maxTouchPoints ?? -1
+   };
+ }
+ function getUserAgent() {
+@@ -59,5 +59,5 @@ function getPlatform() {
+   if (uaData?.platform) {
+     return uaData.platform;
+   }
+-  return navigator.platform;
++  return navigator.platform ?? '';
+ }
+\ No newline at end of file
+diff --git a/esm/utils/detectBrowser.js b/esm/utils/detectBrowser.js
+index b67fcfa881acfb437178c0ce7e1cdcd6f3b58cfd..6c125681981d17b8fb1fd6f68b9ab0d19d9dc0ca 100644
+--- a/esm/utils/detectBrowser.js
++++ b/esm/utils/detectBrowser.js
+@@ -28,8 +28,8 @@ function getNavigatorData() {
+     };
+   }
+   return {
+-    platform: navigator.platform,
+-    maxTouchPoints: navigator.maxTouchPoints
++    platform: navigator.platform ?? '',
++    maxTouchPoints: navigator.maxTouchPoints ?? -1
+   };
+ }
+ function getUserAgent() {
+@@ -53,5 +53,5 @@ function getPlatform() {
+   if (uaData?.platform) {
+     return uaData.platform;
+   }
+-  return navigator.platform;
++  return navigator.platform ?? '';
+ }

@@ -178,6 +178,8 @@ export async function initialize(opts: {
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
+
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
       filterInternalHeaders(req.headers)

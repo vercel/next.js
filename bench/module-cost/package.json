@@ -1,0 +1,15 @@
+{
+  "name": "module-cost",
+  "scripts": {
+    "prepare-bench": "node scripts/prepare-bench.mjs",
+    "dev-webpack": "next dev",
+    "dev-turbopack": "next dev --turbo",
+    "build-webpack": "next build",
+    "build-turbopack": "next build --turbo",
+    "start": "next start"
+  },
+  "devDependencies": {
+    "rimraf": "6.0.1",
+    "next": "workspace:*"
+  }
+}

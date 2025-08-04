@@ -8,14 +8,14 @@ The `cacheLife` option allows you to define **custom cache profiles** when using
 
 ## Usage
 
-To define a profile, enable the [`dynamicIO` flag](/docs/app/api-reference/config/next-config-js/dynamicIO) and add the cache profile in the `cacheLife` object in the `next.config.js` file. For example, a `blog` profile:
+To define a profile, enable the [`cacheComponents` flag](/docs/app/api-reference/config/next-config-js/cacheComponents) and add the cache profile in the `cacheLife` object in the `next.config.js` file. For example, a `blog` profile:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheLife: {
       blog: {
         stale: 3600, // 1 hour
@@ -32,7 +32,7 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 module.exports = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheLife: {
       blog: {
         stale: 3600, // 1 hour

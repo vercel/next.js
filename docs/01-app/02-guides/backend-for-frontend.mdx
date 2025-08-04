@@ -51,7 +51,7 @@ Use `try/catch` blocks for operations that may throw an exception:
 ```ts filename="/app/api/route.ts" switcher
 import { submit } from '@/lib/submit'
 
-export function POST(request: Request) {
+export async function POST(request: Request) {
   try {
     await submit(request)
     return new Response(null, { status: 204 })
@@ -67,7 +67,7 @@ export function POST(request: Request) {
 ```js filename="/app/api/route.js" switcher
 import { submit } from '@/lib/submit'
 
-export function POST(request) {
+export async function POST(request) {
   try {
     await submit(request)
     return new Response(null, { status: 204 })

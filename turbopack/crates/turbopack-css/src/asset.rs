@@ -6,6 +6,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
     context::AssetContext,
+    environment::Environment,
     ident::AssetIdent,
     module::{Module, OptionStyleType, StyleType},
     module_graph::ModuleGraph,
@@ -32,12 +33,13 @@ use crate::{
 
 #[turbo_tasks::value]
 #[derive(Clone)]
+/// A global CSS asset. Notably not a `.module.css` module, which is [`ModuleCssAsset`] instead.
 pub struct CssModuleAsset {
     source: ResolvedVc<Box<dyn Source>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
-    minify_type: MinifyType,
+    environment: Option<ResolvedVc<Environment>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -48,19 +50,19 @@ impl CssModuleAsset {
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: CssModuleAssetType,
-        minify_type: MinifyType,
         import_context: Option<ResolvedVc<ImportContext>>,
+        environment: Option<ResolvedVc<Environment>>,
     ) -> Vc<Self> {
         Self::cell(CssModuleAsset {
             source,
             asset_context,
             import_context,
             ty,
-            minify_type,
+            environment,
         })
     }
 
-    /// Retrns the asset ident of the source without the "css" modifier
+    /// Returns the asset ident of the source without the "css" modifier
     #[turbo_tasks::function]
     pub fn source_ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
@@ -78,6 +80,7 @@ impl ParseCss for CssModuleAsset {
             Vc::upcast(self),
             this.import_context.map(|v| *v),
             this.ty,
+            this.environment.as_deref().copied(),
         ))
     }
 }
@@ -85,10 +88,14 @@ impl ParseCss for CssModuleAsset {
 #[turbo_tasks::value_impl]
 impl ProcessCss for CssModuleAsset {
     #[turbo_tasks::function]
-    fn get_css_with_placeholder(self: Vc<Self>) -> Vc<CssWithPlaceholderResult> {
+    async fn get_css_with_placeholder(self: Vc<Self>) -> Result<Vc<CssWithPlaceholderResult>> {
+        let this = self.await?;
         let parse_result = self.parse_css();
 
-        process_css_with_placeholder(parse_result)
+        Ok(process_css_with_placeholder(
+            parse_result,
+            this.environment.as_deref().copied(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -99,8 +106,9 @@ impl ProcessCss for CssModuleAsset {
     ) -> Result<Vc<FinalCssResult>> {
         let process_result = self.get_css_with_placeholder();
 
+        let this = self.await?;
         let origin_source_map =
-            match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.await?.source) {
+            match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(this.source) {
                 Some(gsm) => gsm.generate_source_map(),
                 None => Vc::cell(None),
             };
@@ -109,6 +117,7 @@ impl ProcessCss for CssModuleAsset {
             chunking_context,
             minify_type,
             origin_source_map,
+            this.environment.as_deref().copied(),
         ))
     }
 }
@@ -135,7 +144,7 @@ impl Module for CssModuleAsset {
 
         match &*result {
             ParseCssResult::Ok { references, .. } => Ok(**references),
-            ParseCssResult::Unparseable => Ok(ModuleReferences::empty()),
+            ParseCssResult::Unparsable => Ok(ModuleReferences::empty()),
             ParseCssResult::NotFound => Ok(ModuleReferences::empty()),
         }
     }
@@ -304,7 +313,7 @@ impl CssChunkItem for CssModuleChunkItem {
         // need to keep that around to allow references into that
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
-        // TOOD use interval tree with references into "code_gens"
+        // TODO use interval tree with references into "code_gens"
         for code_gen in code_gens {
             for import in &code_gen.imports {
                 imports.push(import.clone());
@@ -313,7 +322,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         let result = self
             .module
-            .finalize_css(*chunking_context, self.module.await?.minify_type)
+            .finalize_css(*chunking_context, *chunking_context.minify_type().await?)
             .await?;
 
         if let FinalCssResult::Ok {
@@ -332,7 +341,7 @@ impl CssChunkItem for CssModuleChunkItem {
         } else {
             Ok(CssChunkItemContent {
                 inner_code: format!(
-                    "/* unparseable {} */",
+                    "/* unparsable {} */",
                     self.module.ident().to_string().await?
                 )
                 .into(),

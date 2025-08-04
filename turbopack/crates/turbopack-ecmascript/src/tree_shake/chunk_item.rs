@@ -28,7 +28,6 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModulePartChunkItem {
     pub(super) module: ResolvedVc<EcmascriptModulePartAsset>,
-    pub(super) module_graph: ResolvedVc<ModuleGraph>,
     pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -48,16 +47,13 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let analyze_ref = analyze.await?;
         let async_module_options = analyze_ref.async_module.module_options(async_module_info);
 
-        let content = self.module.module_content(
-            *self.module_graph,
-            *self.chunking_context,
-            async_module_info,
-        );
+        let content = self
+            .module
+            .module_content(*self.chunking_context, async_module_info);
 
         Ok(EcmascriptChunkItemContent::new(
             content,
             *self.chunking_context,
-            *self.module.await?.full_module.await?.options,
             async_module_options,
         ))
     }
@@ -183,6 +179,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
                 },
                 ..Default::default()
             },
+            additional_ids: Default::default(),
             placeholder_for_future_extensions: (),
         }
         .cell())

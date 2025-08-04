@@ -1,15 +1,8 @@
 'use client'
 
-// @ts-ignore
+// TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromReadableStream } from 'react-server-dom-webpack/client'
-const { createFromReadableStream } = (
-  !!process.env.NEXT_RUNTIME
-    ? // eslint-disable-next-line import/no-extraneous-dependencies
-      (require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge'))
-    : // eslint-disable-next-line import/no-extraneous-dependencies
-      (require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client'))
-) as typeof import('react-server-dom-webpack/client')
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
 
 import type {
   FlightRouterState,
@@ -33,10 +26,15 @@ import { findSourceMapURL } from '../../app-find-source-map-url'
 import { PrefetchKind } from './router-reducer-types'
 import {
   normalizeFlightData,
+  prepareFlightRouterStateForRequest,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
+import { getRenderedPathname } from '../../route-params'
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -58,7 +56,7 @@ export type RequestHeaders = {
   [RSC_HEADER]?: '1'
   [NEXT_ROUTER_STATE_TREE_HEADER]?: string
   [NEXT_URL]?: string
-  [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'
@@ -126,8 +124,9 @@ export async function fetchServerResponse(
     // Enable flight response
     [RSC_HEADER]: '1',
     // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
-      JSON.stringify(flightRouterState)
+    [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(
+      flightRouterState,
+      options.isHmrRefresh
     ),
   }
 
@@ -237,8 +236,21 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
+    let renderedPathname
+    if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+      // Read the URL from the response object.
+      renderedPathname = getRenderedPathname(res)
+    } else {
+      // Before Segment Cache is enabled, we should not rely on the new
+      // rewrite headers (x-rewritten-path, x-rewritten-query) because that
+      // is a breaking change. Read the URL from the response body.
+      const renderedUrlParts = response.c
+      renderedPathname = new URL(renderedUrlParts.join('/'), 'http://localhost')
+        .pathname
+    }
+
     return {
-      flightData: normalizeFlightData(response.f),
+      flightData: normalizeFlightData(response.f, renderedPathname),
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
       prerendered: response.S,

@@ -25,7 +25,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 const glob = promisify(globOriginal)
 
-if (process.env.TEST_WASM) {
+if (process.env.NEXT_TEST_WASM) {
   jest.setTimeout(120 * 1000)
 }
 

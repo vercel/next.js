@@ -24,7 +24,7 @@ import {
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
-import { SharedCacheControls } from './shared-cache-controls'
+import { SharedCacheControls } from './shared-cache-controls.external'
 import {
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,
@@ -293,8 +293,12 @@ export class IncrementalCache implements IncrementalCacheType {
     const decoder = new TextDecoder()
 
     if (init.body) {
-      // handle ReadableStream body
-      if (typeof (init.body as any).getReader === 'function') {
+      // handle Uint8Array body
+      if (init.body instanceof Uint8Array) {
+        bodyChunks.push(decoder.decode(init.body))
+        ;(init as any)._ogBody = init.body
+      } // handle ReadableStream body
+      else if (typeof (init.body as any).getReader === 'function') {
         const readableBody = init.body as ReadableStream<Uint8Array | string>
 
         const chunks: Uint8Array[] = []

@@ -85,6 +85,7 @@ The following options are available for the `next build` command:
 | `--no-mangling`                    | Disables [mangling](https://en.wikipedia.org/wiki/Name_mangling). This may affect performance and should only be used for debugging purposes. |
 | `--experimental-app-only`          | Builds only App Router routes.                                                                                                                |
 | `--experimental-build-mode [mode]` | Uses an experimental build mode. (choices: "compile", "generate", default: "default")                                                         |
+| `--debug-prerender`                | Debug prerender errors in development.                                                                                                        |
 
 ### `next start` options
 
@@ -183,6 +184,30 @@ Learn more about [Telemetry](/telemetry).
 
 ## Examples
 
+### Debugging prerender errors
+
+If you encounter prerendering errors during `next build`, you can pass the `--debug-prerender` flag to get more detailed output:
+
+```bash filename="Terminal"
+next build --debug-prerender
+```
+
+This enables several experimental options to make debugging easier:
+
+- Disables server code minification:
+  - `experimental.serverMinification = false`
+  - `experimental.turbopackMinify = false`
+- Generates source maps for server bundles:
+  - `experimental.serverSourceMaps = true`
+- Enables source map consumption in child processes used for prerendering:
+  - `experimental.enablePrerenderSourceMaps = true`
+- Continues building even after the first prerender error, so you can see all issues at once:
+  - `experimental.prerenderEarlyExit = false`
+
+This helps surface more readable stack traces and code frames in the build output.
+
+> **Warning**: `--debug-prerender` is for debugging in development only. Do not deploy builds generated with `--debug-prerender` to production, as it may impact performance.
+
 ### Changing the default port
 
 By default, Next.js uses `http://localhost:3000` during development and with `next start`. The default port can be changed with the `-p` option, like so:
@@ -236,3 +261,7 @@ NODE_OPTIONS='--throw-deprecation' next
 NODE_OPTIONS='-r esm' next
 NODE_OPTIONS='--inspect' next
 ```
+
+| Version   | Changes                                                                         |
+| --------- | ------------------------------------------------------------------------------- |
+| `v15.4.0` | Add `--debug-prerender` option for `next build` to help debug prerender errors. |

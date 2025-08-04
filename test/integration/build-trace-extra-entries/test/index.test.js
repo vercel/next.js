@@ -49,9 +49,12 @@ describe('build trace with extra entries', () => {
           appDirRoute1Trace.files.some((file) => file.includes('exclude-me'))
         ).toBe(false)
 
-        expect(appTrace.files.some((file) => file.endsWith('hello.json'))).toBe(
-          true
-        )
+        // Skip hello.json check for Turbopack as it doesn't support webpack entry modifications
+        if (!process.env.TURBOPACK_BUILD) {
+          expect(
+            appTrace.files.some((file) => file.endsWith('hello.json'))
+          ).toBe(true)
+        }
 
         expect(
           indexTrace.files.filter(
@@ -63,9 +66,12 @@ describe('build trace with extra entries', () => {
           ).length
         )
 
-        expect(
-          appTrace.files.some((file) => file.endsWith('lib/get-data.js'))
-        ).toBe(true)
+        // Skip lib/get-data.js check for Turbopack as it doesn't support webpack entry modifications
+        if (!process.env.TURBOPACK_BUILD) {
+          expect(
+            appTrace.files.some((file) => file.endsWith('lib/get-data.js'))
+          ).toBe(true)
+        }
         expect(
           indexTrace.files.some((file) => file.endsWith('hello.json'))
         ).toBeFalsy()

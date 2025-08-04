@@ -1,1 +1,1 @@
-import Example from "./example.mdx";
+import Example from './example.mdx'

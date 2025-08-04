@@ -915,6 +915,18 @@ function runTests(mode) {
       )
     })
 
+    it('should warn when quality is 50', async () => {
+      const browser = await webdriver(appPort, '/quality-50')
+
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      await assertNoRedbox(browser)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is using quality "50" which is not configured in images.qualities. This config will be required starting in Next.js 16./gm
+      )
+    })
+
     it('should not warn when Image is child of p', async () => {
       const browser = await webdriver(appPort, '/inside-paragraph')
 

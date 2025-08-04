@@ -82,7 +82,7 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
         let ident = this.chunk.ident().with_modifier(modifier());
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
 
     #[turbo_tasks::function]
@@ -149,7 +149,7 @@ impl Introspectable for EcmascriptBuildNodeChunk {
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
         let introspectable_chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
         children.insert((rcstr!("chunk"), introspectable_chunk));

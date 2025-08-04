@@ -6,10 +6,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{MinifyType, SourceMapsType},
-    condition::ContextCondition,
-    environment::Environment,
-    resolve::options::ImportMapping,
+    chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
+    environment::Environment, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
 pub use turbopack_mdx::MdxTransformOptions;
@@ -71,7 +69,7 @@ pub enum DecoratorsKind {
 }
 
 /// The types when replacing `typeof window` with a constant.
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -123,7 +121,6 @@ impl ValueDefault for TypescriptTransformOptions {
     }
 }
 
-// [TODO]: should enabled_react_refresh belong to this options?
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct JsxTransformOptions {
@@ -131,6 +128,14 @@ pub struct JsxTransformOptions {
     pub react_refresh: bool,
     pub import_source: Option<RcStr>,
     pub runtime: Option<RcStr>,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub struct ExternalsTracingOptions {
+    /// The directory from which the bundled files will require the externals at runtime.
+    pub tracing_root: FileSystemPath,
+    pub compile_time_info: ResolvedVc<CompileTimeInfo>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -147,17 +152,14 @@ pub struct ModuleOptionsContext {
     pub enable_mdx: bool,
     pub enable_mdx_rs: Option<ResolvedVc<MdxTransformOptions>>,
 
-    pub preset_env_versions: Option<ResolvedVc<Environment>>,
+    pub environment: Option<ResolvedVc<Environment>>,
     pub execution_context: Option<ResolvedVc<ExecutionContext>>,
     pub side_effect_free_packages: Vec<RcStr>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
     /// Generate (non-emitted) output assets for static assets and externals, to facilitate
     /// generating a list of all non-bundled files that will be required at runtime.
-    ///
-    /// The filepath is the directory from which the bundled files will require the externals at
-    /// runtime.
-    pub enable_externals_tracing: Option<ResolvedVc<FileSystemPath>>,
+    pub enable_externals_tracing: Option<ResolvedVc<ExternalsTracingOptions>>,
 
     /// If true, it stores the last successful parse result in state and keeps using it when
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
@@ -170,10 +172,6 @@ pub struct ModuleOptionsContext {
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ResolvedVc<ModuleOptionsContext>)>,
 
-    /// `matches!(tree_shaking_mode, Some(TreeShakingMode::Intermediate))` is not enough because we
-    /// use different tree shaking modes for user code and foreign code while intermediate tree
-    /// shaking is a global option.
-    pub remove_unused_exports: bool,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -212,8 +210,6 @@ pub struct CssOptionsContext {
     /// This is useful for node-file-trace, which tries to emit all assets in
     /// the module graph, but neither asset types can be emitted directly.
     pub enable_raw_css: bool,
-
-    pub minify_type: MinifyType,
 
     /// Specifies how Source Maps are handled.
     pub source_maps: SourceMapsType,

@@ -245,7 +245,7 @@ impl RawVc {
     }
 
     /// For a cell that's already resolved, synchronously check if it implements a trait using the
-    /// type information in `RawVc::TaskCell` (we don't actualy need to read the cell!).
+    /// type information in `RawVc::TaskCell` (we don't actually need to read the cell!).
     pub(crate) fn resolved_has_trait(&self, trait_id: TraitTypeId) -> bool {
         match self {
             RawVc::TaskCell(_task_id, cell_id) => {
@@ -256,7 +256,7 @@ impl RawVc {
     }
 
     /// For a cell that's already resolved, synchronously check if it is a given type using the type
-    /// information in `RawVc::TaskCell` (we don't actualy need to read the cell!).
+    /// information in `RawVc::TaskCell` (we don't actually need to read the cell!).
     pub(crate) fn resolved_is_type(&self, type_id: ValueTypeId) -> bool {
         match self {
             RawVc::TaskCell(_task_id, cell_id) => cell_id.type_id == type_id,

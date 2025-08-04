@@ -8,7 +8,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects,
 };
@@ -35,6 +35,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        export_usage::compute_export_usage_info,
     },
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -57,11 +58,6 @@ use crate::{
     },
 };
 
-pub fn register() {
-    turbopack::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}
-
 type Backend = TurboTasksBackend<NoopBackingStorage>;
 
 pub struct TurbopackBuildBuilder {
@@ -76,6 +72,7 @@ pub struct TurbopackBuildBuilder {
     source_maps_type: SourceMapsType,
     minify_type: MinifyType,
     target: Target,
+    scope_hoist: bool,
 }
 
 impl TurbopackBuildBuilder {
@@ -96,6 +93,7 @@ impl TurbopackBuildBuilder {
                 mangle: Some(MangleType::OptimalSize),
             },
             target: Target::Node,
+            scope_hoist: true,
         }
     }
 
@@ -134,6 +132,11 @@ impl TurbopackBuildBuilder {
         self
     }
 
+    pub fn scope_hoist(mut self, scope_hoist: bool) -> Self {
+        self.scope_hoist = scope_hoist;
+        self
+    }
+
     pub fn target(mut self, target: Target) -> Self {
         self.target = target;
         self
@@ -149,6 +152,7 @@ impl TurbopackBuildBuilder {
                 self.source_maps_type,
                 self.minify_type,
                 self.target,
+                self.scope_hoist,
             );
 
             // Await the result to propagate any errors.
@@ -196,6 +200,7 @@ async fn build_internal(
     source_maps_type: SourceMapsType,
     minify_type: MinifyType,
     target: Target,
+    scope_hoist: bool,
 ) -> Result<Vc<()>> {
     let output_fs = output_fs(project_dir.clone());
     let project_fs = project_fs(root_dir.clone(), /* watch= */ false);
@@ -205,16 +210,15 @@ async fn build_internal(
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
-    let root_path = project_fs.root().to_resolved().await?;
-    let project_path = root_path.join(project_relative).to_resolved().await?;
-    let build_output_root = output_fs.root().join(rcstr!("dist")).to_resolved().await?;
+    let root_path = project_fs.root().owned().await?;
+    let project_path = root_path.join(&project_relative)?;
+    let build_output_root = output_fs.root().await?.join("dist")?;
 
     let node_env = NodeEnv::Production.cell();
 
     let build_output_root_to_root_path = project_path
-        .join(rcstr!("dist"))
-        .await?
-        .get_relative_path_to(&*root_path.await?)
+        .join("dist")?
+        .get_relative_path_to(&root_path)
         .context("Project path is in root path")?;
 
     let runtime_type = match *node_env.await? {
@@ -224,15 +228,15 @@ async fn build_internal(
 
     let compile_time_info = get_client_compile_time_info(browserslist_query.clone(), node_env);
     let execution_context = ExecutionContext::new(
-        *root_path,
+        root_path.clone(),
         Vc::upcast(
             NodeJsChunkingContext::builder(
-                project_path,
-                build_output_root,
+                project_path.clone(),
+                build_output_root.clone(),
                 build_output_root_to_root_path.clone(),
-                build_output_root,
-                build_output_root,
-                build_output_root,
+                build_output_root.clone(),
+                build_output_root.clone(),
+                build_output_root.clone(),
                 Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
                 ))
@@ -242,11 +246,11 @@ async fn build_internal(
             )
             .build(),
         ),
-        load_env(*root_path),
+        load_env(root_path.clone()),
     );
 
     let asset_context = get_client_asset_context(
-        *project_path,
+        project_path.clone(),
         execution_context,
         compile_time_info,
         node_env,
@@ -275,7 +279,7 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().join(rcstr!("_")));
+    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
@@ -284,7 +288,7 @@ async fn build_internal(
                 let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
-                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
+                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()).await?, ty)
                     .await?
                     .first_module()
                     .await?
@@ -311,16 +315,19 @@ async fn build_internal(
             .to_resolved()
             .await?,
     );
+    let export_usage = compute_export_usage_info(module_graph.to_resolved().await?)
+        .resolve_strongly_consistent()
+        .await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
         Target::Browser => {
             let mut builder = BrowserChunkingContext::builder(
                 project_path,
-                build_output_root,
+                build_output_root.clone(),
                 build_output_root_to_root_path,
-                build_output_root,
-                build_output_root,
-                build_output_root,
+                build_output_root.clone(),
+                build_output_root.clone(),
+                build_output_root.clone(),
                 Environment::new(ExecutionEnvironment::Browser(
                     BrowserEnvironment {
                         dom: true,
@@ -336,29 +343,32 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
+            .export_usage(Some(export_usage))
             .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
             match *node_env.await? {
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
-                    builder = builder.chunking_config(
-                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                        ChunkingConfig {
-                            min_chunk_size: 50_000,
-                            max_chunk_count_per_group: 40,
-                            max_merge_chunk_size: 200_000,
-                            ..Default::default()
-                        },
-                    );
-                    builder = builder.chunking_config(
-                        Vc::<CssChunkType>::default().to_resolved().await?,
-                        ChunkingConfig {
-                            max_merge_chunk_size: 100_000,
-                            ..Default::default()
-                        },
-                    );
-                    builder = builder.use_content_hashing(ContentHashing::Direct { length: 16 })
+                    builder = builder
+                        .chunking_config(
+                            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                            ChunkingConfig {
+                                min_chunk_size: 50_000,
+                                max_chunk_count_per_group: 40,
+                                max_merge_chunk_size: 200_000,
+                                ..Default::default()
+                            },
+                        )
+                        .chunking_config(
+                            Vc::<CssChunkType>::default().to_resolved().await?,
+                            ChunkingConfig {
+                                max_merge_chunk_size: 100_000,
+                                ..Default::default()
+                            },
+                        )
+                        .use_content_hashing(ContentHashing::Direct { length: 16 })
+                        .module_merging(scope_hoist);
                 }
             }
 
@@ -367,11 +377,11 @@ async fn build_internal(
         Target::Node => {
             let mut builder = NodeJsChunkingContext::builder(
                 project_path,
-                build_output_root,
+                build_output_root.clone(),
                 build_output_root_to_root_path,
-                build_output_root,
-                build_output_root,
-                build_output_root,
+                build_output_root.clone(),
+                build_output_root.clone(),
+                build_output_root.clone(),
                 Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
                 ))
@@ -381,27 +391,30 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
+            .export_usage(Some(export_usage))
             .minify_type(minify_type);
 
             match *node_env.await? {
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
-                    builder = builder.chunking_config(
-                        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                        ChunkingConfig {
-                            min_chunk_size: 20_000,
-                            max_chunk_count_per_group: 100,
-                            max_merge_chunk_size: 100_000,
-                            ..Default::default()
-                        },
-                    );
-                    builder = builder.chunking_config(
-                        Vc::<CssChunkType>::default().to_resolved().await?,
-                        ChunkingConfig {
-                            max_merge_chunk_size: 100_000,
-                            ..Default::default()
-                        },
-                    );
+                    builder = builder
+                        .chunking_config(
+                            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                            ChunkingConfig {
+                                min_chunk_size: 20_000,
+                                max_chunk_count_per_group: 100,
+                                max_merge_chunk_size: 100_000,
+                                ..Default::default()
+                            },
+                        )
+                        .chunking_config(
+                            Vc::<CssChunkType>::default().to_resolved().await?,
+                            ChunkingConfig {
+                                max_merge_chunk_size: 100_000,
+                                ..Default::default()
+                            },
+                        )
+                        .module_merging(scope_hoist);
                 }
             }
 
@@ -411,69 +424,69 @@ async fn build_internal(
 
     let entry_chunk_groups = entries
         .into_iter()
-        .map(|entry_module| async move {
-            Ok(
-                if let Some(ecmascript) =
-                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module)
-                {
-                    match target {
-                        Target::Browser => {
-                            chunking_context
-                                .evaluated_chunk_group(
-                                    AssetIdent::from_path(
+        .map(|entry_module| {
+            let build_output_root = build_output_root.clone();
+
+            async move {
+                Ok(
+                    if let Some(ecmascript) =
+                        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module)
+                    {
+                        match target {
+                            Target::Browser => {
+                                chunking_context
+                                    .evaluated_chunk_group(
+                                        AssetIdent::from_path(
+                                            build_output_root
+                                                .join(
+                                                    ecmascript
+                                                        .ident()
+                                                        .path()
+                                                        .await?
+                                                        .file_stem()
+                                                        .unwrap(),
+                                                )?
+                                                .with_extension("entry.js"),
+                                        ),
+                                        ChunkGroup::Entry(
+                                            [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
+                                        ),
+                                        module_graph,
+                                        AvailabilityInfo::Root,
+                                    )
+                                    .await?
+                                    .assets
+                            }
+                            Target::Node => ResolvedVc::cell(vec![
+                                chunking_context
+                                    .entry_chunk_group(
                                         build_output_root
                                             .join(
                                                 ecmascript
                                                     .ident()
                                                     .path()
-                                                    .file_stem()
                                                     .await?
-                                                    .as_deref()
-                                                    .unwrap()
-                                                    .into(),
-                                            )
-                                            .with_extension(rcstr!("entry.js")),
-                                    ),
-                                    ChunkGroup::Entry(
-                                        [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
-                                    ),
-                                    module_graph,
-                                    AvailabilityInfo::Root,
-                                )
-                                .await?
-                                .assets
+                                                    .file_stem()
+                                                    .unwrap(),
+                                            )?
+                                            .with_extension("entry.js"),
+                                        EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
+                                        module_graph,
+                                        OutputAssets::empty(),
+                                        AvailabilityInfo::Root,
+                                    )
+                                    .await?
+                                    .asset,
+                            ]),
                         }
-                        Target::Node => ResolvedVc::cell(vec![
-                            chunking_context
-                                .entry_chunk_group(
-                                    build_output_root
-                                        .join(
-                                            ecmascript
-                                                .ident()
-                                                .path()
-                                                .file_stem()
-                                                .await?
-                                                .as_deref()
-                                                .unwrap()
-                                                .into(),
-                                        )
-                                        .with_extension(rcstr!("entry.js")),
-                                    EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
-                                    module_graph,
-                                    OutputAssets::empty(),
-                                    AvailabilityInfo::Root,
-                                )
-                                .await?
-                                .asset,
-                        ]),
-                    }
-                } else {
-                    bail!(
-                        "Entry module is not chunkable, so it can't be used to bootstrap the \
-                         application"
-                    )
-                },
-            )
+                    } else {
+                        bail!(
+                            "Entry module is not chunkable, so it can't be used to bootstrap the \
+                             application"
+                        )
+                    },
+                )
+            }
         })
         .try_join()
         .await?;
@@ -489,7 +502,7 @@ async fn build_internal(
 
     chunks
         .iter()
-        .map(|c| c.content().write(c.path()))
+        .map(|c| async move { c.content().write(c.path().owned().await?).await })
         .try_join()
         .await?;
 
@@ -530,6 +543,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 mangle: Some(MangleType::OptimalSize),
             }
         })
+        .scope_hoist(!args.no_scope_hoist)
         .target(args.common.target.unwrap_or(Target::Node))
         .show_all(args.common.show_all);
 

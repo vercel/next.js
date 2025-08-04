@@ -77,7 +77,7 @@ where
     T: VcValueType,
     VcReadTarget<T>: ValueDebugFormat + 'static,
 {
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         let value = &**self;
         value.value_debug_format(depth)
     }

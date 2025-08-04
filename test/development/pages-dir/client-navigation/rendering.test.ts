@@ -136,7 +136,7 @@ describe('Client Navigation rendering', () => {
            "label": "Runtime Error",
            "source": null,
            "stack": [
-             "new Promise <anonymous> (0:0)",
+             "new Promise <anonymous>",
            ],
          }
         `)
@@ -236,8 +236,7 @@ describe('Client Navigation rendering', () => {
            "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "pages/error-inside-page.js (2:9) @
-         {default export}
+           "source": "pages/error-inside-page.js (2:9) @ {default export}
          > 2 |   throw new Error('This is an expected error')
              |         ^",
            "stack": [
@@ -274,11 +273,11 @@ describe('Client Navigation rendering', () => {
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
-           "source": "pages/error-in-the-global-scope.js (1:1) @ [project]/pages/error-in-the-global-scope.js [ssr] (ecmascript)
+           "source": "pages/error-in-the-global-scope.js (1:1) @ {module evaluation}
          > 1 | aa = 10 //eslint-disable-line
              | ^",
            "stack": [
-             "[project]/pages/error-in-the-global-scope.js [ssr] (ecmascript) pages/error-in-the-global-scope.js (1:1)",
+             "{module evaluation} pages/error-in-the-global-scope.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -294,9 +293,6 @@ describe('Client Navigation rendering', () => {
              | ^",
            "stack": [
              "eval pages/error-in-the-global-scope.js (1:1)",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",

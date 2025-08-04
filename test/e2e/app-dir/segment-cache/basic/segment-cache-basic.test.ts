@@ -2,11 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (basic tests)', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     test('ppr is disabled', () => {})
     return
   }
@@ -156,6 +155,38 @@ describe('segment cache (basic tests)', () => {
         // The page should render immediately because it was prefetched
         const div = await browser.elementById('intercepted-photo-page')
         expect(await div.innerHTML()).toBe('Intercepted photo page')
+      },
+      // No additional requests were required, because everything was prefetched
+      'no-requests'
+    )
+  })
+
+  it('prefetch interception route with params', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/interception-with-params/feed', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Reveal the link to trigger a prefetch.
+    const reveal = await browser.elementByCss('input[type="checkbox"]')
+    const link = await act(
+      async () => {
+        await reveal.click()
+        return await browser.elementByCss('a')
+      },
+      { includes: 'intercepted-photo-page' }
+    )
+
+    // Navigate to the test page
+    await act(
+      async () => {
+        await link.click()
+
+        // The page should render immediately because it was prefetched
+        const div = await browser.elementById('intercepted-photo-page')
+        expect(await div.innerHTML()).toBe('Intercepted photo page for id "1"')
       },
       // No additional requests were required, because everything was prefetched
       'no-requests'
