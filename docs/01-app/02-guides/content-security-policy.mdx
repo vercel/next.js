@@ -195,7 +195,7 @@ If you're using nonces, you may need to explicitly opt pages into dynamic render
 ```tsx filename="app/page.tsx" switcher
 import { connection } from 'next/server'
 
-export default function Page() {
+export default async function Page() {
   // wait for an incoming request to render this page
   await connection()
   // Your page content
@@ -205,7 +205,7 @@ export default function Page() {
 ```jsx filename="app/page.jsx" switcher
 import { connection } from 'next/server'
 
-export default function Page() {
+export default async function Page() {
   // wait for an incoming request to render this page
   await connection()
   // Your page content
