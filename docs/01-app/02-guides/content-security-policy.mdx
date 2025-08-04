@@ -194,18 +194,20 @@ If you're using nonces, you may need to explicitly opt pages into dynamic render
 
 ```tsx filename="app/page.tsx" switcher
 // Force dynamic rendering for pages using nonces
-export const dynamic = 'force-dynamic'
+import { connection } from 'next/server'
 
 export default function Page() {
+  await connection()
   // Your page content
 }
 ```
 
 ```jsx filename="app/page.jsx" switcher
 // Force dynamic rendering for pages using nonces
-export const dynamic = 'force-dynamic'
+import { connection } from 'next/server'
 
 export default function Page() {
+  await connection()
   // Your page content
 }
 ```
@@ -534,7 +536,7 @@ CSP implementation differs between development and production environments:
 
 ### Development Environment
 
-In development, you may need to allow `'unsafe-eval'` for Hot Module Replacement (HMR):
+In development, you will need to enable `'unsafe-eval'` to support APIs that provide additional debugging information:
 
 ```ts filename="middleware.ts" switcher
 export function middleware(request: NextRequest) {
