@@ -29,6 +29,14 @@ revalidatePath(path: string, type?: 'page' | 'layout'): void;
 
 `revalidatePath` does not return a value.
 
+## What can be revalidated
+
+The path parameter can point to pages, layouts, or route handlers:
+
+- **Pages**: Revalidates the specific page
+- **Layouts**: Revalidates the layout and all pages beneath it
+- **GET Route Handlers**: Only if they're statically generated
+
 ## Relationship with `revalidateTag`
 
 `revalidatePath` and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) serve different purposes:
@@ -40,10 +48,12 @@ When you call `revalidatePath`, only the specified path gets fresh data on the n
 
 ```tsx
 // Page A: /blog
-const posts = await fetch('/api/posts', { next: { tags: ['posts'] } })
+const posts = await fetch('https://api.vercel.app/blog', {
+  next: { tags: ['posts'] },
+})
 
 // Page B: /dashboard
-const recentPosts = await fetch('/api/posts?limit=5', {
+const recentPosts = await fetch('https://api.vercel.app/blog?limit=5', {
   next: { tags: ['posts'] },
 })
 ```
