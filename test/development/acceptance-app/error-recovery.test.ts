@@ -160,7 +160,6 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
           \`----
        Caused by:
            Syntax Error
@@ -224,7 +223,6 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
           \`----
        Caused by:
            Syntax Error
@@ -640,7 +638,6 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
            \`----
        Caused by:
            Syntax Error
@@ -677,7 +674,6 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
            \`----
        Caused by:
            Syntax Error
@@ -1033,7 +1029,6 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
           ,----
         1 | {{{
-          :   ^
           \`----
        Caused by:
            Syntax Error",
