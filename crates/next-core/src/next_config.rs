@@ -1331,6 +1331,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn ci_has_next_support(&self) -> Vc<bool> {
+        Vc::cell(self.env.contains_key("NOW_BUILDER"))
+    }
+
+    #[turbo_tasks::function]
     pub fn cache_handler(&self, project_path: FileSystemPath) -> Result<Vc<OptionFileSystemPath>> {
         if let Some(handler) = &self.cache_handler {
             Ok(Vc::cell(Some(project_path.join(handler)?)))
