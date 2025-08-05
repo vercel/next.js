@@ -66,7 +66,7 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
-    reference_type::{CssReferenceSubType, ReferenceType},
+    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -852,6 +852,7 @@ impl AppProject {
             Request::parse(Pattern::Constant(rcstr!(
                 "next/dist/client/app-next-turbopack.js"
             ))),
+            CommonJsReferenceSubType::Undefined,
             None,
             false,
         )
