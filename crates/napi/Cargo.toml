@@ -17,6 +17,7 @@ plugin = [
     "swc_core/plugin_transform_host_native",
     "swc_core/plugin_transform_host_native_filesystem_cache",
     "swc_core/plugin_transform_host_native_shared_runtime",
+    "swc_core/plugin_backend_wasmer",
     "next-custom-transforms/plugin",
     "next-core/plugin",
     "turbopack-ecmascript-plugins",

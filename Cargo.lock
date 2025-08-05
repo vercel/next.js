@@ -9784,6 +9784,7 @@ dependencies = [
  "styled_jsx",
  "swc_core",
  "swc_emotion",
+ "swc_plugin_backend_wasmer",
  "swc_relay",
  "tracing",
  "turbo-rcstr",

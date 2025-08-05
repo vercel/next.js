@@ -304,6 +304,7 @@ swc_core = { version = "35.0.0", features = [
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
+swc_plugin_backend_wasmer = { version = "1.0.0" }
 testing = "15.0.0"
 
 # Keep consistent with preset_env_base through swc_core

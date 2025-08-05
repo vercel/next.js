@@ -972,7 +972,7 @@ impl Analyzer<'_> {
 
                         // We cannot analyze recursive IIFE
                         if let Some(ident) = ident
-                            && contains_ident_ref(&function.body, &ident.to_id())
+                            && contains_ident_ref(&function.body, ident)
                         {
                             return false;
                         }

@@ -15,9 +15,9 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 /// cost of the compilation.
 #[turbo_tasks::value(serialization = "none", eq = "manual", into = "new", cell = "new")]
 pub struct SwcPluginModule(
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(trace_ignore, debug_ignore)]
     #[cfg(feature = "swc_ecma_transform_plugin")]
-    pub swc_core::plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
+    pub swc_core::plugin_runner::plugin_module_bytes::RawPluginModuleBytes,
     // Dummy field to avoid turbo_tasks macro complaining about empty struct.
     // This is because we can't import CompiledPluginModuleBytes by default, it should be only
     // available for the target / platforms that support swc plugins (which can build wasmer)
@@ -28,15 +28,11 @@ impl SwcPluginModule {
     pub fn new(plugin_name: &str, plugin_bytes: Vec<u8>) -> Self {
         #[cfg(feature = "swc_ecma_transform_plugin")]
         {
-            Self({
-                use swc_core::plugin_runner::plugin_module_bytes::{
-                    CompiledPluginModuleBytes, RawPluginModuleBytes,
-                };
-                CompiledPluginModuleBytes::from(RawPluginModuleBytes::new(
-                    plugin_name.to_string(),
-                    plugin_bytes,
-                ))
-            })
+            use swc_core::plugin_runner::plugin_module_bytes::RawPluginModuleBytes;
+            Self(RawPluginModuleBytes::new(
+                plugin_name.to_string(),
+                plugin_bytes,
+            ))
         }
 
         #[cfg(not(feature = "swc_ecma_transform_plugin"))]
@@ -200,8 +196,6 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     // still have to construct from raw bytes internally to perform actual
                     // transform.
                     for (_plugin_name, plugin_config, plugin_module) in plugins.drain(..) {
-                        let runtime =
-                            swc_core::plugin_runner::wasix_runtime::build_wasi_runtime(None);
                         let mut transform_plugin_executor =
                             swc_core::plugin_runner::create_plugin_transform_executor(
                                 ctx.source_map,
@@ -210,7 +204,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                                 None,
                                 plugin_module,
                                 Some(plugin_config),
-                                runtime,
+                                Arc::new(swc_plugin_backend_wasmer::WasmerRuntime),
                             );
 
                         serialized_program = transform_plugin_executor
