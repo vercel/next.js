@@ -201,11 +201,9 @@ Load polyfills before application code runs. Use static imports for immediate lo
 import './lib/polyfills
 
 if (!window.ResizeObserver) {
-  import('./lib/polyfills/resize-observer').then(
-    ({ default: ResizeObserver }) => {
-      window.ResizeObserver = ResizeObserver
-    }
-  )
+  import('./lib/polyfills/resize-observer').then((mod) => {
+    window.ResizeObserver = mod.default
+  })
 }
 ```
 
@@ -213,8 +211,8 @@ if (!window.ResizeObserver) {
 import './lib/polyfills'
 
 if (!window.ResizeObserver) {
-  import('./lib/polyfills/resize-observer').then((module) => {
-    window.ResizeObserver = module.default
+  import('./lib/polyfills/resize-observer').then((mod) => {
+    window.ResizeObserver = mod.default
   })
 }
 ```

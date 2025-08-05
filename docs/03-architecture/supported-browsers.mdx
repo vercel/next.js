@@ -71,7 +71,9 @@ import { useCallback } from 'react'
 export const useAnalytics = () => {
   const tracker = useCallback(async (data: unknown) => {
     if (!('structuredClone' in globalThis)) {
-      globalThis.structuredClone = await import('polyfills/structured-clone')
+      import('polyfills/structured-clone').then((mod) => {
+        globalThis.structuredClone = mod.default
+      })
     }
 
     /* Do some work that uses structured clone */
@@ -87,7 +89,9 @@ import { useCallback } from 'react'
 export const useAnalytics = () => {
   const tracker = useCallback(async (data) => {
     if (!('structuredClone' in globalThis)) {
-      globalThis.structuredClone = await import('polyfills/structured-clone')
+      import('polyfills/structured-clone').then((mod) => {
+        globalThis.structuredClone = mod.default
+      })
     }
 
     /* Do some work that uses structured clone */
