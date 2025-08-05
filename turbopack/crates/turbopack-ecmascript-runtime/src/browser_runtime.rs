@@ -73,7 +73,6 @@ pub async fn get_browser_runtime_code(
             runtime_backend_code.push("browser/runtime/dom/dev-backend-dom.ts");
         }
         (ChunkLoading::Dom, RuntimeType::Production) => {
-            // TODO
             runtime_backend_code.push("browser/runtime/dom/runtime-backend-dom.ts");
         }
 
