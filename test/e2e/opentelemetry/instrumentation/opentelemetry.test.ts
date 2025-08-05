@@ -916,7 +916,7 @@ describe('opentelemetry', () => {
                   {
                     name: 'resolve page components',
                     attributes: {
-                      'next.route': '/pages/[param]/getServerSidePropsError',
+                      'next.route': '/_error',
                       'next.span_name': 'resolve page components',
                       'next.span_type': 'NextNodeServer.findPageComponents',
                     },
@@ -941,7 +941,7 @@ describe('opentelemetry', () => {
                   {
                     name: 'resolve page components',
                     attributes: {
-                      'next.route': '/_error',
+                      'next.route': '/pages/[param]/getServerSidePropsError',
                       'next.span_name': 'resolve page components',
                       'next.span_type': 'NextNodeServer.findPageComponents',
                     },
@@ -1003,7 +1003,7 @@ describe('opentelemetry', () => {
                   {
                     name: 'resolve page components',
                     attributes: {
-                      'next.route': '/pages/[param]/getServerSidePropsNotFound',
+                      'next.route': '/_not-found',
                       'next.span_name': 'resolve page components',
                       'next.span_type': 'NextNodeServer.findPageComponents',
                     },
@@ -1013,7 +1013,7 @@ describe('opentelemetry', () => {
                   {
                     name: 'resolve page components',
                     attributes: {
-                      'next.route': '/_not-found',
+                      'next.route': '/pages/[param]/getServerSidePropsNotFound',
                       'next.span_name': 'resolve page components',
                       'next.span_type': 'NextNodeServer.findPageComponents',
                     },
