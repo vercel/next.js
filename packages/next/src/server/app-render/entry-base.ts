@@ -81,5 +81,22 @@ export function patchFetch() {
   })
 }
 
+/**
+ * Only available in the Node.js runtime.
+ */
+export let decodeReplyFromBusboyNodeJS: typeof import('react-server-dom-webpack/server.node').decodeReplyFromBusboy
+if (process.env.NEXT_RUNTIME === 'edge') {
+  decodeReplyFromBusboyNodeJS = () => {
+    throw new Error(
+      'Assumed Node.js in the Edge runtime. This is a bug in Next.js.'
+    )
+  }
+} else {
+  const ReactServerDOMNode =
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+  decodeReplyFromBusboyNodeJS = ReactServerDOMNode.decodeReplyFromBusboy
+}
+
 // Development only
 export { SegmentViewNode, SegmentViewStateNode }

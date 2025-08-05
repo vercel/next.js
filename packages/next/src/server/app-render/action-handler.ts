@@ -793,12 +793,10 @@ export async function handleAction({
           const {
             createTemporaryReferenceSet,
             decodeReply,
-            decodeReplyFromBusboy,
+            decodeReplyFromBusboyNodeJS: decodeReplyFromBusboy,
             decodeAction,
             decodeFormState,
-          } = require(
-            `./react-server.node`
-          ) as typeof import('./react-server.node')
+          } = ComponentMod
 
           temporaryReferences = createTemporaryReferenceSet()
 

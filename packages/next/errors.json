@@ -772,5 +772,6 @@
   "771": "\\`%s\\` was called during a runtime prerender. Next.js should be preventing %s from being included in server components statically, but did not in this case.",
   "772": "FetchStrategy.PPRRuntime should never be used when `experimental.clientSegmentCache` is disabled",
   "773": "Missing workStore in createPrerenderParamsForClientSegment",
-  "774": "Route %s used %s outside of a Server Component. This is not allowed."
+  "774": "Route %s used %s outside of a Server Component. This is not allowed.",
+  "775": "Assumed Node.js in the Edge runtime. This is a bug in Next.js."
 }

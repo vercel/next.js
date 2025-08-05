@@ -66,6 +66,7 @@ declare module 'next/dist/compiled/amphtml-validator' {
 }
 
 declare module 'react-server-dom-webpack/server'
+declare module 'react-server-dom-webpack/server.node'
 declare module 'react-server-dom-webpack/static'
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
