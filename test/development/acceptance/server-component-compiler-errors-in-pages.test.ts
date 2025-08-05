@@ -290,6 +290,99 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     }
   })
 
+  test("importing 'next/root-params' in pages", async () => {
+    const files = new Map([
+      ...initialFiles,
+      [
+        'components/Comp.js',
+        outdent`
+          import { foo } from 'next/root-params'
+
+          export default function Page() {
+            return 'hello world'
+          }
+        `,
+      ],
+      [
+        // the import is guarded behind an experimental flag
+        'next.config.js',
+        outdent`
+          module.exports = { experimental: { rootParams: true } }
+        `,
+      ],
+    ])
+    await using sandbox = await createSandbox(next, files)
+    const { session } = sandbox
+
+    await session.assertHasRedbox()
+    await expect(session.getRedboxSource()).resolves.toMatch(
+      /That only works in a Server Component/
+    )
+
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+       "./components/Comp.js (1:1)
+       Ecmascript file had an error
+       > 1 | import { foo } from 'next/root-params'
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         2 |
+         3 | export default function Page() {
+         4 |   return 'hello world'
+
+       You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+
+       Import traces:
+         Browser:
+           ./components/Comp.js
+           ./pages/index.js
+
+         SSR:
+           ./components/Comp.js
+           ./pages/index.js"
+      `)
+    } else if (isRspack) {
+      expect(
+        takeUpToString(
+          next.normalizeTestDirContent(await session.getRedboxSource()),
+          '----'
+        )
+      ).toMatchInlineSnapshot(`
+       "./components/Comp.js
+         × Module build failed:
+         ╰─▶   × Error:   x You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+               │   |
+               │
+               │    ,-[1:1]
+               │  1 | import { foo } from 'next/root-params'
+               │    : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               │  2 |
+               │  3 | export default function Page() {
+               │  4 |   return 'hello world'
+               │    \`----"
+      `)
+    } else {
+      expect(
+        takeUpToString(
+          next.normalizeTestDirContent(await session.getRedboxSource()),
+          'Import trace for requested module:'
+        )
+      ).toMatchInlineSnapshot(`
+       "./components/Comp.js
+       Error:   x You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         |
+
+          ,-[1:1]
+        1 | import { foo } from 'next/root-params'
+          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        2 | 
+        3 | export default function Page() {
+        4 |   return 'hello world'
+          \`----"
+      `)
+    }
+  })
+
   describe("importing 'next/cache' APIs in pages", () => {
     test.each([
       'revalidatePath',

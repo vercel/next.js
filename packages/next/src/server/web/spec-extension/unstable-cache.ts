@@ -163,6 +163,7 @@ export function unstable_cache<T extends Callback>(
             case 'cache':
             case 'private-cache':
             case 'prerender':
+            case 'prerender-runtime':
             case 'prerender-ppr':
             case 'prerender-legacy':
               // We update the store's revalidate property if the option.revalidate is a higher precedence
@@ -384,6 +385,7 @@ function getFetchUrlPrefix(
       return `${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch}`
     case 'prerender':
     case 'prerender-client':
+    case 'prerender-runtime':
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':

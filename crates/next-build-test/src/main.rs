@@ -1,4 +1,9 @@
-use std::{convert::Infallible, str::FromStr, time::Instant};
+use std::{
+    cell::RefCell,
+    convert::Infallible,
+    str::FromStr,
+    time::{Duration, Instant},
+};
 
 use next_api::project::{DefineEnv, ProjectOptions};
 use next_build_test::{Strategy, main_inner};
@@ -7,6 +12,7 @@ use next_core::tracing_presets::{
     TRACING_NEXT_TURBOPACK_TARGETS,
 };
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
+use turbo_rcstr::rcstr;
 use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_malloc::TurboMalloc;
@@ -70,11 +76,22 @@ fn main() {
                 factor = 1;
             }
 
+            thread_local! {
+                static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
+            }
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .on_thread_stop(|| {
                     TurboMalloc::thread_stop();
                     tracing::debug!("threads stopped");
+                })
+                .on_thread_park(|| {
+                    LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
+                        if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
+                            swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                            *cell = Some(Instant::now());
+                        }
+                    });
                 })
                 .build()
                 .unwrap()
@@ -143,30 +160,30 @@ fn main() {
             let canonical_path = std::fs::canonicalize(absolute_dir).unwrap();
 
             let options = ProjectOptions {
-                build_id: "test".into(),
+                build_id: rcstr!("test"),
                 define_env: DefineEnv {
                     client: vec![],
                     edge: vec![],
                     nodejs: vec![],
                 },
                 dev: true,
-                encryption_key: "deadbeef".into(),
+                encryption_key: rcstr!("deadbeef"),
                 env: vec![],
                 js_config: include_str!("../jsConfig.json").into(),
                 next_config: include_str!("../nextConfig.json").into(),
                 preview_props: next_api::project::DraftModeOptions {
-                    preview_mode_encryption_key: "deadbeef".into(),
-                    preview_mode_id: "test".into(),
-                    preview_mode_signing_key: "deadbeef".into(),
+                    preview_mode_encryption_key: rcstr!("deadbeef"),
+                    preview_mode_id: rcstr!("test"),
+                    preview_mode_signing_key: rcstr!("deadbeef"),
                 },
                 project_path: canonical_path.to_string_lossy().into(),
-                root_path: "/".into(),
+                root_path: rcstr!("/"),
                 watch: Default::default(),
                 browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 \
                                      Safari versions, last 1 Edge versions"
                     .into(),
                 no_mangling: false,
-                current_node_js_version: "18.0.0".into(),
+                current_node_js_version: rcstr!("18.0.0"),
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();

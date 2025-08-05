@@ -230,6 +230,7 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
       // A private cache scope is already dynamic by definition.
       return
     case 'prerender':
+    case 'prerender-runtime':
     case 'prerender-legacy':
     case 'prerender-ppr':
     case 'prerender-client':
@@ -333,6 +334,21 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   throw createPrerenderInterruptedError(
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
   )
+}
+
+/**
+ * Use this function when dynamically prerendering with dynamicIO.
+ * We don't want to error, because it's better to return something
+ * (and we've already aborted the render at the point where the sync dynamic error occured),
+ * but we should log an error server-side.
+ * @internal
+ */
+export function warnOnSyncDynamicError(dynamicTracking: DynamicTrackingState) {
+  if (dynamicTracking.syncDynamicErrorWithStack) {
+    // the server did something sync dynamic, likely
+    // leading to an early termination of the prerender.
+    console.error(dynamicTracking.syncDynamicErrorWithStack)
+  }
 }
 
 // For now these implementations are the same so we just reexport
@@ -519,6 +535,7 @@ export function createHangingInputAbortSignal(
 ): AbortSignal | undefined {
   switch (workUnitStore.type) {
     case 'prerender':
+    case 'prerender-runtime':
       const controller = new AbortController()
 
       if (workUnitStore.cacheSignal) {
@@ -569,48 +586,52 @@ export function annotateDynamicAccess(
 
 export function useDynamicRouteParams(expression: string) {
   const workStore = workAsyncStorage.getStore()
-
-  if (
-    workStore &&
-    workStore.isStaticGeneration &&
-    workStore.fallbackRouteParams &&
-    workStore.fallbackRouteParams.size > 0
-  ) {
-    // There are fallback route params, we should track these as dynamic
-    // accesses.
-    const workUnitStore = workUnitAsyncStorage.getStore()
-    if (workUnitStore) {
-      switch (workUnitStore.type) {
-        case 'prerender':
-        case 'prerender-client':
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workStore && workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender-client':
+      case 'prerender': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
           // We are in a prerender with cacheComponents semantics. We are going to
           // hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole.
-          React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
-          break
-        case 'prerender-ppr':
+          React.use(
+            makeHangingPromise(
+              workUnitStore.renderSignal,
+              workStore.route,
+              expression
+            )
+          )
+        }
+        break
+      }
+      case 'prerender-ppr': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
           return postponeWithTracking(
             workStore.route,
             expression,
             workUnitStore.dynamicTracking
           )
-        case 'prerender-legacy':
-          return throwToInterruptStaticGeneration(
-            expression,
-            workStore,
-            workUnitStore
-          )
-        case 'cache':
-        case 'private-cache':
-          throw new InvariantError(
-            `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
-          )
-        case 'request':
-        case 'unstable-cache':
-          break
-        default:
-          workUnitStore satisfies never
+        }
+        break
       }
+      case 'prerender-runtime':
+        throw new InvariantError(
+          `\`${expression}\` was called during a runtime prerender. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+        )
+      case 'cache':
+      case 'private-cache':
+        throw new InvariantError(
+          `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+        )
+      case 'prerender-legacy':
+      case 'request':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 }

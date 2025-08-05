@@ -28,7 +28,7 @@ import type { ImplicitTags } from '../lib/implicit-tags'
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
   for (const header of FLIGHT_HEADERS) {
-    cleaned.delete(header.toLowerCase())
+    cleaned.delete(header)
   }
 
   return HeadersAdapter.seal(cleaned)

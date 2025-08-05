@@ -197,19 +197,14 @@ export interface RequestMeta {
   defaultLocale?: string
 
   /**
-   * The project dir the server is running in
+   * The relative project dir the server is running in from project root
    */
-  projectDir?: string
+  relativeProjectDir?: string
 
   /**
    * The dist directory the server is currently using
    */
   distDir?: string
-
-  /**
-   * Whether we are generating the fallback version of the page in dev mode
-   */
-  isIsrFallback?: boolean
 
   /**
    * The query after resolving routes
@@ -236,6 +231,11 @@ export interface RequestMeta {
    * specific flags in future)
    */
   minimalMode?: boolean
+
+  /**
+   * DEV only: The fallback params that should be used when validating prerenders during dev
+   */
+  devValidatingFallbackParams?: Map<string, string>
 }
 
 /**

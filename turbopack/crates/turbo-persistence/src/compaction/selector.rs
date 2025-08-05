@@ -104,6 +104,7 @@ pub fn compute_metrics<T: Compactable>(
 }
 
 /// Configuration for the compaction algorithm.
+#[derive(Clone)]
 pub struct CompactConfig {
     /// The minimum number of files to merge at once.
     pub min_merge_count: usize,

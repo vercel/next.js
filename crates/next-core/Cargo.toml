@@ -16,7 +16,6 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
 either = { workspace = true }
-lazy-regex = "3.0.1"
 next-custom-transforms = { workspace = true }
 once_cell = { workspace = true }
 qstring = { workspace = true }
@@ -31,8 +30,8 @@ futures = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
-react_remove_properties = "0.44.0"
-remove_console = "0.45.0"
+react_remove_properties = { workspace = true }
+remove_console = { workspace = true }
 itertools = { workspace = true }
 percent-encoding = "2.3.1"
 serde_path_to_error = { workspace = true }

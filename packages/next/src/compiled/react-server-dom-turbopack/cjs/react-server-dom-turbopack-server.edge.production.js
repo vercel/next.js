@@ -415,6 +415,8 @@ var supportsRequestStorage = "function" === typeof AsyncLocalStorage,
           throw Error(
             "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
           );
+        case "then":
+          return;
       }
       throw Error(
         "Cannot access " +
@@ -1883,9 +1885,10 @@ function flushCompletedChunks(request) {
           "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
         )
       ),
-    (request.status = 14),
     null !== request.destination &&
-      (request.destination.close(), (request.destination = null)));
+      ((request.status = 14),
+      request.destination.close(),
+      (request.destination = null)));
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;

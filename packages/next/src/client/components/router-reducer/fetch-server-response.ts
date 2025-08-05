@@ -31,6 +31,7 @@ import {
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
+import { getRenderedPathname } from '../../route-params'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -55,7 +56,7 @@ export type RequestHeaders = {
   [RSC_HEADER]?: '1'
   [NEXT_ROUTER_STATE_TREE_HEADER]?: string
   [NEXT_URL]?: string
-  [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'
@@ -235,8 +236,21 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
+    let renderedPathname
+    if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+      // Read the URL from the response object.
+      renderedPathname = getRenderedPathname(res)
+    } else {
+      // Before Segment Cache is enabled, we should not rely on the new
+      // rewrite headers (x-rewritten-path, x-rewritten-query) because that
+      // is a breaking change. Read the URL from the response body.
+      const renderedUrlParts = response.c
+      renderedPathname = new URL(renderedUrlParts.join('/'), 'http://localhost')
+        .pathname
+    }
+
     return {
-      flightData: normalizeFlightData(response.f),
+      flightData: normalizeFlightData(response.f, renderedPathname),
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
       prerendered: response.S,

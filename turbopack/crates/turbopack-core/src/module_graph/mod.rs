@@ -563,6 +563,70 @@ impl SingleModuleGraph {
         Ok(())
     }
 
+    /// Traverses all reachable nodes and also continue revisiting them as long the visitor returns
+    /// GraphTraversalAction::Continue. The visitor is responsible for the runtime complexity and
+    /// eventual termination of the traversal. This corresponds to computing a fixed point state for
+    /// the graph.
+    ///
+    /// It is guaranteed that the parent node passed to the `visit` function, if any, has
+    /// already been passed to `visit`.
+    ///
+    /// * `entries` - The entry modules to start the traversal from
+    /// * `visit` - Called for a specific edge
+    ///    - Receives: Option(originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode
+    ///    - Return [GraphTraversalAction]s to control the traversal
+    ///
+    /// Returns the number of node visits (i.e. higher than the node
+    /// count if there are retraversals).
+    pub fn traverse_edges_from_entries_fixed_point<'a>(
+        &'a self,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+        mut visit: impl FnMut(
+            Option<(&'a SingleModuleGraphModuleNode, &'a RefData)>,
+            &'a SingleModuleGraphNode,
+        ) -> Result<GraphTraversalAction>,
+    ) -> Result<usize> {
+        let mut queue = VecDeque::default();
+        let mut queue_set = FxHashSet::default();
+
+        for module in entries {
+            let index = self.get_module(module).unwrap();
+            let action = visit(None, self.graph.node_weight(index).unwrap())?;
+            if action == GraphTraversalAction::Continue && queue_set.insert(index) {
+                queue.push_back(index);
+            }
+        }
+
+        let mut visit_count = 0;
+        while let Some(index) = queue.pop_front() {
+            queue_set.remove(&index);
+            let node = match self.graph.node_weight(index).unwrap() {
+                SingleModuleGraphNode::Module(single_module_graph_module_node) => {
+                    single_module_graph_module_node
+                }
+                _ => {
+                    continue; // we don't traverse into parent graphs
+                }
+            };
+            visit_count += 1;
+            for edge in self
+                .graph
+                .edges_directed(index, petgraph::Direction::Outgoing)
+            {
+                let refdata = edge.weight();
+                let target_index = edge.target();
+                let target = self.graph.node_weight(edge.target()).unwrap();
+                let action = visit(Some((node, refdata)), target)?;
+                if action == GraphTraversalAction::Continue && queue_set.insert(target_index) {
+                    queue.push_back(target_index);
+                }
+            }
+        }
+
+        Ok(visit_count)
+    }
+
     /// Traverses all reachable edges in dfs order. The preorder visitor can be used to
     /// forward state down the graph, and to skip subgraphs.
     ///
@@ -1937,6 +2001,58 @@ pub mod tests {
         .await;
     }
 
+    #[tokio::test]
+    async fn traverse_edges_from_entries_fixed_point_cycle() {
+        run_graph_test(
+            vec![rcstr!("a.js")],
+            {
+                let mut deps = FxHashMap::default();
+                // A cycle of length 3
+                deps.insert(rcstr!("a.js"), vec![rcstr!("b.js")]);
+                deps.insert(rcstr!("b.js"), vec![rcstr!("c.js")]);
+                deps.insert(rcstr!("c.js"), vec![rcstr!("a.js")]);
+                deps
+            },
+            |graph, entry_modules, module_to_name| {
+                let mut visits = Vec::new();
+                let mut count = 0;
+
+                graph.traverse_edges_from_entries_fixed_point(
+                    entry_modules,
+                    |parent, target| {
+                        visits.push((
+                            parent
+                                .map(|(node, _)| module_to_name.get(&node.module).unwrap().clone()),
+                            module_to_name.get(&target.module()).unwrap().clone(),
+                        ));
+                        count += 1;
+
+                        // We are a cycle so we need to break the loop eventually
+                        Ok(if count < 6 {
+                            GraphTraversalAction::Continue
+                        } else {
+                            GraphTraversalAction::Skip
+                        })
+                    },
+                )?;
+                assert_eq!(
+                    vec![
+                        (None, rcstr!("a.js")),
+                        (Some(rcstr!("a.js")), rcstr!("b.js")),
+                        (Some(rcstr!("b.js")), rcstr!("c.js")),
+                        (Some(rcstr!("c.js")), rcstr!("a.js")),
+                        // we start following the cycle again
+                        (Some(rcstr!("a.js")), rcstr!("b.js")),
+                        (Some(rcstr!("b.js")), rcstr!("c.js")),
+                    ],
+                    visits
+                );
+
+                Ok(())
+            },
+        )
+        .await;
+    }
     #[turbo_tasks::value(shared)]
     struct TestRepo {
         repo: FxHashMap<FileSystemPath, Vec<FileSystemPath>>,

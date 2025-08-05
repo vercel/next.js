@@ -22,10 +22,10 @@ export default function MixedFetchStrategies() {
             <li>
               <LinkAccordion
                 id="ppr-enabled-prefetch-true"
-                prefetch={true}
+                prefetch="unstable_forceStale"
                 href="/mixed-fetch-strategies/has-loading-boundary/a/b/shared-layout/ppr-enabled"
               >
-                Same link, but with prefetch=true
+                Same link, but with prefetch="unstable_forceStale"
               </LinkAccordion>
             </li>
           </ul>

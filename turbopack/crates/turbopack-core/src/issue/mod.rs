@@ -785,7 +785,7 @@ pub enum IssueStage {
     CodeGen,
     Unsupported,
     Misc,
-    Other(String),
+    Other(RcStr),
 }
 
 impl Display for IssueStage {

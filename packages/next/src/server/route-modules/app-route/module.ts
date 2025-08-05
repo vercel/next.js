@@ -217,11 +217,11 @@ export class AppRouteRouteModule extends RouteModule<
     userland,
     definition,
     distDir,
-    projectDir,
+    relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition, distDir, projectDir })
+    super({ userland, definition, distDir, relativeProjectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
@@ -387,6 +387,7 @@ export class AppRouteRouteModule extends RouteModule<
               // This replicates prior behavior where rootParams is empty in routes
               // TODO we need to make this have the proper rootParams for this route
               rootParams: {},
+              fallbackRouteParams: null,
               implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
@@ -481,6 +482,7 @@ export class AppRouteRouteModule extends RouteModule<
             type: 'prerender',
             phase: 'action',
             rootParams: {},
+            fallbackRouteParams: null,
             implicitTags,
             renderSignal: finalController.signal,
             controller: finalController,
@@ -667,8 +669,6 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the context for the static generation.
     const staticGenerationContext: WorkStoreContext = {
-      // App Routes don't support unknown route params.
-      fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
@@ -1188,6 +1188,10 @@ function trackDynamic(
       case 'prerender-client':
         throw new InvariantError(
           'A client prerender store should not be used for a route handler.'
+        )
+      case 'prerender-runtime':
+        throw new InvariantError(
+          'A runtime prerender store should not be used for a route handler.'
         )
       case 'prerender-ppr':
         return postponeWithTracking(

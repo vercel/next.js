@@ -79,6 +79,74 @@ describe('segment cache (staleness)', () => {
     )
   })
 
+  it('expires runtime prefetches when their stale time has elapsed', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    await page.clock.install()
+
+    // Reveal the links to trigger a runtime prefetch
+    const toggle5MinutesLink = await browser.elementByCss(
+      'input[data-link-accordion="/runtime-stale-5-minutes"]'
+    )
+    const toggle10MinutesLink = await browser.elementByCss(
+      'input[data-link-accordion="/runtime-stale-10-minutes"]'
+    )
+    await act(
+      async () => {
+        await toggle5MinutesLink.click()
+        await browser.elementByCss('a[href="/runtime-stale-5-minutes"]')
+      },
+      {
+        includes: 'Content with stale time of 5 minutes',
+      }
+    )
+    await act(
+      async () => {
+        await toggle10MinutesLink.click()
+        await browser.elementByCss('a[href="/runtime-stale-10-minutes"]')
+      },
+      {
+        includes: 'Content with stale time of 10 minutes',
+      }
+    )
+
+    // Hide the links
+    await toggle5MinutesLink.click()
+    await toggle10MinutesLink.click()
+
+    // Fast forward 5 minutes and 1 millisecond
+    await page.clock.fastForward(5 * 60 * 1000 + 1)
+
+    // Reveal the links again to trigger new prefetch tasks
+    await act(
+      async () => {
+        await toggle5MinutesLink.click()
+        await browser.elementByCss('a[href="/runtime-stale-5-minutes"]')
+      },
+      // The page with a stale time of 5 minutes is requested again
+      // because its stale time elapsed.
+      {
+        includes: 'Content with stale time of 5 minutes',
+      }
+    )
+
+    await act(
+      async () => {
+        await toggle10MinutesLink.click()
+        await browser.elementByCss('a[href="/runtime-stale-10-minutes"]')
+      },
+      // The page with a stale time of 10 minutes is *not* requested again
+      // because it's still fresh.
+      'no-requests'
+    )
+  })
+
   it('reuses dynamic data up to the staleTimes.dynamic threshold', async () => {
     let page: Playwright.Page
     const startDate = Date.now()

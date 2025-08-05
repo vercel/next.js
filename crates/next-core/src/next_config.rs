@@ -3,12 +3,13 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_env::EnvMap;
+use turbo_tasks_env::{EnvMap, ProcessEnv};
+use turbo_tasks_fetch::FetchClient;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     ConditionItem, ConditionPath, LoaderRuleItem, OptionWebpackRules,
@@ -734,6 +735,7 @@ pub struct ExperimentalConfig {
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     cache_components: Option<bool>,
     use_cache: Option<bool>,
+    root_params: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -801,6 +803,7 @@ pub struct ExperimentalConfig {
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_use_system_tls_certs: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1167,10 +1170,10 @@ impl Issue for InvalidLoaderRuleError {
                 .into(),
             ),
             StyledString::Text(
-                "Check out the documentation here for more information:".into(),
+                rcstr!("Check out the documentation here for more information:"),
             ),
             StyledString::Text(
-                "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders".into(),
+                rcstr!("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"),
             ),
         ]).resolved_cell())))
     }
@@ -1604,6 +1607,16 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_root_params(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .root_params
+                // rootParams should be enabled implicitly in cacheComponents.
+                .unwrap_or(self.experimental.cache_components.unwrap_or(false)),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
         let mut cache_kinds = CacheKinds::default();
 
@@ -1720,6 +1733,28 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn output_file_tracing_excludes(&self) -> Vc<OptionJsonValue> {
         Vc::cell(self.output_file_tracing_excludes.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn fetch_client(&self, env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<FetchClient>> {
+        // Support both an env var and the experimental flag to provide more flexibility to
+        // developers on locked down systems, depending on if they want to configure this on a
+        // per-system or per-project basis.
+        let use_system_tls_certs = env
+            .read(rcstr!("NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS"))
+            .await?
+            .as_ref()
+            .and_then(|env_value| {
+                // treat empty value same as an unset value
+                (!env_value.is_empty()).then(|| env_value == "1" || env_value == "true")
+            })
+            .or(self.experimental.turbopack_use_system_tls_certs)
+            .unwrap_or(false);
+        Ok(FetchClient {
+            tls_built_in_webpki_certs: !use_system_tls_certs,
+            tls_built_in_native_certs: use_system_tls_certs,
+        }
+        .cell())
     }
 }
 

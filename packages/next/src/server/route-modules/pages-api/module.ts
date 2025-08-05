@@ -7,6 +7,7 @@ import type { RouteModuleOptions } from '../route-module'
 
 import { RouteModule, type RouteModuleHandleContext } from '../route-module'
 import { apiResolver } from '../../api-utils/node/api-resolver'
+import type { RevalidateFn } from '../../lib/router-utils/router-server-context'
 
 type PagesAPIHandleFn = (
   req: IncomingMessage,
@@ -94,9 +95,10 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
   multiZoneDraftMode?: boolean
 
   /**
-   * The relative project directory
+   * Internal revalidate function to avoid revalidating
+   * over the network
    */
-  projectDir: string
+  internalRevalidate?: RevalidateFn
 }
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
@@ -149,7 +151,7 @@ export class PagesAPIRouteModule extends RouteModule<
         hostname: context.hostname,
         multiZoneDraftMode: context.multiZoneDraftMode,
         dev: context.dev,
-        projectDir: context.projectDir,
+        internalRevalidate: context.internalRevalidate,
       },
       context.propagateError,
       context.dev,

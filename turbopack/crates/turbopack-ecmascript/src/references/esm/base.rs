@@ -866,9 +866,9 @@ impl Issue for CircularReExport {
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Line(vec![
-            StyledString::Text("Export ".into()),
+            StyledString::Text(rcstr!("Export ")),
             StyledString::Code(self.export.clone()),
-            StyledString::Text(" is a circular re-export".into()),
+            StyledString::Text(rcstr!(" is a circular re-export")),
         ])
         .cell())
     }
@@ -887,20 +887,20 @@ impl Issue for CircularReExport {
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
             StyledString::Stack(vec![
-                StyledString::Line(vec![StyledString::Text("The export".into())]),
+                StyledString::Line(vec![StyledString::Text(rcstr!("The export"))]),
                 StyledString::Line(vec![
                     StyledString::Code(self.export.clone()),
-                    StyledString::Text(" of module ".into()),
+                    StyledString::Text(rcstr!(" of module ")),
                     StyledString::Strong(self.module.ident().to_string().owned().await?),
                 ]),
-                StyledString::Line(vec![StyledString::Text(
-                    "is a re-export of the export".into(),
-                )]),
+                StyledString::Line(vec![StyledString::Text(rcstr!(
+                    "is a re-export of the export"
+                ))]),
                 StyledString::Line(vec![
-                    StyledString::Code(self.import.clone().unwrap_or_else(|| "*".into())),
-                    StyledString::Text(" of module ".into()),
+                    StyledString::Code(self.import.clone().unwrap_or_else(|| rcstr!("*"))),
+                    StyledString::Text(rcstr!(" of module ")),
                     StyledString::Strong(self.module_cycle.ident().to_string().owned().await?),
-                    StyledString::Text(".".into()),
+                    StyledString::Text(rcstr!(".")),
                 ]),
             ])
             .resolved_cell(),

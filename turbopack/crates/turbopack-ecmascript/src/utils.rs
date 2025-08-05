@@ -265,7 +265,11 @@ mod tests {
             Pattern::Constant(rcstr!("hello/world")),
             js_value_to_pattern(&JsValue::Concat(
                 1,
-                vec!["hello".into(), "\\".into(), "world".into()]
+                vec![
+                    rcstr!("hello").into(),
+                    rcstr!("\\").into(),
+                    rcstr!("world").into()
+                ]
             ))
         );
     }

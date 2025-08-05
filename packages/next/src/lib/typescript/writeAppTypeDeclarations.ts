@@ -4,11 +4,13 @@ import { promises as fs } from 'fs'
 
 export async function writeAppTypeDeclarations({
   baseDir,
+  distDir,
   imageImportsEnabled,
   hasPagesDir,
   hasAppDir,
 }: {
   baseDir: string
+  distDir: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   hasAppDir: boolean
@@ -54,6 +56,13 @@ export async function writeAppTypeDeclarations({
       '/// <reference types="next/navigation-types/compat/navigation" />'
     )
   }
+
+  const routeTypesPath = path.posix.join(
+    distDir.replaceAll(path.win32.sep, path.posix.sep),
+    'types/routes.d.ts'
+  )
+
+  directives.push(`/// <reference path="./${routeTypesPath}" />`)
 
   // Push the notice in.
   directives.push(

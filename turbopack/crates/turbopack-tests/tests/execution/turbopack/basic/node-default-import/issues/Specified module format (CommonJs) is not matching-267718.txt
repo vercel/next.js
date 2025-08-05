@@ -5,6 +5,7 @@ error - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/b
   In some cases EcmaScript import/export syntax is added by an transform and isn't actually part of the source code. In these cases revisit transformation options to inject the correct syntax.
   
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/invalid-exports.cjs
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/index.js
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/invalid-exports.cjs
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/index.js

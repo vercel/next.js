@@ -108,8 +108,15 @@ import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import {
   createPagesMapping,
+  collectAppFiles,
   getStaticInfoIncludingLayouts,
   sortByPageExts,
+  processPageRoutes,
+  processAppRoutes,
+  processLayoutRoutes,
+  extractSlotsFromAppRoutes,
+  type RouteInfo,
+  type SlotInfo,
 } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -211,6 +218,10 @@ import {
   sortPages,
   sortSortableRouteObjects,
 } from '../shared/lib/router/utils/sortable-routes'
+import {
+  createRouteTypesManifest,
+  writeRouteTypesManifest,
+} from '../server/lib/router-utils/route-types-utils'
 
 type Fallback = null | boolean | string
 
@@ -402,6 +413,18 @@ export type ManifestRoute = ManifestBuiltRoute & {
   page: string
   namedRegex?: string
   routeKeys?: { [key: string]: string }
+
+  /**
+   * If true, this indicates that the route has fallback root params. This is
+   * used to simplify the route regex for matching.
+   */
+  hasFallbackRootParams?: boolean
+
+  /**
+   * The prefetch segment data routes for this route. This is used to rewrite
+   * the prefetch segment data routes (or the inverse) to the correct
+   * destination.
+   */
   prefetchSegmentDataRoutes?: PrefetchSegmentDataRoute[]
 
   /**
@@ -1101,12 +1124,6 @@ export default async function build(
         await recursiveDelete(distDir, /^cache/)
       }
 
-      // For app directory, we run type checking after build. That's because
-      // we dynamically generate types for each layout and page in the app
-      // directory.
-      if (!appDir && !isCompileMode)
-        await startTypeChecking(typeCheckingOptions)
-
       if (appDir && 'exportPathMap' in config) {
         Log.error(
           'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
@@ -1194,6 +1211,7 @@ export default async function build(
       NextBuildContext.mappedPages = mappedPages
 
       let mappedAppPages: MappedPages | undefined
+      let mappedAppLayouts: MappedPages | undefined
       let denormalizedAppPages: string[] | undefined
 
       if (appDir) {
@@ -1201,26 +1219,40 @@ export default async function build(
           process.env.NEXT_PRIVATE_APP_PATHS || '[]'
         )
 
-        let appPaths = Boolean(process.env.NEXT_PRIVATE_APP_PATHS)
-          ? providedAppPaths
-          : await nextBuildSpan
-              .traceChild('collect-app-paths')
-              .traceAsyncFn(() =>
-                recursiveReadDir(appDir, {
-                  pathnameFilter: (absolutePath) =>
-                    validFileMatcher.isAppRouterPage(absolutePath) ||
-                    // For now we only collect the root /not-found page in the app
-                    // directory as the 404 fallback
-                    validFileMatcher.isRootNotFound(absolutePath),
-                  ignorePartFilter: (part) => part.startsWith('_'),
-                })
-              )
+        let appPaths: string[]
+        let layoutPaths: string[]
+
+        if (Boolean(process.env.NEXT_PRIVATE_APP_PATHS)) {
+          appPaths = providedAppPaths
+          layoutPaths = []
+        } else {
+          // Collect both app pages and layouts in a single directory traversal
+          const result = await nextBuildSpan
+            .traceChild('collect-app-files')
+            .traceAsyncFn(() => collectAppFiles(appDir, config.pageExtensions))
+
+          appPaths = result.appPaths
+          layoutPaths = result.layoutPaths
+        }
 
         mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
           .traceAsyncFn(() =>
             createPagesMapping({
               pagePaths: appPaths,
+              isDev: false,
+              pagesType: PAGE_TYPES.APP,
+              pageExtensions: config.pageExtensions,
+              pagesDir,
+              appDir,
+            })
+          )
+
+        mappedAppLayouts = await nextBuildSpan
+          .traceChild('create-app-layouts')
+          .traceAsyncFn(() =>
+            createPagesMapping({
+              pagePaths: layoutPaths,
               isDev: false,
               pagesType: PAGE_TYPES.APP,
               pageExtensions: config.pageExtensions,
@@ -1276,6 +1308,49 @@ export default async function build(
         pages: pagesPageKeys,
         app: appPaths.length > 0 ? appPaths : undefined,
       }
+
+      await nextBuildSpan
+        .traceChild('generate-route-types')
+        .traceAsyncFn(async () => {
+          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+          await fs.mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+
+          let pageRoutes: RouteInfo[] = []
+          let appRoutes: RouteInfo[] = []
+          let layoutRoutes: RouteInfo[] = []
+          let slots: SlotInfo[] = []
+
+          // Build pages routes
+          const processedPages = processPageRoutes(mappedPages, dir)
+          // We combine both page routes and API routes
+          pageRoutes = [
+            ...processedPages.pageRoutes,
+            ...processedPages.pageApiRoutes,
+          ]
+
+          // Build app routes
+          if (appDir && mappedAppPages) {
+            slots = extractSlotsFromAppRoutes(mappedAppPages)
+            appRoutes = processAppRoutes(mappedAppPages, dir)
+          }
+
+          // Build app layouts
+          if (appDir && mappedAppLayouts) {
+            layoutRoutes = processLayoutRoutes(mappedAppLayouts, dir)
+          }
+
+          const routeTypesManifest = await createRouteTypesManifest({
+            dir,
+            pageRoutes,
+            appRoutes,
+            layoutRoutes,
+            slots,
+            redirects: config.redirects,
+            rewrites: config.rewrites,
+          })
+
+          await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath)
+        })
 
       // Turbopack already handles conflicting app and page routes.
       if (!isTurbopack) {
@@ -1448,6 +1523,11 @@ export default async function build(
               : undefined,
           } satisfies RoutesManifest
         })
+
+      // For pages directory, we run type checking after route collection but before build.
+      if (!appDir && !isCompileMode) {
+        await startTypeChecking(typeCheckingOptions)
+      }
 
       let clientRouterFilters:
         | undefined
@@ -3173,7 +3253,12 @@ export default async function build(
                   }
                 }
 
-                if (!isAppRouteHandler && metadata?.segmentPaths) {
+                if (
+                  !isAppRouteHandler &&
+                  (metadata?.segmentPaths ||
+                    (route.fallbackRootParams &&
+                      route.fallbackRootParams.length > 0))
+                ) {
                   // If PPR isn't enabled, then we might not find the dynamic
                   // route by pathname. If that's the case, we need to find the
                   // route by page.
@@ -3186,11 +3271,57 @@ export default async function build(
                     }
                   }
 
-                  dynamicRoute.prefetchSegmentDataRoutes ??= []
-                  for (const segmentPath of metadata.segmentPaths) {
-                    dynamicRoute.prefetchSegmentDataRoutes.push(
-                      buildPrefetchSegmentDataRoute(route.pathname, segmentPath)
+                  if (metadata?.segmentPaths) {
+                    const pageSegmentPath = metadata.segmentPaths.find((item) =>
+                      item.endsWith('__PAGE__')
                     )
+                    if (!pageSegmentPath) {
+                      throw new Error(`Invariant: missing __PAGE__ segmentPath`)
+                    }
+
+                    // We build a combined segment data route from the
+                    // page segment as we need to limit the number of
+                    // routes we output and they can be shared
+                    const builtSegmentDataRoute = buildPrefetchSegmentDataRoute(
+                      route.pathname,
+                      pageSegmentPath
+                    )
+
+                    builtSegmentDataRoute.source =
+                      builtSegmentDataRoute.source.replace(
+                        '/__PAGE__\\.segment\\.rsc$',
+                        `(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$`
+                      )
+                    builtSegmentDataRoute.destination =
+                      builtSegmentDataRoute.destination.replace(
+                        '/__PAGE__.segment.rsc',
+                        '$segment'
+                      )
+                    dynamicRoute.prefetchSegmentDataRoutes ??= []
+                    dynamicRoute.prefetchSegmentDataRoutes.push(
+                      builtSegmentDataRoute
+                    )
+                  }
+                  // If the route has fallback root params, and we don't have
+                  // any segment paths, we need to write the inverse prefetch
+                  // segment data route so that it can first rewrite the /_tree
+                  // request to the prefetch RSC route. We also need to set the
+                  // `hasFallbackRootParams` flag so that we can simplify the
+                  // route regex for matching.
+                  else if (
+                    route.fallbackRootParams &&
+                    route.fallbackRootParams.length > 0
+                  ) {
+                    dynamicRoute.hasFallbackRootParams = true
+                    dynamicRoute.prefetchSegmentDataRoutes = [
+                      buildInversePrefetchSegmentDataRoute(
+                        dynamicRoute.page,
+                        // We use the special segment path of `/_tree` because it's
+                        // the first one sent by the client router so it's the only
+                        // one we need to rewrite to the regular prefetch RSC route.
+                        '/_tree'
+                      ),
+                    ]
                   }
                 }
 
@@ -3610,36 +3741,6 @@ export default async function build(
           // remove temporary export folder
           await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
-
-          if (config.experimental.clientSegmentCache) {
-            for (const route of [
-              ...routesManifest.staticRoutes,
-              ...routesManifest.dynamicRoutes,
-            ]) {
-              // If the segment paths aren't defined, we need to insert a
-              // reverse routing rule so that there isn't any conflicts
-              // with other dynamic routes for the prefetch segment
-              // routes. This is true for any route that is not PPR-enabled,
-              // including all routes defined by Pages Router.
-
-              // We don't need to add the prefetch segment data routes if it was
-              // added due to a page that was already generated. This would have
-              // happened if the page was static or partially static.
-              if (route.prefetchSegmentDataRoutes) {
-                continue
-              }
-
-              route.prefetchSegmentDataRoutes = [
-                buildInversePrefetchSegmentDataRoute(
-                  route.page,
-                  // We use the special segment path of `/_tree` because it's
-                  // the first one sent by the client router so it's the only
-                  // one we need to rewrite to the regular prefetch RSC route.
-                  '/_tree'
-                ),
-              ]
-            }
-          }
         })
 
         // As we may have modified the dynamicRoutes, we need to sort the

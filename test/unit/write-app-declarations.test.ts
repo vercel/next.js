@@ -22,6 +22,8 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      '/// <reference path="./.next/types/routes.d.ts" />' +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -32,6 +34,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
@@ -47,6 +50,8 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      '/// <reference path="./.next/types/routes.d.ts" />' +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -57,6 +62,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
@@ -72,6 +78,8 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      '/// <reference path="./.next/types/routes.d.ts" />' +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -80,6 +88,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
@@ -90,6 +99,7 @@ describe('find config', () => {
   it('should include navigation types if app directory is enabled', async () => {
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: true,
@@ -101,6 +111,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: true,
       hasAppDir: true,

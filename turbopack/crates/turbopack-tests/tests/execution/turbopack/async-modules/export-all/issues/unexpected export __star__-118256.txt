@@ -4,6 +4,7 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack
   List all export names manually (`export { a, b, c } from "...") or rewrite the module to ESM, to avoid the additional runtime code.`
   
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/exports.js
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/tla.js
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/exports.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/tla.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/export-all/input/index.js

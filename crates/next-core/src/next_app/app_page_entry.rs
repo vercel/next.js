@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, fxindexmap};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
@@ -92,14 +92,14 @@ pub async fn get_app_page_entry(
             "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
                 GLOBAL_ERROR.into()
              } else {
-                "next/dist/client/components/builtin/global-error".into()
+                rcstr!("next/dist/client/components/builtin/global-error")
             },
         },
         fxindexmap! {
             "tree" => loader_tree_code,
             "pages" => StringifyJs(&pages).to_string().into(),
-            "__next_app_require__" => TURBOPACK_REQUIRE.full.into(),
-            "__next_app_load_chunk__" => TURBOPACK_LOAD.full.into(),
+            "__next_app_require__" => TURBOPACK_REQUIRE.bound().into(),
+            "__next_app_load_chunk__" => TURBOPACK_LOAD.bound().into(),
         },
         fxindexmap! {},
     )

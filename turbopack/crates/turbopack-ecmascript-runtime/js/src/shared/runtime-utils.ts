@@ -19,6 +19,15 @@ declare function getOrInstantiateModuleFromParent<M>(
 
 const REEXPORTED_OBJECTS = Symbol('reexported objects')
 
+/**
+ * Constructs the `__turbopack_context__` object for a module.
+ */
+function Context(this: TurbopackBaseContext<Module>, module: Module) {
+  this.m = module
+  this.e = module.exports
+}
+const contextPrototype = Context.prototype as TurbopackBaseContext<Module>
+
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 
 interface ModuleContextEntry {
@@ -44,8 +53,8 @@ type GetOrInstantiateModuleFromParent<M extends Module> = (
 ) => M
 
 declare function getOrInstantiateRuntimeModule(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
+  chunkPath: ChunkPath,
+  moduleId: ModuleId
 ): Module
 
 const hasOwnProperty = Object.prototype.hasOwnProperty
@@ -67,16 +76,23 @@ function getOverwrittenModule(
   if (!module) {
     // This is invoked when a module is merged into another module, thus it wasn't invoked via
     // instantiateModule and the cache entry wasn't created yet.
-    module = {
-      exports: {},
-      error: undefined,
-      loaded: false,
-      id,
-      namespaceObject: undefined,
-    }
+    module = createModuleObject(id)
     moduleCache[id] = module
   }
   return module
+}
+
+/**
+ * Creates the module object. Only done here to ensure all module objects have the same shape.
+ */
+function createModuleObject(id: ModuleId): Module {
+  return {
+    exports: {},
+    error: undefined,
+    id,
+    namespaceObject: undefined,
+    [REEXPORTED_OBJECTS]: undefined,
+  }
 }
 
 /**
@@ -84,20 +100,24 @@ function getOverwrittenModule(
  */
 function esm(
   exports: Exports,
-  getters: Record<string, (() => any) | [() => any, (v: any) => void]>
+  getters: Array<string | (() => unknown) | ((v: unknown) => void)>
 ) {
   defineProp(exports, '__esModule', { value: true })
   if (toStringTag) defineProp(exports, toStringTag, { value: 'Module' })
-  for (const key in getters) {
-    const item = getters[key]
-    if (Array.isArray(item)) {
-      defineProp(exports, key, {
-        get: item[0],
-        set: item[1],
+  let i = 0
+  while (i < getters.length) {
+    const propName = getters[i++] as string
+    // TODO(luke.sandberg): we could support raw values here, but would need a discriminator beyond 'not a function'
+    const getter = getters[i++] as () => unknown
+    if (typeof getters[i] === 'function') {
+      // a setter
+      defineProp(exports, propName, {
+        get: getter,
+        set: getters[i++] as (v: unknown) => void,
         enumerable: true,
       })
     } else {
-      defineProp(exports, key, { get: item, enumerable: true })
+      defineProp(exports, propName, { get: getter, enumerable: true })
     }
   }
   Object.seal(exports)
@@ -107,19 +127,23 @@ function esm(
  * Makes the module an ESM with exports
  */
 function esmExport(
-  module: Module,
-  exports: Exports,
-  moduleCache: ModuleCache<Module>,
-  getters: Record<string, () => any>,
+  this: TurbopackBaseContext<Module>,
+  getters: Array<string | (() => unknown) | ((v: unknown) => void)>,
   id: ModuleId | undefined
 ) {
+  let module: Module
+  let exports: Module['exports']
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
     exports = module.exports
+  } else {
+    module = this.m
+    exports = this.e
   }
-  module.namespaceObject = module.exports
+  module.namespaceObject = exports
   esm(exports, getters)
 }
+contextPrototype.s = esmExport
 
 function ensureDynamicExports(module: Module, exports: Exports) {
   let reexportedObjects = module[REEXPORTED_OBJECTS]
@@ -158,14 +182,14 @@ function ensureDynamicExports(module: Module, exports: Exports) {
  * Dynamically exports properties from an object
  */
 function dynamicExport(
-  module: Module,
-  exports: Exports,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   object: Record<string, any>,
   id: ModuleId | undefined
 ) {
+  let module = this.m
+  let exports = this.e
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
     exports = module.exports
   }
   ensureDynamicExports(module, exports)
@@ -174,30 +198,33 @@ function dynamicExport(
     module[REEXPORTED_OBJECTS]!.push(object)
   }
 }
+contextPrototype.j = dynamicExport
 
 function exportValue(
-  module: Module,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   value: any,
   id: ModuleId | undefined
 ) {
+  let module = this.m
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
   }
   module.exports = value
 }
+contextPrototype.v = exportValue
 
 function exportNamespace(
-  module: Module,
-  moduleCache: ModuleCache<Module>,
+  this: TurbopackBaseContext<Module>,
   namespace: any,
   id: ModuleId | undefined
 ) {
+  let module = this.m
   if (id != null) {
-    module = getOverwrittenModule(moduleCache, id)
+    module = getOverwrittenModule(this.c, id)
   }
   module.exports = module.namespaceObject = namespace
 }
+contextPrototype.n = exportNamespace
 
 function createGetter(obj: Record<string | symbol, any>, key: string | symbol) {
   return () => obj[key]
@@ -225,7 +252,9 @@ function interopEsm(
   ns: EsmNamespaceObject,
   allowExportDefault?: boolean
 ) {
-  const getters: { [s: string]: () => any } = Object.create(null)
+  const getters: Array<string | (() => unknown) | ((v: unknown) => void)> = []
+  // The index of the `default` export if any
+  let defaultLocation = -1
   for (
     let current = raw;
     (typeof current === 'object' || typeof current === 'function') &&
@@ -233,14 +262,22 @@ function interopEsm(
     current = getProto(current)
   ) {
     for (const key of Object.getOwnPropertyNames(current)) {
-      getters[key] = createGetter(raw, key)
+      getters.push(key, createGetter(raw, key))
+      if (defaultLocation === -1 && key === 'default') {
+        defaultLocation = getters.length - 1
+      }
     }
   }
 
   // this is not really correct
   // we should set the `default` getter if the imported module is a `.cjs file`
-  if (!(allowExportDefault && 'default' in getters)) {
-    getters['default'] = () => raw
+  if (!(allowExportDefault && defaultLocation >= 0)) {
+    // Replace the binding with one for the namespace itself in order to preserve iteration order.
+    if (defaultLocation >= 0) {
+      getters[defaultLocation] = () => raw
+    } else {
+      getters.push('default', () => raw)
+    }
   }
 
   esm(ns, getters)
@@ -258,11 +295,10 @@ function createNS(raw: Module['exports']): EsmNamespaceObject {
 }
 
 function esmImport(
-  sourceModule: Module,
+  this: TurbopackBaseContext<Module>,
   id: ModuleId
 ): Exclude<Module['namespaceObject'], undefined> {
-  const module = getOrInstantiateModuleFromParent(id, sourceModule)
-  if (module.error) throw module.error
+  const module = getOrInstantiateModuleFromParent(id, this.m)
 
   // any ES module has to have `module.namespaceObject` defined.
   if (module.namespaceObject) return module.namespaceObject
@@ -275,6 +311,18 @@ function esmImport(
     raw && (raw as any).__esModule
   ))
 }
+contextPrototype.i = esmImport
+
+function asyncLoader(
+  this: TurbopackBaseContext<Module>,
+  moduleId: ModuleId
+): Promise<Exports> {
+  const loader = this.r(moduleId) as (
+    importFunction: EsmImport
+  ) => Promise<Exports>
+  return loader(this.i.bind(this))
+}
+contextPrototype.A = asyncLoader
 
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
@@ -286,12 +334,15 @@ const runtimeRequire =
     : function require() {
         throw new Error('Unexpected use of runtime require')
       }
+contextPrototype.t = runtimeRequire
 
-function commonJsRequire(sourceModule: Module, id: ModuleId): Exports {
-  const module = getOrInstantiateModuleFromParent(id, sourceModule)
-  if (module.error) throw module.error
-  return module.exports
+function commonJsRequire(
+  this: TurbopackBaseContext<Module>,
+  id: ModuleId
+): Exports {
+  return getOrInstantiateModuleFromParent(id, this.m).exports
 }
+contextPrototype.r = commonJsRequire
 
 /**
  * `require.context` and require/import expression runtime.
@@ -327,6 +378,7 @@ function moduleContext(map: ModuleContextMap): ModuleContext {
 
   return moduleContext
 }
+contextPrototype.f = moduleContext
 
 /**
  * Returns the path of a chunk defined by its data.
@@ -361,6 +413,47 @@ function createPromise<T>() {
     promise,
     resolve: resolve!,
     reject: reject!,
+  }
+}
+
+// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
+// The CompressedModuleFactories format is
+// - 1 or more module ids
+// - a module factory function
+// So walking this is a little complex but the flat structure is also fast to
+// traverse, we can use `typeof` operators to distinguish the two cases.
+function installCompressedModuleFactories(
+  chunkModules: CompressedModuleFactories,
+  offset: number,
+  moduleFactories: ModuleFactories,
+  newModuleId?: (id: ModuleId) => void
+) {
+  let i = offset
+  while (i < chunkModules.length) {
+    let moduleId = chunkModules[i] as ModuleId
+    let end = i + 1
+    // Find our factory function
+    while (
+      end < chunkModules.length &&
+      typeof chunkModules[end] !== 'function'
+    ) {
+      end++
+    }
+    if (end === chunkModules.length) {
+      throw new Error('malformed chunk format, expected a factory function')
+    }
+    // Each chunk item has a 'primary id' and optional additional ids. If the primary id is already
+    // present we know all the additional ids are also present, so we don't need to check.
+    if (!moduleFactories.has(moduleId)) {
+      const moduleFactoryFn = chunkModules[end] as Function
+      applyModuleFactoryName(moduleFactoryFn)
+      newModuleId?.(moduleId)
+      for (; i < end; i++) {
+        moduleId = chunkModules[i] as ModuleId
+        moduleFactories.set(moduleId, moduleFactoryFn)
+      }
+    }
+    i = end + 1 // end is pointing at the last factory advance to the next id or the end of the array.
   }
 }
 
@@ -437,7 +530,7 @@ function wrapDeps(deps: Dep[]): AsyncModuleExt[] {
 }
 
 function asyncModule(
-  module: Module,
+  this: TurbopackBaseContext<Module>,
   body: (
     handleAsyncDependencies: (
       deps: Dep[]
@@ -446,6 +539,7 @@ function asyncModule(
   ) => void,
   hasAwait: boolean
 ) {
+  const module = this.m
   const queue: AsyncQueue | undefined = hasAwait
     ? Object.assign([], { status: QueueStatus.Unknown })
     : undefined
@@ -524,6 +618,7 @@ function asyncModule(
     queue.status = QueueStatus.Unresolved
   }
 }
+contextPrototype.a = asyncModule
 
 /**
  * A pseudo "fake" URL object to resolve to its relative path.
@@ -550,8 +645,8 @@ const relativeURL = function relativeURL(this: any, inputUrl: string) {
       value: values[key],
     })
 }
-
 relativeURL.prototype = URL.prototype
+contextPrototype.U = relativeURL
 
 /**
  * Utility function to ensure all variants of an enum are handled.
@@ -565,4 +660,16 @@ function invariant(never: never, computeMessage: (arg: any) => string): never {
  */
 function requireStub(_moduleId: ModuleId): never {
   throw new Error('dynamic usage of require is not supported')
+}
+contextPrototype.z = requireStub
+
+type ContextConstructor<M> = {
+  new (module: Module): TurbopackBaseContext<M>
+}
+
+function applyModuleFactoryName(factory: Function) {
+  // Give the module factory a nice name to improve stack traces.
+  Object.defineProperty(factory, 'name', {
+    value: '__TURBOPACK__module__evaluation__',
+  })
 }

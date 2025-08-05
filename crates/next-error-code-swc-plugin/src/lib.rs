@@ -184,11 +184,11 @@ impl VisitMut for TransformVisitor {
                 callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
                     span: new_error_expr.span,
                     obj: Box::new(Expr::Ident(Ident::new(
-                        "Object".into(),
+                        rcstr!("Object"),
                         new_error_expr.span,
                         Default::default(),
                     ))),
-                    prop: MemberProp::Ident("defineProperty".into()),
+                    prop: MemberProp::Ident(rcstr!("defineProperty")),
                 }))), // Object.defineProperty(
                 args: vec![
                     ExprOrSpread {
@@ -199,7 +199,7 @@ impl VisitMut for TransformVisitor {
                         spread: None,
                         expr: Box::new(Expr::Lit(Lit::Str(Str {
                             span: new_error_expr.span,
-                            value: "__NEXT_ERROR_CODE".into(),
+                            value: rcstr!("__NEXT_ERROR_CODE"),
                             raw: None,
                         }))), // "__NEXT_ERROR_CODE"
                     },
@@ -209,7 +209,7 @@ impl VisitMut for TransformVisitor {
                             span: new_error_expr.span,
                             props: vec![
                                 PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident("value".into()),
+                                    key: PropName::Ident(rcstr!("value")),
                                     value: Box::new(Expr::Lit(Lit::Str(Str {
                                         span: new_error_expr.span,
                                         value: code.into(),
@@ -217,14 +217,14 @@ impl VisitMut for TransformVisitor {
                                     }))),
                                 }))),
                                 PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident("enumerable".into()),
+                                    key: PropName::Ident(rcstr!("enumerable")),
                                     value: Box::new(Expr::Lit(Lit::Bool(Bool {
                                         span: new_error_expr.span,
                                         value: false,
                                     }))),
                                 }))),
                                 PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident("configurable".into()),
+                                    key: PropName::Ident(rcstr!("configurable")),
                                     value: Box::new(Expr::Lit(Lit::Bool(Bool {
                                         span: new_error_expr.span,
                                         value: true,

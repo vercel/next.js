@@ -543,6 +543,10 @@ export class Playwright<TCurrent = undefined> {
     return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
   }
 
+  locator(selector: string, options?: Parameters<(typeof page)['locator']>[1]) {
+    return page.locator(selector, options)
+  }
+
   /** A call that expects to be chained after a previous call, because it needs its value. */
   private continueChain<TNext>(nextCall: (value: TCurrent) => Promise<TNext>) {
     return this._chain(true, nextCall)

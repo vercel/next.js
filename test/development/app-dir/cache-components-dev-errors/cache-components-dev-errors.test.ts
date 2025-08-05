@@ -85,37 +85,17 @@ describe('Cache Components Dev Errors', () => {
       )
     })
 
-    if (isTurbopack) {
-      const normalizedCliOutput = stripAnsi(
-        next.cliOutput.slice(outputIndex)
-      ).replaceAll(`file:` + next.testDir, '<FIXME-file-protocol>')
-
-      // TODO(veil): Source mapping breaks due to double-encoding of the square
-      // brackets.
-      expect(normalizedCliOutput).toContain(
-        `\nError: Route "/no-accessed-data": ` +
-          `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
-          `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
-          '\n    at Page (<FIXME-file-protocol>/app/no-accessed-data/page.js:1:31)' +
-          '\n> 1 | export default async function Page() {' +
-          '\n    |                               ^' +
-          '\n  2 |   await new Promise((r) => setTimeout(r, 200))' +
-          '\n  3 |   return <p>Page</p>' +
-          '\n  4 | }'
-      )
-    } else {
-      expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
-        `\nError: Route "/no-accessed-data": ` +
-          `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
-          `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
-          '\n    at Page (app/no-accessed-data/page.js:1:31)' +
-          '\n> 1 | export default async function Page() {' +
-          '\n    |                               ^' +
-          '\n  2 |   await new Promise((r) => setTimeout(r, 200))' +
-          '\n  3 |   return <p>Page</p>' +
-          '\n  4 | }'
-      )
-    }
+    expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
+      `\nError: Route "/no-accessed-data": ` +
+        `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
+        `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
+        '\n    at Page (app/no-accessed-data/page.js:1:31)' +
+        '\n> 1 | export default async function Page() {' +
+        '\n    |                               ^' +
+        '\n  2 |   await new Promise((r) => setTimeout(r, 200))' +
+        '\n  3 |   return <p>Page</p>' +
+        '\n  4 | }'
+    )
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {

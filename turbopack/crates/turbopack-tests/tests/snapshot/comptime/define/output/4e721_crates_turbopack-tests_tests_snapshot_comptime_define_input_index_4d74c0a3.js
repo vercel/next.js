@@ -1,6 +1,5 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4e721_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_4d74c0a3.js", {
-
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/4e721_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_4d74c0a3.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
 {
@@ -62,6 +61,6 @@ if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ("TURBOPACK compile-time value", "development") == 'production' && console.log('production');
 console.log(("TURBOPACK compile-time value", "/ROOT/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input"));
 }}),
-}]);
+]);
 
 //# sourceMappingURL=4e721_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_4d74c0a3.js.map
