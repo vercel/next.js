@@ -1,4 +1,8 @@
 pub trait ParallelScheduler: Clone + Sync + Send {
+    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
+    where
+        R: Send;
+
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
         T: Sync;
@@ -55,6 +59,13 @@ pub trait ParallelScheduler: Clone + Sync + Send {
 pub struct SerialScheduler;
 
 impl ParallelScheduler for SerialScheduler {
+    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
+    where
+        R: Send,
+    {
+        f()
+    }
+
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
         T: Sync,

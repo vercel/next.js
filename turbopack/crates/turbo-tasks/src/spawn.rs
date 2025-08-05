@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::Result;
 use futures::{FutureExt, ready};
-use tokio::{runtime::Handle, task::block_in_place};
+use tokio::runtime::Handle;
 use tracing::{Instrument, Span, info_span};
 use turbo_tasks_malloc::{AllocationInfo, TurboMalloc};
 
@@ -92,6 +92,15 @@ pub fn spawn_thread(func: impl FnOnce() + Send + 'static) {
             func();
         })
     });
+}
+
+/// Tells the scheduler about blocking work happening in the current thread.
+/// It will make sure to allocate extra threads for the pool.
+pub fn block_in_place<R>(f: impl FnOnce() -> R + Send) -> R
+where
+    R: Send,
+{
+    tokio::task::block_in_place(f)
 }
 
 /// Blocking waits for a future to complete. This blocks the current thread potentially staling

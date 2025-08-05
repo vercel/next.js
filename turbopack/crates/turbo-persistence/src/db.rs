@@ -508,12 +508,15 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
             sst_filter.apply_filter(meta_file);
         }
 
-        for (_, file) in new_sst_files.iter() {
-            file.sync_all()?;
-        }
-        for (_, file) in new_blob_files.iter() {
-            file.sync_all()?;
-        }
+        self.parallel_scheduler.block_in_place(|| {
+            for (_, file) in new_sst_files.iter() {
+                file.sync_all()?;
+            }
+            for (_, file) in new_blob_files.iter() {
+                file.sync_all()?;
+            }
+            anyhow::Ok(())
+        })?;
 
         let new_meta_info = new_meta_files
             .iter()
@@ -566,86 +569,88 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
             inner.current_sequence_number = seq;
         }
 
-        if has_delete_file {
-            sst_seq_numbers_to_delete.sort_unstable();
-            meta_seq_numbers_to_delete.sort_unstable();
-            blob_seq_numbers_to_delete.sort_unstable();
-            // Write *.del file, marking the selected files as to delete
-            let mut buf = Vec::with_capacity(
-                (sst_seq_numbers_to_delete.len()
-                    + meta_seq_numbers_to_delete.len()
-                    + blob_seq_numbers_to_delete.len())
-                    * size_of::<u32>(),
-            );
+        self.parallel_scheduler.block_in_place(|| {
+            if has_delete_file {
+                sst_seq_numbers_to_delete.sort_unstable();
+                meta_seq_numbers_to_delete.sort_unstable();
+                blob_seq_numbers_to_delete.sort_unstable();
+                // Write *.del file, marking the selected files as to delete
+                let mut buf = Vec::with_capacity(
+                    (sst_seq_numbers_to_delete.len()
+                        + meta_seq_numbers_to_delete.len()
+                        + blob_seq_numbers_to_delete.len())
+                        * size_of::<u32>(),
+                );
+                for seq in sst_seq_numbers_to_delete.iter() {
+                    buf.write_u32::<BE>(*seq)?;
+                }
+                for seq in meta_seq_numbers_to_delete.iter() {
+                    buf.write_u32::<BE>(*seq)?;
+                }
+                for seq in blob_seq_numbers_to_delete.iter() {
+                    buf.write_u32::<BE>(*seq)?;
+                }
+                let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
+                file.write_all(&buf)?;
+                file.sync_all()?;
+            }
+
+            let mut current_file = OpenOptions::new()
+                .write(true)
+                .truncate(false)
+                .read(false)
+                .open(self.path.join("CURRENT"))?;
+            current_file.write_u32::<BE>(seq)?;
+            current_file.sync_all()?;
+
             for seq in sst_seq_numbers_to_delete.iter() {
-                buf.write_u32::<BE>(*seq)?;
+                fs::remove_file(self.path.join(format!("{seq:08}.sst")))?;
             }
             for seq in meta_seq_numbers_to_delete.iter() {
-                buf.write_u32::<BE>(*seq)?;
+                fs::remove_file(self.path.join(format!("{seq:08}.meta")))?;
             }
             for seq in blob_seq_numbers_to_delete.iter() {
-                buf.write_u32::<BE>(*seq)?;
+                fs::remove_file(self.path.join(format!("{seq:08}.blob")))?;
             }
-            let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
-            file.write_all(&buf)?;
-            file.sync_all()?;
-        }
 
-        let mut current_file = OpenOptions::new()
-            .write(true)
-            .truncate(false)
-            .read(false)
-            .open(self.path.join("CURRENT"))?;
-        current_file.write_u32::<BE>(seq)?;
-        current_file.sync_all()?;
-
-        for seq in sst_seq_numbers_to_delete.iter() {
-            fs::remove_file(self.path.join(format!("{seq:08}.sst")))?;
-        }
-        for seq in meta_seq_numbers_to_delete.iter() {
-            fs::remove_file(self.path.join(format!("{seq:08}.meta")))?;
-        }
-        for seq in blob_seq_numbers_to_delete.iter() {
-            fs::remove_file(self.path.join(format!("{seq:08}.blob")))?;
-        }
-
-        {
-            let mut log = self.open_log()?;
-            writeln!(log, "Time {time}")?;
-            let span = time.until(Timestamp::now())?;
-            writeln!(log, "Commit {seq:08} {keys_written} keys in {span:#}")?;
-            for (seq, family, ssts, obsolete) in new_meta_info {
-                writeln!(log, "{seq:08} META family:{family}",)?;
-                for (seq, min, max, size) in ssts {
-                    writeln!(
-                        log,
-                        "  {seq:08} SST  {min:016x}-{max:016x} {} MiB",
-                        size / 1024 / 1024
-                    )?;
+            {
+                let mut log = self.open_log()?;
+                writeln!(log, "Time {time}")?;
+                let span = time.until(Timestamp::now())?;
+                writeln!(log, "Commit {seq:08} {keys_written} keys in {span:#}")?;
+                for (seq, family, ssts, obsolete) in new_meta_info {
+                    writeln!(log, "{seq:08} META family:{family}",)?;
+                    for (seq, min, max, size) in ssts {
+                        writeln!(
+                            log,
+                            "  {seq:08} SST  {min:016x}-{max:016x} {} MiB",
+                            size / 1024 / 1024
+                        )?;
+                    }
+                    for seq in obsolete {
+                        writeln!(log, "  {seq:08} OBSOLETE SST")?;
+                    }
                 }
-                for seq in obsolete {
-                    writeln!(log, "  {seq:08} OBSOLETE SST")?;
+                new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
+                for (seq, _) in new_sst_files.iter() {
+                    writeln!(log, "{seq:08} NEW SST")?;
+                }
+                new_blob_files.sort_unstable_by_key(|(seq, _)| *seq);
+                for (seq, _) in new_blob_files.iter() {
+                    writeln!(log, "{seq:08} NEW BLOB")?;
+                }
+                for seq in sst_seq_numbers_to_delete.iter() {
+                    writeln!(log, "{seq:08} SST DELETED")?;
+                }
+                for seq in meta_seq_numbers_to_delete.iter() {
+                    writeln!(log, "{seq:08} META DELETED")?;
+                }
+                for seq in blob_seq_numbers_to_delete.iter() {
+                    writeln!(log, "{seq:08} BLOB DELETED")?;
                 }
             }
-            new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
-            for (seq, _) in new_sst_files.iter() {
-                writeln!(log, "{seq:08} NEW SST")?;
-            }
-            new_blob_files.sort_unstable_by_key(|(seq, _)| *seq);
-            for (seq, _) in new_blob_files.iter() {
-                writeln!(log, "{seq:08} NEW BLOB")?;
-            }
-            for seq in sst_seq_numbers_to_delete.iter() {
-                writeln!(log, "{seq:08} SST DELETED")?;
-            }
-            for seq in meta_seq_numbers_to_delete.iter() {
-                writeln!(log, "{seq:08} META DELETED")?;
-            }
-            for seq in blob_seq_numbers_to_delete.iter() {
-                writeln!(log, "{seq:08} BLOB DELETED")?;
-            }
-        }
-
+            anyhow::Ok(())
+        })?;
         Ok(())
     }
 
@@ -837,7 +842,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                         });
                     }
 
-                    {
+                    self.parallel_scheduler.block_in_place(|| {
                         let metrics = compute_metrics(&ssts_with_ranges, 0..=u64::MAX);
                         let guard = log_mutex.lock();
                         let mut log = self.open_log()?;
@@ -859,7 +864,8 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                             }
                         }
                         drop(guard);
-                    }
+                        anyhow::Ok(())
+                    })?;
 
                     // Later we will remove the merged files
                     let sst_seq_numbers_to_delete = merge_jobs
@@ -912,7 +918,8 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                                 });
                             }
 
-                            fn create_sst_file(
+                            fn create_sst_file<S: ParallelScheduler>(
+                                parallel_scheduler: &S,
                                 entries: &[LookupEntry],
                                 total_key_size: usize,
                                 total_value_size: usize,
@@ -921,12 +928,14 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                             ) -> Result<(u32, File, StaticSortedFileBuilderMeta<'static>)>
                             {
                                 let _span = tracing::trace_span!("write merged sst file").entered();
-                                let (meta, file) = write_static_stored_file(
-                                    entries,
-                                    total_key_size,
-                                    total_value_size,
-                                    &path.join(format!("{seq:08}.sst")),
-                                )?;
+                                let (meta, file) = parallel_scheduler.block_in_place(|| {
+                                    write_static_stored_file(
+                                        entries,
+                                        total_key_size,
+                                        total_value_size,
+                                        &path.join(format!("{seq:08}.sst")),
+                                    )
+                                })?;
                                 Ok((seq, file, meta))
                             }
 
@@ -993,6 +1002,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
                                                 keys_written += entries.len() as u64;
                                                 new_sst_files.push(create_sst_file(
+                                                    &self.parallel_scheduler,
                                                     &entries,
                                                     selected_total_key_size,
                                                     selected_total_value_size,
@@ -1023,6 +1033,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
                                 keys_written += entries.len() as u64;
                                 new_sst_files.push(create_sst_file(
+                                    &self.parallel_scheduler,
                                     &entries,
                                     total_key_size,
                                     total_value_size,
@@ -1046,6 +1057,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
                                 keys_written += part1.len() as u64;
                                 new_sst_files.push(create_sst_file(
+                                    &self.parallel_scheduler,
                                     part1,
                                     // We don't know the exact sizes so we estimate them
                                     last_entries_total_sizes.0 / 2,
@@ -1056,6 +1068,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
                                 keys_written += part2.len() as u64;
                                 new_sst_files.push(create_sst_file(
+                                    &self.parallel_scheduler,
                                     part2,
                                     last_entries_total_sizes.0 / 2,
                                     last_entries_total_sizes.1 / 2,
@@ -1126,7 +1139,8 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                     let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
                     let meta_file = {
                         let _span = tracing::trace_span!("write meta file").entered();
-                        meta_file_builder.write(&self.path, seq)?
+                        self.parallel_scheduler
+                            .block_in_place(|| meta_file_builder.write(&self.path, seq))?
                     };
 
                     Ok(PartialResultPerFamily {
