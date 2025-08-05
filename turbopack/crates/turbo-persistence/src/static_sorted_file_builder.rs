@@ -18,16 +18,16 @@ use crate::{
 };
 
 /// The maximum number of entries that should go into a single key block
-const MAX_KEY_BLOCK_ENTRIES: usize = 100 * 1024;
+const MAX_KEY_BLOCK_ENTRIES: usize = MAX_KEY_BLOCK_SIZE / KEY_BLOCK_ENTRY_META_OVERHEAD;
 /// The maximum bytes that should go into a single key block
 // Note this must fit into 3 bytes length
 const MAX_KEY_BLOCK_SIZE: usize = 16 * 1024;
 /// Overhead of bytes that should be counted for entries in a key block in addition to the key size
 const KEY_BLOCK_ENTRY_META_OVERHEAD: usize = 8;
 /// The maximum number of entries that should go into a single small value block
-const MAX_SMALL_VALUE_BLOCK_ENTRIES: usize = 100 * 1024;
+const MAX_SMALL_VALUE_BLOCK_ENTRIES: usize = MAX_SMALL_VALUE_BLOCK_SIZE;
 /// The maximum bytes that should go into a single small value block
-const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 16 * 1024;
+const MAX_SMALL_VALUE_BLOCK_SIZE: usize = 64 * 1024;
 /// The aimed false positive rate for the AMQF
 const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
 
