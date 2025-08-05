@@ -474,7 +474,7 @@ impl DiskFileSystem {
         self.inner.watcher.stop_watching();
     }
 
-    pub async fn to_sys_path(&self, fs_path: FileSystemPath) -> Result<PathBuf> {
+    pub fn to_sys_path(&self, fs_path: FileSystemPath) -> Result<PathBuf> {
         // just in case there's a windows unc path prefix we remove it with `dunce`
         let path = self.inner.root_path();
         Ok(if fs_path.path.is_empty() {
@@ -545,7 +545,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
@@ -571,7 +571,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         self.inner.register_dir_invalidator(&full_path)?;
 
         // we use the sync std function here as it's a lot faster (600%) in
@@ -626,7 +626,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn read_link(&self, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path.clone()).await?;
+        let full_path = self.to_sys_path(fs_path.clone())?;
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
@@ -716,7 +716,7 @@ impl FileSystem for DiskFileSystem {
         // `write` purely declares a side effect and does not need to be reexecuted in the next
         // session. All side effects are reexecuted in general.
 
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         let content = content.await?;
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
@@ -851,7 +851,7 @@ impl FileSystem for DiskFileSystem {
         // `write_link` purely declares a side effect and does not need to be reexecuted in the next
         // session. All side effects are reexecuted in general.
 
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         let content = target.await?;
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
@@ -975,7 +975,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
@@ -1942,15 +1942,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparsable(
-                            "text content doesn't contain any json data",
-                        ),
+                        None => FileJsonContent::unparsable(rcstr!(
+                            "text content doesn't contain any json data"
+                        )),
                     },
                     Err(e) => FileJsonContent::Unparsable(Box::new(
                         UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable(rcstr!("binary is not valid utf-8 text")),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -1969,15 +1969,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparsable(
-                            "text content doesn't contain any json data",
-                        ),
+                        None => FileJsonContent::unparsable(rcstr!(
+                            "text content doesn't contain any json data"
+                        )),
                     },
                     Err(e) => FileJsonContent::Unparsable(Box::new(
                         UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable(rcstr!("binary is not valid utf-8 text")),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -2084,16 +2084,16 @@ impl FileJsonContent {
     }
 }
 impl FileJsonContent {
-    pub fn unparsable(message: &'static str) -> Self {
+    pub fn unparsable(message: RcStr) -> Self {
         FileJsonContent::Unparsable(Box::new(UnparsableJson {
-            message: Cow::Borrowed(message),
+            message,
             path: None,
             start_location: None,
             end_location: None,
         }))
     }
 
-    pub fn unparsable_with_message(message: Cow<'static, str>) -> Self {
+    pub fn unparsable_with_message(message: RcStr) -> Self {
         FileJsonContent::Unparsable(Box::new(UnparsableJson {
             message,
             path: None,
@@ -2308,7 +2308,7 @@ pub async fn to_sys_path(mut path: FileSystemPath) -> Result<Option<PathBuf>> {
         }
 
         if let Some(fs) = Vc::try_resolve_downcast_type::<DiskFileSystem>(path.fs()).await? {
-            let sys_path = fs.await?.to_sys_path(path).await?;
+            let sys_path = fs.await?.to_sys_path(path)?;
             return Ok(Some(sys_path));
         }
 

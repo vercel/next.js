@@ -48,7 +48,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         SwcEcmaTransformPluginsTransformer, SwcPluginModule,
     };
 
-    use crate::next_shared::transforms::get_ecma_transform_rule;
+    use crate::next_shared::transforms::{EcmascriptTransformStage, get_ecma_transform_rule};
 
     let plugins = plugin_configs
         .iter()
@@ -116,6 +116,6 @@ pub async fn get_swc_ecma_transform_rule_impl(
     Ok(Some(get_ecma_transform_rule(
         Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)),
         enable_mdx_rs,
-        true,
+        EcmascriptTransformStage::Main,
     )))
 }

@@ -152,8 +152,7 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
                 .to_sys_path(match path {
                     Some(path) => root.join(path)?,
                     None => root,
-                })
-                .await?
+                })?
                 .to_string_lossy()
         )
         .split('/')
@@ -171,12 +170,10 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
         .context("Expected root to have a DiskFileSystem")?
         .await?;
 
-    let sys_path = root_fs
-        .to_sys_path(match path {
-            Some(path) => root.join(path.into())?,
-            None => root,
-        })
-        .await?;
+    let sys_path = root_fs.to_sys_path(match path {
+        Some(path) => root.join(path.into())?,
+        None => root,
+    })?;
 
     let raw_path = sys_path.to_string_lossy().to_string();
     let normalized_path = raw_path.replace('\\', "/");

@@ -80,17 +80,23 @@ async fn apply_module_type(
     let module_type = &*module_type.await?;
     Ok(ProcessResult::Module(match module_type {
         ModuleType::Ecmascript {
-            transforms,
+            preprocess,
+            main,
+            postprocess,
             options,
         }
         | ModuleType::Typescript {
-            transforms,
+            preprocess,
+            main,
+            postprocess,
             tsx: _,
             analyze_types: _,
             options,
         }
         | ModuleType::TypescriptDeclaration {
-            transforms,
+            preprocess,
+            main,
+            postprocess,
             options,
         } => {
             let context_for_module = match module_type {
@@ -107,7 +113,11 @@ async fn apply_module_type(
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 ResolvedVc::upcast(context_for_module),
-                *transforms,
+                preprocess
+                    .extend(**main)
+                    .extend(**postprocess)
+                    .to_resolved()
+                    .await?,
                 *options,
                 module_asset_context
                     .compile_time_info()
@@ -555,28 +565,44 @@ async fn process_default_internal(
                     ModuleRuleEffect::ModuleType(module) => {
                         current_module_type = Some(module.clone());
                     }
-                    ModuleRuleEffect::ExtendEcmascriptTransforms { prepend, append } => {
+                    ModuleRuleEffect::ExtendEcmascriptTransforms {
+                        preprocess: extend_preprocess,
+                        main: extend_main,
+                        postprocess: extend_postprocess,
+                    } => {
                         current_module_type = match current_module_type {
                             Some(ModuleType::Ecmascript {
-                                transforms,
+                                preprocess,
+                                main,
+                                postprocess,
                                 options,
                             }) => Some(ModuleType::Ecmascript {
-                                transforms: prepend
-                                    .extend(*transforms)
-                                    .extend(**append)
+                                preprocess: extend_preprocess
+                                    .extend(*preprocess)
+                                    .to_resolved()
+                                    .await?,
+                                main: extend_main.extend(*main).to_resolved().await?,
+                                postprocess: postprocess
+                                    .extend(**extend_postprocess)
                                     .to_resolved()
                                     .await?,
                                 options,
                             }),
                             Some(ModuleType::Typescript {
-                                transforms,
+                                preprocess,
+                                main,
+                                postprocess,
                                 tsx,
                                 analyze_types,
                                 options,
                             }) => Some(ModuleType::Typescript {
-                                transforms: prepend
-                                    .extend(*transforms)
-                                    .extend(**append)
+                                preprocess: extend_preprocess
+                                    .extend(*preprocess)
+                                    .to_resolved()
+                                    .await?,
+                                main: extend_main.extend(*main).to_resolved().await?,
+                                postprocess: postprocess
+                                    .extend(**extend_postprocess)
                                     .to_resolved()
                                     .await?,
                                 tsx,

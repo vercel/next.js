@@ -58,7 +58,7 @@ use crate::{
             get_invalid_styled_jsx_resolve_plugin,
         },
         transforms::{
-            emotion::get_emotion_transform_rule, get_ecma_transform_rule,
+            EcmascriptTransformStage, emotion::get_emotion_transform_rule, get_ecma_transform_rule,
             next_react_server_components::get_next_react_server_components_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
             relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
@@ -768,7 +768,7 @@ pub async fn get_server_module_options_context(
                         ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
-                    true,
+                    EcmascriptTransformStage::Preprocess,
                 ));
             }
 
@@ -844,7 +844,7 @@ pub async fn get_server_module_options_context(
                         ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
-                    true,
+                    EcmascriptTransformStage::Preprocess,
                 ));
             }
 
@@ -922,7 +922,7 @@ pub async fn get_server_module_options_context(
                         ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
-                    true,
+                    EcmascriptTransformStage::Preprocess,
                 ));
             } else {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
@@ -930,7 +930,7 @@ pub async fn get_server_module_options_context(
                         "next/dist/client/use-client-disallowed.js".to_string(),
                     )),
                     enable_mdx_rs.is_some(),
-                    true,
+                    EcmascriptTransformStage::Preprocess,
                 ));
             }
 
