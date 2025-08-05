@@ -38,9 +38,7 @@ impl ModuleReference for CssModuleComposeReference {
             *self.origin,
             *self.request,
             CssReferenceSubType::Compose,
-            // TODO: add real issue source, currently impossible because `CssClassName` doesn't
-            // contain the source span
-            // https://docs.rs/swc_css_modules/0.21.16/swc_css_modules/enum.CssClassName.html
+            // TODO: add real issue source, currently impossible
             None,
         )
     }
