@@ -1942,15 +1942,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparsable(
-                            "text content doesn't contain any json data",
-                        ),
+                        None => FileJsonContent::unparsable(rcstr!(
+                            "text content doesn't contain any json data"
+                        )),
                     },
                     Err(e) => FileJsonContent::Unparsable(Box::new(
                         UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable(rcstr!("binary is not valid utf-8 text")),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -1969,15 +1969,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparsable(
-                            "text content doesn't contain any json data",
-                        ),
+                        None => FileJsonContent::unparsable(rcstr!(
+                            "text content doesn't contain any json data"
+                        )),
                     },
                     Err(e) => FileJsonContent::Unparsable(Box::new(
                         UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable(rcstr!("binary is not valid utf-8 text")),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -2084,16 +2084,16 @@ impl FileJsonContent {
     }
 }
 impl FileJsonContent {
-    pub fn unparsable(message: &'static str) -> Self {
+    pub fn unparsable(message: RcStr) -> Self {
         FileJsonContent::Unparsable(Box::new(UnparsableJson {
-            message: Cow::Borrowed(message),
+            message,
             path: None,
             start_location: None,
             end_location: None,
         }))
     }
 
-    pub fn unparsable_with_message(message: Cow<'static, str>) -> Self {
+    pub fn unparsable_with_message(message: RcStr) -> Self {
         FileJsonContent::Unparsable(Box::new(UnparsableJson {
             message,
             path: None,
