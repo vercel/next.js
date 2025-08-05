@@ -4679,6 +4679,7 @@ async function collectSegmentData(
 
   const staleTime = prerenderStore.stale
   return await ComponentMod.collectSegmentData(
+    renderOpts.experimental.clientParamParsing,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,

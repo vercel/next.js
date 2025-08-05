@@ -45,6 +45,7 @@ import type {
 } from './cache-key'
 import {
   doesStaticSegmentAppearInURL,
+  getCacheKeyForDynamicParam,
   getRenderedPathname,
   getRenderedSearch,
   parseDynamicParamFromURLPart,
@@ -900,8 +901,11 @@ function convertRootTreePrefetchToRouteTree(
   // Remove trailing and leading slashes
   const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
   const index = 0
+  const rootSegment = ROOT_SEGMENT_CACHE_KEY
   return convertTreePrefetchToRouteTree(
     rootTree.tree,
+    rootSegment,
+    null,
     ROOT_SEGMENT_REQUEST_KEY,
     ROOT_SEGMENT_CACHE_KEY,
     pathnameParts,
@@ -911,6 +915,8 @@ function convertRootTreePrefetchToRouteTree(
 
 function convertTreePrefetchToRouteTree(
   prefetch: TreePrefetch,
+  segment: FlightRouterStateSegment,
+  param: RouteParam | null,
   requestKey: SegmentRequestKey,
   cacheKey: SegmentCacheKey,
   pathnameParts: Array<string>,
@@ -922,52 +928,71 @@ function convertTreePrefetchToRouteTree(
   // it once instead of on every access. This same cache key is also used to
   // request the segment from the server.
 
-  let segment = prefetch.segment
-
-  let doesAppearInURL: boolean
-  let param: RouteParam | null = null
-  if (Array.isArray(segment)) {
-    // This segment is parameterized. Get the param from the pathname.
-    const paramType = segment[2] as DynamicParamTypesShort
-    const paramValue = parseDynamicParamFromURLPart(
-      paramType,
-      pathnameParts,
-      pathnamePartsIndex
-    )
-    param = {
-      name: segment[0],
-      value: paramValue,
-      type: paramType,
-    }
-
-    // Assign a cache key to the segment, based on the param value. In the
-    // pre-Segment Cache implementation, the server computes this and sends it
-    // in the body of the response. In the Segment Cache implementation, the
-    // server sends an empty string and we fill it in here.
-    // TODO: This will land in a follow up PR.
-    // segment[1] = getCacheKeyForDynamicParam(paramValue)
-
-    doesAppearInURL = true
-  } else {
-    doesAppearInURL = doesStaticSegmentAppearInURL(segment)
-  }
-
-  // Only increment the index if the segment appears in the URL. If it's a
-  // "virtual" segment, like a route group, it remains the same.
-  const childPathnamePartsIndex = doesAppearInURL
-    ? pathnamePartsIndex + 1
-    : pathnamePartsIndex
-
   let slots: { [parallelRouteKey: string]: RouteTree } | null = null
   const prefetchSlots = prefetch.slots
   if (prefetchSlots !== null) {
     slots = {}
     for (let parallelRouteKey in prefetchSlots) {
       const childPrefetch = prefetchSlots[parallelRouteKey]
-      const childSegment = childPrefetch.segment
-      // TODO: Eventually, the param values will not be included in the response
-      // from the server. We'll instead fill them in on the client by parsing
-      // the URL. This is where we'll do that.
+      const childParamName = childPrefetch.name
+      const childParamType = childPrefetch.paramType
+      const childServerSentParamKey = childPrefetch.paramKey
+
+      let childDoesAppearInURL: boolean
+      let childParam: RouteParam | null = null
+      let childSegment: FlightRouterStateSegment
+      if (childParamType !== null) {
+        // This segment is parameterized. Get the param from the pathname.
+        const childParamValue = parseDynamicParamFromURLPart(
+          childParamType,
+          pathnameParts,
+          pathnamePartsIndex
+        )
+
+        // Assign a cache key to the segment, based on the param value. In the
+        // pre-Segment Cache implementation, the server computes this and sends
+        // it in the body of the response. In the Segment Cache implementation,
+        // the server sends an empty string and we fill it in here.
+
+        // TODO: We're intentionally not adding the search param to page
+        // segments here; it's tracked separately and added back during a read.
+        // This would clearer if we waited to construct the segment until it's
+        // read from the cache, since that's effectively what we're
+        // doing anyway.
+        const renderedSearch = '' as NormalizedSearch
+        const childParamKey =
+          // The server omits this field from the prefetch response when
+          // clientParamParsing is enabled. The flag only exists while we're
+          // testing the feature, in case there's a bug and we need to revert.
+          // TODO: Remove once clientParamParsing is enabled everywhere.
+          childServerSentParamKey !== null
+            ? childServerSentParamKey
+            : // If no param key was sent, use the value parsed on the client.
+              getCacheKeyForDynamicParam(childParamValue, renderedSearch)
+
+        childParam = {
+          name: childParamName,
+          value: childParamValue,
+          type: childParamType,
+        }
+        childSegment = [
+          childParamName,
+          childParamKey,
+          childParamType,
+          childParamValue,
+        ]
+        childDoesAppearInURL = true
+      } else {
+        childSegment = childParamName
+        childDoesAppearInURL = doesStaticSegmentAppearInURL(childParamName)
+      }
+
+      // Only increment the index if the segment appears in the URL. If it's a
+      // "virtual" segment, like a route group, it remains the same.
+      const childPathnamePartsIndex = childDoesAppearInURL
+        ? pathnamePartsIndex + 1
+        : pathnamePartsIndex
+
       const childRequestKeyPart = createSegmentRequestKeyPart(childSegment)
       const childRequestKey = appendSegmentRequestKeyPart(
         requestKey,
@@ -981,6 +1006,8 @@ function convertTreePrefetchToRouteTree(
       )
       slots[parallelRouteKey] = convertTreePrefetchToRouteTree(
         childPrefetch,
+        childSegment,
+        childParam,
         childRequestKey,
         childCacheKey,
         pathnameParts,
