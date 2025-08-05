@@ -1749,6 +1749,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cty"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
+
+[[package]]
 name = "darling"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3469,18 +3475,9 @@ dependencies = [
 
 [[package]]
 name = "jsonc-parser"
-version = "0.21.0"
+version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a1853e40333206f9a685358046d13ab200169e3ee573019bddf0ede0dc29307"
-dependencies = [
- "serde_json",
-]
-
-[[package]]
-name = "jsonc-parser"
-version = "0.26.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b558af6b49fd918e970471374e7a798b2c9bbcda624a210ffa3901ee5614bc8e"
+checksum = "1d6d80e6d70e7911a29f3cf3f44f452df85d06f73572b494ca99a2cad3fcf8f4"
 dependencies = [
  "serde_json",
 ]
@@ -3503,29 +3500,6 @@ checksum = "ed9625ffda8729b85e45cf04090035ac368927b8cebc34898e7c120f52e4838b"
 dependencies = [
  "bitflags 1.3.2",
  "libc",
-]
-
-[[package]]
-name = "lazy-regex"
-version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57451d19ad5e289ff6c3d69c2a2424652995c42b79dafa11e9c4d5508c913c01"
-dependencies = [
- "lazy-regex-proc_macros",
- "once_cell",
- "regex",
-]
-
-[[package]]
-name = "lazy-regex-proc_macros"
-version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f0a1d9139f0ee2e862e08a9c5d0ba0470f2aa21cd1e1aa1b1562f83116c725f"
-dependencies = [
- "proc-macro2",
- "quote",
- "regex",
- "syn 2.0.104",
 ]
 
 [[package]]
@@ -3652,16 +3626,6 @@ checksum = "c571b676ddfc9a8c12f1f3d3085a7b163966a8fd8098a90640953ce5f6170161"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "libmimalloc-sys"
-version = "0.1.43"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf88cd67e9de251c1781dbe2f641a1a3ad66eaae831b8a2c38fbdc5ddae16d4d"
-dependencies = [
- "cc",
- "libc",
 ]
 
 [[package]]
@@ -4034,12 +3998,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "mimalloc"
-version = "0.1.47"
+name = "mimalloc-rspack"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1791cbe101e95af5764f06f20f6760521f7158f69dbf9d6baf941ee1bf6bc40"
+checksum = "de20bb33bf95d9c060030d53bcb5d5dc03cbbedfbd1dcda5f6f285b946dae2c0"
 dependencies = [
- "libmimalloc-sys",
+ "rspack-libmimalloc-sys",
 ]
 
 [[package]]
@@ -4373,7 +4337,6 @@ dependencies = [
  "indexmap 2.9.0",
  "indoc",
  "itertools 0.10.5",
- "lazy-regex",
  "mime_guess",
  "modularize_imports",
  "next-custom-transforms",
@@ -6092,6 +6055,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rspack-libmimalloc-sys"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c741844b1fbe0cfbae8dfeb73b5e5fdc95daf7be58bdd72afb3fd85c86bccdb"
+dependencies = [
+ "cc",
+ "cty",
+ "libc",
+]
+
+[[package]]
 name = "rstest"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6995,7 +6969,7 @@ dependencies = [
  "dashmap 5.5.3",
  "either",
  "indexmap 2.9.0",
- "jsonc-parser 0.26.2",
+ "jsonc-parser",
  "napi",
  "napi-derive",
  "once_cell",
@@ -9364,7 +9338,7 @@ dependencies = [
  "futures",
  "include_dir",
  "indexmap 2.9.0",
- "jsonc-parser 0.21.0",
+ "jsonc-parser",
  "mime",
  "notify",
  "parking_lot",
@@ -9455,7 +9429,8 @@ dependencies = [
 name = "turbo-tasks-malloc"
 version = "0.1.0"
 dependencies = [
- "mimalloc",
+ "mimalloc-rspack",
+ "rspack-libmimalloc-sys",
 ]
 
 [[package]]

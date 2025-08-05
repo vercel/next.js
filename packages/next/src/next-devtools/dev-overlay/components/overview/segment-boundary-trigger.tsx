@@ -48,6 +48,7 @@ export function SegmentBoundaryTrigger({
     () => {
       setIsOpen(false)
     },
+    // eslint-disable-next-line react-hooks/react-compiler -- TODO
     triggerRef.current?.ownerDocument
   )
 

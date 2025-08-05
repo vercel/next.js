@@ -6,6 +6,23 @@ import { outdent } from 'outdent'
 import { createRequestTracker } from '../../../lib/e2e-utils/request-tracker'
 
 describe('app-root-param-getters - simple', () => {
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    resetCliOutput()
+  })
+
+  const getCliOutput = () => {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      // cliOutput shrank since we started the test, so something (like a `sandbox`) reset the logs
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  const resetCliOutput = () => {
+    currentCliOutputIndex = next.cliOutput.length
+  }
+
   const { next, isNextDev, isTurbopack, isNextDeploy } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'simple'),
   })
@@ -109,10 +126,53 @@ describe('app-root-param-getters - simple', () => {
     )
     expect(response.status()).toBe(500)
     if (!isNextDeploy) {
-      expect(next.cliOutput).toInclude(
+      expect(getCliOutput()).toInclude(
         "`import('next/root-params').lang()` was used inside a Server Action. This is not supported. Functions from 'next/root-params' can only be called in the context of a route."
       )
     }
+  })
+
+  it('should not error when rerendering the page after a server action', async () => {
+    const params = { lang: 'en', locale: 'us' }
+    const browser = await next.browser(
+      `/${params.lang}/${params.locale}/rerender-after-server-action`
+    )
+    expect(await browser.elementById('root-params').text()).toBe(
+      `${params.lang} ${params.locale}`
+    )
+    const initialDate = await browser.elementById('timestamp')
+
+    // Run a server action and rerender the page
+    const tracker = createRequestTracker(browser)
+    const [, response] = await tracker.captureResponse(
+      async () => {
+        await browser.elementByCss('button[type="submit"]').click()
+      },
+      {
+        request: {
+          method: 'POST',
+          pathname: `/${params.lang}/${params.locale}/rerender-after-server-action`,
+        },
+      }
+    )
+    // We're using lang() outside of an action, so we should see no errors
+    expect(response.status()).toBe(200)
+    if (!isNextDeploy) {
+      expect(getCliOutput()).not.toInclude(
+        "`import('next/root-params').lang()` was used inside a Server Action. This is not supported. Functions from 'next/root-params' can only be called in the context of a route."
+      )
+    }
+
+    await retry(async () => {
+      // The page should've been rerendered because of the cookie update
+      const updatedDate = await browser.elementById('timestamp')
+      expect(initialDate).not.toEqual(updatedDate)
+    })
+
+    // It should still display correct root params
+    expect(await browser.elementById('root-params').text()).toBe(
+      `${params.lang} ${params.locale}`
+    )
   })
 
   // TODO(root-params): add support for route handlers
@@ -123,7 +183,7 @@ describe('app-root-param-getters - simple', () => {
     )
     expect(response.status).toBe(500)
     if (!isNextDeploy) {
-      expect(next.cliOutput).toInclude(
+      expect(getCliOutput()).toInclude(
         "Route /[lang]/[locale]/route-handler used `import('next/root-params').lang()` inside a Route Handler. Support for this API in Route Handlers is planned for a future version of Next.js."
       )
     }

@@ -139,7 +139,11 @@ export function createPrerenderSearchParamsForClientPage(
       case 'prerender-client':
         // We're prerendering in a mode that aborts (cacheComponents) and should stall
         // the promise to ensure the RSC side is considered dynamic
-        return makeHangingPromise(workUnitStore.renderSignal, '`searchParams`')
+        return makeHangingPromise(
+          workUnitStore.renderSignal,
+          workStore.route,
+          '`searchParams`'
+        )
       case 'prerender-runtime':
         throw new InvariantError(
           'createPrerenderSearchParamsForClientPage should not be called in a runtime prerender.'
@@ -178,7 +182,7 @@ function createPrerenderSearchParams(
     case 'prerender':
     case 'prerender-client':
       // We are in a cacheComponents (PPR or otherwise) prerender
-      return makeHangingSearchParams(prerenderStore)
+      return makeHangingSearchParams(workStore, prerenderStore)
     case 'prerender-ppr':
     case 'prerender-legacy':
       // We are in a legacy static generation and need to interrupt the
@@ -232,6 +236,7 @@ const CachedSearchParamsForUseCache = new WeakMap<
 >()
 
 function makeHangingSearchParams(
+  workStore: WorkStore,
   prerenderStore: PrerenderStoreModern
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(prerenderStore)
@@ -241,6 +246,7 @@ function makeHangingSearchParams(
 
   const promise = makeHangingPromise<SearchParams>(
     prerenderStore.renderSignal,
+    workStore.route,
     '`searchParams`'
   )
 

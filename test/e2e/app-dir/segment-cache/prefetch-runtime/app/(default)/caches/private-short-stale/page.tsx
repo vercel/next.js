@@ -25,7 +25,7 @@ async function CachedButShortLived() {
     // the rest of the settings don't matter for private caches,
     // because they are not persisted server-side
   })
-  await cachedDelay(500, [__filename])
+  await cachedDelay([__filename])
 
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>

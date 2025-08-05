@@ -36,7 +36,22 @@ export type DynamicParamTypesShort = s.Infer<typeof dynamicParamTypesSchema>
 
 const segmentSchema = s.union([
   s.string(),
-  s.tuple([s.string(), s.string(), dynamicParamTypesSchema]),
+  s.union([
+    s.tuple([s.string(), s.string(), dynamicParamTypesSchema]),
+    // On the client, the dynamic param array contains an additional
+    // slot for param value.
+    s.tuple([
+      // Param name
+      s.string(),
+      // Param cache key (almost the same as the value, but arrays are
+      // concatenated into strings)
+      s.string(),
+      // Dynamic param type
+      dynamicParamTypesSchema,
+      // Param value (the one passed to components)
+      s.nullable(s.union([s.string(), s.array(s.string())])),
+    ]),
+  ]),
 ])
 
 export type Segment = s.Infer<typeof segmentSchema>
@@ -313,6 +328,9 @@ export type InitialRSCPayload = {
   b: string
   /** assetPrefix */
   p: string
+  // TODO: This isn't really the "canonical" URL (which we usually use to refer
+  // to the URL shown in the browser), it's the URL used to render the page,
+  // which may have been rewritten on the server.
   /** initialCanonicalUrlParts */
   c: string[]
   /** couldBeIntercepted */
@@ -333,6 +351,11 @@ export type InitialRSCPayload = {
 export type NavigationFlightResponse = {
   /** buildId */
   b: string
+  // TODO: This isn't really the "canonical" URL (which we usually use to refer
+  // to the URL shown in the browser), it's the URL used to render the page,
+  // which may have been rewritten on the server.
+  /** canonicalUrlParts */
+  c: string[]
   /** flightData */
   f: FlightData
   /** prerendered */
@@ -345,6 +368,11 @@ export type ActionFlightResponse = {
   a: ActionResult
   /** buildId */
   b: string
+  // TODO: This isn't really the "canonical" URL (which we usually use to refer
+  // to the URL shown in the browser), it's the URL used to render the page,
+  // which may have been rewritten on the server.
+  /** canonicalUrlParts */
+  c: string[]
   /** flightData */
   f: FlightData
 }

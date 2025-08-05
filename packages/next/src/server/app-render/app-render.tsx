@@ -505,12 +505,14 @@ async function generateDynamicRSCPayload(
       a: options.actionResult,
       f: flightData,
       b: ctx.sharedContext.buildId,
+      c: prepareInitialCanonicalUrl(url),
     }
   }
 
   // Otherwise, it's a regular RSC response.
   return {
     b: ctx.sharedContext.buildId,
+    c: prepareInitialCanonicalUrl(url),
     f: flightData,
     S: workStore.isStaticGeneration,
   }
@@ -2658,6 +2660,45 @@ async function spawnDynamicValidationInDev(
   // prerendering of an already prerendered page, we should use the passed
   // resume data cache instead.
   const prerenderResumeDataCache = createPrerenderResumeDataCache()
+  const initialServerPayloadPrerenderStore: PrerenderStore = {
+    type: 'prerender',
+    phase: 'render',
+    rootParams,
+    fallbackRouteParams,
+    implicitTags,
+    // While this render signal isn't going to be used to abort a React render while getting the RSC payload
+    // various request data APIs bind to this controller to reject after completion.
+    renderSignal: initialServerRenderController.signal,
+    // When we generate the RSC payload we might abort this controller due to sync IO
+    // but we don't actually care about sync IO in this phase so we use a throw away controller
+    // that isn't connected to anything
+    controller: new AbortController(),
+    // During the initial prerender we need to track all cache reads to ensure
+    // we render long enough to fill every cache it is possible to visit during
+    // the final prerender.
+    cacheSignal,
+    dynamicTracking: null,
+    allowEmptyStaticShell,
+    revalidate: INFINITE_CACHE,
+    expire: INFINITE_CACHE,
+    stale: INFINITE_CACHE,
+    tags: [...implicitTags.tags],
+    prerenderResumeDataCache,
+    renderResumeDataCache: null,
+    hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
+  }
+
+  // We're not going to use the result of this render because the only time it could be used
+  // is if it completes in a microtask and that's likely very rare for any non-trivial app
+  const initialServerPayload = await workUnitAsyncStorage.run(
+    initialServerPayloadPrerenderStore,
+    getRSCPayload,
+    tree,
+    ctx,
+    isNotFound
+  )
+
   const initialServerPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
@@ -2681,16 +2722,6 @@ async function spawnDynamicValidationInDev(
     hmrRefreshHash,
     captureOwnerStack: captureOwnerStackServer,
   }
-
-  // We're not going to use the result of this render because the only time it could be used
-  // is if it completes in a microtask and that's likely very rare for any non-trivial app
-  const initialServerPayload = await workUnitAsyncStorage.run(
-    initialServerPrerenderStore,
-    getRSCPayload,
-    tree,
-    ctx,
-    isNotFound
-  )
 
   const pendingInitialServerResult = workUnitAsyncStorage.run(
     initialServerPrerenderStore,
@@ -2895,6 +2926,41 @@ async function spawnDynamicValidationInDev(
   const finalServerReactController = new AbortController()
   const finalServerRenderController = new AbortController()
 
+  const finalServerPayloadPrerenderStore: PrerenderStore = {
+    type: 'prerender',
+    phase: 'render',
+    rootParams,
+    fallbackRouteParams,
+    implicitTags,
+    // While this render signal isn't going to be used to abort a React render while getting the RSC payload
+    // various request data APIs bind to this controller to reject after completion.
+    renderSignal: finalServerRenderController.signal,
+    // When we generate the RSC payload we might abort this controller due to sync IO
+    // but we don't actually care about sync IO in this phase so we use a throw away controller
+    // that isn't connected to anything
+    controller: new AbortController(),
+    // All caches we could read must already be filled so no tracking is necessary
+    cacheSignal: null,
+    dynamicTracking: null,
+    allowEmptyStaticShell,
+    revalidate: INFINITE_CACHE,
+    expire: INFINITE_CACHE,
+    stale: INFINITE_CACHE,
+    tags: [...implicitTags.tags],
+    prerenderResumeDataCache,
+    renderResumeDataCache: null,
+    hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
+  }
+
+  const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
+    finalServerPayloadPrerenderStore,
+    getRSCPayload,
+    tree,
+    ctx,
+    isNotFound
+  )
+
   const serverDynamicTracking = createDynamicTrackingState(
     false // isDebugDynamicAccesses
   )
@@ -2920,14 +2986,6 @@ async function spawnDynamicValidationInDev(
     hmrRefreshHash,
     captureOwnerStack: captureOwnerStackServer,
   }
-
-  const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
-    finalServerPrerenderStore,
-    getRSCPayload,
-    tree,
-    ctx,
-    isNotFound
-  )
 
   const reactServerResult = await createReactServerPrerenderResult(
     prerenderAndAbortInSequentialTasks(
@@ -3352,6 +3410,45 @@ async function prerenderToStream(
           createPrerenderResumeDataCache()
       }
 
+      const initialServerPayloadPrerenderStore: PrerenderStore = {
+        type: 'prerender',
+        phase: 'render',
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
+        // While this render signal isn't going to be used to abort a React render while getting the RSC payload
+        // various request data APIs bind to this controller to reject after completion.
+        renderSignal: initialServerRenderController.signal,
+        // When we generate the RSC payload we might abort this controller due to sync IO
+        // but we don't actually care about sync IO in this phase so we use a throw away controller
+        // that isn't connected to anything
+        controller: new AbortController(),
+        // During the initial prerender we need to track all cache reads to ensure
+        // we render long enough to fill every cache it is possible to visit during
+        // the final prerender.
+        cacheSignal,
+        dynamicTracking: null,
+        allowEmptyStaticShell,
+        revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
+        tags: [...implicitTags.tags],
+        prerenderResumeDataCache,
+        renderResumeDataCache,
+        hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
+      }
+
+      // We're not going to use the result of this render because the only time it could be used
+      // is if it completes in a microtask and that's likely very rare for any non-trivial app
+      const initialServerPayload = await workUnitAsyncStorage.run(
+        initialServerPayloadPrerenderStore,
+        getRSCPayload,
+        tree,
+        ctx,
+        res.statusCode === 404
+      )
+
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender',
         phase: 'render',
@@ -3375,16 +3472,6 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         captureOwnerStack: undefined, // Not available in production.
       })
-
-      // We're not going to use the result of this render because the only time it could be used
-      // is if it completes in a microtask and that's likely very rare for any non-trivial app
-      const initialServerPayload = await workUnitAsyncStorage.run(
-        initialServerPrerenderStore,
-        getRSCPayload,
-        tree,
-        ctx,
-        res.statusCode === 404
-      )
 
       const pendingInitialServerResult = workUnitAsyncStorage.run(
         initialServerPrerenderStore,
@@ -3578,13 +3665,48 @@ async function prerenderToStream(
         initialClientReactController.abort()
       }
 
-      let serverIsDynamic = false
       const finalServerReactController = new AbortController()
       const finalServerRenderController = new AbortController()
+
+      const finalServerPayloadPrerenderStore: PrerenderStore = {
+        type: 'prerender',
+        phase: 'render',
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
+        // While this render signal isn't going to be used to abort a React render while getting the RSC payload
+        // various request data APIs bind to this controller to reject after completion.
+        renderSignal: finalServerRenderController.signal,
+        // When we generate the RSC payload we might abort this controller due to sync IO
+        // but we don't actually care about sync IO in this phase so we use a throw away controller
+        // that isn't connected to anything
+        controller: new AbortController(),
+        // All caches we could read must already be filled so no tracking is necessary
+        cacheSignal: null,
+        dynamicTracking: null,
+        allowEmptyStaticShell,
+        revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
+        tags: [...implicitTags.tags],
+        prerenderResumeDataCache,
+        renderResumeDataCache,
+        hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
+      }
+
+      const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
+        finalServerPayloadPrerenderStore,
+        getRSCPayload,
+        tree,
+        ctx,
+        res.statusCode === 404
+      )
 
       const serverDynamicTracking = createDynamicTrackingState(
         isDebugDynamicAccesses
       )
+      let serverIsDynamic = false
 
       const finalServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender',
@@ -3608,13 +3730,6 @@ async function prerenderToStream(
         captureOwnerStack: undefined, // Not available in production.
       })
 
-      const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
-        finalServerPrerenderStore,
-        getRSCPayload,
-        tree,
-        ctx,
-        res.statusCode === 404
-      )
       let prerenderIsPending = true
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResult(
@@ -3800,8 +3915,7 @@ async function prerenderToStream(
         flightData,
         finalServerPrerenderStore,
         ComponentMod,
-        renderOpts,
-        fallbackRouteParams
+        renderOpts
       )
 
       // If there are fallback route params, the RSC data is inherently dynamic
@@ -4015,8 +4129,7 @@ async function prerenderToStream(
           flightData,
           ssrPrerenderStore,
           ComponentMod,
-          renderOpts,
-          fallbackRouteParams
+          renderOpts
         )
       }
 
@@ -4216,8 +4329,7 @@ async function prerenderToStream(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts,
-          fallbackRouteParams
+          renderOpts
         )
       }
 
@@ -4396,8 +4508,7 @@ async function prerenderToStream(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts,
-          fallbackRouteParams
+          renderOpts
         )
       }
 
@@ -4522,8 +4633,7 @@ async function collectSegmentData(
   fullPageDataBuffer: Buffer,
   prerenderStore: PrerenderStore,
   ComponentMod: AppPageModule,
-  renderOpts: RenderOpts,
-  fallbackRouteParams: FallbackRouteParams | null
+  renderOpts: RenderOpts
 ): Promise<Map<string, Buffer> | undefined> {
   // Per-segment prefetch data
   //
@@ -4572,7 +4682,6 @@ async function collectSegmentData(
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,
-    serverConsumerManifest,
-    fallbackRouteParams
+    serverConsumerManifest
   )
 }

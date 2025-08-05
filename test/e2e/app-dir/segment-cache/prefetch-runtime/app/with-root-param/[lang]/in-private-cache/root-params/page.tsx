@@ -35,7 +35,7 @@ async function DynamicallyPrefetchable() {
 async function privateCache() {
   'use cache: private'
   const currentLang = await lang()
-  await cachedDelay(500, [__filename, currentLang])
+  await cachedDelay([__filename, currentLang])
   return currentLang
 }
 

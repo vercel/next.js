@@ -292,6 +292,7 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
                     dirty: false,
                 },
                 false,
+                true,
             )
             .unwrap()
             .0,

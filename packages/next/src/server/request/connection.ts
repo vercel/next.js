@@ -73,6 +73,7 @@ export function connection(): Promise<void> {
           // stall at this point.
           return makeHangingPromise(
             workUnitStore.renderSignal,
+            workStore.route,
             '`connection()`'
           )
         case 'prerender-ppr':

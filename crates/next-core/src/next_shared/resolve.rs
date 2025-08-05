@@ -158,7 +158,7 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "client-only".into(),
+        rcstr!("client-only"),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
              used from a Client Component."
@@ -175,7 +175,7 @@ pub(crate) fn get_invalid_server_only_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "server-only".into(),
+        rcstr!("server-only"),
         vec![
             "'server-only' cannot be imported from a Client Component module. It should only be \
              used from a Server Component."
@@ -190,7 +190,7 @@ pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "styled-jsx".into(),
+        rcstr!("styled-jsx"),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
              used from a Client Component."
@@ -222,7 +222,9 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
             self.project_path.root().owned().await?,
-            Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".into()),
+            Glob::new(rcstr!(
+                "**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"
+            )),
         ))
     }
 
@@ -276,7 +278,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
             self.root.root().owned().await?,
-            Glob::new("**/next/dist/**/*.shared-runtime.js".into()),
+            Glob::new(rcstr!("**/next/dist/**/*.shared-runtime.js")),
         ))
     }
 
@@ -401,7 +403,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
             self.root.root().owned().await?,
-            Glob::new("**/next/dist/esm/**/*.shared-runtime.js".into()),
+            Glob::new(rcstr!("**/next/dist/esm/**/*.shared-runtime.js")),
         ))
     }
 

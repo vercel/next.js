@@ -2,14 +2,13 @@ import { unstable_cacheLife } from 'next/cache'
 import { setTimeout } from 'timers/promises'
 
 export async function uncachedIO() {
-  await setTimeout(500)
+  await setTimeout(0)
 }
 
-export async function cachedDelay(time: number, cacheBuster?: any) {
+export async function cachedDelay(key: any) {
   'use cache'
   unstable_cacheLife('minutes')
-  console.log('cachedDelay', time, cacheBuster)
-  await setTimeout(time)
+  await setTimeout(1)
 }
 
 export function DebugRenderKind() {

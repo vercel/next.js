@@ -1,4 +1,7 @@
-import type { WorkStore } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 import type { FallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -151,6 +154,13 @@ export function createServerParamsForServerSegment(
 export function createPrerenderParamsForClientSegment(
   underlyingParams: Params
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError(
+      'Missing workStore in createPrerenderParamsForClientSegment'
+    )
+  }
+
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -164,7 +174,11 @@ export function createPrerenderParamsForClientSegment(
               // to consider the awaiting of this params object "dynamic". Since
               // we are in cacheComponents mode we encode this as a promise that never
               // resolves.
-              return makeHangingPromise(workUnitStore.renderSignal, '`params`')
+              return makeHangingPromise(
+                workUnitStore.renderSignal,
+                workStore.route,
+                '`params`'
+              )
             }
           }
         }
@@ -206,7 +220,11 @@ function createPrerenderParams(
             // to consider the awaiting of this params object "dynamic". Since
             // we are in cacheComponents mode we encode this as a promise that never
             // resolves.
-            return makeHangingParams(underlyingParams, prerenderStore)
+            return makeHangingParams(
+              underlyingParams,
+              workStore,
+              prerenderStore
+            )
           }
         }
       }
@@ -298,6 +316,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
 
 function makeHangingParams(
   underlyingParams: Params,
+  workStore: WorkStore,
   prerenderStore: StaticPrerenderStoreModern
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
@@ -306,7 +325,11 @@ function makeHangingParams(
   }
 
   const promise = new Proxy(
-    makeHangingPromise<Params>(prerenderStore.renderSignal, '`params`'),
+    makeHangingPromise<Params>(
+      prerenderStore.renderSignal,
+      workStore.route,
+      '`params`'
+    ),
     fallbackParamsProxyHandler
   )
 

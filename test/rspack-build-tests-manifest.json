@@ -858,7 +858,8 @@
     "passed": [
       "app-root-param-getters - cache - at build should error when building a project that uses root params within `\"use cache\"`",
       "app-root-param-getters - cache - at runtime should error when using root params within `unstable_cache` - start",
-      "app-root-param-getters - cache - at runtime should error when using root params within a \"use cache\" - start"
+      "app-root-param-getters - cache - at runtime should error when using root params within a \"use cache\" - start",
+      "app-root-param-getters - private cache should allow using root params within a \"use cache: private\" - start"
     ],
     "failed": [],
     "pending": [],
@@ -1584,6 +1585,15 @@
   },
   "test/e2e/app-dir/app/useReportWebVitals.test.ts": {
     "passed": ["useReportWebVitals hook should send web-vitals"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/asset-prefix-absolute/asset-prefix-absolute-no-path.test.ts": {
+    "passed": [
+      "app-dir absolute assetPrefix bundles should return 200 on served assetPrefix"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2441,6 +2451,15 @@
       "app dir - draft mode in nodejs runtime should read other cookies when draft mode enabled",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /index",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /with-cookies"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/duplicate-layout-components/duplicate-layout-components.test.js": {
+    "passed": [
+      "app dir - duplicate layout components should not duplicate layout elements when navigating to 404"
     ],
     "failed": [],
     "pending": [],
@@ -3515,6 +3534,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/middleware-rsc-external-rewrite/middleware-rsc-external-rewrite.test.ts": {
+    "passed": [
+      "middleware RSC external rewrite should forward _rsc parameter to external server on RSC navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/middleware-sitemap/matcher-exclude-sitemap/index.test.ts": {
     "passed": [
       "middleware-sitemap should not be affected by middleware if sitemap.xml is excluded from the matcher"
@@ -3563,6 +3591,31 @@
   },
   "test/e2e/app-dir/monaco-editor/monaco-editor.test.ts": {
     "passed": ["monaco-editor should load monaco-editor"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/multiple-lockfiles/multiple-lockfiles-with-output-file-tracing-root.test.ts": {
+    "passed": [
+      "multiple-lockfiles - has-output-file-tracing-root should not have multiple lockfiles warnings"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/multiple-lockfiles/multiple-lockfiles-with-turbo-root.test.ts": {
+    "passed": [
+      "multiple-lockfiles - has-turbo-root should not have multiple lockfiles warnings"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/multiple-lockfiles/multiple-lockfiles.test.ts": {
+    "passed": ["multiple-lockfiles should have multiple lockfiles warnings"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5760,12 +5813,13 @@
   },
   "test/e2e/app-dir/segment-cache/client-only-opt-in/client-only-opt-in.test.ts": {
     "passed": [
-      "segment cache prefetch scheduling prefetches a dynamic page (with PPR enabled)",
       "segment cache prefetch scheduling prefetches a dynamic page (without PPR enabled)",
       "segment cache prefetch scheduling prefetches a static page in a single request"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "segment cache prefetch scheduling prefetches a dynamic page (with PPR enabled)"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5823,9 +5877,9 @@
       "segment cache (incremental opt in) prefetches a shared layout on a PPR-enabled route that was previously omitted from a non-PPR-enabled route",
       "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if everything up to its loading.tsx boundary is already cached",
       "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if it has no loading.tsx boundary",
-      "segment cache (incremental opt in) when a link is prefetched with <Link prefetch=true>, no dynamic request is made on navigation",
-      "segment cache (incremental opt in) when prefetching with prefetch=true, refetches cache entries that only contain partial data",
-      "segment cache (incremental opt in) when prefetching with prefetch=true, refetches partial cache entries even if there's already a pending PPR request"
+      "segment cache (incremental opt in) when a link is prefetched with <Link prefetch=\"unstable_forceStale\">, no dynamic request is made on navigation",
+      "segment cache (incremental opt in) when prefetching with prefetch=\"unstable_forceStale\", refetches cache entries that only contain partial data",
+      "segment cache (incremental opt in) when prefetching with prefetch=\"unstable_forceStale\", refetches partial cache entries even if there's already a pending PPR request"
     ],
     "failed": [],
     "pending": [],
@@ -5835,6 +5889,16 @@
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
     "passed": [
       "segment cache memory pressure evicts least recently used prefetch data once cache size exceeds limit"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/metadata/segment-cache-metadata.test.ts": {
+    "passed": [
+      "segment cache (metadata) regression: prefetch the head if it's missing even if all other data is cached pages with dynamic content and dynamic metadata, using a full prefetch",
+      "segment cache (metadata) regression: prefetch the head if it's missing even if all other data is cached pages with runtime-prefetchable content and dynamic metadata, using a runtime prefetch"
     ],
     "failed": [],
     "pending": [],
@@ -5854,6 +5918,48 @@
   "test/e2e/app-dir/segment-cache/prefetch-auto/prefetch-auto.test.ts": {
     "passed": [
       "<Link prefetch=\"auto\"> <Link prefetch=\"auto\"> works the same as if prefetch were undefined or null"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
+    "passed": [
+      "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
+      "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
+      "layout sharing in non-static prefetches full prefetches should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
+      "layout sharing in non-static prefetches navigations should omit layouts that were already prefetched with a full prefetch",
+      "layout sharing in non-static prefetches navigations should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
+      "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a full prefetch",
+      "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a runtime prefetch"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/prefetch-runtime/prefetch-runtime.test.ts": {
+    "passed": [
+      "<Link prefetch={true}> (runtime prefetch) cache stale time handling includes short-lived public caches with a long enough staleTime",
+      "<Link prefetch={true}> (runtime prefetch) cache stale time handling omits private caches with a short enough staleTime",
+      "<Link prefetch={true}> (runtime prefetch) cache stale time handling omits short-lived public caches with a short enough staleTime",
+      "<Link prefetch={true}> (runtime prefetch) can completely prefetch a page that is fully static",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after cookies()",
+      "<Link prefetch={true}> (runtime prefetch) errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
+      "<Link prefetch={true}> (runtime prefetch) in a page can completely prefetch a page that uses cookies and no uncached IO",
+      "<Link prefetch={true}> (runtime prefetch) in a page includes cookies, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) in a page includes dynamic params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) in a page includes root params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) in a page includes search params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) in a private cache can completely prefetch a page that uses cookies and no uncached IO",
+      "<Link prefetch={true}> (runtime prefetch) in a private cache includes cookies, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) in a private cache includes dynamic params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) in a private cache includes root params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) in a private cache includes search params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
+      "<Link prefetch={true}> (runtime prefetch) should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
+      "<Link prefetch={true}> (runtime prefetch) should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
     ],
     "failed": [],
     "pending": [],
@@ -5892,7 +5998,7 @@
       "segment cache (search params) handles rewrites to the same page but with no search params",
       "segment cache (search params) stores prefetched data by its rewritten search params, not the original ones",
       "segment cache (search params) when fetching with PPR, does not include search params in the cache key",
-      "segment cache (search params) when fetching without PPR (e.g. prefetch={true}), includes the search params in the cache key"
+      "segment cache (search params) when fetching without PPR (e.g. prefetch=\"unstable_forceStale\"), includes the search params in the cache key"
     ],
     "failed": [],
     "pending": [],
@@ -5902,6 +6008,7 @@
   "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts": {
     "passed": [
       "segment cache (staleness) entry expires when its stale time has elapsed",
+      "segment cache (staleness) expires runtime prefetches when their stale time has elapsed",
       "segment cache (staleness) reuses dynamic data up to the staleTimes.dynamic threshold"
     ],
     "failed": [],
@@ -7280,6 +7387,25 @@
       "i18n-disallow-multiple-locales /nl/nl-BE should 404",
       "i18n-disallow-multiple-locales /nl/nl-NL should 404",
       "i18n-disallow-multiple-locales should verify the default locale works"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/i18n-fallback-collision/i18n-fallback-collision.test.ts": {
+    "passed": [
+      "i18n-disallow-multiple-locales should 404 properly for fallback: false non-prerendered /es/first/non-existent",
+      "i18n-disallow-multiple-locales should 404 properly for fallback: false non-prerendered /es/first/second/non-existent",
+      "i18n-disallow-multiple-locales should 404 properly for fallback: false non-prerendered /es/non-existent",
+      "i18n-disallow-multiple-locales should 404 properly for fallback: false non-prerendered /first/non-existent",
+      "i18n-disallow-multiple-locales should 404 properly for fallback: false non-prerendered /first/second/non-existent",
+      "i18n-disallow-multiple-locales should 404 properly for fallback: false non-prerendered /non-existent",
+      "i18n-disallow-multiple-locales should render properly for fallback: blocking",
+      "i18n-disallow-multiple-locales should render properly for fallback: false prerendered /first",
+      "i18n-disallow-multiple-locales should render properly for fallback: false prerendered /first/second",
+      "i18n-disallow-multiple-locales should render properly for fallback: false prerendered /first/second/third",
+      "i18n-disallow-multiple-locales should render properly for fallback: false prerendered /first/second/third/fourth"
     ],
     "failed": [],
     "pending": [],
@@ -18698,15 +18824,6 @@
   },
   "test/production/app-dir-prevent-304-caching/index.test.ts": {
     "passed": ["app-dir-prevent-304-caching should not cache 304 status"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/production/app-dir/action-tracing/action-tracing.test.ts": {
-    "passed": [
-      "action-tracing should trace server action imported by client correctly"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],

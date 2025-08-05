@@ -26,7 +26,7 @@ async function ShortLivedCache() {
     revalidate: 2 * 60,
     expire: 3 * 60, // < DYNAMIC_EXPIRE
   })
-  await cachedDelay(500, [__filename])
+  await cachedDelay([__filename])
 
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>

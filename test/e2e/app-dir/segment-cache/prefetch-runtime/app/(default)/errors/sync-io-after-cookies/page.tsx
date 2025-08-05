@@ -20,6 +20,6 @@ export default async function Page() {
 
 async function One() {
   const cookieStore = await cookies()
-  await cachedDelay(500, ['/cookies', cookieStore.get('user-agent')?.value])
+  await cachedDelay(['/cookies', cookieStore.get('user-agent')?.value])
   return <div id="timestamp">Timestamp: {Date.now()}</div>
 }

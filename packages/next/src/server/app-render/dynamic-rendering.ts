@@ -585,8 +585,9 @@ export function annotateDynamicAccess(
 }
 
 export function useDynamicRouteParams(expression: string) {
+  const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (workUnitStore) {
+  if (workStore && workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender-client':
       case 'prerender': {
@@ -595,19 +596,19 @@ export function useDynamicRouteParams(expression: string) {
           // We are in a prerender with cacheComponents semantics. We are going to
           // hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole.
-          React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
+          React.use(
+            makeHangingPromise(
+              workUnitStore.renderSignal,
+              workStore.route,
+              expression
+            )
+          )
         }
         break
       }
       case 'prerender-ppr': {
         const fallbackParams = workUnitStore.fallbackRouteParams
         if (fallbackParams && fallbackParams.size > 0) {
-          const workStore = workAsyncStorage.getStore()
-          if (!workStore) {
-            throw new InvariantError(
-              'Missing workStore in useDynamicRouteParams'
-            )
-          }
           return postponeWithTracking(
             workStore.route,
             expression,

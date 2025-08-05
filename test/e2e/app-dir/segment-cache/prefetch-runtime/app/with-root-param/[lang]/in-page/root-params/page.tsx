@@ -19,7 +19,7 @@ export default async function Page() {
 
 async function StaticallyPrefetchable() {
   const currentLang = await lang()
-  await cachedDelay(500, [__filename, currentLang])
+  await cachedDelay([__filename, currentLang])
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>
       <div id="root-param-value">{`Lang: ${currentLang}`}</div>

@@ -3052,6 +3052,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/turbopack-loader-file-dependencies/turbopack-loader-file-dependencies.test.ts": {
+    "passed": [
+      "turbopack-loader-file-dependencies should update when the dependency file changes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/typed-env/typed-env-prod.test.ts": {
     "passed": ["typed-env should have env types from next config"],
     "failed": [],
@@ -5558,7 +5567,7 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [
@@ -6531,6 +6540,15 @@
       "app dir - draft mode in nodejs runtime should read other cookies when draft mode enabled",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /index",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /with-cookies"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/duplicate-layout-components/duplicate-layout-components.test.js": {
+    "passed": [
+      "app dir - duplicate layout components should not duplicate layout elements when navigating to 404"
     ],
     "failed": [],
     "pending": [],
@@ -9755,6 +9773,24 @@
   },
   "test/e2e/app-dir/segment-cache/prefetch-auto/prefetch-auto.test.ts": {
     "passed": ["<Link prefetch=\"auto\"> disabled in development / deployment"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
+    "passed": [
+      "layout sharing in non-static prefetches disabled in development"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/prefetch-runtime/prefetch-runtime.test.ts": {
+    "passed": [
+      "<Link prefetch={true}> (runtime prefetch) disabled in development"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],

@@ -29,7 +29,7 @@ async function RuntimePrefetchable({
   searchParams: Promise<AnySearchParams>
 }) {
   const { searchParam } = await searchParams
-  await cachedDelay(500, [__filename, searchParam])
+  await cachedDelay([__filename, searchParam])
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>
       <div id="search-param-value">{`Search param: ${searchParam}`}</div>

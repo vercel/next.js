@@ -21,7 +21,7 @@ export default async function Page({ params }: { params: Promise<Params> }) {
 
 async function RuntimePrefetchable({ params }: { params: Promise<Params> }) {
   const { id } = await params
-  await cachedDelay(500, [__filename, id])
+  await cachedDelay([__filename, id])
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>
       <div id="param-value">{`Param: ${id}`}</div>

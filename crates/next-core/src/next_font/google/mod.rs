@@ -1,8 +1,9 @@
-use std::path::Path;
+use std::{path::Path, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use futures::FutureExt;
 use indoc::formatdoc;
+use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
@@ -527,14 +528,19 @@ fn find_font_files_in_css(css: &str, subsets_to_preload: &[RcStr]) -> Vec<FontFi
     let mut current_subset = "";
 
     for line in css.lines() {
-        if let Some((_, new_subset)) = lazy_regex::regex_captures!(r#"/\* (.+?) \*/"#, line) {
-            current_subset = new_subset;
+        static COMMENT_RE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r#"/\* (.+?) \*/"#).unwrap());
+        if let Some(new_subset) = COMMENT_RE.captures(line).and_then(|c| c.get(1)) {
+            current_subset = new_subset.as_str();
             continue;
         }
 
-        let Some((_, font_url)) = lazy_regex::regex_captures!(r#"src: url\((.+?)\)"#, line) else {
+        static FONT_URL_RE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r#"src: url\((.+?)\)"#).unwrap());
+        let Some(font_url) = FONT_URL_RE.captures(line).and_then(|c| c.get(1)) else {
             continue;
         };
+        let font_url = font_url.as_str();
 
         if font_files.iter().any(|file| file.font_url == font_url) {
             continue;

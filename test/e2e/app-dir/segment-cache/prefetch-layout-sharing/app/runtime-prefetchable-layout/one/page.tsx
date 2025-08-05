@@ -16,7 +16,7 @@ export default function Page() {
 async function RuntimePrefetchable() {
   const cookieStore = await cookies()
   const cookieValue = cookieStore.get('testCookie')?.value ?? null
-  await cachedDelay(500, [__filename, cookieValue])
+  await cachedDelay([__filename, cookieValue])
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>
       <div id="cookie-value-page">{`Cookie from page: ${cookieValue}`}</div>

@@ -448,10 +448,10 @@ describe('app-dir - server source maps', () => {
           '' +
             '\nError: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
-            '\n    at [project]/app/module-evaluation/module.js [app-rsc] (ecmascript) (app/module-evaluation/module.js:1:22)' +
+            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
-            '\n    at [project]/app/module-evaluation/page.js [app-rsc] (ecmascript) (app/module-evaluation/page.js:1:1)' +
-            '\n    at [project]/app/module-evaluation/page.js [app-rsc] (ecmascript, Next.js Server Component) (.next'
+            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/page.js:1:1)' +
+            '\n    at __TURBOPACK__module__evaluation__ (.next'
         )
       } else {
         expect(cliOutput).toContain(
@@ -477,13 +477,13 @@ describe('app-dir - server source maps', () => {
            "description": "module-evaluation",
            "environmentLabel": "Prerender",
            "label": "Console Error",
-           "source": "app/module-evaluation/module.js (1:22) @ [project]/app/module-evaluation/module.js [app-rsc] (ecmascript)
+           "source": "app/module-evaluation/module.js (1:22) @ {module evaluation}
          > 1 | export const error = new Error('module-evaluation')
              |                      ^",
            "stack": [
-             "[project]/app/module-evaluation/module.js [app-rsc] (ecmascript) app/module-evaluation/module.js (1:22)",
-             "[project]/app/module-evaluation/page.js [app-rsc] (ecmascript) app/module-evaluation/page.js (1:1)",
-             "[project]/app/module-evaluation/page.js [app-rsc] (ecmascript, Next.js Server Component) app/module-evaluation/page.js (6:1)",
+             "{module evaluation} app/module-evaluation/module.js (1:22)",
+             "{module evaluation} app/module-evaluation/page.js (1:1)",
+             "{module evaluation} app/module-evaluation/page.js (6:1)",
              "<FIXME-next-dist-dir>",
              "Page <anonymous>",
            ],
@@ -512,15 +512,10 @@ describe('app-dir - server source maps', () => {
       }
     } else {
       if (isTurbopack) {
-        expect(
-          normalizeCliOutput(next.cliOutput).replaceAll(
-            /at \d+ /g,
-            'at <TurbopackModuleID> '
-          )
-        ).toContain(
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
             '\nError: module-evaluation' +
-            '\n    at <TurbopackModuleID> (bundler:///app/module-evaluation/module.js:1:22)' +
+            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
             '\n    at Object.<anonymous>'
         )

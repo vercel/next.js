@@ -32,7 +32,7 @@ async function RuntimePrefetchable() {
 async function privateCache() {
   'use cache: private'
   const now = Date.now()
-  await cachedDelay(500, [__filename])
+  await cachedDelay([__filename])
   return now
 }
 

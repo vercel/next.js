@@ -34,7 +34,7 @@ async function RuntimePrefetchable({ params }: { params: Promise<Params> }) {
 async function privateCache(params: Promise<Params>) {
   'use cache: private'
   const { id } = await params
-  await cachedDelay(500, [__filename, id])
+  await cachedDelay([__filename, id])
   return id
 }
 

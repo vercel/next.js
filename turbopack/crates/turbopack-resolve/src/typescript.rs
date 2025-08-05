@@ -321,7 +321,7 @@ pub async fn tsconfig_resolve_options(
                         })
                         .collect();
                     all_paths.insert(
-                        key.to_string(),
+                        RcStr::from(key.as_str()),
                         ImportMapping::primary_alternatives(entries, Some(context_dir.clone())),
                     );
                 } else {

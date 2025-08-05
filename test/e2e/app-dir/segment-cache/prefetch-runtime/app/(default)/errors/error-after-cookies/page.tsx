@@ -23,6 +23,6 @@ export default async function Page() {
 
 async function One(): Promise<never> {
   const cookieStore = await cookies()
-  await cachedDelay(500, ['/cookies', cookieStore.get('user-agent')?.value])
+  await cachedDelay(['/cookies', cookieStore.get('user-agent')?.value])
   throw new Error('Kaboom')
 }

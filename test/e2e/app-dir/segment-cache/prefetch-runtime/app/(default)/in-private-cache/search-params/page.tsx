@@ -42,7 +42,7 @@ async function RuntimePrefetchable({
 async function privateCache(searchParams: Promise<AnySearchParams>) {
   'use cache: private'
   const { searchParam } = await searchParams
-  await cachedDelay(500, [__filename, searchParam])
+  await cachedDelay([__filename, searchParam])
   return searchParam
 }
 

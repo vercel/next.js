@@ -47,7 +47,7 @@ async function privateCache() {
   'use cache: private'
   const cookieStore = await cookies()
   const cookieValue = cookieStore.get('testCookie')?.value ?? null
-  await cachedDelay(500, [__filename, cookieValue])
+  await cachedDelay([__filename, cookieValue])
   return cookieValue
 }
 

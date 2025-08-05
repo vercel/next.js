@@ -212,6 +212,8 @@ export interface NapiTurboEngineOptions {
   dependencyTracking?: boolean
   /** Whether the project is running in a CI environment. */
   isCi?: boolean
+  /** Whether the project is running in a short session. */
+  isShortSession?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,

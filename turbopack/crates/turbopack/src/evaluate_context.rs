@@ -43,7 +43,7 @@ pub async fn node_evaluate_asset_context(
         ImportMap::empty()
     };
     import_map.insert_wildcard_alias(
-        "@vercel/turbopack-node/",
+        rcstr!("@vercel/turbopack-node/"),
         ImportMapping::PrimaryAlternative(
             rcstr!("./*"),
             Some(turbopack_node::embed_js::embed_fs().root().owned().await?),

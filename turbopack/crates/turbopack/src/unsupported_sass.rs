@@ -34,7 +34,7 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
             self.root.root().owned().await?,
-            Glob::new("**/*.{sass,scss}".into()),
+            Glob::new(rcstr!("**/*.{sass,scss}")),
         ))
     }
 
