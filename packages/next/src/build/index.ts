@@ -1386,7 +1386,12 @@ export default async function build(
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
       const hasApp404 = !!mappedAppPages?.[UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
       const hasCustomErrorPage =
-        mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
+        mappedPages['/_error']?.startsWith(PAGES_DIR_ALIAS)
+
+      // Check if there are any user pages (non-reserved pages) in the pages router
+      const hasUserPagesRoutes = Object.keys(mappedPages).some(
+        (route) => !isReservedPage(route)
+      )
 
       if (hasPublicDir) {
         const hasPublicUnderScoreNextDir = existsSync(
@@ -1847,7 +1852,7 @@ export default async function build(
             namedExports: [],
             isNextImageImported: true,
             hasSsrAmpPages: !!pagesDir,
-            hasNonStaticErrorPage: true,
+            hasNonStaticErrorPage: hasUserPagesRoutes,
           }
         }
 
@@ -1862,6 +1867,7 @@ export default async function build(
         const errorPageHasCustomGetInitialProps =
           nonStaticErrorPageSpan.traceAsyncFn(
             async () =>
+              hasUserPagesRoutes &&
               hasCustomErrorPage &&
               (await worker.hasCustomGetInitialProps({
                 page: '/_error',
@@ -1874,6 +1880,7 @@ export default async function build(
 
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
+            hasUserPagesRoutes &&
             hasCustomErrorPage &&
             worker.isPageStatic({
               dir,
@@ -1896,22 +1903,24 @@ export default async function build(
 
         const appPageToCheck = '/_app'
 
-        const customAppGetInitialPropsPromise = worker.hasCustomGetInitialProps(
-          {
-            page: appPageToCheck,
-            distDir,
-            runtimeEnvConfig,
-            checkingApp: true,
-            sriEnabled,
-          }
-        )
+        const customAppGetInitialPropsPromise = hasUserPagesRoutes
+          ? worker.hasCustomGetInitialProps({
+              page: appPageToCheck,
+              distDir,
+              runtimeEnvConfig,
+              checkingApp: true,
+              sriEnabled,
+            })
+          : Promise.resolve(false)
 
-        const namedExportsPromise = worker.getDefinedNamedExports({
-          page: appPageToCheck,
-          distDir,
-          runtimeEnvConfig,
-          sriEnabled,
-        })
+        const namedExportsPromise = hasUserPagesRoutes
+          ? worker.getDefinedNamedExports({
+              page: appPageToCheck,
+              distDir,
+              runtimeEnvConfig,
+              sriEnabled,
+            })
+          : Promise.resolve([])
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
@@ -2833,13 +2842,13 @@ export default async function build(
                 })
               })
 
-              if (useStaticPages404) {
+              if (useStaticPages404 && hasUserPagesRoutes) {
                 defaultMap['/404'] = {
                   page: hasPages404 ? '/404' : '/_error',
                 }
               }
 
-              if (useDefaultStatic500) {
+              if (useDefaultStatic500 && hasUserPagesRoutes) {
                 defaultMap['/500'] = {
                   page: '/_error',
                 }
@@ -3551,6 +3560,13 @@ export default async function build(
                   .replace(/\\/g, '/')
 
                 if (existsSync(orig)) {
+                  // if 404.html folder doesn't exist, create it
+                  await fs.mkdir(
+                    path.dirname(
+                      path.join(distDir, 'server', updatedRelativeDest)
+                    ),
+                    { recursive: true }
+                  )
                   await fs.copyFile(
                     orig,
                     path.join(distDir, 'server', updatedRelativeDest)
@@ -3580,9 +3596,11 @@ export default async function build(
             }
           }
 
-          if (useDefaultStatic500) {
+          if (useDefaultStatic500 && hasUserPagesRoutes) {
+            console.log('move static 500')
             await moveExportedPage('/_error', '/500', '/500', false, 'html')
           }
+          // TODO: generate app router 500.html if app router is present
 
           for (const page of combinedPages) {
             const isSsg = ssgPages.has(page)

@@ -621,6 +621,7 @@ export async function createPagesMapping({
       }
     }
     case PAGE_TYPES.PAGES: {
+      const hasPagesRoutes = Object.keys(pages).length > 0
       if (isDev) {
         delete pages['/_app']
         delete pages['/_error']
@@ -633,10 +634,12 @@ export async function createPagesMapping({
       const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
       return {
-        '/_app': `${root}/_app`,
-        '/_error': `${root}/_error`,
-        '/_document': `${root}/_document`,
-        ...pages,
+        ...(hasPagesRoutes && {
+          '/_app': `${root}/_app`,
+          '/_error': `${root}/_error`,
+          '/_document': `${root}/_document`,
+          ...pages,
+        }),
       }
     }
     default: {
