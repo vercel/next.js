@@ -65,26 +65,28 @@ export function resolveHref(
     if (urlAsString.startsWith('?')) {
       baseBase = router.asPath
 
-      // However, if the pathname is dynamic, we need to use the pathname
-      // to preserve the query interpolation and rewrites.
+      // However, if is a dynamic route, we need to use the pathname to preserve the
+      // query interpolation and rewrites (router.pathname will look like "/[slug]").
       if (isDynamicRoute(router.pathname)) {
         baseBase = router.pathname
 
         const routeRegex = getRouteRegex(router.pathname)
         const match = getRouteMatcher(routeRegex)(router.asPath)
 
-        // For dynamic routes, if asPath doesn't match the pathname regex,
-        // treat it as a rewritten path and use asPath to preserve the current URL
-        // instead of the rewrite destination.
+        // For dynamic routes, if asPath doesn't match the pathname regex, it is a rewritten path.
+        // In this case, should use asPath to preserve the current URL.
         if (!match) {
           baseBase = router.asPath
         }
-        // Note: There is an edge case where the pathname is dynamic and also rewritten,
-        // but to a same segment.
-        // E.g. in /[slug] path, rewrite /foo -> /bar
-        // In this case, it will be treated as non-rewritten path and possibly interpolate
-        // the query string. This is a trade-off of not resolving rewrites path on every
-        // Router/Link calls.
+
+        // Note: There is an edge case where the pathname is dynamic, and also a rewrite path to the same segment.
+        // E.g. in "/[slug]" path, rewrite "/foo" -> "/bar"
+
+        // In this case, it will be treated as a non-rewritten path and possibly interpolate the query string.
+        // E.g., "/any?slug=foo" will become the content of "/foo", not rewritten as "/bar"
+
+        // This is currently a trade-off of not resolving rewrite paths on every Router/Link call,
+        // but using a lighter route regex pattern check.
       }
     }
 
