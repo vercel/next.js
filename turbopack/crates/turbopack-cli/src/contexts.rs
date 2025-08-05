@@ -8,8 +8,8 @@ use turbopack::{
     ModuleAssetContext,
     ecmascript::TreeShakingMode,
     module_options::{
-        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
+        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        TypescriptTransformOptions,
     },
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
@@ -135,21 +135,6 @@ async fn get_client_module_options_context(
         .resolved_cell(),
     );
 
-    let conditions = RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".js".to_string()),
-        RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-        RuleCondition::ResourcePathEndsWith(".ts".to_string()),
-        RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-    ]);
-
-    let module_rules = ModuleRule::new(
-        conditions,
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![]),
-        }],
-    );
-
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_jsx,
@@ -164,7 +149,6 @@ async fn get_client_module_options_context(
             foreign_code_context_condition(),
             module_options_context.clone().resolved_cell(),
         )],
-        module_rules: vec![module_rules],
         ..module_options_context
     }
     .cell();
