@@ -24,6 +24,7 @@ import {
   DEFAULT_RUNTIME_WEBPACK,
   EDGE_RUNTIME_WEBPACK,
   SERVER_REFERENCE_MANIFEST,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import {
@@ -436,6 +437,20 @@ export class FlightClientEntryPlugin {
             entryName: name,
             clientComponentImports,
             bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            absolutePagePath: entryRequest,
+          })
+        }
+
+        if (
+          name === `app${UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY}` &&
+          bundlePath === 'app/global-error'
+        ) {
+          clientEntriesToInject.push({
+            compiler,
+            compilation,
+            entryName: name,
+            clientComponentImports,
+            bundlePath: `app${UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY}`,
             absolutePagePath: entryRequest,
           })
         }

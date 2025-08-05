@@ -61,6 +61,8 @@ export const COMPILER_INDEXES: {
 
 export const UNDERSCORE_NOT_FOUND_ROUTE = '/_not-found'
 export const UNDERSCORE_NOT_FOUND_ROUTE_ENTRY = `${UNDERSCORE_NOT_FOUND_ROUTE}/page`
+export const UNDERSCORE_GLOBAL_ERROR_ROUTE = '/_global-error'
+export const UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY = `${UNDERSCORE_GLOBAL_ERROR_ROUTE}/page`
 export const PHASE_EXPORT = 'phase-export'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'

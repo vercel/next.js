@@ -56,6 +56,7 @@ import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
+import { isClientReference } from '../client-and-server-references'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
@@ -531,6 +532,10 @@ async function collectViewport({
       await getLayoutOrPageModule(tree)
     mod = layoutOrPageMod
     modType = layoutOrPageModType
+  }
+
+  if (isClientReference(mod)) {
+    return
   }
 
   if (modType) {

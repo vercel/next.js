@@ -29,6 +29,8 @@ import {
   RSC_MODULE_TYPES,
   UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -440,10 +442,18 @@ export async function getStaticInfoIncludingLayouts({
     return pageStaticInfo
   }
 
+  // Skip inheritance for global-error pages - always use default config
+  if (
+    page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY ||
+    page?.endsWith('/global-error/page')
+  ) {
+    return pageStaticInfo
+  }
+
   const segments = [pageStaticInfo]
 
-  // inherit from layout files only if it's a page route
-  if (isAppPageRoute(page)) {
+  // inherit from layout files only if it's a page route and not a builtin page
+  if (isAppPageRoute(page) && !isAppBuiltinPage(pageFilePath)) {
     const layoutFiles = []
     const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
     let dir = dirname(pageFilePath)
@@ -562,6 +572,9 @@ export async function createPagesMapping({
       if (pageKey === UNDERSCORE_NOT_FOUND_ROUTE) {
         pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
       }
+      if (pageKey === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
+        pageKey = UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+      }
     }
 
     const normalizedPath = normalizePathSep(
@@ -615,6 +628,13 @@ export async function createPagesMapping({
         ...(hasAppPages && {
           [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]: require.resolve(
             'next/dist/client/components/builtin/global-not-found'
+          ),
+        }),
+        // If there's any app pages existed, add a default /_global-error route as 500.
+        // If there's any custom /_global-error page, it will override the default one.
+        ...(hasAppPages && {
+          [UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY]: require.resolve(
+            'next/dist/client/components/builtin/global-error'
           ),
         }),
         ...pages,

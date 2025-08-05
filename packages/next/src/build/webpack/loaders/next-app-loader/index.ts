@@ -1,5 +1,7 @@
 import type webpack from 'next/dist/compiled/webpack/webpack'
 import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   type ValueOf,
@@ -21,7 +23,7 @@ import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
 import type { NextConfig } from '../../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../../server/normalizers/built/app/app-pathname-normalizer'
 import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
-import { isAppBuiltinNotFoundPage } from '../../../utils'
+import { isAppBuiltinPage } from '../../../utils'
 import { loadEntrypoint } from '../../../load-entrypoint'
 import {
   isGroupSegment,
@@ -153,7 +155,8 @@ async function createTreeCodeFromPath(
 }> {
   const splittedPath = pagePath.split(/[\\/]/, 1)
   const isNotFoundRoute = page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
-  const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
+  const isAppErrorRoute = page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+  const isDefaultNotFound = isAppBuiltinPage(pagePath)
 
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
   const pages: string[] = []
@@ -439,7 +442,7 @@ async function createTreeCodeFromPath(
             const varName = `notFound${nestedCollectedDeclarations.length}`
             nestedCollectedDeclarations.push([varName, notFoundPath])
             subtreeCode = `{
-              children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
+              children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE.slice(1))}, {
                 children: ['${PAGE_SEGMENT_KEY}', {}, {
                   page: [
                     ${varName},
@@ -451,11 +454,32 @@ async function createTreeCodeFromPath(
           }
         }
       }
+      // If it's app-error route, set app-error as children page
+      if (isAppErrorRoute) {
+        const varName = `appError${nestedCollectedDeclarations.length}`
+        nestedCollectedDeclarations.push([varName, globalError])
+        subtreeCode = `{
+          children: [${JSON.stringify(UNDERSCORE_GLOBAL_ERROR_ROUTE.slice(1))}, {
+            children: ['${PAGE_SEGMENT_KEY}', {}, {
+              page: [
+                ${varName},
+                ${JSON.stringify(globalError)}
+              ]
+            }]
+          }, {}]
+        }`
+      }
 
       // For 404 route
       // if global-not-found is in definedFilePaths, remove root layout for /_not-found
       // TODO: remove this once global-not-found is stable.
       if (isNotFoundRoute && isGlobalNotFoundEnabled) {
+        definedFilePaths = definedFilePaths.filter(
+          ([type]) => type !== 'layout'
+        )
+      }
+
+      if (isAppErrorRoute) {
         definedFilePaths = definedFilePaths.filter(
           ([type]) => type !== 'layout'
         )
@@ -780,7 +804,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     !!treeCodeResult.globalNotFound &&
     isGlobalNotFoundEnabled
 
-  if (!treeCodeResult.rootLayout && !isGlobalNotFoundPath) {
+  const isAppErrorRoute = page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+
+  if (!treeCodeResult.rootLayout && !isGlobalNotFoundPath && !isAppErrorRoute) {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
       Log.error(
