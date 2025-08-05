@@ -1230,9 +1230,16 @@ async function expectTrace(collector: Collector, match: SpanMatch[]) {
         if (nameDiff !== 0) {
           return nameDiff
         }
-        return (
+        const segmentDiff =
           (a.attributes?.['next.segment'] ?? '').localeCompare(
             b.attributes?.['next.segment'] ?? ''
+          ) ?? 0
+        if (segmentDiff !== 0) {
+          return segmentDiff
+        }
+        return (
+          (a.attributes?.['next.route'] ?? '').localeCompare(
+            b.attributes?.['next.route'] ?? ''
           ) ?? 0
         )
       })
