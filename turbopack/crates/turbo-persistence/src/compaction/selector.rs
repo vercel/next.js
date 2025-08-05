@@ -236,13 +236,20 @@ pub fn get_merge_segments<T: Compactable>(
             // We have reached the maximum number of merge jobs, so we stop here.
             break;
         }
-        let mut current_range = start_compactable.range();
+        let start_compactable_range = start_compactable.range();
+        let start_compactable_size = start_compactable.size();
+        let mut current_range = start_compactable_range.clone();
 
         // We might need to restart the search if we need to extend the range.
         'search: loop {
             let mut current_set = smallvec![start_index];
-            let mut current_size = start_compactable.size();
+            let mut current_size = start_compactable_size;
             let mut duplication = IntervalMap::<Option<DuplicationInfo>>::new();
+            duplication.update(start_compactable_range.clone(), |dup_info| {
+                dup_info
+                    .get_or_insert_default()
+                    .add(start_compactable_size, &start_compactable_range);
+            });
             let mut current_skip = 0;
 
             // We will capture compactables in the current_range until we find a optimal merge
