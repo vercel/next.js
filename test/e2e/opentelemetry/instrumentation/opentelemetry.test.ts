@@ -624,7 +624,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 9 : 8,
+                          'next.clientComponentLoadCount': isNextDev ? 11 : 8,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
