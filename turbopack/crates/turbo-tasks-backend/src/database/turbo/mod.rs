@@ -21,7 +21,7 @@ const COMPACT_CONFIG: CompactConfig = CompactConfig {
     optimal_merge_count: 8,
     max_merge_count: 64,
     max_merge_bytes: 512 * MB,
-    min_merge_duplication_bytes: MB,
+    min_merge_duplication_bytes: 50 * MB,
     optimal_merge_duplication_bytes: 100 * MB,
     max_merge_segment_count: 16,
 };
