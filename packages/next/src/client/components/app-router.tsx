@@ -44,6 +44,7 @@ import { isRedirectError, RedirectType } from './redirect-error'
 import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
+import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -482,7 +483,10 @@ function Router({
   let content = (
     <RedirectBoundary>
       {head}
-      {cache.rsc}
+      {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
+          When users wrap their layout in <Suspense>, this creates the component stack pattern
+          "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}
+      <RootLayoutBoundary>{cache.rsc}</RootLayoutBoundary>
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )

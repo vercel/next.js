@@ -1,32 +1,29 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
   OUTLET_BOUNDARY_NAME,
-} from '../../../lib/metadata/metadata-constants'
+  ROOT_LAYOUT_BOUNDARY_NAME,
+} from './boundary-constants'
 
 // We use a namespace object to allow us to recover the name of the function
 // at runtime even when production bundling/minification is used.
 const NameSpace = {
-  [METADATA_BOUNDARY_NAME]: function ({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
+  [METADATA_BOUNDARY_NAME]: function ({ children }: { children: ReactNode }) {
     return children
   },
-  [VIEWPORT_BOUNDARY_NAME]: function ({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
+  [VIEWPORT_BOUNDARY_NAME]: function ({ children }: { children: ReactNode }) {
     return children
   },
-  [OUTLET_BOUNDARY_NAME]: function ({
+  [OUTLET_BOUNDARY_NAME]: function ({ children }: { children: ReactNode }) {
+    return children
+  },
+  [ROOT_LAYOUT_BOUNDARY_NAME]: function ({
     children,
   }: {
-    children: React.ReactNode
+    children: ReactNode
   }) {
     return children
   },
@@ -46,3 +43,10 @@ export const OutletBoundary =
   // We use slice(0) to trick the bundler into not inlining/minifying the function
   // so it retains the name inferred from the namespace object
   NameSpace[OUTLET_BOUNDARY_NAME.slice(0) as typeof OUTLET_BOUNDARY_NAME]
+
+export const RootLayoutBoundary =
+  // We use slice(0) to trick the bundler into not inlining/minifying the function
+  // so it retains the name inferred from the namespace object
+  NameSpace[
+    ROOT_LAYOUT_BOUNDARY_NAME.slice(0) as typeof ROOT_LAYOUT_BOUNDARY_NAME
+  ]
