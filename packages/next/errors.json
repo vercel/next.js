@@ -892,5 +892,8 @@
   "891": "Failed to read build paths file \"%s\": %s",
   "892": "Failed to resolve glob pattern \"%s\": %s",
   "893": "The \"sassOptions.functions\" option is not supported when using Turbopack. Custom Sass functions are only available with webpack. Please remove the \"functions\" property from your sassOptions in %s.",
-  "894": "Param %s not found in childrenRouteParamSegments %s"
+  "894": "Param %s not found in childrenRouteParamSegments %s",
+  "895": "Invalid React HTML document. Should start with doctype prefix.",
+  "896": "oops",
+  "897": "Expected HTML document to start with doctype prefix"
 }

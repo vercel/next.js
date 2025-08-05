@@ -1989,6 +1989,7 @@ function writeDynamicRenderResponseIntoCache(
         fetchStrategy,
         route,
         staleAt,
+        flightData.tree,
         seedData,
         isResponsePartial,
         cacheKey,
@@ -2044,6 +2045,7 @@ function writeSeedDataIntoCache(
     | FetchStrategy.Full,
   route: FulfilledRouteCacheEntry,
   staleAt: number,
+  flightRouterState: FlightRouterState,
   seedData: CacheNodeSeedData,
   isResponsePartial: boolean,
   cacheKey: SegmentCacheKey,
@@ -2058,8 +2060,8 @@ function writeSeedDataIntoCache(
   // want to treat a dynamic response as if it were static. The two examples
   // where this happens are <Link prefetch={true}> (which implicitly opts
   // dynamic data into being static) and when prefetching a PPR-disabled route
-  const rsc = seedData[1]
-  const loading = seedData[3]
+  const rsc = seedData[0]
+  const loading = seedData[2]
   const isPartial = rsc === null || isResponsePartial
 
   // We should only write into cache entries that are owned by us. Or create
@@ -2110,36 +2112,38 @@ function writeSeedDataIntoCache(
     }
   }
   // Recursively write the child data into the cache.
-  const seedDataChildren = seedData[2]
-  if (seedDataChildren !== null) {
-    for (const parallelRouteKey in seedDataChildren) {
-      const childSeedData = seedDataChildren[parallelRouteKey]
-      if (childSeedData !== null) {
-        const childSegment = childSeedData[0]
-        const childRequestKeyPart = createSegmentRequestKeyPart(childSegment)
-        const childRequestKey = appendSegmentRequestKeyPart(
-          requestKey,
-          parallelRouteKey,
-          childRequestKeyPart
-        )
-        const childCacheKey = appendSegmentCacheKeyPart(
-          cacheKey,
-          parallelRouteKey,
-          createSegmentCacheKeyPart(childRequestKeyPart, childSegment)
-        )
-        writeSeedDataIntoCache(
-          now,
-          task,
-          fetchStrategy,
-          route,
-          staleAt,
-          childSeedData,
-          isResponsePartial,
-          childCacheKey,
-          childRequestKey,
-          entriesOwnedByCurrentTask
-        )
-      }
+  const flightRouterStateChildren = flightRouterState[1]
+  const seedDataChildren = seedData[1]
+  for (const parallelRouteKey in flightRouterStateChildren) {
+    const childFlightRouterState = flightRouterStateChildren[parallelRouteKey]
+    const childSeedData: CacheNodeSeedData | null | void =
+      seedDataChildren[parallelRouteKey]
+    if (childSeedData !== null && childSeedData !== undefined) {
+      const childSegment = childFlightRouterState[0]
+      const childRequestKeyPart = createSegmentRequestKeyPart(childSegment)
+      const childRequestKey = appendSegmentRequestKeyPart(
+        requestKey,
+        parallelRouteKey,
+        childRequestKeyPart
+      )
+      const childCacheKey = appendSegmentCacheKeyPart(
+        cacheKey,
+        parallelRouteKey,
+        createSegmentCacheKeyPart(childRequestKeyPart, childSegment)
+      )
+      writeSeedDataIntoCache(
+        now,
+        task,
+        fetchStrategy,
+        route,
+        staleAt,
+        childFlightRouterState,
+        childSeedData,
+        isResponsePartial,
+        childCacheKey,
+        childRequestKey,
+        entriesOwnedByCurrentTask
+      )
     }
   }
 }
