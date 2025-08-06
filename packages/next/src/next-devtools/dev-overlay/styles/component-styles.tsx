@@ -47,7 +47,6 @@ export function ComponentStyles() {
         ${containerErrorStyles}
         ${containerRuntimeErrorStyles}
         ${versionStaleness}
-        
         ${DEV_TOOLS_INFO_STYLES}
         ${DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES}
         ${DEV_TOOLS_INFO_ROUTE_INFO_STYLES}

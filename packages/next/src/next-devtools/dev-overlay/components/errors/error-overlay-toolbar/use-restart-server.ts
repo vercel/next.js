@@ -40,6 +40,7 @@ export function useRestartServer() {
       })
 
       if (!restartRes.ok) {
+        // Use console log to avoid spamming the error overlay which users can't control.
         console.log(
           '[Next.js DevTools] Failed to fetch restart server endpoint. Status:',
           restartRes.status
@@ -47,7 +48,9 @@ export function useRestartServer() {
         return
       }
 
+      // Poll for server restart confirmation.
       for (let i = 0; i < 10; i++) {
+        // generous 1 second delay for large apps.
         await new Promise((resolveTimeout) => setTimeout(resolveTimeout, 1_000))
 
         try {
@@ -55,8 +58,10 @@ export function useRestartServer() {
             .then((res) => res.json())
             .then((data) => data.executionId as number)
 
+          // If the execution ID has changed, the server has restarted successfully.
           if (curId !== nextId) {
             serverRestarted = true
+            // Reload the page to ensure the connection to the new server.
             window.location.reload()
             return
           }
@@ -73,6 +78,7 @@ export function useRestartServer() {
       console.log('[Next.js DevTools] Failed to restart server.', error)
       return
     } finally {
+      // If server restarted, don't reset isPending since the page will reload.
       if (!serverRestarted) {
         setIsPending(false)
       }
