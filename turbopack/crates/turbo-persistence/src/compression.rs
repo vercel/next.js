@@ -1,7 +1,7 @@
 use std::{mem::MaybeUninit, sync::Arc};
 
 use anyhow::{Context, Result};
-use lzzzz::lz4::{ACC_LEVEL_DEFAULT, decompress, decompress_with_dict, max_compressed_size};
+use lzzzz::lz4::{ACC_LEVEL_DEFAULT, decompress, decompress_with_dict};
 
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn decompress_into_arc(
