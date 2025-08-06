@@ -2906,11 +2906,11 @@ async fn value_visitor_inner(
                 &DefinableNameSegment::TypeOf,
             )
         {
-            return Ok(((&*value.await?).into(), true));
+            return Ok(((&*value.await?).try_into()?, true));
         }
 
         if let Some(value) = v.match_define(&*compile_time_info.defines.individual().await?) {
-            return Ok(((&*value.await?).into(), true));
+            return Ok(((&*value.await?).try_into()?, true));
         }
     }
     let value = match v {
@@ -3039,9 +3039,15 @@ async fn require_resolve_visitor(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(pat.clone());
-        let resolved = cjs_resolve_source(origin, request, None, true)
-            .resolve()
-            .await?;
+        let resolved = cjs_resolve_source(
+            origin,
+            request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            true,
+        )
+        .resolve()
+        .await?;
         let mut values = resolved
             .primary_sources()
             .await?

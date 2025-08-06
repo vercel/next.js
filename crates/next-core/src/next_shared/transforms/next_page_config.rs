@@ -9,16 +9,20 @@ use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, Transfor
 
 use super::module_rule_match_pages_page_file;
 
-pub fn get_next_page_config_rule(enable_mdx_rs: bool, pages_dir: FileSystemPath) -> ModuleRule {
+pub fn get_next_page_config_rule(
+    is_development: bool,
+    enable_mdx_rs: bool,
+    pages_dir: FileSystemPath,
+) -> ModuleRule {
     let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextPageConfig {
-        // [TODO]: update once turbopack build works
-        is_development: true,
+        is_development,
     }) as _));
     ModuleRule::new(
         module_rule_match_pages_page_file(enable_mdx_rs, pages_dir),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![transformer]),
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![transformer]),
         }],
     )
 }

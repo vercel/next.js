@@ -1,4 +1,4 @@
-use std::{future::Future, sync::LazyLock};
+use std::{str::FromStr, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use regex::Regex;
@@ -61,13 +61,10 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
             )
             .or_insert_with(|| {
                 if let Some(v) = v {
-                    let val = serde_json::from_str(v);
+                    let val = serde_json::Value::from_str(v);
                     match val {
-                        Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                        Ok(serde_json::Value::String(v)) => {
-                            CompileTimeDefineValue::String(v.into())
-                        }
-                        _ => CompileTimeDefineValue::JSON(v.clone()),
+                        Ok(v) => v.into(),
+                        _ => CompileTimeDefineValue::Evaluate(v.clone()),
                     }
                 } else {
                     CompileTimeDefineValue::Undefined

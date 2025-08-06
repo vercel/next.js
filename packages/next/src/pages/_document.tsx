@@ -363,7 +363,8 @@ function getAmpPath(ampPath: string, asPath: string): string {
 function getNextFontLinkTags(
   nextFontManifest: DeepReadonly<NextFontManifest> | undefined,
   dangerousAsPath: string,
-  assetPrefix: string = ''
+  assetPrefix: string = '',
+  assetQueryString: string = ''
 ) {
   if (!nextFontManifest) {
     return {
@@ -403,7 +404,7 @@ function getNextFontLinkTags(
             <link
               key={fontFile}
               rel="preload"
-              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}`}
+              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}${assetQueryString}`}
               as="font"
               type={`font/${ext}`}
               crossOrigin="anonymous"
@@ -755,7 +756,8 @@ export class Head extends React.Component<HeadProps> {
     const nextFontLinkTags = getNextFontLinkTags(
       nextFontManifest,
       dangerousAsPath,
-      assetPrefix
+      assetPrefix,
+      this.context.assetQueryString
     )
 
     const tracingMetadata = getTracedMetadata(

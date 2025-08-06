@@ -35,9 +35,16 @@ pub struct StructuredImageFileSource {
 impl Source for StructuredImageFileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
+        let modifier = match self.blur_placeholder_mode {
+            BlurPlaceholderMode::DataUrl => rcstr!("structured image object with data url"),
+            BlurPlaceholderMode::NextImageUrl => {
+                rcstr!("structured image object with next image url")
+            }
+            BlurPlaceholderMode::None => rcstr!("structured image object"),
+        };
         self.image
             .ident()
-            .with_modifier(rcstr!("structured image object"))
+            .with_modifier(modifier)
             .rename_as(rcstr!("*.mjs"))
     }
 }

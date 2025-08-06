@@ -4,10 +4,15 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::{Ok, Result};
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    common::{GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments, pass::AstNodePath},
+    base::try_with_handler,
+    common::{
+        GLOBALS, Mark, SourceMap, Span, Spanned, SyntaxContext, comments::Comments,
+        pass::AstNodePath, sync::Lrc,
+    },
     ecma::{
         ast::*,
         atoms::atom,
@@ -26,6 +31,7 @@ use super::{
 use crate::{
     SpecifiedModuleType,
     analyzer::{WellKnownObjectKind, is_unresolved},
+    references::constant_value::parse_single_expr_lit,
     utils::{AstPathRange, unparen},
 };
 
@@ -311,7 +317,7 @@ impl EvalContext {
     /// webpackIgnore or turbopackIgnore comments, you must pass those in,
     /// since the AST does not include comments by default.
     pub fn new(
-        module: &Program,
+        module: Option<&Program>,
         unresolved_mark: Mark,
         top_level_mark: Mark,
         force_free_values: Arc<FxHashSet<Id>>,
@@ -321,7 +327,9 @@ impl EvalContext {
         Self {
             unresolved_mark,
             top_level_mark,
-            imports: ImportMap::analyze(module, source, comments),
+            imports: module.map_or(ImportMap::default(), |m| {
+                ImportMap::analyze(m, source, comments)
+            }),
             force_free_values,
         }
     }
@@ -622,7 +630,6 @@ impl EvalContext {
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
                     let obj = Box::new(self.eval(obj));
                     let prop = Box::new(match prop {
-                        // TODO avoid clone
                         MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
                             return JsValue::unknown_empty(
@@ -719,6 +726,29 @@ impl EvalContext {
 
             _ => JsValue::unknown_empty(true, "unsupported expression"),
         }
+    }
+
+    pub fn eval_single_expr_lit(expr_lit: RcStr) -> Result<JsValue> {
+        let cm = Lrc::new(SourceMap::default());
+
+        let js_value = try_with_handler(cm, Default::default(), |_| {
+            GLOBALS.set(&Default::default(), || {
+                let expr = parse_single_expr_lit(expr_lit);
+                let eval_context = EvalContext::new(
+                    None,
+                    Mark::new(),
+                    Mark::new(),
+                    Default::default(),
+                    None,
+                    None,
+                );
+
+                Ok(eval_context.eval(&expr))
+            })
+        })
+        .map_err(|e| e.to_pretty_error())?;
+
+        Ok(js_value)
     }
 }
 
@@ -942,7 +972,7 @@ impl Analyzer<'_> {
 
                         // We cannot analyze recursive IIFE
                         if let Some(ident) = ident
-                            && contains_ident_ref(&function.body, &ident.to_id())
+                            && contains_ident_ref(&function.body, ident)
                         {
                             return false;
                         }

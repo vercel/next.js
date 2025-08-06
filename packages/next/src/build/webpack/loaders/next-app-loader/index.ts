@@ -77,7 +77,7 @@ const FILE_TYPES = {
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const GLOBAL_NOT_FOUND_FILE_TYPE = 'global-not-found'
 const PAGE_SEGMENT = 'page$'
-const PARALLEL_CHILDREN_SEGMENT = 'children$'
+const PARALLEL_VIRTUAL_SEGMENT = 'slot$'
 
 const defaultGlobalErrorPath =
   'next/dist/client/components/builtin/global-error.js'
@@ -275,7 +275,7 @@ async function createTreeCodeFromPath(
 
       if (
         normalizedParallelSegment !== PAGE_SEGMENT &&
-        normalizedParallelSegment !== PARALLEL_CHILDREN_SEGMENT
+        normalizedParallelSegment !== PARALLEL_VIRTUAL_SEGMENT
       ) {
         // If we don't have a page segment, nor a special $children marker, it means we need to traverse the next directory
         // (ie, `normalizedParallelSegment` would correspond with the folder that contains the next level of pages/layout/etc)
@@ -396,8 +396,8 @@ async function createTreeCodeFromPath(
       // earlier logic (such as children$ and page$). These should never appear in the loader tree, and
       // should instead be the corresponding segment keys (ie `__PAGE__`) or the `children` parallel route.
       parallelSegmentKey =
-        parallelSegmentKey === PARALLEL_CHILDREN_SEGMENT
-          ? 'children'
+        parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT
+          ? '__virtual_segment__'
           : parallelSegmentKey === PAGE_SEGMENT
             ? PAGE_SEGMENT_KEY
             : parallelSegmentKey
@@ -624,7 +624,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
           // If it was a parallel route but we weren't able to find the page segment (ie, maybe the page is nested further)
           // we first insert a special marker to ensure that we still process layout/default/etc at the slot level prior to continuing
           // on to the page segment.
-          matched[rest[0]] = [PARALLEL_CHILDREN_SEGMENT, ...rest.slice(1)]
+          matched[rest[0]] = [PARALLEL_VIRTUAL_SEGMENT, ...rest.slice(1)]
           continue
         }
 

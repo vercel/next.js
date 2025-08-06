@@ -2074,7 +2074,7 @@ pub mod tests {
     impl Asset for MockModule {
         #[turbo_tasks::function]
         fn content(&self) -> Vc<AssetContent> {
-            todo!()
+            panic!("MockModule::content shouldn't be called")
         }
     }
 

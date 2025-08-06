@@ -541,7 +541,7 @@ async fn benchmark_file_io(
         ))?
         .await?;
 
-    let directory = fs.to_sys_path(directory).await?;
+    let directory = fs.to_sys_path(directory)?;
     let temp_path = directory.join(format!(
         "tmp_file_io_benchmark_{:x}",
         rand::random::<u128>()

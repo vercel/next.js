@@ -497,7 +497,7 @@ async fn parse_file_content(
             });
 
             let eval_context = EvalContext::new(
-                &parsed_program,
+                Some(&parsed_program),
                 unresolved_mark,
                 top_level_mark,
                 Arc::new(var_with_ts_declare),

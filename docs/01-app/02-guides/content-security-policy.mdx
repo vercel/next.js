@@ -447,15 +447,15 @@ module.exports = {
 
 <AppOnly>
 
-## Hash-based CSP with Subresource Integrity (Experimental)
+## Subresource Integrity (Experimental)
 
 As an alternative to nonces, Next.js offers experimental support for hash-based CSP using Subresource Integrity (SRI). This approach allows you to maintain static generation while still having a strict CSP.
 
-> **Warning**: This feature is experimental and only available with webpack bundler in App Router applications.
+> **Good to know**: This feature is experimental and only available with webpack bundler in App Router applications.
 
 ### How SRI works
 
-Instead of using nonces, SRI generates cryptographic hashes of your JavaScript and CSS files at build time. These hashes are then used in your CSP policy to allow specific scripts and styles.
+Instead of using nonces, SRI generates cryptographic hashes of your JavaScript files at build time. These hashes are added as `integrity` attributes to script tags, allowing browsers to verify that files haven't been modified during transit.
 
 ### Enabling SRI
 
@@ -474,15 +474,17 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-### Using SRI with CSP
+### CSP configuration with SRI
 
-When SRI is enabled, you can use hash-based CSP policies:
+When SRI is enabled, you can continue using your existing CSP policies. SRI works independently by adding `integrity` attributes to your assets:
+
+> **Good to know**: For dynamic rendering scenarios, you can still generate nonces with middleware if needed, combining both SRI integrity attributes and nonce-based CSP approaches.
 
 ```js filename="next.config.js"
 const cspHeader = `
     default-src 'self';
-    script-src 'self'; /* Next.js will automatically add hashes */
-    style-src 'self'; /* Next.js will automatically add hashes */
+    script-src 'self';
+    style-src 'self';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
