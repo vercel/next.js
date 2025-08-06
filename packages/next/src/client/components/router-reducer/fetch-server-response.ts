@@ -240,7 +240,7 @@ export async function fetchServerResponse(
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return doMpaNavigation(url.toString());
+    return doMpaNavigation(url.toString())
   }
 }
 
