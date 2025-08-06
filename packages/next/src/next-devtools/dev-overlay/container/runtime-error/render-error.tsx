@@ -35,12 +35,7 @@ export const RenderError = (props: Props) => {
   }
 }
 
-const RenderRuntimeError = ({
-  children,
-  state,
-  isAppDir,
-  dispatch,
-}: Props) => {
+const RenderRuntimeError = ({ children, state, isAppDir, dispatch }: Props) => {
   const { errors } = state
 
   const [lookups, setLookups] = useState<{
