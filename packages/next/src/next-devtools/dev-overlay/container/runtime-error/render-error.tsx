@@ -1,4 +1,4 @@
-import type { OverlayDispatch, OverlayState } from '../../shared'
+import type { OverlayState } from '../../shared'
 import type { StackFrame } from '../../../shared/stack-frame'
 
 import { useMemo, useState, useEffect } from 'react'
@@ -21,7 +21,6 @@ type Props = {
   }) => React.ReactNode
   state: OverlayState
   isAppDir: boolean
-  _dispatch: OverlayDispatch
 }
 
 export const RenderError = (props: Props) => {
@@ -35,12 +34,7 @@ export const RenderError = (props: Props) => {
   }
 }
 
-const RenderRuntimeError = ({
-  children,
-  state,
-  isAppDir,
-  _dispatch,
-}: Props) => {
+const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
   const { errors } = state
 
   const [lookups, setLookups] = useState<{
