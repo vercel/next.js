@@ -366,7 +366,7 @@ function asyncLoader(
   const loader = this.r(moduleId) as (
     importFunction: EsmImport
   ) => Promise<Exports>
-  return loader(this.i.bind(this))
+  return loader(esmImport.bind(this))
 }
 contextPrototype.A = asyncLoader
 
