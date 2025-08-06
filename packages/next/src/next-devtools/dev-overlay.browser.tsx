@@ -185,13 +185,11 @@ function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
 }
 
 function DevOverlayRoot({
-  getComponentStack,
   getOwnerStack,
   getSquashedHydrationErrorDetails,
   isRecoverableError,
   routerType,
 }: {
-  getComponentStack: (error: Error) => string | undefined
   getOwnerStack: (error: Error) => string | null | undefined
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   isRecoverableError: (error: Error) => boolean
@@ -199,7 +197,6 @@ function DevOverlayRoot({
 }) {
   const [state, dispatch] = useErrorOverlayReducer(
     routerType,
-    getComponentStack,
     getOwnerStack,
     isRecoverableError
   )
@@ -254,7 +251,6 @@ function getSquashedHydrationErrorDetailsApp() {
 }
 
 export function renderAppDevOverlay(
-  getComponentStack: (error: Error) => string | undefined,
   getOwnerStack: (error: Error) => string | null | undefined,
   isRecoverableError: (error: Error) => boolean
 ): void {
@@ -293,7 +289,6 @@ export function renderAppDevOverlay(
       // At least it won't unmount any user code if it errors.
       root.render(
         <DevOverlayRoot
-          getComponentStack={getComponentStack}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetailsApp}
           isRecoverableError={isRecoverableError}
@@ -307,7 +302,6 @@ export function renderAppDevOverlay(
 }
 
 export function renderPagesDevOverlay(
-  getComponentStack: (error: Error) => string | undefined,
   getOwnerStack: (error: Error) => string | null | undefined,
   getSquashedHydrationErrorDetails: (
     error: Error
@@ -357,7 +351,6 @@ export function renderPagesDevOverlay(
       // At least it won't unmount any user code if it errors.
       root.render(
         <DevOverlayRoot
-          getComponentStack={getComponentStack}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
           isRecoverableError={isRecoverableError}

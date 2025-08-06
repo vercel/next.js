@@ -6,14 +6,12 @@ import {
   getErrorByType,
   type ReadyRuntimeError,
 } from '../../utils/get-error-by-type'
-import type { ComponentStackFrame } from '../../utils/parse-component-stack'
 import { usePersistentCacheErrorDetection } from '../../components/errors/error-overlay-toolbar/restart-server-button'
 
 export type SupportedErrorEvent = {
   id: number
   error: Error
   frames: readonly StackFrame[]
-  componentStackFrames?: readonly ComponentStackFrame[]
   type: 'runtime' | 'recoverable' | 'console'
 }
 

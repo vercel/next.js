@@ -2,7 +2,6 @@ import { useReducer } from 'react'
 
 import type { VersionInfo } from '../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './container/runtime-error/render-error'
-import { parseComponentStack } from './utils/parse-component-stack'
 import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
@@ -319,7 +318,6 @@ function getInitialState(
 
 export function useErrorOverlayReducer(
   routerType: 'pages' | 'app',
-  getComponentStack: (error: Error) => string | undefined,
   getOwnerStack: (error: Error) => string | null | undefined,
   isRecoverableError: (error: Error) => boolean
 ) {
@@ -328,18 +326,12 @@ export function useErrorOverlayReducer(
     id: number,
     error: Error
   ): readonly SupportedErrorEvent[] {
-    const componentStack = getComponentStack(error)
-    const componentStackFrames =
-      componentStack === undefined
-        ? undefined
-        : parseComponentStack(componentStack)
     const ownerStack = getOwnerStack(error)
     const frames = parseStack((error.stack || '') + (ownerStack || ''))
     const pendingEvent: SupportedErrorEvent = {
       id,
       error,
       frames,
-      componentStackFrames,
       type: isRecoverableError(error)
         ? 'recoverable'
         : isConsoleError(error)

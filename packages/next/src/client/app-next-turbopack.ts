@@ -13,11 +13,11 @@ appBootstrap(() => {
     hydrate(instrumentationHooks)
   } finally {
     if (process.env.NODE_ENV !== 'production') {
-      const { getComponentStack, getOwnerStack } =
+      const { getOwnerStack } =
         require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')
       const { renderAppDevOverlay } =
         require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
-      renderAppDevOverlay(getComponentStack, getOwnerStack, isRecoverableError)
+      renderAppDevOverlay(getOwnerStack, isRecoverableError)
     }
   }
 })
