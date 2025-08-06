@@ -1350,7 +1350,7 @@ async fn find_package(
     let mut packages = vec![];
     let mut affecting_sources = vec![];
     let options = options.await?;
-    let package_name_cell = Pattern::new(package_name);
+    let package_name_cell = Pattern::new(package_name.clone());
 
     fn get_package_name(basepath: &FileSystemPath, package_dir: &FileSystemPath) -> Result<RcStr> {
         if let Some(name) = basepath.get_path_to(package_dir) {
@@ -1371,7 +1371,7 @@ async fn find_package(
                     for name in names.iter() {
                         let fs_path = lookup_path.join(name)?;
                         if let Some(fs_path) = dir_exists(fs_path, &mut affecting_sources).await? {
-                            // TODO this is wrong, it should only match match 1 or 2 levels deep
+                            // TODO this is wrong, it should only match match 1 or 2 levels deep?
                             // TODO affecting_sources are not getting added?
                             let matches =
                                 read_matches(fs_path.clone(), rcstr!(""), true, package_name_cell)
@@ -1398,8 +1398,7 @@ async fn find_package(
                 dir,
                 excluded_extensions,
             } => {
-                let excluded_extensions = excluded_extensions.await?;
-                // TODO this is wrong, it should only match match 1 or 2 levels deep
+                // TODO this is wrong, it should only match match 1 or 2 levels deep?
                 // TODO affecting_sources are not getting added?
                 let matches =
                     read_matches(dir.clone(), rcstr!(""), true, package_name_cell).await?;
@@ -1411,21 +1410,6 @@ async fn find_package(
                                 name: name.clone(),
                                 dir: package_dir.clone(),
                             });
-
-                            for extension in &options.extensions {
-                                if excluded_extensions.contains(extension) {
-                                    continue;
-                                }
-                                let package_file = package_dir.append(&extension.clone())?;
-                                if let Some(package_file) =
-                                    exists(package_file, &mut affecting_sources).await?
-                                {
-                                    packages.push(FindPackageItem::PackageFile {
-                                        name: name.clone(),
-                                        file: package_file,
-                                    });
-                                }
-                            }
                         }
                         PatternMatch::File(_, package_file) => {
                             let name = get_package_name(dir, package_file)?;
@@ -1433,22 +1417,34 @@ async fn find_package(
                                 name: name.clone(),
                                 file: package_file.clone(),
                             });
-
-                            for extension in &options.extensions {
-                                if excluded_extensions.contains(extension) {
-                                    continue;
-                                }
-                                let package_file = package_file.append(&extension.clone())?;
-                                if let Some(package_file) =
-                                    exists(package_file, &mut affecting_sources).await?
-                                {
-                                    packages.push(FindPackageItem::PackageFile {
-                                        name: name.clone(),
-                                        file: package_file,
-                                    });
-                                }
-                            }
                         }
+                    }
+                }
+
+                let excluded_extensions = excluded_extensions.await?;
+                let mut package_name_with_extensions = package_name.clone();
+                package_name_with_extensions.push(Pattern::alternatives(
+                    options
+                        .extensions
+                        .iter()
+                        .filter(|ext| !excluded_extensions.contains(*ext))
+                        .cloned()
+                        .map(Pattern::from),
+                ));
+                let package_name_with_extensions = Pattern::new(package_name_with_extensions);
+
+                // TODO this is wrong, it should only match match 1 or 2 levels deep?
+                // TODO affecting_sources are not getting added?
+                let matches =
+                    read_matches(dir.clone(), rcstr!(""), true, package_name_with_extensions)
+                        .await?;
+                for m in matches {
+                    if let PatternMatch::File(_, package_file) = m {
+                        let name = get_package_name(dir, package_file)?;
+                        packages.push(FindPackageItem::PackageFile {
+                            name: name.clone(),
+                            file: package_file.clone(),
+                        });
                     }
                 }
             }
