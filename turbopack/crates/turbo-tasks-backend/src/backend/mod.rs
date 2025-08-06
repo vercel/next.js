@@ -176,6 +176,9 @@ struct TurboTasksBackendInner<B: BackingStorage> {
 
     storage: Storage,
 
+    /// When true, the backing_storage has data that is not in the local storage.
+    local_is_partial: AtomicBool,
+
     /// Number of executing operations + Highest bit is set when snapshot is
     /// requested. When that bit is set, operations should pause until the
     /// snapshot is completed. When the bit is set and in progress counter
@@ -231,6 +234,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             options.active_tracking = false;
         }
         let small_preallocation = options.small_preallocation;
+        let next_task_id = backing_storage
+            .next_free_task_id()
+            .expect("Failed to get task id");
         Self {
             options,
             start_time: Instant::now(),
@@ -238,9 +244,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .next_session_id()
                 .expect("Failed get session id"),
             persisted_task_id_factory: IdFactoryWithReuse::new(
-                backing_storage
-                    .next_free_task_id()
-                    .expect("Failed to get task id"),
+                next_task_id,
                 TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
             ),
             transient_task_id_factory: IdFactoryWithReuse::new(
@@ -250,6 +254,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
             transient_tasks: FxDashMap::default(),
+            local_is_partial: AtomicBool::new(next_task_id != TaskId::MIN),
             storage: Storage::new(small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -910,6 +915,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return Some(task_type);
         }
         if self.should_restore()
+            && self.local_is_partial.load(Ordering::Relaxed)
             && !task_id.is_transient()
             && let Some(task_type) = unsafe {
                 self.backing_storage
@@ -1271,16 +1277,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return task_id;
         }
 
-        let tx = self
-            .should_restore()
+        let check_backing_storage =
+            self.should_restore() && self.local_is_partial.load(Ordering::Acquire);
+        let tx = check_backing_storage
             .then(|| self.backing_storage.start_read_transaction())
             .flatten();
         let task_id = {
             // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
             if let Some(task_id) = unsafe {
-                self.backing_storage
-                    .forward_lookup_task_cache(tx.as_ref(), &task_type)
-                    .expect("Failed to lookup task id")
+                check_backing_storage
+                    .then(|| {
+                        self.backing_storage
+                            .forward_lookup_task_cache(tx.as_ref(), &task_type)
+                            .expect("Failed to lookup task id")
+                    })
+                    .flatten()
             } {
                 self.track_cache_hit(&task_type);
                 let _ = self.task_cache.try_insert(Arc::new(task_type), task_id);
