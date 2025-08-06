@@ -6,7 +6,7 @@ description: Style your Next.js Application using Tailwind CSS v3 for broader br
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-[Tailwind CSS v3](https://v3.tailwindcss.com/) provides broader browser support and uses the traditional JavaScript configuration approach. This guide will walk you through how to install Tailwind CSS v3 in your Next.js application.
+This guide will walk you through how to install [Tailwind CSS v3](https://v3.tailwindcss.com/) in your Next.js application.
 
 > **Good to know:** For the latest Tailwind 4 setup, see the [Tailwind CSS setup instructions](/docs/app/getting-started/css#tailwind-css).
 
@@ -14,9 +14,24 @@ description: Style your Next.js Application using Tailwind CSS v3 for broader br
 
 Install Tailwind CSS and its peer dependencies, then run the `init` command to generate both `tailwind.config.js` and `postcss.config.js` files:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add -D tailwindcss@^3 postcss autoprefixer
+npx tailwindcss init -p
+```
+
+```bash package="npm"
 npm install -D tailwindcss@^3 postcss autoprefixer
 npx tailwindcss init -p
+```
+
+```bash package="yarn"
+yarn add -D tailwindcss@^3 postcss autoprefixer
+npx tailwindcss init -p
+```
+
+```bash package="bun"
+bun add -D tailwindcss@^3 postcss autoprefixer
+bunx tailwindcss init -p
 ```
 
 ## Configuring Tailwind v3
@@ -117,7 +132,7 @@ export default function MyApp({ Component, pageProps }) {
 
 </PagesOnly>
 
-## Using Classes
+## Using classes
 
 After installing Tailwind CSS and adding the global styles, you can use Tailwind's utility classes in your application.
 
