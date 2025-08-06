@@ -2124,8 +2124,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
                 let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
                 loop {
-                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(60);
-                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(30);
+                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
+                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
                     const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
 
                     let time = if id == BACKEND_JOB_INITIAL_SNAPSHOT {
