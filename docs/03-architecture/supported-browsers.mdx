@@ -51,13 +51,7 @@ In this case, you should add a top-level import for the **specific polyfill** yo
  
 To include polyfills, you can import them into the [`instrumentation-client.js` file](/docs/app/api-reference/file-conventions/instrumentation-client).
 
-For other cases, you can create a client module that loads the polyfills you need. For example if you only want to polyfill client side:
-
-```ts filename="instrumentation-client.ts" switcher
-import './polyfills'
-```
-
-```js filename="instrumentation-client.js" switcher
+```ts filename="instrumentation-client.ts"
 import './polyfills'
 ```
 
