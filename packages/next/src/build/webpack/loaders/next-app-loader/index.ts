@@ -397,7 +397,7 @@ async function createTreeCodeFromPath(
       // should instead be the corresponding segment keys (ie `__PAGE__`) or the `children` parallel route.
       parallelSegmentKey =
         parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT
-          ? '__virtual_segment__'
+          ? '(slot)'
           : parallelSegmentKey === PAGE_SEGMENT
             ? PAGE_SEGMENT_KEY
             : parallelSegmentKey

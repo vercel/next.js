@@ -39,41 +39,40 @@ type FastRefreshState =
   /** No refresh in progress. */
   | { type: 'idle' }
   /** The refresh process has been triggered, but the new code has not been executed yet. */
-  | { type: 'pending'; errors: SupportedErrorEvent[] }
+  | { type: 'pending'; errors: readonly SupportedErrorEvent[] }
 
 export interface OverlayState {
-  nextId: number
-  buildError: string | null
-  errors: SupportedErrorEvent[]
-  refreshState: FastRefreshState
-  versionInfo: VersionInfo
-  notFound: boolean
-  buildingIndicator: boolean
-  renderingIndicator: boolean
-  staticIndicator: boolean
-  showIndicator: boolean
-  disableDevIndicator: boolean
+  readonly nextId: number
+  readonly buildError: string | null
+  readonly errors: readonly SupportedErrorEvent[]
+  readonly refreshState: FastRefreshState
+  readonly versionInfo: VersionInfo
+  readonly notFound: boolean
+  readonly buildingIndicator: boolean
+  readonly renderingIndicator: boolean
+  readonly staticIndicator: boolean
+  readonly showIndicator: boolean
+  readonly disableDevIndicator: boolean
   /** Whether to show the restart server button in the panel UI. Currently
    *  only used when Turbopack + Persistent Cache is enabled.
    */
-  showRestartServerButton: boolean
-  debugInfo: DebugInfo
-  routerType: 'pages' | 'app'
+  readonly showRestartServerButton: boolean
+  readonly debugInfo: DebugInfo
+  readonly routerType: 'pages' | 'app'
   /** This flag is used to handle the Error Overlay state in the "old" overlay.
    *  In the DevTools panel, this value will used for the "Error Overlay Mode"
    *  which is viewing the "Issues Tab" as a fullscreen.
    */
-  isErrorOverlayOpen: boolean
-  devToolsPosition: Corners
-  devToolsPanelPosition: Record<DevtoolsPanelName, Corners>
-  devToolsPanelSize: Record<
-    DevtoolsPanelName,
-    { width: number; height: number }
+  readonly isErrorOverlayOpen: boolean
+  readonly devToolsPosition: Corners
+  readonly devToolsPanelPosition: Readonly<Record<DevtoolsPanelName, Corners>>
+  readonly devToolsPanelSize: Readonly<
+    Record<DevtoolsPanelName, { width: number; height: number }>
   >
-  scale: number
-  page: string
-  theme: 'light' | 'dark' | 'system'
-  hideShortcut: string | null
+  readonly scale: number
+  readonly page: string
+  readonly theme: 'light' | 'dark' | 'system'
+  readonly hideShortcut: string | null
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -325,10 +324,10 @@ export function useErrorOverlayReducer(
   isRecoverableError: (error: Error) => boolean
 ) {
   function pushErrorFilterDuplicates(
-    events: SupportedErrorEvent[],
+    events: readonly SupportedErrorEvent[],
     id: number,
     error: Error
-  ): SupportedErrorEvent[] {
+  ): readonly SupportedErrorEvent[] {
     const componentStack = getComponentStack(error)
     const componentStackFrames =
       componentStack === undefined

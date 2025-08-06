@@ -12,6 +12,7 @@ import {
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
+import { UnrecognizedActionError } from '../../unrecognized-action-error'
 
 // TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -114,7 +115,7 @@ async function fetchServerAction(
   // Handle server actions that the server didn't recognize.
   const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)
   if (unrecognizedActionHeader === '1') {
-    throw new Error(
+    throw new UnrecognizedActionError(
       `Server Action "${actionId}" was not found on the server. \nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
     )
   }

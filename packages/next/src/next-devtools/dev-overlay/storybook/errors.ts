@@ -126,6 +126,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
         },
         ...Array(20).fill(ignoredFrame),
       ]),
+    componentStackFrames: undefined,
     type: 'runtime',
   },
   {
@@ -144,6 +145,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Second error message'),
         },
       ]),
+    componentStackFrames: undefined,
     type: 'console',
   },
   {
@@ -162,6 +164,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Third error message'),
         },
       ]),
+    componentStackFrames: undefined,
     type: 'recoverable',
   },
   {
@@ -180,6 +183,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('typeof window !== undefined'),
         },
       ]),
+    componentStackFrames: undefined,
     type: 'runtime',
   },
   {
@@ -204,6 +208,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Fifth error message'),
         },
       ]),
+    componentStackFrames: undefined,
     type: 'console',
   },
   {
@@ -222,6 +227,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Sixth error message'),
         },
       ]),
+    componentStackFrames: undefined,
     type: 'recoverable',
   },
   {
@@ -240,6 +246,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Sixth error message'),
         },
       ]),
+    componentStackFrames: undefined,
     type: 'runtime',
   },
   {
@@ -258,6 +265,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Eighth error message'),
         },
       ]),
+    componentStackFrames: undefined,
     type: 'runtime',
   },
   {
@@ -276,6 +284,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Ninth error message'),
         },
       ]),
+    componentStackFrames: undefined,
     type: 'runtime',
   },
   {
@@ -294,6 +303,7 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Tenth error message'),
         },
       ]),
+    componentStackFrames: undefined,
     type: 'runtime',
   },
 ]
