@@ -35,12 +35,10 @@ __turbopack_context__.s([
 ]);
 const __TURBOPACK__default__export__ = 'import';
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/require.cjs [test] (ecmascript)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/require.cjs [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-var { m: module, e: exports } = __turbopack_context__;
-{
 module.exports = 'require';
-}}),
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 

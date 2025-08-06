@@ -13,5 +13,5 @@
     {"offset": {"line": 134, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 145, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 167, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 186, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/index.js"],"sourcesContent":["const { cat } = require('./lib')\n"],"names":[],"mappings":"AAAA,MAAM,EAAE,GAAG,EAAE"}}]
+    {"offset": {"line": 184, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/index.js"],"sourcesContent":["const { cat } = require('./lib')\n"],"names":[],"mappings":"AAAA,MAAM,EAAE,GAAG,EAAE"}}]
 }

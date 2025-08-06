@@ -180,12 +180,10 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-var { m: module, e: exports } = __turbopack_context__;
-{
 const { cat } = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/lib.js [test] (ecmascript)");
-}}),
+}),
 ]);
 
 //# sourceMappingURL=4c35f_tests_snapshot_basic-tree-shake_require-side-effect_input_f83a22d6._.js.map

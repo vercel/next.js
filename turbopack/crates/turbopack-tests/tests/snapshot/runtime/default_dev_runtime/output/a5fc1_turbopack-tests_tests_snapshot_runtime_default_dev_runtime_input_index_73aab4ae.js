@@ -20,9 +20,12 @@ const RUNTIME_PUBLIC_PATH = "";
 const REEXPORTED_OBJECTS = Symbol('reexported objects');
 /**
  * Constructs the `__turbopack_context__` object for a module.
- */ function Context(module) {
+ */ function Context(module, exports) {
     this.m = module;
-    this.e = module.exports;
+    // We need to store this here instead of accessing it from the module object to:
+    // 1. make it available to factories directly, since we rewrite `this` to this property
+    // 2. support async modules which rewrite `module.exports` to a promise.
+    this.e = exports;
 }
 const contextPrototype = Context.prototype;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -100,7 +103,7 @@ contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = module[REEXPORTED_OBJECTS];
     if (!reexportedObjects) {
-        reexportedObjects = module[REEXPORTED_OBJECTS] = [];
+        module[REEXPORTED_OBJECTS] = reexportedObjects = [];
         module.exports = module.namespaceObject = new Proxy(exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
@@ -123,34 +126,42 @@ function ensureDynamicExports(module, exports) {
             }
         });
     }
+    return reexportedObjects;
 }
 /**
  * Dynamically exports properties from an object
  */ function dynamicExport(object, id) {
-    let module = this.m;
-    let exports = this.e;
+    let module;
+    let exports;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
         exports = module.exports;
+    } else {
+        module = this.m;
+        exports = this.e;
     }
-    ensureDynamicExports(module, exports);
+    const reexportedObjects = ensureDynamicExports(module, exports);
     if (typeof object === 'object' && object !== null) {
-        module[REEXPORTED_OBJECTS].push(object);
+        reexportedObjects.push(object);
     }
 }
 contextPrototype.j = dynamicExport;
 function exportValue(value, id) {
-    let module = this.m;
+    let module;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
+    } else {
+        module = this.m;
     }
     module.exports = value;
 }
 contextPrototype.v = exportValue;
 function exportNamespace(namespace, id) {
-    let module = this.m;
+    let module;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
+    } else {
+        module = this.m;
     }
     module.exports = module.namespaceObject = namespace;
 }
@@ -776,8 +787,8 @@ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
     }
     return instantiateModule(id, SourceType.Parent, sourceModule.id);
 };
-function DevContext(module, refresh) {
-    Context.call(this, module);
+function DevContext(module, exports, refresh) {
+    Context.call(this, module, exports);
     this.k = refresh;
 }
 DevContext.prototype = Context.prototype;
@@ -813,6 +824,7 @@ function instantiateModule(moduleId, sourceType, sourceData) {
             invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
     }
     const module = createModuleObject(id);
+    const exports = module.exports;
     module.parents = parents;
     module.children = [];
     module.hot = hot;
@@ -821,8 +833,8 @@ function instantiateModule(moduleId, sourceType, sourceData) {
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
         runModuleExecutionHooks(module, (refresh)=>{
-            const context = new DevContext(module, refresh);
-            moduleFactory(context);
+            const context = new DevContext(module, exports, refresh);
+            moduleFactory(context, module, exports);
         });
     } catch (error) {
         module.error = error;

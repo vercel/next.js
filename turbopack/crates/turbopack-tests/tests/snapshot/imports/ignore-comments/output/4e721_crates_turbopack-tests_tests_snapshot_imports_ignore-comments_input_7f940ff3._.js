@@ -1,10 +1,8 @@
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/4e721_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_input_7f940ff3._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-var { m: module, e: exports } = __turbopack_context__;
-{
 module.exports = 'turbopack';
-}}),
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.v("/static/vercel.30936e72.cjs");}),

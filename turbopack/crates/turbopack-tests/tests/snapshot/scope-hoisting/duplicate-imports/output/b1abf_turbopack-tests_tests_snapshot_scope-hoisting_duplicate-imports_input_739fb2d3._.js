@@ -1,10 +1,8 @@
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/b1abf_turbopack-tests_tests_snapshot_scope-hoisting_duplicate-imports_input_739fb2d3._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/shared.js [test] (ecmascript)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/shared.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-var { m: module, e: exports } = __turbopack_context__;
-{
 module.exports = 'shared';
-}}),
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 

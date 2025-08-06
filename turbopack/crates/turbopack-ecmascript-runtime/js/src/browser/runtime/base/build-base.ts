@@ -59,13 +59,17 @@ function instantiateModule(
   }
 
   const module: Module = createModuleObject(id)
+  const exports = module.exports
 
   moduleCache[id] = module
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
-  const context = new (Context as any as ContextConstructor<Module>)(module)
+  const context = new (Context as any as ContextConstructor<Module>)(
+    module,
+    exports
+  )
   try {
-    moduleFactory(context)
+    moduleFactory(context, module, exports)
   } catch (error) {
     module.error = error as any
     throw error

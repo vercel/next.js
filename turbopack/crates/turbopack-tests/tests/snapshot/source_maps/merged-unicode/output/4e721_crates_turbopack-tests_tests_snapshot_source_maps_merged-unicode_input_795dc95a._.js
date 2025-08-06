@@ -1,10 +1,8 @@
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/4e721_crates_turbopack-tests_tests_snapshot_source_maps_merged-unicode_input_795dc95a._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/jsx-runtime.js [test] (ecmascript)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/jsx-runtime.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-var { m: module, e: exports } = __turbopack_context__;
-{
 module.exports = {};
-}}),
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -53,10 +51,8 @@ __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$source_maps$2f$merged$2d$unicode$2f$input$2f$entry$2d$base$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)");
 ;
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-var { m: module, e: exports } = __turbopack_context__;
-{
 // "entry-base.js [app-rsc] (ecmascript) <module evaluation>" with
 // ["reflect-utils.js [app-rsc] (ecmascript)",
 // "params.js [app-rsc] (ecmascript)",
@@ -75,7 +71,7 @@ if (Date.now() > 0) {
 if (Date.now() > 0) {
     __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/index2.js [test] (ecmascript)");
 }
-}}),
+}),
 ]);
 
 //# sourceMappingURL=4e721_crates_turbopack-tests_tests_snapshot_source_maps_merged-unicode_input_795dc95a._.js.map

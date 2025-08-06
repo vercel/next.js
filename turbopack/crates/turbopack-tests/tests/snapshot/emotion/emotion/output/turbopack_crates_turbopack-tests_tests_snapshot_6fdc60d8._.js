@@ -48,13 +48,11 @@ function jsx() {
     return 'purposefully empty stub for @emotion/react/index.js';
 }
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-var { m: module, e: exports } = __turbopack_context__;
-{
 "purposefully empty stub";
 "@emtion/styled/index.js";
-}}),
+}),
 ]);
 
 //# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_6fdc60d8._.js.map
