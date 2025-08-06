@@ -232,7 +232,6 @@ export const metadata = {
 >   - `title.default` is **required** when you add a `title.template`.
 >   - `title.template` defined in `layout.js` will not apply to a `title` defined in a `page.js` of the same route segment.
 >   - `title.template` defined in `page.js` has no effect because a page is always the terminating segment (it doesn't have any children route segments).
->
 > - `title.template` has **no effect** if a route has not defined a `title` or `title.default`.
 
 ##### `absolute`
@@ -285,7 +284,6 @@ export const metadata = {
 >   - `title` (string) and `title.default` define the default title for child segments (that do not define their own `title`). It will augment `title.template` from the closest parent segment if it exists.
 >   - `title.absolute` defines the default title for child segments. It ignores `title.template` from parent segments.
 >   - `title.template` defines a new title template for child segments.
->
 > - `page.js`
 >   - If a page does not define its own title the closest parents resolved title will be used.
 >   - `title` (string) defines the routes title. It will augment `title.template` from the closest parent segment if it exists.
