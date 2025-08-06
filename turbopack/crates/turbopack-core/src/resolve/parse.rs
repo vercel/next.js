@@ -763,9 +763,9 @@ impl ValueToString for Request {
                 ..
             } => {
                 if *force_in_lookup_dir {
-                    format!("in-lookup-dir {path}").into()
+                    format!("in-lookup-dir {}", path.describe_as_string()).into()
                 } else {
-                    format!("{path}").into()
+                    path.describe_as_string().into()
                 }
             }
             Request::Relative {
@@ -774,22 +774,33 @@ impl ValueToString for Request {
                 ..
             } => {
                 if *force_in_lookup_dir {
-                    format!("relative-in-lookup-dir {path}").into()
+                    format!("relative-in-lookup-dir {}", path.describe_as_string()).into()
                 } else {
-                    format!("relative {path}").into()
+                    format!("relative {}", path.describe_as_string()).into()
                 }
             }
             Request::Module { module, path, .. } => {
                 if path.could_match_others("") {
-                    format!("module \"{module}\" with subpath {path}").into()
+                    format!(
+                        "module \"{}\" with subpath {}",
+                        module.describe_as_string(),
+                        path.describe_as_string()
+                    )
+                    .into()
                 } else {
-                    format!("module \"{module}\"").into()
+                    format!("module \"{}\"", module.describe_as_string()).into()
                 }
             }
-            Request::ServerRelative { path, .. } => format!("server relative {path}").into(),
-            Request::Windows { path, .. } => format!("windows {path}").into(),
+            Request::ServerRelative { path, .. } => {
+                format!("server relative {}", path.describe_as_string()).into()
+            }
+            Request::Windows { path, .. } => {
+                format!("windows {}", path.describe_as_string()).into()
+            }
             Request::Empty => rcstr!("empty"),
-            Request::PackageInternal { path } => format!("package internal {path}").into(),
+            Request::PackageInternal { path } => {
+                format!("package internal {}", path.describe_as_string()).into()
+            }
             Request::DataUri {
                 media_type,
                 encoding,
@@ -804,7 +815,7 @@ impl ValueToString for Request {
                 remainder,
                 ..
             } => format!("uri \"{protocol}\" \"{remainder}\"").into(),
-            Request::Unknown { path } => format!("unknown {path}").into(),
+            Request::Unknown { path } => format!("unknown {}", path.describe_as_string()).into(),
             Request::Dynamic => rcstr!("dynamic"),
             Request::Alternatives { requests } => {
                 let vec = requests.iter().map(|i| i.to_string()).try_join().await?;

@@ -234,7 +234,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                 ImportMapping::External(name, ty, traced) => {
                     if let Some(name) = name {
                         ReplacedImportMapping::External(
-                            capture.spread_into_star(name).as_string().map(|s| s.into()),
+                            capture.spread_into_star(name).as_constant_string().cloned(),
                             *ty,
                             *traced,
                         )
@@ -250,7 +250,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                 } => {
                     if let Some(name) = name {
                         ReplacedImportMapping::PrimaryAlternativeExternal {
-                            name: capture.spread_into_star(name).as_string().map(|s| s.into()),
+                            name: capture.spread_into_star(name).as_constant_string().cloned(),
                             ty: *ty,
                             traced: *traced,
                             lookup_dir: lookup_dir.clone(),

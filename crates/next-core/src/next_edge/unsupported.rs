@@ -66,12 +66,14 @@ fn unsupported_module_source(root_path: FileSystemPath, module: Pattern) -> Vc<V
     let code = formatdoc! {
         r#"
         {TURBOPACK_EXPORT_NAMESPACE}(__import_unsupported(`{module}`));
-        "#
+        "#,
+        module = module.as_constant_string().map(ToString::to_string).unwrap_or_else(|| module.describe_as_string()),
     };
     let content = AssetContent::file(File::from(code).into());
     VirtualSource::new_with_ident(
-        AssetIdent::from_path(root_path)
-            .with_modifier(format!("unsupported edge import {module}").into()),
+        AssetIdent::from_path(root_path).with_modifier(
+            format!("unsupported edge import {}", module.describe_as_string()).into(),
+        ),
         content,
     )
 }

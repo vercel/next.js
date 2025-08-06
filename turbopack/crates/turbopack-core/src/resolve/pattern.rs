@@ -1,6 +1,5 @@
 use std::{
     collections::{VecDeque, hash_map::Entry},
-    fmt::Display,
     mem::take,
     sync::LazyLock,
 };
@@ -117,16 +116,9 @@ fn longest_common_suffix<'a>(strings: &[&'a str]) -> &'a str {
 
 impl Pattern {
     // TODO this should be removed in favor of pattern resolving
-    pub fn into_string(self) -> Option<RcStr> {
+    pub fn as_constant_string(&self) -> Option<&RcStr> {
         match self {
             Pattern::Constant(str) => Some(str),
-            _ => None,
-        }
-    }
-
-    pub fn as_string(&self) -> Option<&str> {
-        match self {
-            Pattern::Constant(str) => Some(str.as_str()),
             _ => None,
         }
     }
@@ -1328,27 +1320,23 @@ impl From<RcStr> for Pattern {
     }
 }
 
-impl Display for Pattern {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Pattern {
+    pub fn describe_as_string(&self) -> String {
         match self {
-            Pattern::Constant(c) => write!(f, "'{c}'"),
-            Pattern::Dynamic => write!(f, "<dynamic>"),
-            Pattern::Alternatives(list) => write!(
-                f,
+            Pattern::Constant(c) => format!("'{c}'"),
+            Pattern::Dynamic => "<dynamic>".to_string(),
+            Pattern::Alternatives(list) => format!(
                 "({})",
                 list.iter()
-                    .map(|i| i.to_string())
+                    .map(|i| i.describe_as_string())
                     .collect::<Vec<_>>()
                     .join(" | ")
             ),
-            Pattern::Concatenation(list) => write!(
-                f,
-                "{}",
-                list.iter()
-                    .map(|i| i.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            ),
+            Pattern::Concatenation(list) => list
+                .iter()
+                .map(|i| i.describe_as_string())
+                .collect::<Vec<_>>()
+                .join(" "),
         }
     }
 }
@@ -1357,7 +1345,7 @@ impl Display for Pattern {
 impl ValueToString for Pattern {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.to_string().into())
+        Vc::cell(self.describe_as_string().into())
     }
 }
 
