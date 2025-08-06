@@ -21,7 +21,7 @@ type Props = {
   }) => React.ReactNode
   state: OverlayState
   isAppDir: boolean
-  dispatch: OverlayDispatch
+  _dispatch: OverlayDispatch
 }
 
 export const RenderError = (props: Props) => {
@@ -35,7 +35,12 @@ export const RenderError = (props: Props) => {
   }
 }
 
-const RenderRuntimeError = ({ children, state, isAppDir, dispatch }: Props) => {
+const RenderRuntimeError = ({
+  children,
+  state,
+  isAppDir,
+  _dispatch,
+}: Props) => {
   const { errors } = state
 
   const [lookups, setLookups] = useState<{
