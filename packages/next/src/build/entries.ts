@@ -28,9 +28,7 @@ import {
   APP_CLIENT_INTERNALS,
   RSC_MODULE_TYPES,
   UNDERSCORE_NOT_FOUND_ROUTE,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
-  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -83,6 +81,10 @@ import type { createValidFileMatcher } from '../server/lib/find-page-file'
 import { isReservedPage } from './utils'
 import { isParallelRouteSegment } from '../shared/lib/segment'
 import { ensureLeadingSlash } from '../shared/lib/page-path/ensure-leading-slash'
+import {
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+} from '../shared/lib/entry-constants'
 
 /**
  * Collect app pages, layouts, and default files from the app directory
@@ -630,11 +632,10 @@ export async function createPagesMapping({
             'next/dist/client/components/builtin/global-not-found'
           ),
         }),
-        // If there's any app pages existed, add a default /_global-error route as 500.
-        // If there's any custom /_global-error page, it will override the default one.
+        // App router default 500.html entry
         ...(hasAppPages && {
           [UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY]: require.resolve(
-            'next/dist/client/components/builtin/global-error'
+            'next/dist/client/components/builtin/app-error'
           ),
         }),
         ...pages,

@@ -69,7 +69,7 @@ export async function exportAppPage(
   // If the page is `/_global-error`, then we should update the page to be `/500`.
   if (page === '/_global-error/page') {
     isDefaultGlobalError = true
-    // pathname = '/500'
+    pathname = '/500'
   }
 
   try {

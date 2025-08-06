@@ -319,8 +319,13 @@ const filterAndSortList = (
 ) => {
   let pages: string[]
   if (routeType === 'app') {
-    // filter out static app route of /favicon.ico
-    pages = list.filter((e) => e !== '/favicon.ico')
+    // filter out static app route of /favicon.ico and /_global-error
+    pages = list.filter((e) => {
+      if (e === '/favicon.ico') return false
+      // Hide static /_global-error from build output
+      if (e === '/_global-error') return false
+      return true
+    })
   } else {
     // filter built-in pages
     pages = list

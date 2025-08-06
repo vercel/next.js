@@ -1,11 +1,13 @@
 import type webpack from 'next/dist/compiled/webpack/webpack'
 import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
-  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   type ValueOf,
 } from '../../../../shared/lib/constants'
+import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+} from '../../../../shared/lib/entry-constants'
 import type { ModuleTuple, CollectedMetadata } from '../metadata/types'
 
 import path from 'path'
@@ -87,6 +89,7 @@ const defaultNotFoundPath = 'next/dist/client/components/builtin/not-found.js'
 const defaultLayoutPath = 'next/dist/client/components/builtin/layout.js'
 const defaultGlobalNotFoundPath =
   'next/dist/client/components/builtin/global-not-found.js'
+const appErrorPath = 'next/dist/client/components/builtin/app-error.js'
 
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
@@ -454,16 +457,17 @@ async function createTreeCodeFromPath(
           }
         }
       }
+
       // If it's app-error route, set app-error as children page
       if (isAppErrorRoute) {
         const varName = `appError${nestedCollectedDeclarations.length}`
-        nestedCollectedDeclarations.push([varName, globalError])
+        nestedCollectedDeclarations.push([varName, appErrorPath])
         subtreeCode = `{
           children: [${JSON.stringify(UNDERSCORE_GLOBAL_ERROR_ROUTE.slice(1))}, {
             children: ['${PAGE_SEGMENT_KEY}', {}, {
               page: [
                 ${varName},
-                ${JSON.stringify(globalError)}
+                ${JSON.stringify(appErrorPath)}
               ]
             }]
           }, {}]
