@@ -407,7 +407,8 @@ impl Request {
                 query: _,
                 fragment: _,
             } => {
-                let mut pat = Pattern::Constant(format!("./{module}").into());
+                let mut pat = module.clone();
+                pat.push_front(rcstr!("./").into());
                 pat.push(path.clone());
                 // TODO add query
                 Self::parse(pat)
