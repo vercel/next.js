@@ -94,14 +94,12 @@ This timing makes it ideal for setting up error tracking, analytics, and perform
 Initialize error tracking before React starts and add navigation breadcrumbs for better debugging context.
 
 ```ts filename="instrumentation-client.ts" switcher
-import * as Sentry from '@sentry/nextjs'
+import Monitor from './lib/monitoring'
 
-Sentry.init({
-  dsn: 'your-dsn',
-})
+Monitor.initialize()
 
 export function onRouterTransitionStart(url: string) {
-  Sentry.addBreadcrumb({
+  Monitor.pushEvent({
     message: `Navigation to ${url}`,
     category: 'navigation',
   })
@@ -109,14 +107,12 @@ export function onRouterTransitionStart(url: string) {
 ```
 
 ```js filename="instrumentation-client.js" switcher
-import * as Sentry from '@sentry/nextjs'
+import Monitor from './lib/monitoring'
 
-Sentry.init({
-  dsn: 'your-dsn',
-})
+Monitor.initialize()
 
 export function onRouterTransitionStart(url) {
-  Sentry.addBreadcrumb({
+  Monitor.pushEvent({
     message: `Navigation to ${url}`,
     category: 'navigation',
   })
@@ -162,13 +158,16 @@ Track Time to Interactive and navigation performance using the Performance Obser
 ```ts filename="instrumentation-client.ts" switcher
 const startTime = performance.now()
 
-const observer = new PerformanceObserver((list) => {
-  for (const entry of list.getEntries()) {
-    if (entry.entryType === 'navigation') {
-      console.log('Time to Interactive:', entry.loadEventEnd - startTime)
+const observer = new PerformanceObserver(
+  (list: PerformanceObserverEntryList) => {
+    for (const entry of list.getEntries()) {
+      if (entry instanceof PerformanceNavigationTiming) {
+        console.log('Time to Interactive:', entry.loadEventEnd - startTime)
+      }
     }
   }
-})
+)
+
 observer.observe({ entryTypes: ['navigation'] })
 
 export function onRouterTransitionStart(url: string) {
@@ -181,11 +180,12 @@ const startTime = performance.now()
 
 const observer = new PerformanceObserver((list) => {
   for (const entry of list.getEntries()) {
-    if (entry.entryType === 'navigation') {
+    if (entry instanceof PerformanceNavigationTiming) {
       console.log('Time to Interactive:', entry.loadEventEnd - startTime)
     }
   }
 })
+
 observer.observe({ entryTypes: ['navigation'] })
 
 export function onRouterTransitionStart(url) {
@@ -198,7 +198,7 @@ export function onRouterTransitionStart(url) {
 Load polyfills before application code runs. Use static imports for immediate loading and dynamic imports for conditional loading based on feature detection.
 
 ```ts filename="instrumentation-client.ts" switcher
-import './lib/polyfills
+import './lib/polyfills'
 
 if (!window.ResizeObserver) {
   import('./lib/polyfills/resize-observer').then((mod) => {
