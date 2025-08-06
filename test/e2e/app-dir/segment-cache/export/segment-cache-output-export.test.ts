@@ -160,4 +160,44 @@ describe('segment cache (output: "export")', () => {
       }
     )
   })
+
+  it('fallback to HTML navigation when RSC payload fetch fails in output: "export" mode', async () => {
+    // This test verifies that when RSC payload fetching fails (e.g., .txt files are blocked),
+    // the navigation falls back to regular HTML navigation without .txt extension
+    const browser = await webdriver(port, '/')
+
+    // Use browser dev tools to block .txt requests
+    await browser.eval(`
+      // Override fetch to simulate .txt request failures
+      const originalFetch = window.fetch;
+      window.fetch = function(...args) {
+        const url = args[0];
+        if (url && url.toString().includes('.txt')) {
+          // Simulate network failure for .txt files
+          return Promise.reject(new Error('Simulated .txt fetch failure'));
+        }
+        return originalFetch.apply(this, args);
+      };
+    `)
+
+    // Navigate directly to target page to trigger RSC payload fetch
+    await browser.eval(`
+      window.next.router.push('/target-page');
+    `)
+
+    // Wait for navigation to complete
+    await browser.waitForCondition(
+      'document.location.pathname.includes("target-page") && document.body.textContent.includes("Target page")',
+      5000
+    )
+
+    // Verify that we navigated to the correct HTML page, not .txt
+    const currentUrl = await browser.url()
+    expect(currentUrl).not.toContain('.txt')
+    expect(currentUrl).toContain('/target-page')
+
+    // Verify page content is displayed
+    const bodyText = await browser.eval('document.body.textContent')
+    expect(bodyText).toContain('Target page')
+  })
 })
