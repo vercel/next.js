@@ -1035,6 +1035,32 @@ impl ResolveResult {
         .into())
     }
 
+    /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The prefix is removed
+    /// from all [RequestKey]s. It's not expected that the [ResolveResult] contains [RequestKey]s
+    /// without the prefix, but if there are still some, they are discarded.
+    #[turbo_tasks::function]
+    fn with_stripped_request_key_prefix(&self, prefix: RcStr) -> Result<Vc<Self>> {
+        let new_primary = self
+            .primary
+            .iter()
+            .filter_map(|(k, v)| {
+                let remaining = k.request.as_ref()?.strip_prefix(&*prefix)?;
+                Some((
+                    RequestKey {
+                        request: Some(remaining.into()),
+                        conditions: k.conditions.clone(),
+                    },
+                    v.clone(),
+                ))
+            })
+            .collect();
+        Ok(ResolveResult {
+            primary: new_primary,
+            affecting_sources: self.affecting_sources.clone(),
+        }
+        .into())
+    }
+
     /// Returns a new [ResolveResult] where all [RequestKey]s are updated. All keys matching
     /// `old_request_key` are rewritten according to `request_key`. It's not expected that the
     /// [ResolveResult] contains [RequestKey]s that do not match the `old_request_key` prefix, but
@@ -2633,9 +2659,7 @@ async fn resolve_module_request(
             options,
         ))
         .await?;
-        // TODO request key
-        // let relative_result = relative_result
-        //     .with_replaced_request_key(module_prefixed, RequestKey::new(module.clone()));
+        let relative_result = relative_result.with_stripped_request_key_prefix(rcstr!("./"));
 
         Ok(merge_results(vec![relative_result, module_result]))
     } else {
