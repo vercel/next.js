@@ -378,6 +378,14 @@ impl Pattern {
 
     /// Appends something to end the pattern.
     pub fn push(&mut self, pat: Pattern) {
+        if let Pattern::Constant(this) = &*self
+            && this.is_empty()
+        {
+            // Short-circuit to replace empty constants with the appended pattern
+            *self = pat;
+            return;
+        }
+
         match (self, pat) {
             (Pattern::Concatenation(list), Pattern::Concatenation(more)) => {
                 concatenation_extend_or_merge_items(list, more.into_iter());
