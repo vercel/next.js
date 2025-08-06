@@ -166,7 +166,7 @@ export async function createNext(
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
       const useTurbo = !!process.env.NEXT_TEST_WASM
         ? false
-        : opts?.turbo ?? shouldRunTurboDevTest()
+        : (opts?.turbo ?? shouldRunTurboDevTest())
 
       if (testMode === 'dev') {
         // next dev

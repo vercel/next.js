@@ -89,7 +89,6 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
    - WPGraphQL for ACF (optional)
 6. Do first-time install of Redirection. Recommended to enable monitor of changes
 7. Configure Yoast SEO with:
-
    - Disable XML Sitemaps under Yoast SEO -> Settings
    - If you did not change the `Site Address (URL)` before installing Yoast, it will ask you to run optimize SEO data after changing permalinks, do so
    - Generate a robots.txt file under Yoast SEO -> Tools -> File Editor
