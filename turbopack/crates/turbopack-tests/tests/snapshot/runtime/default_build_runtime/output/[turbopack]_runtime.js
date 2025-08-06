@@ -13,8 +13,12 @@ const REEXPORTED_OBJECTS = Symbol('reexported objects');
  */ function Context(module, exports) {
     this.m = module;
     // We need to store this here instead of accessing it from the module object to:
-    // 1. make it available to factories directly, since we rewrite `this` to this property
-    // 2. support async modules which rewrite `module.exports` to a promise.
+    // 1. Make it available to factories directly, since we rewrite `this` to
+    //    `__turbopack_context__.e` in CJS modules.
+    // 2. Support async modules which rewrite `module.exports` to a promise, so we
+    //    can still access the original exports object from functions like
+    //    `esmExport`
+    // Ideally we could find a new approach for async modules and drop this property altogether.
     this.e = exports;
 }
 const contextPrototype = Context.prototype;
@@ -691,9 +695,9 @@ function instantiateModule(id, sourceType, sourceData) {
     const module1 = createModuleObject(id);
     const exports = module1.exports;
     moduleCache[id] = module1;
+    const context = new Context(module1, exports);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
-        const context = new Context(module1, exports);
         moduleFactory(context, module1, exports);
     } catch (error) {
         module1.error = error;
