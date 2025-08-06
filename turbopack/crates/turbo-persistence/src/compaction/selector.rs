@@ -619,8 +619,8 @@ mod tests {
                 min_merge_count: 2,
                 optimal_merge_count: 4,
                 max_merge_bytes: 5000,
-                min_merge_duplication_bytes: 200,
-                optimal_merge_duplication_bytes: 500,
+                min_merge_duplication_bytes: 500,
+                optimal_merge_duplication_bytes: 1000,
                 max_merge_segment_count: 4,
             };
             let (jobs, _) = get_merge_segments(&containers, &config);
@@ -663,7 +663,7 @@ mod tests {
         println!("Number of compactions: {number_of_compactions}");
 
         let metrics = compute_metrics(&containers, 0..=KEY_RANGE);
-        assert!(number_of_compactions < 40);
+        assert!(number_of_compactions < 30);
         assert!(containers.len() < 30);
         assert!(metrics.duplication < 0.5);
     }
