@@ -165,7 +165,6 @@ describe('segment cache (output: "export")', () => {
     // This test verifies that when RSC payload fetching fails (e.g., .txt files are blocked),
     // the navigation falls back to regular HTML navigation without .txt extension
     const browser = await webdriver(port, '/')
-
     // Use browser dev tools to block .txt requests
     await browser.eval(`
       // Override fetch to simulate .txt request failures
@@ -179,22 +178,24 @@ describe('segment cache (output: "export")', () => {
         return originalFetch.apply(this, args);
       };
     `)
-
-    // Navigate directly to target page to trigger RSC payload fetch
-    await browser.eval(`
-      window.next.router.push('/target-page');
-    `)
+    // Initiate a prefetch
+    const checkbox = await browser.elementByCss(
+      '[data-link-accordion="/target-page"]'
+    )
+    await checkbox.click()
+    // Navigate to the prefetched target page.
+    const link = await browser.elementByCss('a[href="/target-page"]')
+    await link.click()
 
     // Wait for navigation to complete
     await browser.waitForCondition(
       'document.location.pathname.includes("target-page") && document.body.textContent.includes("Target page")',
       5000
     )
-
     // Verify that we navigated to the correct HTML page, not .txt
     const currentUrl = await browser.url()
     expect(currentUrl).not.toContain('.txt')
-    expect(currentUrl).toContain('/target-page')
+    expect(new URL(currentUrl).pathname).toBe('/target-page')
 
     // Verify page content is displayed
     const bodyText = await browser.eval('document.body.textContent')
