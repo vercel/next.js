@@ -889,6 +889,43 @@ mod tests {
                 Pattern::Constant(rcstr!("/file")),
             ]))
         );
+
+        // TODO see parse_concatenation_pattern
+        // assert_eq!(
+        //     Request::Alternatives {
+        //         requests: vec![
+        //             Request::Module {
+        //                 module: Pattern::Concatenation(vec![
+        //                     Pattern::Constant(rcstr!("prefix")),
+        //                     Pattern::Dynamic,
+        //                     Pattern::Constant(rcstr!("suffix")),
+        //                 ]),
+        //                 path: rcstr!("subpath").into(),
+        //                 query: rcstr!(""),
+        //                 fragment: rcstr!(""),
+        //             }
+        //             .resolved_cell(),
+        //             Request::Module {
+        //                 module: Pattern::Concatenation(vec![
+        //                     Pattern::Constant(rcstr!("prefix")),
+        //                     Pattern::Dynamic,
+        //                 ]),
+        //                 path: Pattern::Concatenation(vec![
+        //                     Pattern::Dynamic,
+        //                     Pattern::Constant(rcstr!("suffix/subpath")),
+        //                 ]),
+        //                 query: rcstr!(""),
+        //                 fragment: rcstr!(""),
+        //             }
+        //             .resolved_cell()
+        //         ]
+        //     },
+        //     Request::parse_ref(Pattern::Concatenation(vec![
+        //         Pattern::Constant(rcstr!("prefix")),
+        //         Pattern::Dynamic,
+        //         Pattern::Constant(rcstr!("suffix/subpath")),
+        //     ]))
+        // );
     }
 
     #[test]
