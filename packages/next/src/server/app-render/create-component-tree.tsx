@@ -29,7 +29,9 @@ import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
   BOUNDARY_PREFIX,
   BOUNDARY_SUFFIX,
+  BUILTIN_PREFIX,
   getConventionPathByType,
+  isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
 
 /**
@@ -55,7 +57,7 @@ export function createComponentTree(props: {
     {
       spanName: 'build component tree',
     },
-    () => createComponentTreeInternal(props)
+    () => createComponentTreeInternal(props, true)
   )
 }
 
@@ -71,41 +73,43 @@ function errorMissingDefaultExport(
 
 const cacheNodeKey = 'c'
 
-async function createComponentTreeInternal({
-  loaderTree: tree,
-  parentParams,
-  rootLayoutIncluded,
-  injectedCSS,
-  injectedJS,
-  injectedFontPreloadTags,
-  getViewportReady,
-  getMetadataReady,
-  ctx,
-  missingSlots,
-  preloadCallbacks,
-  authInterrupts,
-  StreamingMetadataOutlet,
-}: {
-  loaderTree: LoaderTree
-  parentParams: Params
-  rootLayoutIncluded: boolean
-  injectedCSS: Set<string>
-  injectedJS: Set<string>
-  injectedFontPreloadTags: Set<string>
-  getViewportReady: () => Promise<void>
-  getMetadataReady: () => Promise<void>
-  ctx: AppRenderContext
-  missingSlots?: Set<string>
-  preloadCallbacks: PreloadCallbacks
-  authInterrupts: boolean
-  StreamingMetadataOutlet: React.ComponentType | null
-}): Promise<CacheNodeSeedData> {
+async function createComponentTreeInternal(
+  {
+    loaderTree: tree,
+    parentParams,
+    rootLayoutIncluded,
+    injectedCSS,
+    injectedJS,
+    injectedFontPreloadTags,
+    getViewportReady,
+    getMetadataReady,
+    ctx,
+    missingSlots,
+    preloadCallbacks,
+    authInterrupts,
+    StreamingMetadataOutlet,
+  }: {
+    loaderTree: LoaderTree
+    parentParams: Params
+    rootLayoutIncluded: boolean
+    injectedCSS: Set<string>
+    injectedJS: Set<string>
+    injectedFontPreloadTags: Set<string>
+    getViewportReady: () => Promise<void>
+    getMetadataReady: () => Promise<void>
+    ctx: AppRenderContext
+    missingSlots?: Set<string>
+    preloadCallbacks: PreloadCallbacks
+    authInterrupts: boolean
+    StreamingMetadataOutlet: React.ComponentType | null
+  },
+  isRoot: boolean
+): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
     workStore,
     componentMod: {
       SegmentViewNode,
-      SegmentViewStateNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -294,15 +298,26 @@ async function createComponentTreeInternal({
     const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore) {
-      if (
-        workUnitStore.type === 'prerender' ||
-        workUnitStore.type === 'prerender-legacy' ||
-        workUnitStore.type === 'prerender-ppr' ||
-        workUnitStore.type === 'cache'
-      ) {
-        if (workUnitStore.revalidate > defaultRevalidate) {
-          workUnitStore.revalidate = defaultRevalidate
-        }
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-runtime':
+        case 'prerender-legacy':
+        case 'prerender-ppr':
+          if (workUnitStore.revalidate > defaultRevalidate) {
+            workUnitStore.revalidate = defaultRevalidate
+          }
+          break
+        case 'request':
+          // A request store doesn't have a revalidate property.
+          break
+        // createComponentTree is not called for these stores:
+        case 'cache':
+        case 'private-cache':
+        case 'prerender-client':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
       }
     }
 
@@ -403,9 +418,9 @@ async function createComponentTreeInternal({
     process.env.NODE_ENV === 'development' &&
     ctx.renderOpts.devtoolSegmentExplorer
   const dir =
-    process.env.NEXT_RUNTIME === 'edge'
-      ? process.env.__NEXT_EDGE_PROJECT_DIR!
-      : ctx.renderOpts.dir || ''
+    (process.env.NEXT_RUNTIME === 'edge'
+      ? process.env.__NEXT_EDGE_PROJECT_DIR
+      : ctx.renderOpts.dir) || ''
 
   // Use the same condition to render metadataOutlet as metadata
   const metadataOutlet = StreamingMetadataOutlet ? (
@@ -515,31 +530,34 @@ async function createComponentTreeInternal({
             }
           }
 
-          const seedData = await createComponentTreeInternal({
-            loaderTree: parallelRoute,
-            parentParams: currentParams,
-            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            injectedCSS: injectedCSSWithCurrentLayout,
-            injectedJS: injectedJSWithCurrentLayout,
-            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
-            // but we only want to throw on the first one.
-            getMetadataReady: isChildrenRouteKey
-              ? getMetadataReady
-              : () => Promise.resolve(),
-            getViewportReady: isChildrenRouteKey
-              ? getViewportReady
-              : () => Promise.resolve(),
-            ctx,
-            missingSlots,
-            preloadCallbacks,
-            authInterrupts,
-            // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-            // but we only want to throw on the first one.
-            StreamingMetadataOutlet: isChildrenRouteKey
-              ? StreamingMetadataOutlet
-              : null,
-          })
+          const seedData = await createComponentTreeInternal(
+            {
+              loaderTree: parallelRoute,
+              parentParams: currentParams,
+              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+              injectedCSS: injectedCSSWithCurrentLayout,
+              injectedJS: injectedJSWithCurrentLayout,
+              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+              // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
+              // but we only want to throw on the first one.
+              getMetadataReady: isChildrenRouteKey
+                ? getMetadataReady
+                : () => Promise.resolve(),
+              getViewportReady: isChildrenRouteKey
+                ? getViewportReady
+                : () => Promise.resolve(),
+              ctx,
+              missingSlots,
+              preloadCallbacks,
+              authInterrupts,
+              // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+              // but we only want to throw on the first one.
+              StreamingMetadataOutlet: isChildrenRouteKey
+                ? StreamingMetadataOutlet
+                : null,
+            },
+            false
+          )
 
           childCacheNodeSeedData = seedData
         }
@@ -553,6 +571,9 @@ async function createComponentTreeInternal({
         const templateFilePath = getConventionPathByType(tree, dir, 'template')
         const errorFilePath = getConventionPathByType(tree, dir, 'error')
         const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
+        const globalErrorFilePath = isRoot
+          ? getConventionPathByType(tree, dir, 'global-error')
+          : undefined
 
         const wrappedErrorStyles =
           isSegmentViewEnabled && errorFilePath ? (
@@ -585,6 +606,17 @@ async function createComponentTreeInternal({
               <SegmentViewNode
                 type={`${BOUNDARY_PREFIX}error`}
                 pagePath={errorFilePath + fileNameSuffix}
+              />
+            )}
+            {/* Only show global-error when it's the builtin one */}
+            {globalErrorFilePath && (
+              <SegmentViewNode
+                type={`${BOUNDARY_PREFIX}global-error`}
+                pagePath={
+                  isNextjsBuiltinFilePath(globalErrorFilePath)
+                    ? `${BUILTIN_PREFIX}global-error.js${fileNameSuffix}`
+                    : globalErrorFilePath
+                }
               />
             )}
             {/* do not surface forbidden and unauthorized boundaries yet as they're unstable */}
@@ -721,10 +753,8 @@ async function createComponentTreeInternal({
     let pageElement: React.ReactNode
     if (isClientComponent) {
       if (isStaticGeneration) {
-        const promiseOfParams = createPrerenderParamsForClientSegment(
-          currentParams,
-          workStore
-        )
+        const promiseOfParams =
+          createPrerenderParamsForClientSegment(currentParams)
         const promiseOfSearchParams =
           createPrerenderSearchParamsForClientPage(workStore)
         pageElement = (
@@ -761,13 +791,6 @@ async function createComponentTreeInternal({
         const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
           PageComponent
 
-        if (!experimental.dynamicIO) {
-          // The "use cache" wrapper takes care of converting this into an
-          // erroring search params promise when passing it to the original
-          // function.
-          searchParams = Promise.resolve({})
-        }
-
         pageElement = (
           <UseCachePageComponent
             params={params}
@@ -800,7 +823,6 @@ async function createComponentTreeInternal({
         pageElement
       )
 
-    const pagePrefix = ctx.renderOpts.page.replace(/\/page$/, '')
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
@@ -810,7 +832,6 @@ async function createComponentTreeInternal({
           <MetadataOutlet ready={getViewportReady} />
           {metadataOutlet}
         </OutletBoundary>
-        <SegmentViewStateNode page={pagePrefix} />
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
@@ -829,10 +850,8 @@ async function createComponentTreeInternal({
       let clientSegment: React.ReactNode
 
       if (isStaticGeneration) {
-        const promiseOfParams = createPrerenderParamsForClientSegment(
-          currentParams,
-          workStore
-        )
+        const promiseOfParams =
+          createPrerenderParamsForClientSegment(currentParams)
 
         clientSegment = (
           <ClientSegmentRoot
@@ -1121,9 +1140,9 @@ async function createBoundaryConventionElement({
     process.env.NODE_ENV === 'development' &&
     ctx.renderOpts.devtoolSegmentExplorer
   const dir =
-    process.env.NEXT_RUNTIME === 'edge'
-      ? process.env.__NEXT_EDGE_PROJECT_DIR!
-      : ctx.renderOpts.dir || ''
+    (process.env.NEXT_RUNTIME === 'edge'
+      ? process.env.__NEXT_EDGE_PROJECT_DIR
+      : ctx.renderOpts.dir) || ''
   const { SegmentViewNode } = ctx.componentMod
   const element = Component ? (
     <>

@@ -258,7 +258,6 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -272,7 +271,6 @@ describe('pages/ error recovery', () => {
            |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -291,7 +289,6 @@ describe('pages/ error recovery', () => {
              |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -308,7 +305,6 @@ describe('pages/ error recovery', () => {
              |         ^",
            "stack": [
              "Child child.js (3:9)",
-             "Set.forEach <anonymous>",
            ],
          }
         `)
@@ -562,7 +558,6 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -576,7 +571,6 @@ describe('pages/ error recovery', () => {
            |           ^",
            "stack": [
              "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -610,7 +604,6 @@ describe('pages/ error recovery', () => {
                |           ^",
              "stack": [
                "ClassDefault.render index.js (5:11)",
-               "Set.forEach <anonymous>",
                "<FIXME-file-protocol>",
                "<FIXME-file-protocol>",
              ],
@@ -627,7 +620,6 @@ describe('pages/ error recovery', () => {
                |           ^",
              "stack": [
                "ClassDefault.render index.js (5:11)",
-               "Set.forEach <anonymous>",
              ],
            }
           `)
@@ -694,7 +686,6 @@ describe('pages/ error recovery', () => {
            |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -708,7 +699,6 @@ describe('pages/ error recovery', () => {
            |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -727,7 +717,6 @@ describe('pages/ error recovery', () => {
              |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous>",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
@@ -744,7 +733,6 @@ describe('pages/ error recovery', () => {
              |   ^",
            "stack": [
              "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous>",
            ],
          }
         `)
@@ -852,10 +840,10 @@ describe('pages/ error recovery', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
+         "source": "./index.js (7:42)
        Parsing ecmascript source code failed
        > 7 | export default function FunctionNamed() {
-           |                                         ^",
+           |                                          ^",
          "stack": [],
        }
       `)
@@ -898,7 +886,6 @@ describe('pages/ error recovery', () => {
         5 |   throw Error('no ' + i)
         6 | }, 1000)
         7 | export default function FunctionNamed() {
-          :                                         ^
           \`----
        Caused by:
            Syntax Error
@@ -920,10 +907,10 @@ describe('pages/ error recovery', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
+         "source": "./index.js (7:42)
        Parsing ecmascript source code failed
        > 7 | export default function FunctionNamed() {
-           |                                         ^",
+           |                                          ^",
          "stack": [],
        }
       `)
@@ -966,7 +953,6 @@ describe('pages/ error recovery', () => {
         5 |   throw Error('no ' + i)
         6 | }, 1000)
         7 | export default function FunctionNamed() {
-          :                                         ^
           \`----
        Caused by:
            Syntax Error

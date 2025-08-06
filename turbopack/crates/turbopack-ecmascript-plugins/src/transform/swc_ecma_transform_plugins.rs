@@ -15,7 +15,7 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 /// cost of the compilation.
 #[turbo_tasks::value(serialization = "none", eq = "manual", into = "new", cell = "new")]
 pub struct SwcPluginModule(
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(trace_ignore, debug_ignore)]
     #[cfg(feature = "swc_ecma_transform_plugin")]
     pub swc_core::plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
     // Dummy field to avoid turbo_tasks macro complaining about empty struct.
@@ -28,15 +28,15 @@ impl SwcPluginModule {
     pub fn new(plugin_name: &str, plugin_bytes: Vec<u8>) -> Self {
         #[cfg(feature = "swc_ecma_transform_plugin")]
         {
-            Self({
-                use swc_core::plugin_runner::plugin_module_bytes::{
-                    CompiledPluginModuleBytes, RawPluginModuleBytes,
-                };
-                CompiledPluginModuleBytes::from(RawPluginModuleBytes::new(
-                    plugin_name.to_string(),
-                    plugin_bytes,
-                ))
-            })
+            use swc_core::plugin_runner::plugin_module_bytes::{
+                CompiledPluginModuleBytes, RawPluginModuleBytes,
+            };
+            use swc_plugin_backend_wasmer::WasmerRuntime;
+
+            Self(CompiledPluginModuleBytes::from_raw_module(
+                &WasmerRuntime,
+                RawPluginModuleBytes::new(plugin_name.to_string(), plugin_bytes),
+            ))
         }
 
         #[cfg(not(feature = "swc_ecma_transform_plugin"))]
@@ -132,19 +132,22 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                 },
                 ecma::ast::Module,
                 plugin::proxies::{COMMENTS, HostCommentsStorage},
-                plugin_runner::plugin_module_bytes::PluginModuleBytes,
             };
+            use swc_plugin_backend_wasmer::WasmerRuntime;
+            use turbo_tasks::TryJoinIterExt;
 
-            let mut plugins = vec![];
-            for (plugin_module, config) in &self.plugins {
-                let plugin_module = &plugin_module.await?.0;
-
-                plugins.push((
-                    plugin_module.get_module_name().to_string(),
-                    config.clone(),
-                    Box::new(plugin_module.clone()),
-                ));
-            }
+            let plugins = self
+                .plugins
+                .iter()
+                .map(async |(plugin_module, config)| {
+                    let plugin_module = plugin_module.await?;
+                    Ok((
+                        config.clone(),
+                        Box::new(plugin_module.0.clone_module(&WasmerRuntime)),
+                    ))
+                })
+                .try_join()
+                .await?;
 
             let should_enable_comments_proxy =
                 !ctx.comments.leading.is_empty() && !ctx.comments.trailing.is_empty();
@@ -199,9 +202,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     // Note: This doesn't mean plugin won't perform any se/deserialization: it
                     // still have to construct from raw bytes internally to perform actual
                     // transform.
-                    for (_plugin_name, plugin_config, plugin_module) in plugins.drain(..) {
-                        let runtime =
-                            swc_core::plugin_runner::wasix_runtime::build_wasi_runtime(None);
+                    for (plugin_config, plugin_module) in plugins {
                         let mut transform_plugin_executor =
                             swc_core::plugin_runner::create_plugin_transform_executor(
                                 ctx.source_map,
@@ -210,7 +211,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                                 None,
                                 plugin_module,
                                 Some(plugin_config),
-                                runtime,
+                                Arc::new(WasmerRuntime),
                             );
 
                         serialized_program = transform_plugin_executor

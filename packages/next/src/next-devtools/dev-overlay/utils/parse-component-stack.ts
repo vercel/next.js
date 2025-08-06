@@ -1,9 +1,9 @@
 export type ComponentStackFrame = {
   canOpenInEditor: boolean
   component: string
-  file?: string
-  lineNumber?: number
-  column?: number
+  file: string | null
+  line1: number | null
+  column1: number | null
 }
 
 enum LocationType {
@@ -42,8 +42,7 @@ function parseStackFrameLocation(
     /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
     ''
   )
-  const [, file, lineNumber, column] =
-    modulePath?.match(/^(.+):(\d+):(\d+)/) ?? []
+  const [, file, line1, column1] = modulePath?.match(/^(.+):(\d+):(\d+)/) ?? []
 
   switch (locationType) {
     case LocationType.FILE:
@@ -51,8 +50,8 @@ function parseStackFrameLocation(
       return {
         canOpenInEditor: true,
         file,
-        lineNumber: lineNumber ? Number(lineNumber) : undefined,
-        column: column ? Number(column) : undefined,
+        line1: line1 ? Number(line1) : null,
+        column1: column1 ? Number(column1) : null,
       }
     // When the location is a URL we only show the file
     // TODO: Resolve http(s) URLs through sourcemaps
@@ -62,6 +61,9 @@ function parseStackFrameLocation(
     default: {
       return {
         canOpenInEditor: false,
+        file: null,
+        line1: null,
+        column1: null,
       }
     }
   }
@@ -83,6 +85,9 @@ export function parseComponentStack(
         componentStackFrames.push({
           canOpenInEditor: false,
           component,
+          file: null,
+          line1: null,
+          column1: null,
         })
         continue
       }

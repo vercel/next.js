@@ -81,11 +81,7 @@ import {
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
-import {
-  getSortedRoutes,
-  isDynamicRoute,
-  getSortedRouteObjects,
-} from '../shared/lib/router/utils'
+import { isDynamicRoute } from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
@@ -112,8 +108,15 @@ import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import {
   createPagesMapping,
+  collectAppFiles,
   getStaticInfoIncludingLayouts,
   sortByPageExts,
+  processPageRoutes,
+  processAppRoutes,
+  processLayoutRoutes,
+  extractSlotsFromAppRoutes,
+  type RouteInfo,
+  type SlotInfo,
 } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -210,6 +213,15 @@ import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
 import { generatePreviewKeys } from './preview-key-utils'
 import { handleBuildComplete } from './adapter/build-complete'
+import {
+  sortPageObjects,
+  sortPages,
+  sortSortableRouteObjects,
+} from '../shared/lib/router/utils/sortable-routes'
+import {
+  createRouteTypesManifest,
+  writeRouteTypesManifest,
+} from '../server/lib/router-utils/route-types-utils'
 
 type Fallback = null | boolean | string
 
@@ -401,7 +413,35 @@ export type ManifestRoute = ManifestBuiltRoute & {
   page: string
   namedRegex?: string
   routeKeys?: { [key: string]: string }
+
+  /**
+   * If true, this indicates that the route has fallback root params. This is
+   * used to simplify the route regex for matching.
+   */
+  hasFallbackRootParams?: boolean
+
+  /**
+   * The prefetch segment data routes for this route. This is used to rewrite
+   * the prefetch segment data routes (or the inverse) to the correct
+   * destination.
+   */
   prefetchSegmentDataRoutes?: PrefetchSegmentDataRoute[]
+
+  /**
+   * If true, this indicates that the route should not be considered for routing
+   * for the internal router, and instead has been added to support external
+   * routers.
+   */
+  skipInternalRouting?: boolean
+}
+
+type DynamicManifestRoute = ManifestRoute & {
+  /**
+   * The source page that this route is based on. This is used to determine the
+   * source page for the route and is only relevant for app pages where PPR is
+   * enabled and the page differs from the source page.
+   */
+  sourcePage: string | undefined
 }
 
 type ManifestDataRoute = {
@@ -423,7 +463,7 @@ export type RoutesManifest = {
   }
   headers: Array<ManifestHeaderRoute>
   staticRoutes: Array<ManifestRoute>
-  dynamicRoutes: Array<ManifestRoute>
+  dynamicRoutes: ReadonlyArray<DynamicManifestRoute>
   dataRoutes: Array<ManifestDataRoute>
   i18n?: {
     domains?: ReadonlyArray<{
@@ -471,11 +511,35 @@ export type RoutesManifest = {
   }
 }
 
-function pageToRoute(page: string): ManifestRoute {
+/**
+ * Converts a page to a manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @returns A route object.
+ */
+function pageToRoute(page: string): ManifestRoute
+/**
+ * Converts a page to a dynamic manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @param sourcePage The source page that this route is based on. This is used
+ * to determine the source page for the route and is only relevant for app
+ * pages when PPR is enabled on them.
+ * @returns A route object.
+ */
+function pageToRoute(
+  page: string,
+  sourcePage: string | undefined
+): DynamicManifestRoute
+function pageToRoute(
+  page: string,
+  sourcePage?: string
+): DynamicManifestRoute | ManifestRoute {
   const routeRegex = getNamedRouteRegex(page, {
     prefixRouteKeys: true,
   })
   return {
+    sourcePage,
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
     routeKeys: routeRegex.routeKeys,
@@ -1060,12 +1124,6 @@ export default async function build(
         await recursiveDelete(distDir, /^cache/)
       }
 
-      // For app directory, we run type checking after build. That's because
-      // we dynamically generate types for each layout and page in the app
-      // directory.
-      if (!appDir && !isCompileMode)
-        await startTypeChecking(typeCheckingOptions)
-
       if (appDir && 'exportPathMap' in config) {
         Log.error(
           'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
@@ -1153,6 +1211,7 @@ export default async function build(
       NextBuildContext.mappedPages = mappedPages
 
       let mappedAppPages: MappedPages | undefined
+      let mappedAppLayouts: MappedPages | undefined
       let denormalizedAppPages: string[] | undefined
 
       if (appDir) {
@@ -1160,26 +1219,40 @@ export default async function build(
           process.env.NEXT_PRIVATE_APP_PATHS || '[]'
         )
 
-        let appPaths = Boolean(process.env.NEXT_PRIVATE_APP_PATHS)
-          ? providedAppPaths
-          : await nextBuildSpan
-              .traceChild('collect-app-paths')
-              .traceAsyncFn(() =>
-                recursiveReadDir(appDir, {
-                  pathnameFilter: (absolutePath) =>
-                    validFileMatcher.isAppRouterPage(absolutePath) ||
-                    // For now we only collect the root /not-found page in the app
-                    // directory as the 404 fallback
-                    validFileMatcher.isRootNotFound(absolutePath),
-                  ignorePartFilter: (part) => part.startsWith('_'),
-                })
-              )
+        let appPaths: string[]
+        let layoutPaths: string[]
+
+        if (Boolean(process.env.NEXT_PRIVATE_APP_PATHS)) {
+          appPaths = providedAppPaths
+          layoutPaths = []
+        } else {
+          // Collect both app pages and layouts in a single directory traversal
+          const result = await nextBuildSpan
+            .traceChild('collect-app-files')
+            .traceAsyncFn(() => collectAppFiles(appDir, config.pageExtensions))
+
+          appPaths = result.appPaths
+          layoutPaths = result.layoutPaths
+        }
 
         mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
           .traceAsyncFn(() =>
             createPagesMapping({
               pagePaths: appPaths,
+              isDev: false,
+              pagesType: PAGE_TYPES.APP,
+              pageExtensions: config.pageExtensions,
+              pagesDir,
+              appDir,
+            })
+          )
+
+        mappedAppLayouts = await nextBuildSpan
+          .traceChild('create-app-layouts')
+          .traceAsyncFn(() =>
+            createPagesMapping({
+              pagePaths: layoutPaths,
               isDev: false,
               pagesType: PAGE_TYPES.APP,
               pageExtensions: config.pageExtensions,
@@ -1235,6 +1308,49 @@ export default async function build(
         pages: pagesPageKeys,
         app: appPaths.length > 0 ? appPaths : undefined,
       }
+
+      await nextBuildSpan
+        .traceChild('generate-route-types')
+        .traceAsyncFn(async () => {
+          const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+          await fs.mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+
+          let pageRoutes: RouteInfo[] = []
+          let appRoutes: RouteInfo[] = []
+          let layoutRoutes: RouteInfo[] = []
+          let slots: SlotInfo[] = []
+
+          // Build pages routes
+          const processedPages = processPageRoutes(mappedPages, dir)
+          // We combine both page routes and API routes
+          pageRoutes = [
+            ...processedPages.pageRoutes,
+            ...processedPages.pageApiRoutes,
+          ]
+
+          // Build app routes
+          if (appDir && mappedAppPages) {
+            slots = extractSlotsFromAppRoutes(mappedAppPages)
+            appRoutes = processAppRoutes(mappedAppPages, dir)
+          }
+
+          // Build app layouts
+          if (appDir && mappedAppLayouts) {
+            layoutRoutes = processLayoutRoutes(mappedAppLayouts, dir)
+          }
+
+          const routeTypesManifest = await createRouteTypesManifest({
+            dir,
+            pageRoutes,
+            appRoutes,
+            layoutRoutes,
+            slots,
+            redirects: config.redirects,
+            rewrites: config.rewrites,
+          })
+
+          await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath)
+        })
 
       // Turbopack already handles conflicting app and page routes.
       if (!isTurbopack) {
@@ -1314,26 +1430,40 @@ export default async function build(
         config.basePath ? `${config.basePath}${p}` : p
       )
 
-      const isAppDynamicIOEnabled = Boolean(config.experimental.dynamicIO)
+      const isAppCacheComponentsEnabled = Boolean(
+        config.experimental.cacheComponents
+      )
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
       const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
+      const dynamicRoutes: Array<DynamicManifestRoute> = []
+
+      /**
+       * A map of all the pages to their sourcePage value. This is only used for
+       * routes that have PPR enabled and clientSegmentEnabled is true.
+       */
+      const sourcePages = new Map<string, string>()
       const routesManifest: RoutesManifest = nextBuildSpan
         .traceChild('generate-routes-manifest')
         .traceFn(() => {
-          const sortedRoutes = getSortedRoutes([
+          const sortedRoutes = sortPages([
             ...pageKeys.pages,
             ...(pageKeys.app ?? []),
           ])
-          const dynamicRoutes: Array<ManifestRoute> = []
           const staticRoutes: Array<ManifestRoute> = []
 
           for (const route of sortedRoutes) {
             if (isDynamicRoute(route)) {
-              dynamicRoutes.push(pageToRoute(route))
+              dynamicRoutes.push(
+                pageToRoute(
+                  route,
+                  // This property is only relevant when PPR is enabled.
+                  undefined
+                )
+              )
             } else if (!isReservedPage(route)) {
               staticRoutes.push(pageToRoute(route))
             }
@@ -1349,9 +1479,15 @@ export default async function build(
             ),
             headers: headers.map((r) => buildCustomRoute('header', r)),
             rewrites: {
-              beforeFiles: [],
-              afterFiles: [],
-              fallback: [],
+              beforeFiles: rewrites.beforeFiles.map((r) =>
+                buildCustomRoute('rewrite', r)
+              ),
+              afterFiles: rewrites.afterFiles.map((r) =>
+                buildCustomRoute('rewrite', r)
+              ),
+              fallback: rewrites.fallback.map((r) =>
+                buildCustomRoute('rewrite', r)
+              ),
             },
             dynamicRoutes,
             staticRoutes,
@@ -1388,14 +1524,9 @@ export default async function build(
           } satisfies RoutesManifest
         })
 
-      routesManifest.rewrites = {
-        beforeFiles: rewrites.beforeFiles.map((r) =>
-          buildCustomRoute('rewrite', r)
-        ),
-        afterFiles: rewrites.afterFiles.map((r) =>
-          buildCustomRoute('rewrite', r)
-        ),
-        fallback: rewrites.fallback.map((r) => buildCustomRoute('rewrite', r)),
+      // For pages directory, we run type checking after route collection but before build.
+      if (!appDir && !isCompileMode) {
+        await startTypeChecking(typeCheckingOptions)
       }
 
       let clientRouterFilters:
@@ -1737,7 +1868,7 @@ export default async function build(
               distDir,
               configFileName,
               runtimeEnvConfig,
-              dynamicIO: isAppDynamicIOEnabled,
+              cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
@@ -1976,7 +2107,7 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            dynamicIO: isAppDynamicIOEnabled,
+                            cacheComponents: isAppCacheComponentsEnabled,
                             authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
                             cacheHandlers: config.experimental.cacheHandlers,
@@ -2459,7 +2590,7 @@ export default async function build(
       if (serverPropsPages.size > 0 || ssgPages.size > 0) {
         // We update the routes manifest after the build with the
         // data routes since we can't determine these until after build
-        routesManifest.dataRoutes = getSortedRoutes([
+        routesManifest.dataRoutes = sortPages([
           ...serverPropsPages,
           ...ssgPages,
         ]).map((page) => {
@@ -2519,8 +2650,8 @@ export default async function build(
 
       const features: EventBuildFeatureUsage[] = [
         {
-          featureName: 'experimental/dynamicIO',
-          invocationCount: config.experimental.dynamicIO ? 1 : 0,
+          featureName: 'experimental/cacheComponents',
+          invocationCount: config.experimental.cacheComponents ? 1 : 0,
         },
         {
           featureName: 'experimental/optimizeCss',
@@ -2923,39 +3054,39 @@ export default async function build(
             // route), any routes that were generated with unknown route params
             // should be collected and included in the dynamic routes part
             // of the manifest instead.
-            const routes: PrerenderedRoute[] = []
-            const dynamicRoutes: PrerenderedRoute[] = []
+            const staticPrerenderedRoutes: PrerenderedRoute[] = []
+            const dynamicPrerenderedRoutes: PrerenderedRoute[] = []
 
             // Sort the outputted routes to ensure consistent output. Any route
             // though that has unknown route params will be pulled and sorted
             // independently. This is because the routes with unknown route
             // params will contain the dynamic path parameters, some of which
             // may conflict with the actual prerendered routes.
-            let unknownPrerenderRoutes: PrerenderedRoute[] = []
-            let knownPrerenderRoutes: PrerenderedRoute[] = []
+            const unsortedUnknownPrerenderRoutes: PrerenderedRoute[] = []
+            const unsortedKnownPrerenderRoutes: PrerenderedRoute[] = []
             for (const prerenderedRoute of prerenderedRoutes) {
               if (
                 prerenderedRoute.fallbackRouteParams &&
                 prerenderedRoute.fallbackRouteParams.length > 0
               ) {
-                unknownPrerenderRoutes.push(prerenderedRoute)
+                unsortedUnknownPrerenderRoutes.push(prerenderedRoute)
               } else {
-                knownPrerenderRoutes.push(prerenderedRoute)
+                unsortedKnownPrerenderRoutes.push(prerenderedRoute)
               }
             }
 
-            unknownPrerenderRoutes = getSortedRouteObjects(
-              unknownPrerenderRoutes,
+            const sortedUnknownPrerenderRoutes = sortPageObjects(
+              unsortedUnknownPrerenderRoutes,
               (prerenderedRoute) => prerenderedRoute.pathname
             )
-            knownPrerenderRoutes = getSortedRouteObjects(
-              knownPrerenderRoutes,
+            const sortedKnownPrerenderRoutes = sortPageObjects(
+              unsortedKnownPrerenderRoutes,
               (prerenderedRoute) => prerenderedRoute.pathname
             )
 
             prerenderedRoutes = [
-              ...knownPrerenderRoutes,
-              ...unknownPrerenderRoutes,
+              ...sortedKnownPrerenderRoutes,
+              ...sortedUnknownPrerenderRoutes,
             ]
 
             for (const prerenderedRoute of prerenderedRoutes) {
@@ -2972,16 +3103,16 @@ export default async function build(
               ) {
                 // If the route has unknown params, then we need to add it to
                 // the list of dynamic routes.
-                dynamicRoutes.push(prerenderedRoute)
+                dynamicPrerenderedRoutes.push(prerenderedRoute)
               } else {
                 // If the route doesn't have unknown params, then we need to
-                // add it to the list of routes.
-                routes.push(prerenderedRoute)
+                // add it to the list of static routes.
+                staticPrerenderedRoutes.push(prerenderedRoute)
               }
             }
 
             // Handle all the static routes.
-            for (const route of routes) {
+            for (const route of staticPrerenderedRoutes) {
               if (isDynamicRoute(page) && route.pathname === page) continue
               if (route.pathname === UNDERSCORE_NOT_FOUND_ROUTE) continue
 
@@ -3068,7 +3199,7 @@ export default async function build(
               // they are enabled, then it'll already be included in the
               // prerendered routes.
               if (!isRoutePPREnabled) {
-                dynamicRoutes.push({
+                dynamicPrerenderedRoutes.push({
                   params: {},
                   pathname: page,
                   encodedPathname: page,
@@ -3081,7 +3212,7 @@ export default async function build(
                 })
               }
 
-              for (const route of dynamicRoutes) {
+              for (const route of dynamicPrerenderedRoutes) {
                 const normalizedRoute = normalizePagePath(route.pathname)
 
                 const metadata = exportResult.byPath.get(
@@ -3096,25 +3227,101 @@ export default async function build(
                 }
 
                 let prefetchDataRoute: string | undefined
+                let dynamicRoute = routesManifest.dynamicRoutes.find(
+                  (r) => r.page === route.pathname
+                )
                 if (!isAppRouteHandler && isAppPPREnabled) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
+
+                  // If the dynamic route wasn't found, then we need to create
+                  // it. This ensures that for each fallback shell there's an
+                  // entry in the app routes manifest which enables routing for
+                  // this fallback shell.
+                  if (!dynamicRoute) {
+                    dynamicRoute = pageToRoute(route.pathname, page)
+                    sourcePages.set(route.pathname, page)
+
+                    // This route is not for the internal router, but instead
+                    // for external routers.
+                    dynamicRoute.skipInternalRouting = true
+
+                    // Push this to the end of the array. The dynamic routes are
+                    // sorted by page later.
+                    dynamicRoutes.push(dynamicRoute)
+                  }
                 }
 
-                if (!isAppRouteHandler && metadata?.segmentPaths) {
-                  const dynamicRoute = routesManifest.dynamicRoutes.find(
-                    (r) => r.page === page
-                  )
+                if (
+                  !isAppRouteHandler &&
+                  (metadata?.segmentPaths ||
+                    (route.fallbackRootParams &&
+                      route.fallbackRootParams.length > 0))
+                ) {
+                  // If PPR isn't enabled, then we might not find the dynamic
+                  // route by pathname. If that's the case, we need to find the
+                  // route by page.
                   if (!dynamicRoute) {
-                    throw new Error('Dynamic route not found')
+                    dynamicRoute = dynamicRoutes.find((r) => r.page === page)
+
+                    // If it can't be found by page, we must throw an error.
+                    if (!dynamicRoute) {
+                      throw new InvariantError('Dynamic route not found')
+                    }
                   }
 
-                  dynamicRoute.prefetchSegmentDataRoutes ??= []
-                  for (const segmentPath of metadata.segmentPaths) {
-                    dynamicRoute.prefetchSegmentDataRoutes.push(
-                      buildPrefetchSegmentDataRoute(route.pathname, segmentPath)
+                  if (metadata?.segmentPaths) {
+                    const pageSegmentPath = metadata.segmentPaths.find((item) =>
+                      item.endsWith('__PAGE__')
                     )
+                    if (!pageSegmentPath) {
+                      throw new Error(`Invariant: missing __PAGE__ segmentPath`)
+                    }
+
+                    // We build a combined segment data route from the
+                    // page segment as we need to limit the number of
+                    // routes we output and they can be shared
+                    const builtSegmentDataRoute = buildPrefetchSegmentDataRoute(
+                      route.pathname,
+                      pageSegmentPath
+                    )
+
+                    builtSegmentDataRoute.source =
+                      builtSegmentDataRoute.source.replace(
+                        '/__PAGE__\\.segment\\.rsc$',
+                        `(?<segment>/__PAGE__\\.segment\\.rsc|\\.segment\\.rsc)(?:/)?$`
+                      )
+                    builtSegmentDataRoute.destination =
+                      builtSegmentDataRoute.destination.replace(
+                        '/__PAGE__.segment.rsc',
+                        '$segment'
+                      )
+                    dynamicRoute.prefetchSegmentDataRoutes ??= []
+                    dynamicRoute.prefetchSegmentDataRoutes.push(
+                      builtSegmentDataRoute
+                    )
+                  }
+                  // If the route has fallback root params, and we don't have
+                  // any segment paths, we need to write the inverse prefetch
+                  // segment data route so that it can first rewrite the /_tree
+                  // request to the prefetch RSC route. We also need to set the
+                  // `hasFallbackRootParams` flag so that we can simplify the
+                  // route regex for matching.
+                  else if (
+                    route.fallbackRootParams &&
+                    route.fallbackRootParams.length > 0
+                  ) {
+                    dynamicRoute.hasFallbackRootParams = true
+                    dynamicRoute.prefetchSegmentDataRoutes = [
+                      buildInversePrefetchSegmentDataRoute(
+                        dynamicRoute.page,
+                        // We use the special segment path of `/_tree` because it's
+                        // the first one sent by the client router so it's the only
+                        // one we need to rewrite to the regular prefetch RSC route.
+                        '/_tree'
+                      ),
+                    ]
                   }
                 }
 
@@ -3534,40 +3741,21 @@ export default async function build(
           // remove temporary export folder
           await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
-
-          if (config.experimental.clientSegmentCache) {
-            for (const route of [
-              ...routesManifest.staticRoutes,
-              ...routesManifest.dynamicRoutes,
-            ]) {
-              // If the segment paths aren't defined, we need to insert a
-              // reverse routing rule so that there isn't any conflicts
-              // with other dynamic routes for the prefetch segment
-              // routes. This is true for any route that is not PPR-enabled,
-              // including all routes defined by Pages Router.
-
-              // We don't need to add the prefetch segment data routes if it was
-              // added due to a page that was already generated. This would have
-              // happened if the page was static or partially static.
-              if (route.prefetchSegmentDataRoutes) {
-                continue
-              }
-
-              route.prefetchSegmentDataRoutes = [
-                buildInversePrefetchSegmentDataRoute(
-                  route.page,
-                  // We use the special segment path of `/_tree` because it's
-                  // the first one sent by the client router so it's the only
-                  // one we need to rewrite to the regular prefetch RSC route.
-                  '/_tree'
-                ),
-              ]
-            }
-          }
         })
 
-        // We need to write the manifest with rewrites after build as it might
-        // have been modified.
+        // As we may have modified the dynamicRoutes, we need to sort the
+        // dynamic routes by page.
+        routesManifest.dynamicRoutes = sortSortableRouteObjects(
+          dynamicRoutes,
+          (route) => ({
+            // If the route is PPR enabled, and has an associated source page,
+            // use it. Otherwise fallback to the page which should be the same.
+            sourcePage: sourcePages.get(route.page) ?? route.page,
+            page: route.page,
+          })
+        )
+
+        // Now write the routes manifest out.
         await nextBuildSpan
           .traceChild('write-routes-manifest')
           .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))

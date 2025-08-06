@@ -11,10 +11,10 @@ import {
 
 import {
   workUnitAsyncStorage,
-  type PrerenderStore,
   type PrerenderStoreLegacy,
   type PrerenderStorePPR,
   type PrerenderStoreModern,
+  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
@@ -72,8 +72,20 @@ export function createSearchParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
+      case 'prerender-runtime':
+        throw new InvariantError(
+          'createSearchParamsFromClient should not be called in a runtime prerender.'
+        )
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        throw new InvariantError(
+          'createSearchParamsFromClient should not be called in cache contexts.'
+        )
+      case 'request':
+        break
       default:
-      // fallthrough
+        workUnitStore satisfies never
     }
   }
   return createRenderSearchParams(underlyingSearchParams, workStore)
@@ -95,8 +107,17 @@ export function createServerSearchParamsForServerPage(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        throw new InvariantError(
+          'createServerSearchParamsForServerPage should not be called in cache contexts.'
+        )
+      case 'prerender-runtime':
+      case 'request':
+        break
       default:
-      // fallthrough
+        workUnitStore satisfies never
     }
   }
   return createRenderSearchParams(underlyingSearchParams, workStore)
@@ -111,26 +132,45 @@ export function createPrerenderSearchParamsForClientPage(
     return Promise.resolve({})
   }
 
-  const prerenderStore = workUnitAsyncStorage.getStore()
-  if (
-    prerenderStore &&
-    (prerenderStore.type === 'prerender' ||
-      prerenderStore.type === 'prerender-client')
-  ) {
-    // dynamicIO Prerender
-    // We're prerendering in a mode that aborts (dynamicIO) and should stall
-    // the promise to ensure the RSC side is considered dynamic
-    return makeHangingPromise(prerenderStore.renderSignal, '`searchParams`')
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-client':
+        // We're prerendering in a mode that aborts (cacheComponents) and should stall
+        // the promise to ensure the RSC side is considered dynamic
+        return makeHangingPromise(
+          workUnitStore.renderSignal,
+          workStore.route,
+          '`searchParams`'
+        )
+      case 'prerender-runtime':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called in a runtime prerender.'
+        )
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called in cache contexts.'
+        )
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'request':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
-  // We're prerendering in a mode that does not aborts. We resolve the promise without
-  // any tracking because we're just transporting a value from server to client where the tracking
-  // will be applied.
+  // We're prerendering in a mode that does not abort. We resolve the promise
+  // without any tracking because we're just transporting a value from server to
+  // client where the tracking will be applied.
   return Promise.resolve({})
 }
 
 function createPrerenderSearchParams(
   workStore: WorkStore,
-  prerenderStore: PrerenderStore
+  prerenderStore: StaticPrerenderStore
 ): Promise<SearchParams> {
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
@@ -141,13 +181,15 @@ function createPrerenderSearchParams(
   switch (prerenderStore.type) {
     case 'prerender':
     case 'prerender-client':
-      // We are in a dynamicIO (PPR or otherwise) prerender
-      return makeHangingSearchParams(prerenderStore)
-    default:
-      // The remaining cases are prerender-ppr and prerender-legacy
-      // We are in a legacy static generation and need to interrupt the prerender
-      // when search params are accessed.
+      // We are in a cacheComponents (PPR or otherwise) prerender
+      return makeHangingSearchParams(workStore, prerenderStore)
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+      // We are in a legacy static generation and need to interrupt the
+      // prerender when search params are accessed.
       return makeErroringExoticSearchParams(workStore, prerenderStore)
+    default:
+      return prerenderStore satisfies never
   }
 }
 
@@ -164,7 +206,7 @@ function createRenderSearchParams(
       process.env.NODE_ENV === 'development' &&
       !workStore.isPrefetchRequest
     ) {
-      if (process.env.__NEXT_DYNAMIC_IO) {
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
         return makeUntrackedSearchParamsWithDevWarnings(
           underlyingSearchParams,
           workStore
@@ -176,11 +218,11 @@ function createRenderSearchParams(
         workStore
       )
     } else {
-      if (process.env.__NEXT_DYNAMIC_IO) {
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
         return makeUntrackedSearchParams(underlyingSearchParams)
       }
 
-      return makeUntrackedExoticSearchParams(underlyingSearchParams, workStore)
+      return makeUntrackedExoticSearchParams(underlyingSearchParams)
     }
   }
 }
@@ -194,6 +236,7 @@ const CachedSearchParamsForUseCache = new WeakMap<
 >()
 
 function makeHangingSearchParams(
+  workStore: WorkStore,
   prerenderStore: PrerenderStoreModern
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(prerenderStore)
@@ -203,6 +246,7 @@ function makeHangingSearchParams(
 
   const promise = makeHangingPromise<SearchParams>(
     prerenderStore.renderSignal,
+    workStore.route,
     '`searchParams`'
   )
 
@@ -274,7 +318,7 @@ function makeErroringExoticSearchParams(
               expression
             )
           } else if (prerenderStore.type === 'prerender-ppr') {
-            // PPR Prerender (no dynamicIO)
+            // PPR Prerender (no cacheComponents)
             postponeWithTracking(
               workStore.route,
               expression,
@@ -299,7 +343,7 @@ function makeErroringExoticSearchParams(
               expression
             )
           } else if (prerenderStore.type === 'prerender-ppr') {
-            // PPR Prerender (no dynamicIO)
+            // PPR Prerender (no cacheComponents)
             postponeWithTracking(
               workStore.route,
               expression,
@@ -327,7 +371,7 @@ function makeErroringExoticSearchParams(
                 expression
               )
             } else if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no dynamicIO)
+              // PPR Prerender (no cacheComponents)
               postponeWithTracking(
                 workStore.route,
                 expression,
@@ -362,7 +406,7 @@ function makeErroringExoticSearchParams(
             expression
           )
         } else if (prerenderStore.type === 'prerender-ppr') {
-          // PPR Prerender (no dynamicIO)
+          // PPR Prerender (no cacheComponents)
           postponeWithTracking(
             workStore.route,
             expression,
@@ -389,7 +433,7 @@ function makeErroringExoticSearchParams(
           expression
         )
       } else if (prerenderStore.type === 'prerender-ppr') {
-        // PPR Prerender (no dynamicIO)
+        // PPR Prerender (no cacheComponents)
         postponeWithTracking(
           workStore.route,
           expression,
@@ -464,8 +508,7 @@ export function makeErroringExoticSearchParamsForUseCache(
 }
 
 function makeUntrackedExoticSearchParams(
-  underlyingSearchParams: SearchParams,
-  store: WorkStore
+  underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
   if (cachedSearchParams) {
@@ -483,7 +526,9 @@ function makeUntrackedExoticSearchParams(
       Object.defineProperty(promise, prop, {
         get() {
           const workUnitStore = workUnitAsyncStorage.getStore()
-          trackDynamicDataInDynamicRender(store, workUnitStore)
+          if (workUnitStore) {
+            trackDynamicDataInDynamicRender(workUnitStore)
+          }
           return underlyingSearchParams[prop]
         },
         set(value) {
@@ -546,7 +591,9 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
           )
         }
         const workUnitStore = workUnitAsyncStorage.getStore()
-        trackDynamicDataInDynamicRender(store, workUnitStore)
+        if (workUnitStore) {
+          trackDynamicDataInDynamicRender(workUnitStore)
+        }
       }
       return ReflectAdapter.get(target, prop, receiver)
     },
@@ -760,15 +807,27 @@ function syncIODev(
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
-    // When we're rendering dynamically in dev we need to advance out of the
-    // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'request':
+        if (workUnitStore.prerenderPhase === true) {
+          // When we're rendering dynamically in dev, we need to advance out of
+          // the Prerender environment when we read Request data synchronously.
+          trackSynchronousRequestDataAccessInDev(workUnitStore)
+        }
+        break
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-runtime':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
 }
 

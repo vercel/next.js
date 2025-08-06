@@ -41,7 +41,7 @@ import { isLocalURL } from './utils/is-local-url'
 import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
-import { handleSmoothScroll } from './utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
 import { MATCHED_PATH_HEADER } from '../../../lib/constants'
 
@@ -2286,7 +2286,7 @@ export default class Router implements BaseRouter {
   scrollToHash(as: string): void {
     const [, hash = ''] = as.split('#', 2)
 
-    handleSmoothScroll(
+    disableSmoothScrollDuringRouteTransition(
       () => {
         // Scroll to top if the hash is just `#` with no value or `#top`
         // To mirror browsers

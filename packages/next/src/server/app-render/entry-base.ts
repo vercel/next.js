@@ -58,6 +58,20 @@ if (process.env.NODE_ENV === 'development') {
   SegmentViewStateNode = mod.SegmentViewStateNode
 }
 
+// For hot-reloader
+declare global {
+  var __next__clear_chunk_cache__: (() => void) | null | undefined
+  var __turbopack_clear_chunk_cache__: () => void | null | undefined
+}
+// hot-reloader modules are not bundled so we need to inject `__next__clear_chunk_cache__`
+// into globalThis from this file which is bundled.
+if (process.env.TURBOPACK) {
+  globalThis.__next__clear_chunk_cache__ = __turbopack_clear_chunk_cache__
+} else {
+  // Webpack does not have chunks on the server
+  globalThis.__next__clear_chunk_cache__ = null
+}
+
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
 // in the experimental channel of React, so export it from here so that it comes from the bundled runtime
 export function patchFetch() {

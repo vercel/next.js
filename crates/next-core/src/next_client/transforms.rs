@@ -45,7 +45,8 @@ pub async fn get_next_client_transforms_rules(
 
     rules.push(get_next_font_transform_rule(enable_mdx_rs));
 
-    if mode.await?.is_development() {
+    let is_development = mode.await?.is_development();
+    if is_development {
         rules.push(get_debug_fn_name_rule(enable_mdx_rs));
     }
 
@@ -68,7 +69,11 @@ pub async fn get_next_client_transforms_rules(
                     enable_mdx_rs,
                     pages_dir.clone(),
                 ));
-                rules.push(get_next_page_config_rule(enable_mdx_rs, pages_dir.clone()));
+                rules.push(get_next_page_config_rule(
+                    is_development,
+                    enable_mdx_rs,
+                    pages_dir.clone(),
+                ));
             }
         }
         ClientContextType::App { .. } => {

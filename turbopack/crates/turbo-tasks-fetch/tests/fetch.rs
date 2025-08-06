@@ -1,17 +1,26 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![cfg(test)]
 
+use tokio::sync::Mutex as TokioMutex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
-use turbo_tasks_fetch::{FetchErrorKind, fetch};
+use turbo_tasks_fetch::{
+    __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len, FetchClient,
+    FetchErrorKind,
+};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_testing::{Registration, register, run};
 use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
 
 static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
 
+/// We inspect information about the global client cache, so *every* test in this process *must*
+/// acquire and hold this lock to prevent potential flakiness.
+static GLOBAL_TEST_LOCK: TokioMutex<()> = TokioMutex::const_new(());
+
 #[tokio::test]
 async fn basic_get() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
@@ -20,14 +29,15 @@ async fn basic_get() {
             .create_async()
             .await;
 
-        let response = &*fetch(
-            RcStr::from(format!("{}/foo.woff", server.url())),
-            /* user_agent */ None,
-            /* proxy */ Vc::cell(None),
-        )
-        .await?
-        .unwrap()
-        .await?;
+        let client_vc = FetchClient::default().cell();
+        let response = &*client_vc
+            .fetch(
+                RcStr::from(format!("{}/foo.woff", server.url())),
+                /* user_agent */ None,
+            )
+            .await?
+            .unwrap()
+            .await?;
 
         resource_mock.assert_async().await;
 
@@ -41,6 +51,7 @@ async fn basic_get() {
 
 #[tokio::test]
 async fn sends_user_agent() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
@@ -52,14 +63,15 @@ async fn sends_user_agent() {
 
         eprintln!("{}", server.url());
 
-        let response = &*fetch(
-            RcStr::from(format!("{}/foo.woff", server.url())),
-            Some(rcstr!("mock-user-agent")),
-            /* proxy */ Vc::cell(None),
-        )
-        .await?
-        .unwrap()
-        .await?;
+        let client_vc = FetchClient::default().cell();
+        let response = &*client_vc
+            .fetch(
+                RcStr::from(format!("{}/foo.woff", server.url())),
+                Some(rcstr!("mock-user-agent")),
+            )
+            .await?
+            .unwrap()
+            .await?;
 
         resource_mock.assert_async().await;
 
@@ -75,6 +87,7 @@ async fn sends_user_agent() {
 // TODO: Implement invalidation that respects Cache-Control headers.
 #[tokio::test]
 async fn invalidation_does_not_invalidate() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
@@ -85,8 +98,9 @@ async fn invalidation_does_not_invalidate() {
             .await;
 
         let url = RcStr::from(format!("{}/foo.woff", server.url()));
-        let proxy_vc = Vc::cell(None);
-        let response = &*fetch(url.clone(), /* user_agent */ None, proxy_vc)
+        let client_vc = FetchClient::default().cell();
+        let response = &*client_vc
+            .fetch(url.clone(), /* user_agent */ None)
             .await?
             .unwrap()
             .await?;
@@ -96,7 +110,8 @@ async fn invalidation_does_not_invalidate() {
         assert_eq!(response.status, 200);
         assert_eq!(*response.body.to_string().await?, "responsebody");
 
-        let second_response = &*fetch(url.clone(), /* user_agent */ None, proxy_vc)
+        let second_response = &*client_vc
+            .fetch(url.clone(), /* user_agent */ None)
             .await?
             .unwrap()
             .await?;
@@ -111,14 +126,20 @@ async fn invalidation_does_not_invalidate() {
     .unwrap()
 }
 
+fn get_issue_context() -> Vc<FileSystemPath> {
+    DiskFileSystem::new(rcstr!("root"), rcstr!("/")).root()
+}
+
 #[tokio::test]
 async fn errors_on_failed_connection() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
         // Try to connect to port 0 on localhost, which is never valid and immediately returns
         // `ECONNREFUSED`.
         // Other values (e.g. domain name, reserved IP address block) may result in long timeouts.
         let url = rcstr!("http://127.0.0.1:0/foo.woff");
-        let response_vc = fetch(url.clone(), None, Vc::cell(None));
+        let client_vc = FetchClient::default().cell();
+        let response_vc = client_vc.fetch(url.clone(), None);
         let err_vc = &*response_vc.await?.unwrap_err();
         let err = err_vc.await?;
 
@@ -142,6 +163,7 @@ async fn errors_on_failed_connection() {
 
 #[tokio::test]
 async fn errors_on_404() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
@@ -151,7 +173,8 @@ async fn errors_on_404() {
             .await;
 
         let url = RcStr::from(server.url());
-        let response_vc = fetch(url.clone(), None, Vc::cell(None));
+        let client_vc = FetchClient::default().cell();
+        let response_vc = client_vc.fetch(url.clone(), None);
         let err_vc = &*response_vc.await?.unwrap_err();
         let err = err_vc.await?;
 
@@ -173,6 +196,78 @@ async fn errors_on_404() {
     .unwrap()
 }
 
-fn get_issue_context() -> Vc<FileSystemPath> {
-    DiskFileSystem::new(rcstr!("root"), rcstr!("/"), vec![]).root()
+#[tokio::test]
+async fn client_cache() {
+    // a simple fetch that should always succeed
+    async fn simple_fetch(path: &str, client: FetchClient) -> anyhow::Result<()> {
+        let mut server = mockito::Server::new_async().await;
+        let _resource_mock = server
+            .mock("GET", &*format!("/{path}"))
+            .with_body("responsebody")
+            .create_async()
+            .await;
+
+        let url = RcStr::from(format!("{}/{}", server.url(), path));
+        let response = match &*client
+            .cell()
+            .fetch(url.clone(), /* user_agent */ None)
+            .await?
+        {
+            Ok(resp) => resp.await?,
+            Err(_err) => {
+                anyhow::bail!("fetch error")
+            }
+        };
+
+        if response.status != 200 {
+            anyhow::bail!("non-200 status code")
+        }
+
+        anyhow::Ok(())
+    }
+
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
+    run(&REGISTRATION, || async {
+        __test_only_reqwest_client_cache_clear();
+        assert_eq!(__test_only_reqwest_client_cache_len(), 0);
+
+        simple_fetch(
+            "/foo",
+            FetchClient {
+                tls_built_in_native_certs: false,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(__test_only_reqwest_client_cache_len(), 1);
+
+        // the client is reused if the config is the same (by equality)
+        simple_fetch(
+            "/bar",
+            FetchClient {
+                tls_built_in_native_certs: false,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(__test_only_reqwest_client_cache_len(), 1);
+
+        // the client is recreated if the config is different
+        simple_fetch(
+            "/bar",
+            FetchClient {
+                tls_built_in_native_certs: true,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(__test_only_reqwest_client_cache_len(), 2);
+
+        Ok(())
+    })
+    .await
+    .unwrap()
 }

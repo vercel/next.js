@@ -37,7 +37,10 @@ fn package_import_map_from_import_mapping(
     package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
-    import_map.insert_exact_alias(format!("@vercel/turbopack/{package_name}"), package_mapping);
+    import_map.insert_exact_alias(
+        RcStr::from(format!("@vercel/turbopack/{package_name}")),
+        package_mapping,
+    );
     import_map.cell()
 }
 
@@ -48,7 +51,7 @@ fn package_import_map_from_context(
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
-        format!("@vercel/turbopack/{package_name}"),
+        RcStr::from(format!("@vercel/turbopack/{package_name}")),
         ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
     import_map.cell()
@@ -146,8 +149,9 @@ impl ModuleOptions {
             ..
         } = *module_options_context.await?;
 
-        let mut refresh = false;
-        let mut transforms = vec![];
+        let mut ts_preprocess = vec![];
+        let mut ecma_preprocess = vec![];
+        let mut postprocess = vec![];
 
         // Order of transforms is important. e.g. if the React transform occurs before
         // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
@@ -155,9 +159,8 @@ impl ModuleOptions {
         // should use `before_transform_plugins`.
         if let Some(enable_jsx) = enable_jsx {
             let jsx = enable_jsx.await?;
-            refresh = jsx.react_refresh;
 
-            transforms.push(EcmascriptInputTransform::React {
+            postprocess.push(EcmascriptInputTransform::React {
                 development: jsx.development,
                 refresh: jsx.react_refresh,
                 import_source: ResolvedVc::cell(jsx.import_source.clone()),
@@ -170,7 +173,6 @@ impl ModuleOptions {
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
-            refresh,
             extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             keep_last_successful_parse,
             ..Default::default()
@@ -178,14 +180,14 @@ impl ModuleOptions {
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(environment) = environment {
-            transforms.push(EcmascriptInputTransform::PresetEnv(environment));
+            postprocess.push(EcmascriptInputTransform::PresetEnv(environment));
         }
 
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
-            transforms.push(EcmascriptInputTransform::GlobalTypeofs {
+            postprocess.push(EcmascriptInputTransform::GlobalTypeofs {
                 window_value: match enable_typeof_window_inlining {
-                    TypeofWindow::Object => "object".to_string(),
-                    TypeofWindow::Undefined => "undefined".to_string(),
+                    TypeofWindow::Object => rcstr!("object"),
+                    TypeofWindow::Undefined => rcstr!("undefined"),
                 },
             });
         }
@@ -214,43 +216,30 @@ impl ModuleOptions {
             None
         };
 
-        let vendor_transforms = Vc::<EcmascriptInputTransforms>::cell(vec![]);
-        let ts_app_transforms = if let Some(transform) = &ts_transform {
-            let base_transforms = if let Some(decorators_transform) = &decorators_transform {
-                vec![decorators_transform.clone(), transform.clone()]
-            } else {
-                vec![transform.clone()]
-            };
-            Vc::<EcmascriptInputTransforms>::cell(
-                base_transforms
-                    .iter()
-                    .cloned()
-                    .chain(transforms.iter().cloned())
-                    .collect(),
-            )
-        } else {
-            Vc::cell(transforms.clone())
-        };
-
-        // Apply decorators transform for the ModuleType::Ecmascript as well after
-        // constructing ts_app_transforms. Ecmascript can have decorators for
-        // the cases of 1. using jsconfig, to enable ts-specific runtime
-        // decorators (i.e legacy) 2. ecma spec decorators
-        //
-        // Since typescript transform (`ts_app_transforms`) needs to apply decorators
-        // _before_ stripping types, we create ts_app_transforms first in a
-        // specific order with typescript, then apply decorators to app_transforms.
-        let app_transforms = Vc::<EcmascriptInputTransforms>::cell(
+        if let Some(ts_transform) = &ts_transform {
             if let Some(decorators_transform) = &decorators_transform {
-                vec![decorators_transform.clone()]
+                ts_preprocess.splice(0..0, [decorators_transform.clone(), ts_transform.clone()]);
             } else {
-                vec![]
+                ts_preprocess.splice(0..0, [ts_transform.clone()]);
             }
-            .iter()
-            .cloned()
-            .chain(transforms.iter().cloned())
-            .collect(),
-        );
+        }
+        if let Some(decorators_transform) = &decorators_transform {
+            // Apply decorators transform for the ModuleType::Ecmascript as well after
+            // constructing ts_app_transforms. Ecmascript can have decorators for
+            // the cases of 1. using jsconfig, to enable ts-specific runtime
+            // decorators (i.e legacy) 2. ecma spec decorators
+            //
+            // Since typescript transform (`ts_app_transforms`) needs to apply decorators
+            // _before_ stripping types, we create ts_app_transforms first in a
+            // specific order with typescript, then apply decorators to app_transforms.
+            ecma_preprocess.splice(0..0, [decorators_transform.clone()]);
+        }
+
+        let ts_preprocess = ResolvedVc::cell(ts_preprocess);
+        let ecma_preprocess = ResolvedVc::cell(ecma_preprocess);
+        let main = ResolvedVc::<EcmascriptInputTransforms>::cell(vec![]);
+        let postprocess = ResolvedVc::cell(postprocess);
+        let empty = ResolvedVc::<EcmascriptInputTransforms>::cell(vec![]);
 
         let mut rules = vec![
             ModuleRule::new_all(
@@ -268,14 +257,18 @@ impl ModuleOptions {
                     RuleCondition::ContentTypeStartsWith("text/javascript".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    transforms: app_transforms.to_resolved().await?,
+                    preprocess: ecma_preprocess,
+                    main,
+                    postprocess,
                     options: ecmascript_options_vc,
                 })],
             ),
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".mjs".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    transforms: app_transforms.to_resolved().await?,
+                    preprocess: ecma_preprocess,
+                    main,
+                    postprocess,
                     options: EcmascriptOptions {
                         specified_module_type: SpecifiedModuleType::EcmaScript,
                         ..ecmascript_options
@@ -286,7 +279,9 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".cjs".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    transforms: app_transforms.to_resolved().await?,
+                    preprocess: ecma_preprocess,
+                    main,
+                    postprocess,
                     options: EcmascriptOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
@@ -297,7 +292,9 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".ts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms.to_resolved().await?,
+                    preprocess: ts_preprocess,
+                    main,
+                    postprocess,
                     tsx: false,
                     analyze_types: enable_types,
                     options: ecmascript_options_vc,
@@ -306,7 +303,9 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms.to_resolved().await?,
+                    preprocess: ts_preprocess,
+                    main,
+                    postprocess,
                     tsx: true,
                     analyze_types: enable_types,
                     options: ecmascript_options_vc,
@@ -315,7 +314,9 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".mts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms.to_resolved().await?,
+                    preprocess: ts_preprocess,
+                    main,
+                    postprocess,
                     tsx: false,
                     analyze_types: enable_types,
                     options: EcmascriptOptions {
@@ -328,7 +329,9 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".mtsx".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms.to_resolved().await?,
+                    preprocess: ts_preprocess,
+                    main,
+                    postprocess,
                     tsx: true,
                     analyze_types: enable_types,
                     options: EcmascriptOptions {
@@ -341,7 +344,9 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".cts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms.to_resolved().await?,
+                    preprocess: ts_preprocess,
+                    main,
+                    postprocess,
                     tsx: false,
                     analyze_types: enable_types,
                     options: EcmascriptOptions {
@@ -354,7 +359,9 @@ impl ModuleOptions {
             ModuleRule::new_all(
                 RuleCondition::ResourcePathEndsWith(".ctsx".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    transforms: ts_app_transforms.to_resolved().await?,
+                    preprocess: ts_preprocess,
+                    main,
+                    postprocess,
                     tsx: true,
                     analyze_types: enable_types,
                     options: EcmascriptOptions {
@@ -368,7 +375,9 @@ impl ModuleOptions {
                 RuleCondition::ResourcePathEndsWith(".d.ts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(
                     ModuleType::TypescriptDeclaration {
-                        transforms: vendor_transforms.to_resolved().await?,
+                        preprocess: empty,
+                        main: empty,
+                        postprocess: empty,
                         options: ecmascript_options_vc,
                     },
                 )],
@@ -404,7 +413,9 @@ impl ModuleOptions {
                     RuleCondition::ContentTypeEmpty,
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    transforms: vendor_transforms.to_resolved().await?,
+                    preprocess: empty,
+                    main: empty,
+                    postprocess: empty,
                     options: ecmascript_options_vc,
                 })],
             ),
@@ -464,7 +475,7 @@ impl ModuleOptions {
                     .context("execution_context is required for the postcss_transform")?;
 
                 let import_map = if let Some(postcss_package) = options.postcss_package {
-                    package_import_map_from_import_mapping("postcss".into(), *postcss_package)
+                    package_import_map_from_import_mapping(rcstr!("postcss"), *postcss_package)
                 } else {
                     package_import_map_from_context(
                         rcstr!("postcss"),
@@ -621,12 +632,12 @@ impl ModuleOptions {
                 webpack_loaders_options.loader_runner_package
             {
                 package_import_map_from_import_mapping(
-                    "loader-runner".into(),
+                    rcstr!("loader-runner"),
                     *loader_runner_package,
                 )
             } else {
                 package_import_map_from_context(
-                    "loader-runner".into(),
+                    rcstr!("loader-runner"),
                     path.context("need_path in ModuleOptions::new is incorrect")?,
                 )
             };

@@ -102,6 +102,7 @@ impl OutputAsset for SingleItemCssChunk {
         Ok(self.await?.chunking_context.chunk_path(
             Some(Vc::upcast(self)),
             self.ident_for_path(),
+            None,
             rcstr!(".single.css"),
         ))
     }

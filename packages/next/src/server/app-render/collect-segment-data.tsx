@@ -3,7 +3,6 @@ import type {
   FlightRouterState,
   InitialRSCPayload,
   Segment as FlightRouterStateSegment,
-  DynamicParamTypesShort,
 } from './types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -22,13 +21,12 @@ import type {
   LoadingModuleData,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import {
-  encodeChildSegmentKey,
-  encodeSegment,
-  ROOT_SEGMENT_KEY,
-  type EncodedSegment,
+  type SegmentRequestKey,
+  createSegmentRequestKeyPart,
+  appendSegmentRequestKeyPart,
+  ROOT_SEGMENT_REQUEST_KEY,
 } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { getDigestForWellKnownError } from './create-error-handler'
-import type { FallbackRouteParams } from '../request/fallback-params'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
@@ -69,6 +67,11 @@ const filterStackFrame =
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
         .filterStackFrameDEV
     : undefined
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
 
 function onSegmentPrerenderError(error: unknown) {
   const digest = getDigestForWellKnownError(error)
@@ -83,13 +86,12 @@ export async function collectSegmentData(
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
-  serverConsumerManifest: any,
-  fallbackRouteParams: FallbackRouteParams | null
-): Promise<Map<string, Buffer>> {
+  serverConsumerManifest: any
+): Promise<Map<SegmentRequestKey, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
   // A mutable map to collect the results as we traverse the route tree.
-  const resultMap = new Map<string, Buffer>()
+  const resultMap = new Map<SegmentRequestKey, Buffer>()
 
   // Before we start, warm up the module cache by decoding the page data once.
   // Then we can assume that any remaining async tasks that occur the next time
@@ -98,6 +100,7 @@ export async function collectSegmentData(
   //
   try {
     await createFromReadableStream(streamFromBuffer(fullPageDataBuffer), {
+      findSourceMapURL,
       serverConsumerManifest,
     })
     await waitAtLeastOneReactRenderTask()
@@ -117,7 +120,7 @@ export async function collectSegmentData(
   // tree, we'll also spawn additional tasks to generate the segment prefetches.
   // The promises for these tasks are pushed to a mutable array that we will
   // await once the route tree is fully rendered.
-  const segmentTasks: Array<Promise<[string, Buffer]>> = []
+  const segmentTasks: Array<Promise<[SegmentRequestKey, Buffer]>> = []
   const { prelude: treeStream } = await prerender(
     // RootTreePrefetch is not a valid return type for a React component, but
     // we need to use a component so that when we decode the original stream
@@ -125,7 +128,6 @@ export async function collectSegmentData(
     // @ts-expect-error
     <PrefetchTreeData
       fullPageDataBuffer={fullPageDataBuffer}
-      fallbackRouteParams={fallbackRouteParams}
       serverConsumerManifest={serverConsumerManifest}
       clientModules={clientModules}
       staleTime={staleTime}
@@ -142,7 +144,7 @@ export async function collectSegmentData(
 
   // Write the route tree to a special `/_tree` segment.
   const treeBuffer = await streamToBuffer(treeStream)
-  resultMap.set('/_tree', treeBuffer)
+  resultMap.set('/_tree' as SegmentRequestKey, treeBuffer)
 
   // Now that we've finished rendering the route tree, all the segment tasks
   // should have been spawned. Await them in parallel and write the segment
@@ -156,7 +158,6 @@ export async function collectSegmentData(
 
 async function PrefetchTreeData({
   fullPageDataBuffer,
-  fallbackRouteParams,
   serverConsumerManifest,
   clientModules,
   staleTime,
@@ -165,10 +166,9 @@ async function PrefetchTreeData({
 }: {
   fullPageDataBuffer: Buffer
   serverConsumerManifest: any
-  fallbackRouteParams: FallbackRouteParams | null
   clientModules: ManifestNode
   staleTime: number
-  segmentTasks: Array<Promise<[string, Buffer]>>
+  segmentTasks: Array<Promise<[SegmentRequestKey, Buffer]>>
   onCompletedProcessingRouteTree: () => void
 }): Promise<RootTreePrefetch | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
@@ -179,6 +179,7 @@ async function PrefetchTreeData({
   const initialRSCPayload: InitialRSCPayload = await createFromReadableStream(
     createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
     {
+      findSourceMapURL,
       serverConsumerManifest,
     }
   )
@@ -205,9 +206,8 @@ async function PrefetchTreeData({
     flightRouterState,
     buildId,
     seedData,
-    fallbackRouteParams,
     clientModules,
-    ROOT_SEGMENT_KEY,
+    ROOT_SEGMENT_REQUEST_KEY,
     segmentTasks
   )
 
@@ -233,9 +233,8 @@ function collectSegmentDataImpl(
   route: FlightRouterState,
   buildId: string,
   seedData: CacheNodeSeedData | null,
-  fallbackRouteParams: FallbackRouteParams | null,
   clientModules: ManifestNode,
-  key: string,
+  requestKey: SegmentRequestKey,
   segmentTasks: Array<Promise<[string, Buffer]>>
 ): TreePrefetch {
   // Metadata about the segment. Sent as part of the tree prefetch. Null if
@@ -250,23 +249,17 @@ function collectSegmentDataImpl(
     const childSeedData =
       seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
 
-    const childKey = encodeChildSegmentKey(
-      key,
+    const childRequestKey = appendSegmentRequestKeyPart(
+      requestKey,
       parallelRouteKey,
-      Array.isArray(childSegment) && fallbackRouteParams !== null
-        ? encodeSegmentWithPossibleFallbackParam(
-            childSegment,
-            fallbackRouteParams
-          )
-        : encodeSegment(childSegment)
+      createSegmentRequestKeyPart(childSegment)
     )
     const childTree = collectSegmentDataImpl(
       childRoute,
       buildId,
       childSeedData,
-      fallbackRouteParams,
       clientModules,
-      childKey,
+      childRequestKey,
       segmentTasks
     )
     if (slotMetadata === null) {
@@ -281,7 +274,7 @@ function collectSegmentDataImpl(
       // Since we're already in the middle of a render, wait until after the
       // current task to escape the current rendering context.
       waitAtLeastOneReactRenderTask().then(() =>
-        renderSegmentPrefetch(buildId, seedData, key, clientModules)
+        renderSegmentPrefetch(buildId, seedData, requestKey, clientModules)
       )
     )
   } else {
@@ -301,41 +294,12 @@ function collectSegmentDataImpl(
   }
 }
 
-function encodeSegmentWithPossibleFallbackParam(
-  segment: [string, string, DynamicParamTypesShort],
-  fallbackRouteParams: FallbackRouteParams
-): EncodedSegment {
-  const name = segment[0]
-  if (!fallbackRouteParams.has(name)) {
-    // Normal case. No matching fallback parameter.
-    return encodeSegment(segment)
-  }
-  // This segment includes a fallback parameter. During prerendering, a random
-  // placeholder value was used; however, for segment prefetches, we need the
-  // segment path to be predictable so the server can create a rewrite for it.
-  // So, replace the placeholder segment value with a "template" string,
-  // e.g. `[name]`.
-  // TODO: This will become a bit cleaner once remove route parameters from the
-  // server response, and instead add them to the segment keys on the client.
-  // Instead of a string replacement, like we do here, route params will always
-  // be encoded in separate step from the rest of the segment, not just in the
-  // case of fallback params.
-  const encodedSegment = encodeSegment(segment)
-  const lastIndex = encodedSegment.lastIndexOf('$')
-  const encodedFallbackSegment =
-    // NOTE: This is guaranteed not to clash with the rest of the segment
-    // because non-simple characters (including [ and ]) trigger a base
-    // 64 encoding.
-    encodedSegment.substring(0, lastIndex + 1) + `[${name}]`
-  return encodedFallbackSegment as EncodedSegment
-}
-
 async function renderSegmentPrefetch(
   buildId: string,
   seedData: CacheNodeSeedData,
-  key: string,
+  requestKey: SegmentRequestKey,
   clientModules: ManifestNode
-): Promise<[string, Buffer]> {
+): Promise<[SegmentRequestKey, Buffer]> {
   // Render the segment data to a stream.
   // In the future, this is where we can include additional metadata, like the
   // stale time and cache tags.
@@ -362,10 +326,10 @@ async function renderSegmentPrefetch(
     }
   )
   const segmentBuffer = await streamToBuffer(segmentStream)
-  if (key === ROOT_SEGMENT_KEY) {
-    return ['/_index', segmentBuffer]
+  if (requestKey === ROOT_SEGMENT_REQUEST_KEY) {
+    return ['/_index' as SegmentRequestKey, segmentBuffer]
   } else {
-    return [key, segmentBuffer]
+    return [requestKey, segmentBuffer]
   }
 }
 
@@ -391,7 +355,7 @@ async function isPartialRSCData(
     signal: abortController.signal,
     onError() {},
     onPostpone() {
-      // If something postponed, i.e. when Dynamic IO is not enabled, we can
+      // If something postponed, i.e. when Cache Components is not enabled, we can
       // infer that the RSC data is partial.
       isPartial = true
     },

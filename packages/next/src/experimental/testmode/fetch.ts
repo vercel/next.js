@@ -117,10 +117,11 @@ export async function handleFetch(
       throw new Error(
         `Proxy request aborted [${request.method} ${request.url}]`
       )
+    case 'fetch':
+      return buildResponse(proxyResponse)
     default:
-      break
+      return api satisfies never
   }
-  return buildResponse(proxyResponse)
 }
 
 export function interceptFetch(originalFetch: Fetch) {

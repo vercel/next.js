@@ -9,7 +9,6 @@ import type {
   MiddlewareMatcher,
   PageStaticInfo,
 } from './analysis/get-page-static-info'
-import * as Log from './output/log'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
@@ -76,6 +75,224 @@ import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
 import { isAppPageRoute } from '../lib/is-app-page-route'
+import { recursiveReadDir } from '../lib/recursive-readdir'
+import { createValidFileMatcher } from '../server/lib/find-page-file'
+import { isReservedPage } from './utils'
+import { isParallelRouteSegment } from '../shared/lib/segment'
+import { ensureLeadingSlash } from '../shared/lib/page-path/ensure-leading-slash'
+
+/**
+ * Collect app pages and layouts from the app directory
+ * @param appDir - The app directory path
+ * @param pageExtensions - The configured page extensions
+ * @param options - Optional configuration
+ * @returns Object containing appPaths and layoutPaths arrays
+ */
+export async function collectAppFiles(
+  appDir: string,
+  pageExtensions: PageExtensions
+): Promise<{
+  appPaths: string[]
+  layoutPaths: string[]
+}> {
+  const validFileMatcher = createValidFileMatcher(pageExtensions, appDir)
+
+  // Collect both app pages and layouts in a single directory traversal
+  const allAppFiles = await recursiveReadDir(appDir, {
+    pathnameFilter: (absolutePath) =>
+      validFileMatcher.isAppRouterPage(absolutePath) ||
+      validFileMatcher.isRootNotFound(absolutePath) ||
+      validFileMatcher.isAppLayoutPage(absolutePath),
+    ignorePartFilter: (part) => part.startsWith('_'),
+  })
+
+  // Separate app pages from layouts
+  const appPaths = allAppFiles.filter(
+    (absolutePath) =>
+      validFileMatcher.isAppRouterPage(absolutePath) ||
+      validFileMatcher.isRootNotFound(absolutePath)
+  )
+  const layoutPaths = allAppFiles.filter((absolutePath) =>
+    validFileMatcher.isAppLayoutPage(absolutePath)
+  )
+
+  return { appPaths, layoutPaths }
+}
+
+/**
+ * Collect pages from the pages directory
+ * @param pagesDir - The pages directory path
+ * @param pageExtensions - The configured page extensions
+ * @returns Array of page file paths
+ */
+export async function collectPagesFiles(
+  pagesDir: string,
+  pageExtensions: PageExtensions
+): Promise<string[]> {
+  return recursiveReadDir(pagesDir, {
+    pathnameFilter: (absolutePath) => {
+      const relativePath = absolutePath.replace(pagesDir + '/', '')
+      return pageExtensions.some((ext) => relativePath.endsWith(`.${ext}`))
+    },
+    ignorePartFilter: (part) => part.startsWith('_'),
+  })
+}
+
+// Types for route processing
+export type RouteInfo = {
+  route: string
+  filePath: string
+}
+
+export type SlotInfo = {
+  name: string
+  parent: string
+}
+
+/**
+ * Create a relative file path from a mapped page path
+ * @param baseDir - The base directory path
+ * @param filePath - The mapped file path (with private prefix)
+ * @param prefix - The directory prefix ('pages' or 'app')
+ * @returns The relative file path
+ */
+export function createRelativeFilePath(
+  baseDir: string,
+  filePath: string,
+  prefix: 'pages' | 'app'
+): string {
+  const privatePrefix =
+    prefix === 'pages' ? 'private-next-pages' : 'private-next-app-dir'
+  return join(
+    baseDir,
+    filePath.replace(new RegExp(`^${privatePrefix}/`), `${prefix}/`)
+  )
+}
+
+/**
+ * Process pages routes from mapped pages
+ * @param mappedPages - The mapped pages object
+ * @param baseDir - The base directory path
+ * @returns Object containing pageRoutes and pageApiRoutes
+ */
+export function processPageRoutes(
+  mappedPages: { [page: string]: string },
+  baseDir: string
+): {
+  pageRoutes: RouteInfo[]
+  pageApiRoutes: RouteInfo[]
+} {
+  const pageRoutes: RouteInfo[] = []
+  const pageApiRoutes: RouteInfo[] = []
+
+  for (const [route, filePath] of Object.entries(mappedPages)) {
+    const relativeFilePath = createRelativeFilePath(baseDir, filePath, 'pages')
+
+    if (route.startsWith('/api/')) {
+      pageApiRoutes.push({
+        route: normalizePathSep(route),
+        filePath: relativeFilePath,
+      })
+    } else {
+      // Filter out _app, _error, _document
+      if (isReservedPage(route)) continue
+
+      pageRoutes.push({
+        route: normalizePathSep(route),
+        filePath: relativeFilePath,
+      })
+    }
+  }
+
+  return { pageRoutes, pageApiRoutes }
+}
+
+/**
+ * Extract slots from app routes
+ * @param mappedAppPages - The mapped app pages object
+ * @returns Array of slot information
+ */
+export function extractSlotsFromAppRoutes(mappedAppPages: {
+  [page: string]: string
+}): SlotInfo[] {
+  const slots: SlotInfo[] = []
+
+  for (const [route] of Object.entries(mappedAppPages)) {
+    if (route === '/_not-found/page') continue
+
+    const segments = route.split('/')
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const segment = segments[i]
+      if (isParallelRouteSegment(segment)) {
+        const parentPath = normalizeAppPath(segments.slice(0, i).join('/'))
+        const slotName = segment.slice(1)
+
+        // Check if the slot already exists
+        if (slots.some((s) => s.name === slotName && s.parent === parentPath))
+          continue
+
+        slots.push({
+          name: slotName,
+          parent: parentPath,
+        })
+        break
+      }
+    }
+  }
+
+  return slots
+}
+
+/**
+ * Process app routes from mapped app pages
+ * @param mappedAppPages - The mapped app pages object
+ * @param baseDir - The base directory path
+ * @returns Array of route information
+ */
+export function processAppRoutes(
+  mappedAppPages: { [page: string]: string },
+  baseDir: string
+): RouteInfo[] {
+  const appRoutes: RouteInfo[] = []
+
+  for (const [route, filePath] of Object.entries(mappedAppPages)) {
+    if (route === '/_not-found/page') continue
+
+    const relativeFilePath = createRelativeFilePath(baseDir, filePath, 'app')
+
+    appRoutes.push({
+      route: normalizeAppPath(normalizePathSep(route)),
+      filePath: relativeFilePath,
+    })
+  }
+
+  return appRoutes
+}
+
+/**
+ * Process layout routes from mapped app layouts
+ * @param mappedAppLayouts - The mapped app layouts object
+ * @param baseDir - The base directory path
+ * @returns Array of layout route information
+ */
+export function processLayoutRoutes(
+  mappedAppLayouts: { [page: string]: string },
+  baseDir: string
+): RouteInfo[] {
+  const layoutRoutes: RouteInfo[] = []
+
+  for (const [route, filePath] of Object.entries(mappedAppLayouts)) {
+    const relativeFilePath = createRelativeFilePath(baseDir, filePath, 'app')
+    layoutRoutes.push({
+      route: ensureLeadingSlash(
+        normalizeAppPath(normalizePathSep(route)).replace(/\/layout$/, '')
+      ),
+      filePath: relativeFilePath,
+    })
+  }
+
+  return layoutRoutes
+}
 
 export function sortByPageExts(pageExtensions: PageExtensions) {
   return (a: string, b: string) => {
@@ -674,19 +891,6 @@ export async function createEntrypoints(
       const isInstrumentation =
         isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
 
-      let pageRuntime = staticInfo?.runtime
-
-      if (
-        isMiddlewareFile(page) &&
-        !config.experimental.nodeMiddleware &&
-        pageRuntime === 'nodejs'
-      ) {
-        Log.warn(
-          'nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config'
-        )
-        pageRuntime = 'edge'
-      }
-
       runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
@@ -865,7 +1069,7 @@ export function finalizeEntrypoint({
   isServerComponent,
   hasAppDir,
 }: {
-  compilerType?: CompilerNameValues
+  compilerType: CompilerNameValues
   name: string
   value: ObjectValue<webpack.EntryObject>
   isServerComponent?: boolean
@@ -958,9 +1162,7 @@ export function finalizeEntrypoint({
         ...entry,
       }
     }
-    default: {
-      // Should never happen.
-      throw new Error('Invalid compiler type')
-    }
+    default:
+      return compilerType satisfies never
   }
 }

@@ -3,7 +3,6 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
-import type { FallbackRouteParams } from '../request/fallback-params'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { CacheLife } from '../use-cache/cache-life'
 
@@ -20,11 +19,6 @@ export type WorkStoreContext = {
    */
   page: string
 
-  /**
-   * The route parameters that are currently unknown.
-   */
-  fallbackRouteParams: FallbackRouteParams | null
-
   requestEndedState?: { ended?: boolean }
   isPrefetchRequest?: boolean
   renderOpts: {
@@ -36,7 +30,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'dynamicIO' | 'authInterrupts'
+      'isRoutePPREnabled' | 'cacheComponents' | 'authInterrupts'
     >
 
     /**
@@ -82,7 +76,6 @@ export type WorkStoreContext = {
 
 export function createWorkStore({
   page,
-  fallbackRouteParams,
   renderOpts,
   requestEndedState,
   isPrefetchRequest,
@@ -115,7 +108,6 @@ export function createWorkStore({
   const store: WorkStore = {
     isStaticGeneration,
     page,
-    fallbackRouteParams,
     route: normalizeAppPath(page),
     incrementalCache:
       // we fallback to a global incremental cache for edge-runtime locally
@@ -137,7 +129,7 @@ export function createWorkStore({
     assetPrefix: renderOpts?.assetPrefix || '',
 
     afterContext: createAfterContext(renderOpts),
-    dynamicIOEnabled: renderOpts.experimental.dynamicIO,
+    cacheComponentsEnabled: renderOpts.experimental.cacheComponents,
     dev: renderOpts.dev ?? false,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),

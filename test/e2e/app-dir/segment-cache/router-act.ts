@@ -8,7 +8,8 @@ type Batch = {
 }
 
 type PendingRSCRequest = {
-  route: Playwright.Route
+  url: string
+  route: Playwright.Route | null
   result: Promise<{
     text: string
     body: any
@@ -72,6 +73,7 @@ export function createRouterAct(
     }
 
     let expectedResponses: Array<ExpectedResponseConfig> | null
+    let forbiddenResponses: Array<ExpectedResponseConfig> | null = null
     let shouldBlockAll = false
     if (config === undefined || config === null) {
       // Default. Expect at least one request, but don't assert on the response.
@@ -101,6 +103,7 @@ export function createRouterAct(
         expectedResponses = [config]
       } else {
         expectedResponses = []
+        forbiddenResponses = [config]
       }
     } else {
       expectedResponses = []
@@ -113,6 +116,12 @@ export function createRouterAct(
         }
         if (item.block !== 'reject') {
           expectedResponses.push(item)
+        } else {
+          if (forbiddenResponses === null) {
+            forbiddenResponses = [item]
+          } else {
+            forbiddenResponses.push(item)
+          }
         }
       }
     }
@@ -145,6 +154,7 @@ export function createRouterAct(
           // This request was initiated by the Next.js Router. Intercept it and
           // add it to the current batch.
           pendingRequests.add({
+            url: request.url(),
             route,
             // `act` controls the timing of when responses reach the client,
             // but it should not affect the timing of when requests reach the
@@ -153,10 +163,19 @@ export function createRouterAct(
               const originalResponse = await page.request.fetch(request, {
                 maxRedirects: 0,
               })
+
+              // WORKAROUND:
+              // intercepting responses with 'Transfer-Encoding: chunked' (used for streaming)
+              // seems to be problematic sometimes, making the browser error with `net::ERR_INCOMPLETE_CHUNKED_ENCODING`.
+              // In particular, this seems to happen when blocking a streaming navigation response. (but not always)
+              // Playwright buffers the whole body anyway, so we can remove the header to sidestep this.
+              const headers = originalResponse.headers()
+              delete headers['transfer-encoding']
+
               resolve({
                 text: await originalResponse.text(),
                 body: await originalResponse.body(),
-                headers: originalResponse.headers(),
+                headers,
                 status: originalResponse.status(),
               })
             }),
@@ -254,7 +273,7 @@ export function createRouterAct(
         batch.pendingRequests = new Set()
         for (const item of pending) {
           const route = item.route
-          const request = route.request()
+          const url = item.url
 
           let shouldBlock = false
           const fulfilled = await item.result
@@ -266,7 +285,7 @@ export function createRouterAct(
               error.message = `
 Expected no network requests to be initiated.
 
-URL: ${request.url()}
+URL: ${url}
 Headers: ${JSON.stringify(fulfilled.headers)}
 
 Response:
@@ -280,7 +299,7 @@ ${fulfilled.body}
 Received a response with an error status code.
 
 Status: ${fulfilled.status}
-URL: ${request.url()}
+URL: ${url}
 Headers: ${JSON.stringify(fulfilled.headers)}
 
 Response:
@@ -288,14 +307,11 @@ ${fulfilled.body}
 `
               throw error
             }
-            if (expectedResponses !== null) {
-              let alreadyMatchedByThisResponse: string | null = null
-              for (const expectedResponse of expectedResponses) {
-                const includes = expectedResponse.includes
-                const block = expectedResponse.block
+            if (forbiddenResponses !== null) {
+              for (const forbiddenResponse of forbiddenResponses) {
+                const includes = forbiddenResponse.includes
                 if (fulfilled.body.includes(includes)) {
-                  if (block === 'reject') {
-                    error.message = `
+                  error.message = `
 Received a response containing an unexpected substring:
 
 Rejected substring: ${includes}
@@ -303,28 +319,19 @@ Rejected substring: ${includes}
 Response:
 ${fulfilled.body}
 `
-                    throw error
-                  }
-
+                  throw error
+                }
+              }
+            }
+            if (expectedResponses !== null) {
+              for (const expectedResponse of expectedResponses) {
+                const includes = expectedResponse.includes
+                const block = expectedResponse.block
+                if (fulfilled.body.includes(includes)) {
                   // Match. Don't check yet whether the responses are received
                   // in the expected order. Instead collect all the matches and
                   // check at the end so we can include a diff in the
                   // error message.
-                  if (alreadyMatchedByThisResponse) {
-                    error.message = `
-Received a response that includes both of the following substrings.
-
-Expected substrings:
-- ${alreadyMatchedByThisResponse}
-- ${includes}
-
-Response:
-${fulfilled.body}
-
-Choose more specific substrings to assert on.
-`
-                    throw error
-                  }
                   const otherResponse = alreadyMatched.get(includes)
                   if (otherResponse !== undefined) {
                     error.message = `
@@ -343,7 +350,6 @@ Choose a more specific substring to assert on.
 `
                     throw error
                   }
-                  alreadyMatchedByThisResponse = includes
                   alreadyMatched.set(includes, fulfilled.body)
                   if (actualResponses === null) {
                     actualResponses = [expectedResponse]
@@ -364,27 +370,63 @@ Choose a more specific substring to assert on.
             // This response was blocked by the `block` option. Don't
             // fulfill it yet.
             remaining.add(item)
+            if (route === null) {
+              error.message = `
+The "block" option is not supported for requests that are redirected.
+
+URL: ${url}
+Headers: ${JSON.stringify(fulfilled.headers)}
+
+Response:
+${fulfilled.body}
+`
+
+              throw error
+            }
           } else {
-            await route.fulfill({
-              body: fulfilled.body,
-              headers: fulfilled.headers,
-              status: fulfilled.status,
-            })
-            const browserResponse = await request.response()
-            if (browserResponse !== null) {
-              await browserResponse.finished()
+            if (route !== null) {
+              const request = route.request()
+              await route.fulfill({
+                body: fulfilled.body,
+                headers: fulfilled.headers,
+                status: fulfilled.status,
+              })
+              const browserResponse = await request.response()
+              if (browserResponse !== null) {
+                await browserResponse.finished()
+              }
             }
           }
 
           if (fulfilled.status === 307 || fulfilled.status === 308) {
-            // If this was a redirect, give the browser time to follow the
-            // redirect, before continuing. We do that by waiting for the very
-            // next request to respond. Otherwise, we might exit early, before
-            // the request was added to the pending requests set.
+            // When fulfilling a redirect, for some reason, the page.route()
+            // handler installed earlier will not intercept the
+            // redirect request. Install a one-off event listener to wait for
+            // the redirected request to finish. This works for this case
+            // because we don't need to modify to delay the response; we only
+            // need to observe when it has finished.
+            // TODO: Because this request cannot be intercepted, it's
+            // incompatible with the "block" option. I haven't yet figured out
+            // a strategy to make that work. In the meantime, attempting to
+            // write a test that blocks a redirect will result in an error
+            // (see error above).
             await new Promise<void>((resolve) => {
               page.once('request', (req) => {
                 const handleResponse = (res: Playwright.Response) => {
                   if (res.url() === req.url()) {
+                    batch.pendingRequests.add({
+                      url: req.url(),
+                      route: null,
+                      result: new Promise(async (resolve) => {
+                        resolve({
+                          text: await res.text(),
+                          body: await res.body(),
+                          headers: res.headers(),
+                          status: res.status(),
+                        })
+                      }),
+                      didProcess: false,
+                    })
                     page.off('response', handleResponse)
                     resolve()
                   }

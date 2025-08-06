@@ -5,8 +5,12 @@ import {
   RequestCookiesAdapter,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestCookies } from '../web/spec-extension/cookies'
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
+import {
+  throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
@@ -16,7 +20,6 @@ import {
   trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
-import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -72,17 +75,6 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       return makeUntrackedExoticCookies(underlyingCookies)
     }
 
-    if (workUnitStore) {
-      if (workUnitStore.type === 'cache') {
-        throw new Error(
-          `Route ${workStore.route} used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-        )
-      } else if (workUnitStore.type === 'unstable-cache') {
-        throw new Error(
-          `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-        )
-      }
-    }
     if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
         `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
@@ -91,72 +83,83 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
+        case 'cache':
+          const error = new Error(
+            `Route ${workStore.route} used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+          )
+          Error.captureStackTrace(error, cookies)
+          workStore.invalidDynamicUsageError ??= error
+          throw error
+        case 'unstable-cache':
+          throw new Error(
+            `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          )
         case 'prerender':
-          return makeHangingCookies(workUnitStore)
+          return makeHangingCookies(workStore, workUnitStore)
         case 'prerender-client':
           const exportName = '`cookies`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
         case 'prerender-ppr':
-          // PPR Prerender (no dynamicIO)
-          // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how cookies has worked in PPR without dynamicIO.
-          postponeWithTracking(
+          // We need track dynamic access here eagerly to keep continuity with
+          // how cookies has worked in PPR without cacheComponents.
+          return postponeWithTracking(
             workStore.route,
             callingExpression,
             workUnitStore.dynamicTracking
           )
-          break
         case 'prerender-legacy':
-          // Legacy Prerender
-          // We track dynamic access here so we don't need to wrap the cookies in
-          // individual property access tracking.
-          throwToInterruptStaticGeneration(
+          // We track dynamic access here so we don't need to wrap the cookies
+          // in individual property access tracking.
+          return throwToInterruptStaticGeneration(
             callingExpression,
             workStore,
             workUnitStore
           )
-          break
+        case 'prerender-runtime':
+        case 'private-cache':
+          return makeUntrackedExoticCookies(workUnitStore.cookies)
+        case 'request':
+          trackDynamicDataInDynamicRender(workUnitStore)
+
+          let underlyingCookies: ReadonlyRequestCookies
+
+          if (areCookiesMutableInCurrentPhase(workUnitStore)) {
+            // We can't conditionally return different types here based on the context.
+            // To avoid confusion, we always return the readonly type here.
+            underlyingCookies =
+              workUnitStore.userspaceMutableCookies as unknown as ReadonlyRequestCookies
+          } else {
+            underlyingCookies = workUnitStore.cookies
+          }
+
+          if (
+            process.env.NODE_ENV === 'development' &&
+            !workStore?.isPrefetchRequest
+          ) {
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedCookiesWithDevWarnings(
+                underlyingCookies,
+                workStore?.route
+              )
+            }
+
+            return makeUntrackedExoticCookiesWithDevWarnings(
+              underlyingCookies,
+              workStore?.route
+            )
+          } else {
+            return makeUntrackedExoticCookies(underlyingCookies)
+          }
         default:
-        // fallthrough
+          workUnitStore satisfies never
       }
     }
-    // We fall through to the dynamic context below but we still track dynamic access
-    // because in dev we can still error for things like using cookies inside a cache context
-    trackDynamicDataInDynamicRender(workStore, workUnitStore)
   }
 
-  // cookies is being called in a dynamic context
-
-  const requestStore = getExpectedRequestStore(callingExpression)
-
-  let underlyingCookies: ReadonlyRequestCookies
-
-  if (areCookiesMutableInCurrentPhase(requestStore)) {
-    // We can't conditionally return different types here based on the context.
-    // To avoid confusion, we always return the readonly type here.
-    underlyingCookies =
-      requestStore.userspaceMutableCookies as unknown as ReadonlyRequestCookies
-  } else {
-    underlyingCookies = requestStore.cookies
-  }
-
-  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
-    if (process.env.__NEXT_DYNAMIC_IO) {
-      return makeUntrackedCookiesWithDevWarnings(
-        underlyingCookies,
-        workStore?.route
-      )
-    }
-
-    return makeUntrackedExoticCookiesWithDevWarnings(
-      underlyingCookies,
-      workStore?.route
-    )
-  } else {
-    return makeUntrackedExoticCookies(underlyingCookies)
-  }
+  // If we end up here, there was no work store or work unit store present.
+  throwForMissingRequestStore(callingExpression)
 }
 
 function createEmptyCookies(): ReadonlyRequestCookies {
@@ -170,6 +173,7 @@ const CachedCookies = new WeakMap<
 >()
 
 function makeHangingCookies(
+  workStore: WorkStore,
   prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyRequestCookies> {
   const cachedPromise = CachedCookies.get(prerenderStore)
@@ -179,6 +183,7 @@ function makeHangingCookies(
 
   const promise = makeHangingPromise<ReadonlyRequestCookies>(
     prerenderStore.renderSignal,
+    workStore.route,
     '`cookies()`'
   )
   CachedCookies.set(prerenderStore, promise)
@@ -459,16 +464,30 @@ function describeNameArg(arg: unknown) {
 
 function syncIODev(route: string | undefined, expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
-    // When we're rendering dynamically in dev we need to advance out of the
-    // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'request':
+        if (workUnitStore.prerenderPhase === true) {
+          // When we're rendering dynamically in dev, we need to advance out of
+          // the Prerender environment when we read Request data synchronously.
+          trackSynchronousRequestDataAccessInDev(workUnitStore)
+        }
+        break
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-runtime':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
+
   // In all cases we warn normally
   warnForSyncAccess(route, expression)
 }

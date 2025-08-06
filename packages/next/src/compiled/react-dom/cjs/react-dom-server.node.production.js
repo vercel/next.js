@@ -3949,6 +3949,9 @@ function describeComponentStackByType(type) {
   }
   return "";
 }
+function isEligibleForOutlining(request, boundary) {
+  return 500 < boundary.byteSize && null === boundary.contentPreamble;
+}
 function defaultErrorHandler(error) {
   if (
     "object" === typeof error &&
@@ -3969,7 +3972,7 @@ function defaultErrorHandler(error) {
       : error.splice(
           0,
           0,
-          "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
+          "\u001b[0m\u001b[7m%c%s\u001b[0m%c",
           "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
           " " + JSCompiler_inline_result + " ",
           ""
@@ -4365,7 +4368,7 @@ function tryToResolveTogetherRow(request, togetherRow) {
       if (
         1 !== rowBoundary.pendingTasks ||
         rowBoundary.parentFlushed ||
-        500 < rowBoundary.byteSize
+        isEligibleForOutlining(request, rowBoundary)
       ) {
         allCompleteAndInlinable = !1;
         break;
@@ -4978,7 +4981,10 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 queueCompletedSegment(newBoundary, contentRootSegment),
                 0 === newBoundary.pendingTasks && 0 === newBoundary.status)
               ) {
-                if (((newBoundary.status = 1), !(500 < newBoundary.byteSize))) {
+                if (
+                  ((newBoundary.status = 1),
+                  !isEligibleForOutlining(request, newBoundary))
+                ) {
                   null !== prevRow &&
                     0 === --prevRow.pendingTasks &&
                     finishSuspenseListRow(request, prevRow);
@@ -5586,7 +5592,10 @@ function renderNode(request, task, node, childIndex) {
         "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
-          childIndex = getThenableStateAfterSuspending();
+          childIndex =
+            thrownValue === SuspenseException
+              ? getThenableStateAfterSuspending()
+              : null;
           request = spawnNewSuspendedReplayTask(request, task, childIndex).ping;
           node.then(request, request);
           task.formatContext = previousFormatContext;
@@ -5599,7 +5608,10 @@ function renderNode(request, task, node, childIndex) {
           return;
         }
         if ("Maximum call stack size exceeded" === node.message) {
-          node = getThenableStateAfterSuspending();
+          node =
+            thrownValue === SuspenseException
+              ? getThenableStateAfterSuspending()
+              : null;
           node = spawnNewSuspendedReplayTask(request, task, node);
           request.pingedTasks.push(node);
           task.formatContext = previousFormatContext;
@@ -5631,7 +5643,10 @@ function renderNode(request, task, node, childIndex) {
       ) {
         if ("function" === typeof node.then) {
           segment = node;
-          node = getThenableStateAfterSuspending();
+          node =
+            thrownValue$60 === SuspenseException
+              ? getThenableStateAfterSuspending()
+              : null;
           request = spawnNewSuspendedRenderTask(request, task, node).ping;
           segment.then(request, request);
           task.formatContext = previousFormatContext;
@@ -5643,7 +5658,10 @@ function renderNode(request, task, node, childIndex) {
           return;
         }
         if ("Maximum call stack size exceeded" === node.message) {
-          segment = getThenableStateAfterSuspending();
+          segment =
+            thrownValue$60 === SuspenseException
+              ? getThenableStateAfterSuspending()
+              : null;
           segment = spawnNewSuspendedRenderTask(request, task, segment);
           request.pingedTasks.push(segment);
           task.formatContext = previousFormatContext;
@@ -5915,7 +5933,7 @@ function finishedTask(request$jscomp$0, boundary, row, segment) {
         (row = boundary.row),
           null !== row &&
             hoistHoistables(row.hoistables, boundary.contentState),
-          500 < boundary.byteSize ||
+          isEligibleForOutlining(request$jscomp$0, boundary) ||
             (boundary.fallbackAbortableTasks.forEach(
               abortTaskSoft,
               request$jscomp$0
@@ -6059,7 +6077,10 @@ function performWork(request$jscomp$2) {
               ) {
                 var ping = task.ping;
                 x.then(ping, ping);
-                task.thenableState = getThenableStateAfterSuspending();
+                task.thenableState =
+                  thrownValue === SuspenseException
+                    ? getThenableStateAfterSuspending()
+                    : null;
               } else {
                 task.replay.pendingTasks--;
                 task.abortSet.delete(task);
@@ -6135,7 +6156,10 @@ function performWork(request$jscomp$2) {
               "function" === typeof x$jscomp$0.then
             ) {
               request$jscomp$1.status = 0;
-              task.thenableState = getThenableStateAfterSuspending();
+              task.thenableState =
+                thrownValue === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               var ping$jscomp$0 = task.ping;
               x$jscomp$0.then(ping$jscomp$0, ping$jscomp$0);
             } else {
@@ -6227,6 +6251,7 @@ function preparePreambleFromSegment(
   switch (boundary.status) {
     case 1:
       hoistPreambleState(request.renderState, preamble);
+      request.byteSize += boundary.byteSize;
       segment = boundary.completedSegments[0];
       if (!segment)
         throw Error(
@@ -6259,17 +6284,16 @@ function preparePreamble(request) {
     null === request.completedPreambleSegments
   ) {
     var collectedPreambleSegments = [],
+      originalRequestByteSize = request.byteSize,
       hasPendingPreambles = preparePreambleFromSegment(
         request,
         request.completedRootSegment,
         collectedPreambleSegments
       ),
       preamble = request.renderState.preamble;
-    if (
-      !1 === hasPendingPreambles ||
-      (preamble.headChunks && preamble.bodyChunks)
-    )
-      request.completedPreambleSegments = collectedPreambleSegments;
+    !1 === hasPendingPreambles || (preamble.headChunks && preamble.bodyChunks)
+      ? (request.completedPreambleSegments = collectedPreambleSegments)
+      : (request.byteSize = originalRequestByteSize);
   }
 }
 function flushSubtree(request, destination, segment, hoistableState) {
@@ -6348,7 +6372,7 @@ function flushSegment(request, destination, segment, hoistableState) {
       hoistableState && hoistHoistables(hoistableState, boundary.fallbackState),
       flushSubtree(request, destination, segment, hoistableState);
   else if (
-    500 < boundary.byteSize &&
+    isEligibleForOutlining(request, boundary) &&
     flushedByteSize + boundary.byteSize > request.progressiveChunkSize
   )
     (boundary.rootSegmentID = request.nextSegmentId++),
@@ -6364,7 +6388,7 @@ function flushSegment(request, destination, segment, hoistableState) {
     hoistableState && hoistHoistables(hoistableState, boundary.contentState);
     segment = boundary.row;
     null !== segment &&
-      500 < boundary.byteSize &&
+      isEligibleForOutlining(request, boundary) &&
       0 === --segment.pendingTasks &&
       finishSuspenseListRow(request, segment);
     writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
@@ -6403,7 +6427,7 @@ function flushCompletedBoundary(request, destination, boundary) {
   completedSegments.length = 0;
   completedSegments = boundary.row;
   null !== completedSegments &&
-    500 < boundary.byteSize &&
+    isEligibleForOutlining(request, boundary) &&
     0 === --completedSegments.pendingTasks &&
     finishSuspenseListRow(request, completedSegments);
   writeHoistablesForBoundary(
@@ -6841,11 +6865,11 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-97cdd5d3-20250710" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-7deda941-20250804" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-canary-97cdd5d3-20250710\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-7deda941-20250804\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7183,4 +7207,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-97cdd5d3-20250710";
+exports.version = "19.2.0-canary-7deda941-20250804";

@@ -1,6 +1,7 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::LazyLock};
 
 use anyhow::{Context, Result};
+use either::Either;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
@@ -20,6 +21,7 @@ use turbopack_core::{
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
+    app_structure::CollectedRootParams,
     embed_js::{VIRTUAL_PACKAGE_NAME, next_js_fs},
     mode::NextMode,
     next_client::context::ClientContextType,
@@ -29,6 +31,7 @@ use crate::{
         GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
         NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
     },
+    next_root_params::insert_next_root_params_mapping,
     next_server::context::ServerContextType,
     util::NextRuntime,
 };
@@ -39,52 +42,54 @@ use crate::{
 /// This is not identical to the list of entire node.js internals, refer
 /// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
 /// for the allowed imports.
-const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 44] = [
-    "child_process",
-    "cluster",
-    "console",
-    "constants",
-    "crypto",
-    "dgram",
-    "diagnostics_channel",
-    "dns",
-    "dns/promises",
-    "domain",
-    "fs",
-    "fs/promises",
-    "http",
-    "http2",
-    "https",
-    "inspector",
-    "module",
-    "net",
-    "os",
-    "path",
-    "path/posix",
-    "path/win32",
-    "perf_hooks",
-    "process",
-    "punycode",
-    "querystring",
-    "readline",
-    "repl",
-    "stream",
-    "stream/promises",
-    "stream/web",
-    "string_decoder",
-    "sys",
-    "timers",
-    "timers/promises",
-    "tls",
-    "trace_events",
-    "tty",
-    "v8",
-    "vm",
-    "wasi",
-    "worker_threads",
-    "zlib",
-    "pnpapi",
-];
+static EDGE_UNSUPPORTED_NODE_INTERNALS: LazyLock<[RcStr; 44]> = LazyLock::new(|| {
+    [
+        rcstr!("child_process"),
+        rcstr!("cluster"),
+        rcstr!("console"),
+        rcstr!("constants"),
+        rcstr!("crypto"),
+        rcstr!("dgram"),
+        rcstr!("diagnostics_channel"),
+        rcstr!("dns"),
+        rcstr!("dns/promises"),
+        rcstr!("domain"),
+        rcstr!("fs"),
+        rcstr!("fs/promises"),
+        rcstr!("http"),
+        rcstr!("http2"),
+        rcstr!("https"),
+        rcstr!("inspector"),
+        rcstr!("module"),
+        rcstr!("net"),
+        rcstr!("os"),
+        rcstr!("path"),
+        rcstr!("path/posix"),
+        rcstr!("path/win32"),
+        rcstr!("perf_hooks"),
+        rcstr!("process"),
+        rcstr!("punycode"),
+        rcstr!("querystring"),
+        rcstr!("readline"),
+        rcstr!("repl"),
+        rcstr!("stream"),
+        rcstr!("stream/promises"),
+        rcstr!("stream/web"),
+        rcstr!("string_decoder"),
+        rcstr!("sys"),
+        rcstr!("timers"),
+        rcstr!("timers/promises"),
+        rcstr!("tls"),
+        rcstr!("trace_events"),
+        rcstr!("tty"),
+        rcstr!("v8"),
+        rcstr!("vm"),
+        rcstr!("wasi"),
+        rcstr!("worker_threads"),
+        rcstr!("zlib"),
+        rcstr!("pnpapi"),
+    ]
+});
 
 // Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
@@ -132,95 +137,105 @@ pub async fn get_next_client_import_map(
             };
 
             import_map.insert_exact_alias(
-                "react",
+                rcstr!("react"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    &format!("next/dist/compiled/react{react_flavor}"),
+                    format!("next/dist/compiled/react{react_flavor}").into(),
                 ),
             );
             import_map.insert_wildcard_alias(
-                "react/",
+                rcstr!("react/"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    &format!("next/dist/compiled/react{react_flavor}/*"),
+                    format!("next/dist/compiled/react{react_flavor}/*").into(),
                 ),
             );
             import_map.insert_exact_alias(
-                "react-dom",
+                rcstr!("react-dom"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    &format!("next/dist/compiled/react-dom{react_flavor}"),
+                    format!("next/dist/compiled/react-dom{react_flavor}").into(),
                 ),
             );
             import_map.insert_exact_alias(
-                "react-dom/static",
+                rcstr!("react-dom/static"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    "next/dist/compiled/react-dom-experimental/static",
+                    rcstr!("next/dist/compiled/react-dom-experimental/static"),
                 ),
             );
             import_map.insert_exact_alias(
-                "react-dom/static.edge",
+                rcstr!("react-dom/static.edge"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    "next/dist/compiled/react-dom-experimental/static.edge",
+                    rcstr!("next/dist/compiled/react-dom-experimental/static.edge"),
                 ),
             );
             import_map.insert_exact_alias(
-                "react-dom/static.browser",
+                rcstr!("react-dom/static.browser"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    "next/dist/compiled/react-dom-experimental/static.browser",
+                    rcstr!("next/dist/compiled/react-dom-experimental/static.browser"),
                 ),
             );
             let react_client_package = get_react_client_package(next_config).await?;
             import_map.insert_exact_alias(
-                "react-dom/client",
+                rcstr!("react-dom/client"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    &format!("next/dist/compiled/react-dom{react_flavor}/{react_client_package}"),
+                    format!("next/dist/compiled/react-dom{react_flavor}/{react_client_package}")
+                        .into(),
                 ),
             );
             import_map.insert_wildcard_alias(
-                "react-dom/",
+                rcstr!("react-dom/"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    &format!("next/dist/compiled/react-dom{react_flavor}/*"),
+                    format!("next/dist/compiled/react-dom{react_flavor}/*").into(),
                 ),
             );
             import_map.insert_wildcard_alias(
-                "react-server-dom-webpack/",
-                request_to_import_mapping(app_dir.clone(), "react-server-dom-turbopack/*"),
+                rcstr!("react-server-dom-webpack/"),
+                request_to_import_mapping(app_dir.clone(), rcstr!("react-server-dom-turbopack/*")),
             );
             import_map.insert_wildcard_alias(
-                "react-server-dom-turbopack/",
+                rcstr!("react-server-dom-turbopack/"),
                 request_to_import_mapping(
                     app_dir.clone(),
-                    &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*"),
+                    format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*").into(),
                 ),
             );
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/head",
+                rcstr!("next/head"),
                 request_to_import_mapping(
                     project_path.clone(),
-                    "next/dist/client/components/noop-head",
+                    rcstr!("next/dist/client/components/noop-head"),
                 ),
             );
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/dynamic",
-                request_to_import_mapping(project_path.clone(), "next/dist/shared/lib/app-dynamic"),
+                rcstr!("next/dynamic"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/shared/lib/app-dynamic"),
+                ),
             );
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/link",
-                request_to_import_mapping(project_path.clone(), "next/dist/client/app-dir/link"),
+                rcstr!("next/link"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/client/app-dir/link"),
+                ),
             );
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/form",
-                request_to_import_mapping(project_path.clone(), "next/dist/client/app-dir/form"),
+                rcstr!("next/form"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/client/app-dir/form"),
+                ),
             );
         }
         ClientContextType::Fallback => {}
@@ -232,21 +247,28 @@ pub async fn get_next_client_import_map(
         &mut import_map,
         project_path.clone(),
         fxindexmap! {
-            "server-only" => "next/dist/compiled/server-only/index".to_string(),
-            "client-only" => "next/dist/compiled/client-only/index".to_string(),
-            "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
-            "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+            rcstr!("server-only") => rcstr!("next/dist/compiled/server-only/index"),
+            rcstr!("client-only") => rcstr!("next/dist/compiled/client-only/index"),
+            rcstr!("next/dist/compiled/server-only") => rcstr!("next/dist/compiled/server-only/index"),
+            rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/index"),
         },
     );
+    insert_next_root_params_mapping(
+        &mut import_map,
+        next_config.enable_root_params(),
+        Either::Right(ty.clone()),
+        None,
+    )
+    .await?;
 
     match ty {
         ClientContextType::Pages { .. }
         | ClientContextType::App { .. }
         | ClientContextType::Fallback => {
-            for (original, alias) in NEXT_ALIASES {
+            for (original, alias) in NEXT_ALIASES.iter() {
                 import_map.insert_exact_alias(
                     format!("node:{original}"),
-                    request_to_import_mapping(project_path.clone(), alias),
+                    request_to_import_mapping(project_path.clone(), alias.clone()),
                 );
             }
         }
@@ -272,10 +294,10 @@ pub async fn get_next_client_fallback_import_map(ty: ClientContextType) -> Resul
         | ClientContextType::App {
             app_dir: context_dir,
         } => {
-            for (original, alias) in NEXT_ALIASES {
+            for (original, alias) in NEXT_ALIASES.iter() {
                 import_map.insert_exact_alias(
-                    original,
-                    request_to_import_mapping(context_dir.clone(), alias),
+                    original.clone(),
+                    request_to_import_mapping(context_dir.clone(), alias.clone()),
                 );
             }
         }
@@ -296,6 +318,7 @@ pub async fn get_next_server_import_map(
     next_config: Vc<NextConfig>,
     next_mode: Vc<NextMode>,
     execution_context: Vc<ExecutionContext>,
+    collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
@@ -320,19 +343,19 @@ pub async fn get_next_server_import_map(
     let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
         .resolved_cell();
 
-    import_map.insert_exact_alias("next/dist/server/require-hook", external);
+    import_map.insert_exact_alias(rcstr!("next/dist/server/require-hook"), external);
     match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
-            import_map.insert_exact_alias("react", external);
-            import_map.insert_wildcard_alias("react/", external);
-            import_map.insert_exact_alias("react-dom", external);
-            import_map.insert_exact_alias("react-dom/client", external);
-            import_map.insert_wildcard_alias("react-dom/", external);
-            import_map.insert_exact_alias("styled-jsx", external);
+            import_map.insert_exact_alias(rcstr!("react"), external);
+            import_map.insert_wildcard_alias(rcstr!("react/"), external);
+            import_map.insert_exact_alias(rcstr!("react-dom"), external);
+            import_map.insert_exact_alias(rcstr!("react-dom/client"), external);
+            import_map.insert_wildcard_alias(rcstr!("react-dom/"), external);
+            import_map.insert_exact_alias(rcstr!("styled-jsx"), external);
             import_map.insert_exact_alias(
-                "styled-jsx/style",
+                rcstr!("styled-jsx/style"),
                 ImportMapping::External(
                     Some(rcstr!("styled-jsx/style.js")),
                     ExternalType::CommonJs,
@@ -340,35 +363,44 @@ pub async fn get_next_server_import_map(
                 )
                 .resolved_cell(),
             );
-            import_map.insert_wildcard_alias("styled-jsx/", external);
+            import_map.insert_wildcard_alias(rcstr!("styled-jsx/"), external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
-            import_map.insert_wildcard_alias("next/dist/build/utils", external);
+            import_map.insert_wildcard_alias(rcstr!("next/dist/build/utils"), external);
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/head",
+                rcstr!("next/head"),
                 request_to_import_mapping(
                     project_path.clone(),
-                    "next/dist/client/components/noop-head",
+                    rcstr!("next/dist/client/components/noop-head"),
                 ),
             );
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/dynamic",
-                request_to_import_mapping(project_path.clone(), "next/dist/shared/lib/app-dynamic"),
+                rcstr!("next/dynamic"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/shared/lib/app-dynamic"),
+                ),
             );
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/link",
-                request_to_import_mapping(project_path.clone(), "next/dist/client/app-dir/link"),
+                rcstr!("next/link"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/client/app-dir/link"),
+                ),
             );
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/form",
-                request_to_import_mapping(project_path.clone(), "next/dist/client/app-dir/form"),
+                rcstr!("next/form"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/client/app-dir/form"),
+                ),
             );
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
@@ -380,6 +412,7 @@ pub async fn get_next_server_import_map(
         ty,
         NextRuntime::NodeJs,
         next_config,
+        collected_root_params,
     )
     .await?;
 
@@ -394,6 +427,7 @@ pub async fn get_next_edge_import_map(
     next_config: Vc<NextConfig>,
     next_mode: Vc<NextMode>,
     execution_context: Vc<ExecutionContext>,
+    collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
@@ -404,13 +438,13 @@ pub async fn get_next_edge_import_map(
         &mut import_map,
         project_path.clone(),
         fxindexmap! {
-            "next/dist/build/" => "next/dist/esm/build/*".to_string(),
-            "next/dist/client/" => "next/dist/esm/client/*".to_string(),
-            "next/dist/shared/" => "next/dist/esm/shared/*".to_string(),
-            "next/dist/pages/" => "next/dist/esm/pages/*".to_string(),
-            "next/dist/lib/" => "next/dist/esm/lib/*".to_string(),
-            "next/dist/server/" => "next/dist/esm/server/*".to_string(),
-            "next/dist/api/" => "next/dist/esm/api/*".to_string(),
+            rcstr!("next/dist/build/") => rcstr!("next/dist/esm/build/*"),
+            rcstr!("next/dist/client/") => rcstr!("next/dist/esm/client/*"),
+            rcstr!("next/dist/shared/") => rcstr!("next/dist/esm/shared/*"),
+            rcstr!("next/dist/pages/") => rcstr!("next/dist/esm/pages/*"),
+            rcstr!("next/dist/lib/") => rcstr!("next/dist/esm/lib/*"),
+            rcstr!("next/dist/server/") => rcstr!("next/dist/esm/server/*"),
+            rcstr!("next/dist/api/") => rcstr!("next/dist/esm/api/*"),
         },
     );
 
@@ -419,23 +453,22 @@ pub async fn get_next_edge_import_map(
         &mut import_map,
         project_path.clone(),
         fxindexmap! {
-            "next/app" => "next/dist/api/app".to_string(),
-            "next/document" => "next/dist/api/document".to_string(),
-            "next/dynamic" => "next/dist/api/dynamic".to_string(),
-            "next/form" => "next/dist/api/form".to_string(),
-            "next/head" => "next/dist/api/head".to_string(),
-            "next/headers" => "next/dist/api/headers".to_string(),
-            "next/image" => "next/dist/api/image".to_string(),
-            "next/link" => "next/dist/api/link".to_string(),
-            "next/form" => "next/dist/api/form".to_string(),
-            "next/navigation" => "next/dist/api/navigation".to_string(),
-            "next/router" => "next/dist/api/router".to_string(),
-            "next/script" => "next/dist/api/script".to_string(),
-            "next/server" => "next/dist/api/server".to_string(),
-            "next/og" => "next/dist/api/og".to_string(),
+            rcstr!("next/app") => rcstr!("next/dist/api/app"),
+            rcstr!("next/document") => rcstr!("next/dist/api/document"),
+            rcstr!("next/dynamic") => rcstr!("next/dist/api/dynamic"),
+            rcstr!("next/form") => rcstr!("next/dist/api/form"),
+            rcstr!("next/head") => rcstr!("next/dist/api/head"),
+            rcstr!("next/headers") => rcstr!("next/dist/api/headers"),
+            rcstr!("next/image") => rcstr!("next/dist/api/image"),
+            rcstr!("next/link") => rcstr!("next/dist/api/link"),
+            rcstr!("next/navigation") => rcstr!("next/dist/api/navigation"),
+            rcstr!("next/router") => rcstr!("next/dist/api/router"),
+            rcstr!("next/script") => rcstr!("next/dist/api/script"),
+            rcstr!("next/server") => rcstr!("next/dist/api/server"),
+            rcstr!("next/og") => rcstr!("next/dist/api/og"),
 
             // Alias built-in @vercel/og to edge bundle for edge runtime
-            "next/dist/compiled/@vercel/og/index.node.js" => "next/dist/compiled/@vercel/og/index.edge.js".to_string(),
+            rcstr!("next/dist/compiled/@vercel/og/index.node.js") => rcstr!("next/dist/compiled/@vercel/og/index.edge.js"),
         },
     );
 
@@ -470,21 +503,27 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::AppRoute { .. } => {
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/head",
+                rcstr!("next/head"),
                 request_to_import_mapping(
                     project_path.clone(),
-                    "next/dist/client/components/noop-head",
+                    rcstr!("next/dist/client/components/noop-head"),
                 ),
             );
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/dynamic",
-                request_to_import_mapping(project_path.clone(), "next/dist/shared/lib/app-dynamic"),
+                rcstr!("next/dynamic"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/shared/lib/app-dynamic"),
+                ),
             );
             insert_exact_alias_or_js(
                 &mut import_map,
-                "next/link",
-                request_to_import_mapping(project_path.clone(), "next/dist/client/app-dir/link"),
+                rcstr!("next/link"),
+                request_to_import_mapping(
+                    project_path.clone(),
+                    rcstr!("next/dist/client/app-dir/link"),
+                ),
             );
         }
     }
@@ -495,6 +534,7 @@ pub async fn get_next_edge_import_map(
         ty.clone(),
         NextRuntime::Edge,
         next_config,
+        collected_root_params,
     )
     .await?;
 
@@ -524,18 +564,18 @@ pub async fn get_next_edge_and_server_fallback_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut fallback_import_map = ImportMap::empty();
 
-    let external_cjs_if_node = move |context_dir: FileSystemPath, request: &str| match runtime {
+    let external_cjs_if_node = move |context_dir: FileSystemPath, request: RcStr| match runtime {
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
         NextRuntime::NodeJs => external_request_to_cjs_import_mapping(context_dir, request),
     };
 
     fallback_import_map.insert_exact_alias(
-        "@opentelemetry/api",
+        rcstr!("@opentelemetry/api"),
         // It needs to prefer the local version of @opentelemetry/api, so put this in the fallback
         // import map
         ImportMapping::Alternatives(vec![external_cjs_if_node(
             project_path,
-            "next/dist/compiled/@opentelemetry/api",
+            rcstr!("next/dist/compiled/@opentelemetry/api"),
         )])
         .resolved_cell(),
     );
@@ -554,7 +594,7 @@ async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) ->
     .resolved_cell();
 
     EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
-        import_map.insert_alias(AliasPattern::exact(*module), unsupported_replacer);
+        import_map.insert_alias(AliasPattern::exact(module.clone()), unsupported_replacer);
     });
     Ok(())
 }
@@ -571,31 +611,63 @@ pub fn get_next_client_resolved_map(
     .cell()
 }
 
-static NEXT_ALIASES: [(&str, &str); 23] = [
-    ("assert", "next/dist/compiled/assert"),
-    ("buffer", "next/dist/compiled/buffer"),
-    ("constants", "next/dist/compiled/constants-browserify"),
-    ("crypto", "next/dist/compiled/crypto-browserify"),
-    ("domain", "next/dist/compiled/domain-browser"),
-    ("http", "next/dist/compiled/stream-http"),
-    ("https", "next/dist/compiled/https-browserify"),
-    ("os", "next/dist/compiled/os-browserify"),
-    ("path", "next/dist/compiled/path-browserify"),
-    ("punycode", "next/dist/compiled/punycode"),
-    ("process", "next/dist/build/polyfills/process"),
-    ("querystring", "next/dist/compiled/querystring-es3"),
-    ("stream", "next/dist/compiled/stream-browserify"),
-    ("string_decoder", "next/dist/compiled/string_decoder"),
-    ("sys", "next/dist/compiled/util"),
-    ("timers", "next/dist/compiled/timers-browserify"),
-    ("tty", "next/dist/compiled/tty-browserify"),
-    ("url", "next/dist/compiled/native-url"),
-    ("util", "next/dist/compiled/util"),
-    ("vm", "next/dist/compiled/vm-browserify"),
-    ("zlib", "next/dist/compiled/browserify-zlib"),
-    ("events", "next/dist/compiled/events"),
-    ("setImmediate", "next/dist/compiled/setimmediate"),
-];
+static NEXT_ALIASES: LazyLock<[(RcStr, RcStr); 23]> = LazyLock::new(|| {
+    [
+        (rcstr!("assert"), rcstr!("next/dist/compiled/assert")),
+        (rcstr!("buffer"), rcstr!("next/dist/compiled/buffer")),
+        (
+            rcstr!("constants"),
+            rcstr!("next/dist/compiled/constants-browserify"),
+        ),
+        (
+            rcstr!("crypto"),
+            rcstr!("next/dist/compiled/crypto-browserify"),
+        ),
+        (
+            rcstr!("domain"),
+            rcstr!("next/dist/compiled/domain-browser"),
+        ),
+        (rcstr!("http"), rcstr!("next/dist/compiled/stream-http")),
+        (
+            rcstr!("https"),
+            rcstr!("next/dist/compiled/https-browserify"),
+        ),
+        (rcstr!("os"), rcstr!("next/dist/compiled/os-browserify")),
+        (rcstr!("path"), rcstr!("next/dist/compiled/path-browserify")),
+        (rcstr!("punycode"), rcstr!("next/dist/compiled/punycode")),
+        (
+            rcstr!("process"),
+            rcstr!("next/dist/build/polyfills/process"),
+        ),
+        (
+            rcstr!("querystring"),
+            rcstr!("next/dist/compiled/querystring-es3"),
+        ),
+        (
+            rcstr!("stream"),
+            rcstr!("next/dist/compiled/stream-browserify"),
+        ),
+        (
+            rcstr!("string_decoder"),
+            rcstr!("next/dist/compiled/string_decoder"),
+        ),
+        (rcstr!("sys"), rcstr!("next/dist/compiled/util")),
+        (
+            rcstr!("timers"),
+            rcstr!("next/dist/compiled/timers-browserify"),
+        ),
+        (rcstr!("tty"), rcstr!("next/dist/compiled/tty-browserify")),
+        (rcstr!("url"), rcstr!("next/dist/compiled/native-url")),
+        (rcstr!("util"), rcstr!("next/dist/compiled/util")),
+        (rcstr!("vm"), rcstr!("next/dist/compiled/vm-browserify")),
+        (rcstr!("zlib"), rcstr!("next/dist/compiled/browserify-zlib")),
+        (rcstr!("events"), rcstr!("next/dist/compiled/events")),
+        (
+            rcstr!("setImmediate"),
+            rcstr!("next/dist/compiled/setimmediate"),
+        ),
+    ]
+});
 
 async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
@@ -603,29 +675,30 @@ async fn insert_next_server_special_aliases(
     ty: ServerContextType,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
+    collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<()> {
-    let external_cjs_if_node = move |context_dir: FileSystemPath, request: &str| match runtime {
+    let external_cjs_if_node = move |context_dir: FileSystemPath, request: RcStr| match runtime {
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
         NextRuntime::NodeJs => external_request_to_cjs_import_mapping(context_dir, request),
     };
-    let external_esm_if_node = move |context_dir: FileSystemPath, request: &str| match runtime {
+    let external_esm_if_node = move |context_dir: FileSystemPath, request: RcStr| match runtime {
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
         NextRuntime::NodeJs => external_request_to_esm_import_mapping(context_dir, request),
     };
 
     import_map.insert_exact_alias(
-        "next/dist/compiled/@vercel/og/index.node.js",
+        rcstr!("next/dist/compiled/@vercel/og/index.node.js"),
         external_esm_if_node(
             project_path.clone(),
-            "next/dist/compiled/@vercel/og/index.node.js",
+            rcstr!("next/dist/compiled/@vercel/og/index.node.js"),
         ),
     );
 
     import_map.insert_exact_alias(
-        "next/dist/server/ReactDOMServerPages",
+        rcstr!("next/dist/server/ReactDOMServerPages"),
         ImportMapping::Alternatives(vec![
-            request_to_import_mapping(project_path.clone(), "react-dom/server.edge"),
-            request_to_import_mapping(project_path.clone(), "react-dom/server.browser"),
+            request_to_import_mapping(project_path.clone(), rcstr!("react-dom/server.edge")),
+            request_to_import_mapping(project_path.clone(), rcstr!("react-dom/server.browser")),
         ])
         .resolved_cell(),
     );
@@ -639,12 +712,12 @@ async fn insert_next_server_special_aliases(
         | ServerContextType::AppRoute { app_dir, .. } => {
             let next_package = get_next_package(app_dir.clone()).owned().await?;
             import_map.insert_exact_alias(
-                "styled-jsx",
-                request_to_import_mapping(next_package.clone(), "styled-jsx"),
+                rcstr!("styled-jsx"),
+                request_to_import_mapping(next_package.clone(), rcstr!("styled-jsx")),
             );
             import_map.insert_wildcard_alias(
-                "styled-jsx/",
-                request_to_import_mapping(next_package.clone(), "styled-jsx/*"),
+                rcstr!("styled-jsx/"),
+                request_to_import_mapping(next_package.clone(), rcstr!("styled-jsx/*")),
             );
 
             rsc_aliases(
@@ -679,10 +752,10 @@ async fn insert_next_server_special_aliases(
                 import_map,
                 project_path.clone(),
                 fxindexmap! {
-                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+                    rcstr!("server-only") => rcstr!("next/dist/compiled/server-only/empty"),
+                    rcstr!("client-only") => rcstr!("next/dist/compiled/client-only/index"),
+                    rcstr!("next/dist/compiled/server-only") => rcstr!("next/dist/compiled/server-only/empty"),
+                    rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/index"),
                 },
             );
         }
@@ -696,10 +769,10 @@ async fn insert_next_server_special_aliases(
                 import_map,
                 project_path.clone(),
                 fxindexmap! {
-                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "client-only" => "next/dist/compiled/client-only/error".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/error".to_string(),
+                    rcstr!("server-only") => rcstr!("next/dist/compiled/server-only/empty"),
+                    rcstr!("client-only") => rcstr!("next/dist/compiled/client-only/error"),
+                    rcstr!("next/dist/compiled/server-only") => rcstr!("next/dist/compiled/server-only/empty"),
+                    rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/error"),
                 },
             );
         }
@@ -708,18 +781,29 @@ async fn insert_next_server_special_aliases(
                 import_map,
                 project_path.clone(),
                 fxindexmap! {
-                    "server-only" => "next/dist/compiled/server-only/index".to_string(),
-                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
-                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+                    rcstr!("server-only") => rcstr!("next/dist/compiled/server-only/index"),
+                    rcstr!("client-only") => rcstr!("next/dist/compiled/client-only/index"),
+                    rcstr!("next/dist/compiled/server-only") => rcstr!("next/dist/compiled/server-only/index"),
+                    rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/index"),
                 },
             );
         }
     }
 
+    insert_next_root_params_mapping(
+        import_map,
+        next_config.enable_root_params(),
+        Either::Left(ty),
+        collected_root_params,
+    )
+    .await?;
+
     import_map.insert_exact_alias(
-        "@vercel/og",
-        external_cjs_if_node(project_path.clone(), "next/dist/server/og/image-response"),
+        rcstr!("@vercel/og"),
+        external_cjs_if_node(
+            project_path.clone(),
+            rcstr!("next/dist/server/og/image-response"),
+        ),
     );
 
     Ok(())
@@ -769,141 +853,141 @@ async fn apply_vendored_react_aliases_server(
     if runtime == NextRuntime::NodeJs && react_condition == "client" {
         react_alias.extend(fxindexmap! {
             // file:///./../../../packages/next/src/compiled/react/package.json
-            "react" =>                                  /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react"),
-            "react/compiler-runtime" =>                 /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
-            "react/jsx-dev-runtime" =>                  /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
-            "react/jsx-runtime" =>                      /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
+            rcstr!("react") =>                                  /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react"),
+            rcstr!("react/compiler-runtime") =>                 /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
+            rcstr!("react/jsx-dev-runtime") =>                  /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
+            rcstr!("react/jsx-runtime") =>                      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
             // file:///./../../../packages/next/src/compiled/react-dom/package.json
-            "react-dom" =>                              /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-dom"),
-            "react-dom/client" =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/client"),
-            "react-dom/server" =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.node"),
-            "react-dom/server.browser" =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+            rcstr!("react-dom") =>                              /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-dom"),
+            rcstr!("react-dom/client") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/client").into(),
+            rcstr!("react-dom/server") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.node").into(),
+            rcstr!("react-dom/server.browser") =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser").into(),
             // TODO: Use build without legacy APIs
-            "react-dom/server.edge" =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-            "react-dom/static" =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.node"),
-            "react-dom/static.browser" =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser"),
-            "react-dom/static.edge" =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
+            rcstr!("react-dom/server.edge") =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge").into(),
+            rcstr!("react-dom/static") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.node").into(),
+            rcstr!("react-dom/static.browser") =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser").into(),
+            rcstr!("react-dom/static.edge") =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge").into(),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
-            "react-server-dom-webpack/client" =>        /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
-            "react-server-dom-webpack/server" =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-webpack/server.node" =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-webpack/static" =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.node"),
-            "react-server-dom-turbopack/client" =>      /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
-            "react-server-dom-turbopack/server" =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-turbopack/server.node" => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-turbopack/static.edge" => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
+            rcstr!("react-server-dom-webpack/client") =>        /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
+            rcstr!("react-server-dom-webpack/server") =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
+            rcstr!("react-server-dom-webpack/server.node") =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
+            rcstr!("react-server-dom-webpack/static") =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.node").into(),
+            rcstr!("react-server-dom-turbopack/client") =>      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client"),
+            rcstr!("react-server-dom-turbopack/server") =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
+            rcstr!("react-server-dom-turbopack/server.node") => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
+            rcstr!("react-server-dom-turbopack/static.edge") => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge").into(),
         })
     } else if runtime == NextRuntime::NodeJs && react_condition == "server" {
         react_alias.extend(fxindexmap! {
             // file:///./../../../packages/next/src/compiled/react/package.json
-            "react" =>                                  /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react"),
-            "react/compiler-runtime" =>                 /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
-            "react/jsx-dev-runtime" =>                  /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
-            "react/jsx-runtime" =>                      /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
+            rcstr!("react") =>                                  /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react"),
+            rcstr!("react/compiler-runtime") =>                 /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
+            rcstr!("react/jsx-dev-runtime") =>                  /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
+            rcstr!("react/jsx-runtime") =>                      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
             // file:///./../../../packages/next/src/compiled/react-dom/package.json
-            "react-dom" =>                              /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-dom"),
-            "react-dom/client" =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/client"),
-            "react-dom/server" =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.node"),
-            "react-dom/server.browser" =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+            rcstr!("react-dom") =>                              /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-dom"),
+            rcstr!("react-dom/client") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/client").into(),
+            rcstr!("react-dom/server") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.node").into(),
+            rcstr!("react-dom/server.browser") =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser").into(),
             // TODO: Use build without legacy APIs
-            "react-dom/server.edge" =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-            "react-dom/static" =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.node"),
-            "react-dom/static.browser" =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser"),
-            "react-dom/static.edge" =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
+            rcstr!("react-dom/server.edge") =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge").into(),
+            rcstr!("react-dom/static") =>                       /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.node").into(),
+            rcstr!("react-dom/static.browser") =>               /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser").into(),
+            rcstr!("react-dom/static.edge") =>                  /* ❔ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge").into(),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
-            "react-server-dom-webpack/client" =>        /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.node"),
-            "react-server-dom-webpack/server" =>        /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
-            "react-server-dom-webpack/server.node" =>   /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
-            "react-server-dom-webpack/static" =>        /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
-            "react-server-dom-turbopack/client" =>      /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.node"),
-            "react-server-dom-turbopack/server" =>      /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
-            "react-server-dom-turbopack/server.node" => /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
-            "react-server-dom-turbopack/static" =>      /* ✅ */ format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
+            rcstr!("react-server-dom-webpack/client") =>        /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.node").into(),
+            rcstr!("react-server-dom-webpack/server") =>        /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            rcstr!("react-server-dom-webpack/server.node") =>   /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            rcstr!("react-server-dom-webpack/static") =>        /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
+            rcstr!("react-server-dom-turbopack/client") =>      /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.node").into(),
+            rcstr!("react-server-dom-turbopack/server") =>      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            rcstr!("react-server-dom-turbopack/server.node") => /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server"),
+            rcstr!("react-server-dom-turbopack/static") =>      /* ✅ */ rcstr!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-static"),
 
             // Needed to make `react-dom/server` work.
             // TODO: really?
-                "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
+                rcstr!("next/dist/compiled/react") => rcstr!("next/dist/compiled/react/index.js"),
         })
     } else if runtime == NextRuntime::Edge && react_condition == "client" {
         react_alias.extend(fxindexmap! {
             // file:///./../../../packages/next/src/compiled/react/package.json
-            "react" =>                                  /* ✅ */ format!("next/dist/compiled/react{react_channel}"),
-            "react/compiler-runtime" =>                 /* ✅ */ format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
-            "react/jsx-dev-runtime" =>                  /* ✅ */ format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
-            "react/jsx-runtime" =>                      /* ✅ */ format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
+            rcstr!("react") =>                                  /* ✅ */ format!("next/dist/compiled/react{react_channel}").into(),
+            rcstr!("react/compiler-runtime") =>                 /* ✅ */ format!("next/dist/compiled/react{react_channel}/compiler-runtime").into(),
+            rcstr!("react/jsx-dev-runtime") =>                  /* ✅ */ format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime").into(),
+            rcstr!("react/jsx-runtime") =>                      /* ✅ */ format!("next/dist/compiled/react{react_channel}/jsx-runtime").into(),
             // file:///./../../../packages/next/src/compiled/react-dom/package.json
-            "react-dom" =>                              /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}"),
-            "react-dom/client" =>                       /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/client"),
-            "react-dom/server" =>                       /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-            "react-dom/server.browser" =>               /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+            rcstr!("react-dom") =>                              /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}").into(),
+            rcstr!("react-dom/client") =>                       /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/client").into(),
+            rcstr!("react-dom/server") =>                       /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge").into(),
+            rcstr!("react-dom/server.browser") =>               /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser").into(),
             // TODO: Use build without legacy APIs
-            "react-dom/server.edge" =>                  /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-            "react-dom/static" =>                       /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
-            "react-dom/static.browser" =>               /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser"),
-            "react-dom/static.edge" =>                  /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
+            rcstr!("react-dom/server.edge") =>                  /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge").into(),
+            rcstr!("react-dom/static") =>                       /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge").into(),
+            rcstr!("react-dom/static.browser") =>               /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser").into(),
+            rcstr!("react-dom/static.edge") =>                  /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge").into(),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
-            "react-server-dom-webpack/client" =>        /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-webpack/server" =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
-            "react-server-dom-webpack/server.node" =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-webpack/static" =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
-            "react-server-dom-turbopack/client" =>      /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-turbopack/server" =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
-            "react-server-dom-turbopack/server.node" => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-turbopack/static" =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
+            rcstr!("react-server-dom-webpack/client") =>        /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge").into(),
+            rcstr!("react-server-dom-webpack/server") =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge").into(),
+            rcstr!("react-server-dom-webpack/server.node") =>   /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
+            rcstr!("react-server-dom-webpack/static") =>        /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge").into(),
+            rcstr!("react-server-dom-turbopack/client") =>      /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge").into(),
+            rcstr!("react-server-dom-turbopack/server") =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge").into(),
+            rcstr!("react-server-dom-turbopack/server.node") => /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
+            rcstr!("react-server-dom-turbopack/static") =>      /* ❌ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge").into(),
         })
     } else if runtime == NextRuntime::Edge && react_condition == "server" {
         react_alias.extend(fxindexmap! {
             // file:///./../../../packages/next/src/compiled/react/package.json
-            "react" =>                                  /* ✅ */ format!("next/dist/compiled/react{react_channel}/react.react-server"),
-            "react/compiler-runtime" =>                 /* ❌ */ format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
-            "react/jsx-dev-runtime" =>                  /* ✅ */ format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server"),
-            "react/jsx-runtime" =>                      /* ✅ */ format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server"),
+            rcstr!("react") =>                                  /* ✅ */ format!("next/dist/compiled/react{react_channel}/react.react-server").into(),
+            rcstr!("react/compiler-runtime") =>                 /* ❌ */ format!("next/dist/compiled/react{react_channel}/compiler-runtime").into(),
+            rcstr!("react/jsx-dev-runtime") =>                  /* ✅ */ format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server").into(),
+            rcstr!("react/jsx-runtime") =>                      /* ✅ */ format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server").into(),
             // file:///./../../../packages/next/src/compiled/react-dom/package.json
-            "react-dom" =>                              /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
-            "react-dom/client" =>                       /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/client"),
-            "react-dom/server" =>                       /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-            "react-dom/server.browser" =>               /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+            rcstr!("react-dom") =>                              /* ✅ */ format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server").into(),
+            rcstr!("react-dom/client") =>                       /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/client").into(),
+            rcstr!("react-dom/server") =>                       /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge").into(),
+            rcstr!("react-dom/server.browser") =>               /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/server.browser").into(),
             // TODO: Use build without legacy APIs
-            "react-dom/server.edge" =>                  /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-            "react-dom/static" =>                       /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
-            "react-dom/static.browser" =>               /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser"),
-            "react-dom/static.edge" =>                  /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge"),
+            rcstr!("react-dom/server.edge") =>                  /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/server.edge").into(),
+            rcstr!("react-dom/static") =>                       /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge").into(),
+            rcstr!("react-dom/static.browser") =>               /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/static.browser").into(),
+            rcstr!("react-dom/static.edge") =>                  /* ❌ */ format!("next/dist/compiled/react-dom{react_channel}/static.edge").into(),
             // file:///./../../../packages/next/src/compiled/react-server-dom-webpack/package.json
-            "react-server-dom-webpack/client" =>        /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-webpack/server" =>        /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
-            "react-server-dom-webpack/server.node" =>   /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-webpack/static" =>        /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
-            "react-server-dom-turbopack/client" =>      /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-            "react-server-dom-turbopack/server" =>      /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
-            "react-server-dom-turbopack/server.node" => /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-            "react-server-dom-turbopack/static" =>      /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge"),
+            rcstr!("react-server-dom-webpack/client") =>        /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge").into(),
+            rcstr!("react-server-dom-webpack/server") =>        /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge").into(),
+            rcstr!("react-server-dom-webpack/server.node") =>   /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
+            rcstr!("react-server-dom-webpack/static") =>        /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge").into(),
+            rcstr!("react-server-dom-turbopack/client") =>      /* ❔ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge").into(),
+            rcstr!("react-server-dom-turbopack/server") =>      /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge").into(),
+            rcstr!("react-server-dom-turbopack/server.node") => /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node").into(),
+            rcstr!("react-server-dom-turbopack/static") =>      /* ✅ */ format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/static.edge").into(),
         });
 
         react_alias.extend(fxindexmap! {
             // This should just be `next/dist/compiled/react${react_channel}` but how to Rust.
-            "next/dist/compiled/react"                               => react_alias["react"].clone(),
-            "next/dist/compiled/react-experimental"                  => react_alias["react"].clone(),
-            "next/dist/compiled/react/compiler-runtime"              => react_alias["react/compiler-runtime"].clone(),
-            "next/dist/compiled/react-experimental/compiler-runtime" => react_alias["react/compiler-runtime"].clone(),
-            "next/dist/compiled/react/jsx-dev-runtime"               => react_alias["react/jsx-dev-runtime"].clone(),
-            "next/dist/compiled/react-experimental/jsx-dev-runtime"  => react_alias["react/jsx-dev-runtime"].clone(),
-            "next/dist/compiled/react/jsx-runtime"                   => react_alias["react/jsx-runtime"].clone(),
-            "next/dist/compiled/react-experimental/jsx-runtime"      => react_alias["react/jsx-runtime"].clone(),
-            "next/dist/compiled/react-dom"                           => react_alias["react-dom"].clone(),
-            "next/dist/compiled/react-dom-experimental"              => react_alias["react-dom"].clone(),
+            rcstr!("next/dist/compiled/react")                               => react_alias["react"].clone(),
+            rcstr!("next/dist/compiled/react-experimental")                  => react_alias["react"].clone(),
+            rcstr!("next/dist/compiled/react/compiler-runtime")              => react_alias["react/compiler-runtime"].clone(),
+            rcstr!("next/dist/compiled/react-experimental/compiler-runtime") => react_alias["react/compiler-runtime"].clone(),
+            rcstr!("next/dist/compiled/react/jsx-dev-runtime")               => react_alias["react/jsx-dev-runtime"].clone(),
+            rcstr!("next/dist/compiled/react-experimental/jsx-dev-runtime")  => react_alias["react/jsx-dev-runtime"].clone(),
+            rcstr!("next/dist/compiled/react/jsx-runtime")                   => react_alias["react/jsx-runtime"].clone(),
+            rcstr!("next/dist/compiled/react-experimental/jsx-runtime")      => react_alias["react/jsx-runtime"].clone(),
+            rcstr!("next/dist/compiled/react-dom")                           => react_alias["react-dom"].clone(),
+            rcstr!("next/dist/compiled/react-dom-experimental")              => react_alias["react-dom"].clone(),
         });
     }
 
     let react_client_package = get_react_client_package(next_config).await?;
     react_alias.extend(fxindexmap! {
-        "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/{react_client_package}"),
+        rcstr!("react-dom/client") => RcStr::from(format!("next/dist/compiled/react-dom{react_channel}/{react_client_package}")),
     });
 
     let mut alias = react_alias;
     if react_condition == "server" {
         // This is used in the server runtime to import React Server Components.
         alias.extend(fxindexmap! {
-            "next/navigation" => format!("next/dist/api/navigation.react-server"),
+            rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
         });
     }
 
@@ -932,7 +1016,7 @@ async fn rsc_aliases(
     if ty.should_use_react_server_condition() {
         // This is used in the server runtime to import React Server Components.
         alias.extend(fxindexmap! {
-            "next/navigation" => format!("next/dist/api/navigation.react-server"),
+            rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
         });
     }
 
@@ -955,16 +1039,16 @@ async fn insert_optimized_module_aliases(
         import_map,
         project_path,
         fxindexmap! {
-            "unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
-            "isomorphic-unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
-            "whatwg-fetch" => "next/dist/build/polyfills/fetch/whatwg-fetch.js".to_string(),
-            "object-assign" => "next/dist/build/polyfills/object-assign.js".to_string(),
-            "object.assign/auto" => "next/dist/build/polyfills/object.assign/auto.js".to_string(),
-            "object.assign/implementation" => "next/dist/build/polyfills/object.assign/implementation.js".to_string(),
-            "object.assign/polyfill" => "next/dist/build/polyfills/object.assign/polyfill.js".to_string(),
-            "object.assign/shim" => "next/dist/build/polyfills/object.assign/shim.js".to_string(),
-            "url" => "next/dist/compiled/native-url".to_string(),
-            "node:url" => "next/dist/compiled/native-url".to_string(),
+            rcstr!("unfetch") => rcstr!("next/dist/build/polyfills/fetch/index.js"),
+            rcstr!("isomorphic-unfetch") => rcstr!("next/dist/build/polyfills/fetch/index.js"),
+            rcstr!("whatwg-fetch") => rcstr!("next/dist/build/polyfills/fetch/whatwg-fetch.js"),
+            rcstr!("object-assign") => rcstr!("next/dist/build/polyfills/object-assign.js"),
+            rcstr!("object.assign/auto") => rcstr!("next/dist/build/polyfills/object.assign/auto.js"),
+            rcstr!("object.assign/implementation") => rcstr!("next/dist/build/polyfills/object.assign/implementation.js"),
+            rcstr!("object.assign/polyfill") => rcstr!("next/dist/build/polyfills/object.assign/polyfill.js"),
+            rcstr!("object.assign/shim") => rcstr!("next/dist/build/polyfills/object.assign/shim.js"),
+            rcstr!("url") => rcstr!("next/dist/compiled/native-url"),
+            rcstr!("node:url") => rcstr!("next/dist/compiled/native-url"),
         },
     );
     Ok(())
@@ -985,10 +1069,10 @@ async fn insert_next_shared_aliases(
         import_map,
         mdx_import_source_file(),
         vec![
-            request_to_import_mapping(project_path.clone(), "./mdx-components"),
-            request_to_import_mapping(project_path.clone(), "./src/mdx-components"),
-            request_to_import_mapping(project_path.clone(), "@mdx-js/react"),
-            request_to_import_mapping(project_path.clone(), "@next/mdx/mdx-components.js"),
+            request_to_import_mapping(project_path.clone(), rcstr!("./mdx-components")),
+            request_to_import_mapping(project_path.clone(), rcstr!("./src/mdx-components")),
+            request_to_import_mapping(project_path.clone(), rcstr!("@mdx-js/react")),
+            request_to_import_mapping(project_path.clone(), rcstr!("@next/mdx/mdx-components.js")),
         ],
     );
 
@@ -1012,23 +1096,27 @@ async fn insert_next_shared_aliases(
 
     import_map.insert_alias(
         // Request path from js via next-font swc transform
-        AliasPattern::exact("next/font/google/target.css"),
+        AliasPattern::exact(rcstr!("next/font/google/target.css")),
         next_font_google_replacer_mapping,
     );
 
     import_map.insert_alias(
         // Request path from js via next-font swc transform
-        AliasPattern::exact("@next/font/google/target.css"),
+        AliasPattern::exact(rcstr!("@next/font/google/target.css")),
         next_font_google_replacer_mapping,
     );
 
+    let fetch_client = next_config.fetch_client(execution_context.env());
     import_map.insert_alias(
-        AliasPattern::exact("@vercel/turbopack-next/internal/font/google/cssmodule.module.css"),
+        AliasPattern::exact(rcstr!(
+            "@vercel/turbopack-next/internal/font/google/cssmodule.module.css"
+        )),
         ImportMapping::Dynamic(ResolvedVc::upcast(
             NextFontGoogleCssModuleReplacer::new(
                 project_path.clone(),
                 execution_context,
                 next_mode,
+                fetch_client,
             )
             .to_resolved()
             .await?,
@@ -1037,9 +1125,9 @@ async fn insert_next_shared_aliases(
     );
 
     import_map.insert_alias(
-        AliasPattern::exact(GOOGLE_FONTS_INTERNAL_PREFIX),
+        AliasPattern::exact(rcstr!(GOOGLE_FONTS_INTERNAL_PREFIX)),
         ImportMapping::Dynamic(ResolvedVc::upcast(
-            NextFontGoogleFontFileReplacer::new(project_path.clone())
+            NextFontGoogleFontFileReplacer::new(project_path.clone(), fetch_client)
                 .to_resolved()
                 .await?,
         ))
@@ -1047,73 +1135,76 @@ async fn insert_next_shared_aliases(
     );
 
     let next_package = get_next_package(project_path.clone()).owned().await?;
-    import_map.insert_singleton_alias("@swc/helpers", next_package.clone());
-    import_map.insert_singleton_alias("styled-jsx", next_package.clone());
-    import_map.insert_singleton_alias("next", project_path.clone());
-    import_map.insert_singleton_alias("react", project_path.clone());
-    import_map.insert_singleton_alias("react-dom", project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("@swc/helpers"), next_package.clone());
+    import_map.insert_singleton_alias(rcstr!("styled-jsx"), next_package.clone());
+    import_map.insert_singleton_alias(rcstr!("next"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("react"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("react-dom"), project_path.clone());
     let react_client_package = get_react_client_package(next_config).await?;
     import_map.insert_exact_alias(
-        "react-dom/client",
+        rcstr!("react-dom/client"),
         request_to_import_mapping(
             project_path.clone(),
-            &format!("react-dom/{react_client_package}"),
+            format!("react-dom/{react_client_package}").into(),
         ),
     );
 
     import_map.insert_alias(
         // Make sure you can't import custom server as it'll cause all Next.js internals to be
         // bundled which doesn't work.
-        AliasPattern::exact("next"),
+        AliasPattern::exact(rcstr!("next")),
         ImportMapping::Empty.resolved_cell(),
     );
 
     //https://github.com/vercel/next.js/blob/f94d4f93e4802f951063cfa3351dd5a2325724b3/packages/next/src/build/webpack-config.ts#L1196
     import_map.insert_exact_alias(
-        "setimmediate",
-        request_to_import_mapping(project_path.clone(), "next/dist/compiled/setimmediate"),
+        rcstr!("setimmediate"),
+        request_to_import_mapping(
+            project_path.clone(),
+            rcstr!("next/dist/compiled/setimmediate"),
+        ),
     );
 
     import_map.insert_exact_alias(
-        "private-next-rsc-server-reference",
+        rcstr!("private-next-rsc-server-reference"),
         request_to_import_mapping(
             project_path.clone(),
-            "next/dist/build/webpack/loaders/next-flight-loader/server-reference",
+            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/server-reference"),
         ),
     );
     import_map.insert_exact_alias(
-        "private-next-rsc-action-client-wrapper",
+        rcstr!("private-next-rsc-action-client-wrapper"),
         request_to_import_mapping(
             project_path.clone(),
-            "next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper",
+            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper"),
         ),
     );
     import_map.insert_exact_alias(
-        "private-next-rsc-action-validate",
+        rcstr!("private-next-rsc-action-validate"),
         request_to_import_mapping(
             project_path.clone(),
-            "next/dist/build/webpack/loaders/next-flight-loader/action-validate",
+            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/action-validate"),
         ),
     );
     import_map.insert_exact_alias(
-        "private-next-rsc-action-encryption",
+        rcstr!("private-next-rsc-action-encryption"),
         request_to_import_mapping(
             project_path.clone(),
-            "next/dist/server/app-render/encryption",
+            rcstr!("next/dist/server/app-render/encryption"),
         ),
     );
     import_map.insert_exact_alias(
-        "private-next-rsc-cache-wrapper",
+        rcstr!("private-next-rsc-cache-wrapper"),
         request_to_import_mapping(
             project_path.clone(),
-            "next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper",
+            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper"),
         ),
     );
     import_map.insert_exact_alias(
-        "private-next-rsc-track-dynamic-import",
+        rcstr!("private-next-rsc-track-dynamic-import"),
         request_to_import_mapping(
             project_path.clone(),
-            "next/dist/build/webpack/loaders/next-flight-loader/track-dynamic-import",
+            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/track-dynamic-import"),
         ),
     );
 
@@ -1125,15 +1216,15 @@ async fn insert_next_shared_aliases(
     );
 
     let image_config = next_config.image_config().await?;
-    if let Some(loader_file) = image_config.loader_file.as_deref() {
+    if let Some(loader_file) = image_config.loader_file.as_deref().map(RcStr::from) {
         import_map.insert_exact_alias(
-            "next/dist/shared/lib/image-loader",
-            request_to_import_mapping(project_path.clone(), loader_file),
+            rcstr!("next/dist/shared/lib/image-loader"),
+            request_to_import_mapping(project_path.clone(), loader_file.clone()),
         );
 
         if is_runtime_edge {
             import_map.insert_exact_alias(
-                "next/dist/esm/shared/lib/image-loader",
+                rcstr!("next/dist/esm/shared/lib/image-loader"),
                 request_to_import_mapping(project_path.clone(), loader_file),
             );
         }
@@ -1208,12 +1299,12 @@ fn export_value_to_import_mapping(
 fn insert_exact_alias_map(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
-    map: FxIndexMap<&'static str, String>,
+    map: FxIndexMap<RcStr, RcStr>,
 ) {
     for (pattern, request) in map {
         import_map.insert_exact_alias(
             pattern,
-            request_to_import_mapping(project_path.clone(), &request),
+            request_to_import_mapping(project_path.clone(), request),
         );
     }
 }
@@ -1221,12 +1312,12 @@ fn insert_exact_alias_map(
 fn insert_wildcard_alias_map(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
-    map: FxIndexMap<&'static str, String>,
+    map: FxIndexMap<RcStr, RcStr>,
 ) {
     for (pattern, request) in map {
         import_map.insert_wildcard_alias(
             pattern,
-            request_to_import_mapping(project_path.clone(), &request),
+            request_to_import_mapping(project_path.clone(), request),
         );
     }
 }
@@ -1234,7 +1325,7 @@ fn insert_wildcard_alias_map(
 /// Inserts an alias to an alternative of import mappings into an import map.
 fn insert_alias_to_alternatives<'a>(
     import_map: &mut ImportMap,
-    alias: impl Into<String> + 'a,
+    alias: impl Into<RcStr> + 'a,
     alternatives: Vec<ResolvedVc<ImportMapping>>,
 ) {
     import_map.insert_exact_alias(
@@ -1271,12 +1362,15 @@ async fn insert_instrumentation_client_alias(
 ) -> Result<()> {
     insert_alias_to_alternatives(
         import_map,
-        "private-next-instrumentation-client",
+        rcstr!("private-next-instrumentation-client"),
         vec![
-            request_to_import_mapping(project_path.clone(), "./src/instrumentation-client"),
-            request_to_import_mapping(project_path.clone(), "./src/instrumentation-client.ts"),
-            request_to_import_mapping(project_path.clone(), "./instrumentation-client"),
-            request_to_import_mapping(project_path.clone(), "./instrumentation-client.ts"),
+            request_to_import_mapping(project_path.clone(), rcstr!("./src/instrumentation-client")),
+            request_to_import_mapping(
+                project_path.clone(),
+                rcstr!("./src/instrumentation-client.ts"),
+            ),
+            request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client")),
+            request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client.ts")),
             ImportMapping::Ignore.resolved_cell(),
         ],
     );
@@ -1287,30 +1381,30 @@ async fn insert_instrumentation_client_alias(
 // To alias e.g. both `import "next/link"` and `import "next/link.js"`
 fn insert_exact_alias_or_js(
     import_map: &mut ImportMap,
-    pattern: &str,
+    pattern: RcStr,
     mapping: ResolvedVc<ImportMapping>,
 ) {
-    import_map.insert_exact_alias(pattern, mapping);
     import_map.insert_exact_alias(format!("{pattern}.js"), mapping);
+    import_map.insert_exact_alias(pattern, mapping);
 }
 
 /// Creates a direct import mapping to the result of resolving a request
 /// in a context.
 fn request_to_import_mapping(
     context_path: FileSystemPath,
-    request: &str,
+    request: RcStr,
 ) -> ResolvedVc<ImportMapping> {
-    ImportMapping::PrimaryAlternative(request.into(), Some(context_path)).resolved_cell()
+    ImportMapping::PrimaryAlternative(request, Some(context_path)).resolved_cell()
 }
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
 fn external_request_to_cjs_import_mapping(
     context_dir: FileSystemPath,
-    request: &str,
+    request: RcStr,
 ) -> ResolvedVc<ImportMapping> {
     ImportMapping::PrimaryAlternativeExternal {
-        name: Some(request.into()),
+        name: Some(request),
         ty: ExternalType::CommonJs,
         traced: ExternalTraced::Traced,
         lookup_dir: context_dir,
@@ -1322,10 +1416,10 @@ fn external_request_to_cjs_import_mapping(
 /// request.
 fn external_request_to_esm_import_mapping(
     context_dir: FileSystemPath,
-    request: &str,
+    request: RcStr,
 ) -> ResolvedVc<ImportMapping> {
     ImportMapping::PrimaryAlternativeExternal {
-        name: Some(request.into()),
+        name: Some(request),
         ty: ExternalType::EcmaScriptModule,
         traced: ExternalTraced::Traced,
         lookup_dir: context_dir,

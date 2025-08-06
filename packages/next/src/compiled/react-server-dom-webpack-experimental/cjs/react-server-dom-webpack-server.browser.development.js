@@ -666,8 +666,8 @@
         var callsite = stack[i],
           functionName = callsite[0];
         var url = callsite[1];
-        if (url.startsWith("rsc://React/")) {
-          var envIdx = url.indexOf("/", 12),
+        if (url.startsWith("about://React/")) {
+          var envIdx = url.indexOf("/", 14),
             suffixIdx = url.lastIndexOf("?");
           -1 < envIdx &&
             -1 < suffixIdx &&
@@ -731,23 +731,25 @@
                 style = previousPrepare[env + 1],
                 badge = previousPrepare[env + 2];
               "string" === typeof format &&
-              format.startsWith("%c%s%c ") &&
+              format.startsWith("%c%s%c") &&
               "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px" ===
                 style &&
               "string" === typeof badge
-                ? (previousPrepare.splice(env, 4, format.slice(7)),
+                ? ((format = format.slice(6)),
+                  " " === format[0] && (format = format.slice(1)),
+                  previousPrepare.splice(env, 4, format),
                   (env = badge.slice(1, badge.length - 1)))
                 : (env = null);
             }
             null === env && (env = (0, request.environmentName)());
             null != error && outlineComponentInfo(request, error);
-            format = [methodName, JSCompiler_inline_result, error, env];
-            format.push.apply(format, previousPrepare);
+            badge = [methodName, JSCompiler_inline_result, error, env];
+            badge.push.apply(badge, previousPrepare);
             previousPrepare = serializeDebugModel(
               request,
               (null === request.deferredDebugObjects ? 500 : 10) +
                 JSCompiler_inline_result.length,
-              format
+              badge
             );
             "[" !== previousPrepare[0] &&
               (previousPrepare = serializeDebugModel(
@@ -1298,11 +1300,12 @@
           task.debugStack,
           task.debugTask
         );
+      (task = iterable._debugInfo) &&
+        forwardDebugInfo(request, streamTask, task);
       request.pendingChunks++;
-      task = streamTask.id.toString(16) + ":" + (isIterator ? "x" : "X") + "\n";
-      request.completedRegularChunks.push(stringToChunk(task));
-      (iterable = iterable._debugInfo) &&
-        forwardDebugInfo(request, streamTask, iterable);
+      isIterator =
+        streamTask.id.toString(16) + ":" + (isIterator ? "x" : "X") + "\n";
+      request.completedRegularChunks.push(stringToChunk(isIterator));
       request.cacheController.signal.addEventListener("abort", abortIterable);
       callIteratorInDEV(iterator, progress, error);
       return serializeByValueID(streamTask.id);
@@ -1516,6 +1519,9 @@
         Component,
         props
       );
+      task.debugOwner = componentDebugInfo;
+      task.debugStack = null;
+      task.debugTask = null;
       Component = task.keyPath;
       componentDebugInfo = task.implicitSlot;
       null !== key
@@ -3487,15 +3493,18 @@
                   "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
                 )
               ),
-            (request.status = CLOSED),
             null !== request.destination &&
-              (request.destination.close(), (request.destination = null)),
+              ((request.status = CLOSED),
+              request.destination.close(),
+              (request.destination = null)),
             null !== request.debugDestination &&
               (request.debugDestination.close(),
               (request.debugDestination = null)))
           : null !== importsChunks &&
             null !== request.destination &&
-            (request.destination.close(), (request.destination = null)));
+            ((request.status = CLOSED),
+            request.destination.close(),
+            (request.destination = null)));
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
@@ -4721,6 +4730,8 @@
               throw Error(
                 "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
               );
+            case "then":
+              return;
           }
           throw Error(
             "Cannot access " +

@@ -29,10 +29,14 @@ const encoder = new TextEncoder()
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
 ): ReadableStream<T> {
-  // We could encode this invariant in the arguments but current uses of this function pass
-  // use spread so it would be missed by
+  // If we have no streams, return an empty stream. This behavior is
+  // intentional as we're now providing the `RenderResult.EMPTY` value.
   if (streams.length === 0) {
-    throw new Error('Invariant: chainStreams requires at least one stream')
+    return new ReadableStream<T>({
+      start(controller) {
+        controller.close()
+      },
+    })
   }
 
   // If we only have 1 stream we fast path it by returning just this stream
@@ -263,21 +267,39 @@ function createMetadataTransformStream(
       // Check if icon mark is inside <head> tag in the first chunk.
       if (chunkIndex === 0) {
         closedHeadIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
-        // The mark icon is located in the 1st chunk before the head tag.
-        // We do not need to insert the script tag in this case because it's in the head.
-        // Just remove the icon mark from the chunk.
-        if (iconMarkIndex < closedHeadIndex && iconMarkIndex !== -1) {
-          const replaced = new Uint8Array(chunk.length - iconMarkLength)
+        if (iconMarkIndex !== -1) {
+          // The mark icon is located in the 1st chunk before the head tag.
+          // We do not need to insert the script tag in this case because it's in the head.
+          // Just remove the icon mark from the chunk.
+          if (iconMarkIndex < closedHeadIndex) {
+            const replaced = new Uint8Array(chunk.length - iconMarkLength)
 
-          // Remove the icon mark from the chunk.
-          replaced.set(chunk.subarray(0, iconMarkIndex))
-          replaced.set(
-            chunk.subarray(iconMarkIndex + iconMarkLength),
-            iconMarkIndex
-          )
-          chunk = replaced
+            // Remove the icon mark from the chunk.
+            replaced.set(chunk.subarray(0, iconMarkIndex))
+            replaced.set(
+              chunk.subarray(iconMarkIndex + iconMarkLength),
+              iconMarkIndex
+            )
+            chunk = replaced
+          } else {
+            // The icon mark is after the head tag, replace and insert the script tag at that position.
+            const insertion = await insert()
+            const encodedInsertion = encoder.encode(insertion)
+            const insertionLength = encodedInsertion.length
+            const replaced = new Uint8Array(
+              chunk.length - iconMarkLength + insertionLength
+            )
+            replaced.set(chunk.subarray(0, iconMarkIndex))
+            replaced.set(encodedInsertion, iconMarkIndex)
+            replaced.set(
+              chunk.subarray(iconMarkIndex + iconMarkLength),
+              iconMarkIndex + insertionLength
+            )
+            chunk = replaced
+          }
           isMarkRemoved = true
         }
+        // If there's no icon mark located, it will be handled later when if present in the following chunks.
       } else {
         // When it's appeared in the following chunks, we'll need to
         // remove the mark and then insert the script tag at that position.

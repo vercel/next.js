@@ -3,8 +3,9 @@ use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
     app_structure::{
-        AppPageLoaderTree, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints,
-        FileSystemPathVec, MetadataItem, get_entrypoints,
+        AppPageLoaderTree, CollectedRootParams, Entrypoint as AppEntrypoint,
+        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, collect_root_params,
+        get_entrypoints,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
@@ -65,7 +66,7 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
-    reference_type::{CssReferenceSubType, ReferenceType},
+    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -202,6 +203,11 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    async fn collected_root_params(self: Vc<Self>) -> Result<Vc<CollectedRootParams>> {
+        Ok(collect_root_params(self.app_entrypoints()))
+    }
+
+    #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_client_module_options_context(
             self.project().project_path().owned().await?,
@@ -295,6 +301,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            Some(self.collected_root_params()),
         ))
     }
 
@@ -306,6 +313,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            Some(self.collected_root_params()),
         ))
     }
 
@@ -317,6 +325,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            Some(self.collected_root_params()),
         ))
     }
 
@@ -330,6 +339,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            Some(self.collected_root_params()),
         ))
     }
 
@@ -627,6 +637,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            None, // root params are not available in client modules
         ))
     }
 
@@ -638,6 +649,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            None, // root params are not available in client modules
         ))
     }
 
@@ -840,6 +852,7 @@ impl AppProject {
             Request::parse(Pattern::Constant(rcstr!(
                 "next/dist/client/app-next-turbopack.js"
             ))),
+            CommonJsReferenceSubType::Undefined,
             None,
             false,
         )
@@ -976,7 +989,9 @@ pub fn app_entry_point_to_route(
     entrypoint: AppEntrypoint,
 ) -> Vc<Route> {
     match entrypoint {
-        AppEntrypoint::AppPage { pages, loader_tree } => Route::AppPage(
+        AppEntrypoint::AppPage {
+            pages, loader_tree, ..
+        } => Route::AppPage(
             pages
                 .into_iter()
                 .map(|page| AppPageRoute {
@@ -1010,6 +1025,7 @@ pub fn app_entry_point_to_route(
             page,
             path,
             root_layouts,
+            ..
         } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
@@ -1021,7 +1037,7 @@ pub fn app_entry_point_to_route(
                 .resolved_cell(),
             ),
         },
-        AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
+        AppEntrypoint::AppMetadata { page, metadata, .. } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
                 AppEndpoint {
@@ -1162,30 +1178,33 @@ impl AppEndpoint {
             None,
             /// Emit the manifest for basic Next.js functionality (e.g. app-build-manifest.json)
             Minimal,
-            /// All manifests: `Minimal` plus client-references, next-dynamic, ...
+            /// All manifests: `Minimal` plus next-font, next-dynamic, ...
             Full,
         }
-        let (process_client_assets, process_ssr, emit_manifests) = match &this.ty {
-            AppEndpointType::Page { ty, .. } => (
-                true,
-                matches!(ty, AppPageEndpointType::Html),
-                if matches!(ty, AppPageEndpointType::Html) {
-                    EmitManifests::Full
-                } else {
-                    EmitManifests::None
-                },
-            ),
-            AppEndpointType::Route { .. } => (false, false, EmitManifests::Full),
-            AppEndpointType::Metadata { metadata } => (
-                false,
-                false,
-                if matches!(metadata, MetadataItem::Dynamic { .. }) {
-                    EmitManifests::Full
-                } else {
-                    EmitManifests::Minimal
-                },
-            ),
-        };
+        let (process_client_assets, process_ssr, emit_manifests, emit_rsc_manifests) =
+            match &this.ty {
+                AppEndpointType::Page { ty, .. } => (
+                    true,
+                    matches!(ty, AppPageEndpointType::Html),
+                    if matches!(ty, AppPageEndpointType::Html) {
+                        EmitManifests::Full
+                    } else {
+                        EmitManifests::None
+                    },
+                    matches!(ty, AppPageEndpointType::Html),
+                ),
+                AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal, true),
+                AppEndpointType::Metadata { metadata } => (
+                    false,
+                    false,
+                    if matches!(metadata, MetadataItem::Dynamic { .. }) {
+                        EmitManifests::Full
+                    } else {
+                        EmitManifests::Minimal
+                    },
+                    matches!(metadata, MetadataItem::Dynamic { .. }),
+                ),
+            };
 
         let node_root = project.node_root().owned().await?;
         let client_relative_path = project.client_relative_path().owned().await?;
@@ -1337,6 +1356,7 @@ impl AppEndpoint {
             .chunk_path(
                 Some(Vc::upcast(polyfill_source)),
                 polyfill_source.ident(),
+                None,
                 rcstr!(".js"),
             )
             .owned()
@@ -1433,7 +1453,7 @@ impl AppEndpoint {
                 .runtime_chunking_context(process_client_assets, runtime),
         )
         .await?;
-        if emit_manifests == EmitManifests::Full {
+        if emit_rsc_manifests {
             server_assets.insert(server_action_manifest.manifest);
         }
 
@@ -1459,7 +1479,7 @@ impl AppEndpoint {
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
 
-        if emit_manifests == EmitManifests::Full {
+        if emit_rsc_manifests {
             let entry_manifest =
                 ClientReferenceManifest::build_output(ClientReferenceManifestOptions {
                     node_root: node_root.clone(),
@@ -1481,7 +1501,8 @@ impl AppEndpoint {
                 middleware_assets.insert(entry_manifest);
             }
             client_reference_manifest = Some(entry_manifest);
-
+        }
+        if emit_manifests == EmitManifests::Full {
             let next_font_manifest_output = create_font_manifest(
                 project.client_root().owned().await?,
                 node_root.clone(),
@@ -1503,11 +1524,16 @@ impl AppEndpoint {
                 //
                 // they are created in `setup-dev-bundler.ts`
                 let mut file_paths_from_root = fxindexset![
-                    rcstr!("server/server-reference-manifest.js"),
                     rcstr!("server/middleware-build-manifest.js"),
-                    rcstr!("server/next-font-manifest.js"),
                     rcstr!("server/interception-route-rewrite-manifest.js"),
                 ];
+                if emit_manifests == EmitManifests::Full {
+                    file_paths_from_root.insert(rcstr!("server/next-font-manifest.js"));
+                };
+                if emit_rsc_manifests {
+                    file_paths_from_root.insert(rcstr!("server/server-reference-manifest.js"));
+                }
+
                 let mut wasm_paths_from_root = fxindexset![];
 
                 let node_root_value = node_root.clone();
@@ -1555,7 +1581,8 @@ impl AppEndpoint {
                     file_paths_from_root.extend(
                         get_js_paths_from_root(&node_root_value, &loadable_manifest_output).await?,
                     );
-
+                }
+                if emit_manifests != EmitManifests::None {
                     // create middleware manifest
                     let named_regex = get_named_middleware_regex(&app_entry.pathname);
                     let matchers = MiddlewareMatcher {
@@ -1926,10 +1953,10 @@ impl Endpoint for AppEndpoint {
         };
 
         async move {
-            let output = self.output().await?;
-            let output_assets = self.output().output_assets();
-            let node_root = this.app_project.project().node_root();
-            let node_root_ref = &node_root.await?;
+            let output = self.output();
+            let output_assets = output.output_assets();
+            let output = output.await?;
+            let node_root = &*this.app_project.project().node_root().await?;
 
             let (server_paths, client_paths) = if this
                 .app_project
@@ -1958,7 +1985,7 @@ impl Endpoint for AppEndpoint {
 
             let written_endpoint = match *output {
                 AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
-                    server_entry_path: node_root_ref
+                    server_entry_path: node_root
                         .get_path_to(&*rsc_chunk.path().await?)
                         .context("Node.js chunk entry path must be inside the node root")?
                         .to_string(),

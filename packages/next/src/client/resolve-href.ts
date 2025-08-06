@@ -8,6 +8,8 @@ import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateAs } from '../shared/lib/router/utils/interpolate-as'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 
 /**
  * Resolves a given hyperlink with a certain router state (basePath not included).
@@ -56,10 +58,39 @@ export function resolveHref(
   }
 
   try {
-    base = new URL(
-      urlAsString.startsWith('#') ? router.asPath : router.pathname,
-      'http://n'
-    )
+    let baseBase = urlAsString.startsWith('#') ? router.asPath : router.pathname
+
+    // If the provided href is only a query string, it is safer to use the asPath
+    // considering rewrites.
+    if (urlAsString.startsWith('?')) {
+      baseBase = router.asPath
+
+      // However, if is a dynamic route, we need to use the pathname to preserve the
+      // query interpolation and rewrites (router.pathname will look like "/[slug]").
+      if (isDynamicRoute(router.pathname)) {
+        baseBase = router.pathname
+
+        const routeRegex = getRouteRegex(router.pathname)
+        const match = getRouteMatcher(routeRegex)(router.asPath)
+
+        // For dynamic routes, if asPath doesn't match the pathname regex, it is a rewritten path.
+        // In this case, should use asPath to preserve the current URL.
+        if (!match) {
+          baseBase = router.asPath
+        }
+
+        // Note: There is an edge case where the pathname is dynamic, and also a rewrite path to the same segment.
+        // E.g. in "/[slug]" path, rewrite "/foo" -> "/bar"
+
+        // In this case, it will be treated as a non-rewritten path and possibly interpolate the query string.
+        // E.g., "/any?slug=foo" will become the content of "/foo", not rewritten as "/bar"
+
+        // This is currently a trade-off of not resolving rewrite paths on every Router/Link call,
+        // but using a lighter route regex pattern check.
+      }
+    }
+
+    base = new URL(baseBase, 'http://n')
   } catch (_) {
     // fallback to / for invalid asPath values e.g. //
     base = new URL('/', 'http://n')

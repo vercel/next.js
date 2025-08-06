@@ -1,5 +1,10 @@
 import { useEffect } from 'react'
 
+export const getShadowRoot = () => {
+  const portal = document.querySelector('nextjs-portal')
+  return portal?.shadowRoot
+}
+
 export function useFocusTrap(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null> | null,
@@ -56,6 +61,7 @@ export function useFocusTrap(
       clearTimeout(id)
       rootNode?.removeEventListener('keydown', onTab)
     }
+    // eslint-disable-next-line react-hooks/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active])
 }
@@ -80,11 +86,12 @@ function getFocusableNodes(node: HTMLElement): [HTMLElement, HTMLElement] | [] {
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-export function useClickOutside(
+// TODO: split up escape and click outside logic
+export function useClickOutsideAndEscape(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   active: boolean,
-  close: () => void,
+  close: (reason: 'escape' | 'outside') => void,
   ownerDocument?: Document
 ) {
   useEffect(() => {
@@ -100,40 +107,49 @@ export function useClickOutside(
         return
       }
 
+      const cushion = 10
+
       if (
         !(rootRef.current?.getBoundingClientRect()
-          ? event.clientX >= rootRef.current.getBoundingClientRect()!.left &&
-            event.clientX <= rootRef.current.getBoundingClientRect()!.right &&
-            event.clientY >= rootRef.current.getBoundingClientRect()!.top &&
-            event.clientY <= rootRef.current.getBoundingClientRect()!.bottom
+          ? event.clientX >=
+              rootRef.current.getBoundingClientRect()!.left - cushion &&
+            event.clientX <=
+              rootRef.current.getBoundingClientRect()!.right + cushion &&
+            event.clientY >=
+              rootRef.current.getBoundingClientRect()!.top - cushion &&
+            event.clientY <=
+              rootRef.current.getBoundingClientRect()!.bottom + cushion
           : false) &&
         !(triggerRef.current?.getBoundingClientRect()
-          ? event.clientX >= triggerRef.current.getBoundingClientRect()!.left &&
+          ? event.clientX >=
+              triggerRef.current.getBoundingClientRect()!.left - cushion &&
             event.clientX <=
-              triggerRef.current.getBoundingClientRect()!.right &&
-            event.clientY >= triggerRef.current.getBoundingClientRect()!.top &&
-            event.clientY <= triggerRef.current.getBoundingClientRect()!.bottom
+              triggerRef.current.getBoundingClientRect()!.right + cushion &&
+            event.clientY >=
+              triggerRef.current.getBoundingClientRect()!.top - cushion &&
+            event.clientY <=
+              triggerRef.current.getBoundingClientRect()!.bottom + cushion
           : false)
       ) {
-        close()
+        close('outside')
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        close()
+        close('escape')
       }
     }
 
     ownerDocumentEl?.addEventListener('mousedown', handleClickOutside)
+
     ownerDocumentEl?.addEventListener('keydown', handleKeyDown)
 
     return () => {
       ownerDocumentEl?.removeEventListener('mousedown', handleClickOutside)
       ownerDocumentEl?.removeEventListener('keydown', handleKeyDown)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, rootRef, triggerRef])
+  }, [active, close, ownerDocument, rootRef, triggerRef])
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

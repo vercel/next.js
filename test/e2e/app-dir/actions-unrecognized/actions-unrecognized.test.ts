@@ -152,9 +152,8 @@ describe('unrecognized server actions', () => {
 
           if (isNextDeploy) {
             // FIXME: When deployed to vercel, the request is logged as a 500, but returns a 405.
-            // We also don't seem to display the error page correctly,
-            // and the response is inconsistent between nodejs and edge.
-            expect(response.status()).toBe(runtime === 'nodejs' ? 405 : 500)
+            // We also don't seem to display the error page correctly
+            expect(response.status()).toBe(405)
             expect(response.headers()['content-type']).toStartWith('text/html')
           } else {
             // FIXME: Currently, an unrecognized id in an MPA action results in a 500.

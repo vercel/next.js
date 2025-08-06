@@ -141,7 +141,7 @@ impl RuleCondition {
                         let content_type = &source.ident().await?.content_type;
                         return Ok(content_type
                             .as_ref()
-                            .is_some_and(|ct| ct.starts_with(start)));
+                            .is_some_and(|ct| ct.starts_with(start.as_str())));
                     }
                     RuleCondition::ContentTypeEmpty => {
                         return Ok(source.ident().await?.content_type.is_none());

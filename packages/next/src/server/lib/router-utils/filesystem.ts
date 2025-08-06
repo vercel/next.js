@@ -107,9 +107,6 @@ export async function setupFsCheck(opts: {
   dev: boolean
   minimalMode?: boolean
   config: NextConfigComplete
-  addDevWatcherCallback?: (
-    arg: (files: Map<string, { timestamp: number }>) => void
-  ) => void
 }) {
   const getItemsLru = !opts.dev
     ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
@@ -281,6 +278,12 @@ export async function setupFsCheck(opts: {
     }
 
     for (const route of routesManifest.dynamicRoutes) {
+      // If a route is marked as skipInternalRouting, it's not for the internal
+      // router, and instead has been added to support external routers.
+      if (route.skipInternalRouting) {
+        continue
+      }
+
       dynamicRoutes.push({
         ...route,
         match: getRouteMatcher(getRouteRegex(route.page)),
@@ -611,8 +614,14 @@ export async function setupFsCheck(opts: {
               itemsRoot = publicFolderPath
               break
             }
-            default: {
+            case 'appFile':
+            case 'pageFile':
+            case 'nextImage':
+            case 'devVirtualFsItem': {
               break
+            }
+            default: {
+              ;(type) satisfies never
             }
           }
 
@@ -650,16 +659,19 @@ export async function setupFsCheck(opts: {
               }
             } else if (type === 'pageFile' || type === 'appFile') {
               const isAppFile = type === 'appFile'
-              if (
-                ensureFn &&
-                (await ensureFn({
-                  type,
-                  itemPath: isAppFile
-                    ? normalizeMetadataRoute(curItemPath)
-                    : curItemPath,
-                })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
-              ) {
-                continue
+
+              // Attempt to ensure the page/app file is compiled and ready
+              if (ensureFn) {
+                const ensureItemPath = isAppFile
+                  ? normalizeMetadataRoute(curItemPath)
+                  : curItemPath
+
+                try {
+                  await ensureFn({ type, itemPath: ensureItemPath })
+                } catch (error) {
+                  // If ensure failed, skip this item and continue to the next one
+                  continue
+                }
               }
             } else {
               continue

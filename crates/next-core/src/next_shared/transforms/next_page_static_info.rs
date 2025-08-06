@@ -39,8 +39,9 @@ pub fn get_next_page_static_info_assert_rule(
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![transformer]),
-            append: ResolvedVc::cell(vec![]),
+            preprocess: ResolvedVc::cell(vec![transformer]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![]),
         }],
     )
 }

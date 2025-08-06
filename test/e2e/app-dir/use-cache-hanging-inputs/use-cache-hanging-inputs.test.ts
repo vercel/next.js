@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import escapeStringRegexp from 'escape-string-regexp'
 import {
   getRedboxDescription,
   getRedboxSource,
@@ -47,7 +48,7 @@ describe('use-cache-hanging-inputs', () => {
 
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-           "app/search-params/page.tsx (3:16) @ [project]/app/search-params/page.tsx [app-rsc] (ecmascript)
+           "app/search-params/page.tsx (3:16) @ {module evaluation}
 
              1 | 'use cache'
              2 |
@@ -59,7 +60,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at [project]/app/search-params/page.tsx [app-rsc] (ecmascript)`)
+    at __TURBOPACK__module__evaluation__`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
            "app/search-params/page.tsx (3:16) @ eval
@@ -74,7 +75,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/search-params/page.tsx:3:15)`)
+    at eval (app/search-params/page.tsx:3:16)`)
         }
       }, 180_000)
     })
@@ -101,7 +102,7 @@ describe('use-cache-hanging-inputs', () => {
 
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-           "app/search-params-caught/page.tsx (1:1) @ [project]/app/search-params-caught/page.tsx [app-rsc] (ecmascript)
+           "app/search-params-caught/page.tsx (1:1) @ {module evaluation}
 
            > 1 | async function getSearchParam({
                | ^
@@ -111,7 +112,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at [project]/app/search-params-caught/page.tsx [app-rsc] (ecmascript)`)
+    at __TURBOPACK__module__evaluation__`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
            "app/search-params-caught/page.tsx (1:1) @ eval
@@ -124,7 +125,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/search-params-caught/page.tsx:1:0)`)
+    at eval (app/search-params-caught/page.tsx:1:1)`)
         }
       }, 180_000)
     })
@@ -164,7 +165,7 @@ describe('use-cache-hanging-inputs', () => {
 
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise/page.tsx (10:13) @ [project]/app/uncached-promise/page.tsx [app-rsc] (ecmascript)
+           "app/uncached-promise/page.tsx (10:13) @ {module evaluation}
 
               8 | }
               9 |
@@ -176,7 +177,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at [project]/app/uncached-promise/page.tsx [app-rsc] (ecmascript)`)
+    at __TURBOPACK__module__evaluation__`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
            "app/uncached-promise/page.tsx (10:13) @ eval
@@ -191,7 +192,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/uncached-promise/page.tsx:10:12)`)
+    at eval (app/uncached-promise/page.tsx:10:13)`)
         }
       }, 180_000)
     })
@@ -218,7 +219,7 @@ describe('use-cache-hanging-inputs', () => {
 
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise-nested/page.tsx (16:1) @ [project]/app/uncached-promise-nested/page.tsx [app-rsc] (ecmascript)
+           "app/uncached-promise-nested/page.tsx (16:1) @ {module evaluation}
 
              14 | }
              15 |
@@ -230,7 +231,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at [project]/app/uncached-promise-nested/page.tsx [app-rsc] (ecmascript)`)
+    at __TURBOPACK__module__evaluation__`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
            "app/uncached-promise-nested/page.tsx (16:1) @ eval
@@ -245,7 +246,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/uncached-promise-nested/page.tsx:16:0)`)
+    at eval (app/uncached-promise-nested/page.tsx:16:1)`)
         }
       }, 180_000)
     })
@@ -273,19 +274,19 @@ describe('use-cache-hanging-inputs', () => {
 
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-            "app/bound-args/page.tsx (13:15) @ [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)
+           "app/bound-args/page.tsx (13:15) @ {module evaluation}
 
-              11 |   const uncachedDataPromise = fetchUncachedData()
-              12 |
-            > 13 |   const Foo = async () => {
-                 |               ^
-              14 |     'use cache'
-              15 |
-              16 |     return ("
+             11 |   const uncachedDataPromise = fetchUncachedData()
+             12 |
+           > 13 |   const Foo = async () => {
+                |               ^
+             14 |     'use cache'
+             15 |
+             16 |     return ("
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)`)
+    at __TURBOPACK__module__evaluation__`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
             "app/bound-args/page.tsx (13:15) @ eval
@@ -300,7 +301,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/bound-args/page.tsx:13:14)`)
+    at eval (app/bound-args/page.tsx:13:15)`)
         }
       }, 180_000)
     })
@@ -323,11 +324,16 @@ describe('use-cache-hanging-inputs', () => {
       })
     })
   } else {
+    // TODO: Be more precise about the expected error messages and stacks.
     it('should fail the build with errors after a timeout', async () => {
       const { cliOutput } = await next.build()
 
-      expect(cliOutput).toInclude(
-        createExpectedBuildErrorMessage('/error', 'kaputt!')
+      expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/error'))
+      expect(cliOutput).toInclude('Error: kaputt!')
+
+      expect(cliOutput).toIncludeRepeated(
+        escapeStringRegexp(expectedTimeoutErrorMessage),
+        6
       )
 
       expect(cliOutput).toInclude(
@@ -357,10 +363,6 @@ describe('use-cache-hanging-inputs', () => {
   }
 })
 
-function createExpectedBuildErrorMessage(
-  pathname: string,
-  errorMessage: string = expectedTimeoutErrorMessage
-) {
-  return `Error occurred prerendering page "${pathname}". Read more: https://nextjs.org/docs/messages/prerender-error
-Error: ${errorMessage}`
+function createExpectedBuildErrorMessage(pathname: string) {
+  return `Error occurred prerendering page "${pathname}". Read more: https://nextjs.org/docs/messages/prerender-error`
 }

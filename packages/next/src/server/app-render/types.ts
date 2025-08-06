@@ -36,7 +36,22 @@ export type DynamicParamTypesShort = s.Infer<typeof dynamicParamTypesSchema>
 
 const segmentSchema = s.union([
   s.string(),
-  s.tuple([s.string(), s.string(), dynamicParamTypesSchema]),
+  s.union([
+    s.tuple([s.string(), s.string(), dynamicParamTypesSchema]),
+    // On the client, the dynamic param array contains an additional
+    // slot for param value.
+    s.tuple([
+      // Param name
+      s.string(),
+      // Param cache key (almost the same as the value, but arrays are
+      // concatenated into strings)
+      s.string(),
+      // Dynamic param type
+      dynamicParamTypesSchema,
+      // Param value (the one passed to components)
+      s.nullable(s.union([s.string(), s.array(s.string())])),
+    ]),
+  ]),
 ])
 
 export type Segment = s.Infer<typeof segmentSchema>
@@ -57,6 +72,7 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
         s.literal('refetch'),
         s.literal('refresh'),
         s.literal('inside-shared-layout'),
+        s.literal('metadata-only'),
       ])
     )
   ),
@@ -87,6 +103,9 @@ export type FlightRouterState = [
    *   treated as new regardless. If it does match, though, the server does not
    *   need to render it, because the client already has it.
    *
+   * - "metadata-only" instructs the server to skip rendering the segments and
+   *   only send the head data.
+   *
    *   A bit confusing, but that's because it has only one extremely narrow use
    *   case — during a non-PPR prefetch, the server uses it to find the first
    *   loading boundary beneath a shared layout.
@@ -95,7 +114,12 @@ export type FlightRouterState = [
    *   make sense for the client to send a FlightRouterState, since this type is
    *   overloaded with concerns.
    */
-  refresh?: 'refetch' | 'refresh' | 'inside-shared-layout' | null,
+  refresh?:
+    | 'refetch'
+    | 'refresh'
+    | 'inside-shared-layout'
+    | 'metadata-only'
+    | null,
   isRootLayout?: boolean,
   /**
    * Only present when responding to a tree prefetch request. Indicates whether
@@ -235,7 +259,7 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    dynamicIO: boolean
+    cacheComponents: boolean
     clientSegmentCache: boolean | 'client-only'
     dynamicOnHover: boolean
     inlineCss: boolean
@@ -304,6 +328,9 @@ export type InitialRSCPayload = {
   b: string
   /** assetPrefix */
   p: string
+  // TODO: This isn't really the "canonical" URL (which we usually use to refer
+  // to the URL shown in the browser), it's the URL used to render the page,
+  // which may have been rewritten on the server.
   /** initialCanonicalUrlParts */
   c: string[]
   /** couldBeIntercepted */
@@ -324,6 +351,11 @@ export type InitialRSCPayload = {
 export type NavigationFlightResponse = {
   /** buildId */
   b: string
+  // TODO: This isn't really the "canonical" URL (which we usually use to refer
+  // to the URL shown in the browser), it's the URL used to render the page,
+  // which may have been rewritten on the server.
+  /** canonicalUrlParts */
+  c: string[]
   /** flightData */
   f: FlightData
   /** prerendered */
@@ -336,6 +368,11 @@ export type ActionFlightResponse = {
   a: ActionResult
   /** buildId */
   b: string
+  // TODO: This isn't really the "canonical" URL (which we usually use to refer
+  // to the URL shown in the browser), it's the URL used to render the page,
+  // which may have been rewritten on the server.
+  /** canonicalUrlParts */
+  c: string[]
   /** flightData */
   f: FlightData
 }

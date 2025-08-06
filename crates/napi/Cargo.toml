@@ -17,6 +17,7 @@ plugin = [
     "swc_core/plugin_transform_host_native",
     "swc_core/plugin_transform_host_native_filesystem_cache",
     "swc_core/plugin_transform_host_native_shared_runtime",
+    "swc_core/plugin_backend_wasmer",
     "next-custom-transforms/plugin",
     "next-core/plugin",
     "turbopack-ecmascript-plugins",
@@ -58,6 +59,7 @@ anyhow = "1.0.66"
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 either = { workspace = true }
+futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
 napi-derive = "2"
@@ -81,6 +83,7 @@ swc_core = { workspace = true, features = [
     "ecma_ast",
     "ecma_ast_serde",
     "ecma_codegen",
+    "ecma_helpers_inline",
     "ecma_loader_lru",
     "ecma_loader_node",
     "ecma_minifier",

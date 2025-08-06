@@ -58,13 +58,14 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
       // Use lsof on Unix-like systems (macOS, Linux)
       if (process.platform !== 'win32') {
         exec(
-          `lsof -ti:${port}`,
+          `lsof -ti:${port} -sTCP:LISTEN`,
           { signal: processLookupController.signal },
           (error, stdout) => {
             if (error) {
               handleError(error)
               return
             }
+            // `-sTCP` will ensure there's only one port, clean up output
             const pid = stdout.trim()
             resolve(pid || null)
           }
@@ -79,11 +80,18 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
               handleError(error)
               return
             }
-            const lines = stdout.trim().split('\n')
-            if (lines.length > 0) {
-              const parts = lines[0].trim().split(/\s+/)
-              const pid = parts[parts.length - 1]
-              resolve(pid || null)
+            // Clean up output and extract PID
+            const cleanOutput = stdout.replace(/\s+/g, ' ').trim()
+            if (cleanOutput) {
+              const lines = cleanOutput.split('\n')
+              const firstLine = lines[0].trim()
+              if (firstLine) {
+                const parts = firstLine.split(' ')
+                const pid = parts[parts.length - 1]
+                resolve(pid || null)
+              } else {
+                resolve(null)
+              }
             } else {
               resolve(null)
             }

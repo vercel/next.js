@@ -21,7 +21,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    EcmascriptModuleContent, EcmascriptOptions,
+    EcmascriptModuleContent,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
@@ -394,7 +394,6 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
         EcmascriptChunkItemContent::new(
             self.module.content(),
             *self.chunking_context,
-            EcmascriptOptions::default().cell(),
             async_module_options,
         )
     }

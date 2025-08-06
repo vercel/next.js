@@ -122,8 +122,6 @@ import {
 
 export * from './base-server'
 
-declare const __non_webpack_require__: NodeRequire
-
 // For module that can be both CJS or ESM
 const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
   ? (id: string) =>
@@ -219,7 +217,7 @@ function installProcessErrorHandlers(
     // Immediately log the error.
     // TODO: Ideally, if we knew that this error was triggered by application
     // code, we would suppress it entirely without logging. We can't reliably
-    // detect all of these, but when dynamicIO is enabled, we could suppress
+    // detect all of these, but when cacheComponents is enabled, we could suppress
     // at least some of them by waiting to log the error until after all in-
     // progress renders have completed. Then, only log errors for which there
     // was not a corresponding "rejectionHandled" event.
@@ -251,7 +249,6 @@ export default class NextNodeServer extends BaseServer<
   protected middlewareManifestPath: string
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
-  private registeredInstrumentation: boolean = false
   protected renderWorkersPromises?: Promise<void>
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
@@ -610,7 +607,6 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
       cacheControl: CacheControl | undefined
@@ -620,7 +616,6 @@ export default class NextNodeServer extends BaseServer<
       req: req.originalRequest,
       res: res.originalResponse,
       result: options.result,
-      type: options.type,
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       cacheControl: options.cacheControl,
@@ -666,7 +661,11 @@ export default class NextNodeServer extends BaseServer<
         }
       ) => Promise<void>
     }
-    addRequestMeta(req.originalRequest, 'projectDir', this.dir)
+    addRequestMeta(
+      req.originalRequest,
+      'relativeProjectDir',
+      relative(process.cwd(), this.dir)
+    )
     addRequestMeta(req.originalRequest, 'distDir', this.distDir)
     await module.handler(req.originalRequest, res.originalResponse, {
       waitUntil: this.getWaitUntil(),
@@ -1096,22 +1095,27 @@ export default class NextNodeServer extends BaseServer<
       throw new Error('Invariant: pathname is undefined')
     }
 
-    // This is a catch-all route, there should be no fallbacks so mark it as
-    // such.
-    addRequestMeta(req, 'bubbleNoFallback', true)
+    // When in minimal mode we do not bubble the fallback as the
+    // router-server is not present to handle the error
+    addRequestMeta(req, 'bubbleNoFallback', this.minimalMode ? undefined : true)
 
-    // TODO: this is only needed until route-module can handle
-    // rendering/serving the 404 directly with next-server
+    // This is needed to expose render404 and nextConfig
+    // for environments without router-server
     if (!routerServerGlobal[RouterServerContextSymbol]) {
       routerServerGlobal[RouterServerContextSymbol] = {}
     }
     const relativeProjectDir = relative(process.cwd(), this.dir)
+    const existingServerContext =
+      routerServerGlobal[RouterServerContextSymbol][relativeProjectDir]
 
-    if (!routerServerGlobal[RouterServerContextSymbol][relativeProjectDir]) {
+    if (!existingServerContext) {
       routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
         render404: this.render404.bind(this),
       }
     }
+    routerServerGlobal[RouterServerContextSymbol][
+      relativeProjectDir
+    ].nextConfig = this.nextConfig
 
     try {
       // next.js core assumes page path without trailing slash
@@ -1538,10 +1542,6 @@ export default class NextNodeServer extends BaseServer<
 
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
-      if (!this.nextConfig.experimental.nodeMiddleware) {
-        return
-      }
-
       try {
         const functionsConfig = this.renderOpts.dev
           ? {}
