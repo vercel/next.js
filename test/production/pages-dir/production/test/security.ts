@@ -330,7 +330,9 @@ export default (next: NextInstance) => {
             next.appPort,
             '/_next/image?url=%2Fxss.svg&w=256&q=75'
           )
-          expect(await browser.elementById('msg').text()).toBe('safe')
+          expect(await browser.elementByCss('body').text()).toBe(
+            "The requested resource isn't a valid image."
+          )
         } finally {
           if (browser) await browser.close()
         }

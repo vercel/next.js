@@ -196,6 +196,72 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
   })
 
+  it('should maintain icns', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.icns' }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/x-icns')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=0, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.icns"`
+    )
+    await expectWidth(res, 256)
+  })
+
+  it('should maintain jxl', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.jxl' }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/jxl')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=0, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.jxl"`
+    )
+    // JXL is a bypass type, served as-is without processing
+    // image-size@1.0.0 doesn't support JXL, so skip width check
+  })
+
+  it('should maintain heic', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.heic' }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/heic')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=0, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.heic"`
+    )
+    // HEIC is a bypass type, served as-is without processing
+    // image-size@1.0.0 doesn't support HEIC, so skip width check
+  })
+
+  it('should maintain jp2', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.jp2' }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/jp2')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.jp2"`
+    )
+    await expectWidth(res, 1)
+  })
+
   it('should maintain animated gif', async () => {
     const query = { w: ctx.w, q: 90, url: '/animated.gif' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
@@ -264,6 +330,13 @@ export function runTests(ctx) {
     expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
+  it('should not forward cookie header', async () => {
+    const query = { w: ctx.w, q: 30, url: '/api/conditional-cookie' }
+    const opts = { headers: { accept: 'image/webp', cookie: '1' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+  })
+
   if (ctx.dangerouslyAllowSVG) {
     it('should maintain vector svg', async () => {
       const query = { w: ctx.w, q: 90, url: '/test.svg' }
@@ -288,7 +361,6 @@ export function runTests(ctx) {
         'utf8'
       )
       expect(actual).toMatch(expected)
-      expect(ctx.nextOutput).not.toContain('The requested resource')
     })
   } else {
     it('should not allow vector svg', async () => {
@@ -305,7 +377,7 @@ export function runTests(ctx) {
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(400)
       expect(await res.text()).toContain(
-        "The requested resource isn't a valid image"
+        '"url" parameter is valid but image type is not allowed'
       )
     })
 
@@ -315,7 +387,7 @@ export function runTests(ctx) {
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(400)
       expect(await res.text()).toContain(
-        "The requested resource isn't a valid image"
+        '"url" parameter is valid but image type is not allowed'
       )
     })
 
@@ -330,6 +402,16 @@ export function runTests(ctx) {
     })
   }
 
+  it('should not allow pdf format', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.pdf' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toContain(
+      "The requested resource isn't a valid image"
+    )
+  })
+
   it('should maintain ico format', async () => {
     const query = { w: ctx.w, q: 90, url: `/test.ico` }
     const opts = { headers: { accept: 'image/webp' } }
@@ -337,7 +419,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/x-icon')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
@@ -933,8 +1015,8 @@ export function runTests(ctx) {
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
-    expect(await res.text()).toBe(
-      `Unable to optimize image and unable to fallback to upstream image`
+    expect(await res.text()).toContain(
+      "The requested resource isn't a valid image"
     )
   })
 
@@ -1179,7 +1261,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/bmp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     // bmp is compressible so will have accept-encoding set from
     // compression

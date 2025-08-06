@@ -37,12 +37,19 @@ const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
+const JXL = 'image/jxl'
+const JP2 = 'image/jp2'
+const HEIC = 'image/heic'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const ICO = 'image/x-icon'
+const ICNS = 'image/x-icns'
+const TIFF = 'image/tiff'
+const BMP = 'image/bmp'
+const PDF = 'application/pdf'
 const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const VECTOR_TYPES = [SVG]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
@@ -118,7 +125,9 @@ async function writeToCacheDir(
  * it matches the "magic number" of known file signatures.
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
-export function detectContentType(buffer: Buffer) {
+export async function detectContentType(
+  buffer: Buffer
+): Promise<string | null> {
   if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
     return JPEG
   }
@@ -152,6 +161,72 @@ export function detectContentType(buffer: Buffer) {
   if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
     return ICO
   }
+  if ([0x69, 0x63, 0x6e, 0x73].every((b, i) => buffer[i] === b)) {
+    return ICNS
+  }
+  if ([0x49, 0x49, 0x2a, 0x00].every((b, i) => buffer[i] === b)) {
+    return TIFF
+  }
+  if ([0x42, 0x4d].every((b, i) => buffer[i] === b)) {
+    return BMP
+  }
+  if ([0xff, 0x0a].every((b, i) => buffer[i] === b)) {
+    return JXL
+  }
+  if (
+    [
+      0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
+    ].every((b, i) => buffer[i] === b)
+  ) {
+    return JXL
+  }
+  if (
+    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return HEIC
+  }
+  if ([0x25, 0x50, 0x44, 0x46, 0x2d].every((b, i) => buffer[i] === b)) {
+    return PDF
+  }
+  if (
+    [
+      0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
+    ].every((b, i) => buffer[i] === b)
+  ) {
+    return JP2
+  }
+
+  // Fallback to sharp if available
+  if (sharp) {
+    const meta = await sharp(buffer)
+      .metadata()
+      .catch((_) => null)
+    switch (meta?.format) {
+      case 'avif':
+        return AVIF
+      case 'webp':
+        return WEBP
+      case 'png':
+        return PNG
+      case 'jpeg':
+      case 'jpg':
+        return JPEG
+      case 'gif':
+        return GIF
+      case 'svg':
+        return SVG
+      case 'tiff':
+      case 'tif':
+        return TIFF
+      case 'heif':
+        return HEIC
+      default:
+        return null
+    }
+  }
+
   return null
 }
 
@@ -594,7 +669,6 @@ export async function fetchInternalImage(
     const mocked = createRequestResponseMocks({
       url: href,
       method: _req.method || 'GET',
-      headers: _req.headers,
       socket: _req.socket,
     })
 
@@ -640,45 +714,41 @@ export async function imageOptimizer(
   const { href, quality, width, mimeType } = paramsResult
   const upstreamBuffer = imageUpstream.buffer
   const maxAge = getMaxAge(imageUpstream.cacheControl)
-  const upstreamType =
-    detectContentType(upstreamBuffer) ||
-    imageUpstream.contentType?.toLowerCase().trim()
+  const upstreamType = await detectContentType(upstreamBuffer)
 
-  if (upstreamType) {
-    if (
-      upstreamType.startsWith('image/svg') &&
-      !nextConfig.images.dangerouslyAllowSVG
-    ) {
-      Log.error(
-        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
-      )
-      throw new ImageError(
-        400,
-        '"url" parameter is valid but image type is not allowed'
-      )
-    }
-
-    if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
-      Log.warnOnce(
-        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
-      )
-      return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
-    }
-    if (VECTOR_TYPES.includes(upstreamType)) {
-      // We don't warn here because we already know that "dangerouslyAllowSVG"
-      // was enabled above, therefore the user explicitly opted in.
-      // If we add more VECTOR_TYPES besides SVG, perhaps we could warn for those.
-      return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
-    }
-    if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
-      Log.error(
-        "The requested resource isn't a valid image for",
-        href,
-        'received',
-        upstreamType
-      )
-      throw new ImageError(400, "The requested resource isn't a valid image.")
-    }
+  if (
+    !upstreamType ||
+    !upstreamType.startsWith('image/') ||
+    upstreamType.includes(',')
+  ) {
+    Log.error(
+      "The requested resource isn't a valid image for",
+      href,
+      'received',
+      upstreamType
+    )
+    throw new ImageError(400, "The requested resource isn't a valid image.")
+  }
+  if (
+    upstreamType.startsWith('image/svg') &&
+    !nextConfig.images.dangerouslyAllowSVG
+  ) {
+    Log.error(
+      `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
+    )
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but image type is not allowed'
+    )
+  }
+  if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
+    Log.warnOnce(
+      `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
+    )
+    return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
+  }
+  if (BYPASS_TYPES.includes(upstreamType)) {
+    return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
   }
 
   let contentType: string
@@ -686,7 +756,6 @@ export async function imageOptimizer(
   if (mimeType) {
     contentType = mimeType
   } else if (
-    upstreamType?.startsWith('image/') &&
     getExtension(upstreamType) &&
     upstreamType !== WEBP &&
     upstreamType !== AVIF
