@@ -7,33 +7,6 @@ import {
   type ReadyRuntimeError,
 } from '../../utils/get-error-by-type'
 
-function usePersistentCacheErrorDetection({
-  errors,
-}: {
-  errors: readonly SupportedErrorEvent[]
-  dispatch: OverlayDispatch
-}) {
-  useEffect(() => {
-    const isTurbopackWithCache =
-      process.env.__NEXT_BUNDLER?.toUpperCase() === 'TURBOPACK' &&
-      process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE
-    const firstError = errors[0]?.error
-
-    if (isTurbopackWithCache && firstError) {
-      const errorKey = `__next_error_overlay:${window.location.pathname}:${firstError.message}`
-      
-      const handleBeforeUnload = () => {
-        sessionStorage.setItem(errorKey, '1')
-      }
-
-      window.addEventListener('beforeunload', handleBeforeUnload)
-      return () => {
-        window.removeEventListener('beforeunload', handleBeforeUnload)
-      }
-    }
-  }, [errors])
-}
-
 export type SupportedErrorEvent = {
   id: number
   error: Error
@@ -95,8 +68,6 @@ const RenderRuntimeError = ({
 
     return [ready, next]
   }, [errors, lookups])
-
-  usePersistentCacheErrorDetection({ errors, dispatch })
 
   useEffect(() => {
     if (nextError == null) {
