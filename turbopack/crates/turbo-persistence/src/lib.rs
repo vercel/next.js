@@ -8,6 +8,7 @@ mod arc_slice;
 mod collector;
 mod collector_entry;
 mod compaction;
+mod compression;
 mod constants;
 mod db;
 mod key;

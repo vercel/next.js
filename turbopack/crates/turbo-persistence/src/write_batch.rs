@@ -10,7 +10,6 @@ use std::{
 use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
-use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
 use parking_lot::Mutex;
 use smallvec::SmallVec;
 use thread_local::ThreadLocal;
@@ -19,6 +18,7 @@ use crate::{
     ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
+    compression::compress_into_buffer,
     constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     key::StoreKey,
     meta_file_builder::MetaFileBuilder,
@@ -390,7 +390,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut buffer = Vec::new();
         buffer.write_u32::<BE>(value.len() as u32)?;
-        lz4::compress_to_vec(value, &mut buffer, ACC_LEVEL_DEFAULT)
+        compress_into_buffer(value, None, true, &mut buffer)
             .context("Compression of value for blob file failed")?;
 
         let file = self.db_path.join(format!("{seq:08}.blob"));

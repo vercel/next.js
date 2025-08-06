@@ -2,15 +2,12 @@ use std::{
     cmp::Ordering,
     fs::File,
     hash::BuildHasherDefault,
-    mem::{MaybeUninit, transmute},
     ops::Range,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
-use lzzzz::lz4::decompress_with_dict;
 use memmap2::Mmap;
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
@@ -18,6 +15,7 @@ use rustc_hash::FxHasher;
 use crate::{
     QueryKey,
     arc_slice::ArcSlice,
+    compression::decompress_into_arc,
     lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
 };
 
@@ -326,6 +324,7 @@ impl StaticSortedFile {
         self.read_block(
             block_index,
             &self.mmap[self.meta.key_compression_dictionary_range()],
+            false,
         )
     }
 
@@ -334,14 +333,25 @@ impl StaticSortedFile {
         self.read_block(
             block_index,
             &self.mmap[self.meta.value_compression_dictionary_range()],
+            false,
         )
     }
 
     /// Reads a block from the file.
-    fn read_block(&self, block_index: u16, compression_dictionary: &[u8]) -> Result<ArcSlice<u8>> {
+    fn read_block(
+        &self,
+        block_index: u16,
+        compression_dictionary: &[u8],
+        long_term: bool,
+    ) -> Result<ArcSlice<u8>> {
         let (uncompressed_length, block) = self.get_compressed_block(block_index)?;
 
-        let buffer = decompress_into_arc(uncompressed_length, block, compression_dictionary)?;
+        let buffer = decompress_into_arc(
+            uncompressed_length,
+            block,
+            Some(compression_dictionary),
+            long_term,
+        )?;
         Ok(ArcSlice::from(buffer))
     }
 
@@ -585,28 +595,4 @@ fn get_key_entry<'l>(
             bail!("Invalid key block entry type");
         }
     })
-}
-
-pub fn decompress_into_arc(
-    uncompressed_length: u32,
-    block: &[u8],
-    compression_dictionary: &[u8],
-) -> Result<Arc<[u8]>> {
-    // We directly allocate the buffer in an Arc to avoid copying it into an Arc and avoiding
-    // double indirection. This is a dynamically sized arc.
-    let buffer = Arc::new_zeroed_slice(uncompressed_length as usize);
-    // Safety: MaybeUninit<u8> can be safely transmuted to u8.
-    // Safety: decompress_with_dict will only write to `buffer` and not read from it.
-    // Safety: We check that decompress_with_dict will write all bytes.
-    let mut buffer = unsafe { transmute::<Arc<[MaybeUninit<u8>]>, Arc<[u8]>>(buffer) };
-    // Safety: We know that the buffer is not shared yet.
-    let decompressed = unsafe { Arc::get_mut_unchecked(&mut buffer) };
-    // Safety: decompress_with_dict will only write to `decompressed` and not read from it.
-    let bytes_writes = decompress_with_dict(block, decompressed, compression_dictionary)?;
-    assert_eq!(
-        bytes_writes, uncompressed_length as usize,
-        "Decompressed length does not match expected length"
-    );
-    // Safety: The buffer is now fully initialized and can be used.
-    Ok(buffer)
 }

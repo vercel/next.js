@@ -3,19 +3,15 @@ use std::{
     collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
-    mem::{MaybeUninit, swap, transmute},
+    mem::swap,
     ops::RangeInclusive,
     path::{Path, PathBuf},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, AtomicU32, Ordering},
-    },
+    sync::atomic::{AtomicBool, AtomicU32, Ordering},
 };
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use jiff::Timestamp;
-use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
 
@@ -24,6 +20,7 @@ use crate::{
     QueryKey,
     arc_slice::ArcSlice,
     compaction::selector::{Compactable, compute_metrics, get_merge_segments},
+    compression::decompress_into_arc,
     constants::{
         AMQF_AVG_SIZE, AMQF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
@@ -392,14 +389,9 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
         #[cfg(target_os = "linux")]
         mmap.advise(memmap2::Advice::Unmergeable)?;
         let mut compressed = &mmap[..];
-        let uncompressed_length = compressed.read_u32::<BE>()? as usize;
+        let uncompressed_length = compressed.read_u32::<BE>()?;
 
-        let buffer = Arc::new_zeroed_slice(uncompressed_length);
-        // Safety: MaybeUninit<u8> can be safely transmuted to u8.
-        let mut buffer = unsafe { transmute::<Arc<[MaybeUninit<u8>]>, Arc<[u8]>>(buffer) };
-        // Safety: We know that the buffer is not shared yet.
-        let decompressed = unsafe { Arc::get_mut_unchecked(&mut buffer) };
-        decompress(compressed, decompressed)?;
+        let buffer = decompress_into_arc(uncompressed_length, compressed, None, true)?;
         Ok(ArcSlice::from(buffer))
     }
 
