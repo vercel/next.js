@@ -13,7 +13,7 @@ import SystemIcon from '../../../../icons/system-icon'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
 import { ShortcutRecorder } from './shortcut-recorder'
-import { useRestartServer } from '../../error-overlay-toolbar/use-restart-server'
+
 import { saveDevToolsConfig } from '../../../../utils/save-devtools-config'
 
 export function UserPreferences({
@@ -72,8 +72,6 @@ export function UserPreferencesBody({
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
 }) {
-  const { restartServer, isPending } = useRestartServer()
-
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const portal = document.querySelector('nextjs-portal')
     if (!portal) {
@@ -226,61 +224,6 @@ export function UserPreferencesBody({
           </div>
         </div>
       </div>
-      <h2 className="dev-tools-info-section-title">Development Server</h2>
-      <div className="preferences-container">
-        <div className="preference-section">
-          <div className="preference-header">
-            <label id="restart-dev-server">Restart Dev Server</label>
-            <p className="preference-description">
-              Restarts the development server without needing to leave the
-              browser.
-            </p>
-          </div>
-          <div className="preference-control">
-            <button
-              aria-describedby="restart-dev-server"
-              title="Restarts the development server without needing to leave the browser."
-              name="restart-dev-server"
-              data-restart-dev-server
-              className="action-button"
-              onClick={() =>
-                restartServer({ invalidatePersistentCache: false })
-              }
-              disabled={isPending}
-            >
-              <span>Restart</span>
-            </button>
-          </div>
-        </div>
-      </div>
-      {process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE ? (
-        <div className="preferences-container">
-          <div className="preference-section">
-            <div className="preference-header">
-              <label id="reset-bundler-cache">Reset Bundler Cache</label>
-              <p className="preference-description">
-                Clears the bundler cache and restarts the dev server. Helpful if
-                you are seeing stale errors or changes are not appearing.
-              </p>
-            </div>
-            <div className="preference-control">
-              <button
-                aria-describedby="reset-bundler-cache"
-                title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
-                name="reset-bundler-cache"
-                data-reset-bundler-cache
-                className="action-button"
-                onClick={() =>
-                  restartServer({ invalidatePersistentCache: true })
-                }
-                disabled={isPending}
-              >
-                <span>Reset Cache</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   )
 }
